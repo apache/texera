@@ -63,7 +63,12 @@ describe("MenuComponent", () => {
   let notificationService: NotificationService;
   let location: Location;
   let validationStream$: BehaviorSubject<ValidationOutput>;
-  let driveServiceMock: { getToken: ReturnType<typeof vi.fn>; onConnected: ReturnType<typeof vi.fn>; connect: ReturnType<typeof vi.fn>; exportToDrive: ReturnType<typeof vi.fn> };
+  let driveServiceMock: {
+    getToken: ReturnType<typeof vi.fn>;
+    onConnected: ReturnType<typeof vi.fn>;
+    connect: ReturnType<typeof vi.fn>;
+    exportToDrive: ReturnType<typeof vi.fn>;
+  };
   let driveConnected$: Subject<void>;
 
   beforeEach(async () => {

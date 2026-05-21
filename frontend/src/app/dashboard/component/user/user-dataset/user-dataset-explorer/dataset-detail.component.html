@@ -195,8 +195,14 @@
           </button>
           <nz-dropdown-menu #fileExportMenu="nzDropdownMenu">
             <ul nz-menu>
-              <li nz-menu-item (click)="onClickDownloadCurrentFile()">Download</li>
-              <li nz-menu-item (click)="onClickDriveExportFile()">
+              <li
+                nz-menu-item
+                (click)="onClickDownloadCurrentFile()">
+                Download
+              </li>
+              <li
+                nz-menu-item
+                (click)="onClickDriveExportFile()">
                 {{ isDriveConnected ? 'Export to Drive' : 'Connect to Drive' }}
               </li>
             </ul>
@@ -318,8 +324,14 @@
               </button>
               <nz-dropdown-menu #versionExportMenu="nzDropdownMenu">
                 <ul nz-menu>
-                  <li nz-menu-item (click)="onClickDownloadVersionAsZip()">Download</li>
-                  <li nz-menu-item (click)="onClickDriveExportVersion()">
+                  <li
+                    nz-menu-item
+                    (click)="onClickDownloadVersionAsZip()">
+                    Download
+                  </li>
+                  <li
+                    nz-menu-item
+                    (click)="onClickDriveExportVersion()">
                     {{ isDriveConnected ? 'Export to Drive' : 'Connect to Drive' }}
                   </li>
                 </ul>

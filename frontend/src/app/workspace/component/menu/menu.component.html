@@ -146,8 +146,14 @@
         </button>
         <nz-dropdown-menu #exportWorkflowMenu="nzDropdownMenu">
           <ul nz-menu>
-            <li nz-menu-item (click)="onClickExportWorkflow()">Download</li>
-            <li nz-menu-item (click)="onClickDriveExportWorkflow()">
+            <li
+              nz-menu-item
+              (click)="onClickExportWorkflow()">
+              Download
+            </li>
+            <li
+              nz-menu-item
+              (click)="onClickDriveExportWorkflow()">
               {{ isDriveConnected ? 'Export to Drive' : 'Connect to Drive' }}
             </li>
           </ul>

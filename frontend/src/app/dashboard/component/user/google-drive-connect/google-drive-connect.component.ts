@@ -30,15 +30,35 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
   template: `
     <div>
       <p>Google Drive Status: {{ status }}</p>
-      <button nz-button nzType="primary" (click)="connect()" [disabled]="status === 'connected'">
-        <span nz-icon nzType="google" nzTheme="outline"></span>
+      <button
+        nz-button
+        nzType="primary"
+        (click)="connect()"
+        [disabled]="status === 'connected'">
+        <span
+          nz-icon
+          nzType="google"
+          nzTheme="outline"></span>
         Connect Google Drive
       </button>
-      <button nz-button nzDanger style="margin-left: 8px" (click)="reconnect()" *ngIf="status === 'connected'">
+      <button
+        nz-button
+        nzDanger
+        style="margin-left: 8px"
+        (click)="reconnect()"
+        *ngIf="status === 'connected'">
         Reconnect
       </button>
-      <button nz-button nzType="default" style="margin-left: 8px" (click)="openFolderPicker()" *ngIf="status === 'connected'">
-        <span nz-icon nzType="folder-open" nzTheme="outline"></span>
+      <button
+        nz-button
+        nzType="default"
+        style="margin-left: 8px"
+        (click)="openFolderPicker()"
+        *ngIf="status === 'connected'">
+        <span
+          nz-icon
+          nzType="folder-open"
+          nzTheme="outline"></span>
         Choose Export Folder
       </button>
       <p *ngIf="selectedFolder">Export to: {{ selectedFolder.name }}</p>

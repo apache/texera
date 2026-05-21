@@ -222,12 +222,20 @@
       [(nzVisible)]="exportMenuVisible"
       nzOverlayClassName="export-dropdown-menu"
       [nzDropdownMenu]="exportMenu">
-      <i nz-icon nzType="cloud-download"></i>
+      <i
+        nz-icon
+        nzType="cloud-download"></i>
     </button>
     <nz-dropdown-menu #exportMenu="nzDropdownMenu">
       <ul nz-menu>
-        <li nz-menu-item (click)="onClickDownload()">Download</li>
-        <li nz-menu-item (click)="onClickDriveAction()">
+        <li
+          nz-menu-item
+          (click)="onClickDownload()">
+          Download
+        </li>
+        <li
+          nz-menu-item
+          (click)="onClickDriveAction()">
           {{ isDriveConnected ? 'Export to Drive' : 'Connect to Drive' }}
         </li>
       </ul>

@@ -104,7 +104,7 @@ export class DriveService {
                     result$.next();
                     result$.complete();
                   },
-                  error: err => result$.error(err),
+                  error: (err: unknown) => result$.error(err),
                 });
               });
             } else if (data.action === google.picker.Action.CANCEL) {
@@ -197,6 +197,6 @@ export class DriveService {
 
   private async getAccessToken(): Promise<string | null> {
     const res = await firstValueFrom(this.getToken());
-    return res.status === "ok" ? (res.accessToken ?? null) : null;
+    return res.status === "ok" ? res.accessToken ?? null : null;
   }
 }
