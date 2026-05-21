@@ -49,6 +49,18 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
   @JsonPropertyDescription("Specify how many parallel workers to launch")
   var workers: Int = 1
 
+  @JsonProperty(required = true, defaultValue = "true")
+  @JsonSchemaTitle("Default Python Environment")
+  @JsonPropertyDescription("Use Default Python Environment")
+  var defaultEnv: Boolean = Boolean.box(true)
+
+  @JsonProperty()
+  @JsonSchemaTitle("Virtual Environment")
+  @JsonPropertyDescription(
+    "Python Environment you would like this UDF to be executed within"
+  )
+  var envName: String = ""
+
   @JsonProperty()
   @JsonSchemaTitle("Columns")
   @JsonPropertyDescription("The columns of the source")
@@ -59,6 +71,18 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     require(workers >= 1, "Need at least 1 worker.")
+
+    val pveName =
+      if (defaultEnv) ""
+      else {
+        val trimmed = envName.trim
+        if (trimmed.isEmpty)
+          throw new RuntimeException(
+            "Virtual Environment name is required when not using the default Python environment."
+          )
+        trimmed
+      }
+
     val physicalOp = PhysicalOp
       .sourcePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecWithCode(code, "python"))
       .withInputPorts(operatorInfo.inputPorts)
@@ -68,6 +92,7 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
       .withLocationPreference(Option.empty)
+      .withPveName(pveName)
 
     if (workers > 1) {
       physicalOp
