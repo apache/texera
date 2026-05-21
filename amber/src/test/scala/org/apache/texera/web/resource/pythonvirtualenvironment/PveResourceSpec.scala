@@ -149,4 +149,28 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
     Files.exists(testRoot) shouldBe false
     PveManager.getEnvironments(testCuid) shouldBe empty
   }
+
+  "PveManager.getPythonBin" should "return Some for an existing venv" in {
+    PveManager.createNewPve(testCuid, queue, testPveName, isLocal = true)
+
+    val result = PveManager.getPythonBin(testCuid, testPveName)
+    result shouldBe defined
+    result.get.toString should endWith(s"$testPveName/pve/bin/python")
+  }
+
+  it should "return None when the venv does not exist" in {
+    PveManager.getPythonBin(testCuid, "no-such-env") shouldBe None
+  }
+
+  it should "reject pveNames containing path-traversal segments" in {
+    PveManager.getPythonBin(testCuid, "..") shouldBe None
+    PveManager.getPythonBin(testCuid, "../../../etc") shouldBe None
+    PveManager.getPythonBin(testCuid, "foo/bar") shouldBe None
+  }
+
+  it should "reject pveNames with disallowed characters" in {
+    PveManager.getPythonBin(testCuid, "") shouldBe None
+    PveManager.getPythonBin(testCuid, "name with spaces") shouldBe None
+    PveManager.getPythonBin(testCuid, "name;rm") shouldBe None
+  }
 }
