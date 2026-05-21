@@ -111,6 +111,12 @@ i {
 [nz-button] {
   width: 32px;
   padding: 0;
+
+  &.export-menu-open {
+    color: #1890ff;
+    border-color: #1890ff;
+    background-color: #e6f7ff;
+  }
 }
 
 #save-state {
