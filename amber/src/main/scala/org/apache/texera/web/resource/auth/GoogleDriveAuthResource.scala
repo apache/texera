@@ -28,7 +28,12 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.config.UserSystemConfig
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import org.apache.texera.auth.JwtAuth
-import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeRequestUrl, GoogleAuthorizationCodeTokenRequest, GoogleRefreshTokenRequest, GoogleTokenResponse}
+import com.google.api.client.googleapis.auth.oauth2.{
+  GoogleAuthorizationCodeRequestUrl,
+  GoogleAuthorizationCodeTokenRequest,
+  GoogleRefreshTokenRequest,
+  GoogleTokenResponse
+}
 import com.google.api.client.auth.oauth2.TokenResponseException
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -71,7 +76,7 @@ class GoogleDriveAuthResource extends LazyLogging {
     if (refreshToken == null) {
       return Response.ok(DriveTokenIssueResponse(STATUS_NO_REFRESH_TOKEN, None)).build()
     }
-    try{
+    try {
       val tokenResponse = new GoogleRefreshTokenRequest(
         new NetHttpTransport(),
         GsonFactory.getDefaultInstance,
@@ -97,18 +102,21 @@ class GoogleDriveAuthResource extends LazyLogging {
 
   @GET
   @Path("/callback")
-  @Produces(Array(MediaType.TEXT_HTML,MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.TEXT_HTML, MediaType.APPLICATION_JSON))
   def getCallback(
-                   @QueryParam("code") @DefaultValue("") code: String,
-                   @QueryParam("state") @DefaultValue("") state: String
-                 ): Response = {
+      @QueryParam("code") @DefaultValue("") code: String,
+      @QueryParam("state") @DefaultValue("") state: String
+  ): Response = {
     if (code.isEmpty || state.isEmpty) {
       return Response.status(Response.Status.BAD_REQUEST).build()
     }
     try {
       val sessionUserOpt = JwtParser.parseToken(state)
       if (!sessionUserOpt.isPresent) {
-        return Response.status(Response.Status.UNAUTHORIZED).entity("User is not authenticated").build()
+        return Response
+          .status(Response.Status.UNAUTHORIZED)
+          .entity("User is not authenticated")
+          .build()
       }
 
       val userId = sessionUserOpt.get().getUid
@@ -146,9 +154,9 @@ class GoogleDriveAuthResource extends LazyLogging {
   @Path("/connect")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def getOAuth(
-                @Auth sessionUser: SessionUser,
-                @QueryParam("reauth") @DefaultValue("false") reauth: Boolean
-              ): Response = {
+      @Auth sessionUser: SessionUser,
+      @QueryParam("reauth") @DefaultValue("false") reauth: Boolean
+  ): Response = {
     val user = sessionUser.getUser
     val state = JwtAuth.jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES))
 
@@ -166,4 +174,3 @@ class GoogleDriveAuthResource extends LazyLogging {
     Response.ok(url).build()
   }
 }
-
