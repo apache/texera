@@ -26,15 +26,17 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 class LoopStartOpDesc extends LogicalOp {
   @JsonProperty(required = true, defaultValue = "i = 0")
   @JsonSchemaTitle("Initialization")
-  var initialization: String = _
+  var initialization: EncodableString = ""
 
   @JsonProperty(required = true, defaultValue = "table.iloc[i]")
   @JsonSchemaTitle("Output")
-  var output: String = _
+  var output: EncodableString = ""
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -61,20 +63,26 @@ class LoopStartOpDesc extends LogicalOp {
       outputPorts = List(OutputPort())
     )
 
+  // User-supplied `initialization` and `output` are interpolated via the
+  // `pyb` builder, which base64-encodes each EncodableString and renders
+  // it as a `self.decode_python_template('<b64>')` expression. This means
+  // an arbitrary user string -- including quotes, newlines, or
+  // backslashes -- can never break the surrounding Python syntax,
+  // because the user text is no longer pasted in as a raw quoted literal.
   def generatePythonCode(): String = {
-    s"""
+    pyb"""
        |from pytexera import *
        |class ProcessLoopStartOperator(LoopStartOperator):
        |    @overrides
        |    def open(self):
        |        self.state = {"loop_counter": 0}
-       |        exec("$initialization", {}, self.state)
+       |        exec($initialization, {}, self.state)
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        self.state["table"] = table
-       |        exec("output = $output", {}, self.state)
+       |        exec("output = " + $output, {}, self.state)
        |        yield self.state["output"]
-       |""".stripMargin
+       |""".encode
   }
 }

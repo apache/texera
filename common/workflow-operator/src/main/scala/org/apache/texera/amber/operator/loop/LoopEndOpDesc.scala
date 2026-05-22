@@ -26,15 +26,17 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 class LoopEndOpDesc extends LogicalOp {
   @JsonProperty(required = true, defaultValue = "i += 1")
   @JsonSchemaTitle("Update")
-  var update: String = _
+  var update: EncodableString = ""
 
   @JsonProperty(required = true, defaultValue = "i < len(table)")
   @JsonSchemaTitle("Condition")
-  var condition: String = _
+  var condition: EncodableString = ""
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -62,8 +64,14 @@ class LoopEndOpDesc extends LogicalOp {
       outputPorts = List(OutputPort())
     )
 
+  // User-supplied `update` and `condition` are interpolated via the `pyb`
+  // builder, which base64-encodes each EncodableString and renders it as
+  // a `self.decode_python_template('<b64>')` expression. This means an
+  // arbitrary user string -- including quotes, newlines, or backslashes
+  // -- can never break the surrounding Python syntax, because the user
+  // text is no longer pasted in as a raw quoted literal.
   def generatePythonCode(): String = {
-    s"""
+    pyb"""
        |from pytexera import *
        |class ProcessLoopEndOperator(LoopEndOperator):
        |    @overrides
@@ -75,13 +83,13 @@ class LoopEndOpDesc extends LogicalOp {
        |      self.state = dict(state)
        |      from pickle import loads
        |      self.state["table"] = loads(self.state["table"])
-       |      exec("$update", {}, self.state)
+       |      exec($update, {}, self.state)
        |      return None
        |
        |    @overrides
        |    def condition(self) -> bool:
-       |      exec("output = $condition", {}, self.state)
+       |      exec("output = " + $condition, {}, self.state)
        |      return self.state["output"]
-       |""".stripMargin
+       |""".encode
   }
 }
