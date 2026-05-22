@@ -232,7 +232,7 @@ export class DashboardComponent implements OnInit {
 
   isNavbarEnabled(currentRoute: string) {
     // Hide navbar for workflow workspace pages (with numeric ID)
-    if (currentRoute.match(/\/dashboard\/user\/workflow\/\d+/)) {
+    if (currentRoute.match(/\/user\/workflow\/\d+/)) {
       return false;
     }
     return true;
