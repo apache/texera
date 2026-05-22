@@ -100,8 +100,7 @@ object AccessControlResource extends LazyLogging {
       qToken.orElse(hToken).orElse(bToken).getOrElse("")
     }
     logger.info(s"token extracted from request $token")
-    // Some PVE endpoints carry the cuid in the URL path (e.g. DELETE /pve/pves/{cuid}) instead of
-    // the query string, so fall back to extracting it from the path when missing from the query.
+
     val cuid = queryParams.get("cuid").filter(_.nonEmpty).getOrElse {
       uriInfo.getPath match {
         case pvePvesCuidPath(c)     => c
