@@ -56,24 +56,15 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
     // serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 
+    environment.jersey.register(classOf[HealthCheckResource])
+
+    WorkflowCompilingService.registerAuthFeatures(environment)
+
     SqlServer.initConnection(
       StorageConfig.jdbcUrl,
       StorageConfig.jdbcUsername,
       StorageConfig.jdbcPassword
     )
-
-    environment.jersey.register(classOf[HealthCheckResource])
-
-    // Register JWT authentication filter
-    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
-
-    // Enable @Auth annotation for injecting SessionUser
-    environment.jersey.register(
-      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
-    )
-
-    // Enforce @RolesAllowed annotations on resource methods
-    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
 
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
@@ -104,6 +95,20 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
 }
 
 object WorkflowCompilingService {
+  // Registers JWT auth, @Auth injection, and @RolesAllowed enforcement.
+  def registerAuthFeatures(environment: Environment): Unit = {
+    // Register JWT authentication filter
+    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
+
+    // Enable @Auth annotation for injecting SessionUser
+    environment.jersey.register(
+      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
+    )
+
+    // Enforce @RolesAllowed annotations on resource methods
+    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
+  }
+
   def main(args: Array[String]): Unit = {
     // set the configuration file's path
     val configFilePath = Path

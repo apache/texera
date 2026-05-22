@@ -22,7 +22,6 @@ package org.apache.texera.service
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.core.setup.Environment
 import io.dropwizard.jersey.setup.JerseyEnvironment
-import io.dropwizard.jetty.MutableServletContextHandler
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -33,22 +32,12 @@ class WorkflowCompilingServiceRunSpec extends AnyFlatSpec with Matchers {
   // Verifies that the @RolesAllowed annotations on resource methods are actually
   // enforced by Jersey, which requires RolesAllowedDynamicFeature, AuthDynamicFeature,
   // and AuthValueFactoryProvider.Binder to be registered on the Jersey environment.
-  "WorkflowCompilingService.run" should "register auth + RolesAllowedDynamicFeature on the Jersey environment" in {
+  "WorkflowCompilingService.registerAuthFeatures" should "register auth + RolesAllowedDynamicFeature on the Jersey environment" in {
     val jersey = mock(classOf[JerseyEnvironment])
-    val context = mock(classOf[MutableServletContextHandler])
     val env = mock(classOf[Environment])
     when(env.jersey).thenReturn(jersey)
-    when(env.getApplicationContext).thenReturn(context)
 
-    val service = new WorkflowCompilingService
-    // run() may throw if SqlServer/StorageConfig or other side effects fail
-    // under mocks. Auth + RolesAllowedDynamicFeature registrations happen
-    // before any such failure, so the verifications below remain valid.
-    try {
-      service.run(mock(classOf[WorkflowCompilingServiceConfiguration]), env)
-    } catch {
-      case _: Throwable => // expected under mocks
-    }
+    WorkflowCompilingService.registerAuthFeatures(env)
 
     verify(jersey).register(classOf[RolesAllowedDynamicFeature])
     verify(jersey).register(org.mockito.ArgumentMatchers.any(classOf[AuthDynamicFeature]))
