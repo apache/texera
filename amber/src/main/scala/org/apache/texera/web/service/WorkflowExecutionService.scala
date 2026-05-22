@@ -67,12 +67,24 @@ class WorkflowExecutionService(
 ) extends SubscriptionManager
     with LazyLogging {
 
-  workflowContext.workflowSettings =
-    if (request.logicalPlan.operators.exists(_.isInstanceOf[LoopStartOpDesc])) {
-      request.workflowSettings.copy(executionMode = ExecutionMode.MATERIALIZED)
-    } else {
-      request.workflowSettings
-    }
+  // Loops require materialized edges to carry state between iterations.
+  // Previously we silently rewrote the user's execution mode to
+  // MATERIALIZED here, but that left the UI displaying the user's
+  // original (e.g. PIPELINED) choice while the engine ran something
+  // else -- the user had no way to tell the two had diverged. Fail
+  // loudly instead: surface a fatal error with an actionable message so
+  // the user can update the workflow setting and re-run.
+  if (
+    request.logicalPlan.operators.exists(_.isInstanceOf[LoopStartOpDesc])
+    && request.workflowSettings.executionMode != ExecutionMode.MATERIALIZED
+  ) {
+    throw new IllegalArgumentException(
+      "This workflow contains loop operators (Loop Start / Loop End), which require " +
+        "the execution mode to be MATERIALIZED. Please open Workflow Settings → " +
+        "Execution Mode, change it to Materialized, and re-run."
+    )
+  }
+  workflowContext.workflowSettings = request.workflowSettings
   val wsInput = new WebsocketInput(errorHandler)
 
   addSubscription(
