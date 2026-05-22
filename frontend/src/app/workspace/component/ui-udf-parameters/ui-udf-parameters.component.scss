@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,25 +17,21 @@
  * under the License.
  */
 
-package org.apache.texera.amber.engine.architecture.deploysemantics.deploystrategy
-
-import org.apache.pekko.actor.Address
-
-object RandomDeployment {
-  def apply() = new RandomDeployment()
+.ui-udf-parameter-row {
+  display: grid;
+  grid-template-columns: 250px 250px 1fr;
+  gap: 12px;
+  align-items: start;
 }
 
-class RandomDeployment extends DeployStrategy {
-  var available: Array[Address] = _
+.field-cell {
+  min-width: 0;
+}
 
-  override def initialize(available: Array[Address]): Unit = {
-    this.available = available
-  }
+:host ::ng-deep .ant-form-item {
+  margin-bottom: 0;
+}
 
-  override def next(): Address = {
-    if (available.isEmpty) {
-      throw new NoSuchElementException("no available addresses")
-    }
-    available(util.Random.nextInt(available.length))
-  }
+:host ::ng-deep .ant-form-item-label {
+  display: none;
 }
