@@ -82,8 +82,10 @@ class StatisticsManager {
     */
   def increaseInputStatistics(portId: PortIdentity, size: Long): Unit = {
     require(size >= 0, "Tuple size must be non-negative")
-    val (count, totalSize) = inputStatistics.getOrElse(portId, (0L, 0L))
-    inputStatistics.update(portId, (count + 1, totalSize + size))
+    inputStatistics.updateWith(portId) {
+      case Some((count, totalSize)) => Some((count + 1, totalSize + size))
+      case None                     => Some((1L, size))
+    }
   }
 
   /**
@@ -93,8 +95,10 @@ class StatisticsManager {
     */
   def increaseOutputStatistics(portId: PortIdentity, size: Long): Unit = {
     require(size >= 0, "Tuple size must be non-negative")
-    val (count, totalSize) = outputStatistics.getOrElse(portId, (0L, 0L))
-    outputStatistics.update(portId, (count + 1, totalSize + size))
+    outputStatistics.updateWith(portId) {
+      case Some((count, totalSize)) => Some((count + 1, totalSize + size))
+      case None                     => Some((1L, size))
+    }
   }
 
   /**
