@@ -39,6 +39,10 @@
   display: none;
 }
 
+::ng-deep .hide-operator-status .texera-operator-state {
+  display: none;
+}
+
 // Inline panels overlay container
 .panels-container {
   position: absolute;
