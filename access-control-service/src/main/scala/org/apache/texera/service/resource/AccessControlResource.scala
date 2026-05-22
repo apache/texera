@@ -22,7 +22,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
 import jakarta.ws.rs.core._
-import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces}
+import jakarta.ws.rs.{Consumes, DELETE, GET, POST, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
@@ -225,6 +225,15 @@ class AccessControlResource extends LazyLogging {
   ): Response = {
     logger.info("Request body: " + body)
     AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
+  }
+
+  @DELETE
+  @Path("/{path:.*}")
+  def authorizeDelete(
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders
+  ): Response = {
+    AccessControlResource.authorize(uriInfo, headers)
   }
 }
 

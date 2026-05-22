@@ -71,6 +71,7 @@ WORKDIR /texera/amber
 
 COPY --from=build /texera/amber/requirements.txt /tmp/requirements.txt
 COPY --from=build /texera/amber/operator-requirements.txt /tmp/operator-requirements.txt
+COPY --from=build /texera/amber/system-requirements-lock.txt /tmp/system-requirements-lock.txt
 
 # Install Python runtime dependencies
 RUN apt-get update && apt-get install -y \
