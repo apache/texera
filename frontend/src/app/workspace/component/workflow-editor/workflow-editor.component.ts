@@ -358,6 +358,28 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             });
         }
       });
+
+    // When operators are (re)added to the graph — e.g. after navigating back to
+    // the workflow page, where WorkspaceComponent calls reloadWorkflow and
+    // operators are recreated from the workflow JSON — restore their visual
+    // state from the cached status so completed runs don't appear to reset.
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorAddStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(operator => {
+        const statistics = this.workflowStatusService.getCurrentStatus()[operator.operatorID];
+        if (!statistics) {
+          return;
+        }
+        this.jointUIService.changeOperatorStatistics(
+          this.paper,
+          operator.operatorID,
+          statistics,
+          this.isSource(operator.operatorID),
+          this.isSink(operator.operatorID)
+        );
+      });
   }
 
   private handleRegionEvents(): void {
@@ -949,15 +971,31 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * if the operator is valid , the border of the box will be default
+   * Applies the validation result to the operator's border.
+   * - Invalid operators are drawn with a red border (validation takes priority).
+   * - Valid operators with a cached execution status keep their execution-state
+   *   border so e.g. a Completed (green) run isn't repainted gray when the user
+   *   navigates back to the workflow and reloadWorkflow re-adds the operators,
+   *   which triggers a validation pass that would otherwise overwrite the
+   *   execution-state stroke set by handleOperatorStatisticsUpdate.
+   * - Valid operators with no cached status get the default valid border.
    */
   private handleOperatorValidation(): void {
     this.validationWorkflowService
       .getOperatorValidationStream()
       .pipe(untilDestroyed(this))
-      .subscribe(value =>
-        this.jointUIService.changeOperatorColor(this.paper, value.operatorID, value.validation.isValid)
-      );
+      .subscribe(value => {
+        if (!value.validation.isValid) {
+          this.jointUIService.changeOperatorColor(this.paper, value.operatorID, false);
+          return;
+        }
+        const statistics = this.workflowStatusService.getCurrentStatus()[value.operatorID];
+        if (statistics) {
+          this.jointUIService.changeOperatorState(this.paper, value.operatorID, statistics.operatorState);
+        } else {
+          this.jointUIService.changeOperatorColor(this.paper, value.operatorID, true);
+        }
+      });
   }
 
   /**

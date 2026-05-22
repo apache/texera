@@ -42,6 +42,7 @@ import {
   mockSentimentPredicate,
 } from "../../service/workflow-graph/model/mock-workflow-data";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
+import { OperatorState } from "../../types/execute-workflow.interface";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
@@ -961,6 +962,76 @@ describe("WorkflowEditorComponent", () => {
       document.dispatchEvent(controlShitZEvent);
       fixture.detectChanges();
       expect(redoSpy).toHaveBeenCalledTimes(4);
+    });
+
+    /**
+     * Regression coverage for the bug where the operator border resets to the
+     * default (gray) when the user navigates away from and back to a workflow
+     * that has already finished executing. The visual state is driven by two
+     * separate streams that both touch rect.body/stroke: the execution status
+     * stream (sets state-derived color) and the validation stream (sets red on
+     * invalid, gray on valid). When operators are re-added by reloadWorkflow,
+     * the validation pass fires after the status repaint and used to overwrite
+     * it. handleOperatorValidation now consults the cached status before
+     * deciding which color to apply.
+     */
+    describe("operator border restoration after navigation", () => {
+      let workflowStatusService: WorkflowStatusService;
+      const cachedCompleted = {
+        [mockScanPredicate.operatorID]: {
+          operatorState: OperatorState.Completed,
+          aggregatedInputRowCount: 0,
+          inputPortMetrics: {},
+          aggregatedOutputRowCount: 0,
+          outputPortMetrics: {},
+        },
+      };
+
+      beforeEach(() => {
+        workflowStatusService = TestBed.inject(WorkflowStatusService);
+      });
+
+      it("repaints execution-state stroke for valid operators with a cached status", () => {
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue(cachedCompleted);
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
+        const changeOperatorStateSpy = vi.spyOn(jointUIService, "changeOperatorState");
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        expect(changeOperatorStateSpy).toHaveBeenCalledWith(
+          component.paper,
+          mockScanPredicate.operatorID,
+          OperatorState.Completed
+        );
+      });
+
+      it("falls back to the default valid stroke when no cached status exists", () => {
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
+        const changeOperatorColorSpy = vi.spyOn(jointUIService, "changeOperatorColor");
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        expect(changeOperatorColorSpy).toHaveBeenCalledWith(component.paper, mockScanPredicate.operatorID, true);
+      });
+
+      it("paints the invalid stroke (red) for invalid operators regardless of cached status", () => {
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue(cachedCompleted);
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: false, messages: {} });
+        const changeOperatorColorSpy = vi.spyOn(jointUIService, "changeOperatorColor");
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        // The handleOperatorValidation subscription must take the invalid branch,
+        // which paints red via changeOperatorColor and never calls
+        // changeOperatorState. (The earlier state-color paint from the operator
+        // add stream is still made, but the final visible border is red because
+        // validation runs after.)
+        expect(changeOperatorColorSpy).toHaveBeenCalledWith(component.paper, mockScanPredicate.operatorID, false);
+      });
     });
   });
 });
