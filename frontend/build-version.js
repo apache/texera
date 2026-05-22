@@ -17,17 +17,12 @@
  * under the License.
  */
 
-const { gitDescribeSync } = require("git-describe");
+const { generate } = require("build-number-generator");
 const { version } = require("./package.json");
 const { resolve, relative } = require("path");
 const { writeFileSync, existsSync, mkdirSync } = require("fs-extra");
 
-const gitInfo = gitDescribeSync({
-  dirtyMark: false,
-  dirtySemver: false,
-});
-
-gitInfo.version = version;
+const buildNumber = generate(version);
 
 if (!existsSync(__dirname + "/src/environments")) {
   mkdirSync(__dirname + "/src/environments");
@@ -37,10 +32,13 @@ writeFileSync(
   file,
   `// IMPORTANT: THIS FILE IS AUTO GENERATED! DO NOT MANUALLY EDIT OR CHECKIN!
 /* tslint:disable */
-export const Version = ${JSON.stringify(gitInfo, null, 4)};
+export const Version = {
+    "buildNumber": ${JSON.stringify(buildNumber)},
+    "version": ${JSON.stringify(version)}
+};
 /* tslint:enable */
 `,
   { encoding: "utf-8" }
 );
 
-console.log(`Wrote version info ${gitInfo.raw} to ${relative(resolve(__dirname, ".."), file)}`);
+console.log(`Wrote build number ${buildNumber} to ${relative(resolve(__dirname, ".."), file)}`);
