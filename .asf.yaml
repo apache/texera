@@ -19,6 +19,7 @@
 
 meta:
   environment: github_rulesets
+  nextgen: true
 
 github:
   description: "Human-AI Collaborative Data Science Using Visual Workflows"
