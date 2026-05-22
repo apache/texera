@@ -227,7 +227,11 @@ class TestLoopEndBase:
         class _Missing(LoopEndOperator):
             pass
 
-        with pytest.raises(TypeError, match="condition"):
+        # Match on "abstract" rather than the method name "condition":
+        # CPython's "missing abstract method" message wording has changed
+        # between releases, but it has always contained the word
+        # "abstract".
+        with pytest.raises(TypeError, match="abstract"):
             _Missing()
 
 
