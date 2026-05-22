@@ -30,6 +30,7 @@ import org.apache.texera.amber.engine.architecture.worker.statistics.{
 import scala.collection.mutable
 
 class StatisticsManager {
+  // DataProcessor
   // Plain maps (no withDefaultValue) so they survive Kryo round-trip.
   private val inputStatistics: mutable.Map[PortIdentity, (Long, Long)] =
     mutable.Map.empty
