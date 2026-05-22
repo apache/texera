@@ -30,11 +30,11 @@ import org.apache.texera.amber.engine.architecture.worker.statistics.{
 import scala.collection.mutable
 
 class StatisticsManager {
-  // DataProcessor
+  // Plain maps (no withDefaultValue) so they survive Kryo round-trip.
   private val inputStatistics: mutable.Map[PortIdentity, (Long, Long)] =
-    mutable.Map.empty.withDefaultValue((0L, 0L))
+    mutable.Map.empty
   private val outputStatistics: mutable.Map[PortIdentity, (Long, Long)] =
-    mutable.Map.empty.withDefaultValue((0L, 0L))
+    mutable.Map.empty
   private var dataProcessingTime: Long = 0L
   private var totalExecutionTime: Long = 0L
   private var workerStartTime: Long = 0L
@@ -82,7 +82,7 @@ class StatisticsManager {
     */
   def increaseInputStatistics(portId: PortIdentity, size: Long): Unit = {
     require(size >= 0, "Tuple size must be non-negative")
-    val (count, totalSize) = inputStatistics(portId)
+    val (count, totalSize) = inputStatistics.getOrElse(portId, (0L, 0L))
     inputStatistics.update(portId, (count + 1, totalSize + size))
   }
 
@@ -93,7 +93,7 @@ class StatisticsManager {
     */
   def increaseOutputStatistics(portId: PortIdentity, size: Long): Unit = {
     require(size >= 0, "Tuple size must be non-negative")
-    val (count, totalSize) = outputStatistics(portId)
+    val (count, totalSize) = outputStatistics.getOrElse(portId, (0L, 0L))
     outputStatistics.update(portId, (count + 1, totalSize + size))
   }
 
