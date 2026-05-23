@@ -1,23 +1,60 @@
-# NewGui
+# Texera Angular UI
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli)
+The web UI for [Apache Texera](https://github.com/apache/texera). An Angular
+single-page app that talks to the JVM backend services (`amber`,
+`access-control-service`, `file-service`, …) and to the agent service.
 
-## Development server
+Angular 19 (standalone components) · Vitest 4 (unit tests) ·
+`@angular/build` builder · Yarn 4 (Berry).
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+## Prerequisites
 
-## Code scaffolding
+| Tool    | Version                                                  |
+| ------- | -------------------------------------------------------- |
+| Node.js | ≥ 24.0.0                                                 |
+| Yarn    | 4.14.x (ships in-repo via `.yarn/`; no separate install) |
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+## Setup
 
-## Build
+```bash
+cd frontend
+yarn install
+```
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `-prod` flag for a production build.
+## Common commands
 
-## Running unit tests
+| What                                                  | Command                              |
+| ----------------------------------------------------- | ------------------------------------ |
+| Dev server (UI + y-websocket sidecar)                 | `yarn start` → http://localhost:4200 |
+| Production build                                      | `yarn build`                         |
+| Unit tests (jsdom, watch off)                         | `yarn test`                          |
+| Unit tests in real browser mode (Playwright Chromium) | `ng run gui:test-browser`            |
+| Unit tests with coverage in lcov form (CI shape)      | `yarn test:ci`                       |
+| Format (Prettier + ESLint --fix)                      | `yarn format:fix`                    |
+| Format check (CI shape)                               | `yarn format:ci`                     |
+| Lint only                                             | `yarn lint`                          |
+| Bundle analyzer                                       | `yarn analyze`                       |
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+Run `ng help` for the full Angular CLI surface.
 
-## Further help
+## Project layout
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+| Path                                           | What lives here                                                                                             |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `src/app/workspace/`                           | Workflow editor — operator graph, property panel, result panel, code editor.                                |
+| `src/app/dashboard/`                           | User dashboard — workflows, datasets, projects, computing units, admin.                                     |
+| `src/app/hub/`                                 | Public hub — discover and share workflows.                                                                  |
+| `src/app/common/`                              | Cross-cutting services, types, formly extensions, and shared test helpers (`common/testing/test-utils.ts`). |
+| `src/app/workspace/service/operator-metadata/` | Operator metadata service + the `Stub…Service` test doubles other specs reuse.                              |
+| `vitest.config.ts`, `vitest.browser.config.ts` | Test-runner configs (jsdom default; Playwright Chromium for SVG/pointer-heavy specs).                       |
+| `src/test-zone-setup.ts`                       | Vitest setup file — wraps `it`/`test` in an Angular ProxyZone so `fakeAsync` works.                         |
+
+## Where to read next
+
+- **Writing or fixing a unit test?** See [`TESTING.md`](TESTING.md) for the
+  Vitest stack, recipes, jsdom-vs-browser-mode decisions, anti-patterns,
+  and coverage troubleshooting.
+- **Working as (or with) an AI agent in this directory?** See
+  [`AGENTS.md`](AGENTS.md) for the scoped rules that auto-load for agents.
+- **Repo-wide contribution / PR rules?** See [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
+- **Repo-wide agent context?** See [`../AGENTS.md`](../AGENTS.md).
