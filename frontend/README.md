@@ -29,6 +29,12 @@ yarn install
 
 Run `ng help` for the full Angular CLI surface.
 
+## Testing
+
+Tests come first — write the failing test before the source change. See the repo-wide [`../AGENTS.md`](../AGENTS.md) §"Tests come first" for the TDD workflow.
+
+The full testing reference (Vitest stack, recipes, anti-patterns, coverage troubleshooting) is in [`TESTING.md`](TESTING.md).
+
 ## Project layout
 
 | Path                                           | What lives here                                                                                             |
@@ -43,5 +49,6 @@ Run `ng help` for the full Angular CLI surface.
 
 ## Where to read next
 
-- **Writing or fixing a unit test?** See [`TESTING.md`](TESTING.md) — the canonical testing reference for both humans and AI agents.
-- **Repo-wide testing philosophy** (TDD, characterization tests, every test covers a specific failure mode): [`../AGENTS.md`](../AGENTS.md) §"Tests come first".
+- **AI agent working in this directory?** [`AGENTS.md`](AGENTS.md) auto-loads as scoped rules.
+- **Repo-wide contribution / PR rules?** See [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
+- **Repo-wide agent context?** See [`../AGENTS.md`](../AGENTS.md).
