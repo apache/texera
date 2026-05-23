@@ -17,28 +17,10 @@
  * under the License.
  */
 
-const { generate } = require("build-number-generator");
-const { version } = require("./package.json");
-const { resolve, relative } = require("path");
-const { writeFileSync, existsSync, mkdirSync } = require("fs-extra");
+import { generate } from "build-number-generator";
+import { version } from "../../package.json";
 
-const buildNumber = generate(version);
-
-if (!existsSync(__dirname + "/src/environments")) {
-  mkdirSync(__dirname + "/src/environments");
-}
-const file = resolve(__dirname, "src", "environments", "version.ts");
-writeFileSync(
-  file,
-  `// IMPORTANT: THIS FILE IS AUTO GENERATED! DO NOT MANUALLY EDIT OR CHECKIN!
-/* tslint:disable */
 export const Version = {
-    "buildNumber": ${JSON.stringify(buildNumber)},
-    "version": ${JSON.stringify(version)}
+  buildNumber: generate(version),
+  version,
 };
-/* tslint:enable */
-`,
-  { encoding: "utf-8" }
-);
-
-console.log(`Wrote build number ${buildNumber} to ${relative(resolve(__dirname, ".."), file)}`);

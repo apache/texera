@@ -16,8 +16,7 @@
     "lint": "eslint ./src",
     "eslint:fix": "yarn eslint --fix ./src",
     "format:fix": "yarn prettier-eslint --write \"src/**/*.{ts,js,html,scss,less,json}\"",
-    "format:ci": "yarn prettier-eslint --list-different \"src/**/*.{ts,js,html,scss,less,json}\" && yarn eslint ./src",
-    "postinstall": "node build-version.js"
+    "format:ci": "yarn prettier-eslint --list-different \"src/**/*.{ts,js,html,scss,less,json}\" && yarn eslint ./src"
   },
   "private": true,
   "dependencies": {
