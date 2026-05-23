@@ -149,6 +149,8 @@ class GmailResource {
     val recipientEmail = if (emailMessage.receiver.isEmpty) user.getEmail else emailMessage.receiver
     sendEmail(emailMessage, recipientEmail) match {
       case Right(_) => ()
+      case Left("Invalid email format") =>
+        throw new BadRequestException("Invalid email format")
       case Left(error) =>
         throw new WebApplicationException(error, Response.Status.BAD_GATEWAY)
     }
