@@ -1,6 +1,6 @@
 # Frontend testing guide
 
-This document is the canonical reference for writing, running, and maintaining unit tests in `frontend/`. The TL;DR rules live in [`AGENTS.md`](AGENTS.md); the recipes, mental model, and troubleshooting live here.
+Canonical reference for writing, running, and maintaining unit tests in `frontend/`. Written for both human contributors and AI agents — read it on demand when [`AGENTS.md`](AGENTS.md)'s rules need a deeper recipe, the mental model behind a constraint, or troubleshooting steps.
 
 For repo-wide testing philosophy (TDD, characterization tests, "every test must cover a specific failure mode") see [`../AGENTS.md`](../AGENTS.md) "Tests come first".
 

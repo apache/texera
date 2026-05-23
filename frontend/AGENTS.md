@@ -1,6 +1,6 @@
 # AGENTS.md — frontend
 
-Scoped agent rules for `frontend/`. Loaded automatically on top of the repo-root [`AGENTS.md`](../AGENTS.md). The detailed reference for humans (and for agents that need recipes, not just rules) lives in [`TESTING.md`](TESTING.md) — read it before writing or fixing any component spec.
+Scoped agent rules for `frontend/`. Loaded automatically on top of the repo-root [`AGENTS.md`](../AGENTS.md). For recipes, the mental model behind these rules, and troubleshooting, read [`TESTING.md`](TESTING.md) — it is the canonical reference for both humans and agents and should be consulted before writing or fixing any component spec.
 
 ## Stack
 
