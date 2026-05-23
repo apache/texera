@@ -21,9 +21,9 @@ For repo-wide testing philosophy (TDD, characterization tests, "every test must 
 
 | Layer                    | Choice                                                                                                                                 |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Test framework           | Vitest 4.1.x                                                                                                                           |
+| Test framework           | Vitest                                                                                                                                 |
 | Angular test integration | `@angular/build:unit-test` builder (two targets in `angular.json`: `gui:test` and `gui:test-browser`)                                  |
-| Default DOM              | jsdom 25                                                                                                                               |
+| Default DOM              | jsdom                                                                                                                                  |
 | Real-browser DOM         | `@vitest/browser` + Playwright (Chromium, headless)                                                                                    |
 | Coverage                 | `@vitest/coverage-v8`                                                                                                                  |
 | Test setup               | `src/test-zone-setup.ts` wraps `it`/`test` in an Angular ProxyZone (Vitest does not provide one and Angular's `fakeAsync` requires it) |
@@ -210,7 +210,7 @@ it("debounces the query before firing", fakeAsync(() => {
 
 ## Standalone components
 
-Angular 19 made every newly-generated component standalone. The component itself goes into `imports:`, never `declarations:`:
+Newly-generated components are standalone. The component itself goes into `imports:`, never `declarations:`:
 
 ```ts
 TestBed.configureTestingModule({
@@ -295,7 +295,7 @@ Used historically to bypass a child template that wouldn't compile. Side effect:
 
 ### 4. `declarations: [StandaloneComponent]`
 
-Angular 19 errors out at compile time with "Component is standalone and can't be declared in any NgModule".
+Angular errors out at compile time with "Component is standalone and can't be declared in any NgModule".
 
 **Fix**: move the component to `imports:`.
 

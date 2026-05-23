@@ -2,16 +2,11 @@
 
 The web UI for [Apache Texera](https://github.com/apache/texera). An Angular single-page app that talks to the JVM backend services (`amber`, `access-control-service`, `file-service`, …) and to the agent service.
 
-Angular 19 (standalone components) · Vitest 4 (unit tests) · `@angular/build` builder · Yarn 4 (Berry).
-
-## Prerequisites
-
-| Tool    | Version                                                  |
-| ------- | -------------------------------------------------------- |
-| Node.js | ≥ 24.0.0                                                 |
-| Yarn    | 4.14.x (ships in-repo via `.yarn/`; no separate install) |
+Angular (standalone components) · Vitest (unit tests) · `@angular/build` builder · Yarn (Berry).
 
 ## Setup
+
+Requires Node.js and Yarn — see the `engines` field in `package.json` for the supported versions. Yarn ships in-repo via `.yarn/`, no separate install.
 
 ```bash
 cd frontend

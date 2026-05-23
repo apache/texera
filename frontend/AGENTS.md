@@ -4,12 +4,12 @@ Scoped agent rules for `frontend/`. Loaded automatically on top of the repo-root
 
 ## Stack
 
-Angular 19 (standalone components) · Vitest 4 · `@angular/build:unit-test` builder · jsdom by default; Playwright Chromium via `gui:test-browser` for specs that need real DOM/SVG geometry · v8 coverage. Test setup file `src/test-zone-setup.ts` wraps `it`/`test` in a ProxyZone so Angular's `fakeAsync` works under Vitest.
+Angular (standalone components) · Vitest · `@angular/build:unit-test` builder · jsdom by default; Playwright Chromium via `gui:test-browser` for specs that need real DOM/SVG geometry · v8 coverage. Test setup file `src/test-zone-setup.ts` wraps `it`/`test` in a ProxyZone so Angular's `fakeAsync` works under Vitest.
 
 ## Golden rules
 
 1. **Always call `fixture.detectChanges()` at least once.** Without it the component constructor runs but the template never does — the template is AOT-emitted code that only executes during change detection, and v8 coverage attributes template hits back to the `.html` file via source maps. No `detectChanges()` ⇒ `.component.html` stays at 0 % even when the spec passes green.
-2. **Standalone components go in `imports:`, not `declarations:`.** Angular 19 errors at compile if a standalone component appears in `declarations:`. To strip a standalone child for shallow rendering use `TestBed.overrideComponent(Parent, { set: { imports: [], schemas: [CUSTOM_ELEMENTS_SCHEMA] } })` before `compileComponents()`.
+2. **Standalone components go in `imports:`, not `declarations:`.** Angular errors at compile time if a standalone component appears in `declarations:`. To strip a standalone child for shallow rendering use `TestBed.overrideComponent(Parent, { set: { imports: [], schemas: [CUSTOM_ELEMENTS_SCHEMA] } })` before `compileComponents()`.
 3. **`beforeEach` is `async () => { ... }`, not `waitForAsync(() => …)`.** `test-zone-setup.ts` wraps `it`/`test` in a ProxyZone but not `beforeEach`; `waitForAsync` inside `beforeEach` throws "Expected to be running in 'ProxyZone'".
 
 ## Minimum viable spec template
@@ -56,7 +56,7 @@ Anything more complex (event handlers, `*ngIf` branches, async data) — read [`
 | Spec body entirely commented out, only the license header survives     | The file runs to "0 tests" and reports green; the template never renders. If a spec is dead, delete it; don't leave `//` as a graveyard.                                                |
 | `NO_ERRORS_SCHEMA` on a spec that asserts about children               | Children silently fail to render; branches inside `*ngIf="child.ready"` stay uncovered and broken templates pass. Use `MockComponent` or `overrideComponent({ set: { imports: [] } })`. |
 | `TestBed.overrideComponent(C, { set: { template: '' } })`              | Destroys the very thing under test; HTML coverage will be permanently 0 %.                                                                                                              |
-| `declarations: [StandaloneComponent]`                                  | Angular 19 throws at compile time. Use `imports:`.                                                                                                                                      |
+| `declarations: [StandaloneComponent]`                                  | Angular throws at compile time — standalone components can't be declared in an NgModule. Use `imports:`.                                                                                |
 | `beforeEach(waitForAsync(() => …))`                                    | Throws "Expected to be running in 'ProxyZone'" under Vitest. Use `async () => { … }`.                                                                                                   |
 | Spec depends on a real HTTP / WebSocket call                           | Use `HttpClientTestingModule` and stub WS observables with `Subject` / `of(...)`.                                                                                                       |
 | Inventing a one-off provider mock when a `Stub…Service` already exists | Drift: the next spec invents another mock. Reuse and extend the existing stub.                                                                                                          |
