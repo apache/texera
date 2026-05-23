@@ -76,11 +76,15 @@ class WorkerManagersSpec extends AnyFlatSpec {
     val sm = new StatisticsManager()
     sm.increaseOutputStatistics(PortIdentity(0), 30)
     sm.increaseOutputStatistics(PortIdentity(0), 70)
-    assert(sm.getOutputTupleCount == 2L)
-    val out = sm.getStatistics(nullExec).outputTupleMetrics
-    assert(out.size == 1)
-    assert(out.head.tupleMetrics.count == 2L)
-    assert(out.head.tupleMetrics.size == 100L)
+    sm.increaseOutputStatistics(PortIdentity(1), 25)
+    assert(sm.getOutputTupleCount == 3L)
+    val byPort = sm
+      .getStatistics(nullExec)
+      .outputTupleMetrics
+      .map(m => m.portId -> (m.tupleMetrics.count, m.tupleMetrics.size))
+      .toMap
+    assert(byPort(PortIdentity(0)) == (2L, 100L))
+    assert(byPort(PortIdentity(1)) == (1L, 25L))
   }
 
   it should "reject negative tuple sizes" in {
