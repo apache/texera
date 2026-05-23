@@ -18,11 +18,7 @@
  */
 
 import { Component, Input } from "@angular/core";
-import {
-  HOME,
-  HUB_DATASET_RESULT,
-  HUB_WORKFLOW_RESULT,
-} from "../../app-routing.constant";
+import { HOME, HUB_DATASET_RESULT, HUB_WORKFLOW_RESULT } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { SidebarTabs } from "../../common/type/gui-config";
 import { NgIf } from "@angular/common";

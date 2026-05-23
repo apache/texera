@@ -131,9 +131,7 @@ export class LocalLoginComponent implements OnInit {
         }),
         untilDestroyed(this)
       )
-      .subscribe(() =>
-        this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || USER_WORKFLOW)
-      );
+      .subscribe(() => this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || USER_WORKFLOW));
   }
 
   /**

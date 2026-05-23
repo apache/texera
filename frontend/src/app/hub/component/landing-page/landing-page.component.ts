@@ -24,11 +24,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
-import {
-  HOME,
-  HUB_DATASET_RESULT,
-  HUB_WORKFLOW_RESULT,
-} from "../../../app-routing.constant";
+import { HOME, HUB_DATASET_RESULT, HUB_WORKFLOW_RESULT } from "../../../app-routing.constant";
 import { UserService } from "../../../common/service/user/user.service";
 import { BrowseSectionComponent } from "../browse-section/browse-section.component";
 
