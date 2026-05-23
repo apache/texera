@@ -115,6 +115,8 @@ export class DashboardComponent implements OnInit {
   protected readonly ADMIN_GMAIL = ADMIN_GMAIL;
   protected readonly ADMIN_EXECUTION = ADMIN_EXECUTION;
   protected readonly ADMIN_SETTINGS = ADMIN_SETTINGS;
+  protected readonly ABOUT = ABOUT;
+  protected readonly String = String;
 
   constructor(
     private userService: UserService,
@@ -249,6 +251,4 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  protected readonly ABOUT = ABOUT;
-  protected readonly String = String;
 }
