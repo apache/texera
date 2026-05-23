@@ -1,11 +1,8 @@
 # Texera Angular UI
 
-The web UI for [Apache Texera](https://github.com/apache/texera). An Angular
-single-page app that talks to the JVM backend services (`amber`,
-`access-control-service`, `file-service`, …) and to the agent service.
+The web UI for [Apache Texera](https://github.com/apache/texera). An Angular single-page app that talks to the JVM backend services (`amber`, `access-control-service`, `file-service`, …) and to the agent service.
 
-Angular 19 (standalone components) · Vitest 4 (unit tests) ·
-`@angular/build` builder · Yarn 4 (Berry).
+Angular 19 (standalone components) · Vitest 4 (unit tests) · `@angular/build` builder · Yarn 4 (Berry).
 
 ## Prerequisites
 
@@ -51,10 +48,7 @@ Run `ng help` for the full Angular CLI surface.
 
 ## Where to read next
 
-- **Writing or fixing a unit test?** See [`TESTING.md`](TESTING.md) for the
-  Vitest stack, recipes, jsdom-vs-browser-mode decisions, anti-patterns,
-  and coverage troubleshooting.
-- **Working as (or with) an AI agent in this directory?** See
-  [`AGENTS.md`](AGENTS.md) for the scoped rules that auto-load for agents.
+- **Writing or fixing a unit test?** See [`TESTING.md`](TESTING.md) for the Vitest stack, recipes, jsdom-vs-browser-mode decisions, anti-patterns, and coverage troubleshooting.
+- **Working as (or with) an AI agent in this directory?** See [`AGENTS.md`](AGENTS.md) for the scoped rules that auto-load for agents.
 - **Repo-wide contribution / PR rules?** See [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
 - **Repo-wide agent context?** See [`../AGENTS.md`](../AGENTS.md).
