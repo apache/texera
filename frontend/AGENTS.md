@@ -2,7 +2,7 @@
 
 Scoped agent rules for `frontend/`. Loaded automatically on top of the repo-root [`AGENTS.md`](../AGENTS.md).
 
-**Start at [`README.md`](README.md)** for the stack, prerequisites, common commands, project layout, and the basic doc pointers. This file only carries what is not already in the README — placement rules, agent-relevant conventions, the testing checklist, and deeper pointers.
+**Start at [`README.md`](README.md)** for the stack, prerequisites, common commands, the testing entry-point, and the project layout. This file only carries what is not already in the README — placement rules, agent-relevant conventions, the testing checklist, and deeper pointers.
 
 ## Placement rules
 
@@ -29,7 +29,7 @@ Read [`TESTING.md`](TESTING.md) — the canonical testing reference for both hum
 2. Standalone components go in `imports:`, not `declarations:`.
 3. `beforeEach` is `async () => { ... }`, not `waitForAsync(() => …)`.
 
-## Pointers (deeper than the README's "Where to read next")
+## Pointers
 
 - **Repo-wide testing philosophy** ("Tests come first" — TDD, characterization tests, every test covers a specific failure mode): [`../AGENTS.md`](../AGENTS.md) §"Tests come first".
 - **Architecture map** (where the backend services live, what they own): [`../AGENTS.md`](../AGENTS.md) §"Architecture Map".

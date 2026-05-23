@@ -46,9 +46,3 @@ The full testing reference (Vitest stack, recipes, anti-patterns, coverage troub
 | `src/app/workspace/service/operator-metadata/` | Operator metadata service + the `Stub…Service` test doubles other specs reuse.                              |
 | `vitest.config.ts`, `vitest.browser.config.ts` | Test-runner configs (jsdom default; Playwright Chromium for SVG/pointer-heavy specs).                       |
 | `src/test-zone-setup.ts`                       | Vitest setup file — wraps `it`/`test` in an Angular ProxyZone so `fakeAsync` works.                         |
-
-## Where to read next
-
-- **AI agent working in this directory?** [`AGENTS.md`](AGENTS.md) auto-loads as scoped rules.
-- **Repo-wide contribution / PR rules?** See [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
-- **Repo-wide agent context?** See [`../AGENTS.md`](../AGENTS.md).
