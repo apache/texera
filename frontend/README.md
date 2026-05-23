@@ -31,7 +31,7 @@ Run `ng help` for the full Angular CLI surface.
 
 ## Testing
 
-Tests come first — write the failing test before the source change. See the repo-wide [`../AGENTS.md`](../AGENTS.md) §"Tests come first" for the TDD workflow.
+Tests come first — write the failing test before the source change.
 
 The full testing reference (Vitest stack, recipes, anti-patterns, coverage troubleshooting) is in [`TESTING.md`](TESTING.md).
 
