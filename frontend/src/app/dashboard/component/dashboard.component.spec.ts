@@ -80,8 +80,8 @@ describe("DashboardComponent", () => {
     };
 
     routerMock = {
-      events: of(new NavigationEnd(1, "/dashboard", "/dashboard")),
-      url: "/dashboard",
+      events: of(new NavigationEnd(1, "/", "/")),
+      url: "/",
       navigateByUrl: vi.fn(),
     };
 

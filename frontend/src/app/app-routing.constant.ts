@@ -17,7 +17,7 @@
  * under the License.
  */
 
-export const DASHBOARD = "/dashboard";
+export const DASHBOARD = "";
 export const DASHBOARD_HOME = `${DASHBOARD}/home`;
 export const DASHBOARD_ABOUT = `${DASHBOARD}/about`;
 
