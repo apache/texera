@@ -162,4 +162,10 @@ describe("DashboardComponent", () => {
 
     expect(fixture.debugElement.query(By.css("#powered-by"))).toBeTruthy();
   });
+
+  it("should hide the navbar on workflow workspace routes", () => {
+    expect(component.isNavbarEnabled("/user/workflow/42")).toBe(false);
+    expect(component.isNavbarEnabled("/user/workflow")).toBe(true);
+    expect(component.isNavbarEnabled("/user/project")).toBe(true);
+  });
 });
