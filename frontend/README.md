@@ -43,7 +43,5 @@ Run `ng help` for the full Angular CLI surface.
 
 ## Where to read next
 
-- **Writing or fixing a unit test?** See [`TESTING.md`](TESTING.md) — the canonical testing reference for both humans and AI agents. Covers the Vitest stack, recipes, jsdom-vs-browser-mode decisions, anti-patterns, and coverage troubleshooting.
-- **AI agent working in this directory?** [`AGENTS.md`](AGENTS.md) auto-loads as scoped rules; consult [`TESTING.md`](TESTING.md) on demand for the underlying mental model and recipes.
-- **Repo-wide contribution / PR rules?** See [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
-- **Repo-wide agent context?** See [`../AGENTS.md`](../AGENTS.md).
+- **Writing or fixing a unit test?** See [`TESTING.md`](TESTING.md) — the canonical testing reference for both humans and AI agents.
+- **Repo-wide testing philosophy** (TDD, characterization tests, every test covers a specific failure mode): [`../AGENTS.md`](../AGENTS.md) §"Tests come first".
