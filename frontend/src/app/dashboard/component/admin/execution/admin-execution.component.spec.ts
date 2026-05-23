@@ -18,12 +18,14 @@
  */
 
 import { ComponentFixture, inject, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { AdminExecutionComponent } from "./admin-execution.component";
 import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { Execution } from "../../../../common/type/execution";
 
 describe("AdminDashboardComponent", () => {
   let component: AdminExecutionComponent;
@@ -45,4 +47,23 @@ describe("AdminDashboardComponent", () => {
   it("should create", inject([HttpTestingController], () => {
     expect(component).toBeTruthy();
   }));
+
+  it("renders the workflow link to /user/workflow/<id> when the admin has access", () => {
+    component.listOfExecutions = [
+      {
+        access: true,
+        workflowId: 42,
+        workflowName: "demo workflow",
+        executionId: 1,
+        executionName: "exec",
+        userName: "alice",
+        executionStatus: "COMPLETED",
+      } as unknown as Execution,
+    ];
+    component.isLoading = false;
+    fixture.detectChanges();
+
+    const anchor = fixture.debugElement.query(By.css('a[href="/user/workflow/42"]'));
+    expect(anchor).toBeTruthy();
+  });
 });
