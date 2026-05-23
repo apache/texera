@@ -23,10 +23,10 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import {
-  DASHBOARD_HUB_DATASET_RESULT_DETAIL,
-  DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL,
-  DASHBOARD_USER_DATASET,
-  DASHBOARD_USER_WORKSPACE,
+  HUB_DATASET_RESULT_DETAIL,
+  HUB_WORKFLOW_RESULT_DETAIL,
+  USER_DATASET,
+  USER_WORKSPACE,
 } from "../../../app-routing.constant";
 import { AppSettings } from "../../../common/app-setting";
 import { NgIf, NgFor, NgStyle, DatePipe } from "@angular/common";
@@ -59,10 +59,10 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   @Input() currentUid: number | undefined;
 
   defaultBackground: string = "../../../../../assets/card_background.jpg";
-  protected readonly DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL = DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL;
-  protected readonly DASHBOARD_USER_WORKSPACE = DASHBOARD_USER_WORKSPACE;
-  protected readonly DASHBOARD_HUB_DATASET_RESULT_DETAIL = DASHBOARD_HUB_DATASET_RESULT_DETAIL;
-  protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
+  protected readonly HUB_WORKFLOW_RESULT_DETAIL = HUB_WORKFLOW_RESULT_DETAIL;
+  protected readonly USER_WORKSPACE = USER_WORKSPACE;
+  protected readonly HUB_DATASET_RESULT_DETAIL = HUB_DATASET_RESULT_DETAIL;
+  protected readonly USER_DATASET = USER_DATASET;
   entityRoutes: { [key: number]: string[] } = {};
 
   private coverImageUrls = new Map<number, string>();
@@ -97,15 +97,15 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
 
     if (entity.type === "workflow") {
       if (this.currentUid !== undefined && owners.includes(this.currentUid)) {
-        this.entityRoutes[entityId] = [this.DASHBOARD_USER_WORKSPACE, String(entityId)];
+        this.entityRoutes[entityId] = [this.USER_WORKSPACE, String(entityId)];
       } else {
-        this.entityRoutes[entityId] = [this.DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, String(entityId)];
+        this.entityRoutes[entityId] = [this.HUB_WORKFLOW_RESULT_DETAIL, String(entityId)];
       }
     } else if (entity.type === "dataset") {
       if (this.currentUid !== undefined && owners.includes(this.currentUid)) {
-        this.entityRoutes[entityId] = [this.DASHBOARD_USER_DATASET, String(entityId)];
+        this.entityRoutes[entityId] = [this.USER_DATASET, String(entityId)];
       } else {
-        this.entityRoutes[entityId] = [this.DASHBOARD_HUB_DATASET_RESULT_DETAIL, String(entityId)];
+        this.entityRoutes[entityId] = [this.HUB_DATASET_RESULT_DETAIL, String(entityId)];
       }
     } else {
       throw new Error("Unexpected type in DashboardEntry.");

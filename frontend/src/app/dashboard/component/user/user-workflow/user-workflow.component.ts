@@ -43,7 +43,7 @@ import { UserProjectService } from "../../../service/user/project/user-project.s
 import { map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
-import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
+import { USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
@@ -293,7 +293,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       .subscribe({
         next: (wid: number | undefined) => {
           // Use the wid here for navigation
-          this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]).then(null);
+          this.router.navigate([USER_WORKSPACE, wid]).then(null);
         },
         error: (err: unknown) => this.notificationService.error("Workflow creation failed"),
       });

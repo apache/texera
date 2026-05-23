@@ -49,7 +49,7 @@ import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.inter
 import { EntityType, HubService } from "../../hub/service/hub.service";
 import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
-import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
+import { USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
@@ -204,7 +204,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
             .pipe(untilDestroyed(this))
             .subscribe((updatedWorkflow: Workflow) => {
               if (this.workflowActionService.getWorkflowMetadata().wid !== updatedWorkflow.wid) {
-                this.location.go(`${DASHBOARD_USER_WORKSPACE}/${updatedWorkflow.wid}`);
+                this.location.go(`${USER_WORKSPACE}/${updatedWorkflow.wid}`);
               }
               this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
             });

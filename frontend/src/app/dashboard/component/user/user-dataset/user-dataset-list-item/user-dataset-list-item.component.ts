@@ -25,7 +25,7 @@ import { ShareAccessComponent } from "../../share-access/share-access.component"
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
-import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
+import { USER_DATASET } from "../../../../../app-routing.constant";
 import {
   NzListItemComponent,
   NzListItemMetaComponent,
@@ -73,7 +73,7 @@ import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
   ],
 })
 export class UserDatasetListItemComponent {
-  protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
+  protected readonly USER_DATASET = USER_DATASET;
 
   private _entry?: DashboardDataset;
 

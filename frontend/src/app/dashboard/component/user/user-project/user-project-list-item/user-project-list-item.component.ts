@@ -25,7 +25,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { UserService } from "../../../../../common/service/user/user.service";
-import { DASHBOARD_USER_PROJECT } from "../../../../../app-routing.constant";
+import { USER_PROJECT } from "../../../../../app-routing.constant";
 import {
   NzListItemComponent,
   NzListItemMetaComponent,
@@ -90,7 +90,7 @@ import { HighlightSearchTermsPipe } from "../../user-workflow/user-workflow-list
   ],
 })
 export class UserProjectListItemComponent implements OnInit {
-  public readonly ROUTER_USER_PROJECT_BASE_URL = DASHBOARD_USER_PROJECT;
+  public readonly ROUTER_USER_PROJECT_BASE_URL = USER_PROJECT;
   public readonly MAX_PROJECT_DESCRIPTION_CHAR_COUNT = 10000;
   private _entry?: DashboardProject;
   @Input() public keywords: string[] = [];

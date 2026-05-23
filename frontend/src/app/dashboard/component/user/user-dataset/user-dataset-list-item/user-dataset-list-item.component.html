@@ -33,7 +33,7 @@
       <div class="dataset-item-meta-title">
         <a
           *ngIf="!editingName; else customDatasetTitle "
-          [routerLink]="DASHBOARD_USER_DATASET + '/' + dataset.did"
+          [routerLink]="USER_DATASET + '/' + dataset.did"
           class="dataset-name"
           >{{ dataset.name }}</a
         >

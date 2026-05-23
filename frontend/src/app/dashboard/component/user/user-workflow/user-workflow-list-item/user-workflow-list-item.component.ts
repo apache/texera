@@ -32,7 +32,7 @@ import { UserProjectService } from "../../../../service/user/project/user-projec
 import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
-import { DASHBOARD_USER_PROJECT, DASHBOARD_USER_WORKSPACE } from "../../../../../app-routing.constant";
+import { USER_PROJECT, USER_WORKSPACE } from "../../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 import {
   NzListItemComponent,
@@ -88,8 +88,8 @@ import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
   ],
 })
 export class UserWorkflowListItemComponent {
-  protected readonly DASHBOARD_USER_WORKSPACE = DASHBOARD_USER_WORKSPACE;
-  protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
+  protected readonly USER_WORKSPACE = USER_WORKSPACE;
+  protected readonly USER_PROJECT = USER_PROJECT;
   private _entry?: DashboardEntry;
   @Input() public keywords: string[] = [];
 

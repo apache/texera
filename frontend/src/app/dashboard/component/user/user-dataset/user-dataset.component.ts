@@ -28,7 +28,7 @@ import { DashboardEntry } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { FiltersComponent } from "../filters/filters.component";
 import { firstValueFrom } from "rxjs";
-import { DASHBOARD_USER_DATASET } from "../../../../app-routing.constant";
+import { USER_DATASET } from "../../../../app-routing.constant";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
@@ -202,7 +202,7 @@ export class UserDatasetComponent implements AfterViewInit {
     modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
       if (result != null) {
         const dashboardDataset: DashboardDataset = result as DashboardDataset;
-        this.router.navigate([`${DASHBOARD_USER_DATASET}/${dashboardDataset.dataset.did}`]);
+        this.router.navigate([`${USER_DATASET}/${dashboardDataset.dataset.did}`]);
       }
     });
   }

@@ -39,7 +39,7 @@
       <div class="workflow-item-meta-title">
         <div
           *ngIf="!editingName; else customWorkflowTitle "
-          [routerLink]="DASHBOARD_USER_WORKSPACE + '/' + workflow.wid"
+          [routerLink]="USER_WORKSPACE + '/' + workflow.wid"
           [innerHTML]="workflow.name | highlightSearchTerms : keywords"
           class="workflow-name"></div>
         <ng-template #customWorkflowTitle>
@@ -139,7 +139,7 @@
         class="project-label-name"
         [ngClass]="{'color-tag' : true, 'light-color' : isLightColor(userProjectsMap.get(projectID)!.color!), 'dark-color' : !isLightColor(userProjectsMap.get(projectID)!.color!)}"
         [ngStyle]="{'color' : isLightColor(userProjectsMap.get(projectID)!.color!) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-        [routerLink]="DASHBOARD_USER_PROJECT + '/' + userProjectsMap.get(projectID)!.pid">
+        [routerLink]="USER_PROJECT + '/' + userProjectsMap.get(projectID)!.pid">
         {{userProjectsMap.get(projectID)!.name}}
       </a>
       <div
