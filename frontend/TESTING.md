@@ -206,6 +206,40 @@ it("debounces the query before firing", fakeAsync(() => {
 
 `fakeAsync` works because `test-zone-setup.ts` installs a ProxyZone around `it`/`test`. It does **not** install one around `beforeEach`, so do not write `beforeEach(fakeAsync(...))` — set component state and call `tick()` from inside the `it` body instead.
 
+### F. Stub a child component (rare, only when the child can't be instantiated)
+
+Standalone parents pull their `imports:` graph in transitively, so most child components instantiate cleanly. Reach for this recipe only when a child genuinely can't run under jsdom — e.g. it requires WebGL, opens a real WebSocket, or depends on a service whose stub you cannot reasonably complete.
+
+Declare a minimal `@Component` with the **same selector** as the real child, mark it `standalone`, and swap it in via the additive override:
+
+```ts
+import { Component } from "@angular/core";
+import { HeavyChildComponent } from "./heavy-child.component";
+
+@Component({
+  selector: "texera-heavy-child",
+  standalone: true,
+  template: "",
+})
+class StubHeavyChildComponent {}
+
+beforeEach(async () => {
+  TestBed.overrideComponent(ParentComponent, {
+    remove: { imports: [HeavyChildComponent] },
+    add: { imports: [StubHeavyChildComponent] },
+  });
+
+  await TestBed.configureTestingModule({ imports: [ParentComponent] }).compileComponents();
+});
+```
+
+The parent's template still renders — the `<texera-heavy-child>` tag now resolves to the stub. Coverage of the parent's `.component.html` is unaffected.
+
+Two patterns to **avoid** even when a child is awkward:
+
+- `overrideComponent({ set: { imports: [], schemas: [CUSTOM_ELEMENTS_SCHEMA] } })` — the `set` form for imports has known Angular bugs ([angular/angular#48432](https://github.com/angular/angular/issues/48432)), and the schema escape hatch quietly hides real template errors. Use `remove + add` instead.
+- `overrideComponent({ set: { template: ... } })` — substituting the parent's template (empty or stub) pins the real `.component.html` to 0 % coverage forever. See Anti-pattern 3.
+
 ## Standalone components
 
 Newly-generated components are standalone. The component itself goes into `imports:`, never `declarations:`:
@@ -279,17 +313,26 @@ The license header is the only live code; the file reports "0 tests, 0 failures"
 
 **Fix**: delete the commented code outright (git history keeps it). Either replace it with the minimum-viable spec from Recipe A, or remove the spec file entirely.
 
-### 2. `NO_ERRORS_SCHEMA` everywhere
+### 2. `NO_ERRORS_SCHEMA`
 
-A spec adds `schemas: [NO_ERRORS_SCHEMA]` to silence "unknown element" errors from un-imported children, but then asserts something about the parent template that depends on the child rendering. Branches inside `*ngIf="child.ready"` are dead because `child.ready` never fires.
+`schemas: [NO_ERRORS_SCHEMA]` tells Angular to swallow every "unknown element / unknown attribute" error from the template. [Angular's own docs warn against it](https://angular.dev/guide/testing/components-scenarios): "you could waste hours chasing phantom bugs that the compiler would have caught in an instant." Even when the spec only asserts on the component class, the schema masks template typos and silently disabled bindings.
 
-**Fix**: import the real child, or use `overrideComponent({ set: { imports: [], schemas: [CUSTOM_ELEMENTS_SCHEMA] } })` to drop the child's transitive imports while letting the unknown element render as an inert tag. `CUSTOM_ELEMENTS_SCHEMA` says "I know what I'm doing", `NO_ERRORS_SCHEMA` says "swallow all template errors" — the second is almost never what you want.
+For standalone components the schema is also almost always unnecessary. A standalone parent declares its template's children in its own `imports:` array, and TestBed loads that import graph transitively — so the children are "known" without any schema. NO_ERRORS_SCHEMA in a spec is usually a leftover from the pre-standalone NgModule era.
+
+**Fix**: remove `NO_ERRORS_SCHEMA` and let the test run. The typical failure modes and how to handle them:
+
+- _A child component's `ngOnInit` throws because a service method is missing on the mock._ Extend the service stub — that's where the real coupling lives, not in the template. (Example: the menu spec needed `getAllComputingUnits: () => of([])` added to its `ComputingUnitStatusService` stub once the child's `ngOnInit` started running.)
+- _A child component genuinely cannot be instantiated in jsdom (WebGL, native module, etc.)._ Stub it via the additive override — see Recipe F.
+
+ESLint enforces this rule on `*.spec.ts` files; importing `NO_ERRORS_SCHEMA` from `@angular/core` is a lint error.
 
 ### 3. `overrideComponent({ set: { template: "" } })`
 
-Used historically to bypass a child template that wouldn't compile. Side effect: the parent's template is wiped, so HTML coverage is permanently 0 %.
+Erases the parent's template at test time. `fixture.detectChanges()` then renders an empty `<div>`, the original `.component.html` is permanently pinned at 0 %, and every `*ngIf` / `(click)` / `{{ binding }}` in the file is silently uncovered.
 
-**Fix**: see Anti-pattern 2 — override `imports` and `schemas` instead, keep the template intact.
+**Fix**: delete the `overrideComponent({ set: { template: ... } })` block. If the spec then errors because of a child, address it the same way as Anti-pattern 2 — extend the service stub, or stub the child via Recipe F. Do not replace the template with an empty-imports override either (see Anti-pattern 8).
+
+ESLint enforces this rule on `*.spec.ts` files; the literal `template: ""` inside `overrideComponent` is a lint error.
 
 ### 4. `declarations: [StandaloneComponent]`
 
@@ -314,6 +357,14 @@ A spec that requires the dev server to be running, or that opens a real WebSocke
 Drift: spec A invents a partial mock for `OperatorMetadataService`, spec B invents a different partial mock, none of them agrees with the real interface, and a refactor breaks all three differently.
 
 **Fix**: use `StubOperatorMetadataService`. When you find yourself wanting a new method on the stub, add it to the stub class, not to the spec.
+
+### 8. `overrideComponent({ set: { imports: [], schemas: [...] } })`
+
+Strips the parent's transitive imports and combines that with a permissive schema so the template renders against unknown tags. The pattern looks clean but has two problems: the `set` form for `imports` has documented bugs in Angular standalone components ([angular/angular#48432](https://github.com/angular/angular/issues/48432)) where the override silently fails when the same component has been compiled by an earlier spec, and the schema escape hatch hides real template errors just like Anti-pattern 2.
+
+**Fix**: use the additive `remove + add` form to swap specific heavy children for stubs — see Recipe F. If only one or two children are problematic, name them explicitly rather than blanket-stripping the whole import list.
+
+ESLint enforces this rule on `*.spec.ts` files; any `template` or `imports` key inside `overrideComponent({ set: ... })` is a lint error.
 
 ## Coverage troubleshooting
 
