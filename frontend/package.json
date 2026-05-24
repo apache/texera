@@ -7,8 +7,8 @@
   "license": "Apache-2.0",
   "scripts": {
     "start": "concurrently --kill-others \"npx y-websocket\" \"ng serve\"",
-    "build": "node --max-old-space-size=8192 ./node_modules/@angular/cli/bin/ng build --configuration=production --progress=false --source-map=false",
-    "build:ci": "node --max-old-space-size=8192 ./node_modules/nx/dist/bin/nx.js build --configuration=production --progress=false --source-map=false",
+    "build": "node build-version.js && node --max-old-space-size=8192 ./node_modules/@angular/cli/bin/ng build --configuration=production --progress=false --source-map=false",
+    "build:ci": "node build-version.js && node --max-old-space-size=8192 ./node_modules/nx/dist/bin/nx.js build --configuration=production --progress=false --source-map=false",
     "analyze": "ng build --configuration=production --stats-json && webpack-bundle-analyzer dist/stats.json",
     "test": "ng test --watch=false",
     "test:ci": "node --max-old-space-size=8192 ./node_modules/nx/dist/bin/nx.js test --watch=false --progress=false --coverage --coverage-reporters=lcovonly",
