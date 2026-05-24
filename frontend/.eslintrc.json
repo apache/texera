@@ -106,6 +106,30 @@
       "rules": {
         "@angular-eslint/template/prefer-control-flow": "off"
       }
+    },
+    {
+      "files": ["*.spec.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@angular/common/http",
+                "importNames": ["HttpClientModule"],
+                "message": "Use HttpClientTestingModule from '@angular/common/http/testing' in specs. HttpClientTestingModule supplies HttpClient and routes requests through HttpTestingController instead of hitting a real backend."
+              }
+            ]
+          }
+        ],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "Property[key.name='providers'] > ArrayExpression > Identifier[name='HttpClient']",
+            "message": "Don't list HttpClient as a bare provider in a spec. HttpClientTestingModule (imported in 'imports') provides it; adding it to 'providers' on top of that overrides the testing backend with the real HttpClient."
+          }
+        ]
+      }
     }
   ]
 }

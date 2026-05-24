@@ -24,7 +24,6 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzDropdownMenuComponent, NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { CoeditorUserIconComponent } from "../../../component/menu/coeditor-user-icon/coeditor-user-icon.component";
 import { WorkflowActionService } from "./workflow-action.service";
-import { HttpClient } from "@angular/common/http";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -39,7 +38,6 @@ describe("CoeditorPresenceService", () => {
       providers: [
         WorkflowActionService,
         CoeditorPresenceService,
-        HttpClient,
         NzDropdownMenuComponent,
         { provide: UserService, useClass: StubUserService },
         ...commonTestProviders,
