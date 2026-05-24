@@ -119,6 +119,7 @@ describe("MyComponent", () => {
   });
 });
 ```
+
 ### B. `*ngIf` branches
 
 Each `*ngIf` is a separate sub-template. To cover both sides, run `detectChanges()` once per branch:
