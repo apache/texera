@@ -167,6 +167,14 @@ routes.push({
   ],
 });
 
+// default route renders the workspace editor directly; if userSystem is enabled at runtime,
+// AppComponent will navigate to DASHBOARD_ABOUT instead.
+routes.push({
+  path: "",
+  component: WorkspaceComponent,
+  canActivate: [rootRedirectGuard],
+});
+
 // redirect all other paths to index.
 routes.push({
   path: "**",
