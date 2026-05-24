@@ -24,7 +24,7 @@ import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.scalatest.flatspec.AnyFlatSpec
 
-import javax.ws.rs.BadRequestException
+import javax.ws.rs.{BadRequestException, WebApplicationException}
 
 class GmailResourceSpec extends AnyFlatSpec {
 
@@ -48,5 +48,27 @@ class GmailResourceSpec extends AnyFlatSpec {
       resource.sendEmailRequest(msg, newSessionUser())
     }
     assert(ex.getResponse.getStatus == 400)
+  }
+
+  it should "throw WebApplicationException with HTTP 502 when sendEmail fails for a non-validation reason" in {
+    // In the test environment `UserSystemConfig.gmail` defaults to "", so
+    // `createMimeMessage`'s `new InternetAddress(senderGmail)` raises an
+    // `AddressException` deterministically — without any network or SMTP
+    // server contact — and `sendEmail` returns `Left("Failed to send email:
+    // ...")`. The resource then maps that `Left` to a 502 BadGateway.
+    val resource = new GmailResource()
+    val msg = EmailMessage(
+      receiver = "valid@example.com",
+      subject = "subj",
+      content = "body"
+    )
+    val ex = intercept[WebApplicationException] {
+      resource.sendEmailRequest(msg, newSessionUser())
+    }
+    assert(
+      !ex.isInstanceOf[BadRequestException],
+      s"expected non-validation failure, but got BadRequestException: ${ex.getMessage}"
+    )
+    assert(ex.getResponse.getStatus == 502)
   }
 }
