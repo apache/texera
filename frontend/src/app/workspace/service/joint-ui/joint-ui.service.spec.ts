@@ -17,327 +17,26 @@
  * under the License.
  */
 
-// import { mockResultPredicate, mockPoint } from './../workflow-graph/model/mock-workflow-data';
-// import { TestBed, inject } from '@angular/core/testing';
-// import * as joint from 'jointjs';
-
-// import { JointUIService, deleteButtonPath, sourceOperatorHandle, targetOperatorHandle } from './joint-ui.service';
-// import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
-// import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
-// import { mockScanPredicate, mockSentimentPredicate } from '../workflow-graph/model/mock-workflow-data';
-// import { mockScanStatistic1, mockScanStatistic2 } from '../workflow-status/mock-workflow-status';
-
-// describe('JointUIService', () => {
-//   let service: JointUIService;
-
-//   beforeEach(() => {
-//     TestBed.configureTestingModule({
-//       providers: [
-//         JointUIService,
-//         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-//       ],
-//     });
-//     service = TestBed.get(JointUIService);
-//   });
-
-//   it('should be created', inject([JointUIService], (injectedService: JointUIService) => {
-//     expect(injectedService).toBeTruthy();
-//   }));
-
-//   /**
-//    * Check if the getJointOperatorElement() can successfully creates a JointJS Element
-//    */
-//   it('should create an JointJS Element successfully when the function is called', () => {
-//     const result = service.getJointOperatorElement(
-//       mockScanPredicate, mockPoint);
-//     expect(result).toBeTruthy();
-//   });
-
-//   /**
-//    * Check if the error in getJointOperatorElement() is correctly thrown
-//    */
-//   it('should throw an error with an non existing operator', () => {
-//     expect(() => {
-//       service.getJointOperatorElement(
-//         {
-//           operatorID: 'nonexistOperator',
-//           operatorType: 'nonexistOperatorType',
-//           operatorProperties: {},
-//           inputPorts: [],
-//           outputPorts: [],
-//           showAdvanced: true
-//         },
-//         mockPoint
-//       );
-//     }).toThrowError(new RegExp(`doesn't exist`));
-//   });
-
-//   /**
-//    * Check if the getJointTooltipElement() can successfully creates a JointJS Element
-//    */
-//   it('should create an JointJS Element successfully when the function is called', () => {
-//     const result = service.getJointOperatorStatusTooltipElement(
-//       mockScanPredicate, mockPoint);
-//     expect(result).toBeTruthy();
-//   });
-
-//   /**
-//    * Check if the error in getJointTooltipElement() is correctly thrown
-//    */
-//   it('should throw an error with an non existing operator', () => {
-//     expect(() => {
-//       service.getJointOperatorStatusTooltipElement(
-//         {
-//           operatorID: 'nonexistOperator',
-//           operatorType: 'nonexistOperatorType',
-//           operatorProperties: {},
-//           inputPorts: [],
-//           outputPorts: [],
-//           showAdvanced: true
-//         },
-//         mockPoint
-//       );
-//     }).toThrowError(new RegExp(`doesn't exist`));
-//   });
-
-//   /**
-//    * Check if showTooltip/hideTooltip works properly
-//    */
-//   it('should reveal/hide tooltip and its content when showToolTip/hideTooltip is called', () => {
-//     // creating a JointJS graph with one operator and its tooltip
-//     const jointGraph = new joint.dia.Graph();
-//     const jointPaperOptions: joint.dia.Paper.Options = {model: jointGraph};
-//     const paper = new joint.dia.Paper(jointPaperOptions);
-
-//     jointGraph.addCell([
-//       service.getJointOperatorElement(
-//         mockScanPredicate,
-//         mockPoint
-//       ),
-//       service.getJointOperatorStatusTooltipElement(
-//         mockScanPredicate,
-//         mockPoint
-//       )
-//     ]);
-//     // tooltip should not be shown when operator is just created
-//     // disply attr should be none
-//     const tooltipId = JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID);
-//     const graph_tooltip1 = jointGraph.getCell(tooltipId);
-//     expect(graph_tooltip1.attr('polygon')['display']).toEqual('none');
-//     expect(graph_tooltip1.attr('#operatorCount')['display']).toEqual('none');
-//     expect(graph_tooltip1.attr('#operatorSpeed')['display']).toEqual('none');
-//     // showTooltip removes display == none attr to show tooltip
-//     service.showOperatorStatusToolTip(paper, tooltipId);
-//     expect(graph_tooltip1.attr('polygon')['display']).toBeUndefined();
-//     expect(graph_tooltip1.attr('#operatorCount')['display']).toBeUndefined();
-//     expect(graph_tooltip1.attr('#operatorSpeed')['display']).toBeUndefined();
-//     // hideTooltip adds display == none attr to hide tooltip
-//     service.hideOperatorStatusToolTip(paper, tooltipId);
-//     expect(graph_tooltip1.attr('polygon')['display']).toEqual('none');
-//     expect(graph_tooltip1.attr('#operatorCount')['display']).toEqual('none');
-//     expect(graph_tooltip1.attr('#operatorSpeed')['display']).toEqual('none');
-//   });
-
-//   /**
-//    * check if tooltip content can be updated properly
-//    */
-//   it('should update the content in the tooltip when changeOperatorTooltipInfo is called', () => {
-//     // creating a JointJS graph with one operator and its tooltip
-//     const jointGraph = new joint.dia.Graph();
-//     const jointPaperOptions: joint.dia.Paper.Options = {model: jointGraph};
-//     const paper = new joint.dia.Paper(jointPaperOptions);
-
-//     jointGraph.addCell([
-//       service.getJointOperatorElement(
-//         mockScanPredicate,
-//         mockPoint
-//       ),
-//       service.getJointOperatorStatusTooltipElement(
-//         mockScanPredicate,
-//         mockPoint
-//       )
-//     ]);
-//     const tooltipId = JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID);
-//     const graph_tooltip = jointGraph.getCell(tooltipId);
-//     // tooltip should not contain any content when created
-//     expect(graph_tooltip.attr('#operatorCount')['text']).toBeUndefined();
-//     expect(graph_tooltip.attr('#operatorSpeed')['text']).toBeUndefined();
-//     // updating it with mock statistics
-//     service.changeOperatorStatusTooltipInfo(paper, tooltipId, mockScanStatistic1);
-//     expect(graph_tooltip.attr('#operatorCount')['text']).toEqual('Output:' + mockScanStatistic1.outputCount + ' tuples');
-//     expect(graph_tooltip.attr('#operatorSpeed')['text']).toEqual('Speed:' + mockScanStatistic1.speed + ' tuples/s');
-//     // updating it with another mock statistics
-//     service.changeOperatorStatusTooltipInfo(paper, tooltipId, mockScanStatistic2);
-//     expect(graph_tooltip.attr('#operatorCount')['text']).toEqual('Output:' + mockScanStatistic2.outputCount + ' tuples');
-//     expect(graph_tooltip.attr('#operatorSpeed')['text']).toEqual('Speed:' + mockScanStatistic2.speed + ' tuples/s');
-//   });
-
-//   it('should change the operator state name and color when changeOperatorStates is called', () => {
-//     // creating a JointJS graph with one operator and its tooltip
-//     const jointGraph = new joint.dia.Graph();
-//     const jointPaperOptions: joint.dia.Paper.Options = {model: jointGraph};
-//     const paper = new joint.dia.Paper(jointPaperOptions);
-
-//     jointGraph.addCell(
-//       service.getJointOperatorElement(
-//         mockScanPredicate,
-//         mockPoint
-//     ));
-
-//     // operator state name and color should be changed correctly
-//     const graph_operator = jointGraph.getCell(mockScanPredicate.operatorID);
-//     expect(graph_operator.attr('#operatorStates')['text']).toEqual('Ready');
-//     expect(graph_operator.attr('#operatorStates')['fill']).toEqual('green');
-//     service.changeOperatorStates(paper, mockScanPredicate.operatorID, OperatorStates.Initializing);
-//     expect(graph_operator.attr('#operatorStates')['text']).toEqual('Initializing');
-//     expect(graph_operator.attr('#operatorStates')['fill']).toEqual('orange');
-//     service.changeOperatorStates(paper, mockScanPredicate.operatorID, OperatorStates.Running);
-//     expect(graph_operator.attr('#operatorStates')['text']).toEqual('Running');
-//     expect(graph_operator.attr('#operatorStates')['fill']).toEqual('orange');
-//     service.changeOperatorStates(paper, mockScanPredicate.operatorID, OperatorStates.Pausing);
-//     expect(graph_operator.attr('#operatorStates')['text']).toEqual('Pausing');
-//     expect(graph_operator.attr('#operatorStates')['fill']).toEqual('red');
-//     service.changeOperatorStates(paper, mockScanPredicate.operatorID, OperatorStates.Paused);
-//     expect(graph_operator.attr('#operatorStates')['text']).toEqual('Paused');
-//     expect(graph_operator.attr('#operatorStates')['fill']).toEqual('red');
-//     service.changeOperatorStates(paper, mockScanPredicate.operatorID, OperatorStates.Completed);
-//     expect(graph_operator.attr('#operatorStates')['text']).toEqual('Completed');
-//     expect(graph_operator.attr('#operatorStates')['fill']).toEqual('green');
-//   });
-
-//   /**
-//    * Check if the number of inPorts and outPorts created by getJointOperatorElement()
-//    * matches the port number specified by the operator metadata
-//    */
-//   it('should create correct number of inPorts and outPorts based on operator metadata', () => {
-//     const element1 = service.getJointOperatorElement(mockScanPredicate, mockPoint);
-//     const element2 = service.getJointOperatorElement(mockSentimentPredicate, mockPoint);
-//     const element3 = service.getJointOperatorElement(mockResultPredicate, mockPoint);
-
-//     const inPortCount1 = element1.getPorts().filter(port => port.group === 'in').length;
-//     const outPortCount1 = element1.getPorts().filter(port => port.group === 'out').length;
-//     const inPortCount2 = element2.getPorts().filter(port => port.group === 'in').length;
-//     const outPortCount2 = element2.getPorts().filter(port => port.group === 'out').length;
-//     const inPortCount3 = element3.getPorts().filter(port => port.group === 'in').length;
-//     const outPortCount3 = element3.getPorts().filter(port => port.group === 'out').length;
-
-//     expect(inPortCount1).toEqual(0);
-//     expect(outPortCount1).toEqual(1);
-//     expect(inPortCount2).toEqual(1);
-//     expect(outPortCount2).toEqual(1);
-//     expect(inPortCount3).toEqual(1);
-//     expect(outPortCount3).toEqual(0);
-
-//   });
-
-//   /**
-//    * Check if the custom attributes / svgs are correctly used by the JointJS graph
-//    */
-//   it('should apply the custom SVG styling to the JointJS element', () => {
-
-//     const graph = new joint.dia.Graph();
-//     // operator and its tooltip element should be added together
-//     graph.addCell([
-//       service.getJointOperatorElement(
-//         mockScanPredicate,
-//         mockPoint
-//       ),
-//       service.getJointOperatorStatusTooltipElement(
-//         mockScanPredicate,
-//         mockPoint
-//       )
-//     ]);
-//     graph.addCell([
-//       service.getJointOperatorElement(
-//         mockResultPredicate,
-//         { x: 500, y: 100 }
-//       ),
-//       service.getJointOperatorStatusTooltipElement(
-//         mockResultPredicate,
-//         { x: 500, y: 100 }
-//       )
-//       ]);
-
-//     const link = JointUIService.getJointLinkCell({
-//       linkID: 'link-1',
-//       source: { operatorID: 'operator1', portID: 'out0' },
-//       target: { operatorID: 'operator2', portID: 'in0' },
-//     });
-
-//     graph.addCell(link);
-
-//     const graph_operator1 = graph.getCell(mockScanPredicate.operatorID);
-//     const graph_operator2 = graph.getCell(mockResultPredicate.operatorID);
-//     const graph_link = graph.getLinks()[0];
-//     const graph_tooltip1 = graph.getCell(JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID));
-
-//     // testing getCustomTooltipStyleAttrs()
-//     // style: {'pointer-events': 'none'} makes tooltip unselectable thus not draggable
-//     expect(graph_tooltip1.attr('polygon')).toEqual({
-//       fill: '#FFFFFF', 'follow-scale': true, stroke: 'purple', 'stroke-width': '2',
-//         rx: '5px', ry: '5px', refPoints: '0,30 150,30 150,120 85,120 75,150 65,120 0,120',
-//         display: 'none', style: {'pointer-events': 'none'}
-//     });
-//     expect(graph_tooltip1.attr('#operatorCount')).toEqual({
-//       fill: '#595959', 'font-size': '12px', ref: 'polygon',
-//       'y-alignment': 'middle',
-//       'x-alignment': 'left',
-//       'ref-x': .05, 'ref-y': .2,
-//       display: 'none', style: {'pointer-events': 'none'}
-//     });
-//     expect(graph_tooltip1.attr('#operatorSpeed')).toEqual({
-//       fill: '#595959',
-//       ref: 'polygon',
-//       'x-alignment': 'left',
-//       'font-size': '12px',
-//       'ref-x': .05, 'ref-y': .5,
-//       display: 'none', style: {'pointer-events': 'none'}
-//     });
-
-//     // testing getCustomOperatorStyleAttrs()
-//     expect(graph_operator1.attr('#operatorStates')).toEqual({
-//       text:  'Ready' , fill: 'green', 'font-size': '14px', 'visible' : false,
-//       'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
-//     });
-//     expect(graph_operator1.attr('rect')).toEqual(
-//       { fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
-//       rx: '5px', ry: '5px' }
-//     );
-//     expect(graph_operator2.attr('rect')).toEqual(
-//       { fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
-//       rx: '5px', ry: '5px' }
-//     );
-//     expect(graph_operator1.attr('.delete-button')).toEqual(
-//       {
-//         x: 60, y: -20, cursor: 'pointer',
-//         fill: '#D8656A', event: 'element:delete'
-//       }
-//     );
-//     expect(graph_operator2.attr('.delete-button')).toEqual(
-//       {
-//         x: 60, y: -20, cursor: 'pointer',
-//         fill: '#D8656A', event: 'element:delete'
-//       }
-//     );
-
-//     // testing getDefaultLinkElement()
-//     expect(graph_link.attr('.marker-source/d')).toEqual(sourceOperatorHandle);
-//     expect(graph_link.attr('.marker-target/d')).toEqual(targetOperatorHandle);
-//     expect(graph_link.attr('.tool-remove path/d')).toEqual(deleteButtonPath);
-//   });
-// });
-
 import { of } from "rxjs";
 import * as joint from "jointjs";
-import { JointUIService, operatorNameClass } from "./joint-ui.service";
-import { OperatorPredicate } from "../../types/workflow-common.interface";
+import { JointUIService, operatorNameClass, operatorStateClass, operatorPortMetricsClass } from "./joint-ui.service";
+import { CommentBox, OperatorPredicate } from "../../types/workflow-common.interface";
+import { OperatorState } from "../../types/execute-workflow.interface";
+import { Coeditor } from "../../../common/type/user";
+
+// Minimal mock of OperatorMetadataService — the constructor subscribes to
+// getOperatorMetadata() but the schemas list isn't needed for the methods
+// covered here. Tests that exercise `getJointOperatorElement` build their
+// own metadata stub with real schemas inline.
+const emptyMetadataStub = {
+  getOperatorMetadata: () =>
+    of({
+      operators: [],
+      groups: [],
+    }),
+};
 
 describe("JointUIService", () => {
-  // Pre-existing spec body is commented out. Placeholder keeps Vitest's
-  // discovery happy; rewriting the real tests against the new test
-  // runner is tracked in #4861.
-  it.todo("add unit tests for JointUIService");
-
   describe("truncateOperatorDisplayName", () => {
     // Deterministic measurer: 10px per character. With the 200-px budget,
     // 20 chars fit exactly; longer strings get truncated to a prefix plus "…".
@@ -509,6 +208,258 @@ describe("JointUIService", () => {
         HTMLCanvasElement.prototype.getContext = originalGetContext;
         (JointUIService as unknown as { measureCtx: CanvasRenderingContext2D | null }).measureCtx = null;
       }
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Static helpers — pure functions, easiest to test directly.
+  // ---------------------------------------------------------------------------
+
+  describe("getOperatorFillColor (static)", () => {
+    it("returns the disabled fill for an isDisabled=true operator", () => {
+      expect(JointUIService.getOperatorFillColor({ isDisabled: true } as OperatorPredicate)).toBe("#E0E0E0");
+    });
+    it("returns the default white fill for an enabled operator", () => {
+      expect(JointUIService.getOperatorFillColor({} as OperatorPredicate)).toBe("#FFFFFF");
+      expect(JointUIService.getOperatorFillColor({ isDisabled: false } as OperatorPredicate)).toBe("#FFFFFF");
+    });
+  });
+
+  describe("getOperatorCacheDisplayText (static)", () => {
+    it("returns empty string when cacheStatus is undefined", () => {
+      expect(JointUIService.getOperatorCacheDisplayText({ markedForReuse: true } as OperatorPredicate)).toBe("");
+    });
+    it("returns empty string when the operator is not marked for reuse", () => {
+      expect(
+        JointUIService.getOperatorCacheDisplayText({ markedForReuse: false } as OperatorPredicate, "cache valid")
+      ).toBe("");
+    });
+    it("returns the cache status text when both are set", () => {
+      expect(
+        JointUIService.getOperatorCacheDisplayText({ markedForReuse: true } as OperatorPredicate, "cache valid")
+      ).toBe("cache valid");
+    });
+  });
+
+  describe("getOperatorCacheIcon (static)", () => {
+    it("returns empty when the operator is not marked for reuse", () => {
+      expect(JointUIService.getOperatorCacheIcon({ markedForReuse: false } as OperatorPredicate, "cache valid")).toBe(
+        ""
+      );
+    });
+    it("returns the valid-cache icon when cacheStatus is 'cache valid'", () => {
+      expect(JointUIService.getOperatorCacheIcon({ markedForReuse: true } as OperatorPredicate, "cache valid")).toBe(
+        "assets/svg/operator-reuse-cache-valid.svg"
+      );
+    });
+    it("returns the invalid-cache icon for any other status (including undefined)", () => {
+      expect(JointUIService.getOperatorCacheIcon({ markedForReuse: true } as OperatorPredicate)).toBe(
+        "assets/svg/operator-reuse-cache-invalid.svg"
+      );
+      expect(JointUIService.getOperatorCacheIcon({ markedForReuse: true } as OperatorPredicate, "cache invalid")).toBe(
+        "assets/svg/operator-reuse-cache-invalid.svg"
+      );
+    });
+  });
+
+  describe("getOperatorViewResultIcon (static)", () => {
+    it("returns the view-result asset when viewResult=true", () => {
+      expect(JointUIService.getOperatorViewResultIcon({ viewResult: true } as OperatorPredicate)).toBe(
+        "assets/svg/operator-view-result.svg"
+      );
+    });
+    it("returns empty otherwise", () => {
+      expect(JointUIService.getOperatorViewResultIcon({} as OperatorPredicate)).toBe("");
+      expect(JointUIService.getOperatorViewResultIcon({ viewResult: false } as OperatorPredicate)).toBe("");
+    });
+  });
+
+  describe("getJointLinkCell (static)", () => {
+    it("builds a joint link cell carrying source/target/id from the OperatorLink", () => {
+      const link = JointUIService.getJointLinkCell({
+        linkID: "link-1",
+        source: { operatorID: "op-A", portID: "out-0" },
+        target: { operatorID: "op-B", portID: "in-0" },
+      });
+      expect(link.id).toBe("link-1");
+      expect(link.get("source")).toEqual({ id: "op-A", port: "out-0" });
+      expect(link.get("target")).toEqual({ id: "op-B", port: "in-0" });
+      // z=0 keeps links rendered under operator elements (z=1 in
+      // getJointOperatorElement).
+      expect(link.get("z")).toBe(0);
+    });
+  });
+
+  describe("getJointUserPointerName (static)", () => {
+    it("prefixes the coeditor clientId with 'pointer_'", () => {
+      expect(JointUIService.getJointUserPointerName({ clientId: "abc123" } as Coeditor)).toBe("pointer_abc123");
+    });
+  });
+
+  describe("getJointUserPointerCell (static)", () => {
+    it("builds a circle cell whose id matches getJointUserPointerName", () => {
+      const coeditor = { clientId: "42", name: "Ada", color: "#ff0000" } as Coeditor;
+      const cell = JointUIService.getJointUserPointerCell(coeditor, { x: 10, y: 20 }, "#abcdef");
+      expect(cell.id).toBe(JointUIService.getJointUserPointerName(coeditor));
+      // attr('body/fill') reflects the explicit color argument.
+      expect(cell.attr("body/fill")).toBe("#abcdef");
+      expect(cell.attr("body/stroke")).toBe("#abcdef");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Instance methods that operate on a joint Paper. Each test stubs the paper's
+  // getModelById to return a model with an `attr` spy; assertions look at what
+  // the SUT wrote on that model.
+  // ---------------------------------------------------------------------------
+
+  function makePaperWithModel() {
+    const attrSpy = vi.fn();
+    const portPropSpy = vi.fn();
+    const getPortsSpy = vi.fn(() => [] as { id?: string; group?: string }[]);
+    const model = { attr: attrSpy, getPorts: getPortsSpy, portProp: portPropSpy };
+    const paper = { getModelById: vi.fn(() => model) } as unknown as joint.dia.Paper;
+    return { paper, attrSpy, portPropSpy, getPortsSpy, model };
+  }
+
+  describe("changeOperatorColor", () => {
+    it("paints the body stroke neutral for a valid operator", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorColor(paper, "op-1", true);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", "#CFCFCF");
+    });
+    it("paints the body stroke red for an invalid operator", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorColor(paper, "op-1", false);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", "red");
+    });
+  });
+
+  describe("changeOperatorState", () => {
+    // For each state, the SUT writes a fill color to .${operatorStateClass};
+    // we only assert on the color since the rest of the attr payload (port
+    // labels, worker count) is exercised through the existing port mocks.
+    const cases: Array<[OperatorState, string]> = [
+      [OperatorState.Ready, "#a6bd37"],
+      [OperatorState.Completed, "green"],
+      [OperatorState.Paused, "magenta"],
+      [OperatorState.Pausing, "magenta"],
+      [OperatorState.Running, "orange"],
+      [OperatorState.Uninitialized, "gray"],
+    ];
+    cases.forEach(([state, color]) => {
+      it(`writes fill='${color}' for state=${state}`, () => {
+        const { paper, attrSpy } = makePaperWithModel();
+        const service = new JointUIService(emptyMetadataStub as never);
+        service.changeOperatorState(paper, "op-1", state);
+        // The attr payload is an object keyed by selectors; pluck the state class entry.
+        const [payload] = attrSpy.mock.calls[0];
+        expect(payload[`.${operatorStateClass}`]).toEqual({ text: state.toString(), fill: color });
+        expect(payload["rect.body"]).toEqual({ stroke: color });
+      });
+    });
+  });
+
+  describe("foldOperatorDetails / unfoldOperatorDetails", () => {
+    it("hides operator state + metric texts and the action buttons when folded", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.foldOperatorDetails(paper, "op-1");
+      const [payload] = attrSpy.mock.calls[0];
+      expect(payload[`.${operatorStateClass}`].visibility).toBe("hidden");
+      expect(payload[`.${operatorPortMetricsClass}`].visibility).toBe("hidden");
+      expect(payload[".delete-button"].visibility).toBe("hidden");
+      expect(payload[".chat-button"].visibility).toBe("hidden");
+    });
+    it("reveals the same surface when unfolded", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.unfoldOperatorDetails(paper, "op-1");
+      const [payload] = attrSpy.mock.calls[0];
+      expect(payload[`.${operatorStateClass}`].visibility).toBe("visible");
+      expect(payload[`.${operatorPortMetricsClass}`].visibility).toBe("visible");
+      expect(payload[".delete-button"].visibility).toBe("visible");
+      expect(payload[".chat-button"].visibility).toBe("visible");
+    });
+  });
+
+  describe("showAgentActionLabel / hideAgentActionLabel", () => {
+    it("writes the action label with the agent name prefix when the model exists", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.showAgentActionLabel(paper, "op-1", "modified", "Aria");
+      const [payload] = attrSpy.mock.calls[0];
+      const entry = Object.values(payload)[0] as { text: string; visibility: string };
+      expect(entry.text).toBe("Aria: modified");
+      expect(entry.visibility).toBe("visible");
+    });
+    it("uses the default 'Agent' name when none is supplied", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.showAgentActionLabel(paper, "op-1", "viewed");
+      const [payload] = attrSpy.mock.calls[0];
+      const entry = Object.values(payload)[0] as { text: string };
+      expect(entry.text).toBe("Agent: viewed");
+    });
+    it("no-ops when the model is missing", () => {
+      const paper = { getModelById: vi.fn(() => null) } as unknown as joint.dia.Paper;
+      const service = new JointUIService(emptyMetadataStub as never);
+      expect(() => service.showAgentActionLabel(paper, "missing-op", "added")).not.toThrow();
+    });
+    it("clears the label text and hides it on hideAgentActionLabel", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.hideAgentActionLabel(paper, "op-1");
+      const [payload] = attrSpy.mock.calls[0];
+      const entry = Object.values(payload)[0] as { text: string; visibility: string };
+      expect(entry.text).toBe("");
+      expect(entry.visibility).toBe("hidden");
+    });
+    it("hideAgentActionLabel is a no-op when the model is missing", () => {
+      const paper = { getModelById: vi.fn(() => null) } as unknown as joint.dia.Paper;
+      const service = new JointUIService(emptyMetadataStub as never);
+      expect(() => service.hideAgentActionLabel(paper, "missing-op")).not.toThrow();
+    });
+  });
+
+  describe("getCommentElement", () => {
+    it("builds a comment element with the supplied commentBoxID and position", () => {
+      const service = new JointUIService(emptyMetadataStub as never);
+      const cell = service.getCommentElement({
+        commentBoxID: "cb-1",
+        commentBoxPosition: { x: 42, y: 99 },
+        comments: [],
+      } as unknown as CommentBox);
+      expect(cell.id).toBe("cb-1");
+    });
+    it("falls back to (0,0) when commentBoxPosition is missing", () => {
+      const service = new JointUIService(emptyMetadataStub as never);
+      // Should not throw — the implementation guards both the basic
+      // shape position and the joint element construction.
+      const cell = service.getCommentElement({
+        commentBoxID: "cb-no-pos",
+        comments: [],
+      } as unknown as CommentBox);
+      expect(cell.id).toBe("cb-no-pos");
+    });
+  });
+
+  describe("getJointOperatorElement", () => {
+    it("throws when the operator type isn't in the loaded schema list", () => {
+      const service = new JointUIService(emptyMetadataStub as never);
+      const operator = {
+        operatorID: "op-x",
+        operatorType: "DefinitelyNotARealType",
+        operatorProperties: {},
+        inputPorts: [],
+        outputPorts: [],
+        showAdvanced: false,
+      } as unknown as OperatorPredicate;
+      expect(() => service.getJointOperatorElement(operator, { x: 0, y: 0 })).toThrow(
+        /operator type DefinitelyNotARealType doesn't exist/
+      );
     });
   });
 });
