@@ -118,6 +118,11 @@
                 "name": "@angular/common/http",
                 "importNames": ["HttpClientModule"],
                 "message": "Use HttpClientTestingModule from '@angular/common/http/testing' in specs. HttpClientTestingModule supplies HttpClient and routes requests through HttpTestingController instead of hitting a real backend."
+              },
+              {
+                "name": "@angular/core",
+                "importNames": ["NO_ERRORS_SCHEMA"],
+                "message": "NO_ERRORS_SCHEMA silences template errors at the cost of hiding real bugs (Angular docs warn against it). For standalone components, the parent's `imports:` array already pulls children transitively, so the schema is usually unnecessary. If a child component's ngOnInit fails because of a missing service method, expand the service stub instead. If a child genuinely cannot be instantiated, stub it via `overrideComponent({ remove: { imports: [Real] }, add: { imports: [Stub] } })`."
               }
             ]
           }
@@ -127,6 +132,14 @@
           {
             "selector": "Property[key.name='providers'] > ArrayExpression > Identifier[name='HttpClient']",
             "message": "Don't list HttpClient as a bare provider in a spec. HttpClientTestingModule (imported in 'imports') provides it; adding it to 'providers' on top of that overrides the testing backend with the real HttpClient."
+          },
+          {
+            "selector": "CallExpression[callee.property.name='overrideComponent'] Property[key.name='set'] > ObjectExpression > Property[key.name='template']",
+            "message": "Don't replace the component's template via `overrideComponent({ set: { template: ... } })` — any substitution (empty string, stub markup, anything) pins the real .component.html to 0% coverage and skips testing the template-to-class bindings. If a child component blocks instantiation, stub it via `overrideComponent({ remove: { imports: [Real] }, add: { imports: [Stub] } })`. If a service method is missing for a child's ngOnInit, expand the service stub."
+          },
+          {
+            "selector": "CallExpression[callee.property.name='overrideComponent'] Property[key.name='set'] > ObjectExpression > Property[key.name='imports']",
+            "message": "Avoid `overrideComponent({ set: { imports: ... } })` — the `set` form for imports has known bugs in Angular standalone components (see angular/angular#48432). Use the additive form `overrideComponent({ remove: { imports: [Real] }, add: { imports: [Stub] } })` instead."
           }
         ]
       }
