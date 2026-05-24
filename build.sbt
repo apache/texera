@@ -113,7 +113,7 @@ lazy val FileService = (project in file("file-service"))
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Config)
+  .dependsOn(WorkflowOperator, Auth, Config)
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
