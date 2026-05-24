@@ -27,6 +27,11 @@ import { GmailService } from "../../../../common/service/gmail/gmail.service";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
+import {
+  DASHBOARD_USER_DATASET,
+  DASHBOARD_USER_PROJECT,
+  DASHBOARD_USER_WORKFLOW,
+} from "../../../../app-routing.constant";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
@@ -189,8 +194,13 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     if (this.emailTags.length > 0) {
       this.emailTags.forEach(email => {
         let message = `${this.userService.getCurrentUser()?.email} shared a ${this.type} with you`;
-        if (this.type !== "computing-unit")
-          message += `, access the ${this.type} at ${location.origin}/dashboard/user/workflow/${this.id}`;
+        if (this.type !== "computing-unit") {
+          let routePath = "";
+          if (this.type === "workflow") routePath = DASHBOARD_USER_WORKFLOW;
+          if (this.type === "dataset") routePath = DASHBOARD_USER_DATASET;
+          if (this.type === "project") routePath = DASHBOARD_USER_PROJECT;
+          message += `, access the ${this.type} at ${location.origin}${routePath}/${this.id}`;
+        }
         this.accessService
           .grantAccess(this.type, this.id, email, this.validateForm.value.accessLevel)
           .pipe(untilDestroyed(this))
