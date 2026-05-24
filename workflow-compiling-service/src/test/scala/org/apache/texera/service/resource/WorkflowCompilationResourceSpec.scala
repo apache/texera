@@ -25,6 +25,7 @@ import jakarta.ws.rs.client.Entity
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.texera.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
+import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
@@ -125,6 +126,20 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
 
     assertThat(compilationResponse.asInstanceOf[WorkflowCompilationSuccess])
     compilationResponse.asInstanceOf[WorkflowCompilationSuccess]
+  }
+
+  it should "round-trip LogicalLink JSON emitted by the production objectMapper" in {
+    val original = LogicalLink(
+      OperatorIdentity("op-A"),
+      PortIdentity(0),
+      OperatorIdentity("op-B"),
+      PortIdentity(1)
+    )
+
+    val json = objectMapper.writeValueAsString(original)
+    val roundTripped = objectMapper.readValue(json, classOf[LogicalLink])
+
+    assertThat(roundTripped).isEqualTo(original)
   }
 
   it should "compile workflow successfully with multiple filter and limit operations" in {

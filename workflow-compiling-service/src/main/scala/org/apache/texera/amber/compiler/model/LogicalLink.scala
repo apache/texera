@@ -20,8 +20,30 @@
 package org.apache.texera.amber.compiler.model
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
+import com.fasterxml.jackson.databind.JsonNode
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
+
+object LogicalLink {
+  private def readOperatorIdentity(node: JsonNode, fieldName: String): OperatorIdentity = {
+    if (node == null || node.isNull) {
+      OperatorIdentity(null)
+    } else if (node.isTextual) {
+      OperatorIdentity(node.asText())
+    } else if (node.isObject) {
+      val idNode = node.get("id")
+      if (idNode == null || idNode.isNull) {
+        OperatorIdentity(null)
+      } else {
+        OperatorIdentity(idNode.asText())
+      }
+    } else {
+      throw new IllegalArgumentException(
+        s"LogicalLink $fieldName must be a string or an object with an id field"
+      )
+    }
+  }
+}
 
 case class LogicalLink(
     @JsonProperty("fromOpId") fromOpId: OperatorIdentity,
@@ -29,13 +51,27 @@ case class LogicalLink(
     @JsonProperty("toOpId") toOpId: OperatorIdentity,
     toPortId: PortIdentity
 ) {
-  @JsonCreator
   def this(
-      @JsonProperty("fromOpId") fromOpId: String,
+      fromOpId: String,
       fromPortId: PortIdentity,
-      @JsonProperty("toOpId") toOpId: String,
+      toOpId: String,
       toPortId: PortIdentity
   ) = {
     this(OperatorIdentity(fromOpId), fromPortId, OperatorIdentity(toOpId), toPortId)
+  }
+
+  @JsonCreator
+  def this(
+      @JsonProperty("fromOpId") fromOpId: JsonNode,
+      fromPortId: PortIdentity,
+      @JsonProperty("toOpId") toOpId: JsonNode,
+      toPortId: PortIdentity
+  ) = {
+    this(
+      LogicalLink.readOperatorIdentity(fromOpId, "fromOpId"),
+      fromPortId,
+      LogicalLink.readOperatorIdentity(toOpId, "toOpId"),
+      toPortId
+    )
   }
 }
