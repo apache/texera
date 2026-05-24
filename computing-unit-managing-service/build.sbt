@@ -34,6 +34,13 @@ Universal / mappings := AddMetaInfLicenseFiles.distMappings(
 
 // Dependency Versions
 val dropwizardVersion = "4.0.7"
+val mockitoVersion = "5.4.0"
+
+// Test Dependencies
+libraryDependencies ++= Seq(
+  "org.scalatest" %% "scalatest" % "3.2.17" % Test,
+  "org.mockito" % "mockito-core" % mockitoVersion % Test
+)
 
 // Dependencies
 libraryDependencies ++= Seq(

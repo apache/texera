@@ -31,6 +31,7 @@ import org.apache.texera.config.DefaultsConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
 import org.eclipse.jetty.server.session.SessionHandler
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.jooq.impl.DSL
 
 import java.nio.file.Path
@@ -70,6 +71,9 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
     environment.jersey.register(
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
+
+    // Enforce @RolesAllowed annotations on resource methods
+    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
 
     environment.jersey.register(new ConfigResource)
 
