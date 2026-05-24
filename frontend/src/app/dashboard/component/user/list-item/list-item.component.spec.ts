@@ -23,7 +23,6 @@ import { WorkflowPersistService } from "src/app/common/service/workflow-persist/
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError } from "rxjs";
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { RouterTestingModule } from "@angular/router/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -47,7 +46,6 @@ describe("ListItemComponent", () => {
         NzModalService,
         ...commonTestProviders,
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ListItemComponent);

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserComputingUnitComponent } from "./user-computing-unit.component";
 import { NzCardModule } from "ng-zorro-antd/card";
@@ -64,7 +63,6 @@ describe("UserComputingUnitComponent", () => {
         NzCardModule,
         NzIconModule.forChild([FileAddOutline]),
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     fixture = TestBed.createComponent(UserComputingUnitComponent);
