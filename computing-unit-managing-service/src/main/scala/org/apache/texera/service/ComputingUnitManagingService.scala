@@ -32,7 +32,6 @@ import org.apache.texera.service.resource.{
   ComputingUnitManagingResource,
   HealthCheckResource
 }
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
 
 class ComputingUnitManagingService extends Application[ComputingUnitManagingServiceConfiguration] {
@@ -54,16 +53,21 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
       configuration: ComputingUnitManagingServiceConfiguration,
       environment: Environment
   ): Unit = {
-    // Register http resources
-    environment.jersey.setUrlPattern("/api/*")
-    environment.jersey.register(classOf[HealthCheckResource])
-
-    ComputingUnitManagingService.registerAuthFeatures(environment)
-
     SqlServer.initConnection(
       StorageConfig.jdbcUrl,
       StorageConfig.jdbcUsername,
       StorageConfig.jdbcPassword
+    )
+    // Register http resources
+    environment.jersey.setUrlPattern("/api/*")
+    environment.jersey.register(classOf[HealthCheckResource])
+
+    // Register JWT authentication filter
+    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
+
+    // Enable @Auth annotation for injecting SessionUser
+    environment.jersey.register(
+      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
 
     environment.jersey().register(new ComputingUnitManagingResource)
@@ -75,19 +79,6 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
 }
 
 object ComputingUnitManagingService {
-  // Registers JWT auth, @Auth injection, and @RolesAllowed enforcement.
-  def registerAuthFeatures(environment: Environment): Unit = {
-    // Register JWT authentication filter
-    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
-
-    // Enable @Auth annotation for injecting SessionUser
-    environment.jersey.register(
-      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
-    )
-
-    // Enforce @RolesAllowed annotations on resource methods
-    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
-  }
 
   def main(args: Array[String]): Unit = {
     val configFilePath = Path
