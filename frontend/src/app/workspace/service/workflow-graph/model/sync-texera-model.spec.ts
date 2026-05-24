@@ -431,7 +431,9 @@ describe("SyncTexeraModel", () => {
         },
       } as unknown as joint.dia.Link;
 
-      expect(() => SyncTexeraModel.getOperatorLink(linkWithNoSource)).toThrow("Invalid JointJS Link: no source element");
+      expect(() => SyncTexeraModel.getOperatorLink(linkWithNoSource)).toThrow(
+        "Invalid JointJS Link: no source element"
+      );
     });
 
     it("throws when the joint link has no target attribute", () => {
@@ -443,7 +445,9 @@ describe("SyncTexeraModel", () => {
         },
       } as unknown as joint.dia.Link;
 
-      expect(() => SyncTexeraModel.getOperatorLink(linkWithNoTarget)).toThrow("Invalid JointJS Link: no target element");
+      expect(() => SyncTexeraModel.getOperatorLink(linkWithNoTarget)).toThrow(
+        "Invalid JointJS Link: no target element"
+      );
     });
   });
 });
