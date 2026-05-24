@@ -53,6 +53,23 @@ describe("ListItemComponent", () => {
     fixture = TestBed.createComponent(ListItemComponent);
     component = fixture.componentInstance;
     workflowPersistService = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
+    // initializeEntry() needs a fully-formed workflow entry to avoid throwing
+    // when the template renders for the first time. Each test below overwrites
+    // component.entry directly, which exercises confirm methods without going
+    // back through change detection.
+    component.entry = {
+      id: 0,
+      name: "default",
+      description: "",
+      type: "workflow",
+      workflow: { isOwner: true },
+      accessibleUserIds: [],
+      likeCount: 0,
+      viewCount: 0,
+      isLiked: false,
+      size: 0,
+    } as unknown as DashboardEntry;
+    fixture.detectChanges();
   });
 
   it("should update workflow name successfully", () => {
