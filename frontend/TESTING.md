@@ -119,9 +119,6 @@ describe("MyComponent", () => {
   });
 });
 ```
-
-Working reference: `src/app/workspace/component/workflow-editor/mini-map/mini-map.component.spec.ts` (63 lines, achieves ~87 % template coverage off this pattern alone).
-
 ### B. `*ngIf` branches
 
 Each `*ngIf` is a separate sub-template. To cover both sides, run `detectChanges()` once per branch:
