@@ -24,7 +24,7 @@ import { NzCardModule } from "ng-zorro-antd/card";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { FileAddOutline } from "@ant-design/icons-angular/icons";
-import { HttpClient } from "@angular/common/http";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -53,13 +53,17 @@ describe("UserComputingUnitComponent", () => {
     await TestBed.configureTestingModule({
       providers: [
         NzModalService,
-        HttpClient,
         { provide: UserService, useClass: StubUserService },
         { provide: WorkflowComputingUnitManagingService, useValue: mockComputingUnitService },
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         ...commonTestProviders,
       ],
-      imports: [UserComputingUnitComponent, NzCardModule, NzIconModule.forChild([FileAddOutline])],
+      imports: [
+        UserComputingUnitComponent,
+        HttpClientTestingModule,
+        NzCardModule,
+        NzIconModule.forChild([FileAddOutline]),
+      ],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
