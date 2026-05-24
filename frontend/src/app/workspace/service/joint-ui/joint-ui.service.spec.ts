@@ -447,6 +447,23 @@ describe("JointUIService", () => {
   });
 
   describe("getJointOperatorElement", () => {
+    function buildMetadataWithSchemas(schemas: object[]) {
+      return {
+        getOperatorMetadata: () =>
+          of({
+            operators: schemas,
+            groups: [],
+          }),
+      };
+    }
+
+    const minimalSchema = (operatorType: string, friendlyName = "Friendly") => ({
+      operatorType,
+      operatorVersion: "v1",
+      jsonSchema: {},
+      additionalMetadata: { userFriendlyName: friendlyName },
+    });
+
     it("throws when the operator type isn't in the loaded schema list", () => {
       const service = new JointUIService(emptyMetadataStub as never);
       const operator = {
@@ -460,6 +477,254 @@ describe("JointUIService", () => {
       expect(() => service.getJointOperatorElement(operator, { x: 0, y: 0 })).toThrow(
         /operator type DefinitelyNotARealType doesn't exist/
       );
+    });
+
+    it("returns an element carrying the predicate's operatorID and z-index 1", () => {
+      const schema = minimalSchema("TestOp", "Test Operator");
+      const service = new JointUIService(buildMetadataWithSchemas([schema]) as never);
+      const predicate = {
+        operatorID: "my-op",
+        operatorType: "TestOp",
+        operatorVersion: "v1",
+        operatorProperties: {},
+        inputPorts: [{ portID: "in-0" }],
+        outputPorts: [{ portID: "out-0" }],
+        showAdvanced: false,
+        isDisabled: false,
+      } as OperatorPredicate;
+      const element = service.getJointOperatorElement(predicate, { x: 100, y: 50 });
+      expect(element.id).toBe("my-op");
+      expect(element.get("z")).toBe(1);
+      // Both ports flow through addPort.
+      const ports = element.getPorts();
+      expect(ports.map(p => p.id).sort()).toEqual(["in-0", "out-0"]);
+    });
+
+    it("emits add/remove port buttons in the markup when dynamicInputPorts and dynamicOutputPorts are true", () => {
+      const schema = minimalSchema("DynamicOp");
+      const service = new JointUIService(buildMetadataWithSchemas([schema]) as never);
+      const predicate = {
+        operatorID: "dyn",
+        operatorType: "DynamicOp",
+        operatorVersion: "v1",
+        operatorProperties: {},
+        inputPorts: [],
+        outputPorts: [],
+        showAdvanced: false,
+        isDisabled: false,
+        dynamicInputPorts: true,
+        dynamicOutputPorts: true,
+      } as unknown as OperatorPredicate;
+      const element = service.getJointOperatorElement(predicate, { x: 0, y: 0 });
+      // The markup is stamped onto the element's attributes; both port-button
+      // classes only appear when their dynamic-ports flag is true.
+      const markup = (element as unknown as { attributes: { markup: string } }).attributes.markup;
+      expect(markup).toContain("add-input-port-button");
+      expect(markup).toContain("add-output-port-button");
+      expect(markup).toContain("remove-input-port-button");
+      expect(markup).toContain("remove-output-port-button");
+    });
+
+    it("renders customDisplayName in the operator name attr when supplied", () => {
+      const schema = minimalSchema("Named", "Friendly");
+      const service = new JointUIService(buildMetadataWithSchemas([schema]) as never);
+      const predicate = {
+        operatorID: "named",
+        operatorType: "Named",
+        operatorVersion: "v1",
+        operatorProperties: {},
+        inputPorts: [],
+        outputPorts: [],
+        showAdvanced: false,
+        isDisabled: false,
+        customDisplayName: "Custom-Display",
+      } as unknown as OperatorPredicate;
+      const element = service.getJointOperatorElement(predicate, { x: 0, y: 0 });
+      // The display name lands in `.texera-operator-name/text` via
+      // getCustomOperatorStyleAttrs. truncateOperatorDisplayName is the no-op
+      // identity for short names so the value comes through verbatim.
+      expect(element.attr(`.${operatorNameClass}/text`)).toBe("Custom-Display");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Port-iteration paths — the original tests stubbed getPorts() to return [],
+  // which skipped the forEach branches inside changeOperatorState and the
+  // entire body of changeOperatorStatistics. The tests below cover those.
+  // ---------------------------------------------------------------------------
+
+  describe("changeOperatorState — port label re-coloring", () => {
+    it("re-paints every input and output port label to the state's fill color", () => {
+      const attrSpy = vi.fn();
+      const portPropSpy = vi.fn();
+      // changeOperatorState iterates getPorts() splitting by group; both
+      // groups must be present so the in/out filters each yield matches.
+      const getPortsSpy = vi.fn(() => [
+        { id: "in-0", group: "in" },
+        { id: "out-0", group: "out" },
+      ]);
+      const model = { attr: attrSpy, getPorts: getPortsSpy, portProp: portPropSpy };
+      const paper = { getModelById: vi.fn(() => model) } as unknown as joint.dia.Paper;
+      const service = new JointUIService(emptyMetadataStub as never);
+
+      service.changeOperatorState(paper, "op-1", OperatorState.Running);
+
+      // Running → orange. Both ports get the same color through portProp.
+      expect(portPropSpy).toHaveBeenCalledWith("in-0", "attrs/.port-label/fill", "orange");
+      expect(portPropSpy).toHaveBeenCalledWith("out-0", "attrs/.port-label/fill", "orange");
+    });
+  });
+
+  describe("changeOperatorDisableStatus", () => {
+    it("paints the body fill with the disabled grey color for a disabled operator", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorDisableStatus(paper, { operatorID: "op-1", isDisabled: true } as OperatorPredicate);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/fill", "#E0E0E0");
+    });
+    it("paints the body fill with the default white color for an enabled operator", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorDisableStatus(paper, { operatorID: "op-1" } as OperatorPredicate);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/fill", "#FFFFFF");
+    });
+  });
+
+  describe("changeOperatorViewResultStatus", () => {
+    it("writes the view-result asset path when viewResult is true", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorViewResultStatus(paper, {
+        operatorID: "op-1",
+        viewResult: true,
+      } as unknown as OperatorPredicate);
+      expect(attrSpy).toHaveBeenCalledTimes(1);
+      const [selector, value] = attrSpy.mock.calls[0];
+      expect(String(selector)).toContain("view-result");
+      expect(value).toBe("assets/svg/operator-view-result.svg");
+    });
+    it("writes the empty asset path when viewResult is missing/false", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorViewResultStatus(paper, { operatorID: "op-1" } as OperatorPredicate);
+      expect(attrSpy.mock.calls[0][1]).toBe("");
+    });
+  });
+
+  describe("changeOperatorReuseCacheStatus", () => {
+    it("writes both the reuse-cache icon and the view-result icon when the cache is valid", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorReuseCacheStatus(
+        paper,
+        { operatorID: "op-1", markedForReuse: true } as unknown as OperatorPredicate,
+        "cache valid"
+      );
+      // Two attr() calls — one for the cache icon, one for the view-result
+      // icon — both targeted at the operator's image attrs.
+      expect(attrSpy).toHaveBeenCalledTimes(2);
+      const allValues = attrSpy.mock.calls.map(c => c[1]).join(" | ");
+      expect(allValues).toContain("assets/svg/operator-reuse-cache-valid.svg");
+    });
+    it("writes the empty path for both icons when the operator isn't marked for reuse", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorReuseCacheStatus(paper, {
+        operatorID: "op-1",
+        markedForReuse: false,
+      } as unknown as OperatorPredicate);
+      expect(attrSpy).toHaveBeenCalledTimes(2);
+      expect(attrSpy.mock.calls.every(c => c[1] === "")).toBe(true);
+    });
+  });
+
+  describe("changeOperatorStatistics", () => {
+    function makeStatsPaper(getPortsImpl: () => Array<{ id?: string; group?: string; attrs?: unknown }>) {
+      const attrSpy = vi.fn();
+      const portPropSpy = vi.fn();
+      const getPortsSpy = vi.fn(getPortsImpl);
+      const model = { attr: attrSpy, getPorts: getPortsSpy, portProp: portPropSpy };
+      const paper = { getModelById: vi.fn(() => model) } as unknown as joint.dia.Paper;
+      return { paper, attrSpy, portPropSpy };
+    }
+
+    it("falls back to the Uninitialized state when statistics is undefined", () => {
+      const { paper, attrSpy } = makeStatsPaper(() => []);
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorStatistics(paper, "op-1", undefined, false, false);
+      // changeOperatorState writes the state-class fill payload.
+      const [payload] = attrSpy.mock.calls[0];
+      expect((payload as Record<string, { text: string }>)[`.${operatorStateClass}`].text).toBe(
+        OperatorState.Uninitialized.toString()
+      );
+    });
+
+    it("writes per-port counts derived from inputPortMetrics and outputPortMetrics", () => {
+      const { paper, portPropSpy } = makeStatsPaper(() => [
+        // Port IDs use the "<group>-<index>" convention; the SUT splits on "-"
+        // and uses the suffix to look up the metrics map.
+        { id: "in-0", group: "in", attrs: { ".port-label": { text: "data: 0" } } },
+        { id: "out-1", group: "out", attrs: { ".port-label": { text: "result: 0" } } },
+      ]);
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorStatistics(
+        paper,
+        "op-1",
+        {
+          operatorState: OperatorState.Running,
+          aggregatedInputRowCount: 0,
+          aggregatedOutputRowCount: 0,
+          inputPortMetrics: { "0": 42 },
+          outputPortMetrics: { "1": 7 },
+          numWorkers: 3,
+        },
+        false,
+        false
+      );
+      expect(portPropSpy).toHaveBeenCalledWith("in-0", "attrs/.port-label/text", (42).toLocaleString());
+      expect(portPropSpy).toHaveBeenCalledWith("out-1", "attrs/.port-label/text", (7).toLocaleString());
+    });
+
+    it("writes the worker count label when statistics include numWorkers", () => {
+      const { paper, attrSpy } = makeStatsPaper(() => []);
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorStatistics(
+        paper,
+        "op-1",
+        {
+          operatorState: OperatorState.Ready,
+          aggregatedInputRowCount: 0,
+          aggregatedOutputRowCount: 0,
+          inputPortMetrics: {},
+          outputPortMetrics: {},
+          numWorkers: 8,
+        },
+        false,
+        false
+      );
+      // attr() is called once with the workers selector and the formatted string.
+      const valuesWritten = attrSpy.mock.calls.map(c => c[1]);
+      expect(valuesWritten).toContain("#workers: 8");
+    });
+
+    it("defaults the worker count to 1 when numWorkers is unspecified", () => {
+      const { paper, attrSpy } = makeStatsPaper(() => []);
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorStatistics(
+        paper,
+        "op-1",
+        {
+          operatorState: OperatorState.Ready,
+          aggregatedInputRowCount: 0,
+          aggregatedOutputRowCount: 0,
+          inputPortMetrics: {},
+          outputPortMetrics: {},
+        },
+        false,
+        false
+      );
+      const valuesWritten = attrSpy.mock.calls.map(c => c[1]);
+      expect(valuesWritten).toContain("#workers: 1");
     });
   });
 });
