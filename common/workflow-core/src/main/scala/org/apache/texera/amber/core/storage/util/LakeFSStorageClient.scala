@@ -335,6 +335,16 @@ object LakeFSStorageClient {
     }
   }
 
+  /** Names of all repositories currently in LakeFS. */
+  def listAllRepoNames(): Set[String] = {
+    fetchAllPages[Repository] { after =>
+      val request = repoApi.listRepositories().amount(PageSize)
+      if (after.nonEmpty) request.after(after)
+      val response = request.execute()
+      (response.getResults, response.getPagination)
+    }.map(_.getId).toSet
+  }
+
   def retrieveRepositorySize(repoName: String, commitHash: String = ""): Long = {
     val versionHash: String =
       if (commitHash.isEmpty) {

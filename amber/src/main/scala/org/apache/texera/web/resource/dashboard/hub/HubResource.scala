@@ -305,7 +305,10 @@ object HubResource {
       )
       .fetch()
 
+    // Drop DB rows whose LakeFS repo is missing.
+    val existingRepos = LakeFSStorageClient.listAllRepoNames()
     records.asScala
+      .filter(r => existingRepos.contains(r.into(DATASET).into(classOf[Dataset]).getRepositoryName))
       .map { record =>
         val dataset = record.into(DATASET).into(classOf[Dataset])
         val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])

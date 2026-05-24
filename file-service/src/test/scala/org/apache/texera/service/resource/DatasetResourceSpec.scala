@@ -370,6 +370,42 @@ class DatasetResourceSpec
     datasetDao.fetchOneByDid(dataset.getDid) should not be null
   }
 
+  "listDatasets" should "include a dataset whose LakeFS repo exists" in {
+    val repoName = s"list-ok-${System.nanoTime()}"
+    val dataset = new Dataset
+    dataset.setName(repoName)
+    dataset.setRepositoryName(repoName)
+    dataset.setDescription("list endpoint - healthy dataset")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    LakeFSStorageClient.initRepo(repoName)
+
+    val result = datasetResource.listDatasets(sessionUser)
+
+    result.map(_.dataset.getDid) should contain(dataset.getDid)
+  }
+
+  it should "exclude a dataset whose LakeFS repo has been deleted (orphan DB row)" in {
+    val repoName = s"list-orphan-${System.nanoTime()}"
+    val dataset = new Dataset
+    dataset.setName(repoName)
+    dataset.setRepositoryName(repoName)
+    dataset.setDescription("list endpoint - orphan DB row")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    LakeFSStorageClient.initRepo(repoName)
+    // Simulate the DB/LakeFS mismatch: delete the repo directly, leaving the DB row.
+    LakeFSStorageClient.deleteRepo(repoName)
+
+    val result = datasetResource.listDatasets(sessionUser)
+
+    result.map(_.dataset.getDid) should not contain dataset.getDid
+  }
+
   "updateDatasetName" should "rename dataset successfully if user has write access" in {
     val dataset = new Dataset
     dataset.setName("rename-before")

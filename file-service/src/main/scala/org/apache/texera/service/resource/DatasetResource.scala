@@ -1065,6 +1065,8 @@ class DatasetResource {
       @Auth user: SessionUser
   ): List[DashboardDataset] = {
     val uid = user.getUid
+    // Drop DB rows whose LakeFS repo is missing.
+    val existingRepos = LakeFSStorageClient.listAllRepoNames()
     withTransaction(context)(ctx => {
       var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer()
       // first fetch all datasets user have explicit access to
@@ -1080,6 +1082,10 @@ class DatasetResource {
           )
           .where(DATASET_USER_ACCESS.UID.eq(uid))
           .fetch()
+          .asScala
+          .filter(r =>
+            existingRepos.contains(r.into(DATASET).into(classOf[Dataset]).getRepositoryName)
+          )
           .map(record => {
             val dataset = record.into(DATASET).into(classOf[Dataset])
             val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
@@ -1092,7 +1098,6 @@ class DatasetResource {
               size = 0
             )
           })
-          .asScala
       )
 
       // then we fetch the public datasets and merge it as a part of the result if not exist
@@ -1105,6 +1110,10 @@ class DatasetResource {
         )
         .where(DATASET.IS_PUBLIC.eq(true))
         .fetch()
+        .asScala
+        .filter(r =>
+          existingRepos.contains(r.into(DATASET).into(classOf[Dataset]).getRepositoryName)
+        )
         .map(record => {
           val dataset = record.into(DATASET).into(classOf[Dataset])
           val ownerEmail = record.into(USER).getEmail
@@ -1116,17 +1125,9 @@ class DatasetResource {
             size = LakeFSStorageClient.retrieveRepositorySize(dataset.getRepositoryName)
           )
         })
-      publicDatasets.forEach { publicDataset =>
+      publicDatasets.foreach { publicDataset =>
         if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
-          val dashboardDataset = DashboardDataset(
-            isOwner = false,
-            dataset = publicDataset.dataset,
-            ownerEmail = publicDataset.ownerEmail,
-            accessPrivilege = PrivilegeEnum.READ,
-            size =
-              LakeFSStorageClient.retrieveRepositorySize(publicDataset.dataset.getRepositoryName)
-          )
-          accessibleDatasets = accessibleDatasets :+ dashboardDataset
+          accessibleDatasets = accessibleDatasets :+ publicDataset
         }
       }
       accessibleDatasets.toList
