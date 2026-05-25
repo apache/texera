@@ -24,6 +24,12 @@ import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport.Universal
 ThisBuild / Test / javaOptions ++=
   JdkOptions.jvmFlags((ThisBuild / baseDirectory).value)
 
+// Fail Java compilation on deprecation warnings so PRs can't reintroduce
+// deprecated-API patterns (e.g. scala.collection.JavaConverters in Java
+// callers — the modern Java entry point is scala.jdk.javaapi.CollectionConverters).
+// -Xlint:deprecation surfaces the per-call-site location, -Werror turns it fatal.
+ThisBuild / Compile / javacOptions ++= Seq("-Xlint:deprecation", "-Werror")
+
 // sbt-jacoco emits only HTML by default; add XML so Codecov can consume
 // per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
 // JacocoPlugin defines a project-scoped default that overrides ThisBuild,
