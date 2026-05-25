@@ -25,7 +25,6 @@ import { UserWorkflowComponent } from "./user-workflow.component";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "../../../../common/service/workflow-persist/stub-workflow-persist.service";
 import { ShareAccessComponent } from "../share-access/share-access.component";
-import { HttpClient } from "@angular/common/http";
 import { ShareAccessService } from "../../../service/user/share-access/share-access.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -76,7 +75,6 @@ describe("SavedWorkflowSectionComponent", () => {
         NzModalService,
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: UserProjectService, useValue: new StubUserProjectService() },
-        HttpClient,
         ShareAccessService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: NZ_I18N, useValue: en_US },

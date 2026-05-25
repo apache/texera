@@ -78,18 +78,20 @@ class VirtualIdentityUtilsSpec extends AnyFlatSpec with Matchers {
     opId.layerName shouldBe "main"
   }
 
-  it should "misparse layer names that contain hyphens (current behavior)" in {
-    // The layer capture group is `(\w+)`, which does not allow `-`. When the
-    // real layer name contains hyphens (e.g. "1st-physical-op", as seen in
-    // amber WorkerSpec), the greedy operator group eats most of the layer:
-    // operator becomes "myOp-1st-physical" and layer becomes "op". This pins
-    // the current bug so a future fix that broadens `workerNamePattern` to
-    // accept hyphenated layers will surface here and force this spec to be
-    // updated alongside the implementation.
-    val actor = ActorVirtualIdentity("Worker:WF1-myOp-1st-physical-op-3")
-    val opId = VirtualIdentityUtils.getPhysicalOpId(actor)
-    opId.logicalOpId.id shouldBe "myOp-1st-physical"
-    opId.layerName shouldBe "op"
+  "createWorkerIdentity" should "reject layer names containing '-'" in {
+    // The worker-name format `Worker:WF<id>-<op>-<layer>-<workerId>` is
+    // inherently ambiguous when both `op` and `layer` may contain `-`, and
+    // production operator IDs (e.g. `<className>-<UUID>`) structurally must.
+    // We therefore enforce that layer names do not contain `-` at creation
+    // time so the bad state can never be constructed.
+    assertThrows[IllegalArgumentException] {
+      VirtualIdentityUtils.createWorkerIdentity(
+        WorkflowIdentity(1),
+        operator = "myOp",
+        layerName = "1st-physical-op",
+        workerId = 3
+      )
+    }
   }
 
   // ----- getWorkerIndex -----

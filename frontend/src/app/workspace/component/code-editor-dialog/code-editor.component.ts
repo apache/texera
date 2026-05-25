@@ -299,12 +299,27 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     return CodeEditorComponent.apiWrapperStartPromise;
   }
 
+  private getFileSuffixByLanguage(language: string): string {
+    switch (language.toLowerCase()) {
+      case "python":
+        return ".py";
+      case "r":
+        return ".r";
+      case "javascript":
+        return ".js";
+      case "java":
+        return ".java";
+      default:
+        return ".py";
+    }
+  }
+
   /**
    * Create a Monaco editor and connect it to MonacoBinding.
    * @private
    */
   private initializeMonacoEditor() {
-    const fileSuffix = this.language === "java" ? ".java" : this.language === "r" ? ".r" : ".py";
+    const fileSuffix = this.getFileSuffixByLanguage(this.language);
     const editorAppConfig: EditorAppConfig = {
       codeResources: {
         modified: {
@@ -394,7 +409,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   }
 
   private initializeDiffEditor(): void {
-    const fileSuffix = this.language === "java" ? ".java" : this.language === "r" ? ".r" : ".py";
+    const fileSuffix = this.getFileSuffixByLanguage(this.language);
     const latestVersionOperator = this.workflowActionService
       .getTempWorkflow()
       ?.content.operators?.find(({ operatorID }) => operatorID === this.currentOperatorId);

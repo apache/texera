@@ -27,7 +27,7 @@ import org.apache.iceberg.data.parquet.GenericParquetReaders
 import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.aws.s3.S3FileIO
 import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
-import org.apache.iceberg.io.{CloseableIterable, InputFile}
+import org.apache.iceberg.io.{CloseableIterator, InputFile}
 import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
 import org.apache.iceberg.rest.RESTCatalog
@@ -404,17 +404,23 @@ object IcebergUtil {
   }
 
   /**
-    * Util function to create a Record iterator over the given DataFile in Iceberg
+    * Returns a Record iterator over the given Iceberg DataFile.
+    *
+    * The returned `CloseableIterator` (Iceberg's iterator type) owns the
+    * underlying Parquet reader / S3InputStream / AWS HTTP-pool slot. The
+    * caller MUST close it once iteration is finished, otherwise those
+    * resources are leaked.
+    *
     * @param dataFile the data file
     * @param schema the schema of the table
     * @param table the iceberg table
-    * @return an iterator over the records in the data file
+    * @return a closeable iterator over the records in the data file
     */
   def readDataFileAsIterator(
       dataFile: DataFile,
       schema: IcebergSchema,
       table: Table
-  ): Iterator[Record] = {
+  ): CloseableIterator[Record] = {
     val inputFile: InputFile = table.io().newInputFile(dataFile)
     val readerFunc
         : java.util.function.Function[org.apache.parquet.schema.MessageType, ParquetValueReader[
@@ -422,13 +428,12 @@ object IcebergUtil {
         ]] =
       (messageType: org.apache.parquet.schema.MessageType) =>
         GenericParquetReaders.buildReader(schema, messageType)
-    val closeableIterable: CloseableIterable[Record] =
-      Parquet
-        .read(inputFile)
-        .project(schema)
-        .createReaderFunc(readerFunc)
-        .build()
-    closeableIterable.iterator().asScala
+    Parquet
+      .read(inputFile)
+      .project(schema)
+      .createReaderFunc(readerFunc)
+      .build()
+      .iterator()
   }
 
 }

@@ -33,6 +33,7 @@ import javax.annotation.security.RolesAllowed
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, PasswordAuthentication, Session, Transport}
 import javax.ws.rs._
+import javax.ws.rs.core.Response
 import scala.util.{Failure, Success, Try}
 
 case class EmailMessage(
@@ -146,7 +147,13 @@ class GmailResource {
   @Path("/send")
   def sendEmailRequest(emailMessage: EmailMessage, @Auth user: SessionUser): Unit = {
     val recipientEmail = if (emailMessage.receiver.isEmpty) user.getEmail else emailMessage.receiver
-    sendEmail(emailMessage, recipientEmail)
+    sendEmail(emailMessage, recipientEmail) match {
+      case Right(_) => ()
+      case Left("Invalid email format") =>
+        throw new BadRequestException("Invalid email format")
+      case Left(error) =>
+        throw new WebApplicationException(error, Response.Status.BAD_GATEWAY)
+    }
   }
 
   @GET
