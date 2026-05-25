@@ -309,8 +309,6 @@ object HubResource {
       )
       .fetch()
 
-    // Datasets whose LakeFS repo is missing (DB / LakeFS inconsistency) are silently
-    // skipped, matching the orphan-defense in DatasetSearchQueryBuilder.toEntryImpl.
     records.asScala
       .flatMap { record =>
         val dataset = record.into(DATASET).into(classOf[Dataset])
