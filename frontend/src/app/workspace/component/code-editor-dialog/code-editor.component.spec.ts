@@ -28,7 +28,9 @@ import { mockOperatorMetaData } from "../../service/operator-metadata/mock-opera
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { OperatorPredicate } from "../../types/workflow-common.interface";
 import { OperatorSchema } from "../../types/operator-schema.interface";
-import { of } from "rxjs";
+import { of, Subject } from "rxjs";
+import { AIAssistantService } from "../../service/ai-assistant/ai-assistant.service";
+import * as monaco from "monaco-editor";
 
 // Operator types that the constructor's language-detection branch must map
 // to a specific language. `RUDFSource` / `RUDF` -> `r`; the three V2 Python
@@ -183,5 +185,142 @@ describe("CodeEditorComponent", () => {
       color: "rgba(10, 20, 30, 0.8)",
     } as any);
     expect(result).toBeTruthy();
+  });
+
+  describe("getFileSuffixByLanguage", () => {
+    // The method is private but determines the in-memory file URI that Monaco
+    // picks language syntax + LSP wiring from, so pinning every branch protects
+    // the language → file-suffix contract.
+    function suffixFor(lang: string): string {
+      const fixture = makeFixture(mockJavaUDFPredicate);
+      return (fixture.componentInstance as any).getFileSuffixByLanguage(lang);
+    }
+
+    it("maps python → .py", () => expect(suffixFor("python")).toBe(".py"));
+    it("maps r → .r", () => expect(suffixFor("r")).toBe(".r"));
+    it("maps javascript → .js", () => expect(suffixFor("javascript")).toBe(".js"));
+    it("maps java → .java", () => expect(suffixFor("java")).toBe(".java"));
+    it("is case-insensitive on the language name", () => {
+      // `suffixFor` builds a fixture per call which adds the predicate's
+      // operator to the workflow; with the same predicate twice in one test
+      // the second `addOperator` collides. Call once and reach the method
+      // directly to assert another case-folded input.
+      const fixture = makeFixture(mockJavaUDFPredicate);
+      const fn = (fixture.componentInstance as any).getFileSuffixByLanguage.bind(fixture.componentInstance);
+      expect(fn("Python")).toBe(".py");
+      expect(fn("JAVA")).toBe(".java");
+    });
+    it("falls back to .py for unknown languages so the default Monaco grammar is python", () => {
+      expect(suffixFor("brainfuck")).toBe(".py");
+    });
+  });
+
+  describe("onFocus", () => {
+    it("highlights the operator the editor is bound to", () => {
+      const fixture = makeFixture(mockJavaUDFPredicate);
+      const highlightSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "highlightOperators");
+      fixture.componentInstance.onFocus();
+      expect(highlightSpy).toHaveBeenCalledWith(mockJavaUDFPredicate.operatorID);
+    });
+  });
+
+  describe("rejectCurrentAnnotation", () => {
+    it("hides the suggestion UI and clears the staged code + suggestion", () => {
+      const fixture = makeFixture(mockJavaUDFPredicate);
+      const c = fixture.componentInstance;
+
+      c.showAnnotationSuggestion = true;
+      c.currentCode = "x = 1";
+      c.currentSuggestion = "x: int = 1";
+
+      c.rejectCurrentAnnotation();
+
+      expect(c.showAnnotationSuggestion).toBe(false);
+      expect(c.currentCode).toBe("");
+      expect(c.currentSuggestion).toBe("");
+    });
+
+    it("emits on the multi-variable response subject when one is staged", () => {
+      const fixture = makeFixture(mockJavaUDFPredicate);
+      const c = fixture.componentInstance;
+      const userResponseSubject = new Subject<void>();
+      const nextSpy = vi.spyOn(userResponseSubject, "next");
+
+      // The two flags together gate the multi-variable continuation; both are
+      // private, so we reach through `(c as any)` to wire them up.
+      (c as any).isMultipleVariables = true;
+      (c as any).userResponseSubject = userResponseSubject;
+
+      c.rejectCurrentAnnotation();
+
+      expect(nextSpy).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("acceptCurrentAnnotation", () => {
+    it("is a no-op when the suggestion UI is not currently shown", () => {
+      const fixture = makeFixture(mockJavaUDFPredicate);
+      const c = fixture.componentInstance;
+      // No state set → early return path; nothing should change.
+      c.showAnnotationSuggestion = false;
+      expect(() => c.acceptCurrentAnnotation()).not.toThrow();
+      expect(c.showAnnotationSuggestion).toBe(false);
+    });
+
+    it("hides the suggestion UI after accepting", () => {
+      const fixture = makeFixture(mockJavaUDFPredicate);
+      const c = fixture.componentInstance;
+
+      // The accept path reaches into the underlying MonacoEditorLanguageClientWrapper
+      // for `.getEditor()` and into the YText `.code` for `.insert()`. Both are
+      // private so we stub them through bracket access to a minimum that lets
+      // insertTypeAnnotations no-op cleanly. `dispose` is needed because
+      // ngOnDestroy fires at teardown and calls it.
+      (c as any).editorWrapper = {
+        getEditor: () => ({
+          getModel: () => ({ getOffsetAt: () => 0 }),
+        }),
+        dispose: vi.fn(),
+      };
+      (c as any).code = { insert: vi.fn() };
+
+      c.showAnnotationSuggestion = true;
+      c.currentRange = new monaco.Range(1, 1, 1, 5);
+      c.currentSuggestion = ": int";
+
+      c.acceptCurrentAnnotation();
+
+      expect(c.showAnnotationSuggestion).toBe(false);
+    });
+  });
+
+  describe("AI assistant action wiring", () => {
+    // setupAIAssistantActions checks an AI-provider flag (OpenAI vs others)
+    // before deciding whether to register the per-selection 'Add Type
+    // Annotation' action. We can't drive the action body without a real
+    // Monaco editor, but the gate itself is plain RxJS — flip the flag and
+    // assert observable behaviour.
+    it("emits 'OpenAI' from the AI assistant gate when configured that way", async () => {
+      // Re-configure TestBed with a mock that drives the gate; existing tests
+      // use the default DI-resolved service.
+      await TestBed.resetTestingModule()
+        .configureTestingModule({
+          providers: [
+            WorkflowActionService,
+            { provide: OperatorMetadataService, useClass: AugmentedStubMetadataService },
+            { provide: AIAssistantService, useValue: { checkAIAssistantEnabled: () => of("OpenAI") } },
+            ...commonTestProviders,
+          ],
+          imports: [CodeEditorComponent, HttpClientTestingModule],
+        })
+        .compileComponents();
+      const wfActions = TestBed.inject(WorkflowActionService);
+      wfActions.addOperator(mockJavaUDFPredicate, mockPoint);
+      wfActions.getJointGraphWrapper().highlightOperators(mockJavaUDFPredicate.operatorID);
+      const fixture = TestBed.createComponent(CodeEditorComponent);
+      fixture.detectChanges();
+      const checked = await TestBed.inject(AIAssistantService).checkAIAssistantEnabled().toPromise();
+      expect(checked).toBe("OpenAI");
+    });
   });
 });

@@ -70,7 +70,9 @@ describe("ShareAccessComponent.grantAccess", () => {
         { provide: WorkflowActionService, useValue: {} },
       ],
     });
-    return TestBed.createComponent(ShareAccessComponent).componentInstance;
+    const fixture = TestBed.createComponent(ShareAccessComponent);
+    fixture.detectChanges();
+    return fixture.componentInstance;
   }
 
   beforeEach(() => {

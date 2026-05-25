@@ -33,19 +33,12 @@ import { WorkflowUtilService } from "../../../service/workflow-graph/util/workfl
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 
 describe("OperatorPanelComponent", () => {
   let component: OperatorMenuComponent;
   let fixture: ComponentFixture<OperatorMenuComponent>;
 
   beforeEach(async () => {
-    TestBed.overrideComponent(OperatorMenuComponent, {
-      set: {
-        template: "",
-      },
-    });
-
     await TestBed.configureTestingModule({
       providers: [
         {
@@ -67,7 +60,6 @@ describe("OperatorPanelComponent", () => {
         BrowserAnimationsModule,
         RouterTestingModule.withRoutes([]),
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   });
 
