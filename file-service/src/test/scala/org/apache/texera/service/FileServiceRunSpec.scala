@@ -23,16 +23,19 @@ import io.dropwizard.core.setup.Environment
 import io.dropwizard.jersey.setup.JerseyEnvironment
 import io.dropwizard.jetty.MutableServletContextHandler
 import io.dropwizard.jetty.setup.ServletEnvironment
-import org.apache.texera.service.activity.UserActivityEventListener
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
-import org.mockito.ArgumentMatchers.isA
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
+import scala.util.Try
 
-  private def runWithMockEnv(): JerseyEnvironment = {
+class FileServiceRunSpec extends AnyFlatSpec with Matchers {
+
+  // Verifies @RolesAllowed annotations on DatasetResource / DatasetAccessResource
+  // are actually enforced, which requires RolesAllowedDynamicFeature to be
+  // registered on the Jersey environment.
+  "FileService.run" should "register RolesAllowedDynamicFeature on the Jersey environment" in {
     val jersey = mock(classOf[JerseyEnvironment])
     val servlets = mock(classOf[ServletEnvironment])
     val context = mock(classOf[MutableServletContextHandler])
@@ -41,20 +44,12 @@ class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
     when(env.servlets).thenReturn(servlets)
     when(env.getApplicationContext).thenReturn(context)
 
-    new AccessControlService().run(mock(classOf[AccessControlServiceConfiguration]), env)
-    jersey
-  }
+    val service = new FileService
+    // Jersey registrations happen before the S3/LakeFS health checks. Those
+    // probes may throw or pass depending on whether a real infra is reachable
+    // from the test runner — either way the verify below holds.
+    Try(service.run(mock(classOf[FileServiceConfiguration]), env))
 
-  "AccessControlService.run" should "register UserActivityEventListener on the Jersey environment" in {
-    val jersey = runWithMockEnv()
-    verify(jersey).register(isA(classOf[UserActivityEventListener]))
-    verify(jersey).setUrlPattern("/api/*")
-  }
-
-  // Without RolesAllowedDynamicFeature registered, @RolesAllowed on LiteLLM
-  // resources and @PermitAll on AccessControlResource have no effect.
-  it should "register RolesAllowedDynamicFeature so role annotations are enforced" in {
-    val jersey = runWithMockEnv()
     verify(jersey).register(classOf[RolesAllowedDynamicFeature])
   }
 }

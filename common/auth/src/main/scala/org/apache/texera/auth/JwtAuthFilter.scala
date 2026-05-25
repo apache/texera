@@ -20,6 +20,8 @@
 package org.apache.texera.auth
 
 import com.typesafe.scalalogging.LazyLogging
+import jakarta.annotation.Priority
+import jakarta.ws.rs.Priorities
 import jakarta.ws.rs.container.{ContainerRequestContext, ContainerRequestFilter}
 import jakarta.ws.rs.core.{HttpHeaders, SecurityContext}
 import jakarta.ws.rs.ext.Provider
@@ -28,6 +30,7 @@ import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import java.security.Principal
 
 @Provider
+@Priority(Priorities.AUTHENTICATION)
 class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {
 
   override def filter(requestContext: ContainerRequestContext): Unit = {

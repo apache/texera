@@ -40,6 +40,7 @@ import org.apache.texera.service.resource.{
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LargeBinaryManager
 import org.eclipse.jetty.server.session.SessionHandler
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
 
 class FileService extends Application[FileServiceConfiguration] with LazyLogging {
@@ -63,19 +64,9 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
   override def run(configuration: FileServiceConfiguration, environment: Environment): Unit = {
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
 
-    // check if the texera dataset bucket exists, if not create it
-    S3StorageClient.createBucketIfNotExist(StorageConfig.lakefsBucketName)
-    // ensure the large-binary S3 bucket exists before any workflow execution attempts to use it
-    S3StorageClient.createBucketIfNotExist(LargeBinaryManager.DEFAULT_BUCKET)
-    // check if we can connect to the lakeFS service
-    LakeFSStorageClient.healthCheck()
-
+    // Wire Jersey first (registrations don't depend on DB/S3 state); infra init
+    // happens after so unit tests can drive run() with a mocked environment.
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
 
@@ -89,11 +80,27 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
 
+    // Enforce @RolesAllowed annotations on resource methods
+    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
+
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)
+
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
+
+    // check if the texera dataset bucket exists, if not create it
+    S3StorageClient.createBucketIfNotExist(StorageConfig.lakefsBucketName)
+    // ensure the large-binary S3 bucket exists before any workflow execution attempts to use it
+    S3StorageClient.createBucketIfNotExist(LargeBinaryManager.DEFAULT_BUCKET)
+    // check if we can connect to the lakeFS service
+    LakeFSStorageClient.healthCheck()
   }
 }
 

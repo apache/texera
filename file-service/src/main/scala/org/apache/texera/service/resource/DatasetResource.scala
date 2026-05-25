@@ -20,7 +20,7 @@
 package org.apache.texera.service.resource
 
 import io.dropwizard.auth.Auth
-import jakarta.annotation.security.RolesAllowed
+import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.amber.config.StorageConfig
@@ -653,6 +653,7 @@ class DatasetResource {
   }
 
   @GET
+  @PermitAll
   @Path("/public-presign-download")
   def getPublicPresignedUrl(
       @QueryParam("filePath") encodedUrl: String,
@@ -663,6 +664,7 @@ class DatasetResource {
   }
 
   @GET
+  @PermitAll
   @Path("/public-presign-download-s3")
   def getPublicPresignedUrlWithS3(
       @QueryParam("filePath") encodedUrl: String,
@@ -1151,6 +1153,7 @@ class DatasetResource {
   }
 
   @GET
+  @PermitAll
   @Path("/{name}/publicVersion/list")
   def getPublicDatasetVersionList(
       @PathParam("name") did: Integer
@@ -1297,6 +1300,7 @@ class DatasetResource {
   }
 
   @GET
+  @PermitAll
   @Path("/{did}/publicVersion/{dvid}/rootFileNodes")
   def retrievePublicDatasetVersionRootFileNodes(
       @PathParam("did") did: Integer,
@@ -1317,6 +1321,7 @@ class DatasetResource {
   }
 
   @GET
+  @PermitAll
   @Path("/public/{did}")
   def getPublicDataset(
       @PathParam("did") did: Integer
@@ -2141,6 +2146,7 @@ class DatasetResource {
     * @return 307 Temporary Redirect to cover image
     */
   @GET
+  @PermitAll
   @Path("/{did}/cover")
   def getDatasetCover(
       @PathParam("did") did: Integer,

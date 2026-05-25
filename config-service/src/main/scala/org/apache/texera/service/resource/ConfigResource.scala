@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.annotation.security.RolesAllowed
+import jakarta.annotation.security.PermitAll
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
 import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, UserSystemConfig}
@@ -29,7 +29,7 @@ import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, Use
 class ConfigResource {
 
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @PermitAll
   @Path("/gui")
   def getGuiConfig: Map[String, Any] =
     Map(
@@ -64,7 +64,7 @@ class ConfigResource {
     )
 
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @PermitAll
   @Path("/user-system")
   def getUserSystemConfig: Map[String, Any] =
     Map(

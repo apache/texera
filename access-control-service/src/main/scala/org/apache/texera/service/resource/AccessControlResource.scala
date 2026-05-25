@@ -20,6 +20,7 @@ package org.apache.texera.service.resource
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
 import jakarta.ws.rs.core._
 import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces}
@@ -191,6 +192,7 @@ object AccessControlResource extends LazyLogging {
   }
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
+@PermitAll
 @Path("/auth")
 class AccessControlResource extends LazyLogging {
 
@@ -218,6 +220,7 @@ class AccessControlResource extends LazyLogging {
 @Path("/chat")
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 class LiteLLMProxyResource extends LazyLogging {
 
   private val client: Client = ClientBuilder.newClient()
@@ -289,6 +292,7 @@ class LiteLLMProxyResource extends LazyLogging {
 
 @Path("/models")
 @Produces(Array(MediaType.APPLICATION_JSON))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 class LiteLLMModelsResource extends LazyLogging {
 
   private val client: Client = ClientBuilder.newClient()
