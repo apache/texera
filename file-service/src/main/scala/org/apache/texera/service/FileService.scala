@@ -64,9 +64,19 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
   override def run(configuration: FileServiceConfiguration, environment: Environment): Unit = {
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
 
-    // Wire Jersey first (registrations don't depend on DB/S3 state); infra init
-    // happens after so unit tests can drive run() with a mocked environment.
+    // check if the texera dataset bucket exists, if not create it
+    S3StorageClient.createBucketIfNotExist(StorageConfig.lakefsBucketName)
+    // ensure the large-binary S3 bucket exists before any workflow execution attempts to use it
+    S3StorageClient.createBucketIfNotExist(LargeBinaryManager.DEFAULT_BUCKET)
+    // check if we can connect to the lakeFS service
+    LakeFSStorageClient.healthCheck()
+
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
 
@@ -88,19 +98,6 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)
-
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
-
-    // check if the texera dataset bucket exists, if not create it
-    S3StorageClient.createBucketIfNotExist(StorageConfig.lakefsBucketName)
-    // ensure the large-binary S3 bucket exists before any workflow execution attempts to use it
-    S3StorageClient.createBucketIfNotExist(LargeBinaryManager.DEFAULT_BUCKET)
-    // check if we can connect to the lakeFS service
-    LakeFSStorageClient.healthCheck()
   }
 }
 
