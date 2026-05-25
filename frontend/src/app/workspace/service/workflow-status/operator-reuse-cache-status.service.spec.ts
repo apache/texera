@@ -22,7 +22,7 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 
 import { OperatorReuseCacheStatusService } from "./operator-reuse-cache-status.service";
-import { HttpClientModule } from "@angular/common/http";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("OperatorCacheStatusService", () => {
@@ -37,7 +37,7 @@ describe("OperatorCacheStatusService", () => {
         },
         ...commonTestProviders,
       ],
-      imports: [HttpClientModule],
+      imports: [HttpClientTestingModule],
     });
     service = TestBed.inject(OperatorReuseCacheStatusService);
   });

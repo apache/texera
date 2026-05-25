@@ -25,7 +25,7 @@ import type { WorkflowState } from "../workflow-state";
 const LAYOUT_CONFIG: dagre.GraphLabel = {
   nodesep: 100,
   edgesep: 150,
-  ranksep: 100,
+  ranksep: 80,
   ranker: "tight-tree",
   rankdir: "LR",
 };
