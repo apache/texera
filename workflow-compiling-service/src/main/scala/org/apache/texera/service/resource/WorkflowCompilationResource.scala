@@ -75,16 +75,11 @@ class WorkflowCompilationResource extends LazyLogging {
       case (operatorIdentity, schemas) =>
         val opId = operatorIdentity.id
         val portIdAndAttributes = schemas.map {
-          case (portId, schemaOption) => {
-            if (schemaOption.isEmpty) {
-              (PortIdentityKeySerializer.portIdToString(portId), None)
-            } else {
-              (
-                PortIdentityKeySerializer.portIdToString(portId),
-                Some(schemaOption.get.attributes)
-              )
-            }
-          }
+          case (portId, schemaOption) =>
+            // Normalize Some(null) to None: upstream may yield Some(null) when a
+            // schema cannot be derived (e.g. unresolvable scan source file).
+            val attributes = schemaOption.flatMap(Option(_)).map(_.attributes)
+            (PortIdentityKeySerializer.portIdToString(portId), attributes)
         }
         (opId, portIdAndAttributes)
     }

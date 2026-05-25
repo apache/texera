@@ -18,7 +18,6 @@
  */
 
 import { DatePipe, Location } from "@angular/common";
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
@@ -44,7 +43,7 @@ import { ComputingUnitState } from "../../../common/type/computing-unit-connecti
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { saveAs } from "file-saver";
 import type { ModalOptions } from "ng-zorro-antd/modal";
-import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
+import type { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { WorkflowContent } from "../../../common/type/workflow";
 import type { Mocked } from "vitest";
 
@@ -65,10 +64,6 @@ describe("MenuComponent", () => {
   let validationStream$: BehaviorSubject<ValidationOutput>;
 
   beforeEach(async () => {
-    TestBed.overrideComponent(MenuComponent, {
-      set: { template: "" },
-    });
-
     await TestBed.configureTestingModule({
       imports: [MenuComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([]), NzModalModule],
       providers: [
@@ -79,12 +74,14 @@ describe("MenuComponent", () => {
           useValue: {
             getSelectedComputingUnit: () => of(null),
             getStatus: () => of(ComputingUnitState.NoComputingUnit),
+            // Read by ComputingUnitSelectionComponent.ngOnInit when the menu
+            // template renders the <texera-computing-unit-selection> child.
+            getAllComputingUnits: () => of([]),
           },
         },
         { provide: UserService, useClass: StubUserService },
         ...commonTestProviders,
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     workflowActionService = TestBed.inject(WorkflowActionService);

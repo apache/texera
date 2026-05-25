@@ -18,7 +18,6 @@
  */
 
 import { CommonModule } from "@angular/common";
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { PropertyEditorComponent } from "./property-editor.component";
 import {
@@ -41,12 +40,6 @@ describe("PropertyEditorComponent", () => {
   let workflowActionService: WorkflowActionService;
 
   beforeEach(async () => {
-    TestBed.overrideComponent(PropertyEditorComponent, {
-      set: {
-        template: '<div id="right-container"><div #contentWrapper></div></div>',
-      },
-    });
-
     await TestBed.configureTestingModule({
       imports: [PropertyEditorComponent, CommonModule, HttpClientTestingModule],
       providers: [
@@ -57,7 +50,6 @@ describe("PropertyEditorComponent", () => {
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         ...commonTestProviders,
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   });
 

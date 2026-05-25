@@ -17,6 +17,12 @@
  * under the License.
  */
 
+export const INTERNAL_RESULT_KEYS: ReadonlySet<string> = new Set(["__row_index__", "__is_visualization__"]);
+
+export function getVisibleResultHeaders(row: Record<string, any>): string[] {
+  return Object.keys(row).filter(k => !INTERNAL_RESULT_KEYS.has(k));
+}
+
 export function createToolResult(message: string): string {
   return message;
 }
