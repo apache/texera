@@ -25,8 +25,8 @@ import io.dropwizard.setup.Environment
 import org.apache.texera.auth.JwtAuth.jwtConsumer
 import org.apache.texera.auth.SessionUser
 
-// TODO: move this logic to common/auth once it depends on Dropwizard, so amber
-// services can drop the toastshaman dropwizard-auth-jwt filter.
+// TODO: move this logic to Auth
+@Deprecated
 object JwtAuth {
   def setupJwtAuth(environment: Environment): Unit = {
     // register JWT Auth layer
