@@ -21,6 +21,24 @@ package org.apache.texera.amber.pybuilder
 
 import scala.reflect.macros.blackbox
 
+object BoundaryValidator {
+
+  final case class CompileTimeContext[Pos](
+      leftPart: String,
+      rightPart: String,
+      prefixSource: String,
+      argIndex: Int,
+      errorPos: Pos
+  )
+
+  final case class RuntimeContext(
+      leftPart: String,
+      rightPart: String,
+      prefixSource: String,
+      argIndex: Int
+  )
+}
+
 /**
   * Macro-only helper: validates boundaries for Encodable insertions.
   *
@@ -30,6 +48,7 @@ import scala.reflect.macros.blackbox
 final class BoundaryValidator[C <: blackbox.Context](val c: C) {
   import PythonLexerUtils._
   import c.universe._
+  import BoundaryValidator.{CompileTimeContext, RuntimeContext}
 
   /**
     * Centralized, templatized error messages (Option A).
@@ -75,22 +94,7 @@ final class BoundaryValidator[C <: blackbox.Context](val c: C) {
         "Add whitespace or punctuation to separate tokens."
   }
 
-  final case class CompileTimeContext(
-      leftPart: String,
-      rightPart: String,
-      prefixSource: String,
-      argIndex: Int,
-      errorPos: Position
-  )
-
-  final case class RuntimeContext(
-      leftPart: String,
-      rightPart: String,
-      prefixSource: String,
-      argIndex: Int
-  )
-
-  def validateCompileTime(ctx: CompileTimeContext): Unit = {
+  def validateCompileTime(ctx: CompileTimeContext[Position]): Unit = {
     val prefixLine = lineTail(ctx.prefixSource)
     val argNum = ctx.argIndex + 1
 

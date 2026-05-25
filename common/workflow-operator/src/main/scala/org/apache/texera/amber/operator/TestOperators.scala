@@ -31,7 +31,6 @@ import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
-import org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 
@@ -138,25 +137,6 @@ object TestOperators {
     aggOp.aggregations = List(aggFunc)
     aggOp.groupByKeys = groupByAttributes
     aggOp
-  }
-
-  def inMemoryMySQLSourceOpDesc(
-      host: String,
-      port: String,
-      database: String,
-      table: String,
-      username: String,
-      password: String
-  ): MySQLSourceOpDesc = {
-    val inMemoryMySQLSourceOpDesc = new MySQLSourceOpDesc()
-    inMemoryMySQLSourceOpDesc.host = host
-    inMemoryMySQLSourceOpDesc.port = port
-    inMemoryMySQLSourceOpDesc.database = database
-    inMemoryMySQLSourceOpDesc.table = table
-    inMemoryMySQLSourceOpDesc.username = username
-    inMemoryMySQLSourceOpDesc.password = password
-    inMemoryMySQLSourceOpDesc.limit = Some(1000)
-    inMemoryMySQLSourceOpDesc
   }
 
   // TODO: use mock data to perform the test, remove dependency on the real AsterixDB
