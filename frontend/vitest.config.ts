@@ -21,6 +21,11 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    // Emit a JUnit-XML report alongside the default console reporter so
+    // Codecov Test Analytics can ingest failing-test stack traces and
+    // detect flakies on main. `default` stays first so CI logs read the
+    // same as before.
+    reporters: ["default", ["junit", { outputFile: "junit.xml" }]],
     // Make describe/it/expect/vi/beforeEach/etc available as globals so
     // existing Jasmine-style specs don't need a per-file import sweep.
     // Paired with `vitest/globals` triple-slash in src/vitest-globals.d.ts.
