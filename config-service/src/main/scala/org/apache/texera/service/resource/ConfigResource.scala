@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.annotation.security.RolesAllowed
+import jakarta.annotation.security.PermitAll
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
 import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, UserSystemConfig}
@@ -28,8 +28,15 @@ import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, Use
 @Produces(Array(MediaType.APPLICATION_JSON))
 class ConfigResource {
 
+  // The frontend loads /config/gui and /config/user-system as an APP_INITIALIZER
+  // (GuiConfigService.load() in gui-config.service.ts) — i.e. before any login. They
+  // must answer unauthenticated callers so the login page can render. PR #5049 left
+  // @RolesAllowed on both endpoints, which once RolesAllowedDynamicFeature was
+  // registered started returning 403 during bootstrap and broke the whole app; that
+  // PR was reverted in #5173. @PermitAll keeps enforcement on for the rest of the
+  // service while explicitly whitelisting these two pre-login endpoints.
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @PermitAll
   @Path("/gui")
   def getGuiConfig: Map[String, Any] =
     Map(
@@ -64,7 +71,7 @@ class ConfigResource {
     )
 
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @PermitAll
   @Path("/user-system")
   def getUserSystemConfig: Map[String, Any] =
     Map(
