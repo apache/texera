@@ -42,6 +42,11 @@ export default defineConfig({
     ],
   },
   test: {
+    // Emit a JUnit-XML report alongside the default console reporter so
+    // Codecov Test Analytics can ingest browser-mode failures and detect
+    // flakies on main. Written to a distinct filename so the upload step
+    // can disambiguate it from the unit-test report.
+    reporters: ["default", ["junit", { outputFile: "junit-browser.xml" }]],
     globals: true,
     setupFiles: ["src/test-zone-setup.ts"],
     browser: {
