@@ -31,7 +31,7 @@ import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, Sort
 import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.{CSVScanSourceOpDesc, ParallelCSVScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
-import org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
@@ -315,6 +315,37 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
 
     script should include("""_text = "alice\nbob\ncharlie"""")
     script should include("""df1 = pd.DataFrame({"content": [_text]})""")
+    script should not include "out1df"
+  }
+
+  // --- Characterization: FileScanOpDesc (input-driven file reader) ---
+  it should "translate FileScanOpDesc in STRING mode into a per-file flattened read" in {
+    val upstream = csvSource("file:/tmp/filenames.csv")
+    val op = new FileScanOpDesc()
+    val script = translate(List(upstream, op), List(link(upstream, op)))
+
+    script should include("_rows = []")
+    script should include("for _fn in df1.iloc[:, 0]:")
+    script should include("""    with open(_fn, "r", encoding="utf-8") as _f:""")
+    script should include("""        _rows.extend(l.rstrip("\n") for l in _f)""")
+    script should include("""df2 = pd.DataFrame({"line": _rows})""")
+    script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  it should "translate FileScanOpDesc in SINGLE_STRING mode with outputFileName=true" in {
+    val upstream = csvSource("file:/tmp/filenames.csv")
+    val op = new FileScanOpDesc()
+    op.attributeType = FileAttributeType.SINGLE_STRING
+    op.attributeName = "content"
+    op.outputFileName = true
+    val script = translate(List(upstream, op), List(link(upstream, op)))
+
+    script should include("for _fn in df1.iloc[:, 0]:")
+    script should include("""    with open(_fn, "r", encoding="utf-8") as _f:""")
+    script should include("        _rows.append((_fn, _f.read()))")
+    script should include("""df2 = pd.DataFrame(_rows, columns=["filename", "content"])""")
+    script should not include "in1df"
     script should not include "out1df"
   }
 
