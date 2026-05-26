@@ -200,10 +200,6 @@ libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"
 // enable protobuf compilation in Test
 Test / PB.protoSources += PB.externalSourcePath.value
 
-// Python betterproto bindings (amber/src/main/python/proto/) are regenerated
-// out-of-band by bin/python-proto-gen.sh so dockerfiles, CI, and local
-// devs can refresh bindings without sbt or a JDK.
-
 /////////////////////////////////////////////////////////////////////////////
 // Test related
 // https://mvnrepository.com/artifact/org.scalamock/scalamock
