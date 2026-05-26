@@ -19,6 +19,7 @@
 
 package org.apache.texera.service.resource
 
+import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
@@ -215,7 +216,7 @@ object DatasetResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
 @Path("/dataset")
-class DatasetResource {
+class DatasetResource extends LazyLogging {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val EXPIRATION_MINUTES = 5
@@ -1105,28 +1106,32 @@ class DatasetResource {
         )
         .where(DATASET.IS_PUBLIC.eq(true))
         .fetch()
-        .map(record => {
+        .asScala
+        .flatMap { record =>
           val dataset = record.into(DATASET).into(classOf[Dataset])
           val ownerEmail = record.into(USER).getEmail
-          DashboardDataset(
-            isOwner = false,
-            dataset = dataset,
-            accessPrivilege = PrivilegeEnum.READ,
-            ownerEmail = ownerEmail,
-            size = LakeFSStorageClient.retrieveRepositorySize(dataset.getRepositoryName)
-          )
-        })
-      publicDatasets.forEach { publicDataset =>
+          try {
+            Some(
+              DashboardDataset(
+                isOwner = false,
+                dataset = dataset,
+                accessPrivilege = PrivilegeEnum.READ,
+                ownerEmail = ownerEmail,
+                size = LakeFSStorageClient.retrieveRepositorySize(dataset.getRepositoryName)
+              )
+            )
+          } catch {
+            case e: io.lakefs.clients.sdk.ApiException =>
+              logger.error(
+                s"LakeFS ApiException for dataset repository '${dataset.getRepositoryName}': ${e.getMessage}",
+                e
+              )
+              None
+          }
+        }
+      publicDatasets.foreach { publicDataset =>
         if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
-          val dashboardDataset = DashboardDataset(
-            isOwner = false,
-            dataset = publicDataset.dataset,
-            ownerEmail = publicDataset.ownerEmail,
-            accessPrivilege = PrivilegeEnum.READ,
-            size =
-              LakeFSStorageClient.retrieveRepositorySize(publicDataset.dataset.getRepositoryName)
-          )
-          accessibleDatasets = accessibleDatasets :+ dashboardDataset
+          accessibleDatasets = accessibleDatasets :+ publicDataset
         }
       }
       accessibleDatasets.toList
