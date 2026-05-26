@@ -23,7 +23,6 @@ import { WorkflowPersistService } from "src/app/common/service/workflow-persist/
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError } from "rxjs";
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { RouterTestingModule } from "@angular/router/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -47,12 +46,28 @@ describe("ListItemComponent", () => {
         NzModalService,
         ...commonTestProviders,
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ListItemComponent);
     component = fixture.componentInstance;
     workflowPersistService = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
+    // initializeEntry() needs a fully-formed workflow entry to avoid throwing
+    // when the template renders for the first time. Each test below overwrites
+    // component.entry directly, which exercises confirm methods without going
+    // back through change detection.
+    component.entry = {
+      id: 0,
+      name: "default",
+      description: "",
+      type: "workflow",
+      workflow: { isOwner: true },
+      accessibleUserIds: [],
+      likeCount: 0,
+      viewCount: 0,
+      isLiked: false,
+      size: 0,
+    } as unknown as DashboardEntry;
+    fixture.detectChanges();
   });
 
   it("should update workflow name successfully", () => {

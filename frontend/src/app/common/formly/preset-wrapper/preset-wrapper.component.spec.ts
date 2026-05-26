@@ -92,10 +92,6 @@ describe("PresetWrapperComponent", () => {
       warning: vi.fn(),
     };
 
-    // Override the template so the spec doesn't depend on the ng-zorro
-    // dropdown machinery — we exercise the public component API directly.
-    TestBed.overrideComponent(PresetWrapperComponent, { set: { template: "" } });
-
     await TestBed.configureTestingModule({
       imports: [PresetWrapperComponent],
       providers: [

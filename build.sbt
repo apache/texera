@@ -24,6 +24,13 @@ import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport.Universal
 ThisBuild / Test / javaOptions ++=
   JdkOptions.jvmFlags((ThisBuild / baseDirectory).value)
 
+// Emit one JUnit-XML file per spec under each module's target/test-reports/.
+// Codecov Test Analytics ingests these via `report_type: test_results` to
+// surface failing-test stack traces in PR comments and flag tests that have
+// gone flaky on main. ScalaTest's `-u` argument is additive — module-level
+// testOptions (e.g. amber/build.sbt's filter args) continue to apply.
+ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test-reports")
+
 // sbt-jacoco emits only HTML by default; add XML so Codecov can consume
 // per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
 // JacocoPlugin defines a project-scoped default that overrides ThisBuild,
@@ -113,7 +120,7 @@ lazy val FileService = (project in file("file-service"))
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Auth, Config)
+  .dependsOn(WorkflowOperator, Config)
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
