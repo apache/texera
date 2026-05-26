@@ -33,6 +33,7 @@ import org.apache.texera.amber.operator.source.scan.csv.{CSVScanSourceOpDesc, Pa
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
 import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
@@ -290,6 +291,30 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
 
     script should include("""with open("doc.txt", "r", encoding="utf-8") as _f:""")
     script should include("""df1 = pd.DataFrame({"content": [_f.read()]})""")
+    script should not include "out1df"
+  }
+
+  // --- Characterization: TextInputSourceOpDesc ---
+  it should "translate TextInputSourceOpDesc in STRING mode into a splitlines read" in {
+    val op = new TextInputSourceOpDesc()
+    op.textInput = "alice\nbob\ncharlie"
+    val script = translate(List(op), Nil)
+
+    script should include("""_text = "alice\nbob\ncharlie"""")
+    script should include("""df1 = pd.DataFrame({"line": [l for l in _text.splitlines()]})""")
+    script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  it should "translate TextInputSourceOpDesc in SINGLE_STRING mode as a whole-input row" in {
+    val op = new TextInputSourceOpDesc()
+    op.textInput = "alice\nbob\ncharlie"
+    op.attributeType = FileAttributeType.SINGLE_STRING
+    op.attributeName = "content"
+    val script = translate(List(op), Nil)
+
+    script should include("""_text = "alice\nbob\ncharlie"""")
+    script should include("""df1 = pd.DataFrame({"content": [_text]})""")
     script should not include "out1df"
   }
 
