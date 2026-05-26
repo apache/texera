@@ -54,3 +54,39 @@ export const formatTime = (seconds?: number): string => {
 
   return min === 0 ? `${h}h` : `${h}h${min}m`;
 };
+
+/**
+ * Format a past timestamp as a relative time string (e.g. "5 minutes ago").
+ */
+export const formatRelativeTime = (timestamp: number | undefined): string => {
+  if (timestamp === undefined) {
+    return "Unknown";
+  }
+
+  const timeDifference = new Date().getTime() - timestamp;
+  const minutesAgo = Math.floor(timeDifference / (1000 * 60));
+  const hoursAgo = Math.floor(timeDifference / (1000 * 60 * 60));
+  const daysAgo = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+  const weeksAgo = Math.floor(daysAgo / 7);
+
+  if (minutesAgo < 60) {
+    return `${minutesAgo} minutes ago`;
+  } else if (hoursAgo < 24) {
+    return `${hoursAgo} hours ago`;
+  } else if (daysAgo < 7) {
+    return `${daysAgo} days ago`;
+  } else if (weeksAgo < 4) {
+    return `${weeksAgo} weeks ago`;
+  }
+  return new Date(timestamp).toLocaleDateString();
+};
+
+/**
+ * Format a count, abbreviating values >= 1000 (e.g. 1500 -> "1.5k").
+ */
+export const formatCount = (count: number): string => {
+  if (count >= 1000) {
+    return (count / 1000).toFixed(1) + "k";
+  }
+  return count.toString();
+};
