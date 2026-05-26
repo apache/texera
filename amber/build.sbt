@@ -179,7 +179,7 @@ libraryDependencies ++= hadoopDependencies
 // protobuf related
 // run the following with sbt to have protobuf codegen
 
-PB.protocVersion := "3.19.4"
+PB.protocVersion := IO.read((ThisBuild / baseDirectory).value / "bin" / "protoc-version.txt").trim
 
 enablePlugins(Fs2Grpc)
 
@@ -200,22 +200,9 @@ libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"
 // enable protobuf compilation in Test
 Test / PB.protoSources += PB.externalSourcePath.value
 
-// Skipped with a warning if protoc or the betterproto plugin is missing.
-val genPythonProto = taskKey[Unit]("Generate Python betterproto bindings from .proto sources.")
-genPythonProto := {
-  val log = streams.value.log
-  val repoRoot = (ThisBuild / baseDirectory).value
-  val script = repoRoot / "bin" / "python-proto-gen.sh"
-  def onPath(bin: String): Boolean =
-    scala.sys.process.Process(Seq("bash", "-c", s"command -v $bin >/dev/null 2>&1")).! == 0
-  if (!onPath("protoc") || !onPath("protoc-gen-python_betterproto")) {
-    log.warn("protoc or protoc-gen-python_betterproto not found on PATH; skipping Python proto generation. Install protoc and `pip install betterproto[compiler]` before running pytest.")
-  } else {
-    val exit = scala.sys.process.Process(Seq("bash", script.getAbsolutePath), repoRoot).!(log)
-    if (exit != 0) sys.error(s"python-proto-gen.sh failed with exit code $exit")
-  }
-}
-Compile / compile := (Compile / compile).dependsOn(genPythonProto).value
+// Python betterproto bindings (amber/src/main/python/proto/) are regenerated
+// out-of-band by bin/python-proto-gen.sh so dockerfiles, CI, and local
+// devs can refresh bindings without sbt or a JDK.
 
 /////////////////////////////////////////////////////////////////////////////
 // Test related

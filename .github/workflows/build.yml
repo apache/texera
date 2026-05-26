@@ -180,6 +180,24 @@ jobs:
         with:
           distribution: "temurin"
           java-version: 17
+      - name: Setup Python for proto-gen
+        # bin/python-proto-gen.sh (run below before sbt dist) needs
+        # python3 and the betterproto plugin from amber/dev-requirements.txt.
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install Python dependencies for proto-gen
+        run: |
+          python -m pip install uv
+          uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt
+      - name: Install protoc
+        # Version pinned in bin/protoc-version.txt.
+        run: |
+          PROTOC_VERSION=$(cat bin/protoc-version.txt)
+          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          sudo unzip -o /tmp/protoc.zip -d /usr/local
+          sudo chmod +x /usr/local/bin/protoc
+          sudo chmod -R a+rX /usr/local/include/google
       - name: Create Databases
         # Must run before any sbt compile step: the build's JOOQ source
         # generators connect to texera_db while compiling.
@@ -194,6 +212,11 @@ jobs:
       - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+      - name: Generate Python proto bindings
+        # Must run before `WorkflowExecutionService/dist` so the amber
+        # dist packages amber/src/main/python/proto/. Independent of sbt
+        # and the JDK.
+        run: bash bin/python-proto-gen.sh
       - name: Lint and build amber distributable bundle
         # Single sbt invocation: scalafmt -> scalafix -> amber dist.
         # scalafmtCheckAll and scalafixAll cover every Scala module, so the
@@ -316,16 +339,17 @@ jobs:
         # flag a dependabot bump to a version not yet mirrored there
         # fails to resolve even though PyPI has it.
         # dev-requirements.txt provides the betterproto plugin used by
-        # genPythonProto (wired into amber/Compile in amber/build.sbt).
+        # bin/python-proto-gen.sh.
         run: |
           python -m pip install uv
           if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
           if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt; fi
-      - name: Install protoc 3.19.4
-        # Matches PB.protocVersion in amber/build.sbt.
+      - name: Install protoc
+        # Version pinned in bin/protoc-version.txt.
         run: |
-          curl -fsSL -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-linux-x86_64.zip
+          PROTOC_VERSION=$(cat bin/protoc-version.txt)
+          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
           sudo unzip -o /tmp/protoc.zip -d /usr/local
           sudo chmod +x /usr/local/bin/protoc
           sudo chmod -R a+rX /usr/local/include/google
@@ -436,6 +460,10 @@ jobs:
             }
           }
           EOF
+      - name: Generate Python proto bindings
+        # Integration specs spawn Python UDF workers that import the
+        # generated betterproto bindings. Independent of sbt and the JDK.
+        run: bash bin/python-proto-gen.sh
       - name: Lint and run amber integration tests
         # AMBER_TEST_FILTER=integration-only tells amber/build.sbt to
         # keep only @org.apache.texera.amber.tags.IntegrationTest
@@ -630,10 +658,11 @@ jobs:
         run: |
           python -m pip install uv
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
-      - name: Install protoc 3.19.4
-        # Matches PB.protocVersion in amber/build.sbt.
+      - name: Install protoc
+        # Version pinned in bin/protoc-version.txt.
         run: |
-          curl -fsSL -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-linux-x86_64.zip
+          PROTOC_VERSION=$(cat bin/protoc-version.txt)
+          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
           sudo unzip -o /tmp/protoc.zip -d /usr/local
           sudo chmod +x /usr/local/bin/protoc
           sudo chmod -R a+rX /usr/local/include/google
@@ -683,6 +712,8 @@ jobs:
           if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
       - name: Install protoc
+        # Homebrew protoc; this job doesn't exercise scalapb so the
+        # bin/protoc-version.txt pin doesn't apply here.
         run: brew install protobuf
       - name: Generate Python proto bindings
         run: bash bin/python-proto-gen.sh

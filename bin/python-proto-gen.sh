@@ -15,12 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# assuming inside the pytexera executing Python ENV
-
 set -euo pipefail
 
-# dirs
-TEXERA_HOME="$(git rev-parse --show-toplevel)"
+# Resolve repo root from this script's location (avoids git/CWD assumptions
+# so the script works inside Docker build stages before .git is copied).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEXERA_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
 AMBER_DIR="$TEXERA_HOME/amber"
 PYAMBER_DIR="$AMBER_DIR/src/main/python"
 PROTOBUF_AMBER_DIR="$AMBER_DIR/src/main/protobuf"

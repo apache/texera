@@ -50,9 +50,8 @@ COPY project/ project/
 COPY build.sbt build.sbt
 COPY .jvmopts .jvmopts
 
-# python3-minimal is needed by bin/licensing/concat_license_binary.py
-# below; python3-pip + curl are for the protoc + betterproto[compiler]
-# install below.
+# python3-minimal is needed by bin/licensing/concat_license_binary.py;
+# python3-pip installs the betterproto plugin; unzip + curl fetch protoc.
 RUN apt-get update && apt-get install -y \
     netcat \
     unzip \
@@ -62,22 +61,27 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     && apt-get clean
 
-# protoc 3.19.4 (matches PB.protocVersion in amber/build.sbt) and the
-# betterproto plugin are required by the genPythonProto sbt task so the
-# generated amber/src/main/python/proto/ tree is populated before the
-# WorkflowExecutionService dist is packaged.
-RUN curl -fsSL -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-linux-x86_64.zip \
+# Install protoc (version pinned in bin/protoc-version.txt) and the
+# betterproto plugin (version pinned via amber/requirements.txt as a
+# pip constraint, so the runtime base `betterproto` and the build-time
+# `betterproto[compiler]` stay in lockstep), then regenerate
+# amber/src/main/python/proto/ before the WorkflowExecutionService dist
+# is packaged.
+COPY bin/protoc-version.txt bin/protoc-version.txt
+COPY bin/python-proto-gen.sh bin/python-proto-gen.sh
+RUN PROTOC_VERSION=$(cat bin/protoc-version.txt) \
+    && curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip" \
     && unzip -o /tmp/protoc.zip -d /usr/local \
     && chmod +x /usr/local/bin/protoc \
     && rm /tmp/protoc.zip \
-    && pip3 install --no-cache-dir 'betterproto[compiler]==2.0.0b7'
+    && pip3 install --no-cache-dir -c amber/requirements.txt 'betterproto[compiler]' \
+    && bash bin/python-proto-gen.sh
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
 COPY LICENSE NOTICE DISCLAIMER ./
 COPY licenses/ licenses/
 COPY bin/licensing/ bin/licensing/
-COPY bin/python-proto-gen.sh bin/python-proto-gen.sh
 
 # Bring frontend/LICENSE-binary into this build stage so the per-image
 # LICENSE merge below can union it with amber/LICENSE-binary-java.
