@@ -31,6 +31,7 @@ import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, Sort
 import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.{CSVScanSourceOpDesc, ParallelCSVScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
+import org.apache.texera.amber.operator.source.fetcher.{DecodingMethod, URLFetcherOpDesc}
 import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
@@ -346,6 +347,34 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("        _rows.append((_fn, _f.read()))")
     script should include("""df2 = pd.DataFrame(_rows, columns=["filename", "content"])""")
     script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  // --- Characterization: URLFetcherOpDesc ---
+  it should "translate URLFetcherOpDesc with UTF_8 into a urllib fetch + decode" in {
+    val op = new URLFetcherOpDesc()
+    op.url = "https://example.com"
+    op.decodingMethod = DecodingMethod.UTF_8
+    val script = translate(List(op), Nil)
+
+    script should include("""_url = "https://example.com"""")
+    script should include("    with urllib.request.urlopen(_url) as _resp:")
+    script should include("        _content = _resp.read()")
+    script should include("""    _content = f"Fetch failed for URL: {_url}".encode("utf-8")""")
+    script should include("""df1 = pd.DataFrame({"URL content": [_content.decode("utf-8")]})""")
+    script should not include "out1df"
+  }
+
+  it should "translate URLFetcherOpDesc with RAW_BYTES into a urllib fetch without decode" in {
+    val op = new URLFetcherOpDesc()
+    op.url = "https://example.com/data.bin"
+    op.decodingMethod = DecodingMethod.RAW_BYTES
+    val script = translate(List(op), Nil)
+
+    script should include("""_url = "https://example.com/data.bin"""")
+    script should include("    with urllib.request.urlopen(_url) as _resp:")
+    script should include("""df1 = pd.DataFrame({"URL content": [_content]})""")
+    script should not include "[_content.decode"
     script should not include "out1df"
   }
 
