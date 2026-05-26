@@ -31,10 +31,11 @@ import scala.collection.mutable
 
 class StatisticsManager {
   // DataProcessor
+  // Plain maps (no withDefaultValue) so they survive Kryo round-trip.
   private val inputStatistics: mutable.Map[PortIdentity, (Long, Long)] =
-    mutable.Map.empty.withDefaultValue((0L, 0L))
+    mutable.Map.empty
   private val outputStatistics: mutable.Map[PortIdentity, (Long, Long)] =
-    mutable.Map.empty.withDefaultValue((0L, 0L))
+    mutable.Map.empty
   private var dataProcessingTime: Long = 0L
   private var totalExecutionTime: Long = 0L
   private var workerStartTime: Long = 0L
@@ -82,8 +83,10 @@ class StatisticsManager {
     */
   def increaseInputStatistics(portId: PortIdentity, size: Long): Unit = {
     require(size >= 0, "Tuple size must be non-negative")
-    val (count, totalSize) = inputStatistics(portId)
-    inputStatistics.update(portId, (count + 1, totalSize + size))
+    inputStatistics.updateWith(portId) {
+      case Some((count, totalSize)) => Some((count + 1, totalSize + size))
+      case None                     => Some((1L, size))
+    }
   }
 
   /**
@@ -93,8 +96,10 @@ class StatisticsManager {
     */
   def increaseOutputStatistics(portId: PortIdentity, size: Long): Unit = {
     require(size >= 0, "Tuple size must be non-negative")
-    val (count, totalSize) = outputStatistics(portId)
-    outputStatistics.update(portId, (count + 1, totalSize + size))
+    outputStatistics.updateWith(portId) {
+      case Some((count, totalSize)) => Some((count + 1, totalSize + size))
+      case None                     => Some((1L, size))
+    }
   }
 
   /**

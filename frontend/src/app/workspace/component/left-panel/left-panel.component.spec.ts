@@ -17,7 +17,6 @@
  * under the License.
  */
 
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { LeftPanelComponent } from "./left-panel.component";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
@@ -36,12 +35,6 @@ describe("LeftPanelComponent", () => {
   let fixture: ComponentFixture<LeftPanelComponent>;
 
   beforeEach(async () => {
-    TestBed.overrideComponent(LeftPanelComponent, {
-      set: {
-        template: '<div id="left-container"><div #content></div></div>',
-      },
-    });
-
     await TestBed.configureTestingModule({
       imports: [LeftPanelComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([])],
       providers: [
@@ -51,7 +44,6 @@ describe("LeftPanelComponent", () => {
         },
         ...commonTestProviders,
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   });
 

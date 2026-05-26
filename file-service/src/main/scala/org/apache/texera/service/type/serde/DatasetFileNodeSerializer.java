@@ -23,8 +23,8 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import org.apache.texera.service.type.DatasetFileNode;
-import scala.collection.JavaConverters;
 import scala.collection.immutable.List;
+import scala.jdk.javaapi.CollectionConverters;
 
 import java.io.IOException;
 
@@ -53,7 +53,7 @@ public class DatasetFileNodeSerializer extends StdSerializer<DatasetFileNode> {
             gen.writeFieldName("children");
             gen.writeStartArray();
             List<DatasetFileNode> children = value.getChildren();
-            for (DatasetFileNode child : JavaConverters.seqAsJavaList(children)) {
+            for (DatasetFileNode child : CollectionConverters.asJava(children)) {
                 serialize(child, gen, provider); // Recursively serialize children
             }
             gen.writeEndArray();

@@ -62,6 +62,7 @@ import java.lang.Byte.{SIZE => BitsPerByte}
 import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
+import scala.language.existentials
 
 object ExecutionResultService {
 

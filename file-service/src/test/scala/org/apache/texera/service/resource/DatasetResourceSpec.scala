@@ -29,8 +29,18 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
-import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetUserAccessDao,
+  DatasetVersionDao,
+  UserDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetUserAccess,
+  DatasetVersion,
+  User
+}
 import org.apache.texera.service.MockLakeFS
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.SQLDialect
@@ -368,6 +378,67 @@ class DatasetResourceSpec
     }
 
     datasetDao.fetchOneByDid(dataset.getDid) should not be null
+  }
+
+  "listDatasets" should "include a dataset whose LakeFS repo exists" in {
+    val repoName = s"list-ok-${System.nanoTime()}"
+    val dataset = new Dataset
+    dataset.setName(repoName)
+    dataset.setRepositoryName(repoName)
+    dataset.setDescription("list endpoint - healthy dataset")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    LakeFSStorageClient.initRepo(repoName)
+
+    val result = datasetResource.listDatasets(sessionUser)
+
+    result.map(_.dataset.getDid) should contain(dataset.getDid)
+  }
+
+  it should "exclude a dataset whose LakeFS repo has been deleted (orphan DB row)" in {
+    val repoName = s"list-orphan-${System.nanoTime()}"
+    val dataset = new Dataset
+    dataset.setName(repoName)
+    dataset.setRepositoryName(repoName)
+    dataset.setDescription("list endpoint - orphan DB row")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    LakeFSStorageClient.initRepo(repoName)
+    // Simulate the DB/LakeFS mismatch: delete the repo directly, leaving the DB row.
+    LakeFSStorageClient.deleteRepo(repoName)
+
+    val result = datasetResource.listDatasets(sessionUser)
+
+    result.map(_.dataset.getDid) should not contain dataset.getDid
+  }
+
+  it should "deduplicate a dataset accessible via both explicit access and public visibility" in {
+    val repoName = s"list-dedup-${System.nanoTime()}"
+    val dataset = new Dataset
+    dataset.setName(repoName)
+    dataset.setRepositoryName(repoName)
+    dataset.setDescription("list endpoint - dedup")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    LakeFSStorageClient.initRepo(repoName)
+
+    // Grant explicit READ access so the dataset is fetched by BOTH the explicit-access
+    // path and the public path — exercises the dedup branch in the merge loop.
+    val access = new DatasetUserAccess
+    access.setDid(dataset.getDid)
+    access.setUid(sessionUser.getUid)
+    access.setPrivilege(PrivilegeEnum.READ)
+    new DatasetUserAccessDao(getDSLContext.configuration()).insert(access)
+
+    val result = datasetResource.listDatasets(sessionUser)
+
+    result.count(_.dataset.getDid == dataset.getDid) shouldBe 1
   }
 
   "updateDatasetName" should "rename dataset successfully if user has write access" in {
