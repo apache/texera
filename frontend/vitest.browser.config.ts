@@ -41,6 +41,15 @@ export default defineConfig({
       { find: /^lib0\/webcrypto$/, replacement: lib0Webcrypto },
     ],
   },
+  // `buffer` is imported only by the test setup file (src/browser-buffer-
+  // polyfill.ts), which Vite's import-scan via the @angular/build:unit-test
+  // builder does NOT crawl — without this hint the dep is served raw and
+  // `require()` calls inside the CJS package crash on first import.
+  // Explicit-include forces esbuild to pre-bundle it (alongside its
+  // `base64-js` + `ieee754` transitive deps) into a browser-runnable ESM.
+  optimizeDeps: {
+    include: ["buffer"],
+  },
   test: {
     // Emit a JUnit-XML report alongside the default console reporter so
     // Codecov Test Analytics can ingest browser-mode failures and detect
@@ -48,7 +57,13 @@ export default defineConfig({
     // can disambiguate it from the unit-test report.
     reporters: ["default", ["junit", { outputFile: "junit-browser.xml" }]],
     globals: true,
-    setupFiles: ["src/test-zone-setup.ts"],
+    // browser-buffer-polyfill must run FIRST: it puts Buffer/process on
+    // globalThis before any test module loads, which is required for
+    // monaco-editor-wrapper's eager Buffer.allocUnsafe references (under
+    // jsdom-mode Vitest these are satisfied by Node's built-in Buffer; in
+    // browser-mode the runtime has neither, so we install the `buffer` npm
+    // package as a shim).
+    setupFiles: ["src/browser-buffer-polyfill.ts", "src/test-zone-setup.ts"],
     browser: {
       enabled: true,
       provider: playwright(),
