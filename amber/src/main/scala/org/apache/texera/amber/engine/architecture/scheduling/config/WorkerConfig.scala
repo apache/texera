@@ -25,7 +25,10 @@ import org.apache.texera.amber.core.workflow.PhysicalOp
 import org.apache.texera.amber.util.VirtualIdentityUtils
 
 case object WorkerConfig {
-  def generateWorkerConfigs(physicalOp: PhysicalOp): List[WorkerConfig] = {
+  def generateWorkerConfigs(
+      physicalOp: PhysicalOp,
+      cuid: Option[Int] = None
+  ): List[WorkerConfig] = {
     val workerCount = if (physicalOp.parallelizable) {
       physicalOp.suggestedWorkerNum match {
         // Keep suggested number of workers
@@ -40,12 +43,16 @@ case object WorkerConfig {
 
     (0 until workerCount).toList.map(idx =>
       WorkerConfig(
-        VirtualIdentityUtils.createWorkerIdentity(physicalOp.workflowId, physicalOp.id, idx)
+        VirtualIdentityUtils.createWorkerIdentity(physicalOp.workflowId, physicalOp.id, idx),
+        pveName = physicalOp.pveName,
+        cuid = cuid
       )
     )
   }
 }
 
 case class WorkerConfig(
-    workerId: ActorVirtualIdentity
+    workerId: ActorVirtualIdentity,
+    pveName: String = "",
+    cuid: Option[Int] = None
 )

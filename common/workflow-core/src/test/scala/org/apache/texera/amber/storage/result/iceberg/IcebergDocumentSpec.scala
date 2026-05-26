@@ -38,7 +38,7 @@ import org.apache.iceberg.data.Record
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalatest.BeforeAndAfterAll
 
-import java.lang.reflect.{InvocationHandler, Method, Proxy}
+import java.lang.reflect.{InvocationHandler, InvocationTargetException, Method, Proxy}
 import java.net.URI
 import java.sql.Timestamp
 import java.util.UUID
@@ -144,6 +144,66 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     }
   }
 
+  it should "report documentExists=true for a URI that was created via createDocument" in {
+    assert(DocumentFactory.documentExists(uri))
+  }
+
+  it should "report documentExists=false for a URI that was never created" in {
+    val freshBase = VFSURIFactory.createPortBaseURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      GlobalPortIdentity(
+        PhysicalOpIdentity(
+          logicalOpId = OperatorIdentity(s"fresh-${UUID.randomUUID().toString.replace("-", "")}"),
+          layerName = "main"
+        ),
+        PortIdentity()
+      )
+    )
+    val freshUri = VFSURIFactory.resultURI(freshBase)
+    assert(!DocumentFactory.documentExists(freshUri))
+  }
+
+  it should "throw UnsupportedOperationException for documentExists on an unsupported scheme" in {
+    intercept[UnsupportedOperationException] {
+      DocumentFactory.documentExists(new URI("file:///tmp/anything"))
+    }
+  }
+
+  it should "resolve CONSOLE_MESSAGES URIs through documentExists" in {
+    val consoleUri = VFSURIFactory.createConsoleMessagesURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      OperatorIdentity(s"fresh-${UUID.randomUUID().toString.replace("-", "")}")
+    )
+    assert(!DocumentFactory.documentExists(consoleUri))
+  }
+
+  it should "resolve RUNTIME_STATISTICS URIs through documentExists" in {
+    val statsUri = VFSURIFactory.createRuntimeStatisticsURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0)
+    )
+    assert(!DocumentFactory.documentExists(statsUri))
+  }
+
+  it should "throw IllegalArgumentException for resolveNamespace on an unmapped resource type" in {
+    // `resolveNamespace` is private and its `case _ =>` is unreachable from any
+    // well-formed VFS URI (VFSURIFactory.decodeURI validates resource types).
+    // Exercise the defensive branch by reflecting on the method and passing
+    // null — Scala pattern matches fall through to the wildcard for null
+    // scrutinees.
+    val method = DocumentFactory.getClass.getDeclaredMethod(
+      "resolveNamespace",
+      classOf[Enumeration#Value]
+    )
+    method.setAccessible(true)
+    val wrapped = intercept[InvocationTargetException] {
+      method.invoke(DocumentFactory, null)
+    }
+    assert(wrapped.getCause.isInstanceOf[IllegalArgumentException])
+  }
+
   it should "round trip materialized state documents" in {
     val stateUri = VFSURIFactory.stateURI(baseURI)
     DocumentFactory.createDocument(stateUri, State.schema)
@@ -220,6 +280,27 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
         .values("nested")
         .asInstanceOf[Map[String, Any]]("values") == List(3L, 4L)
     )
+  }
+
+  it should "expose written rows as a non-empty ZIP via asInputStream" in {
+    val items = generateSampleItems().take(3)
+    val writer = document.writer(UUID.randomUUID().toString)
+    writer.open()
+    items.foreach(writer.putOne)
+    writer.close()
+
+    val stream = document.asInputStream()
+    try {
+      val bytes = stream.readAllBytes()
+      assert(bytes.nonEmpty, "asInputStream should yield non-empty bytes after writes")
+      // ZIP local-file-header magic bytes: 0x50 0x4B 0x03 0x04 ("PK\x03\x04").
+      assert(
+        bytes(0) == 0x50.toByte && bytes(1) == 0x4b.toByte,
+        "expected ZIP magic bytes at the start of the stream"
+      )
+    } finally {
+      stream.close()
+    }
   }
 
   /** Returns a dynamic proxy for `realTable` that increments `counter` on every `refresh()` call. */

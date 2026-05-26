@@ -33,10 +33,6 @@ def rest_catalog():
         catalog_name="rest_integration_test",
         warehouse_name="texera",
         rest_uri="http://localhost:8181/catalog/",
-        s3_endpoint="http://localhost:9000",
-        s3_region="us-west-2",
-        s3_username="texera_minio",
-        s3_password="password",
     )
 
 
