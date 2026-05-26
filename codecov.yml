@@ -36,6 +36,7 @@ flag_management:
 ignore:
   # Generated protobuf — line counts swamp real code.
   - "amber/src/main/python/proto/**"
+  - "frontend/src/app/common/type/proto/**"
   - "**/src_managed/**"          # sbt JOOQ / scalapb-generated sources
   # Build / install output — never source-of-truth.
   - "**/target/**"
@@ -45,6 +46,17 @@ ignore:
   - "**/test_*.py"
   - "**/*.spec.ts"
   - "**/src/test/**"             # sbt test source roots
+  # Third-party vendored sources. These mirror the corresponding entries
+  # in .licenserc.yaml — we don't maintain them, so their coverage figure
+  # carries no signal.
+  - "common/workflow-operator/src/main/scala/com/kjetland/**"          # MIT JSON schema generator
+  - "frontend/src/app/common/formly/array.type.ts"                     # MIT ngx-formly derived
+  - "frontend/src/app/common/formly/object.type.ts"
+  - "frontend/src/app/common/formly/multischema.type.ts"
+  - "frontend/src/app/common/formly/null.type.ts"
+  - "pyright-language-service/src/main.ts"                             # MIT monaco-languageclient derived
+  - "pyright-language-service/src/language-server-runner.ts"
+  - "pyright-language-service/src/server-commons.ts"
 
 coverage:
   status:

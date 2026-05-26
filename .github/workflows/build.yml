@@ -133,10 +133,36 @@ jobs:
           files: ./frontend/coverage/**/lcov.info
           flags: frontend
           fail_ci_if_error: false
+      - name: Upload frontend unit test results to Codecov
+        # vitest.config.ts adds a `junit` reporter that writes to junit.xml
+        # in the working dir; the @angular/build:unit-test runner forwards
+        # vitest config through unchanged.
+        if: matrix.os == 'ubuntu-latest' && !cancelled()
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./frontend/junit.xml
+          flags: frontend
+          report_type: test_results
+          disable_search: true
+          fail_ci_if_error: false
       - name: Install Playwright Chromium
         run: yarn --cwd frontend playwright install ${{ matrix.os == 'ubuntu-latest' && '--with-deps' || '' }} chromium
       - name: Run frontend browser-mode tests
         run: yarn --cwd frontend ng run gui:test-browser
+      - name: Upload frontend browser-mode test results to Codecov
+        # vitest.browser.config.ts emits junit-browser.xml (distinct from
+        # the unit-test report). Same `frontend` flag — Codecov merges
+        # multi-file uploads under one flag.
+        if: matrix.os == 'ubuntu-latest' && !cancelled()
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./frontend/junit-browser.xml
+          flags: frontend
+          report_type: test_results
+          disable_search: true
+          fail_ci_if_error: false
 
   amber:
     # The amber job runs the cross-cutting Scala lints (scalafmtCheckAll,
@@ -254,6 +280,20 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
           flags: amber
+          fail_ci_if_error: false
+      - name: Upload amber and common test results to Codecov
+        # ScalaTest writes one JUnit-XML per spec under each module's
+        # target/test-reports/ (configured ThisBuild in build.sbt). Glob
+        # picks them up from every module that ran in the jacoco invocation
+        # above. `!cancelled()` so test failures still upload (the point
+        # of Test Analytics).
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./**/target/test-reports/*.xml
+          flags: amber
+          report_type: test_results
           fail_ci_if_error: false
 
   amber-integration:
@@ -448,8 +488,21 @@ jobs:
               "scalafixAll --check" \
               "WorkflowExecutionService/test"
       - name: Run Python integration tests
+        # --junit-xml feeds the Test Analytics upload below.
         run: |
-          cd amber && pytest -m integration -sv
+          cd amber && pytest -m integration --junit-xml=junit-integration.xml -sv
+      - name: Upload amber integration test results to Codecov
+        # Two separate uploads because the ScalaTest and pytest runs each
+        # produce their own JUnit-XMLs and Codecov keys uploads by flag.
+        # `!cancelled()` so test failures still upload.
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./**/target/test-reports/*.xml,./amber/junit-integration.xml
+          flags: amber-integration
+          report_type: test_results
+          fail_ci_if_error: false
 
   platform:
     # Per-service build, test, and license check for the non-amber Scala
@@ -545,6 +598,17 @@ jobs:
           files: ./${{ matrix.service }}/target/scala-2.13/jacoco/report/jacoco.xml
           flags: ${{ matrix.service }}
           fail_ci_if_error: false
+      - name: Upload ${{ matrix.service }} test results to Codecov
+        # Per-service Test Analytics, mirroring the coverage upload flag.
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./${{ matrix.service }}/target/test-reports/*.xml
+          flags: ${{ matrix.service }}
+          report_type: test_results
+          disable_search: true
+          fail_ci_if_error: false
 
   python:
     if: ${{ inputs.run_python }}
@@ -622,8 +686,11 @@ jobs:
           python -m pip install uv
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
       - name: Test with pytest
+        # --junit-xml emits a JUnit-XML report alongside the coverage XML
+        # so the Test Analytics upload below can feed Codecov's failing-
+        # test PR comments and flaky-test detection on main.
         run: |
-          cd amber && pytest -m "not integration" --cov=src/main/python --cov-report=xml -sv
+          cd amber && pytest -m "not integration" --cov=src/main/python --cov-report=xml --junit-xml=junit.xml -sv
       - name: Upload python coverage to Codecov
         if: matrix.python-version == '3.12' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
@@ -631,6 +698,20 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/coverage.xml
           flags: python
+          fail_ci_if_error: false
+      - name: Upload python test results to Codecov
+        # Test Analytics ingestion. Runs on the same 3.12 leg that uploads
+        # coverage to keep one canonical source per flag. `!cancelled()`
+        # rather than `always()` so we still upload on test failure (the
+        # whole point of Test Analytics) but skip cancelled runs.
+        if: matrix.python-version == '3.12' && !cancelled()
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./amber/junit.xml
+          flags: python
+          report_type: test_results
+          disable_search: true
           fail_ci_if_error: false
 
   python-state-materialization-mac:
@@ -713,7 +794,10 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
       - name: Run unit tests
-        run: bun test --coverage --coverage-reporter=lcov
+        # --reporter=junit emits a JUnit-XML alongside coverage so the
+        # Test Analytics upload below can feed Codecov's failing-test PR
+        # comments and flaky-test detection on main.
+        run: bun test --coverage --coverage-reporter=lcov --reporter=junit --reporter-outfile=junit.xml
       - name: Upload agent-service coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
@@ -721,4 +805,16 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./agent-service/coverage/lcov.info
           flags: agent-service
+          fail_ci_if_error: false
+      - name: Upload agent-service test results to Codecov
+        # Test Analytics ingestion. Runs on the same ubuntu leg that
+        # uploads coverage. `!cancelled()` so test failures still upload.
+        if: matrix.os == 'ubuntu-latest' && !cancelled()
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./agent-service/junit.xml
+          flags: agent-service
+          report_type: test_results
+          disable_search: true
           fail_ci_if_error: false
