@@ -363,7 +363,13 @@ object PythonTemplateBuilder {
             if (argExpr.tree.pos != NoPosition) argExpr.tree.pos else macroCtx.enclosingPosition
 
           validator.validateCompileTime(
-            validator.CompileTimeContext(leftPart, rightPart, prefixSource, argIndex, errorPos)
+            BoundaryValidator.CompileTimeContext(
+              leftPart,
+              rightPart,
+              prefixSource,
+              argIndex,
+              errorPos
+            )
           )
 
         case _ => // no-op
@@ -414,7 +420,7 @@ object PythonTemplateBuilder {
 
             val argIdent = Ident(TermName(s"__pyb_arg$argIndex"))
             validator.runtimeChecksForNestedBuilder(
-              validator.RuntimeContext(leftPart, rightPart, prefixSource, argIndex),
+              BoundaryValidator.RuntimeContext(leftPart, rightPart, prefixSource, argIndex),
               argIdent
             )
 
