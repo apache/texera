@@ -20,7 +20,11 @@
 package org.apache.texera.auth
 
 import org.apache.texera.config.AuthConfig
-import org.jose4j.jwe.{ContentEncryptionAlgorithmIdentifiers, JsonWebEncryption, KeyManagementAlgorithmIdentifiers}
+import org.jose4j.jwe.{
+  ContentEncryptionAlgorithmIdentifiers,
+  JsonWebEncryption,
+  KeyManagementAlgorithmIdentifiers
+}
 import org.jose4j.keys.AesKey
 
 import java.nio.charset.StandardCharsets
