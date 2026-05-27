@@ -17,6 +17,7 @@
 
 import pytest
 
+from core.architecture.managers.context import WORKER_STATE_TRANSITIONS
 from core.architecture.managers.state_manager import (
     InvalidStateException,
     InvalidTransitionException,
@@ -28,16 +29,7 @@ from proto.org.apache.texera.amber.engine.architecture.worker import WorkerState
 class TestStateManager:
     @pytest.fixture
     def state_manager(self):
-        return StateManager(
-            {
-                WorkerState.UNINITIALIZED: {WorkerState.READY},
-                WorkerState.READY: {WorkerState.PAUSED, WorkerState.RUNNING},
-                WorkerState.RUNNING: {WorkerState.PAUSED, WorkerState.COMPLETED},
-                WorkerState.PAUSED: {WorkerState.RUNNING},
-                WorkerState.COMPLETED: set(),
-            },
-            WorkerState.UNINITIALIZED,
-        )
+        return StateManager(WORKER_STATE_TRANSITIONS, WorkerState.UNINITIALIZED)
 
     def test_it_can_init(self, state_manager):
         pass
@@ -72,3 +64,11 @@ class TestStateManager:
 
         with pytest.raises(InvalidStateException):
             state_manager.assert_state(WorkerState.COMPLETED)
+
+    def test_it_can_transit_directly_from_ready_to_completed(self, state_manager):
+        # A worker can complete directly from READY without first entering
+        # RUNNING. This path is taken when there is nothing to process
+        # (upstream signals end-of-stream before any data arrives).
+        state_manager.transit_to(WorkerState.READY)
+        state_manager.transit_to(WorkerState.COMPLETED)
+        state_manager.assert_state(WorkerState.COMPLETED)
