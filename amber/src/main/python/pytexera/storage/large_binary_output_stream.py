@@ -153,7 +153,6 @@ class LargeBinaryOutputStream(IOBase):
         if self._upload_thread is None:
 
             def upload_worker():
-                # Reuse this s3 for cleanup so finalizers never re-resolve it.
                 s3 = None
                 try:
                     large_binary_manager._ensure_bucket_exists(self._bucket_name)
@@ -167,7 +166,7 @@ class LargeBinaryOutputStream(IOBase):
                                 Bucket=self._bucket_name, Key=self._object_key
                             )
                         except Exception:
-                            pass  # original upload error takes precedence
+                            pass
                     with self._lock:
                         self._upload_exception = e
                 finally:
