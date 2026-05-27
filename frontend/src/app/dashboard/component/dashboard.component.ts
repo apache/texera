@@ -250,5 +250,4 @@ export class DashboardComponent implements OnInit {
       }, 175);
     }
   }
-
 }
