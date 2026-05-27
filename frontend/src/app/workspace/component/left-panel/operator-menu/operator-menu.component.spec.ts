@@ -20,7 +20,7 @@
 import { mockScanSourceSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMenuComponent } from "./operator-menu.component";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
@@ -38,9 +38,8 @@ describe("OperatorPanelComponent", () => {
   let component: OperatorMenuComponent;
   let fixture: ComponentFixture<OperatorMenuComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [OperatorMenuComponent, OperatorLabelComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       providers: [
         {
           provide: OperatorMetadataService,
@@ -53,9 +52,16 @@ describe("OperatorPanelComponent", () => {
         JointUIService,
         ...commonTestProviders,
       ],
-      imports: [NzDropDownModule, NzCollapseModule, BrowserAnimationsModule, RouterTestingModule.withRoutes([])],
+      imports: [
+        OperatorMenuComponent,
+        OperatorLabelComponent,
+        NzDropDownModule,
+        NzCollapseModule,
+        BrowserAnimationsModule,
+        RouterTestingModule.withRoutes([]),
+      ],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(OperatorMenuComponent);
@@ -69,33 +75,26 @@ describe("OperatorPanelComponent", () => {
 
   it("should search an operator by its user friendly name", () => {
     component.searchInputValue = "Source: Scan";
+    component.onInput({ target: { value: "Source: Scan" } } as unknown as Event);
 
-    fixture.detectChanges();
-
-    expect(component.autocompleteOptions.length === 1);
-    expect(component.autocompleteOptions[0] === mockScanSourceSchema);
+    expect(component.autocompleteOptions.length).toBe(1);
+    expect(component.autocompleteOptions[0]).toBe(mockScanSourceSchema);
   });
 
   it("should support fuzzy search on operator user friendly name", () => {
     component.searchInputValue = "scan";
-    fixture.detectChanges();
+    component.onInput({ target: { value: "scan" } } as unknown as Event);
 
-    expect(component.autocompleteOptions.length === 1);
-    expect(component.autocompleteOptions[0] === mockScanSourceSchema);
+    expect(component.autocompleteOptions.length).toBe(1);
+    expect(component.autocompleteOptions[0]).toBe(mockScanSourceSchema);
   });
 
   it("should clear the search box when an operator from search box is dropped", () => {
     component.searchInputValue = "scan";
-    fixture.detectChanges();
+    component.onInput({ target: { value: "scan" } } as unknown as Event);
 
-    const dragDropService = TestBed.get(DragDropService);
-    dragDropService.operatorDroppedSubject.next({
-      operatorType: "ScanSource",
-      offset: { x: 1, y: 1 },
-      dragElementID: "operator-label-ScanSource",
-    });
-
-    fixture.detectChanges();
+    const dragDropService = TestBed.inject(DragDropService);
+    (dragDropService as any).operatorDroppedSubject.next();
 
     expect(component.searchInputValue).toBeFalsy();
   });

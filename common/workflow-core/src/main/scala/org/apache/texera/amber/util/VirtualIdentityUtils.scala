@@ -39,7 +39,10 @@ object VirtualIdentityUtils {
       layerName: String,
       workerId: Int
   ): ActorVirtualIdentity = {
-
+    require(
+      !layerName.contains('-'),
+      s"layerName must not contain '-' (worker-name parsing relies on this): $layerName"
+    )
     ActorVirtualIdentity(
       s"Worker:WF${workflowId.id}-$operator-$layerName-$workerId"
     )
@@ -68,10 +71,13 @@ object VirtualIdentityUtils {
     }
   }
 
-  def getWorkerIndex(workerId: ActorVirtualIdentity): Int = {
+  def getWorkerIndex(workerId: ActorVirtualIdentity): Option[Int] = {
     workerId.name match {
       case workerNamePattern(_, _, _, idx) =>
-        idx.toInt
+        Some(idx.toInt)
+      case _ =>
+        // for special actorId such as SELF, CONTROLLER
+        None
     }
   }
 

@@ -42,10 +42,10 @@ object Utils extends LazyLogging {
     if (isAmberHomePath(currentWorkingDirectory)) {
       currentWorkingDirectory
     } else {
-      // from current path's parent directory, search its children to find amber home path
+      // from current path's directory, search its children to find amber home path
       // current max depth is set to 2 (current path's siblings and direct children)
       val searchChildren = Files
-        .walk(currentWorkingDirectory.getParent, 2)
+        .walk(currentWorkingDirectory, 2)
         .filter((path: Path) => isAmberHomePath(path))
         .findAny
       if (searchChildren.isPresent) {

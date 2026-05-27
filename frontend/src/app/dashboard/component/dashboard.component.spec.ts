@@ -19,13 +19,14 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { DashboardComponent } from "./dashboard.component";
-import { ChangeDetectorRef, EventEmitter, NgZone, NO_ERRORS_SCHEMA } from "@angular/core";
+import { ChangeDetectorRef, EventEmitter, NgZone } from "@angular/core";
 import { By } from "@angular/platform-browser";
-import { of } from "rxjs";
+import { EMPTY, of } from "rxjs";
 
 import { UserService } from "../../common/service/user/user.service";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { SocialAuthService } from "@abacritt/angularx-social-login";
+import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import {
   ActivatedRoute,
   ActivatedRouteSnapshot,
@@ -36,8 +37,10 @@ import {
   Router,
   UrlSegment,
 } from "@angular/router";
+import type { Mock } from "vitest";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../common/testing/test-utils";
+import { GuiConfigService } from "../../common/service/gui-config.service";
 
 describe("DashboardComponent", () => {
   let component: DashboardComponent;
@@ -49,6 +52,7 @@ describe("DashboardComponent", () => {
   let cdrMock: Partial<ChangeDetectorRef>;
   let ngZoneMock: Partial<NgZone>;
   let socialAuthServiceMock: Partial<SocialAuthService>;
+  let adminSettingsServiceMock: Partial<AdminSettingsService>;
   let activatedRouteMock: Partial<ActivatedRoute>;
 
   const activatedRouteSnapshotMock: Partial<ActivatedRouteSnapshot> = {
@@ -70,24 +74,24 @@ describe("DashboardComponent", () => {
 
   beforeEach(async () => {
     userServiceMock = {
-      isAdmin: jasmine.createSpy("isAdmin").and.returnValue(false),
-      isLogin: jasmine.createSpy("isLogin").and.returnValue(false),
-      userChanged: jasmine.createSpy("userChanged").and.returnValue(of(null)),
+      isAdmin: vi.fn().mockReturnValue(false),
+      isLogin: vi.fn().mockReturnValue(false),
+      userChanged: vi.fn().mockReturnValue(of(null)),
     };
 
     routerMock = {
       events: of(new NavigationEnd(1, "/dashboard", "/dashboard")),
       url: "/dashboard",
-      navigateByUrl: jasmine.createSpy("navigateByUrl"),
+      navigateByUrl: vi.fn(),
     };
 
     flarumServiceMock = {
-      auth: jasmine.createSpy("auth").and.returnValue(of({ token: "dummyToken" })),
-      register: jasmine.createSpy("register").and.returnValue(of(null)),
+      auth: vi.fn().mockReturnValue(of({ token: "dummyToken" })),
+      register: vi.fn().mockReturnValue(of(null)),
     };
 
     cdrMock = {
-      detectChanges: jasmine.createSpy("detectChanges"),
+      detectChanges: vi.fn(),
     };
 
     ngZoneMock = {
@@ -104,7 +108,14 @@ describe("DashboardComponent", () => {
     };
 
     socialAuthServiceMock = {
-      authState: of(),
+      authState: EMPTY,
+      // GoogleSigninButtonDirective subscribes to initState in its constructor;
+      // EMPTY keeps the subscription open without triggering google.accounts.id.renderButton.
+      initState: EMPTY,
+    };
+
+    adminSettingsServiceMock = {
+      getSetting: vi.fn().mockReturnValue(EMPTY),
     };
 
     activatedRouteMock = {
@@ -112,8 +123,7 @@ describe("DashboardComponent", () => {
     };
 
     await TestBed.configureTestingModule({
-      declarations: [DashboardComponent],
-      imports: [HttpClientTestingModule],
+      imports: [DashboardComponent, HttpClientTestingModule],
       providers: [
         { provide: UserService, useValue: userServiceMock },
         { provide: Router, useValue: routerMock },
@@ -121,10 +131,10 @@ describe("DashboardComponent", () => {
         { provide: ChangeDetectorRef, useValue: cdrMock },
         { provide: NgZone, useValue: ngZoneMock },
         { provide: SocialAuthService, useValue: socialAuthServiceMock },
+        { provide: AdminSettingsService, useValue: adminSettingsServiceMock },
         { provide: ActivatedRoute, useValue: activatedRouteMock },
         ...commonTestProviders,
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   });
 
@@ -139,10 +149,17 @@ describe("DashboardComponent", () => {
   });
 
   it("should render Google sign-in button when user is NOT logged in", () => {
-    (userServiceMock.isLogin as jasmine.Spy).and.returnValue(false);
+    (userServiceMock.isLogin as Mock).mockReturnValue(false);
     fixture.detectChanges();
 
     const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));
     expect(googleSignInBtn).toBeTruthy();
+  });
+
+  it("should render the powered-by attribution when attributionEnabled is true", () => {
+    TestBed.inject(GuiConfigService).env.attributionEnabled = true;
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.css("#powered-by"))).toBeTruthy();
   });
 });

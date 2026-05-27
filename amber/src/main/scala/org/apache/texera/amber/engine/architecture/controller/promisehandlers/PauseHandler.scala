@@ -25,7 +25,8 @@ import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
   ExecutionStateUpdate,
-  ExecutionStatsUpdate
+  ExecutionStatsUpdate,
+  RuntimeStatisticsPersist
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
@@ -47,6 +48,7 @@ trait PauseHandler {
 
   override def pauseWorkflow(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
     cp.controllerTimerService.disableStatusUpdate() // to be enabled in resume
+    cp.controllerTimerService.disableRuntimeStatisticsCollection() // to be enabled in resume
     Future
       .collect(
         cp.workflowExecution.getRunningRegionExecutions
@@ -81,12 +83,10 @@ trait PauseHandler {
           .toSeq
       )
       .map { _ =>
-        // update frontend workflow status
-        sendToClient(
-          ExecutionStatsUpdate(
-            cp.workflowExecution.getAllRegionExecutionsStats
-          )
-        )
+        // update frontend workflow status and persist statistics
+        val stats = cp.workflowExecution.getAllRegionExecutionsStats
+        sendToClient(ExecutionStatsUpdate(stats))
+        sendToClient(RuntimeStatisticsPersist(stats))
         sendToClient(ExecutionStateUpdate(cp.workflowExecution.getState))
         logger.info(s"workflow paused")
       }

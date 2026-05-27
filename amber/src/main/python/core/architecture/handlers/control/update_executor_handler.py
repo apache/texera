@@ -15,14 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# from proto.org.apache.texera.amber.engine.architecture.worker import UpdateExecutorV2
-# from core.architecture.handlers.control.control_handler_base import ControlHandler
-# from core.architecture.managers.context import Context
-#
-#
-# class UpdateExecutorHandler(ControlHandler):
-#     cmd = UpdateExecutorV2
-#
-#     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-#         context.executor_manager.update_executor(command.code, command.is_source)
-#         return None
+from core.architecture.handlers.control.control_handler_base import ControlHandler
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    EmptyReturn,
+    UpdateExecutorRequest,
+)
+from core.util import get_one_of
+from proto.org.apache.texera.amber.core import OpExecWithCode
+
+
+class UpdateExecutorHandler(ControlHandler):
+    async def update_executor(self, req: UpdateExecutorRequest) -> EmptyReturn:
+        op_exec_with_code: OpExecWithCode = get_one_of(req.new_exec_init_info)
+        self.context.executor_manager.update_executor(
+            op_exec_with_code.code, self.context.executor_manager.executor.is_source
+        )
+        return EmptyReturn()

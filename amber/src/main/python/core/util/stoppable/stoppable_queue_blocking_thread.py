@@ -19,8 +19,8 @@ from loguru import logger
 from overrides import overrides
 
 from core.util.customized_queue.queue_base import IQueue, QueueControl, QueueElement
-from core.util.runnable.runnable import Runnable
-from core.util.stoppable.stoppable import Stoppable
+from core.util.runnable import Runnable
+from .stoppable import Stoppable
 
 
 class StoppableQueueBlockingRunnable(Runnable, Stoppable):

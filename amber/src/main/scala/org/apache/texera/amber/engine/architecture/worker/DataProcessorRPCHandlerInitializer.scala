@@ -20,6 +20,13 @@
 package org.apache.texera.amber.engine.architecture.worker
 
 import com.twitter.util.Future
+import org.apache.texera.amber.core.executor.{
+  ExecFactory,
+  OpExecInitInfo,
+  OpExecSource,
+  OpExecWithClassName,
+  OpExecWithCode
+}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
@@ -32,6 +39,9 @@ import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServi
 import org.apache.texera.amber.engine.architecture.worker.promisehandlers._
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCHandlerInitializer
+import org.apache.texera.amber.operator.source.cache.CacheSourceOpExec
+
+import java.net.URI
 
 class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     extends AsyncRPCHandlerInitializer(dp.asyncRPCClient, dp.asyncRPCServer)
@@ -52,8 +62,11 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with FlushNetworkBufferHandler
     with RetrieveStateHandler
     with PrepareCheckpointHandler
-    with FinalizeCheckpointHandler {
+    with FinalizeCheckpointHandler
+    with UpdateExecutorHandler {
   val actorId: ActorVirtualIdentity = dp.actorId
+
+  var cachedTotalWorkerCount = 0
 
   override def debugCommand(
       request: DebugCommandRequest,
@@ -69,4 +82,17 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     ???
 
   override def noOperation(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = ???
+
+  def setupExecutor(execInitInfo: OpExecInitInfo, workerIdx: Int, workerCount: Int): Unit = {
+    dp.executor = execInitInfo match {
+      case OpExecWithClassName(className, descString) =>
+        ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
+      case OpExecWithCode(code, _) =>
+        ExecFactory.newExecFromJavaCode(code)
+      case OpExecSource(storageUri, _) =>
+        new CacheSourceOpExec(URI.create(storageUri))
+      case OpExecInitInfo.Empty =>
+        throw new IllegalArgumentException("Empty executor initialization info")
+    }
+  }
 }

@@ -23,8 +23,11 @@ server:
   adminConnectors:
     - type: http
       port: 8082
+  requestLog:
+    type: classic
+    appenders: []
 
 logging:
-  level: INFO
+  level: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
   loggers:
-    "com.example": DEBUG
+    "com.example": ${TEXERA_SERVICE_LOG_LEVEL:-DEBUG}

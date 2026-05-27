@@ -22,7 +22,8 @@ package org.apache.texera.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import org.apache.texera.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
-  ExecutionStatsUpdate
+  ExecutionStatsUpdate,
+  RuntimeStatisticsPersist
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
@@ -57,14 +58,14 @@ trait ResumeHandler {
           .toSeq
       )
       .map { _ =>
-        // update frontend status
-        sendToClient(
-          ExecutionStatsUpdate(
-            cp.workflowExecution.getAllRegionExecutionsStats
-          )
-        )
+        // update frontend status and persist statistics
+        val stats = cp.workflowExecution.getAllRegionExecutionsStats
+        sendToClient(ExecutionStatsUpdate(stats))
+        sendToClient(RuntimeStatisticsPersist(stats))
         cp.controllerTimerService
           .enableStatusUpdate() //re-enabled it since it is disabled in pause
+        cp.controllerTimerService
+          .enableRuntimeStatisticsCollection() //re-enabled it since it is disabled in pause
         EmptyReturn()
       }
   }

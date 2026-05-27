@@ -20,12 +20,15 @@ server:
     - type: http
       port: 9096
   adminConnectors: []
+  requestLog:
+    type: classic
+    appenders: []
 
 logging:
-  level: INFO
+  level: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
   appenders:
     - type: console
-      threshold: INFO
+      threshold: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
     - type: file
       currentLogFilename: logs/access-control-service.log
       archive: true

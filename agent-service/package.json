@@ -1,0 +1,37 @@
+{
+  "name": "texera-agent-service",
+  "version": "0.1.0",
+  "description": "Texera Agent Service - AI agents for workflow manipulation",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun run --watch src/server.ts",
+    "dev:node": "npx tsx --watch src/server.ts",
+    "start": "bun run src/server.ts",
+    "start:node": "npx tsx src/server.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json}\""
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "2.0.79",
+    "@elysiajs/cors": "1.4.0",
+    "ai": "5.0.108",
+    "ajv": "8.10.0",
+    "dagre": "0.8.5",
+    "elysia": "1.4.18",
+    "pino": "10.3.1",
+    "rxjs": "7.8.2",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.3",
+    "@types/dagre": "0.7.54",
+    "pino-pretty": "13.1.3",
+    "prettier": "3.4.2",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3"
+  },
+  "packageManager": "yarn@4.5.1+sha512.341db9396b6e289fecc30cd7ab3af65060e05ebff4b3b47547b278b9e67b08f485ecd8c79006b405446262142c7a38154445ef7f17c1d5d1de7d90bf9ce7054d"
+}

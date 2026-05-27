@@ -28,8 +28,7 @@ describe("FiltersInstructionsComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [FiltersInstructionsComponent],
-      imports: [NzPopoverModule],
+      imports: [FiltersInstructionsComponent, NzPopoverModule],
     }).compileComponents();
   });
 

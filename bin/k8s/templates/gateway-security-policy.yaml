@@ -32,7 +32,7 @@ spec:
           port: {{ .Values.accessControlService.service.port }}
       path: /api/auth
       headersToBackend:
-        - x-user-cu-access
+        - x-user-computing-unit-access
         - x-user-id
         - x-user-name
         - x-user-email

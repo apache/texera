@@ -264,7 +264,7 @@ export const mockUnionSchema: OperatorSchema = {
     userFriendlyName: "Union",
     operatorDescription: "Union multiple inputs",
     operatorGroupName: "Analysis",
-    inputPorts: [{ allowMultiLinks: true }],
+    inputPorts: [{}],
     outputPorts: [{}],
   },
   operatorVersion: "union1",

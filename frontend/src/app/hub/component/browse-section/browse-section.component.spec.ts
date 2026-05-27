@@ -30,7 +30,7 @@ describe("BrowseSectionComponent", () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [BrowseSectionComponent],
+      imports: [BrowseSectionComponent],
       providers: [
         { provide: WorkflowPersistService, useValue: {} },
         { provide: DatasetService, useValue: {} },

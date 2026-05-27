@@ -214,12 +214,12 @@ describe("WorkflowGraph", () => {
     workflowGraph.addOperator(mockResultPredicate);
     workflowGraph.disableOperator(mockScanPredicate.operatorID);
 
-    expect(workflowGraph.isOperatorDisabled(mockScanPredicate.operatorID)).toBeTrue();
-    expect(workflowGraph.isOperatorDisabled(mockResultPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.isOperatorDisabled(mockScanPredicate.operatorID)).toBe(true);
+    expect(workflowGraph.isOperatorDisabled(mockResultPredicate.operatorID)).toBe(false);
     expect(workflowGraph.getDisabledOperators().size).toEqual(1);
 
     workflowGraph.enableOperator(mockScanPredicate.operatorID);
-    expect(workflowGraph.isOperatorDisabled(mockScanPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.isOperatorDisabled(mockScanPredicate.operatorID)).toBe(false);
     expect(workflowGraph.getDisabledOperators().size).toEqual(0);
   });
 
@@ -229,7 +229,7 @@ describe("WorkflowGraph", () => {
     workflowGraph.addLink(mockScanResultLink);
     workflowGraph.disableOperator(mockScanPredicate.operatorID);
 
-    expect(workflowGraph.isLinkEnabled(mockScanResultLink.linkID)).toBeFalse();
+    expect(workflowGraph.isLinkEnabled(mockScanResultLink.linkID)).toBe(false);
     expect(workflowGraph.getAllEnabledLinks().length).toEqual(0);
   });
 
@@ -238,12 +238,12 @@ describe("WorkflowGraph", () => {
     workflowGraph.addOperator(mockResultPredicate);
     workflowGraph.setViewOperatorResult(mockScanPredicate.operatorID);
 
-    expect(workflowGraph.isViewingResult(mockScanPredicate.operatorID)).toBeTrue();
-    expect(workflowGraph.isViewingResult(mockResultPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.isViewingResult(mockScanPredicate.operatorID)).toBe(true);
+    expect(workflowGraph.isViewingResult(mockResultPredicate.operatorID)).toBe(false);
     expect(workflowGraph.getOperatorsToViewResult().size).toEqual(1);
 
     workflowGraph.unsetViewOperatorResult(mockScanPredicate.operatorID);
-    expect(workflowGraph.isViewingResult(mockScanPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.isViewingResult(mockScanPredicate.operatorID)).toBe(false);
     expect(workflowGraph.getDisabledOperators().size).toEqual(0);
   });
 
@@ -252,12 +252,12 @@ describe("WorkflowGraph", () => {
     workflowGraph.addOperator(mockResultPredicate);
     workflowGraph.setViewOperatorResult(mockResultPredicate.operatorID);
 
-    expect(workflowGraph.isViewingResult(mockScanPredicate.operatorID)).toBeFalse();
-    expect(workflowGraph.isViewingResult(mockResultPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.isViewingResult(mockScanPredicate.operatorID)).toBe(false);
+    expect(workflowGraph.isViewingResult(mockResultPredicate.operatorID)).toBe(false);
     expect(workflowGraph.getOperatorsToViewResult().size).toEqual(0);
 
     workflowGraph.unsetViewOperatorResult(mockResultPredicate.operatorID);
-    expect(workflowGraph.isViewingResult(mockResultPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.isViewingResult(mockResultPredicate.operatorID)).toBe(false);
     expect(workflowGraph.getOperatorsToViewResult().size).toEqual(0);
   });
 });

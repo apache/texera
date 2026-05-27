@@ -30,7 +30,7 @@ import java.util.UUID
   * normal tuple size limits.
   */
 object LargeBinaryManager extends LazyLogging {
-  private val DEFAULT_BUCKET = "texera-large-binaries"
+  val DEFAULT_BUCKET: String = "texera-large-binaries"
 
   /**
     * Creates a new LargeBinary reference.
@@ -39,8 +39,6 @@ object LargeBinaryManager extends LazyLogging {
     * @return S3 URI string for the new LargeBinary (format: s3://bucket/key)
     */
   def create(): String = {
-    S3StorageClient.createBucketIfNotExist(DEFAULT_BUCKET)
-
     val objectKey = s"objects/${System.currentTimeMillis()}/${UUID.randomUUID()}"
     val uri = s"s3://$DEFAULT_BUCKET/$objectKey"
 
@@ -50,7 +48,7 @@ object LargeBinaryManager extends LazyLogging {
   /**
     * Deletes all large binaries from the bucket.
     *
-    * @throws Exception if the deletion fails
+    * @throws java.lang.Exception if the deletion fails
     * @return Unit
     */
   def deleteAllObjects(): Unit = {

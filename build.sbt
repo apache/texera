@@ -15,24 +15,74 @@
 // specific language governing permissions and limitations
 // under the License.
 
-lazy val DAO = project in file("common/dao")
-lazy val Config = project in file("common/config")
+ThisBuild / organization := "org.apache.texera"
+ThisBuild / version      := "1.1.0-incubating"
+ThisBuild / scalaVersion := "2.13.18"
+
+// Pull JDK 17+ JVM flags from .jvmopts so every JVM the build launches sees the same list.
+import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport.Universal
+ThisBuild / Test / javaOptions ++=
+  JdkOptions.jvmFlags((ThisBuild / baseDirectory).value)
+
+// Fail Java compilation on deprecation warnings so PRs can't reintroduce
+// deprecated-API patterns (e.g. scala.collection.JavaConverters in Java
+// callers — the modern Java entry point is scala.jdk.javaapi.CollectionConverters).
+// -Xlint:deprecation surfaces the per-call-site location, -Werror turns it fatal.
+ThisBuild / Compile / javacOptions ++= Seq("-Xlint:deprecation", "-Werror")
+// Emit one JUnit-XML file per spec under each module's target/test-reports/.
+// Codecov Test Analytics ingests these via `report_type: test_results` to
+// surface failing-test stack traces in PR comments and flag tests that have
+// gone flaky on main. ScalaTest's `-u` argument is additive — module-level
+// testOptions (e.g. amber/build.sbt's filter args) continue to apply.
+ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test-reports")
+
+// sbt-jacoco emits only HTML by default; add XML so Codecov can consume
+// per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
+// JacocoPlugin defines a project-scoped default that overrides ThisBuild,
+// so this Seq is bundled into asfLicensingSettings (applied to every module).
+import com.github.sbt.jacoco.report.{JacocoReportFormats, JacocoReportSettings}
+lazy val coverageReportSettings = Seq(
+  jacocoReportSettings := JacocoReportSettings()
+    .withTitle("Apache Texera Coverage")
+    .withFormats(JacocoReportFormats.ScalaHTML, JacocoReportFormats.XML)
+)
+
+lazy val universalJvmFlagsSettings = Seq(
+  Universal / javaOptions ++=
+    JdkOptions.jvmFlags((ThisBuild / baseDirectory).value).map("-J" + _)
+)
+
+// Per-module ASF licensing: each jar's META-INF/LICENSE describes only what is in that jar.
+// Modules without vendored code get Apache 2.0 only; workflow-operator includes mbknor attribution.
+// See project/AddMetaInfLicenseFiles.scala.
+// Dist-producing modules additionally override Universal / mappings in their own
+// build.sbt (not here) — see AddMetaInfLicenseFiles.distMappings.
+lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
+lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
+
+val jacksonVersion = "2.18.6"
+
+lazy val DAO = (project in file("common/dao")).settings(asfLicensingSettings)
+lazy val Config = (project in file("common/config")).settings(asfLicensingSettings)
 lazy val Auth = (project in file("common/auth"))
+  .settings(asfLicensingSettings)
   .dependsOn(DAO, Config)
 lazy val ConfigService = (project in file("config-service"))
   .dependsOn(Auth, Config)
+  .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
     )
   )
 lazy val AccessControlService = (project in file("access-control-service"))
   .dependsOn(Auth, Config, DAO)
+  .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
     )
   )
   .configs(Test)
@@ -41,53 +91,59 @@ lazy val AccessControlService = (project in file("access-control-service"))
 //This Scala module defines a pyb"..." macro-based DSL for composing Python code templates as an immutable PythonTemplateBuilder.
 //Used mainly for Python Native Operators
 lazy val PyBuilder = (project in file("common/pybuilder"))
+  .settings(asfLicensingSettings)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 
 lazy val WorkflowCore = (project in file("common/workflow-core"))
+  .settings(asfLicensingSettings)
   .dependsOn(DAO, Config, PyBuilder)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
   .dependsOn(WorkflowCore, Auth, Config)
+  .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
     )
   )
 lazy val FileService = (project in file("file-service"))
+  .settings(asfLicensingSettings)
   .dependsOn(WorkflowCore, Auth, Config)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.16.1",
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.16.1",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
     )
   )
 
-lazy val WorkflowOperator = (project in file("common/workflow-operator")).dependsOn(WorkflowCore)
+lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowOperator, Config)
+  .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.16.1",
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.16.1",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
     )
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowOperator, Auth, Config)
+  .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
-      "com.fasterxml.jackson.core" % "jackson-core" % "2.15.1",
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.15.1",
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.1",
+      "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "org.slf4j" % "slf4j-api" % "1.7.26",
       "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
       "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
@@ -115,22 +171,22 @@ lazy val WorkflowExecutionService = (project in file("amber"))
 // root project definition
 lazy val TexeraProject = (project in file("."))
   .aggregate(
-    DAO,
-    Config,
-    ConfigService,
-    AccessControlService,
+    // common libraries
     Auth,
+    Config,
+    DAO,
+    PyBuilder,
     WorkflowCore,
-    ComputingUnitManagingService,
-    FileService,
     WorkflowOperator,
+    // services
+    AccessControlService,
+    ComputingUnitManagingService,
+    ConfigService,
+    FileService,
     WorkflowCompilingService,
     WorkflowExecutionService
   )
   .settings(
     name := "texera",
-    version := "1.1.0-incubating",
-    organization := "org.apache",
-    scalaVersion := "2.13.12",
     publishMavenStyle := true
   )

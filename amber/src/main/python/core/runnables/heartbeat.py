@@ -24,8 +24,8 @@ from loguru import logger
 from overrides import overrides
 from threading import Event
 
-from core.util.runnable.runnable import Runnable
-from core.util.stoppable.stoppable import Stoppable
+from core.util.runnable import Runnable
+from core.util.stoppable import Stoppable
 
 
 class Heartbeat(Runnable, Stoppable):

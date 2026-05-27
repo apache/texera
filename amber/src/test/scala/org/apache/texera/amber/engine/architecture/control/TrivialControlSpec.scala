@@ -64,29 +64,30 @@ class TrivialControlSpec
     val (events, expectedValues) = eventPairs.unzip
     val (probe, idMap) = setUp(numActors, events: _*)
     var flag = 0
-    probe.receiveWhile(5.minutes, 10.seconds) {
-      case GetActorRef(id, replyTo) =>
-        replyTo.foreach { actor =>
-          actor ! RegisterActorRef(id, idMap(id))
-        }
-      case NetworkMessage(
+    while (flag < expectedValues.length) {
+      probe.receiveOne(10.seconds) match {
+        case null =>
+          throw new AssertionError(
+            s"timeout: received $flag of ${expectedValues.length} expected returns"
+          )
+        case GetActorRef(id, replyTo) =>
+          replyTo.foreach { actor =>
+            actor ! RegisterActorRef(id, idMap(id))
+          }
+        case NetworkMessage(
+              msgID,
+              workflowMsg @ WorkflowFIFOMessage(_, _, ReturnInvocation(id, returnValue))
+            ) =>
+          probe.sender() ! NetworkAck(
             msgID,
-            workflowMsg @ WorkflowFIFOMessage(_, _, ReturnInvocation(id, returnValue))
-          ) =>
-        probe.sender() ! NetworkAck(
-          msgID,
-          getInMemSize(workflowMsg),
-          0L // no queued credit
-        )
-        returnValue match {
-          case _ => assert(returnValue.asInstanceOf[T] == expectedValues(id.toInt))
-        }
-        flag += 1
-      case other =>
-      //skip
-    }
-    if (flag != expectedValues.length) {
-      throw new AssertionError()
+            getInMemSize(workflowMsg),
+            0L // no queued credit
+          )
+          assert(returnValue.asInstanceOf[T] == expectedValues(id.toInt))
+          flag += 1
+        case _ =>
+        //skip
+      }
     }
     idMap.foreach { x =>
       x._2 ! PoisonPill

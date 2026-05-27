@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.keywordSearch
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
@@ -40,6 +40,7 @@ class KeywordSearchOpDesc extends FilterOpDesc {
   @JsonProperty(required = true)
   @JsonSchemaTitle("keywords")
   @JsonPropertyDescription("keywords")
+  @JsonSchemaInject(json = """{"minLength": 1}""")
   var keyword: String = _
 
   override def getPhysicalOp(

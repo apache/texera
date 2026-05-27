@@ -217,4 +217,33 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
       )
     )
   }
+
+  it should "return WorkflowCompilationFailure (not HTTP 500) when a scan source file cannot be resolved" in {
+    val brokenCsv = getCsvScanOpDesc("/does/not/exist/missing.csv", header = true)
+
+    val logicalPlanPojo = LogicalPlanPojo(
+      operators = List(brokenCsv),
+      links = List(),
+      opsToViewResult = List(),
+      opsToReuseResult = List()
+    )
+
+    val modifiedLogicalPlanJsonString = transformLogicalPlanPojoToJsonString(logicalPlanPojo)
+
+    val response = resources
+      .target("/compile")
+      .request(MediaType.APPLICATION_JSON)
+      .post(Entity.json(modifiedLogicalPlanJsonString))
+
+    // Must not surface as HTTP 500 — the error must come back as a structured failure.
+    assertThat(response.getStatus).isEqualTo(200)
+
+    // Inspect the raw JSON rather than deserializing the full response: WorkflowFatalError
+    // is not round-trippable through the test ObjectMapper, but that is unrelated to the
+    // bug under test (which is purely about the resource not NPE'ing).
+    val responseBody = response.readEntity(classOf[String])
+    val rootNode = objectMapper.readTree(responseBody)
+    assertThat(rootNode.get("type").asText()).isEqualTo("failure")
+    assertThat(rootNode.has("operatorErrors")).isTrue
+  }
 }

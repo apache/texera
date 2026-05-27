@@ -46,7 +46,7 @@
         <appender-ref ref="FILE"/>
     </appender>
 
-    <root level="INFO">
+    <root level="${TEXERA_SERVICE_LOG_LEVEL:-INFO}">
         <appender-ref ref="ASYNC"/>
         <appender-ref ref="STDOUT"/>
     </root>

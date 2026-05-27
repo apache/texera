@@ -53,7 +53,7 @@ case class RegionExecution(region: Region) {
     * @param physicalOpId             The physical operatorId for which to initialize or retrieve the execution.
     * @param inheritOperatorExecution An optional `OperatorExecution` to make a copy.
     * @return The `OperatorExecution` associated with the given physical operatorId.
-    * @throws AssertionError if the `OperatorExecution` has already been initialized.
+    * @throws java.lang.AssertionError if the `OperatorExecution` has already been initialized.
     */
   def initOperatorExecution(
       physicalOpId: PhysicalOpIdentity,
@@ -98,7 +98,7 @@ case class RegionExecution(region: Region) {
     *
     * @param link The `PhysicalLink` for which to initialize the `LinkExecution`.
     * @return The newly initialized `LinkExecution`.
-    * @throws AssertionError if the `LinkExecution` has already been initialized for the link.
+    * @throws java.lang.AssertionError if the `LinkExecution` has already been initialized for the link.
     */
   def initLinkExecution(link: PhysicalLink): LinkExecution = {
     assert(!linkExecutions.contains(link))

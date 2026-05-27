@@ -17,8 +17,18 @@
  * under the License.
  */
 
-import { Location } from "@angular/common";
-import { AfterViewInit, Component, HostListener, OnDestroy, OnInit, ViewChild, ViewContainerRef } from "@angular/core";
+import { Location, NgIf } from "@angular/common";
+import {
+  AfterViewInit,
+  ChangeDetectorRef,
+  Component,
+  HostListener,
+  Input,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  ViewContainerRef,
+} from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
@@ -29,7 +39,7 @@ import { WorkflowActionService } from "../service/workflow-graph/model/workflow-
 import { NzMessageService } from "ng-zorro-antd/message";
 import { debounceTime, distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { of } from "rxjs";
+import { forkJoin, of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
@@ -42,6 +52,15 @@ import { WorkflowCompilingService } from "../service/compile-workflow/workflow-c
 import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
+import { NzSpinComponent } from "ng-zorro-antd/spin";
+import { ResultPanelComponent } from "./result-panel/result-panel.component";
+import { WorkflowEditorComponent } from "./workflow-editor/workflow-editor.component";
+import { MenuComponent } from "./menu/menu.component";
+import { MiniMapComponent } from "./workflow-editor/mini-map/mini-map.component";
+import { LeftPanelComponent } from "./left-panel/left-panel.component";
+import { AgentPanelComponent } from "./agent/agent-panel/agent-panel.component";
+import { PropertyEditorComponent } from "./property-editor/property-editor.component";
+import { FormlyRepeatDndComponent } from "../../common/formly/repeat-dnd/repeat-dnd.component";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -54,12 +73,31 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
   ],
+  imports: [
+    NzSpinComponent,
+    ResultPanelComponent,
+    WorkflowEditorComponent,
+    MenuComponent,
+    MiniMapComponent,
+    LeftPanelComponent,
+    NgIf,
+    AgentPanelComponent,
+    PropertyEditorComponent,
+    FormlyRepeatDndComponent,
+  ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
+
+  /**
+   * Optional agent ID to activate when the workspace loads.
+   * When provided (from agent dashboard), the agent panel will open
+   * and connect to this agent automatically.
+   */
+  @Input() agentIdToActivate?: string;
 
   /**
    * Flag to ensure auto persist is registered only once.  This prevents multiple
@@ -87,7 +125,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private notificationService: NotificationService,
     private hubService: HubService,
     private codeEditorService: CodeEditorService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -178,11 +217,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     // disable the workspace until the workflow is fetched from the backend
     this.isLoading = true;
     this.workflowActionService.disableWorkflowModification();
-    this.workflowPersistService
-      .retrieveWorkflow(wid)
+    forkJoin({
+      operatorMetadata: this.operatorMetadataService.getOperatorMetadata(),
+      workflow: this.workflowPersistService.retrieveWorkflow(wid),
+    })
       .pipe(untilDestroyed(this))
       .subscribe(
-        (workflow: Workflow) => {
+        ({ workflow }) => {
           if (checkIfWorkflowBroken(workflow)) {
             this.notificationService.error(
               "Sorry! The workflow is broken and cannot be persisted. Please contact the system admin."
@@ -216,7 +257,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
-          this.isLoading = false;
+          this.setLoadingState(false);
           this.registerAutoPersistWorkflow();
           this.triggerCenter();
         },
@@ -228,34 +269,29 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
           this.message.error("You don't have access to this workflow, please log in with an appropriate account");
-          this.isLoading = false;
+          this.setLoadingState(false);
         }
       );
   }
 
   registerLoadOperatorMetadata() {
+    const wid = this.route.snapshot.params.id;
+    // load workflow with wid if presented in the URL
+    if (wid) {
+      // show loading spinner right away while waiting for workflow to load
+      this.isLoading = true;
+      // temporarily disable modification to prevent editing an empty workflow before real data is loaded
+      this.workflowActionService.disableWorkflowModification();
+      this.loadWorkflowWithId(Number(wid));
+      return;
+    }
+
     this.operatorMetadataService
       .getOperatorMetadata()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        let wid = this.route.snapshot.params.id;
-        // load workflow with wid if presented in the URL
-        if (wid) {
-          // show loading spinner right away while waiting for workflow to load
-          this.isLoading = true;
-          // temporarily disable modification to prevent editing an empty workflow before real data is loaded
-          this.workflowActionService.disableWorkflowModification();
-          // if wid is present in the url, load it from the backend once the user info is ready
-          this.userService
-            .userChanged()
-            .pipe(untilDestroyed(this))
-            .subscribe(() => {
-              this.loadWorkflowWithId(wid);
-            });
-        } else {
-          // no workflow to load; directly register auto persist for brand-new workflow
-          this.registerAutoPersistWorkflow();
-        }
+        // no workflow to load; directly register auto persist for brand-new workflow
+        this.registerAutoPersistWorkflow();
       });
   }
   onWIDChange() {
@@ -282,6 +318,11 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   }
   public triggerCenter(): void {
     this.workflowActionService.getTexeraGraph().triggerCenterEvent();
+  }
+
+  private setLoadingState(isLoading: boolean): void {
+    this.isLoading = isLoading;
+    this.changeDetectorRef.detectChanges();
   }
 
   public get copilotEnabled(): boolean {

@@ -19,8 +19,16 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-case class Schedule(private val levelSets: Map[Int, Set[Region]]) extends Iterator[Set[Region]] {
-  private var currentLevel = levelSets.keys.minOption.getOrElse(0)
+case class Schedule(
+    levelSets: Map[Int, Set[Region]],
+    initialLevelIndex: Int = 0
+) extends Iterator[Set[Region]] {
+  require(
+    levelSets.keys.toSet == (0 until levelSets.size).toSet,
+    s"Schedule level keys must be contiguous starting at 0, got: ${levelSets.keys.toSeq.sorted}"
+  )
+
+  private var currentLevel: Int = initialLevelIndex
 
   def getRegions: List[Region] = levelSets.values.flatten.toList
 

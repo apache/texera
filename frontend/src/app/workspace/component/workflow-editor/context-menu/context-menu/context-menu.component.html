@@ -20,8 +20,8 @@
 <ul nz-menu>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
-  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
+    *ngIf="(highlightedOperatorIds.length > 0 ||
+  highlightedCommentBoxIds.length > 0) &&
   !hasHighlightedLinks()"
     (click)="onCopy()">
     <span
@@ -32,8 +32,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
-  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
+    *ngIf="(highlightedOperatorIds.length > 0 ||
+  highlightedCommentBoxIds.length > 0) &&
   !hasHighlightedLinks() &&
   isWorkflowModifiable"
     (click)="onCut()">
@@ -45,8 +45,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.highlightedOperators.value.length === 0 &&
-  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+    *ngIf="(highlightedOperatorIds.length === 0 &&
+  highlightedCommentBoxIds.length === 0 &&
   !hasHighlightedLinks()) &&
   isWorkflowModifiable"
     (click)="onPaste()">
@@ -125,8 +125,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
-  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
+    *ngIf="(highlightedOperatorIds.length > 0 ||
+  highlightedCommentBoxIds.length > 0) &&
   isWorkflowModifiable"
     (click)="onDelete()">
     <span
@@ -140,8 +140,8 @@
   <li
     nz-menu-item
     *ngIf="hasHighlightedLinks() && 
-  operatorMenuService.highlightedOperators.value.length === 0 &&
-  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+  highlightedOperatorIds.length === 0 &&
+  highlightedCommentBoxIds.length === 0 &&
   isWorkflowModifiable"
     (click)="onDelete()">
     <span
@@ -153,8 +153,8 @@
 
   <li
     nz-menu-item
-    *ngIf="operatorMenuService.highlightedOperators.value.length === 1 &&
-  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+    *ngIf="highlightedOperatorIds.length === 1 &&
+  highlightedCommentBoxIds.length === 0 &&
   !hasHighlightedLinks()"
     [nzDisabled]="!canExecuteOperator()"
     (click)="operatorMenuService.executeUpToOperator()">

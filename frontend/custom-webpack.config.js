@@ -17,6 +17,8 @@
  * under the License.
  */
 
+const { LicenseWebpackPlugin } = require("license-webpack-plugin");
+
 module.exports = {
   module: {
     rules: [
@@ -29,12 +31,35 @@ module.exports = {
         ],
       },
     ],
-    // this is required for loading .wasm (and other) files.
-    // For context, see https://stackoverflow.com/a/75252098 and https://github.com/angular/angular-cli/issues/24617
+    // Enable URL handling in webpack's JavaScript parser, required for loading .wasm files.
+    // See https://github.com/angular/angular-cli/issues/24617
     parser: {
       javascript: {
         url: true,
       },
     },
   },
+  plugins: [
+    new LicenseWebpackPlugin({
+      perChunkOutput: false,
+      outputFilename: "3rdpartylicenses.json",
+      renderLicenses: (modules) =>
+        JSON.stringify(
+          modules
+            .map((m) => ({
+              name: m.packageJson && m.packageJson.name,
+              version: m.packageJson && m.packageJson.version,
+              license: m.licenseId,
+            }))
+            .filter((e) => e.name && e.version)
+            .sort((a, b) =>
+              a.name === b.name
+                ? a.version.localeCompare(b.version)
+                : a.name.localeCompare(b.name),
+            ),
+          null,
+          2,
+        ),
+    }),
+  ],
 };

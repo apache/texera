@@ -45,6 +45,7 @@ trait StartWorkflowHandler {
         .coordinateRegionExecutors(cp.actorService)
         .map(_ => {
           cp.controllerTimerService.enableStatusUpdate()
+          cp.controllerTimerService.enableRuntimeStatisticsCollection()
           StartWorkflowResponse(RUNNING)
         })
     } else {

@@ -17,31 +17,132 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, NgZone } from "@angular/core";
 import { take } from "rxjs/operators";
-import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
-import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
+import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
+import {
+  DashboardWorkflowComputingUnit,
+  WorkflowComputingUnitType,
+} from "../../../common/type/workflow-computing-unit";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { extractErrorMessage } from "../../../common/util/error";
-import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
-import { NzModalService } from "ng-zorro-antd/modal";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { NzModalService, NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ShareAccessComponent } from "../../../dashboard/component/user/share-access/share-access.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
+import {
+  ComputingUnitMetadataComponent,
+  parseResourceUnit,
+  parseResourceNumber,
+  findNearestValidStep,
+  unitTypeMessageTemplate,
+  cpuResourceConversion,
+  memoryResourceConversion,
+  cpuPercentage,
+  memoryPercentage,
+  validateName,
+  getComputingUnitBadgeColor,
+  getComputingUnitStatusTooltip,
+  getComputingUnitCpuStatus,
+  getComputingUnitMemoryStatus,
+  getComputingUnitCpuLimitUnit,
+  isComputingUnitShmTooLarge,
+  getJvmMemorySliderConfig,
+} from "../../../common/util/computing-unit.util";
+import { PvePackageResponse, WorkflowPveService } from "../../service/virtual-environment/virtual-environment.service";
+import { NgClass, NgIf, NgFor, DecimalPipe, TitleCasePipe } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzProgressComponent } from "ng-zorro-antd/progress";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { UserAvatarComponent } from "../../../dashboard/component/user/user-avatar/user-avatar.component";
+import { NzBadgeComponent } from "ng-zorro-antd/badge";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzMenuDirective, NzMenuItemComponent, NzMenuDividerDirective } from "ng-zorro-antd/menu";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
+import { FormsModule } from "@angular/forms";
+import { NzSliderComponent } from "ng-zorro-antd/slider";
+import { NzAlertComponent } from "ng-zorro-antd/alert";
+import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+
+type PveUserPackageRow = {
+  name: string;
+  versionOp?: "==" | ">=" | "<=";
+  version?: string;
+  deleteToggle?: boolean;
+};
+
+type PveDraft = {
+  name: string;
+  userPackages: PveUserPackageRow[];
+  newPackages: PveUserPackageRow[];
+  deletingPackages: { name: string; version: string }[];
+  pipOutput: string;
+  prettyPipOutput: string;
+  expanded: boolean;
+  socket?: WebSocket;
+  isInstalling: boolean;
+  isLocked: boolean;
+};
 
 @UntilDestroy()
 @Component({
   selector: "texera-computing-unit-selection",
   templateUrl: "./computing-unit-selection.component.html",
   styleUrls: ["./computing-unit-selection.component.scss"],
+  imports: [
+    NgClass,
+    NgIf,
+    ɵNzTransitionPatchDirective,
+    NzPopoverDirective,
+    NzProgressComponent,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    NzDropdownDirective,
+    UserAvatarComponent,
+    NzBadgeComponent,
+    NzTooltipDirective,
+    NzIconDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NgFor,
+    NzMenuItemComponent,
+    NzInputDirective,
+    NzMenuDividerDirective,
+    NzModalComponent,
+    NzSelectComponent,
+    FormsModule,
+    NzOptionComponent,
+    NzSliderComponent,
+    NzAlertComponent,
+    NzModalContentDirective,
+    NzCollapseComponent,
+    NzCollapsePanelComponent,
+    DecimalPipe,
+    TitleCasePipe,
+  ],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
+  // variables for creating a virtual environment
+  pves: PveDraft[] = [];
+  systemPackages: { name: string; version: string }[] = [];
+  pveModalVisible = false;
+
   // current workflow's Id, will change with wid in the workflowActionService.metadata
+  protected readonly unitTypeMessageTemplate = unitTypeMessageTemplate;
   workflowId: number | undefined;
 
   lastSelectedCuid?: number;
@@ -86,7 +187,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NzModalService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private computingUnitActionsService: ComputingUnitActionsService,
+    private workflowPveService: WorkflowPveService,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -285,89 +389,57 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   isShmTooLarge(): boolean {
-    const total = this.parseResourceNumber(this.selectedMemory);
-    const unit = this.parseResourceUnit(this.selectedMemory);
-    const memoryInMi = unit === "Gi" ? total * 1024 : total;
-    const shmInMi = this.shmSizeUnit === "Gi" ? this.shmSizeValue * 1024 : this.shmSizeValue;
-
-    return shmInMi > memoryInMi;
+    return isComputingUnitShmTooLarge(this.selectedMemory, this.shmSizeValue, this.shmSizeUnit);
   }
 
   /**
    * Start a new computing unit.
    */
   startComputingUnit(): void {
-    // Validate based on computing unit type
-    if (this.selectedComputingUnitType === "kubernetes") {
-      if (this.newComputingUnitName.trim() == "") {
-        this.notificationService.error("Name of the computing unit cannot be empty");
-        return;
-      }
-
-      this.selectedShmSize = `${this.shmSizeValue}${this.shmSizeUnit}`;
-
-      this.computingUnitService
-        .createKubernetesBasedComputingUnit(
-          this.newComputingUnitName,
-          this.selectedCpu,
-          this.selectedMemory,
-          this.selectedGpu,
-          this.selectedJvmMemorySize,
-          this.selectedShmSize
-        )
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: (unit: DashboardWorkflowComputingUnit) => {
-            this.notificationService.success("Successfully created the new Kubernetes compute unit");
-            // Select the newly created unit
-            this.selectComputingUnit(this.workflowId, unit.computingUnit.cuid);
-          },
-          error: (err: unknown) =>
-            this.notificationService.error(`Failed to start Kubernetes computing unit: ${extractErrorMessage(err)}`),
-        });
-    } else if (this.selectedComputingUnitType === "local") {
-      // For local computing units, validate the URI
-      if (!this.localComputingUnitUri || this.localComputingUnitUri.trim() === "") {
-        this.notificationService.error("URI for local computing unit cannot be empty");
-        return;
-      }
-
-      this.computingUnitService
-        .createLocalComputingUnit(this.newComputingUnitName, this.localComputingUnitUri)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: (unit: DashboardWorkflowComputingUnit) => {
-            this.notificationService.success("Successfully created the new local compute unit");
-            // Select the newly created unit
-            this.selectComputingUnit(this.workflowId, unit.computingUnit.cuid);
-          },
-          error: (err: unknown) =>
-            this.notificationService.error(`Failed to start local computing unit: ${extractErrorMessage(err)}`),
-        });
-    } else {
-      this.notificationService.error("Please select a valid computing unit type");
+    if (this.selectedComputingUnitType === "kubernetes" && this.newComputingUnitName.trim() === "") {
+      this.notificationService.error("Name of the computing unit cannot be empty");
+      return;
     }
+
+    if (this.selectedComputingUnitType === "local" && this.localComputingUnitUri.trim() === "") {
+      this.notificationService.error("URI for local computing unit cannot be empty");
+      return;
+    }
+
+    if (!this.selectedComputingUnitType) {
+      this.notificationService.error("Please select a valid computing unit type");
+      return;
+    }
+
+    const request = {
+      type: this.selectedComputingUnitType,
+      name: this.newComputingUnitName,
+      cpu: this.selectedCpu,
+      memory: this.selectedMemory,
+      gpu: this.selectedGpu,
+      jvmMemorySize: this.selectedJvmMemorySize,
+      shmSize: `${this.shmSizeValue}${this.shmSizeUnit}`,
+      localUri: this.localComputingUnitUri,
+    };
+
+    this.computingUnitActionsService
+      .create(request)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (unit: DashboardWorkflowComputingUnit) => {
+          this.notificationService.success("Successfully created the new compute unit");
+          this.selectComputingUnit(this.workflowId, unit.computingUnit.cuid);
+        },
+        error: (err: unknown) =>
+          this.notificationService.error(`Failed to start computing unit: ${extractErrorMessage(err)}`),
+      });
   }
 
   openComputingUnitMetadataModal(unit: DashboardWorkflowComputingUnit) {
     this.modalService.create({
       nzTitle: "Computing Unit Information",
-      nzContent: `
-        <table class="ant-table">
-          <tbody>
-            <tr><th style="width: 150px;">Name</th><td>${unit.computingUnit.name}</td></tr>
-            <tr><th>Status</th><td>${unit.status}</td></tr>
-            <tr><th>Type</th><td>${unit.computingUnit.type}</td></tr>
-            <tr><th>CPU Limit</th><td>${unit.computingUnit.resource.cpuLimit}</td></tr>
-            <tr><th>Memory Limit</th><td>${unit.computingUnit.resource.memoryLimit}</td></tr>
-            <tr><th>GPU Limit</th><td>${unit.computingUnit.resource.gpuLimit || "None"}</td></tr>
-            <tr><th>JVM Memory</th><td>${unit.computingUnit.resource.jvmMemorySize}</td></tr>
-            <tr><th>Shared Memory</th><td>${unit.computingUnit.resource.shmSize}</td></tr>
-            <tr><th>Created</th><td>${new Date(unit.computingUnit.creationTime).toLocaleString()}</td></tr>
-            <tr><th>Access</th><td>${unit.isOwner ? "Owner" : unit.accessPrivilege}</td></tr>
-          </tbody>
-        </table>
-      `,
+      nzContent: ComputingUnitMetadataComponent,
+      nzData: unit,
       nzFooter: null,
       nzMaskClosable: true,
       nzWidth: "600px",
@@ -381,49 +453,23 @@ export class ComputingUnitSelectionComponent implements OnInit {
   terminateComputingUnit(cuid: number): void {
     const unit = this.allComputingUnits.find(u => u.computingUnit.cuid === cuid);
 
-    if (!unit || !unit.computingUnit.uri) {
+    if (!unit) {
       this.notificationService.error("Invalid computing unit.");
       return;
     }
 
-    const unitName = unit.computingUnit.name;
-    const unitType = unit?.computingUnit.type || "kubernetes"; // fallback
-    const templates = this.unitTypeMessageTemplate[unitType];
+    this.computingUnitActionsService.confirmAndTerminate(cuid, unit);
 
-    // Show confirmation modal
-    this.modalService.confirm({
-      nzTitle: templates.terminateTitle,
-      nzContent: templates.terminateWarning
-        ? `
-      <p>Are you sure you want to terminate <strong>${unitName}</strong>?</p>
-      ${templates.terminateWarning}
-    `
-        : `
-      <p>Are you sure you want to disconnect from <strong>${unitName}</strong>?</p>
-    `,
-      nzOkText: unitType === "local" ? "Disconnect" : "Terminate",
-      nzOkType: "primary",
-      nzOnOk: () => {
-        // Use the ComputingUnitStatusService to handle termination
-        // This will properly close the websocket before terminating the unit
-        this.computingUnitStatusService
-          .terminateComputingUnit(cuid)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: (success: boolean) => {
-              if (success) {
-                this.notificationService.success(`Terminated Computing Unit: ${unitName}`);
-              } else {
-                this.notificationService.error("Failed to terminate computing unit");
-              }
-            },
-            error: (err: unknown) => {
-              this.notificationService.error(`Failed to terminate computing unit: ${extractErrorMessage(err)}`);
-            },
-          });
-      },
-      nzCancelText: "Cancel",
-    });
+    if (this.selectedComputingUnit?.computingUnit.type === "local") {
+      this.workflowPveService
+        .deleteEnvironments(cuid)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          error: (err: unknown) => {
+            console.error("Failed to delete PVE environments", err);
+          },
+        });
+    }
   }
 
   /**
@@ -455,15 +501,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
   confirmUpdateUnitName(cuid: number, newName: string): void {
     const trimmedName = newName.trim();
 
-    if (!trimmedName) {
-      this.notificationService.error("Computing unit name cannot be empty");
-      this.editingNameOfUnit = null;
-      return;
-    }
-
-    if (trimmedName.length > 128) {
-      this.notificationService.error("Computing unit name cannot exceed 128 characters");
-      this.editingNameOfUnit = null;
+    const validationError = validateName(trimmedName);
+    if (validationError) {
+      this.notificationService.error(validationError);
+      this.cancelEditingUnitName();
       return;
     }
 
@@ -503,82 +544,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.editingUnitName = "";
   }
 
-  parseResourceUnit(resource: string): string {
-    // check if has a capacity (is a number followed by a unit)
-    if (!resource || resource === "NaN") return "NaN";
-    const re = /^(\d+(\.\d+)?)([a-zA-Z]*)$/;
-    const match = resource.match(re);
-    if (match) {
-      return match[3] || "";
-    }
-    return "";
-  }
-
-  parseResourceNumber(resource: string): number {
-    // check if has a capacity (is a number followed by a unit)
-    if (!resource || resource === "NaN") return 0;
-    const re = /^(\d+(\.\d+)?)([a-zA-Z]*)$/;
-    const match = resource.match(re);
-    if (match) {
-      return parseFloat(match[1]);
-    }
-    return 0;
-  }
-
-  cpuResourceConversion(from: string, toUnit: string): string {
-    // cpu conversions
-    type CpuUnit = "n" | "u" | "m" | "";
-    const cpuScales: { [key in CpuUnit]: number } = {
-      n: 1,
-      u: 1_000,
-      m: 1_000_000,
-      "": 1_000_000_000,
-    };
-    const fromUnit = this.parseResourceUnit(from) as CpuUnit;
-    const fromNumber = this.parseResourceNumber(from);
-
-    // Handle empty unit in input (means cores)
-    const effectiveFromUnit = (fromUnit || "") as CpuUnit;
-    const effectiveToUnit = (toUnit || "") as CpuUnit;
-
-    // Convert to base units (nanocores) then to target unit
-    const fromScaled = fromNumber * (cpuScales[effectiveFromUnit] || cpuScales["m"]);
-    const toScaled = fromScaled / (cpuScales[effectiveToUnit] || cpuScales[""]);
-
-    // For display purposes, use appropriate precision
-    if (effectiveToUnit === "") {
-      return toScaled.toFixed(4); // 4 decimal places for cores
-    } else if (effectiveToUnit === "m") {
-      return toScaled.toFixed(2); // 2 decimal places for millicores
-    } else {
-      return Math.round(toScaled).toString(); // Whole numbers for smaller units
-    }
-  }
-
-  memoryResourceConversion(from: string, toUnit: string): string {
-    // memory conversion
-    type MemoryUnit = "Ki" | "Mi" | "Gi" | "";
-    const memoryScales: { [key in MemoryUnit]: number } = {
-      "": 1,
-      Ki: 1024,
-      Mi: 1024 * 1024,
-      Gi: 1024 * 1024 * 1024,
-    };
-    const fromUnit = this.parseResourceUnit(from) as MemoryUnit;
-    const fromNumber = this.parseResourceNumber(from);
-
-    // Handle empty unit in input (means bytes)
-    const effectiveFromUnit = (fromUnit || "") as MemoryUnit;
-    const effectiveToUnit = (toUnit || "") as MemoryUnit;
-
-    // Convert to base units (bytes) then to target unit
-    const fromScaled = fromNumber * (memoryScales[effectiveFromUnit] || 1);
-    const toScaled = fromScaled / (memoryScales[effectiveToUnit] || 1);
-
-    // For memory, we want to show in the same format as the limit (typically X.XXX Gi)
-    return toScaled.toFixed(4);
-  }
-
   getCurrentComputingUnitCpuUsage(): string {
     return this.selectedComputingUnit ? this.selectedComputingUnit.metrics.cpuUsage : "NaN";
   }
@@ -611,18 +576,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * Returns the badge color based on computing unit status
    */
   getBadgeColor(status: string): string {
-    switch (status) {
-      case "Running":
-        return "green";
-      case "Pending":
-        return "gold";
-      default:
-        return "red";
-    }
+    return getComputingUnitBadgeColor(status);
   }
 
   getCpuLimit(): number {
-    return this.parseResourceNumber(this.getCurrentComputingUnitCpuLimit());
+    return parseResourceNumber(this.getCurrentComputingUnitCpuLimit());
   }
 
   getGpuLimit(): string {
@@ -638,19 +596,15 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   getCpuLimitUnit(): string {
-    const unit = this.parseResourceUnit(this.getCurrentComputingUnitCpuLimit());
-    if (unit === "") {
-      return "CPU";
-    }
-    return unit;
+    return getComputingUnitCpuLimitUnit(parseResourceUnit(this.getCurrentComputingUnitCpuLimit()));
   }
 
   getMemoryLimit(): number {
-    return this.parseResourceNumber(this.getCurrentComputingUnitMemoryLimit());
+    return parseResourceNumber(this.getCurrentComputingUnitMemoryLimit());
   }
 
   getMemoryLimitUnit(): string {
-    return this.parseResourceUnit(this.getCurrentComputingUnitMemoryLimit());
+    return parseResourceUnit(this.getCurrentComputingUnitMemoryLimit());
   }
 
   getCpuValue(): number {
@@ -658,7 +612,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     const limit = this.getCurrentComputingUnitCpuLimit();
     if (usage === "N/A" || limit === "N/A") return 0;
     const displayUnit = this.getCpuLimitUnit() === "CPU" ? "" : this.getCpuLimitUnit();
-    const usageValue = this.cpuResourceConversion(usage, displayUnit);
+    const usageValue = cpuResourceConversion(usage, displayUnit);
     return parseFloat(usageValue);
   }
 
@@ -667,62 +621,24 @@ export class ComputingUnitSelectionComponent implements OnInit {
     const limit = this.getCurrentComputingUnitMemoryLimit();
     if (usage === "N/A" || limit === "N/A") return 0;
     const displayUnit = this.getMemoryLimitUnit();
-    const usageValue = this.memoryResourceConversion(usage, displayUnit);
+    const usageValue = memoryResourceConversion(usage, displayUnit);
     return parseFloat(usageValue);
   }
 
   getCpuPercentage(): number {
-    const usage = this.getCurrentComputingUnitCpuUsage();
-    const limit = this.getCurrentComputingUnitCpuLimit();
-    if (usage === "N/A" || limit === "N/A") return 0;
-
-    // Convert to the same unit for comparison
-    const displayUnit = ""; // Convert to cores for percentage calculation
-
-    // Use our existing conversion method to get values in the same unit
-    const usageValue = parseFloat(this.cpuResourceConversion(usage, displayUnit));
-    const limitValue = parseFloat(this.cpuResourceConversion(limit, displayUnit));
-
-    if (limitValue <= 0) return 0;
-
-    // Calculate percentage and ensure it doesn't exceed 100%
-    const percentage = (usageValue / limitValue) * 100;
-
-    return Math.min(percentage, 100);
+    return cpuPercentage(this.getCurrentComputingUnitCpuUsage(), this.getCurrentComputingUnitCpuLimit());
   }
 
   getMemoryPercentage(): number {
-    const usage = this.getCurrentComputingUnitMemoryUsage();
-    const limit = this.getCurrentComputingUnitMemoryLimit();
-    if (usage === "N/A" || limit === "N/A") return 0;
-
-    // Convert to the same unit for comparison
-    const displayUnit = "Gi"; // Convert to GiB for percentage calculation
-
-    // Use our existing conversion method to get values in the same unit
-    const usageValue = parseFloat(this.memoryResourceConversion(usage, displayUnit));
-    const limitValue = parseFloat(this.memoryResourceConversion(limit, displayUnit));
-
-    if (limitValue <= 0) return 0;
-
-    // Calculate percentage and ensure it doesn't exceed 100%
-    const percentage = (usageValue / limitValue) * 100;
-
-    return Math.min(percentage, 100);
+    return memoryPercentage(this.getCurrentComputingUnitMemoryUsage(), this.getCurrentComputingUnitMemoryLimit());
   }
 
   getCpuStatus(): "success" | "exception" | "active" | "normal" {
-    const percentage = this.getCpuPercentage();
-    if (percentage > 90) return "exception";
-    if (percentage > 50) return "normal";
-    return "success";
+    return getComputingUnitCpuStatus(this.getCpuPercentage());
   }
 
   getMemoryStatus(): "success" | "exception" | "active" | "normal" {
-    const percentage = this.getMemoryPercentage();
-    if (percentage > 90) return "exception";
-    if (percentage > 50) return "normal";
-    return "success";
+    return getComputingUnitMemoryStatus(this.getMemoryPercentage());
   }
 
   getCpuUnit(): string {
@@ -737,14 +653,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * Returns a descriptive tooltip for a specific unit's status
    */
   getUnitStatusTooltip(unit: DashboardWorkflowComputingUnit): string {
-    switch (unit.status) {
-      case "Running":
-        return "Ready to use";
-      case "Pending":
-        return "Computing unit is starting up";
-      default:
-        return unit.status;
-    }
+    return getComputingUnitStatusTooltip(unit);
   }
 
   // Called when the component initializes
@@ -752,20 +661,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.resetJvmMemorySlider();
   }
 
-  // Find the nearest valid step value
-  findNearestValidStep(value: number): number {
-    if (this.jvmMemorySteps.length === 0) return 1;
-    if (this.jvmMemorySteps.includes(value)) return value;
-
-    // Find the closest step value
-    return this.jvmMemorySteps.reduce((prev, curr) => {
-      return Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev;
-    });
-  }
-
   onJvmMemorySliderChange(value: number): void {
     // Ensure the value is one of the valid steps
-    const validStep = this.findNearestValidStep(value);
+    const validStep = findNearestValidStep(value, this.jvmMemorySteps);
     this.jvmMemorySliderValue = validStep;
     this.selectedJvmMemorySize = `${validStep}G`;
   }
@@ -779,72 +677,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   // Completely reset the JVM memory slider based on the selected CU memory
   resetJvmMemorySlider(): void {
-    // Parse memory limit to determine max JVM memory
-    const memoryValue = this.parseResourceNumber(this.selectedMemory);
-    const memoryUnit = this.parseResourceUnit(this.selectedMemory);
+    const config = getJvmMemorySliderConfig(this.selectedMemory);
 
-    // Set max JVM memory to the total memory selected (in GB)
-    let cuMemoryInGb = 1; // Default to 1GB
-    if (memoryUnit === "Gi") {
-      cuMemoryInGb = memoryValue;
-    } else if (memoryUnit === "Mi") {
-      cuMemoryInGb = Math.max(1, Math.floor(memoryValue / 1024));
-    }
-
-    this.jvmMemoryMax = cuMemoryInGb;
-
-    // Special cases for smaller memory sizes (1-3GB)
-    if (cuMemoryInGb <= 3) {
-      // Don't show slider for small memory sizes
-      this.showJvmMemorySlider = false;
-
-      // Set JVM memory size to 1GB when CU memory is 1GB, otherwise set to 2GB
-      if (cuMemoryInGb === 1) {
-        this.jvmMemorySliderValue = 1;
-        this.selectedJvmMemorySize = "1G";
-      } else {
-        // For 2-3GB instances, use 2GB for JVM
-        this.jvmMemorySliderValue = 2;
-        this.selectedJvmMemorySize = "2G";
-      }
-
-      // Still calculate steps for completeness
-      this.jvmMemorySteps = [];
-      let value = 1;
-      while (value <= this.jvmMemoryMax) {
-        this.jvmMemorySteps.push(value);
-        value = value * 2;
-      }
-
-      // Update marks
-      this.jvmMemoryMarks = {};
-      this.jvmMemorySteps.forEach(step => {
-        this.jvmMemoryMarks[step] = `${step}G`;
-      });
-
-      return;
-    }
-
-    // For larger memory sizes (4GB+), show the slider
-    this.showJvmMemorySlider = true;
-
-    // Calculate binary steps (2,4,8,...) starting from 2GB
-    this.jvmMemorySteps = [];
-    let value = 2; // Start from 2GB for larger instances
-    while (value <= this.jvmMemoryMax) {
-      this.jvmMemorySteps.push(value);
-      value = value * 2;
-    }
-
-    // Update slider marks
-    this.jvmMemoryMarks = {};
-    this.jvmMemorySteps.forEach(step => {
-      this.jvmMemoryMarks[step] = `${step}G`;
-    });
-
-    // Always default to 2GB for larger memory sizes
-    this.jvmMemorySliderValue = 2;
-    this.selectedJvmMemorySize = "2G";
+    this.jvmMemoryMax = config.jvmMemoryMax;
+    this.showJvmMemorySlider = config.showJvmMemorySlider;
+    this.jvmMemorySteps = config.jvmMemorySteps;
+    this.jvmMemoryMarks = config.jvmMemoryMarks;
+    this.jvmMemorySliderValue = config.jvmMemorySliderValue;
+    this.selectedJvmMemorySize = config.selectedJvmMemorySize;
   }
 
   // Listen for memory selection changes
@@ -857,8 +697,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     // For CU memory > 3GB, preserve previous value if valid and >= 2GB
     // Get the current memory in GB
-    const memoryValue = this.parseResourceNumber(this.selectedMemory);
-    const memoryUnit = this.parseResourceUnit(this.selectedMemory);
+    const memoryValue = parseResourceNumber(this.selectedMemory);
+    const memoryUnit = parseResourceUnit(this.selectedMemory);
     let cuMemoryInGb = memoryUnit === "Gi" ? memoryValue : memoryUnit === "Mi" ? Math.floor(memoryValue / 1024) : 1;
 
     // Only try to preserve previous value for larger memory sizes where slider is shown
@@ -875,23 +715,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getCreateModalTitle(): string {
     if (!this.selectedComputingUnitType) return "Create Computing Unit";
-    return this.unitTypeMessageTemplate[this.selectedComputingUnitType].createTitle;
+    return unitTypeMessageTemplate[this.selectedComputingUnitType].createTitle;
   }
 
   public async onClickOpenShareAccess(cuid: number): Promise<void> {
-    this.modalService.create({
-      nzContent: ShareAccessComponent,
-      nzData: {
-        writeAccess: true,
-        type: "computing-unit",
-        id: cuid,
-        inWorkspace: true,
-      },
-      nzFooter: null,
-      nzTitle: "Share this computing unit with others",
-      nzCentered: true,
-      nzWidth: "800px",
-    });
+    this.computingUnitActionsService.openShareAccessModal(cuid, true);
   }
 
   onDropdownVisibilityChange(visible: boolean): void {
@@ -900,27 +728,397 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
-  unitTypeMessageTemplate = {
-    local: {
-      createTitle: "Connect to a Local Computing Unit",
-      terminateTitle: "Disconnect from Local Computing Unit",
-      terminateWarning: "", // no red warning
-      createSuccess: "Successfully connected to the local computing unit",
-      createFailure: "Failed to connect to the local computing unit",
-      terminateSuccess: "Disconnected from the local computing unit",
-      terminateFailure: "Failed to disconnect from the local computing unit",
-      terminateTooltip: "Disconnect from this computing unit",
-    },
-    kubernetes: {
-      createTitle: "Create Computing Unit",
-      terminateTitle: "Terminate Computing Unit",
-      terminateWarning:
-        "<p style='color: #ff4d4f;'><strong>Warning:</strong> All execution results in this computing unit will be lost.</p>",
-      createSuccess: "Successfully created the Kubernetes computing unit",
-      createFailure: "Failed to create the Kubernetes computing unit",
-      terminateSuccess: "Terminated Kubernetes computing unit",
-      terminateFailure: "Failed to terminate Kubernetes computing unit",
-      terminateTooltip: "Terminate this computing unit",
-    },
-  } as const;
+  trackByIndex(index: number): number {
+    return index;
+  }
+
+  addPackage(index: number): void {
+    const env = this.pves[index];
+    env.newPackages.push({ name: "", version: "", versionOp: undefined, deleteToggle: false });
+  }
+
+  togglePackageDelete(index: number, pkg: PveUserPackageRow): void {
+    const env = this.pves[index];
+
+    pkg.deleteToggle = !pkg.deleteToggle;
+
+    const version = pkg.version ?? "";
+
+    env.deletingPackages = env.deletingPackages.filter(p => !(p.name === pkg.name && p.version === version));
+
+    if (pkg.deleteToggle) {
+      env.deletingPackages.push({ name: pkg.name, version });
+    }
+  }
+
+  addEnvironment(): void {
+    this.pves.push({
+      name: "",
+      userPackages: [],
+      newPackages: [],
+      deletingPackages: [],
+      pipOutput: "",
+      prettyPipOutput: "",
+      expanded: true,
+      isInstalling: false,
+      isLocked: false,
+    });
+  }
+
+  showPVEmodalVisible(): void {
+    this.pveModalVisible = true;
+    this.getPVEs();
+  }
+
+  closePveModal(): void {
+    this.pves.forEach(pve => {
+      pve.socket?.close();
+      pve.socket = undefined;
+      pve.isInstalling = false;
+    });
+
+    this.pveModalVisible = false;
+  }
+
+  getPVEs(): void {
+    const cuId = this.selectedComputingUnit!.computingUnit.cuid;
+    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
+
+    this.workflowPveService
+      .fetchPVEs(cuId)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (resp: PvePackageResponse[]) => {
+          this.pves = resp.map(pve => ({
+            name: pve.pveName,
+            userPackages: this.parsePackageRows(pve.userPackages),
+            newPackages: [],
+            deletingPackages: [],
+            expanded: false,
+            isInstalling: false,
+            pipOutput: "",
+            prettyPipOutput: "",
+            isLocked: true,
+          }));
+
+          this.workflowPveService
+            .getSystemPackages(isLocal)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: installedResp => {
+                this.systemPackages = installedResp.system.map(pkgStr => {
+                  const [name, version] = pkgStr.split("==");
+                  return {
+                    name: name.trim(),
+                    version: (version ?? "").trim(),
+                  };
+                });
+              },
+              error: (err: unknown) => {
+                console.error("Failed to fetch system packages:", err);
+                this.systemPackages = [];
+              },
+            });
+        },
+        error: (err: unknown) => {
+          console.error("Failed to fetch PVEs:", err);
+          this.pves = [];
+          this.systemPackages = [];
+        },
+      });
+  }
+
+  scrollToBottomOfPipModal(index: number) {
+    setTimeout(() => {
+      const pre = document.getElementById(`pip-log-${index}`) as HTMLElement | null;
+      if (pre) {
+        pre.scrollTop = pre.scrollHeight;
+      }
+    }, 50);
+  }
+
+  // Converts raw pip output for UI rendering by escaping unsafe characters and
+  // applying styling to exit codes, errors, warnings, and common success messages.
+  updatePrettyPipOutput(index: number) {
+    const env = this.pves[index];
+
+    const escapeHtml = (s: string) =>
+      s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+    const raw = env.pipOutput ?? "";
+    const safe = escapeHtml(raw);
+
+    env.prettyPipOutput = safe
+      .replace(/^(\[pip\] Successfully installed.*)$/gm, '<span class="pip-exit ok"><strong>$1</strong></span>')
+
+      .replace(
+        /^(\[(?:PVE|pip|pve)\].*finished with exit code\s+0.*)$/gm,
+        '<span class="pip-exit ok"><strong>$1</strong></span>'
+      )
+
+      .replace(/^(\[PVE\] Running pip freeze.*)$/gm, '<span class="pip-exit ok"><strong>$1</strong></span>')
+
+      .replace(/^(\[(?:PVE|pip|pve)\]\[ERR\].*)$/gm, '<span class="pip-exit err"><strong>$1</strong></span>')
+
+      .replace(/^(\[PVE\] Skipped.*)$/gm, '<span class="pip-exit err"><strong>$1</strong></span>')
+
+      .replace(/\n/g, "<br/>");
+  }
+
+  private runPveWebSocket(
+    index: number,
+    action: "create" | "install",
+    initialMessage: string,
+    packages: string[] = [],
+    onDone?: () => void
+  ): void {
+    const cuId = this.selectedComputingUnit!.computingUnit.cuid;
+    const env = this.pves[index];
+    const trimmedName = env.name.trim();
+    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
+
+    env.socket?.close();
+
+    const websocketUrl = this.workflowPveService.getPveWebSocketUrl(cuId, trimmedName, isLocal, action, packages);
+
+    const socket = new WebSocket(websocketUrl);
+
+    this.pves[index] = {
+      ...env,
+      name: trimmedName,
+      socket,
+      pipOutput: initialMessage,
+      isInstalling: true,
+      isLocked: true,
+    };
+
+    this.updatePrettyPipOutput(index);
+    this.scrollToBottomOfPipModal(index);
+
+    socket.onmessage = event => {
+      this.ngZone.run(() => {
+        const currentEnv = this.pves[index];
+
+        if (event.data === "__DONE__") {
+          this.pves[index] = {
+            ...currentEnv,
+            socket: undefined,
+            isInstalling: false,
+            isLocked: true,
+          };
+
+          socket.close();
+          onDone?.();
+
+          this.cdr.detectChanges();
+          return;
+        }
+
+        this.pves[index] = {
+          ...currentEnv,
+          pipOutput: `${currentEnv.pipOutput ?? ""}${event.data}\n`,
+        };
+
+        this.updatePrettyPipOutput(index);
+        this.scrollToBottomOfPipModal(index);
+        this.cdr.detectChanges();
+      });
+    };
+
+    socket.onerror = () => {
+      this.ngZone.run(() => {
+        const currentEnv = this.pves[index];
+
+        this.pves[index] = {
+          ...currentEnv,
+          pipOutput: `${currentEnv.pipOutput ?? ""}\n[WebSocket error]\n`,
+          socket: undefined,
+          isInstalling: false,
+          isLocked: true,
+        };
+
+        socket.close();
+        this.updatePrettyPipOutput(index);
+        this.cdr.detectChanges();
+      });
+    };
+  }
+
+  private refreshUserPackages(index: number): void {
+    const env = this.pves[index];
+
+    this.workflowPveService
+      .getUserPackages(this.selectedComputingUnit!.computingUnit.cuid, env.name)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: pkgs => {
+          env.userPackages = env.userPackages = this.parsePackageRows(pkgs);
+          this.cdr.detectChanges();
+        },
+        error: (e: unknown) => console.error("Failed to refresh user packages", e),
+      });
+  }
+
+  createVirtualEnvironment(index: number): void {
+    const env = this.pves[index];
+    const trimmedName = env.name.trim();
+    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
+
+    if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
+      this.notificationService.error("Environment name must contain only letters and numbers.");
+      return;
+    }
+
+    if (env.isLocked) {
+      this.deleteUserPackages(index, () => {
+        this.installUserPackages(index);
+      });
+      return;
+    }
+
+    const duplicateExists = this.pves.some((pve, i) => i !== index && (pve.name ?? "").trim() === trimmedName);
+
+    if (duplicateExists) {
+      this.notificationService.error("An environment with this name already exists.");
+      return;
+    }
+
+    this.runPveWebSocket(index, "create", "Creating virtual environment...\n", [], () => {
+      this.deleteUserPackages(index, () => {
+        this.installUserPackages(index);
+      });
+    });
+  }
+
+  private installUserPackages(index: number): void {
+    const env = this.pves[index];
+
+    const missingVersionPackage = env.newPackages?.find(
+      pkg => pkg.name?.trim() && (!pkg.versionOp?.trim() || !pkg.version?.trim())
+    );
+
+    if (missingVersionPackage) {
+      this.notificationService.error("Please specify an operator and version for each package.");
+      return;
+    }
+
+    const systemPackageNames = new Set(this.systemPackages.map(pkg => pkg.name.trim().toLowerCase()));
+
+    const userPackageNames = new Set(env.userPackages.map(pkg => pkg.name.trim().toLowerCase()));
+
+    const skippedMessages: string[] = [];
+
+    const packageArray =
+      env.newPackages
+        ?.filter(pkg => pkg.name?.trim())
+        .filter(pkg => {
+          const packageName = pkg.name.trim().toLowerCase();
+
+          if (systemPackageNames.has(packageName)) {
+            this.notificationService.error(`Skipped ${pkg.name}: already installed as a system package.`);
+            return false;
+          }
+
+          if (userPackageNames.has(packageName)) {
+            this.notificationService.error(`Skipped ${pkg.name}: already installed in this environment.`);
+            return false;
+          }
+
+          return true;
+        })
+        .map(pkg => `${pkg.name.trim()}${pkg.versionOp}${(pkg.version ?? "").trim()}`) ?? [];
+
+    if (skippedMessages.length > 0) {
+      this.pves[index].pipOutput = `${this.pves[index].pipOutput ?? ""}` + skippedMessages.join("\n") + "\n";
+
+      this.updatePrettyPipOutput(index);
+      this.scrollToBottomOfPipModal(index);
+    }
+
+    if (packageArray.length === 0) {
+      this.pves[index].newPackages = [];
+      this.pves[index].isInstalling = false;
+      this.refreshUserPackages(index);
+      return;
+    }
+
+    this.runPveWebSocket(index, "install", "Installing user packages...\n", packageArray, () => {
+      this.pves[index].newPackages = [];
+      this.refreshUserPackages(index);
+    });
+  }
+
+  private parsePackageRows(packages: string[]): PveUserPackageRow[] {
+    return packages.map(pkgStr => {
+      const [name, version] = pkgStr.split("==");
+      return {
+        name: name.trim(),
+        versionOp: "==" as const,
+        version: (version ?? "").trim(),
+      };
+    });
+  }
+
+  private deleteUserPackages(index: number, onDone?: () => void): void {
+    const cuId = this.selectedComputingUnit!.computingUnit.cuid;
+    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
+    const pveName = this.pves[index].name.trim();
+    const packagesToDelete = [...this.pves[index].deletingPackages];
+
+    if (packagesToDelete.length === 0) {
+      onDone?.();
+      return;
+    }
+
+    this.pves[index] = {
+      ...this.pves[index],
+      pipOutput: `${this.pves[index].pipOutput ?? ""}Deleting user packages...\n`,
+      isInstalling: true,
+    };
+
+    let deleteIndex = 0;
+
+    const deleteNext = (): void => {
+      if (deleteIndex >= packagesToDelete.length) {
+        this.pves[index].deletingPackages = [];
+        this.refreshUserPackages(index);
+        onDone?.();
+        return;
+      }
+
+      const pkg = packagesToDelete[deleteIndex];
+
+      this.workflowPveService
+        .deletePackage(cuId, pveName, pkg.name, isLocal)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: messages => {
+            this.pves[index].pipOutput = `${this.pves[index].pipOutput ?? ""}${messages.join("\n")}\n`;
+
+            this.updatePrettyPipOutput(index);
+            this.scrollToBottomOfPipModal(index);
+
+            deleteIndex++;
+            deleteNext();
+          },
+          error: () => {
+            this.pves[index].pipOutput =
+              `${this.pves[index].pipOutput ?? ""}[PVE][ERR] Failed to delete package: ${pkg.name}\n`;
+
+            this.updatePrettyPipOutput(index);
+            this.scrollToBottomOfPipModal(index);
+
+            deleteIndex++;
+            deleteNext();
+          },
+        });
+    };
+
+    deleteNext();
+  }
 }

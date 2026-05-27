@@ -20,6 +20,6 @@
 package org.apache.texera.amber.operator.sklearn.training
 
 class SklearnTrainingDummyClassifierOpDesc extends SklearnTrainingOpDesc {
-  override def getImportStatements = "from sklearn.dummy import dummy"
+  override def getImportStatements = "from sklearn.dummy import DummyClassifier"
   override def getUserFriendlyModelName = "Training: Dummy Classifier"
 }

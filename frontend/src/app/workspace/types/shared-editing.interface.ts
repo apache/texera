@@ -128,37 +128,116 @@ export function updateYTypeFromObject<T extends object>(oldYObj: YType<T>, newOb
       yText.insert(0, newObj as unknown as string);
     }
   } else if (newObjType === "Array") {
-    // TODO: Fix this
     const oldYObjAsYArray = oldYObj as unknown as Y.Array<any>;
     const newObjAsArr = newObj as any[];
-    const newArrLen = newObjAsArr.length;
     const oldObjAsArr = oldYObjAsYArray.toJSON();
     const oldArrLen = oldObjAsArr.length;
-    // TODO: in-place update, assuming only one update at a time can happen.
-    if (newArrLen < oldArrLen) {
-      let i = 0;
-      for (i; i < newArrLen; i++) {
-        if (!_.isEqual(oldObjAsArr[i], newObjAsArr[i])) break;
+    const newArrLen = newObjAsArr.length;
+
+    const toYValue = (value: any) => {
+      const res = createYTypeFromObject(value);
+      return res === undefined ? null : res;
+    };
+
+    // lcsLengthTable[i][j] = longest common subsequence length between
+    // oldObjAsArr[i:] and newObjAsArr[j:].
+    const lcsLengthTable: number[][] = Array.from({ length: oldArrLen + 1 }, () => Array(newArrLen + 1).fill(0));
+
+    for (let oldIndex = oldArrLen - 1; oldIndex >= 0; oldIndex--) {
+      for (let newIndex = newArrLen - 1; newIndex >= 0; newIndex--) {
+        if (_.isEqual(oldObjAsArr[oldIndex], newObjAsArr[newIndex])) {
+          lcsLengthTable[oldIndex][newIndex] = lcsLengthTable[oldIndex + 1][newIndex + 1] + 1;
+        } else {
+          lcsLengthTable[oldIndex][newIndex] = Math.max(
+            lcsLengthTable[oldIndex + 1][newIndex],
+            lcsLengthTable[oldIndex][newIndex + 1]
+          );
+        }
       }
-      oldYObjAsYArray.delete(i);
-    } else if (newArrLen > oldArrLen) {
-      let i = 0;
-      for (i; i < newArrLen; i++) {
-        if (!_.isEqual(oldObjAsArr[i], newObjAsArr[i])) break;
+    }
+
+    // Recover aligned equal positions.
+    const matchedIndexPairs: Array<[number, number]> = [];
+    let oldIndex = 0;
+    let newIndex = 0;
+
+    while (oldIndex < oldArrLen && newIndex < newArrLen) {
+      if (_.isEqual(oldObjAsArr[oldIndex], newObjAsArr[newIndex])) {
+        matchedIndexPairs.push([oldIndex, newIndex]);
+        oldIndex++;
+        newIndex++;
+      } else if (lcsLengthTable[oldIndex + 1][newIndex] >= lcsLengthTable[oldIndex][newIndex + 1]) {
+        oldIndex++;
+      } else {
+        newIndex++;
       }
-      oldYObjAsYArray.insert(i, [createYTypeFromObject(newObjAsArr[i])]);
-    } else {
-      for (let i = 0; i < newArrLen; i++) {
-        if (!_.isEqual(oldObjAsArr[i], newObjAsArr[i])) {
-          if (!updateYTypeFromObject(oldYObjAsYArray.get(i), newObjAsArr[i])) {
-            if (newObjAsArr[i] !== undefined) {
-              oldYObjAsYArray.delete(i, 1);
-              const res = createYTypeFromObject(newObjAsArr[i]);
-              if (res === undefined) oldYObjAsYArray.insert(i, [null]);
-              else oldYObjAsYArray.insert(i, [res]);
-            }
+    }
+
+    // Build unmatched segments between aligned equal positions.
+    const unmatchedSegments: Array<{
+      oldStartIndex: number;
+      oldEndIndex: number;
+      newStartIndex: number;
+      newEndIndex: number;
+    }> = [];
+
+    let nextOldSegmentStart = 0;
+    let nextNewSegmentStart = 0;
+
+    for (const [matchedOldIndex, matchedNewIndex] of matchedIndexPairs) {
+      if (nextOldSegmentStart < matchedOldIndex || nextNewSegmentStart < matchedNewIndex) {
+        unmatchedSegments.push({
+          oldStartIndex: nextOldSegmentStart,
+          oldEndIndex: matchedOldIndex,
+          newStartIndex: nextNewSegmentStart,
+          newEndIndex: matchedNewIndex,
+        });
+      }
+
+      nextOldSegmentStart = matchedOldIndex + 1;
+      nextNewSegmentStart = matchedNewIndex + 1;
+    }
+
+    if (nextOldSegmentStart < oldArrLen || nextNewSegmentStart < newArrLen) {
+      unmatchedSegments.push({
+        oldStartIndex: nextOldSegmentStart,
+        oldEndIndex: oldArrLen,
+        newStartIndex: nextNewSegmentStart,
+        newEndIndex: newArrLen,
+      });
+    }
+
+    // Apply from right to left so array indices remain stable.
+    for (let segmentIndex = unmatchedSegments.length - 1; segmentIndex >= 0; segmentIndex--) {
+      const { oldStartIndex, oldEndIndex, newStartIndex, newEndIndex } = unmatchedSegments[segmentIndex];
+
+      const oldSegmentLength = oldEndIndex - oldStartIndex;
+      const newSegmentLength = newEndIndex - newStartIndex;
+      const overlappingLength = Math.min(oldSegmentLength, newSegmentLength);
+
+      // Update overlapping items in place where possible.
+      for (let segmentOffset = overlappingLength - 1; segmentOffset >= 0; segmentOffset--) {
+        const arrayIndex = oldStartIndex + segmentOffset;
+        const newValue = newObjAsArr[newStartIndex + segmentOffset];
+
+        if (!_.isEqual(oldObjAsArr[arrayIndex], newValue)) {
+          if (!updateYTypeFromObject(oldYObjAsYArray.get(arrayIndex), newValue)) {
+            oldYObjAsYArray.delete(arrayIndex, 1);
+            oldYObjAsYArray.insert(arrayIndex, [toYValue(newValue)]);
           }
         }
+      }
+
+      // Delete remaining old items in this segment.
+      if (oldSegmentLength > newSegmentLength) {
+        oldYObjAsYArray.delete(oldStartIndex + overlappingLength, oldSegmentLength - newSegmentLength);
+      }
+
+      // Insert remaining new items in this segment.
+      if (newSegmentLength > oldSegmentLength) {
+        const insertedYValues = newObjAsArr.slice(newStartIndex + overlappingLength, newEndIndex).map(toYValue);
+
+        oldYObjAsYArray.insert(oldStartIndex + overlappingLength, insertedYValues);
       }
     }
   } else if (newObjType === "Object") {

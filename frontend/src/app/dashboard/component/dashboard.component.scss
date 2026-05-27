@@ -110,6 +110,27 @@ nz-content {
   pointer-events: none;
 }
 
+#powered-by {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 56px;
+  text-align: center;
+  font-size: 11px;
+  color: gray;
+  z-index: 5;
+
+  a {
+    color: gray;
+    text-decoration: none;
+
+    &:hover {
+      color: #1890ff;
+      text-decoration: underline;
+    }
+  }
+}
+
 .hidden {
   display: none;
 }

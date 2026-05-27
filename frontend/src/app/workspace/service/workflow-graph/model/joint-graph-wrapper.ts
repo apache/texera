@@ -935,7 +935,7 @@ export class JointGraphWrapper {
     }
   }
 
-  public setCurrentEditing(coeditor: Coeditor, currentEditing: string): NodeJS.Timer {
+  public setCurrentEditing(coeditor: Coeditor, currentEditing: string): ReturnType<typeof setInterval> {
     // Calculate location
     const statusText = coeditor.name + " is viewing/editing...";
     const color = coeditor.color;
@@ -976,7 +976,7 @@ export class JointGraphWrapper {
     }, 300);
   }
 
-  public removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: NodeJS.Timer) {
+  public removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: ReturnType<typeof setInterval>) {
     clearInterval(intervalId);
     this.getMainJointPaper()
       ?.getModelById(previousEditing)

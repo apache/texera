@@ -67,6 +67,12 @@ $type-colors: (
   height: inherit;
 }
 
+.result-content,
+:host ::ng-deep .result-content .ant-tabs-content,
+:host ::ng-deep .result-content .ant-tabs-tabpane {
+  height: 100%;
+}
+
 #result-buttons {
   position: absolute;
   bottom: 0;

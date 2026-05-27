@@ -56,8 +56,8 @@ describe("ValidationWorkflowService", () => {
       ],
     });
 
-    validationWorkflowService = TestBed.get(ValidationWorkflowService);
-    workflowActionservice = TestBed.get(WorkflowActionService);
+    validationWorkflowService = TestBed.inject(ValidationWorkflowService);
+    workflowActionservice = TestBed.inject(WorkflowActionService);
   });
 
   it("should be created", inject([ValidationWorkflowService], (service: ValidationWorkflowService) => {

@@ -29,6 +29,19 @@ case class LogicalLink(
     @JsonProperty("toOpId") toOpId: OperatorIdentity,
     toPortId: PortIdentity
 ) {
+  require(
+    fromOpId != null && fromOpId.id != null && fromOpId.id.nonEmpty,
+    "LogicalLink fromOpId must be non-null and non-empty"
+  )
+  require(
+    toOpId != null && toOpId.id != null && toOpId.id.nonEmpty,
+    "LogicalLink toOpId must be non-null and non-empty"
+  )
+  require(
+    fromOpId != toOpId,
+    s"LogicalLink self-loop not allowed: fromOpId == toOpId == ${fromOpId.id}"
+  )
+
   @JsonCreator
   def this(
       @JsonProperty("fromOpId") fromOpId: String,

@@ -17,14 +17,14 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, NgZone, OnInit, ViewChild } from "@angular/core";
+import { Component, NgZone, OnInit, ViewChild } from "@angular/core";
 import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
-import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
+import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
-import { SocialAuthService } from "@abacritt/angularx-social-login";
+import { SocialAuthService, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 
@@ -34,6 +34,7 @@ import {
   DASHBOARD_ADMIN_GMAIL,
   DASHBOARD_ADMIN_SETTINGS,
   DASHBOARD_ADMIN_USER,
+  DASHBOARD_USER_COMPUTING_UNIT,
   DASHBOARD_USER_DATASET,
   DASHBOARD_USER_DISCUSSION,
   DASHBOARD_USER_PROJECT,
@@ -43,11 +44,38 @@ import {
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
 import { User } from "../../common/type/user";
+import { Role } from "../../common/type/user";
+import { NzLayoutComponent, NzSiderComponent, NzContentComponent } from "ng-zorro-antd/layout";
+import { NzMenuDirective, NzSubMenuComponent, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NgIf } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { SearchBarComponent } from "./user/search-bar/search-bar.component";
+import { UserIconComponent } from "./user/user-icon/user-icon.component";
 
 @Component({
   selector: "texera-dashboard",
   templateUrl: "dashboard.component.html",
   styleUrls: ["dashboard.component.scss"],
+  imports: [
+    NzLayoutComponent,
+    NzSiderComponent,
+    NzMenuDirective,
+    NgIf,
+    NzSubMenuComponent,
+    ɵNzTransitionPatchDirective,
+    HubComponent,
+    NzMenuItemComponent,
+    NzTooltipDirective,
+    RouterLink,
+    NzIconDirective,
+    SearchBarComponent,
+    UserIconComponent,
+    GoogleSigninButtonModule,
+    NzContentComponent,
+    RouterOutlet,
+  ],
 })
 @UntilDestroy()
 export class DashboardComponent implements OnInit {
@@ -71,18 +99,16 @@ export class DashboardComponent implements OnInit {
     projects_enabled: false,
     workflows_enabled: false,
     datasets_enabled: false,
+    compute_enabled: false,
     quota_enabled: false,
     forum_enabled: false,
     about_enabled: false,
   };
-  // Variables related to updating user's affiliation
-  affiliationModalVisible = false;
-  affiliationInput: string = "";
-  affiliationSaving = false;
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
   protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
+  protected readonly DASHBOARD_USER_COMPUTING_UNIT = DASHBOARD_USER_COMPUTING_UNIT;
   protected readonly DASHBOARD_USER_QUOTA = DASHBOARD_USER_QUOTA;
   protected readonly DASHBOARD_USER_DISCUSSION = DASHBOARD_USER_DISCUSSION;
   protected readonly DASHBOARD_ADMIN_USER = DASHBOARD_ADMIN_USER;
@@ -94,7 +120,6 @@ export class DashboardComponent implements OnInit {
     private userService: UserService,
     private router: Router,
     private flarumService: FlarumService,
-    private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
     private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
@@ -124,8 +149,6 @@ export class DashboardComponent implements OnInit {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
           this.forumLogin();
-          this.checkAffiliationPrompt(user);
-          this.cdr.detectChanges();
         });
       });
 
@@ -173,7 +196,9 @@ export class DashboardComponent implements OnInit {
       this.adminSettingsService
         .getSetting(tab)
         .pipe(untilDestroyed(this))
-        .subscribe(value => (this.sidebarTabs[tab] = value === "true"));
+        .subscribe(value => {
+          this.sidebarTabs[tab] = value === "true";
+        });
     });
   }
 
@@ -198,67 +223,6 @@ export class DashboardComponent implements OnInit {
           },
         });
     }
-  }
-
-  /**
-   * Prompts user to enter affiliation if they have not been prompted before
-   * @param user
-   */
-  checkAffiliationPrompt(user: User | undefined): void {
-    // Null affiliation = never prompted before
-    if (!user || !this.config.env.googleLogin) {
-      return;
-    }
-
-    this.userService
-      .checkAffiliation()
-      .pipe(untilDestroyed(this))
-      .subscribe(response => {
-        if (response) {
-          this.affiliationInput = "";
-          this.affiliationModalVisible = true;
-        } else {
-          this.affiliationModalVisible = false;
-        }
-      });
-  }
-
-  /**
-   * Saves the affiliation
-   */
-  saveAffiliation(): void {
-    const value = this.affiliationInput?.trim() ?? "";
-    this.affiliationSaving = true;
-
-    this.userService
-      .updateAffiliation(value)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.affiliationSaving = false;
-          this.affiliationModalVisible = false;
-        },
-        error: () => {
-          this.affiliationSaving = false;
-          this.affiliationModalVisible = false;
-        },
-      });
-  }
-
-  /**
-   * Skips the affiliation input and update the database to store an empty string, which means the user has
-   * already been prompted.
-   */
-  skipAffiliation(): void {
-    this.affiliationInput = "";
-    this.saveAffiliation();
-  }
-
-  /**
-   * Skips the affiliation input when user closed the prompt window via outside click, ESC
-   */
-  onAffiliationCancel(): void {
-    this.skipAffiliation();
   }
 
   checkRoute() {

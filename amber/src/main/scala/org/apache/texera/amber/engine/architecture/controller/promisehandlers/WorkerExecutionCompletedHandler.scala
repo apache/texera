@@ -27,7 +27,8 @@ import org.apache.texera.amber.engine.architecture.controller.{
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest,
-  QueryStatisticsRequest
+  QueryStatisticsRequest,
+  StatisticsUpdateTarget
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.engine.common.virtualidentity.util.SELF
@@ -52,7 +53,7 @@ trait WorkerExecutionCompletedHandler {
     // and the user sees the last update before completion
     val statsRequest =
       controllerInterface.controllerInitiateQueryStatistics(
-        QueryStatisticsRequest(Seq(ctx.sender)),
+        QueryStatisticsRequest(Seq(ctx.sender), StatisticsUpdateTarget.BOTH_UI_AND_PERSISTENCE),
         mkContext(SELF)
       )
 
@@ -60,10 +61,15 @@ trait WorkerExecutionCompletedHandler {
       .collect(Seq(statsRequest))
       .flatMap(_ => {
         // if entire workflow is completed, clean up
-        if (cp.workflowExecution.isCompleted) {
+        val isWorkflowTerminal =
+          cp.workflowExecution.isCompleted &&
+            !cp.workflowScheduler.hasPendingRegions &&
+            !cp.workflowExecutionCoordinator.hasUnfinishedRegionCoordinators
+        if (isWorkflowTerminal) {
           // after query result come back: send completed event, cleanup ,and kill workflow
           sendToClient(ExecutionStateUpdate(cp.workflowExecution.getState))
           cp.controllerTimerService.disableStatusUpdate()
+          cp.controllerTimerService.disableRuntimeStatisticsCollection()
         }
       })
     EmptyReturn()

@@ -23,22 +23,76 @@ common:
   - changed-files:
       - any-glob-to-any-file:
           - 'common/**'
+          # Root-level Scala build / lint config: a change to any of these
+          # affects every Scala stack (amber + the platform services).
+          - 'build.sbt'
+          - 'project/**'
+          - '.scalafix.conf'
+          - '.scalafmt.conf'
 
-service:
+platform:
   - changed-files:
       - any-glob-to-any-file:
-          - '*-service/**'
+          - 'access-control-service/**'
+          - 'computing-unit-managing-service/**'
+          - 'config-service/**'
+          - 'file-service/**'
+          - 'workflow-compiling-service/**'
+
+agent-service:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'agent-service/**'
 
 engine:
+  # Non-Python, non-integration parts of amber/. Pure Python changes
+  # under amber/src/{main,test}/python/** intentionally fall through to
+  # the `python` label (which the labeler also matches via **/*.py),
+  # so they only trigger the python + amber-integration stacks rather
+  # than the full Scala-only `amber` stack. Integration specs live
+  # under amber/src/test/integration/** (added to sbt's Test sources
+  # via amber/build.sbt) and are caught by the `amber-integration`
+  # label below. Top-level Scala formatter / linter configs are
+  # included so a PR that only updates them still triggers the Scala
+  # stacks instead of producing an empty stack union.
   - changed-files:
       - any-glob-to-any-file:
-          - 'amber/**'
+          - 'amber/build.sbt'
+          - 'amber/.scalafmt.conf'
+          - 'amber/.scalafix.conf'
+          - 'amber/project/**'
+          - 'amber/src/main/scala/**'
+          - 'amber/src/main/java/**'
+          - 'amber/src/main/protobuf/**'
+          - 'amber/src/main/resources/**'
+          - 'amber/src/test/scala/**'
+          - 'amber/src/test/java/**'
+
+amber-integration:
+  # Scala specs that exercise both Scala and Python end-to-end. They
+  # live under amber/src/test/integration/** (sbt picks them up via
+  # `Test / unmanagedSourceDirectories += .../test/integration` in
+  # amber/build.sbt) and are tagged @org.apache.texera.amber.tags
+  # .IntegrationTest. This label maps to the amber-integration stack
+  # only, so a PR that touches just an integration spec does not pay
+  # for the full Scala-only `amber` job.
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'amber/src/test/integration/**'
 
 python:
+  # Includes pip requirement manifests so dependency-only PRs still
+  # exercise the Python + amber-integration stacks. Without this a
+  # bumped requirements.txt would only get `dependencies` (no stack
+  # mapping) and silently skip CI for the very deps it's changing.
   - changed-files:
       - any-glob-to-any-file:
           - 'amber/src/main/python/**'
+          - 'amber/src/test/python/**'
+          - 'amber/pyproject.toml'
           - '**/*.py'
+          - '**/requirements.txt'
+          - '**/*-requirements.txt'
 
 docs:
   - changed-files:
@@ -51,13 +105,14 @@ docs:
 ci:
   - changed-files:
       - any-glob-to-any-file:
-          - '.github/workflows/**'
+          - '.github/**'
+          - '.asf.yaml'
+          - 'codecov.yml'
 
-build:
+dev:
   - changed-files:
       - any-glob-to-any-file:
           - 'bin/**'
-          - 'deployment/**'
 
 dependencies:
   - changed-files:

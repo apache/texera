@@ -1,0 +1,212 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<nz-card
+  [nzBodyStyle]="{padding: '3px'}"
+  class="computing-unit-list-item-card">
+  <div
+    nz-row
+    nzAlign="middle">
+    <div
+      nz-col
+      nzFlex="20px"></div>
+
+    <div
+      nz-col
+      nzFlex="0"
+      class="type-icon">
+      <i
+        nz-icon
+        nzType="deployment-unit"></i>
+    </div>
+
+    <div
+      nz-col
+      nzFlex="0"
+      class="unit-id">
+      <i>#{{ unit.cuid }}</i>
+    </div>
+
+    <div
+      nz-col
+      nzFlex="30px">
+      <div class="edit-button">
+        <button
+          nz-button
+          nzType="text"
+          title="Rename"
+          (click)="startEditingUnitName(entry); $event.stopPropagation()">
+          <i
+            nz-icon
+            nzType="edit"></i>
+        </button>
+      </div>
+    </div>
+
+    <div
+      nz-col
+      nzFlex="1"
+      class="resource-name-group">
+      <div
+        class="resource-name truncate-single-line"
+        *ngIf="editingNameOfUnit !== unit.cuid; else editableUnitName"
+        (click)="openComputingUnitMetadataModal(entry)">
+        {{ unit.name }}
+        <nz-badge
+          [nzColor]="getBadgeColor(entry.status)"
+          [nz-tooltip]="getUnitStatusTooltip(entry)"></nz-badge>
+      </div>
+      <ng-template #editableUnitName>
+        <input
+          #unitNameInput
+          (keydown.enter)="confirmUpdateUnitName(unit.cuid, unitNameInput.value)"
+          (keydown.escape)="cancelEditingUnitName()"
+          [value]="editingUnitName"
+          nz-input
+          class="unit-name-edit-input"
+          maxlength="128"
+          (click)="$event.stopPropagation()"
+          autofocus
+      /></ng-template>
+    </div>
+
+    <div class="button-group">
+      <button
+        nz-button
+        nzType="text"
+        nz-tooltip
+        *ngIf="this.config.env.sharingComputingUnitEnabled"
+        [nzTooltipTitle]="'Share computing unit'"
+        (click)="onClickOpenShareAccess(entry.computingUnit.cuid); $event.stopPropagation()"
+        aria-label="Share computing unit">
+        <span
+          nz-icon
+          nzType="share-alt"></span>
+      </button>
+      <button
+        nz-button
+        nzType="text"
+        title="Delete"
+        (click)="deleted.emit()">
+        <i
+          nz-icon
+          nzType="delete"></i>
+      </button>
+    </div>
+
+    <div
+      nz-button
+      nz-popover
+      [nzPopoverContent]="metricsTemplate"
+      nzPopoverTrigger="hover"
+      nzPopoverPlacement="bottom"
+      class="metrics-container">
+      <div class="metric-item">
+        <span class="metric-label">CPU</span>
+        <div class="metric-bar-wrapper">
+          <nz-progress
+            class="cpu-progress-bar"
+            [nzPercent]="getCpuPercentage()"
+            [nzStrokeColor]="'#52c41a'"
+            [nzStatus]="getCpuStatus()"
+            nzType="line"
+            [nzStrokeWidth]="8"
+            [nzShowInfo]="false"></nz-progress>
+        </div>
+      </div>
+
+      <div class="metric-item">
+        <span class="metric-label">Memory</span>
+        <div class="metric-bar-wrapper">
+          <nz-progress
+            class="memory-progress-bar"
+            [nzPercent]="getMemoryPercentage()"
+            [nzStrokeColor]="'#1890ff'"
+            [nzStatus]="getMemoryStatus()"
+            nzType="line"
+            [nzStrokeWidth]="8"
+            [nzShowInfo]="false"></nz-progress>
+        </div>
+      </div>
+    </div>
+
+    <div
+      nz-col
+      nzFlex="100px"
+      class="resource-info">
+      Created:<br />
+      {{ formatTime(unit.creationTime) }}
+    </div>
+
+    <div
+      nz-col
+      nzFlex="90px"
+      class="resource-info">
+      CPU Limit:<br />
+      {{ unit.resource.cpuLimit }}
+    </div>
+
+    <div
+      nz-col
+      nzFlex="90px"
+      class="resource-info">
+      Memory Limit:<br />
+      {{ unit.resource.memoryLimit }}
+    </div>
+  </div>
+</nz-card>
+
+<ng-template #metricsTemplate>
+  <div class="resource-metrics">
+    <div class="cpu-metric general-metric">
+      <p class="metric-name">CPU</p>
+      <p class="metric-value">
+        {{getCpuValue() | number:'1.4-4'}}
+        <span class="metric-unit">/ {{getCpuLimit()}} {{getCpuLimitUnit()}}</span>
+        <span class="metric-percentage">({{getCpuPercentage() | number:'1.1-1'}}%)</span>
+      </p>
+    </div>
+    <div class="memory-metric general-metric">
+      <p class="metric-name">RAM</p>
+      <p class="metric-value">
+        {{getMemoryValue() | number:'1.4-4'}}
+        <span class="metric-unit">/ {{getMemoryLimit()}} {{getMemoryLimitUnit()}}</span>
+        <span class="metric-percentage">({{getMemoryPercentage() | number:'1.1-1'}}%)</span>
+      </p>
+    </div>
+    <div
+      *ngIf="getGpuLimit() !== '0' && getGpuLimit() !== 'NaN' && showGpuSelection()"
+      class="gpu-metric general-metric">
+      <p class="metric-name">GPU</p>
+      <p class="metric-value">{{getGpuLimit()}} GPU(s)</p>
+    </div>
+    <div
+      *ngIf="getJvmMemorySize() !== '0' && getJvmMemorySize() !== 'NaN'"
+      class="gpu-metric general-metric">
+      <p class="metric-name">JVM Memory Size</p>
+      <p class="metric-value">{{getJvmMemorySize()}}</p>
+    </div>
+    <div
+      *ngIf="getSharedMemorySize() !== '0' && getSharedMemorySize() !== 'NaN'"
+      class="gpu-metric general-metric">
+      <p class="metric-name">Shared Memory Size</p>
+      <p class="metric-value">{{getSharedMemorySize()}}</p>
+    </div>
+  </div>
+</ng-template>

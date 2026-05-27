@@ -52,6 +52,7 @@ export class MockGuiConfigService {
     activeTimeInMinutes: 15,
     copilotEnabled: false,
     limitColumns: 15,
+    attributionEnabled: false,
   };
 
   get env(): GuiConfig {

@@ -38,7 +38,8 @@ import scala.jdk.CollectionConverters._
 object S3StorageClient {
   val MINIMUM_NUM_OF_MULTIPART_S3_PART: Long = 5L * 1024 * 1024 // 5 MiB
   val MAXIMUM_NUM_OF_MULTIPART_S3_PARTS = 10_000
-  val PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS = 6
+  //Keep on sync with LakeFS https://github.com/treeverse/lakeFS/pull/10180
+  val PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS = 24
 
   // Initialize MinIO-compatible S3 Client
   private lazy val s3Client: S3Client = {
@@ -265,8 +266,8 @@ object S3StorageClient {
     * Uploads a single part for an in-progress S3 multipart upload.
     *
     * This method wraps the AWS SDK v2 {@code UploadPart} API:
-    * it builds an {@link software.amazon.awssdk.services.s3.model.UploadPartRequest}
-    * and streams the part payload via a {@link software.amazon.awssdk.core.sync.RequestBody}.
+    * it builds an [[software.amazon.awssdk.services.s3.model.UploadPartRequest]]
+    * and streams the part payload via a [[software.amazon.awssdk.core.sync.RequestBody]].
     *
     * Payload handling:
     *   - If {@code contentLength} is provided, the payload is streamed directly from {@code inputStream}
@@ -286,7 +287,7 @@ object S3StorageClient {
     * @param partNumber    1-based part number for this upload.
     * @param inputStream   Stream containing the bytes for this part.
     * @param contentLength Optional size (in bytes) of this part; provide it to avoid buffering in memory.
-    * @return              The {@link software.amazon.awssdk.services.s3.model.UploadPartResponse},
+    * @return              The [[software.amazon.awssdk.services.s3.model.UploadPartResponse]],
     *                      including the part ETag used for completing the multipart upload.
     */
   def uploadPartWithRequest(

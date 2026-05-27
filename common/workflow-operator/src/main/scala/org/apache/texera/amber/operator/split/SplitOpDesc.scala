@@ -48,7 +48,7 @@ class SplitOpDesc extends LogicalOp {
 
   @JsonSchemaTitle("Seed")
   @JsonProperty(defaultValue = "1")
-  @JsonPropertyDescription("An int for reproducible output across multiple run")
+  @JsonPropertyDescription("An int for reproducible output across multiple runs")
   @JsonSchemaInject(
     strings = Array(
       new JsonSchemaString(path = HideAnnotation.hideTarget, value = "random"),

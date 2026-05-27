@@ -24,7 +24,7 @@ import org.jgrapht.graph.DirectedAcyclicGraph
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object SchedulingUtils {
-
+  // TODO: remove this function
   def replaceVertex(
       graph: DirectedAcyclicGraph[Region, RegionLink],
       oldVertex: Region,

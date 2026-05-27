@@ -26,4 +26,24 @@
     #menu="nzDropdownMenu">
     <texera-context-menu></texera-context-menu>
   </nz-dropdown-menu>
+
+  <!-- Chat Popover for Operator -->
+  <div
+    class="chat-popover-container"
+    *ngIf="chatPopoverOperator"
+    [style.left.px]="chatPopoverOperator.position.x"
+    [style.top.px]="chatPopoverOperator.position.y">
+    <div
+      class="chat-popover"
+      [class.chat-popover-visualization]="isOperatorVisualization(chatPopoverOperator.operatorId)">
+      <div class="chat-popover-content">
+        <texera-agent-interaction
+          [operatorId]="chatPopoverOperator.operatorId"
+          [operatorDisplayName]="chatPopoverOperator.displayName"
+          [sampleRecords]="getOperatorSampleRecords(chatPopoverOperator.operatorId)"
+          [resultStatistics]="getOperatorResultStatistics(chatPopoverOperator.operatorId)">
+        </texera-agent-interaction>
+      </div>
+    </div>
+  </div>
 </div>

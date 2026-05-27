@@ -117,7 +117,6 @@ class LargeBinaryOutputStream(IOBase):
         self._large_binary = large_binary
         self._bucket_name = large_binary.get_bucket_name()
         self._object_key = large_binary.get_object_key()
-        self._closed = False
 
         # Background upload thread state
         self._queue: queue.Queue = queue.Queue(maxsize=_CHUNK_SIZE)
@@ -140,7 +139,7 @@ class LargeBinaryOutputStream(IOBase):
             ValueError: If stream is closed
             IOError: If previous upload failed
         """
-        if self._closed:
+        if self.closed:
             raise ValueError("I/O operation on closed stream")
 
         # Check if upload has failed
@@ -177,16 +176,11 @@ class LargeBinaryOutputStream(IOBase):
 
     def writable(self) -> bool:
         """Return True if the stream can be written to."""
-        return not self._closed
+        return not self.closed
 
     def seekable(self) -> bool:
         """Return False - this stream does not support seeking."""
         return False
-
-    @property
-    def closed(self) -> bool:
-        """Return True if the stream is closed."""
-        return self._closed
 
     def flush(self) -> None:
         """
@@ -203,27 +197,36 @@ class LargeBinaryOutputStream(IOBase):
         Close the stream and complete the S3 upload.
         Blocks until upload is complete. Raises IOError if upload failed.
 
+        Idempotent: subsequent calls (including IOBase's __del__-driven
+        finalize on Python 3.13+) are no-ops because IOBase tracks the
+        closed state via super().close() below.
+
         Raises:
             IOError: If upload failed
         """
-        if self._closed:
+        if self.closed:
             return
 
-        self._closed = True
+        try:
+            # Signal EOF to upload thread and wait for completion
+            if self._upload_thread is not None:
+                self._queue.put(None, block=True)  # EOF marker
+                self._upload_thread.join()
+                self._upload_complete.wait()
 
-        # Signal EOF to upload thread and wait for completion
-        if self._upload_thread is not None:
-            self._queue.put(None, block=True)  # EOF marker
-            self._upload_thread.join()
-            self._upload_complete.wait()
+                # Check for errors and cleanup if needed
+                with self._lock:
+                    exception = self._upload_exception
 
-            # Check for errors and cleanup if needed
-            with self._lock:
-                exception = self._upload_exception
-
-            if exception is not None:
-                self._cleanup_failed_upload()
-                raise IOError(f"Failed to complete upload: {exception}") from exception
+                if exception is not None:
+                    self._cleanup_failed_upload()
+                    raise IOError(
+                        f"Failed to complete upload: {exception}"
+                    ) from exception
+        finally:
+            # Mark IOBase as closed even if we raised, so __del__ skips
+            # the second close() call on Python 3.13+.
+            super().close()
 
     def _cleanup_failed_upload(self):
         """Clean up a failed upload by deleting the S3 object."""

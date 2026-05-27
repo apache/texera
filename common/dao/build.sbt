@@ -20,9 +20,6 @@
 /////////////////////////////////////////////////////////////////////////////
 
 name := "dao"
-organization := "org.apache"
-version := "1.0.0"
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
 
@@ -170,7 +167,6 @@ libraryDependencies ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.jooq" % "jooq" % "3.16.23",
-  "org.jooq" % "jooq-codegen" % "3.16.23"
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -178,6 +174,6 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "org.postgresql" % "postgresql" % "42.7.4",
-  "com.typesafe" % "config" % "1.4.3"    // config reader
+  "org.postgresql" % "postgresql" % "42.7.10",
+  "com.zaxxer"     % "HikariCP"  % "5.1.0"
 )

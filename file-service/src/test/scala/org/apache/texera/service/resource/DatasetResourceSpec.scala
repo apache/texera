@@ -29,8 +29,18 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
-import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetUserAccessDao,
+  DatasetVersionDao,
+  UserDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetUserAccess,
+  DatasetVersion,
+  User
+}
 import org.apache.texera.service.MockLakeFS
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.SQLDialect
@@ -370,6 +380,137 @@ class DatasetResourceSpec
     datasetDao.fetchOneByDid(dataset.getDid) should not be null
   }
 
+  "listDatasets" should "include a dataset whose LakeFS repo exists" in {
+    val repoName = s"list-ok-${System.nanoTime()}"
+    val dataset = new Dataset
+    dataset.setName(repoName)
+    dataset.setRepositoryName(repoName)
+    dataset.setDescription("list endpoint - healthy dataset")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    LakeFSStorageClient.initRepo(repoName)
+
+    val result = datasetResource.listDatasets(sessionUser)
+
+    result.map(_.dataset.getDid) should contain(dataset.getDid)
+  }
+
+  it should "exclude a dataset whose LakeFS repo has been deleted (orphan DB row)" in {
+    val repoName = s"list-orphan-${System.nanoTime()}"
+    val dataset = new Dataset
+    dataset.setName(repoName)
+    dataset.setRepositoryName(repoName)
+    dataset.setDescription("list endpoint - orphan DB row")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    LakeFSStorageClient.initRepo(repoName)
+    // Simulate the DB/LakeFS mismatch: delete the repo directly, leaving the DB row.
+    LakeFSStorageClient.deleteRepo(repoName)
+
+    val result = datasetResource.listDatasets(sessionUser)
+
+    result.map(_.dataset.getDid) should not contain dataset.getDid
+  }
+
+  it should "deduplicate a dataset accessible via both explicit access and public visibility" in {
+    val repoName = s"list-dedup-${System.nanoTime()}"
+    val dataset = new Dataset
+    dataset.setName(repoName)
+    dataset.setRepositoryName(repoName)
+    dataset.setDescription("list endpoint - dedup")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    LakeFSStorageClient.initRepo(repoName)
+
+    // Grant explicit READ access so the dataset is fetched by BOTH the explicit-access
+    // path and the public path — exercises the dedup branch in the merge loop.
+    val access = new DatasetUserAccess
+    access.setDid(dataset.getDid)
+    access.setUid(sessionUser.getUid)
+    access.setPrivilege(PrivilegeEnum.READ)
+    new DatasetUserAccessDao(getDSLContext.configuration()).insert(access)
+
+    val result = datasetResource.listDatasets(sessionUser)
+
+    result.count(_.dataset.getDid == dataset.getDid) shouldBe 1
+  }
+
+  "updateDatasetName" should "rename dataset successfully if user has write access" in {
+    val dataset = new Dataset
+    dataset.setName("rename-before")
+    dataset.setRepositoryName("rename-before-repo")
+    dataset.setDescription("for rename happy path")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+
+    val response = datasetResource.updateDatasetName(
+      DatasetResource.DatasetNameModification(dataset.getDid, "rename-after"),
+      sessionUser
+    )
+
+    response.getStatus shouldEqual 200
+    datasetDao.fetchOneByDid(dataset.getDid).getName shouldEqual "rename-after"
+  }
+
+  it should "refuse to rename dataset if user lacks write access" in {
+    val dataset = new Dataset
+    dataset.setName("rename-forbidden")
+    dataset.setRepositoryName("rename-forbidden-repo")
+    dataset.setDescription("for rename forbidden test")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+
+    assertThrows[ForbiddenException] {
+      datasetResource.updateDatasetName(
+        DatasetResource.DatasetNameModification(dataset.getDid, "hijacked"),
+        sessionUser2
+      )
+    }
+
+    datasetDao.fetchOneByDid(dataset.getDid).getName shouldEqual "rename-forbidden"
+  }
+
+  it should "throw NotFoundException when renaming a non-existent dataset" in {
+    val nonExistentDid: Integer = Int.box(Int.MaxValue)
+
+    assertThrows[NotFoundException] {
+      datasetResource.updateDatasetName(
+        DatasetResource.DatasetNameModification(nonExistentDid, "ghost"),
+        sessionUser
+      )
+    }
+  }
+
+  it should "leave repository_name unchanged after rename" in {
+    val dataset = new Dataset
+    dataset.setName("rename-keeps-repo")
+    dataset.setRepositoryName("rename-keeps-repo-stable")
+    dataset.setDescription("for repo-name invariance test")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+
+    datasetResource.updateDatasetName(
+      DatasetResource.DatasetNameModification(dataset.getDid, "rename-keeps-repo-renamed"),
+      sessionUser
+    )
+
+    val reloaded = datasetDao.fetchOneByDid(dataset.getDid)
+    reloaded.getName shouldEqual "rename-keeps-repo-renamed"
+    reloaded.getRepositoryName shouldEqual "rename-keeps-repo-stable"
+  }
+
   // ===========================================================================
   // Multipart upload tests (merged in)
   // ===========================================================================
@@ -670,6 +811,20 @@ class DatasetResourceSpec
     sessionRecord.getUploadId
   }
 
+  private def expireUploadSession(uploadId: String): Unit = {
+    val expiredHoursAgo = S3StorageClient.PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS + 1
+    getDSLContext
+      .update(DATASET_UPLOAD_SESSION)
+      .set(
+        DATASET_UPLOAD_SESSION.CREATED_AT,
+        DSL
+          .field(s"current_timestamp - interval '${expiredHoursAgo} hours'")
+          .cast(classOf[java.time.OffsetDateTime])
+      )
+      .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(uploadId))
+      .execute()
+  }
+
   private def assertPlaceholdersCreated(uploadId: String, expectedParts: Int): Unit = {
     val rows = fetchPartRows(uploadId).sortBy(_.getPartNumber)
     rows.size shouldEqual expectedParts
@@ -717,17 +872,9 @@ class DatasetResourceSpec
     initUpload(fpB, numParts = 2).getStatus shouldEqual 200
     initUpload(fpA, numParts = 2).getStatus shouldEqual 200
 
-    // Expire fpB by pushing created_at back > 6 hours.
+    // Expire fpB by pushing created_at back beyond the real session expiration window.
     val uploadIdB = fetchUploadIdOrFail(fpB)
-    val tableName = DATASET_UPLOAD_SESSION.getName // typically "dataset_upload_session"
-    getDSLContext
-      .update(DATASET_UPLOAD_SESSION)
-      .set(
-        DATASET_UPLOAD_SESSION.CREATED_AT,
-        DSL.field("current_timestamp - interval '7 hours'").cast(classOf[java.time.OffsetDateTime])
-      )
-      .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(uploadIdB))
-      .execute()
+    expireUploadSession(uploadIdB)
 
     val listed = listUploads()
     listed shouldEqual listed.sorted
@@ -905,19 +1052,8 @@ class DatasetResourceSpec
     uploadPart(filePath, 1, minPartBytes(1.toByte)).getStatus shouldEqual 200
     fetchPartRows(oldUploadId).find(_.getPartNumber == 1).get.getEtag.trim should not be ""
 
-    // Age the session so it is definitely expired (> PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS = 6)
-    val expireHrs = S3StorageClient.PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS
-
-    getDSLContext
-      .update(DATASET_UPLOAD_SESSION)
-      .set(
-        DATASET_UPLOAD_SESSION.CREATED_AT,
-        DSL
-          .field(s"current_timestamp - interval '${expireHrs + 1} hours'")
-          .cast(classOf[java.time.OffsetDateTime])
-      )
-      .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(oldUploadId))
-      .execute()
+    // Age the session so it is definitely expired (> PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS)
+    expireUploadSession(oldUploadId)
 
     // Same init config again -> should restart because it's expired
     val r2 = initUpload(filePath, numParts = 2, lastPartBytes = 123)
@@ -2445,5 +2581,35 @@ class DatasetResourceSpec
     intercept[WebApplicationException] {
       abortUpload(filePath)
     }.getResponse.getStatus shouldEqual 400
+
+    // DB session is cleaned up
+    fetchSession(filePath) shouldBe null
+    fetchPartRows(uploadId) shouldBe empty
+  }
+
+  // ===========================================================================
+  // Pagination test – verify that listing APIs return more than the default (100 items)
+  // ===========================================================================
+
+  "LakeFS pagination" should "return all files when count exceeds one page for both uncommitted and committed objects" taggedAs Slow in {
+    val repoName =
+      s"pagination-${System.nanoTime()}-${Random.alphanumeric.take(6).mkString.toLowerCase}"
+    LakeFSStorageClient.initRepo(repoName)
+
+    val totalFiles = 110
+    (1 to totalFiles).foreach { i =>
+      LakeFSStorageClient.writeFileToRepo(
+        repoName,
+        s"file-$i.txt",
+        new ByteArrayInputStream(s"content-$i".getBytes(StandardCharsets.UTF_8))
+      )
+    }
+
+    // before commit: 110 files should appear as uncommitted diffs
+    LakeFSStorageClient.retrieveUncommittedObjects(repoName).size shouldEqual totalFiles
+
+    // after commit: 110 files should appear as committed objects
+    val commit = LakeFSStorageClient.withCreateVersion(repoName, "commit all files") {}
+    LakeFSStorageClient.retrieveObjectsOfVersion(repoName, commit.getId).size shouldEqual totalFiles
   }
 }

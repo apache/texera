@@ -44,6 +44,11 @@ case object ChannelConfig {
           ChannelConfig(ChannelIdentity(fromWorkerId, toWorkerId, isControl = false), toPortId)
         )
       case OneToOnePartition() =>
+        assert(
+          fromWorkerIds.size == toWorkerIds.size,
+          s"OneToOnePartition requires equal-length worker lists, " +
+            s"got from=${fromWorkerIds.size} to=${toWorkerIds.size}"
+        )
         fromWorkerIds.zip(toWorkerIds).map {
           case (fromWorkerId, toWorkerId) =>
             ChannelConfig(ChannelIdentity(fromWorkerId, toWorkerId, isControl = false), toPortId)

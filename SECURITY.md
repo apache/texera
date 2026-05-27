@@ -78,13 +78,15 @@ account.
 
 **Who They Are**: Individuals who interact with Texera through the web interface.
 
-**Access Level**: Application-level access only. UI users work within the Texera platform but do not have access to:
+**Access Level**: UI users interact with Texera through the web interface and do not have direct access to:
 
 - The underlying infrastructure (servers, Kubernetes cluster)
 - Database administration
 - System configuration files
 - Network and firewall settings
 - Container orchestration
+
+**Important**: REGULAR and ADMIN users can execute arbitrary code through UDFs, which may access resources in the execution environment. Deployment managers are responsible for mitigating this risk. See [What is NOT a Security Issue](#what-is-not-a-security-issue) for details.
 
 **Roles**: UI users are assigned one of four roles (INACTIVE, RESTRICTED, REGULAR, ADMIN) that control their permissions
 within the Texera application.
@@ -157,8 +159,9 @@ our [wiki](https://github.com/apache/texera/wiki/How-to-run-Texera-on-local-Kube
 ### Computing Unit Types
 
 Texera executes workflows on **computing units**. UI users (REGULAR and ADMIN) can execute arbitrary code (e.g., through
-UDFs written in Python, R, Scala) within computing units as part of their workflows. This code is currently not
-sandboxed or restricted by Texera. Deployment managers configure which types of computing units are available:
+UDFs written in Python, R, Java, Scala) within computing units as part of their workflows. See [What is NOT a Security Issue](#what-is-not-a-security-issue) for the security implications of UDF execution.
+
+Deployment managers configure which types of computing units are available:
 
 #### Local Computing Units
 
@@ -174,6 +177,7 @@ Local computing units run as processes on the same machine as the Texera service
 **Security considerations**:
 
 - Users' workflow code executes on the host machine with limited isolation
+- UDF code executes with access to resources in the host environment — see [What is NOT a Security Issue](#what-is-not-a-security-issue)
 - Deployment managers must trust all REGULAR and ADMIN users
 - Resource exhaustion by one user can affect all users
 
@@ -194,6 +198,7 @@ a user needs it.
 - Better isolation between users compared to local computing units
 - Kubernetes provides namespace and pod-level isolation
 - Resource limits prevent individual users from consuming excessive resources
+- UDF code within a pod can still access resources available inside that pod's environment (e.g., environment variables, mounted secrets)
 - Container security and image scanning should be implemented
 - Deployment managers must secure the Kubernetes cluster infrastructure
 
@@ -202,6 +207,7 @@ a user needs it.
 Texera's security model does NOT guarantee:
 
 - Protection against malicious code in user workflows (users can execute arbitrary code)
+- Isolation of application secrets from UDF code executing within the same process or pod
 - Strong isolation between workflows in local computing units
 - Complete isolation between workflows in Kubernetes computing units within the same namespace
 - Protection against infrastructure-level compromises
@@ -215,10 +221,12 @@ The following are **NOT considered security vulnerabilities** in Texera:
 
 ### User Code Execution
 
-REGULAR and ADMIN users can execute arbitrary code (Python, R, Scala) within computing units. This is by design - Texera
-is a data analytics platform where custom code execution is a core feature. The system currently does not sandbox user
-code beyond the isolation provided by the deployment environment (local processes or Kubernetes pods). Deployment
-managers should use resource limits, monitor usage, and restrict user roles appropriately.
+REGULAR and ADMIN users can execute arbitrary code (Python, R, Java, Scala) within computing units through UDFs. This is by design — custom code execution is a core feature of the platform.
+
+UDF code may access resources available in the execution environment, including but not limited to:
+
+- Texera's application configurations
+- Environment variables of the host
 
 ### Resource Consumption
 
@@ -262,7 +270,7 @@ lists and website.
 
 ---
 
-**Last Updated**: November 2025
+**Last Updated**: April 2026
 
 **Disclaimer**: This project is currently undergoing incubation at The Apache Software Foundation (ASF). Incubation is
 required of all newly accepted projects until a further review indicates that the infrastructure, communications, and

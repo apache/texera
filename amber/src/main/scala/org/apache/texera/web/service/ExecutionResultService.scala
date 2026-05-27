@@ -23,8 +23,7 @@ import org.apache.pekko.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.config.{ApplicationConfig, StorageConfig}
-import org.apache.texera.amber.core.storage.DocumentFactory.ICEBERG
+import org.apache.texera.amber.config.ApplicationConfig
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.storage.result._
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
@@ -59,13 +58,24 @@ import org.apache.texera.web.service.ExecutionResultService.convertTuplesToJson
 import org.apache.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 import org.apache.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
+import java.lang.Byte.{SIZE => BitsPerByte}
 import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
+import scala.language.existentials
 
 object ExecutionResultService {
 
   private val defaultPageSize: Int = 5
+  private val binaryPreviewLeadingBits: Int = 10
+  private val binaryPreviewTrailingBits: Int = 3
+
+  private def bytesToBinaryString(bytes: Array[Byte]): String =
+    bytes
+      .map(b =>
+        String.format(s"%${BitsPerByte}s", Integer.toBinaryString(b & 0xff)).replace(' ', '0')
+      )
+      .mkString("")
 
   /**
     * Converts a collection of Tuples to a list of JSON ObjectNodes.
@@ -99,18 +109,24 @@ object ExecutionResultService {
                     value match {
                       case byteArray: Array[Byte] =>
                         val totalSize = byteArray.length
-                        val hexString = byteArrayToHexString(byteArray)
-
-                        // 39 = 30 (leading bytes) + 9 (trailing bytes)
-                        // 30 bytes = space for 10 hex values (each hex value takes 2 chars + 1 space)
-                        // 9 bytes = space for 3 hex values at the end (2 chars each + 1 space)
-                        if (hexString.length < 39) {
-                          s"bytes'$hexString' (length: $totalSize)"
-                        } else {
-                          val leadingBytes = hexString.take(30)
-                          val trailingBytes = hexString.takeRight(9)
-                          s"bytes'$leadingBytes...$trailingBytes' (length: $totalSize)"
-                        }
+                        val sizeFormatted = f"$totalSize%,d"
+                        val totalBits = totalSize * BitsPerByte
+                        val preview =
+                          if (totalBits <= binaryPreviewLeadingBits + binaryPreviewTrailingBits)
+                            bytesToBinaryString(byteArray)
+                          else {
+                            val leadingBytesNeeded =
+                              math.ceil(binaryPreviewLeadingBits.toDouble / BitsPerByte).toInt
+                            val trailingBytesNeeded =
+                              math.ceil(binaryPreviewTrailingBits.toDouble / BitsPerByte).toInt
+                            val leading = bytesToBinaryString(byteArray.take(leadingBytesNeeded))
+                              .take(binaryPreviewLeadingBits)
+                            val trailing = bytesToBinaryString(
+                              byteArray.takeRight(trailingBytesNeeded)
+                            ).takeRight(binaryPreviewTrailingBits)
+                            s"$leading...$trailing"
+                          }
+                        s"<binary $preview, size = $sizeFormatted bytes>"
 
                       case _ =>
                         throw new RuntimeException(
@@ -131,19 +147,6 @@ object ExecutionResultService {
 
       TupleUtils.tuple2json(tuple.schema, processedFields)
     }.toList
-  }
-
-  /**
-    * Converts a byte array to a hex string representation.
-    *
-    * This helper function takes a byte array and converts its contents to a space-separated
-    * string of hexadecimal values. Each byte is formatted as a two-digit uppercase hex number.
-    *
-    * @param byteArray The byte array to convert
-    * @return A string containing the hex representation of the byte array's contents
-    */
-  private def byteArrayToHexString(byteArray: Array[Byte]): String = {
-    byteArray.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
   }
 
   /**
@@ -382,7 +385,7 @@ class ExecutionResultService(
                   outputPort.mode == OutputMode.SINGLE_SNAPSHOT
               }
 
-              if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
+              if (!hasSingleSnapshot) {
                 val storageUri = WorkflowExecutionsResource
                   .getResultUriByLogicalPortId(
                     executionId,
@@ -408,8 +411,7 @@ class ExecutionResultService(
         Iterable(
           WebResultUpdateEvent(
             buf.toMap,
-            allTableStats.toMap,
-            StorageConfig.resultStorageMode.toLowerCase
+            allTableStats.toMap
           )
         )
       })

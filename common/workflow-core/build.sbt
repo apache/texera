@@ -20,10 +20,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 name := "workflow-core"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
 
@@ -99,7 +96,7 @@ libraryDependencies ++= Seq(
 // Jackson-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
-val jacksonVersion = "2.15.1"
+val jacksonVersion = "2.18.6"
 libraryDependencies ++= Seq(
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,        // Jackson Databind
@@ -114,7 +111,7 @@ libraryDependencies ++= Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "14.0.1"
+val arrowVersion = "15.0.2"
 val nettyVersion = "4.1.96.Final"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
@@ -134,10 +131,14 @@ dependencyOverrides ++= Seq(
   "io.netty" % "netty-codec" % nettyVersion,
   "io.netty" % "netty-codec-http" % nettyVersion,
   "io.netty" % "netty-codec-http2" % nettyVersion,
+  "io.netty" % "netty-codec-socks" % nettyVersion,
   "io.netty" % "netty-common" % nettyVersion,
   "io.netty" % "netty-handler" % nettyVersion,
+  "io.netty" % "netty-handler-proxy" % nettyVersion,
   "io.netty" % "netty-resolver" % nettyVersion,
   "io.netty" % "netty-transport" % nettyVersion,
+  "io.netty" % "netty-transport-classes-epoll" % nettyVersion,
+  "io.netty" % "netty-transport-native-epoll" % nettyVersion,
   "io.netty" % "netty-transport-native-unix-common" % nettyVersion
 )
 
@@ -167,6 +168,10 @@ libraryDependencies ++= Seq(
     excludeJackson,
     excludeJacksonModule
   ),
+  "org.apache.iceberg" % "iceberg-aws" % "1.7.1" excludeAll(
+    excludeJackson,
+    excludeJacksonModule
+  ),
   "org.apache.hadoop" % "hadoop-common" % "3.3.1" excludeAll(
     excludeXmlBind,
     excludeGlassfishJersey,
@@ -187,7 +192,7 @@ libraryDependencies ++= Seq(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.postgresql" % "postgresql" % "42.7.3"
+  "org.postgresql" % "postgresql" % "42.7.10"
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -203,11 +208,18 @@ libraryDependencies ++= Seq(
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r",  // jgit
   "org.apache.commons" % "commons-vfs2" % "2.9.0",                     // for FileResolver throw VFS-related exceptions
   "io.lakefs" % "sdk" % "1.51.0",                                     // for lakeFS api calls
-  "com.typesafe" % "config" % "1.4.3",                                 // config reader
+  "com.typesafe" % "config" % "1.4.6",                                 // config reader
   "org.apache.commons" % "commons-jcs3-core" % "3.2",                 // Apache Commons JCS
   "software.amazon.awssdk" % "s3" % "2.29.51" excludeAll(
     ExclusionRule(organization = "io.netty")
   ),
-  "software.amazon.awssdk" % "auth" % "2.29.51",
-  "software.amazon.awssdk" % "regions" % "2.29.51",
+  "software.amazon.awssdk" % "auth" % "2.29.51" excludeAll(
+    ExclusionRule(organization = "io.netty")
+  ),
+  "software.amazon.awssdk" % "regions" % "2.29.51" excludeAll(
+    ExclusionRule(organization = "io.netty")
+  ),
+  "software.amazon.awssdk" % "sts" % "2.29.51" excludeAll(
+    ExclusionRule(organization = "io.netty")
+  ),
 )

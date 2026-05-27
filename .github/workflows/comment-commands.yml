@@ -1,0 +1,363 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# /take, /untake, /request-review, /unrequest-review, /sub-issue,
+# /unsub-issue, /parent-issue, and /unparent-issue comment commands.
+#
+# Triage state is no longer materialized as a label — it is the search
+# filter `is:issue is:open no:assignee`. Anyone can self-claim an issue
+# by commenting `/take` (and self-release with `/untake`); PR-driven
+# assignee sync is handled by `pr-assignment.yml`.
+#
+# On pull requests, the author can request or cancel reviewer requests
+# via `/request-review @user [@user ...]` and `/unrequest-review @user
+# [@user ...]`. We avoid the `/review` namespace so it stays free for
+# future use (e.g. self-review).
+#
+# Sub-issue linking can be driven from either end of the relationship:
+# `/sub-issue #N [#M ...]` on a parent links those issues as children;
+# `/parent-issue #N` on a child sets #N as its parent. Unlinking mirrors
+# this: `/unsub-issue #N [#M ...]` from the parent, `/unparent-issue`
+# from the child (omit the number to auto-detect via GraphQL, or pass
+# `/unparent-issue #N` to be explicit). Cross-repo links are not
+# supported; references like `owner/repo#N` are ignored.
+name: Comment commands
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  take:
+    # The startsWith filter at the job level keeps unrelated comments
+    # from allocating a runner; the regex inside the script enforces an
+    # exact `/take` or `/untake` so suffixes like `/take this` do not
+    # silently match.
+    if: >-
+      github.event_name == 'issue_comment'
+      && github.event.action == 'created'
+      && github.event.issue.pull_request == null
+      && github.event.comment.user.type != 'Bot'
+      && (startsWith(github.event.comment.body, '/take')
+          || startsWith(github.event.comment.body, '/untake'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const body = (context.payload.comment.body || '').trim();
+            const issue_number = context.payload.issue.number;
+            const login = context.payload.comment.user.login;
+            const { owner, repo } = context.repo;
+            core.info(
+              `take/untake candidate: ${login} on issue #${issue_number}; ` +
+                `body=${JSON.stringify(body)}`,
+            );
+
+            if (/^\/take\s*$/.test(body)) {
+              try {
+                await github.rest.issues.addAssignees({
+                  owner, repo, issue_number, assignees: [login],
+                });
+                core.info(`Assigned ${login} to issue #${issue_number}`);
+              } catch (e) {
+                core.warning(
+                  `addAssignees on #${issue_number} failed: ${e.message}`,
+                );
+              }
+            } else if (/^\/untake\s*$/.test(body)) {
+              try {
+                await github.rest.issues.removeAssignees({
+                  owner, repo, issue_number, assignees: [login],
+                });
+                core.info(`Unassigned ${login} from issue #${issue_number}`);
+              } catch (e) {
+                core.warning(
+                  `removeAssignees on #${issue_number} failed: ${e.message}`,
+                );
+              }
+            } else {
+              core.info(
+                `Comment does not match exact '/take' or '/untake'; skipping.`,
+              );
+            }
+
+  request-review:
+    # Job-level startsWith gate avoids spinning up a runner for every
+    # PR comment; the regex inside the script enforces the exact shape.
+    if: >-
+      github.event_name == 'issue_comment'
+      && github.event.action == 'created'
+      && github.event.issue.pull_request != null
+      && github.event.comment.user.type != 'Bot'
+      && (startsWith(github.event.comment.body, '/request-review')
+          || startsWith(github.event.comment.body, '/unrequest-review'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const body = (context.payload.comment.body || '').trim();
+            const pull_number = context.payload.issue.number;
+            const commenter = context.payload.comment.user.login;
+            const author = context.payload.issue.user.login;
+            const { owner, repo } = context.repo;
+
+            const match = body.match(
+              /^\/(request-review|unrequest-review)\b(.*)$/s,
+            );
+            if (!match) {
+              core.info(`Comment does not match exact command; skipping.`);
+              return;
+            }
+            const action = match[1];
+
+            if (commenter !== author) {
+              core.info(
+                `${commenter} is not the author of #${pull_number}; skipping.`,
+              );
+              return;
+            }
+
+            // Parse @user and @org/team mentions; route teams to the
+            // team_reviewers bucket. Strip self so the API doesn't
+            // reject the whole atomic call over one bad name. Copilot
+            // is a bot reviewer that the REST API expects as the exact
+            // slug "Copilot", so normalize any casing of @copilot.
+            const reviewers = [];
+            const team_reviewers = [];
+            for (const [, h] of match[2].matchAll(
+              /@([\w-]+(?:\/[\w.-]+)?)/g,
+            )) {
+              if (h.includes('/')) team_reviewers.push(h.split('/')[1]);
+              else if (h.toLowerCase() === 'copilot') reviewers.push('Copilot');
+              else if (h.toLowerCase() !== author.toLowerCase())
+                reviewers.push(h);
+            }
+            if (!reviewers.length && !team_reviewers.length) {
+              core.warning(`No valid @mentions in '${action}'; skipping.`);
+              return;
+            }
+
+            const params = { owner, repo, pull_number, reviewers, team_reviewers };
+            try {
+              if (action === 'request-review') {
+                await github.rest.pulls.requestReviewers(params);
+              } else {
+                await github.rest.pulls.removeRequestedReviewers(params);
+              }
+              core.info(
+                `${action} on #${pull_number} by ${commenter}: ` +
+                  `users=[${reviewers.join(', ')}] ` +
+                  `teams=[${team_reviewers.join(', ')}]`,
+              );
+            } catch (e) {
+              core.warning(
+                `${action} on #${pull_number} failed: ${e.message}`,
+              );
+            }
+
+  sub-issue:
+    # The sub-issue REST endpoints key off the issue's database `id`, so
+    # each #N reference needs a lookup before link/unlink.
+    if: >-
+      github.event_name == 'issue_comment'
+      && github.event.action == 'created'
+      && github.event.issue.pull_request == null
+      && github.event.comment.user.type != 'Bot'
+      && (startsWith(github.event.comment.body, '/sub-issue')
+          || startsWith(github.event.comment.body, '/unsub-issue')
+          || startsWith(github.event.comment.body, '/parent-issue')
+          || startsWith(github.event.comment.body, '/unparent-issue'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const body = (context.payload.comment.body || '').trim();
+            const issue_number = context.payload.issue.number;
+            const commenter = context.payload.comment.user.login;
+            const { owner, repo } = context.repo;
+
+            // Longest alternatives first so `unsub-issue` isn't shadowed
+            // by `sub-issue`.
+            const match = body.match(
+              /^\/(unsub-issue|unparent-issue|sub-issue|parent-issue)\b(.*)$/s,
+            );
+            if (!match) {
+              core.info(`Comment does not match exact command; skipping.`);
+              return;
+            }
+            const action = match[1];
+            const rest = match[2];
+            core.info(
+              `${action} candidate: ${commenter} on issue #${issue_number}; ` +
+                `body=${JSON.stringify(body)}`,
+            );
+
+            // Accept `#N` or bare `N`; cross-repo `owner/repo#N` is not
+            // supported by the sub-issue endpoint.
+            const refs = [];
+            for (const token of rest.split(/\s+/)) {
+              if (!token) continue;
+              if (token.includes('/')) {
+                core.warning(`Ignoring cross-repo reference '${token}'.`);
+                continue;
+              }
+              const m = token.match(/^#?(\d+)$/);
+              if (m) refs.push(Number(m[1]));
+            }
+
+            async function getIssueId(number) {
+              const { data } = await github.rest.issues.get({
+                owner, repo, issue_number: number,
+              });
+              return data.id;
+            }
+
+            async function getParentNumber(number) {
+              const query = `
+                query($owner:String!, $name:String!, $number:Int!) {
+                  repository(owner:$owner, name:$name) {
+                    issue(number:$number) { parent { number } }
+                  }
+                }`;
+              const result = await github.graphql(query, {
+                owner, name: repo, number,
+              });
+              return result.repository.issue.parent?.number ?? null;
+            }
+
+            async function linkChild(parent_number, child_number) {
+              const sub_issue_id = await getIssueId(child_number);
+              await github.request(
+                'POST /repos/{owner}/{repo}/issues/{issue_number}/sub_issues',
+                { owner, repo, issue_number: parent_number, sub_issue_id },
+              );
+            }
+
+            async function unlinkChild(parent_number, child_number) {
+              const sub_issue_id = await getIssueId(child_number);
+              await github.request(
+                'DELETE /repos/{owner}/{repo}/issues/{issue_number}/sub_issue',
+                { owner, repo, issue_number: parent_number, sub_issue_id },
+              );
+            }
+
+            if (action === 'sub-issue' || action === 'unsub-issue') {
+              if (!refs.length) {
+                core.warning(`No #N refs in '/${action}'; skipping.`);
+                return;
+              }
+              for (const n of refs) {
+                if (n === issue_number) {
+                  core.warning(
+                    `Refusing to self-link #${n}; skipping.`,
+                  );
+                  continue;
+                }
+                try {
+                  if (action === 'sub-issue') {
+                    await linkChild(issue_number, n);
+                    core.info(
+                      `Linked #${n} as sub-issue of #${issue_number}`,
+                    );
+                  } else {
+                    await unlinkChild(issue_number, n);
+                    core.info(
+                      `Unlinked #${n} from sub-issues of #${issue_number}`,
+                    );
+                  }
+                } catch (e) {
+                  core.warning(
+                    `${action} #${n} on #${issue_number} failed: ${e.message}`,
+                  );
+                }
+              }
+              return;
+            }
+
+            if (action === 'parent-issue') {
+              if (refs.length !== 1) {
+                core.warning(
+                  `/parent-issue expects exactly one #N; skipping.`,
+                );
+                return;
+              }
+              const parent_number = refs[0];
+              if (parent_number === issue_number) {
+                core.warning(
+                  `Refusing to set #${issue_number} as its own parent; skipping.`,
+                );
+                return;
+              }
+              try {
+                await linkChild(parent_number, issue_number);
+                core.info(
+                  `Linked #${issue_number} as sub-issue of #${parent_number}`,
+                );
+              } catch (e) {
+                core.warning(
+                  `parent-issue #${parent_number} on #${issue_number} ` +
+                    `failed: ${e.message}`,
+                );
+              }
+              return;
+            }
+
+            if (action === 'unparent-issue') {
+              if (refs.length > 1) {
+                core.warning(
+                  `/unparent-issue accepts at most one #N; skipping.`,
+                );
+                return;
+              }
+              let parent_number = refs[0];
+              if (parent_number === undefined) {
+                try {
+                  parent_number = await getParentNumber(issue_number);
+                } catch (e) {
+                  core.warning(
+                    `parent lookup for #${issue_number} failed: ${e.message}`,
+                  );
+                  return;
+                }
+                if (parent_number == null) {
+                  core.warning(
+                    `#${issue_number} has no parent; skipping.`,
+                  );
+                  return;
+                }
+              }
+              try {
+                await unlinkChild(parent_number, issue_number);
+                core.info(
+                  `Unlinked #${issue_number} from parent #${parent_number}`,
+                );
+              } catch (e) {
+                core.warning(
+                  `unparent-issue on #${issue_number} (parent #${parent_number}) ` +
+                    `failed: ${e.message}`,
+                );
+              }
+              return;
+            }

@@ -43,6 +43,7 @@ export interface GuiConfig {
   activeTimeInMinutes: number;
   copilotEnabled: boolean;
   limitColumns: number;
+  attributionEnabled: boolean;
 }
 
 export interface SidebarTabs {
@@ -53,6 +54,7 @@ export interface SidebarTabs {
   your_work_enabled: boolean;
   projects_enabled: boolean;
   workflows_enabled: boolean;
+  compute_enabled: boolean;
   datasets_enabled: boolean;
   quota_enabled: boolean;
   forum_enabled: boolean;

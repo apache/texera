@@ -28,7 +28,7 @@ import { catchError, filter, map, take } from "rxjs/operators";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { DownloadService, ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.service";
 import { HttpResponse } from "@angular/common/http";
-import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 /**

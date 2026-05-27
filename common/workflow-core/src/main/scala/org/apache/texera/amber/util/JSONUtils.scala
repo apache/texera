@@ -104,6 +104,8 @@ object JSONUtils {
       for ((child, i) <- node.elements().asScala.zipWithIndex) {
         result = result ++ JSONToMap(child, flatten, parentName + (i + 1))
       }
+    } else if (node.isValueNode && parentName.nonEmpty) {
+      result = result + (parentName -> node.asText())
     }
     result
   }

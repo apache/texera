@@ -17,25 +17,24 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { ConsoleFrameComponent } from "./console-frame.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
-import { ComputingUnitStatusService } from "../../../service/computing-unit-status/computing-unit-status.service";
-import { MockComputingUnitStatusService } from "../../../service/computing-unit-status/mock-computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("ConsoleFrameComponent", () => {
   let component: ConsoleFrameComponent;
   let fixture: ComponentFixture<ConsoleFrameComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, NzDropDownModule],
-      declarations: [ConsoleFrameComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ConsoleFrameComponent, HttpClientTestingModule, NzDropDownModule],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -48,7 +47,7 @@ describe("ConsoleFrameComponent", () => {
         ...commonTestProviders,
       ],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ConsoleFrameComponent);

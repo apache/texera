@@ -22,19 +22,49 @@ import { OperatorMetadataService } from "src/app/workspace/service/operator-meta
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Observable, of } from "rxjs";
 import { DashboardProject } from "../../../type/dashboard-project.interface";
-import { remove } from "lodash-es";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
 import { UserService } from "../../../../common/service/user/user.service";
 import { switchMap } from "rxjs/operators";
+import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzDatePickerComponent, NzRangePickerComponent } from "ng-zorro-antd/date-picker";
+import { FormsModule } from "@angular/forms";
+import { NgFor, NgIf } from "@angular/common";
+import { NzMenuDirective, NzMenuItemComponent, NzSubMenuComponent } from "ng-zorro-antd/menu";
+import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
 
 @UntilDestroy()
 @Component({
   selector: "texera-filters",
   templateUrl: "./filters.component.html",
   styleUrls: ["./filters.component.scss"],
+  imports: [
+    NzDropdownADirective,
+    NzDropdownDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzDropdownMenuComponent,
+    NzDatePickerComponent,
+    NzRangePickerComponent,
+    FormsModule,
+    NgFor,
+    NzMenuDirective,
+    NzMenuItemComponent,
+    NzCheckboxComponent,
+    NgIf,
+    NzSubMenuComponent,
+    NzSpaceCompactComponent,
+  ],
 })
 export class FiltersComponent implements OnInit {
   public isLogin = this.userService.isLogin();
@@ -246,7 +276,7 @@ export class FiltersComponent implements OnInit {
           case "owner":
             const selectedOwnerIndex = this.owners.findIndex(owner => owner.userName === searchValue);
             if (selectedOwnerIndex === -1) {
-              remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.removeInvalidFilterTag(tag);
               this.notificationService.error("Invalid owner name");
               break;
             }
@@ -256,7 +286,7 @@ export class FiltersComponent implements OnInit {
           case "id":
             const selectedIDIndex = this.wids.findIndex(wid => wid.id === searchValue);
             if (selectedIDIndex === -1) {
-              remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.removeInvalidFilterTag(tag);
               this.notificationService.error("Invalid workflow id");
               break;
             }
@@ -266,7 +296,7 @@ export class FiltersComponent implements OnInit {
           case "operator":
             const selectedOperator = this.selectedOperators.find(operator => operator.userFriendlyName === searchValue);
             if (!selectedOperator) {
-              remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.removeInvalidFilterTag(tag);
               this.notificationService.error("Invalid operator name");
               break;
             }
@@ -284,7 +314,7 @@ export class FiltersComponent implements OnInit {
           case "project":
             const selectedProjectIndex = this.userProjectsDropdown.findIndex(proj => proj.name === searchValue);
             if (selectedProjectIndex === -1) {
-              remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.removeInvalidFilterTag(tag);
               this.notificationService.error("Invalid project name");
               break;
             }
@@ -339,6 +369,13 @@ export class FiltersComponent implements OnInit {
     });
     this.selectedOperators = newSelectedOperators;
     this.buildMasterFilterList();
+  }
+
+  private removeInvalidFilterTag(tag: string): void {
+    this.setMasterFilterList(
+      this.masterFilterList.filter(filterTag => filterTag !== tag),
+      false
+    );
   }
 
   /**

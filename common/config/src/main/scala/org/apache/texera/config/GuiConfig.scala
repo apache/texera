@@ -73,4 +73,6 @@ object GuiConfig {
     conf.getBoolean("gui.workflow-workspace.copilot-enabled")
   val guiWorkflowWorkspaceLimitColumns: Int =
     conf.getInt("gui.workflow-workspace.limit-columns")
+  val guiAttributionEnabled: Boolean =
+    conf.getBoolean("gui.attribution-enabled")
 }

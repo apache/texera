@@ -117,6 +117,10 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
   }
 
   def getPortId: PortIdentity = {
-    this.portId.get
+    this.portId.getOrElse(
+      throw new IllegalStateException(
+        s"portId has not been set for channel $channelId; call setPortId before getPortId"
+      )
+    )
   }
 }

@@ -17,7 +17,7 @@
 
 import pyarrow as pa
 import pyiceberg.table
-from pyiceberg.catalog import Catalog
+from pyiceberg.catalog import Catalog, load_catalog
 from pyiceberg.catalog.sql import SqlCatalog
 from pyiceberg.expressions import AlwaysTrue
 from pyiceberg.io.pyarrow import ArrowScan
@@ -148,7 +148,32 @@ def create_postgres_catalog(
         catalog_name,
         **{
             "uri": f"postgresql+pg8000://{username}:{password}@{uri_without_scheme}",
-            "warehouse": f"file://{warehouse_path}",
+            "warehouse": warehouse_path,
+        },
+    )
+
+
+def create_rest_catalog(
+    catalog_name: str,
+    warehouse_name: str,
+    rest_uri: str,
+) -> Catalog:
+    """
+    Creates a REST catalog instance by connecting to a REST endpoint.
+    - The warehouse_name parameter specifies the warehouse identifier.
+    - S3 settings (endpoint, region, credentials) are supplied by the REST
+      catalog server at runtime.
+    :param catalog_name: the name of the catalog.
+    :param warehouse_name: the warehouse identifier.
+    :param rest_uri: the URI of the REST catalog endpoint.
+    :return: a Catalog instance (REST catalog).
+    """
+    return load_catalog(
+        catalog_name,
+        **{
+            "type": "rest",
+            "uri": rest_uri,
+            "warehouse": warehouse_name,
         },
     )
 

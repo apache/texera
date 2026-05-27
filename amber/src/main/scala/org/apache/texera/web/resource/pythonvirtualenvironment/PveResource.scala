@@ -1,0 +1,123 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.web.resource.pythonvirtualenvironment
+
+import javax.ws.rs._
+import javax.ws.rs.core.MediaType
+import scala.jdk.CollectionConverters._
+import java.util
+import javax.ws.rs.DELETE
+import javax.ws.rs.PathParam
+import javax.ws.rs.core.Response
+
+@Path("/pve")
+@Consumes(Array(MediaType.APPLICATION_JSON))
+class PveResource {
+  // --------------------------------------------------
+  // Get system packages
+  // --------------------------------------------------
+  @GET
+  @Path("/system")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getSystemPackages: util.Map[String, util.List[String]] = {
+    try {
+
+      // TODO: Support Kubernetes environment handling
+      val isLocal = true
+
+      val systemPkgs =
+        PveManager.getSystemPackages(isLocal).toList.asJava
+
+      Map("system" -> systemPkgs).asJava
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        throw new InternalServerErrorException(
+          "Failed to get system packages."
+        )
+    }
+  }
+
+  // --------------------------------------------------
+  // Fetch PVEs and Installed User Packages
+  // --------------------------------------------------
+  @GET
+  @Path("/pves")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def fetchPVEs(@QueryParam("cuid") cuid: java.lang.Integer): Response = {
+    if (cuid == null) {
+      return Response
+        .status(Response.Status.BAD_REQUEST) // safeguard against cuid = 0
+        .entity("cuid query parameter is required")
+        .build()
+    }
+    try {
+      val pves = PveManager
+        .getEnvironments(cuid)
+        .map { pve =>
+          Map(
+            "pveName" -> pve.pveName.asInstanceOf[Object],
+            "userPackages" -> pve.userPackages.asJava.asInstanceOf[Object]
+          ).asJava
+        }
+        .asJava
+      Response.ok(pves).build()
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        throw new InternalServerErrorException(s"Failed to get PVEs: ${e.getMessage}")
+    }
+  }
+
+  // --------------------------------------------------
+  // Delete PVEs
+  // --------------------------------------------------
+  @DELETE
+  @Path("/pves/{cuId}")
+  def deleteEnvironments(@PathParam("cuId") cuid: Int): Unit = {
+    PveManager.deleteEnvironments(cuid)
+  }
+
+  // --------------------------------------------------
+  // Delete User Installed Package
+  // --------------------------------------------------
+  @DELETE
+  @Path("/{cuid}/{pveName}/packages/{packageName}")
+  def deletePackage(
+      @PathParam("cuid") cuid: Int,
+      @PathParam("pveName") pveName: String,
+      @PathParam("packageName") packageName: String,
+      @QueryParam("isLocal") isLocal: Boolean
+  ): Response = {
+    val messages = PveManager.deletePackages(
+      cuid,
+      packageName,
+      pveName,
+      isLocal
+    )
+
+    if (messages.exists(_.contains("[PVE][ERR]"))) {
+      Response.status(Response.Status.BAD_REQUEST).entity(messages.asJava).build()
+    } else {
+      Response.ok(messages.asJava).build()
+    }
+  }
+
+}

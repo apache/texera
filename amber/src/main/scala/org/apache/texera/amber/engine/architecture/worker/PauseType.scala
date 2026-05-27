@@ -29,6 +29,4 @@ object BackpressurePause extends PauseType
 
 object OperatorLogicPause extends PauseType
 
-object SchedulerTimeSlotExpiredPause extends PauseType
-
 case class ECMPause(id: EmbeddedControlMessageIdentity) extends PauseType

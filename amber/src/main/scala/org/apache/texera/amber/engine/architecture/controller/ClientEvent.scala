@@ -31,6 +31,9 @@ case class ExecutionStateUpdate(state: WorkflowAggregatedState) extends ClientEv
 
 case class ExecutionStatsUpdate(operatorMetrics: Map[String, OperatorMetrics]) extends ClientEvent
 
+case class RuntimeStatisticsPersist(operatorMetrics: Map[String, OperatorMetrics])
+    extends ClientEvent
+
 case class ReportCurrentProcessingTuple(
     operatorID: String,
     tuple: Array[(Tuple, ActorVirtualIdentity)]

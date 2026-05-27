@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, inject, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, inject, TestBed } from "@angular/core/testing";
 import { AdminExecutionComponent } from "./admin-execution.component";
 import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
@@ -29,13 +29,12 @@ describe("AdminDashboardComponent", () => {
   let component: AdminExecutionComponent;
   let fixture: ComponentFixture<AdminExecutionComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [AdminExecutionComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       providers: [AdminExecutionService, ...commonTestProviders],
-      imports: [HttpClientTestingModule, NzDropDownModule, NzModalModule],
+      imports: [AdminExecutionComponent, HttpClientTestingModule, NzDropDownModule, NzModalModule],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(AdminExecutionComponent);

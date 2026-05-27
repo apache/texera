@@ -28,9 +28,6 @@ object StorageConfig {
   // Load configuration
   private val conf: Config = ConfigFactory.parseResources("storage.conf").resolve()
 
-  // General storage settings
-  val resultStorageMode: String = conf.getString("storage.result-storage-mode")
-
   // JDBC specifics
   val jdbcUrl: String = conf.getString("storage.jdbc.url")
   val jdbcUrlForTestCases: String = conf.getString("storage.jdbc.url-for-test-cases")
@@ -39,7 +36,9 @@ object StorageConfig {
 
   // Iceberg specifics
   val icebergCatalogType: String = conf.getString("storage.iceberg.catalog.type")
-  val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest-uri")
+  val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest.uri")
+  val icebergRESTCatalogWarehouseName: String =
+    conf.getString("storage.iceberg.catalog.rest.warehouse-name")
 
   // Iceberg Postgres specifics
   val icebergPostgresCatalogUriWithoutScheme: String =
@@ -55,6 +54,8 @@ object StorageConfig {
     conf.getString("storage.iceberg.table.console-messages-namespace")
   val icebergTableRuntimeStatisticsNamespace: String =
     conf.getString("storage.iceberg.table.runtime-statistics-namespace")
+  val icebergTableStateNamespace: String =
+    conf.getString("storage.iceberg.table.state-namespace")
   val icebergTableCommitBatchSize: Int =
     conf.getInt("storage.iceberg.table.commit.batch-size")
   val icebergTableCommitNumRetries: Int =
@@ -112,6 +113,7 @@ object StorageConfig {
     "STORAGE_ICEBERG_TABLE_CONSOLE_MESSAGES_NAMESPACE"
   val ENV_ICEBERG_TABLE_RUNTIME_STATISTICS_NAMESPACE =
     "STORAGE_ICEBERG_TABLE_RUNTIME_STATISTICS_NAMESPACE"
+  val ENV_ICEBERG_TABLE_STATE_NAMESPACE = "STORAGE_ICEBERG_TABLE_STATE_NAMESPACE"
   val ENV_ICEBERG_TABLE_COMMIT_BATCH_SIZE = "STORAGE_ICEBERG_TABLE_COMMIT_BATCH_SIZE"
   val ENV_ICEBERG_TABLE_COMMIT_NUM_RETRIES = "STORAGE_ICEBERG_TABLE_COMMIT_NUM_RETRIES"
   val ENV_ICEBERG_TABLE_COMMIT_MIN_WAIT_MS = "STORAGE_ICEBERG_TABLE_COMMIT_MIN_WAIT_MS"

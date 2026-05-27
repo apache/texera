@@ -83,17 +83,17 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
     // Check short binary representation
     val shortBinaryString = jsonNode.get("shortBinaryCol").asText()
     shortBinaryString should (
-      startWith("bytes'") and
-        include("01 02 03 04 05") and
-        include("(length: 5)")
+      startWith("<binary") and
+        include("...") and
+        include("size = 5 bytes")
     )
 
     // Check long binary representation
     val longBinaryString = jsonNode.get("longBinaryCol").asText()
     longBinaryString should (
-      startWith("bytes'") and
+      startWith("<binary") and
         include("...") and
-        include("(length: 100)")
+        include("size = 100 bytes")
     )
   }
 
@@ -178,7 +178,7 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
     val jsonNode = result.head
 
     val emptyBinaryString = jsonNode.get("emptyBinary").asText()
-    emptyBinaryString should include("(length: 0)")
+    emptyBinaryString should include("size = 0 bytes")
   }
 
   it should "handle binary data with single ByteBuffer" in {
@@ -202,8 +202,8 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
 
     val binaryString = jsonNode.get("singleBufferBinary").asText()
     binaryString should (
-      startWith("bytes'") and
-        include("(length: 13)") // "Hello, world!" is 13 bytes
+      startWith("<binary") and
+        include("size = 13 bytes") // "Hello, world!" is 13 bytes
     )
   }
 
@@ -255,14 +255,14 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
 
     val binaryString1 = jsonNode.get("binaryField1").asText()
     binaryString1 should (
-      include("0A 14 1E") and // Hex representation of 10, 20, 30
-        include("(length: 3)")
+      startWith("<binary") and
+        include("size = 3 bytes")
     )
 
     val binaryString2 = jsonNode.get("binaryField2").asText()
     binaryString2 should (
-      include("28 32 3C") and // Hex representation of 40, 50, 60
-        include("(length: 3)")
+      startWith("<binary") and
+        include("size = 3 bytes")
     )
   }
 

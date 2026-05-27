@@ -108,19 +108,10 @@
 
       <div
         class="resource-description truncate-single-line"
-        (click)="onEditDescription();$event.stopPropagation()"
-        *ngIf="!editingDescription">
-        {{ entry.description ? entry.description.slice(0, 200) : (hovering) ? 'Write a description...' : '' }}
+        (click)="onEditDescription(); $event.stopPropagation()">
+        {{ renderedDescription ? renderedDescription.slice(0, 200) : (hovering && editable) ? 'Write a description...' :
+        '' }}
       </div>
-      <textarea
-        *ngIf="editingDescription"
-        #descriptionInput
-        class="resource-description-edit-textarea"
-        [(ngModel)]="entry.description"
-        (blur)="confirmUpdateCustomDescription(entry.description)"
-        (keydown.enter)="confirmUpdateCustomDescription(entry.description)"
-        (click)="$event.stopPropagation()"
-        autofocus></textarea>
     </div>
 
     <div

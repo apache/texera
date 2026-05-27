@@ -19,8 +19,7 @@
 package org.apache.texera.config
 
 import com.typesafe.config.{Config, ConfigFactory}
-
-import java.util.Random
+import java.security.SecureRandom
 
 object AuthConfig {
   // Load configuration
@@ -47,10 +46,10 @@ object AuthConfig {
 
   private def getRandomHexString: String = {
     val bytes = 32
-    val r = new Random()
+    val r = new SecureRandom()
     val sb = new StringBuffer
     while (sb.length < bytes)
-      sb.append(Integer.toHexString(r.nextInt()))
+      sb.append(f"${r.nextInt()}%08x")
     sb.toString.substring(0, bytes)
   }
 }

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
+from typing import Dict, Optional, Set
 
 from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.org.apache.texera.amber.engine.architecture.worker import WorkerState
@@ -32,6 +32,21 @@ from .tuple_processing_manager import TupleProcessingManager
 from ..packaging.input_manager import InputManager
 from ..packaging.output_manager import OutputManager
 from ...models import InternalQueue
+
+
+# State-transition graph for the Python worker. Mirrors the Scala
+# `WorkerStateManager` so both language runtimes recognize the same worker
+# lifecycle. A worker may transition `READY -> COMPLETED` directly without
+# entering `RUNNING` — this is the path taken when there is nothing to
+# process (e.g. the upstream port emits zero tuples before signaling
+# end-of-stream).
+WORKER_STATE_TRANSITIONS: Dict[WorkerState, Set[WorkerState]] = {
+    WorkerState.UNINITIALIZED: {WorkerState.READY},
+    WorkerState.READY: {WorkerState.PAUSED, WorkerState.RUNNING, WorkerState.COMPLETED},
+    WorkerState.RUNNING: {WorkerState.PAUSED, WorkerState.COMPLETED},
+    WorkerState.PAUSED: {WorkerState.RUNNING},
+    WorkerState.COMPLETED: set(),
+}
 
 
 class Context:
@@ -52,13 +67,7 @@ class Context:
         self.state_processing_manager = StateProcessingManager()
         self.exception_manager = ExceptionManager()
         self.state_manager = StateManager(
-            {
-                WorkerState.UNINITIALIZED: {WorkerState.READY},
-                WorkerState.READY: {WorkerState.PAUSED, WorkerState.RUNNING},
-                WorkerState.RUNNING: {WorkerState.PAUSED, WorkerState.COMPLETED},
-                WorkerState.PAUSED: {WorkerState.RUNNING},
-                WorkerState.COMPLETED: set(),
-            },
+            WORKER_STATE_TRANSITIONS,
             WorkerState.UNINITIALIZED,
         )
 

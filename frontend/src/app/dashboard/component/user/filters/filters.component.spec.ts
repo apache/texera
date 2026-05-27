@@ -31,6 +31,7 @@ import { FormsModule } from "@angular/forms";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "src/app/common/testing/test-utils";
 import { NzModalModule } from "ng-zorro-antd/modal";
+import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 
 describe("FiltersComponent", () => {
   let component: FiltersComponent;
@@ -38,15 +39,15 @@ describe("FiltersComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [FiltersComponent],
       providers: [
         JwtHelperService,
         { provide: JWT_OPTIONS, useValue: {} },
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        provideNzI18n(en_US),
         ...commonTestProviders,
       ],
-      imports: [NzModalModule, NzDropDownModule, FormsModule, HttpClientTestingModule],
+      imports: [FiltersComponent, NzModalModule, NzDropDownModule, FormsModule, HttpClientTestingModule],
     }).compileComponents();
   });
 

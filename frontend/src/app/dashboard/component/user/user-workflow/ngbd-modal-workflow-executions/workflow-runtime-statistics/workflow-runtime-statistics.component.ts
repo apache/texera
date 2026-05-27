@@ -21,8 +21,9 @@ import { Component, inject, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "../../../../../type/workflow-runtime-statistics";
 import * as Plotly from "plotly.js-basic-dist-min";
-import { NzTabChangeEvent } from "ng-zorro-antd/tabs";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
+import { NgFor } from "@angular/common";
 
 const NANOSECONDS_TO_SECONDS = 1_000_000_000;
 
@@ -38,6 +39,7 @@ interface ChartData {
   selector: "texera-workflow-runtime-statistics",
   templateUrl: "./workflow-runtime-statistics.component.html",
   styleUrls: ["./workflow-runtime-statistics.component.scss"],
+  imports: [NzTabsComponent, NgFor, NzTabComponent],
 })
 export class WorkflowRuntimeStatisticsComponent implements OnInit {
   readonly workflowRuntimeStatistics: WorkflowRuntimeStatistics[] = inject(NZ_MODAL_DATA).workflowRuntimeStatistics;
@@ -67,8 +69,8 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   /**
    * Create a new line chart corresponding to the change of a tab
    */
-  onTabChanged(event: NzTabChangeEvent): void {
-    this.createChart(event.index!);
+  onTabChanged(index: number): void {
+    this.createChart(index);
   }
 
   /**
@@ -166,9 +168,19 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
     }
 
     const layout = {
-      title: this.metrics[metricIndex],
-      xaxis: { title: "Time (s)" },
-      yaxis: { title: this.metrics[metricIndex] },
+      title: {
+        text: this.metrics[metricIndex],
+      },
+      xaxis: {
+        title: {
+          text: "Time (s)",
+        },
+      },
+      yaxis: {
+        title: {
+          text: this.metrics[metricIndex],
+        },
+      },
     };
 
     Plotly.newPlot("chart", dataset, layout);

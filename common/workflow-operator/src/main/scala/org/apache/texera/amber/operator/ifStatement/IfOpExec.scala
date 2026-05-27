@@ -34,7 +34,8 @@ class IfOpExec(descString: String) extends OperatorExecutor {
   //It can accept any value that can be converted to a boolean. For example, Int 1 will be converted to true.
   override def processState(state: State, port: Int): Option[State] = {
     outputPort =
-      if (state.get(desc.conditionName).asInstanceOf[Boolean]) PortIdentity(1) else PortIdentity()
+      if (state.values(desc.conditionName).asInstanceOf[Boolean]) PortIdentity(1)
+      else PortIdentity()
     Some(state)
   }
 
