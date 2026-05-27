@@ -242,6 +242,23 @@ describe("formatOperatorResult - visualization rows", () => {
     expect(out).toContain("<keep/>");
     expect(out).not.toContain("<skipped: visualization content>");
   });
+
+  test("__is_visualization__ column is excluded from rendered table body and shape agrees", () => {
+    const out = formatOperatorResult(
+      "op1",
+      makeOpInfo({
+        outputTuples: 1,
+        result: [{ __is_visualization__: false, value: 1 }],
+      }),
+      EMPTY_STATE
+    );
+    const lines = out.split("\n");
+    expect(out).toContain("Output table shape: (1, 1)");
+    // Header line is the third line (after brief summary and shape line).
+    expect(lines[2]).toBe("\tvalue");
+    expect(lines[3]).toBe("0\t1");
+    expect(out).not.toContain("__is_visualization__");
+  });
 });
 
 describe("jsonToTableFormat - cell coercion via formatOperatorResult", () => {

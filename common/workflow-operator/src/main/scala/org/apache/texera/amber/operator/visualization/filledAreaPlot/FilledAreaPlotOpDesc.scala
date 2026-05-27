@@ -60,7 +60,7 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var color: EncodableString = ""
 
-  @JsonProperty(required = true)
+  @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Split Plot by Line Group")
   @JsonPropertyDescription("Do you want to split the graph")
   var facetColumn: Boolean = false

@@ -39,7 +39,10 @@ object VirtualIdentityUtils {
       layerName: String,
       workerId: Int
   ): ActorVirtualIdentity = {
-
+    require(
+      !layerName.contains('-'),
+      s"layerName must not contain '-' (worker-name parsing relies on this): $layerName"
+    )
     ActorVirtualIdentity(
       s"Worker:WF${workflowId.id}-$operator-$layerName-$workerId"
     )

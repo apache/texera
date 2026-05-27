@@ -32,7 +32,7 @@ describe("OperatorMetadataService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [OperatorMetadataService, HttpClient, ...commonTestProviders],
+      providers: [OperatorMetadataService, ...commonTestProviders],
     });
 
     httpClient = TestBed.inject(HttpClient);

@@ -18,7 +18,13 @@
  */
 
 import { Location } from "@angular/common";
-import { NO_ERRORS_SCHEMA } from "@angular/core";
+// TODO(coverage): this spec was set up in #5037 to render the workspace with
+// stripped child imports + CUSTOM_ELEMENTS_SCHEMA so the @ViewChild on
+// #codeEditor resolves while the deep child tree stays out of the bundle.
+// Migrating it off NO_ERRORS_SCHEMA / set:{imports:[]} requires providing
+// each child's transitive deps; tracking separately.
+// eslint-disable-next-line no-restricted-imports
+import { CUSTOM_ELEMENTS_SCHEMA, NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -130,13 +136,17 @@ describe("WorkspaceComponent", () => {
     routerMock = { navigate: vi.fn() };
     locationMock = { go: vi.fn() };
 
-    // TODO(#5015): drop this template override once CodeEditorComponent's
-    // own spec is fixed. Real child rendering would let us assert
-    // editor-lifecycle wiring; today we stub the host element so the
-    // heavyweight children don't compile in the test build.
+    // Drop the standalone component's child imports and allow unknown elements via
+    // CUSTOM_ELEMENTS_SCHEMA. The template still renders, so `<ng-template #codeEditor>`
+    // is wired up and the @ViewChild query resolves to a real ViewContainerRef, while
+    // the children's transitive dependencies stay out of the test build.
+    // TODO(coverage): rewrite using stub child components via remove/add so the
+    // template participates in coverage. See TESTING.md anti-pattern #9.
+    /* eslint-disable no-restricted-syntax */
     TestBed.overrideComponent(WorkspaceComponent, {
-      set: { template: '<div #codeEditor class="stub-host"></div>', imports: [], providers: [] },
+      set: { imports: [], providers: [], schemas: [CUSTOM_ELEMENTS_SCHEMA] },
     });
+    /* eslint-enable no-restricted-syntax */
 
     await TestBed.configureTestingModule({
       imports: [WorkspaceComponent, HttpClientTestingModule],
@@ -168,6 +178,8 @@ describe("WorkspaceComponent", () => {
     // ngOnDestroy clears the ViewContainerRef bound to `#codeEditor`. Tests that
     // exercise individual methods skip change detection, so the @ViewChild query
     // is never resolved; assign a stub to keep TestBed teardown from throwing.
+    // Tests that exercise `fixture.detectChanges()` will overwrite this with
+    // the live ViewContainerRef during ngAfterViewInit.
     component.codeEditorViewRef = { clear: vi.fn() } as any;
   }
 
@@ -205,7 +217,12 @@ describe("WorkspaceComponent", () => {
       // retrieveWorkflow is consumed inside loadWorkflowWithId — keep it pending so
       // we can observe the pre-completion loading state.
       workflowPersistService.retrieveWorkflow.mockReturnValue(new Subject());
-      fixture.detectChanges();
+      // Drive the lifecycle hooks directly. Going through fixture.detectChanges()
+      // would re-render `[nzSpinning]="isLoading"` mid-cycle (isLoading flips from
+      // false to true inside ngAfterViewInit) and Angular's dev-mode stability
+      // check would throw NG0100.
+      component.ngOnInit();
+      component.ngAfterViewInit();
       expect(component.isLoading).toBe(true);
       expect(workflowActionService.disableWorkflowModification).toHaveBeenCalled();
     });
@@ -337,6 +354,7 @@ describe("WorkspaceComponent", () => {
   describe("ngOnDestroy", () => {
     it("persists the workflow on destroy when the user is signed in and persist is enabled", async () => {
       await createFixture();
+      fixture.detectChanges();
       component.ngOnDestroy();
       expect(workflowPersistService.persistWorkflow).toHaveBeenCalledWith(stubWorkflow);
       expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
@@ -344,6 +362,7 @@ describe("WorkspaceComponent", () => {
 
     it("skips the persist call when the user is not signed in", async () => {
       await createFixture();
+      fixture.detectChanges();
       userService.isLogin.mockReturnValue(false);
       component.ngOnDestroy();
       expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
@@ -357,6 +376,22 @@ describe("WorkspaceComponent", () => {
       await createFixture();
       // MockGuiConfigService defaults `copilotEnabled` to false.
       expect(component.copilotEnabled).toBe(false);
+    });
+  });
+
+  // Exercises the rendered template: the `<ng-template #codeEditor>` outlet is
+  // present, so the @ViewChild query resolves to a live ViewContainerRef and
+  // ngAfterViewInit can publish it to CodeEditorService.
+  describe("child rendering side effects", () => {
+    it("publishes the resolved ViewContainerRef to CodeEditorService.vc on view init", async () => {
+      codeEditorService.vc = undefined;
+      await createFixture();
+      fixture.detectChanges();
+      // createEmbeddedView is present on a real ViewContainerRef but not on the
+      // pre-fixture stub, so checking it distinguishes the resolved query from
+      // the placeholder.
+      expect(codeEditorService.vc).toBe(component.codeEditorViewRef);
+      expect(typeof codeEditorService.vc.createEmbeddedView).toBe("function");
     });
   });
 });

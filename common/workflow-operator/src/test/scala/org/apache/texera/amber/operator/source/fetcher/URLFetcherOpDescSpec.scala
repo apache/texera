@@ -59,12 +59,12 @@ class URLFetcherOpDescSpec extends AnyFlatSpec with Matchers {
     schema.getAttributes.head.getType shouldBe AttributeType.STRING
   }
 
-  it should "produce an ANY column for raw-bytes decoding" in {
+  it should "produce a BINARY column for raw-bytes decoding" in {
     val op = configured(DecodingMethod.RAW_BYTES)
     val schema = op.sourceSchema()
     schema.getAttributes should have length 1
     schema.getAttributes.head.getName shouldBe "URL content"
-    schema.getAttributes.head.getType shouldBe AttributeType.ANY
+    schema.getAttributes.head.getType shouldBe AttributeType.BINARY
   }
 
   it should "fail loudly when decodingMethod is left unset rather than silently defaulting to ANY" in {
