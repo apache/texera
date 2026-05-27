@@ -25,6 +25,7 @@ import { ɵɵCdkVirtualScrollViewport, ɵɵCdkFixedSizeVirtualScroll } from "@an
 import { NzListComponent } from "ng-zorro-antd/list";
 import { NgFor, NgIf } from "@angular/common";
 import { ListItemComponent } from "../list-item/list-item.component";
+import { CardItemComponent } from "../list-item/card-item/card-item.component";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
@@ -43,6 +44,7 @@ export type LoadMoreFunction = (start: number, count: number) => Promise<{ entri
     NzListComponent,
     NgFor,
     ListItemComponent,
+    CardItemComponent,
     NgIf,
     NzSpaceCompactItemDirective,
     NzButtonComponent,

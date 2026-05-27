@@ -107,7 +107,7 @@
         *ngIf="!editingDescription"
         (click)="onEditDescription(); $event.stopPropagation()"
         title="{{ entry.description }}">
-        {{ entry.description ? entry.description : (hovering ? 'Write a description...' : '') }}
+        {{ entry.description ? entry.description : (hovering && editable ? 'Write a description...' : '') }}
       </div>
       <textarea
         *ngIf="editingDescription"
@@ -173,7 +173,7 @@
         (click)="toggleLike(); $event.stopPropagation()">
         <i
           nz-icon
-          [nzType]="isLiked ? 'heart' : 'heart'"
+          nzType="heart"
           [nzTheme]="isLiked ? 'fill' : 'outline'"></i>
         <span>{{ formatCount(this.likeCount) }}</span>
       </button>
