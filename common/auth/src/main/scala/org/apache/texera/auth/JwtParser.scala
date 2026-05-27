@@ -74,7 +74,6 @@ object JwtParser extends LazyLogging {
       null,
       null,
       null,
-      null,
       null
     )
     new SessionUser(user)

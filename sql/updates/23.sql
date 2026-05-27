@@ -23,6 +23,14 @@ SET search_path TO texera_db;
 
 BEGIN;
 
-ALTER TABLE "user"
-    ADD COLUMN IF NOT EXISTS google_drive_refresh_token VARCHAR(512) NULL;
+CREATE TABLE IF NOT EXISTS user_oauth_tokens  (
+    otid       SERIAL PRIMARY KEY,
+    uid     INT NOT NULL
+    provider VARCHAR(64) NOT NULL,
+    auth_blob TEXT NOT NULL,
+
+    UNIQUE (uid, provider),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
+
 COMMIT;

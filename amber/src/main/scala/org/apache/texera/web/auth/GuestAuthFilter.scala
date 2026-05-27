@@ -50,7 +50,6 @@ import javax.ws.rs.core.SecurityContext
       null,
       null,
       null,
-      null,
       null
     )
 }
