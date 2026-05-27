@@ -40,6 +40,7 @@ describe("UserDatasetFileRendererComponent", () => {
     });
     const fixture = TestBed.createComponent(UserDatasetFileRendererComponent);
     component = fixture.componentInstance;
+    fixture.detectChanges();
   });
 
   it("should return true for supported MIME type", () => {
