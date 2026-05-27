@@ -46,3 +46,5 @@ export const DASHBOARD_ADMIN_EXECUTION = `${DASHBOARD_ADMIN}/execution`;
 export const DASHBOARD_ADMIN_SETTINGS = `${DASHBOARD_ADMIN}/settings`;
 
 export const DASHBOARD_SEARCH = `${DASHBOARD}/search`;
+
+export const DASHBOARD_USER_GOOGLE_DRIVE = `${DASHBOARD_USER}/google-drive`;
