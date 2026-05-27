@@ -22,7 +22,8 @@ import { ListItemComponent } from "./list-item.component";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { of, throwError } from "rxjs";
+import { of, Subject, throwError } from "rxjs";
+import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { RouterTestingModule } from "@angular/router/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -30,19 +31,44 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
+import { DriveService } from "../../../service/user/google-drive/drive.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { DatasetService } from "../../../service/user/dataset/dataset.service";
+
 describe("ListItemComponent", () => {
   let component: ListItemComponent;
   let fixture: ComponentFixture<ListItemComponent>;
   let workflowPersistService: Mocked<WorkflowPersistService>;
+  let driveServiceMock: Mocked<DriveService>;
+  let notificationServiceMock: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  let connected$: Subject<void>;
 
   beforeEach(async () => {
-    const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
+    connected$ = new Subject<void>();
+
+    const workflowPersistServiceSpy = {
+      updateWorkflowName: vi.fn(),
+      updateWorkflowDescription: vi.fn(),
+      retrieveWorkflow: vi.fn().mockReturnValue(of({ content: { operators: [] } })),
+    };
+
+    driveServiceMock = {
+      getToken: vi.fn().mockReturnValue(of({ status: "ok", accessToken: "token" })),
+      onConnected: vi.fn().mockReturnValue(connected$.asObservable()),
+      connect: vi.fn(),
+      exportToDrive: vi.fn().mockReturnValue(of(undefined)),
+    } as unknown as Mocked<DriveService>;
+
+    notificationServiceMock = { success: vi.fn(), error: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [ListItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
       providers: [
         { provide: WorkflowPersistService, useValue: workflowPersistServiceSpy },
         { provide: UserService, useClass: StubUserService },
+        { provide: DriveService, useValue: driveServiceMock },
+        { provide: NotificationService, useValue: notificationServiceMock },
+        { provide: DatasetService, useValue: { retrieveDatasetVersionZip: vi.fn().mockReturnValue(of(new Blob())) } },
         NzModalService,
         ...commonTestProviders,
       ],
@@ -118,5 +144,61 @@ describe("ListItemComponent", () => {
     expect(workflowPersistService.updateWorkflowDescription).toHaveBeenCalledWith(1, newDescription);
     expect(component.entry.description).toBe("Old Description");
     expect(component.editingDescription).toBe(false);
+  });
+
+  describe("Drive integration", () => {
+    it("should set isDriveConnected = true when token status is ok", () => {
+      driveServiceMock.getToken.mockReturnValue(of({ status: "ok", accessToken: "token" }));
+      component.ngOnInit();
+      expect(component.isDriveConnected).toBe(true);
+    });
+
+    it("should set isDriveConnected = false when token status is not ok", () => {
+      driveServiceMock.getToken.mockReturnValue(of({ status: "error", accessToken: "" }));
+      component.ngOnInit();
+      expect(component.isDriveConnected).toBe(false);
+    });
+
+    it("should set isDriveConnected = true and show toast when onConnected fires", () => {
+      driveServiceMock.getToken.mockReturnValue(of({ status: "error", accessToken: "" }));
+      component.ngOnInit();
+      expect(component.isDriveConnected).toBe(false);
+
+      connected$.next();
+
+      expect(component.isDriveConnected).toBe(true);
+      expect(notificationServiceMock.success).toHaveBeenCalledWith("Google Drive connected");
+    });
+
+    it("should call connect() when not connected and onClickDriveAction is called", () => {
+      component.isDriveConnected = false;
+      component.entry = { id: 1, name: "My Workflow", type: "workflow" } as unknown as DashboardEntry;
+
+      component.onClickDriveAction();
+
+      expect(driveServiceMock.connect).toHaveBeenCalled();
+      expect(driveServiceMock.exportToDrive).not.toHaveBeenCalled();
+    });
+
+    it("should export workflow to Drive and show success toast", () => {
+      component.isDriveConnected = true;
+      component.entry = { id: 1, name: "My Workflow", type: "workflow" } as unknown as DashboardEntry;
+
+      component.onClickDriveAction();
+
+      expect(workflowPersistService.retrieveWorkflow).toHaveBeenCalledWith(1);
+      expect(driveServiceMock.exportToDrive).toHaveBeenCalled();
+      expect(notificationServiceMock.success).toHaveBeenCalledWith("Exported to Google Drive");
+    });
+
+    it("should export dataset to Drive and show success toast", () => {
+      component.isDriveConnected = true;
+      component.entry = { id: 2, name: "My Dataset", type: "dataset" } as unknown as DashboardEntry;
+
+      component.onClickDriveAction();
+
+      expect(driveServiceMock.exportToDrive).toHaveBeenCalledWith(expect.any(Blob), "My Dataset.zip");
+      expect(notificationServiceMock.success).toHaveBeenCalledWith("Exported to Google Drive");
+    });
   });
 });

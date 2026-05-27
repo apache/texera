@@ -134,13 +134,30 @@
           </button>
         </nz-upload>
         <button
-          (click)="onClickExportWorkflow()"
           nz-button
-          title="export workflow">
+          title="export workflow"
+          nz-dropdown
+          [(nzVisible)]="exportMenuVisible"
+          [nzDropdownMenu]="exportWorkflowMenu"
+          [class.export-menu-open]="exportMenuVisible">
           <i
             nz-icon
             nzType="download"></i>
         </button>
+        <nz-dropdown-menu #exportWorkflowMenu="nzDropdownMenu">
+          <ul nz-menu>
+            <li
+              nz-menu-item
+              (click)="onClickExportWorkflow()">
+              Download
+            </li>
+            <li
+              nz-menu-item
+              (click)="onClickDriveExportWorkflow()">
+              {{ isDriveConnected ? 'Export to Drive' : 'Connect to Drive' }}
+            </li>
+          </ul>
+        </nz-dropdown-menu>
         <button
           (click)="onClickEditDescription()"
           nz-button

@@ -181,15 +181,32 @@
           <button
             nz-button
             *ngIf="selectedVersion"
-            nz-tooltip="Download the file"
+            nz-tooltip="Download / Export file"
             [disabled]="!isLogin || !isDownloadAllowed()"
-            (click)="onClickDownloadCurrentFile()">
+            nz-dropdown
+            [(nzVisible)]="fileExportMenuVisible"
+            [nzDropdownMenu]="fileExportMenu"
+            [class.export-menu-open]="fileExportMenuVisible">
             <i
               nz-icon
               nzTheme="outline"
               nzType="download">
             </i>
           </button>
+          <nz-dropdown-menu #fileExportMenu="nzDropdownMenu">
+            <ul nz-menu>
+              <li
+                nz-menu-item
+                (click)="onClickDownloadCurrentFile()">
+                Download
+              </li>
+              <li
+                nz-menu-item
+                (click)="onClickDriveExportFile()">
+                {{ isDriveConnected ? 'Export to Drive' : 'Connect to Drive' }}
+              </li>
+            </ul>
+          </nz-dropdown-menu>
           <button
             nz-button
             *ngIf="!isMaximized && selectedVersion"
@@ -292,16 +309,33 @@
               </nz-select>
               <button
                 nz-button
-                nz-tooltip="Download Dataset"
-                (click)="onClickDownloadVersionAsZip()"
+                nz-tooltip="Download / Export file"
                 *ngIf="selectedVersion"
                 [disabled]="!isLogin || !isDownloadAllowed()"
-                class="spaced-button">
+                class="spaced-button"
+                nz-dropdown
+                [(nzVisible)]="versionExportMenuVisible"
+                [nzDropdownMenu]="versionExportMenu"
+                [class.export-menu-open]="versionExportMenuVisible">
                 <i
                   nz-icon
                   nzType="download"
                   nzTheme="outline"></i>
               </button>
+              <nz-dropdown-menu #versionExportMenu="nzDropdownMenu">
+                <ul nz-menu>
+                  <li
+                    nz-menu-item
+                    (click)="onClickDownloadVersionAsZip()">
+                    Download
+                  </li>
+                  <li
+                    nz-menu-item
+                    (click)="onClickDriveExportVersion()">
+                    {{ isDriveConnected ? 'Export to Drive' : 'Connect to Drive' }}
+                  </li>
+                </ul>
+              </nz-dropdown-menu>
             </div>
             <ng-container *ngIf="selectedVersion">
               <div class="version-size">

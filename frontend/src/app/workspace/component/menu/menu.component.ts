@@ -68,6 +68,7 @@ import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { CoeditorUserIconComponent } from "./coeditor-user-icon/coeditor-user-icon.component";
 import { UserIconComponent } from "../../../dashboard/component/user/user-icon/user-icon.component";
 import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { DriveService } from "../../../dashboard/service/user/google-drive/drive.service";
 import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
@@ -135,6 +136,9 @@ export class MenuComponent implements OnInit, OnDestroy {
   public workflowId?: number;
   public isExportDeactivate: boolean = false;
   public showRegion: boolean = false;
+  public isDriveConnected = false;
+  public driveNeedsReauth = false;
+  public exportMenuVisible = false;
   public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
   public showStatus: boolean = false;
@@ -189,7 +193,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
-    private router: Router
+    private router: Router,
+    private driveService: DriveService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -250,6 +255,21 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
+
+    this.driveService
+      .getToken()
+      .pipe(untilDestroyed(this))
+      .subscribe(res => {
+        this.isDriveConnected = res.status === "ok";
+        this.driveNeedsReauth = res.status === "invalid_grant";
+      });
+    this.driveService
+      .onConnected()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.isDriveConnected = true;
+        this.notificationService.success("Google Drive connected");
+      });
   }
 
   ngOnDestroy(): void {
@@ -650,6 +670,19 @@ export class MenuComponent implements OnInit, OnDestroy {
     const workflowContentJson = JSON.stringify(workflowContent, null, 2);
     const fileName = this.currentWorkflowName + ".json";
     saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
+  }
+
+  public onClickDriveExportWorkflow(): void {
+    if (!this.isDriveConnected) {
+      this.driveService.connect(this.driveNeedsReauth);
+      return;
+    }
+    const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
+    const blob = new Blob([JSON.stringify(workflowContent, null, 2)], { type: "application/json" });
+    this.driveService
+      .exportToDrive(blob, `${this.currentWorkflowName}.json`)
+      .pipe(untilDestroyed(this))
+      .subscribe({ next: () => this.notificationService.success("Exported to Google Drive") });
   }
 
   /**
