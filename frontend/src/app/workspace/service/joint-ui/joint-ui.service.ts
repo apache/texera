@@ -396,18 +396,8 @@ export class JointUIService {
       if (portId != null) {
         const parts = portId.split("-");
         const numericSuffix = parts.length > 1 ? parts[1] : portId;
-
         const count: number = inputMetrics[numericSuffix] ?? 0;
-        const rawAttrs = (portDef.attrs as any) || {};
-        const oldText: string = (rawAttrs[".port-label"] && rawAttrs[".port-label"].text) || "";
-        let originalName = oldText.includes(":") ? oldText.split(":", 1)[0].trim() : oldText;
-
-        if (!originalName) {
-          originalName = portId;
-        }
-
-        const labelText = count.toLocaleString();
-        element.portProp(portId, "attrs/.port-label/text", labelText);
+        element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
       }
     });
 
@@ -416,19 +406,8 @@ export class JointUIService {
       if (portId != null) {
         const parts = portId.split("-");
         const numericSuffix = parts.length > 1 ? parts[1] : portId;
-
         const count: number = outputMetrics[numericSuffix] ?? 0;
-        const rawAttrs = (portDef.attrs as any) || {};
-        const oldText: string = (rawAttrs[".port-label"] && rawAttrs[".port-label"].text) || "";
-        let originalName = oldText.includes(":") ? oldText.split(":", 1)[0].trim() : oldText;
-
-        if (!originalName) {
-          originalName = portId;
-        }
-
-        const labelText = count.toLocaleString();
-
-        element.portProp(portId, "attrs/.port-label/text", labelText);
+        element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
       }
     });
     this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
@@ -457,11 +436,6 @@ export class JointUIService {
       ".remove-input-port-button": { visibility: "visible" },
       ".remove-output-port-button": { visibility: "visible" },
     });
-
-    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
-    if (!element) {
-      return;
-    }
   }
 
   public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
@@ -692,40 +666,6 @@ export class JointUIService {
         ref: ".port-body",
         "ref-y": 0.5,
         "y-alignment": "middle",
-      },
-    };
-  }
-
-  /**
-   * This function create a custom svg style for the operator
-   * @returns the custom attributes of the tooltip.
-   */
-  public static getCustomOperatorStatusTooltipStyleAttrs(): joint.shapes.devs.ModelSelectors {
-    return {
-      "element-node": {
-        style: { "pointer-events": "none" },
-      },
-      polygon: {
-        fill: "#FFFFFF",
-        "follow-scale": true,
-        stroke: "purple",
-        "stroke-width": "2",
-        rx: "5px",
-        ry: "5px",
-        refPoints: "0,30 150,30 150,120 85,120 75,150 65,120 0,120",
-        display: "none",
-        style: { "pointer-events": "none" },
-      },
-      "#operatorCount": {
-        fill: "#595959",
-        "font-size": "12px",
-        ref: "polygon",
-        "y-alignment": "middle",
-        "x-alignment": "left",
-        "ref-x": 0.05,
-        "ref-y": 0.2,
-        display: "none",
-        style: { "pointer-events": "none" },
       },
     };
   }
