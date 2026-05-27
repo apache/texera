@@ -355,11 +355,21 @@ jobs:
         # mirrors a subset of common deps (e.g. pillow); without this
         # flag a dependabot bump to a version not yet mirrored there
         # fails to resolve even though PyPI has it.
+        # dev-requirements.txt provides the betterproto plugin used by
+        # bin/python-proto-gen.sh.
         run: |
           python -m pip install uv
           if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
           if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt; fi
+      - name: Install protoc
+        # Version pinned in bin/protoc-version.txt.
+        run: |
+          PROTOC_VERSION=$(cat bin/protoc-version.txt)
+          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          sudo unzip -o /tmp/protoc.zip -d /usr/local
+          sudo chmod +x /usr/local/bin/protoc
+          sudo chmod -R a+rX /usr/local/include/google
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
@@ -467,6 +477,10 @@ jobs:
             }
           }
           EOF
+      - name: Generate Python proto bindings
+        # Integration specs spawn Python UDF workers that import the
+        # generated betterproto bindings. Independent of sbt and the JDK.
+        run: bash bin/python-proto-gen.sh
       - name: Lint and run amber integration tests
         # AMBER_TEST_FILTER=integration-only tells amber/build.sbt to
         # keep only @org.apache.texera.amber.tags.IntegrationTest
@@ -685,6 +699,16 @@ jobs:
         run: |
           python -m pip install uv
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
+      - name: Install protoc
+        # Version pinned in bin/protoc-version.txt.
+        run: |
+          PROTOC_VERSION=$(cat bin/protoc-version.txt)
+          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          sudo unzip -o /tmp/protoc.zip -d /usr/local
+          sudo chmod +x /usr/local/bin/protoc
+          sudo chmod -R a+rX /usr/local/include/google
+      - name: Generate Python proto bindings
+        run: bash bin/python-proto-gen.sh
       - name: Test with pytest
         # --junit-xml emits a JUnit-XML report alongside the coverage XML
         # so the Test Analytics upload below can feed Codecov's failing-
@@ -745,6 +769,12 @@ jobs:
           if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
           if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
+      - name: Install protoc
+        # Homebrew protoc; this job doesn't exercise scalapb so the
+        # bin/protoc-version.txt pin doesn't apply here.
+        run: brew install protobuf
+      - name: Generate Python proto bindings
+        run: bash bin/python-proto-gen.sh
       - name: Run state-materialization integration tests
         run: |
           cd amber && pytest -sv \
