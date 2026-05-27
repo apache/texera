@@ -142,9 +142,10 @@ class GoogleDriveAuthResource extends LazyLogging {
         redirectUri
       ).execute()
 
-      val blobJson = mapper.writeValueAsString(
-        Map("refreshToken" -> tokenResponse.getRefreshToken, "scopes" -> tokenResponse.getScope)
-      )
+      val blobMap = new java.util.HashMap[String, String]()
+      blobMap.put("refreshToken", tokenResponse.getRefreshToken)
+      blobMap.put("scopes", tokenResponse.getScope)
+      val blobJson = mapper.writeValueAsString(blobMap)
       val encryptedBlob = TokenEncryptionService.encrypt(blobJson)
 
       val existing = oauthTokenDao.fetchByUid(uid).stream()
