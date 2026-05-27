@@ -215,13 +215,19 @@ class TestLargeBinaryOutputStream:
             mock_s3.upload_fileobj.side_effect = Exception("Upload failed")
 
             stream = LargeBinaryOutputStream(large_binary)
-            stream.write(b"test data")
+            try:
+                stream.write(b"test data")
 
-            # Wait a bit for the error to be set
-            time.sleep(0.1)
+                # Wait a bit for the error to be set
+                time.sleep(0.1)
 
-            with pytest.raises(IOError, match="Background upload failed"):
-                stream.write(b"more data")
+                with pytest.raises(IOError, match="Background upload failed"):
+                    stream.write(b"more data")
+            finally:
+                # Close inside the patch scope so finalizer-driven cleanup
+                # doesn't fire against a later test's mocks.
+                with pytest.raises(IOError):
+                    stream.close()
 
     def test_multiple_close_calls(self, large_binary):
         """Test that multiple close() calls are safe."""
