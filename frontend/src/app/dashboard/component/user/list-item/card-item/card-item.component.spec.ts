@@ -30,10 +30,7 @@ import { UserService } from "../../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
-import {
-  DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL,
-  DASHBOARD_USER_WORKSPACE,
-} from "../../../../../app-routing.constant";
+import { DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, DASHBOARD_USER_WORKSPACE } from "../../../../../app-routing.constant";
 
 function makeWorkflowEntry(overrides: Partial<DashboardEntry> = {}): DashboardEntry {
   return {
