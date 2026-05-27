@@ -23,9 +23,9 @@ SET search_path TO texera_db;
 
 BEGIN;
 
-CREATE TABLE IF NOT EXISTS user_oauth_tokens  (
+CREATE TABLE IF NOT EXISTS user_oauth_token  (
     otid       SERIAL PRIMARY KEY,
-    uid     INT NOT NULL
+    uid     INT NOT NULL,
     provider VARCHAR(64) NOT NULL,
     auth_blob TEXT NOT NULL,
 

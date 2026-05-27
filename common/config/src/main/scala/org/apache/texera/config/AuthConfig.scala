@@ -30,6 +30,7 @@ object AuthConfig {
 
   // For storing the generated/configured secret
   @volatile private var secretKey: String = _
+  @volatile private var eSecretKey: String = _
 
   // Read JWT secret key with support for random generation
   def jwtSecretKey: String = {
@@ -42,6 +43,18 @@ object AuthConfig {
       }
     }
     secretKey
+  }
+
+  def encryptionSecretKey: String = {
+    synchronized {
+      if (eSecretKey == null) {
+        eSecretKey = conf.getString("auth.encryption.256-bit-secret").toLowerCase() match {
+          case "random" => getRandomHexString
+          case key => key
+        }
+      }
+    }
+    eSecretKey
   }
 
   private def getRandomHexString: String = {

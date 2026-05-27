@@ -19,11 +19,13 @@
 package org.apache.texera.web.resource.auth
 
 import io.dropwizard.auth.Auth
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.auth.{JwtParser, SessionUser}
+import org.apache.texera.auth.{JwtParser, SessionUser, TokenEncryptionService}
 import org.apache.texera.web.model.http.response.DriveTokenIssueResponse
 import org.apache.texera.web.resource.auth.GoogleDriveAuthResource._
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
+import org.apache.texera.dao.jooq.generated.tables.daos.UserOauthTokenDao
+import org.apache.texera.dao.jooq.generated.tables.pojos.UserOauthToken
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.config.UserSystemConfig
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
@@ -44,13 +46,15 @@ import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 
 object GoogleDriveAuthResource {
-  // Status codes for token
   private val STATUS_OK = "ok"
   private val STATUS_NO_REFRESH_TOKEN = "no_refresh_token"
   private val STATUS_INVALID_GRANT = "invalid_grant"
+  private val PROVIDER_GOOGLE_DRIVE = "google_drive"
 
-  private def userDao =
-    new UserDao(
+  private val mapper = new ObjectMapper()
+
+  private def oauthTokenDao =
+    new UserOauthTokenDao(
       SqlServer
         .getInstance()
         .createDSLContext()
@@ -71,12 +75,20 @@ class GoogleDriveAuthResource extends LazyLogging {
   @Path("/token")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def getDriveAccessToken(@Auth sessionUser: SessionUser): Response = {
-    val user = userDao.fetchOneByUid(sessionUser.getUid)
-    val refreshToken = user.getGoogleDriveRefreshToken
-    if (refreshToken == null) {
+    val uid = sessionUser.getUid
+    val record = oauthTokenDao.fetchByUid(uid).stream()
+      .filter(r => r.getProvider == PROVIDER_GOOGLE_DRIVE)
+      .findFirst()
+      .orElse(null)
+
+    if (record == null) {
       return Response.ok(DriveTokenIssueResponse(STATUS_NO_REFRESH_TOKEN, None)).build()
     }
+
     try {
+      val blob = mapper.readTree(TokenEncryptionService.decrypt(record.getAuthBlob))
+      val refreshToken = blob.get("refreshToken").asText()
+
       val tokenResponse = new GoogleRefreshTokenRequest(
         new NetHttpTransport(),
         GsonFactory.getDefaultInstance,
@@ -84,8 +96,8 @@ class GoogleDriveAuthResource extends LazyLogging {
         clientId,
         clientSecret
       ).execute()
-      val accessToken = tokenResponse.getAccessToken
-      Response.ok(DriveTokenIssueResponse(STATUS_OK, Some(accessToken))).build()
+
+      Response.ok(DriveTokenIssueResponse(STATUS_OK, Some(tokenResponse.getAccessToken))).build()
     } catch {
       case e: TokenResponseException =>
         if (e.getDetails != null && e.getDetails.getError == STATUS_INVALID_GRANT) {
@@ -119,10 +131,9 @@ class GoogleDriveAuthResource extends LazyLogging {
           .build()
       }
 
-      val userId = sessionUserOpt.get().getUid
-      val user = userDao.fetchOneByUid(userId)
+      val uid = sessionUserOpt.get().getUid
 
-      val response: GoogleTokenResponse = new GoogleAuthorizationCodeTokenRequest(
+      val tokenResponse: GoogleTokenResponse = new GoogleAuthorizationCodeTokenRequest(
         new NetHttpTransport(),
         GsonFactory.getDefaultInstance,
         clientId,
@@ -131,8 +142,25 @@ class GoogleDriveAuthResource extends LazyLogging {
         redirectUri
       ).execute()
 
-      user.setGoogleDriveRefreshToken(response.getRefreshToken)
-      userDao.update(user)
+      val blobJson = mapper.writeValueAsString(
+        Map("refreshToken" -> tokenResponse.getRefreshToken, "scopes" -> tokenResponse.getScope)
+      )
+      val encryptedBlob = TokenEncryptionService.encrypt(blobJson)
+
+      val existing = oauthTokenDao.fetchByUid(uid).stream()
+        .filter(r => r.getProvider == PROVIDER_GOOGLE_DRIVE)
+        .findFirst()
+
+      if (existing.isPresent) {
+        existing.get().setAuthBlob(encryptedBlob)
+        oauthTokenDao.update(existing.get())
+      } else {
+        val record = new UserOauthToken()
+        record.setUid(uid)
+        record.setProvider(PROVIDER_GOOGLE_DRIVE)
+        record.setAuthBlob(encryptedBlob)
+        oauthTokenDao.insert(record)
+      }
 
       val html =
         """<html><body><script>
