@@ -179,7 +179,7 @@ libraryDependencies ++= hadoopDependencies
 // protobuf related
 // run the following with sbt to have protobuf codegen
 
-PB.protocVersion := "3.19.4"
+PB.protocVersion := IO.read((ThisBuild / baseDirectory).value / "bin" / "protoc-version.txt").trim
 
 enablePlugins(Fs2Grpc)
 

@@ -83,6 +83,8 @@ One Python venv shared across worktrees, sibling of the texera checkout:
 ```bash
 python3.12 -m venv ../venv312 && source ../venv312/bin/activate
 pip install -r amber/requirements.txt -r amber/operator-requirements.txt
+# For pytest or running bin/python-proto-gen.sh, also install dev deps:
+pip install -r amber/dev-requirements.txt
 ```
 
 Tests that spawn Python workers need an interpreter path. Edit `python.path`

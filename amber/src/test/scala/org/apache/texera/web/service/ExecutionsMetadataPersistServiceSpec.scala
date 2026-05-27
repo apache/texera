@@ -228,31 +228,11 @@ class ExecutionsMetadataPersistServiceSpec
     fetched.get.getEid shouldBe eid
   }
 
-  it should "currently return Some(null) for an unknown eid (latent bug)" in {
-    // Pin actual behavior: `fetchOneByEid` returns null for a miss (no throw),
-    // and the production code wraps the result in `Some(...)` before the
-    // try/catch can convert it to None. So the Option contract is broken for
-    // misses — callers that destructure with `getOrElse` get the null through.
-    // The catch only fires on hard errors (e.g. a closed connection), which
-    // is why the method name says "tryGet". Filed as a follow-up bug.
+  it should "return None for an unknown eid" in {
     val fetched = ExecutionsMetadataPersistService.tryGetExistingExecution(
       ExecutionIdentity(-1L)
     )
-    fetched shouldBe Some(null)
-  }
-
-  it should "(intended contract) return None for an unknown eid" in {
-    // xfail-strict equivalent in ScalaTest: invert via intercept. When the
-    // bug above is fixed (e.g. `Option(workflowExecutionsDao.fetchOneByEid(...))`
-    // instead of `Some(...)`), the inner assertion will pass, intercept will
-    // not catch a TestFailedException, and this test will flip red — forcing
-    // the pinned-behavior test above to be updated in the same PR.
-    intercept[org.scalatest.exceptions.TestFailedException] {
-      val fetched = ExecutionsMetadataPersistService.tryGetExistingExecution(
-        ExecutionIdentity(-1L)
-      )
-      fetched shouldBe None
-    }
+    fetched shouldBe None
   }
 
   // -- tryUpdateExistingExecution ---------------------------------------------
