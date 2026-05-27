@@ -20,7 +20,7 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from "@angular/core/testing";
 import { Router } from "@angular/router";
 import { RouterTestingModule } from "@angular/router/testing";
-import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { of, Subject } from "rxjs";
 
 import { SearchBarComponent } from "./search-bar.component";
@@ -64,7 +64,7 @@ describe("SearchBarComponent", () => {
     };
 
     await TestBed.configureTestingModule({
-      imports: [SearchBarComponent, BrowserAnimationsModule, RouterTestingModule],
+      imports: [SearchBarComponent, NoopAnimationsModule, RouterTestingModule],
       providers: [
         { provide: SearchService, useValue: searchSpy },
         { provide: UserService, useValue: userServiceStub },
@@ -238,7 +238,7 @@ describe("SearchBarComponent", () => {
   });
 
   it("performSearch navigates to DASHBOARD_SEARCH with the keyword as the q query param", () => {
-    const nav = vi.spyOn(router, "navigate");
+    const nav = vi.spyOn(router, "navigate").mockResolvedValue(true);
 
     component.performSearch("hello world");
 
