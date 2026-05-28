@@ -128,6 +128,7 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var sentencesColumn: EncodableString = ""
 
+
   @JsonProperty(
     value = "systemPrompt",
     required = false,
