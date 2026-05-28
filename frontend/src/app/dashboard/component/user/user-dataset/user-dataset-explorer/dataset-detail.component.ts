@@ -41,7 +41,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
 import { Subscription } from "rxjs";
-import { formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { formatCount, formatSpeed, formatTime } from "src/app/common/util/format.util";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
 import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
@@ -725,12 +725,7 @@ export class DatasetDetailComponent implements OnInit {
   // alias for formatSize
   formatSize = formatSize;
 
-  formatCount(count: number): string {
-    if (count >= 1000) {
-      return (count / 1000).toFixed(1) + "k";
-    }
-    return count.toString();
-  }
+  formatCount = formatCount;
   formatTime = formatTime;
   formatSpeed = formatSpeed;
 
