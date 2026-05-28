@@ -37,7 +37,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       systemPrompt: EncodableString = "You are a helpful assistant.",
       maxNewTokens: Int = 256,
       temperature: Double = 0.7,
-      resultColumn: EncodableString = "hf_response"
+      resultColumn: EncodableString = "hf_response",
+      imageInput: EncodableString = "",
+      inputImageColumn: EncodableString = ""
   ): HuggingFaceInferenceOpDesc = {
     val desc = new HuggingFaceInferenceOpDesc()
     desc.hfApiToken = token
@@ -48,6 +50,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     desc.maxNewTokens = maxNewTokens
     desc.temperature = temperature
     desc.resultColumn = resultColumn
+    desc.imageInput = imageInput
+    desc.inputImageColumn = inputImageColumn
     desc
   }
 
@@ -146,6 +150,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     desc.task = null
     desc.maxNewTokens = null
     desc.temperature = null
+    desc.imageInput = null
+    desc.inputImageColumn = null
     val code = desc.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator):")
     code should include("def open(self):")
@@ -180,6 +186,64 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     )
     TextGenCodegen.payloadPython(ctx) should include("self.MODEL_ID")
     TextGenCodegen.parsePython(ctx) should include("""body["choices"][0]["message"]["content"]""")
+  }
+
+  "image task family" should
+    "route image-only tasks through ImageTaskCodegen (raw binary payload + image headers)" in {
+    val code = makeDesc(task = "image-classification", inputImageColumn = "img").generatePythonCode()
+    code should include("self.IMAGE_INPUT = ")
+    code should include("self.INPUT_IMAGE_COLUMN = ")
+    code should include("if task in image_only_tasks:")
+    code should include("payload = current_image_bytes")
+    code should include("use_raw_binary_body = True")
+    code should include("raw_binary_headers = image_headers")
+    // image bytes resolution + image content-type response handling exist
+    code should include("self._read_image_input()")
+    code should include("self._read_binary_value")
+    code should include("self._compress_image_bytes")
+    code should include("""if content_type.startswith("image/"):""")
+  }
+
+  it should "route VQA / document-QA through ImageTaskCodegen (base64 image + question payload)" in {
+    val code = makeDesc(task = "visual-question-answering").generatePythonCode()
+    code should include(
+      """elif task in ("visual-question-answering", "document-question-answering"):"""
+    )
+    code should include("self._image_input_as_base64(current_image_bytes)")
+    code should include(""""question": prompt_value""")
+  }
+
+  it should "route image-text-to-text through chat completions with embedded base64 image" in {
+    val code = makeDesc(task = "image-text-to-text").generatePythonCode()
+    code should include("""elif task == "image-text-to-text":""")
+    code should include("""data:image/png;base64,{img_b64}""")
+    code should include("self.MODEL_ID")
+  }
+
+  it should "route image-to-image as raw binary and parse via _url_to_data_url on JSON response" in {
+    val code = makeDesc(task = "image-to-image").generatePythonCode()
+    code should include("""elif task == "image-to-image":""")
+    code should include("self._url_to_data_url(")
+  }
+
+  it should
+    "register all 9 image task strings under the dispatcher (image-only + image+prompt)" in {
+    // Each image task should pull in ImageTaskCodegen's branch chain.
+    val imageTasks = Seq(
+      "image-classification",
+      "object-detection",
+      "image-segmentation",
+      "image-to-text",
+      "visual-question-answering",
+      "document-question-answering",
+      "zero-shot-image-classification",
+      "image-text-to-text",
+      "image-to-image"
+    )
+    imageTasks.foreach { t =>
+      val code = makeDesc(task = t).generatePythonCode()
+      code should include("if task in image_only_tasks:")
+    }
   }
 
   "getOutputSchemas" should "add the result column as a STRING to the inherited schema" in {
