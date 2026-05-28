@@ -43,6 +43,11 @@ def set_current_execution_id(execution_id):
     _current_execution_id = execution_id
 
 
+def get_current_execution_id():
+    """Returns the execution id set for this worker, or None if unset."""
+    return _current_execution_id
+
+
 def _get_s3_client():
     """Get or initialize S3 client (lazy initialization, cached)."""
     global _s3_client
@@ -87,7 +92,7 @@ def create() -> str:
         S3 URI string (format: s3://bucket/objects/{execution_id}/{uuid})
     """
     _ensure_bucket_exists(DEFAULT_BUCKET)
-    execution_id = _current_execution_id
+    execution_id = get_current_execution_id()
     if execution_id is None:
         raise RuntimeError(
             "largebinary() requires an execution context, but no execution id "

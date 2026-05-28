@@ -45,7 +45,7 @@ class TestLargeBinaryManager:
                 s3_auth_password="minioadmin",
             )
         # Provide a default execution id so create() doesn't raise.
-        original_eid = large_binary_manager._current_execution_id
+        original_eid = large_binary_manager.get_current_execution_id()
         large_binary_manager.set_current_execution_id(1)
         yield
         large_binary_manager.set_current_execution_id(original_eid)
@@ -140,7 +140,7 @@ class TestLargeBinaryManager:
             # Check URI format: s3://bucket/objects/{eid}/{uuid}
             assert uri.startswith("s3://")
             assert uri.startswith(f"s3://{large_binary_manager.DEFAULT_BUCKET}/")
-            assert f"objects/{large_binary_manager._current_execution_id}/" in uri
+            assert f"objects/{large_binary_manager.get_current_execution_id()}/" in uri
 
             # Verify bucket was checked/created
             mock_client.head_bucket.assert_called_once_with(
@@ -159,7 +159,7 @@ class TestLargeBinaryManager:
 
             uri = large_binary_manager.create()
             assert large_binary_manager.DEFAULT_BUCKET in uri
-            assert f"objects/{large_binary_manager._current_execution_id}/" in uri
+            assert f"objects/{large_binary_manager.get_current_execution_id()}/" in uri
 
 
 def test_create_stamps_execution_id(monkeypatch):
