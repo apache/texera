@@ -27,6 +27,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import org.apache.texera.amber.util.VirtualIdentityUtils
+import org.apache.texera.service.util.LargeBinaryManager
 
 trait InitializeExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
@@ -44,6 +45,7 @@ trait InitializeExecutorHandler {
         )
       )
     cachedTotalWorkerCount = req.totalWorkerCount
+    req.executionId.foreach(eid => LargeBinaryManager.setCurrentExecutionId(eid.id))
     setupExecutor(req.opExecInitInfo, workerIdx, cachedTotalWorkerCount)
     EmptyReturn()
   }
