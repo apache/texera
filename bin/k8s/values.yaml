@@ -207,6 +207,59 @@ accessControlService:
     type: ClusterIP
     port: 9096
 
+agentService:
+  enabled: true
+  name: agent-service
+  numOfPods: 1
+  imageName: texera-agent-service
+  service:
+    type: ClusterIP
+    port: 3001
+  env:
+    # Authenticates the agent service to the in-cluster LLM gateway
+    # (access-control-service / LiteLLM), not to the upstream provider.
+    llmApiKey: "dummy"
+
+litellm:
+  enabled: true
+  name: litellm
+  image: ghcr.io/berriai/litellm:main-latest
+  numOfPods: 1
+  service:
+    type: ClusterIP
+    port: 4000
+  masterKey: "sk-texera-litellm-key"
+  # Postgres persistence: the database is created by the postgres init script and
+  # LiteLLM stores keys/spend (and model config when storeModelInDb is true) there.
+  databaseName: texera_litellm
+  storeModelInDb: true
+  # Provider API keys - injected as env vars into the LiteLLM pod and stored in a
+  # Secret. Set these via --set or a values override file (do NOT commit real keys).
+  # The config below references them via "os.environ/KEY_NAME".
+  providerApiKeys:
+    OPENAI_API_KEY: ""
+    ANTHROPIC_API_KEY: ""
+  config: |
+    litellm_settings:
+      drop_params: true
+    model_list:
+      - model_name: claude-sonnet-4
+        litellm_params:
+          model: claude-sonnet-4-20250514
+          api_key: "os.environ/ANTHROPIC_API_KEY"
+      - model_name: claude-haiku-4.5
+        litellm_params:
+          model: claude-haiku-4-5-20251001
+          api_key: "os.environ/ANTHROPIC_API_KEY"
+      - model_name: gpt-4.1
+        litellm_params:
+          model: gpt-4.1
+          api_key: "os.environ/OPENAI_API_KEY"
+      - model_name: gpt-4.1-mini
+        litellm_params:
+          model: gpt-4.1-mini
+          api_key: "os.environ/OPENAI_API_KEY"
+
 # headless service for the access of computing units
 workflowComputingUnitPool:
   createNamespaces: true
