@@ -22,7 +22,6 @@ Users should not interact with this module directly. Use largebinary() construct
 and LargeBinaryInputStream/LargeBinaryOutputStream instead.
 """
 
-import time
 import uuid
 from loguru import logger
 from core.storage.storage_config import StorageConfig
@@ -66,13 +65,22 @@ def _ensure_bucket_exists(bucket: str):
 
 def create() -> str:
     """
-    Creates a new largebinary reference with a unique S3 URI.
+    Creates a new largebinary reference with a unique, execution-scoped S3 URI.
+
+    The object key is namespaced by the current execution id so cleanup can delete
+    only this execution's objects. The execution id is injected by the system (set on
+    StorageConfig when the worker is initialized); callers never pass it.
 
     Returns:
-        S3 URI string (format: s3://bucket/key)
+        S3 URI string (format: s3://bucket/objects/{execution_id}/{uuid})
     """
     _ensure_bucket_exists(DEFAULT_BUCKET)
-    timestamp_ms = int(time.time() * 1000)
+    execution_id = StorageConfig.EXECUTION_ID
+    if execution_id is None:
+        raise RuntimeError(
+            "largebinary() requires an execution context, but "
+            "StorageConfig.EXECUTION_ID is not set."
+        )
     unique_id = uuid.uuid4()
-    object_key = f"objects/{timestamp_ms}/{unique_id}"
+    object_key = f"objects/{execution_id}/{unique_id}"
     return f"s3://{DEFAULT_BUCKET}/{object_key}"

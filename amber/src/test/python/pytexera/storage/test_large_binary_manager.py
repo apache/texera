@@ -42,6 +42,11 @@ class TestLargeBinaryManager:
                 s3_auth_username="minioadmin",
                 s3_auth_password="minioadmin",
             )
+        # Provide a default execution id so create() doesn't raise.
+        original_eid = StorageConfig.EXECUTION_ID
+        StorageConfig.EXECUTION_ID = 1
+        yield
+        StorageConfig.EXECUTION_ID = original_eid
 
     def test_get_s3_client_initializes_once(self):
         """Test that S3 client is initialized and cached."""
@@ -119,7 +124,7 @@ class TestLargeBinaryManager:
             mock_client.create_bucket.assert_called_once_with(Bucket="test-bucket")
 
     def test_create_generates_unique_uri(self):
-        """Test that create() generates a unique S3 URI."""
+        """Test that create() generates a unique execution-scoped S3 URI."""
         large_binary_manager._s3_client = None
 
         with patch("boto3.client") as mock_boto3_client:
@@ -130,10 +135,10 @@ class TestLargeBinaryManager:
 
             uri = large_binary_manager.create()
 
-            # Check URI format
+            # Check URI format: s3://bucket/objects/{eid}/{uuid}
             assert uri.startswith("s3://")
             assert uri.startswith(f"s3://{large_binary_manager.DEFAULT_BUCKET}/")
-            assert "objects/" in uri
+            assert f"objects/{StorageConfig.EXECUTION_ID}/" in uri
 
             # Verify bucket was checked/created
             mock_client.head_bucket.assert_called_once_with(
@@ -152,3 +157,31 @@ class TestLargeBinaryManager:
 
             uri = large_binary_manager.create()
             assert large_binary_manager.DEFAULT_BUCKET in uri
+            assert f"objects/{StorageConfig.EXECUTION_ID}/" in uri
+
+
+import re
+
+
+def test_create_stamps_execution_id(monkeypatch):
+    # Avoid touching real S3 while testing key generation.
+    monkeypatch.setattr(
+        large_binary_manager, "_ensure_bucket_exists", lambda bucket: None
+    )
+    monkeypatch.setattr(StorageConfig, "EXECUTION_ID", 42, raising=False)
+
+    uri = large_binary_manager.create()
+
+    assert re.fullmatch(
+        r"s3://texera-large-binaries/objects/42/[0-9a-fA-F-]+", uri
+    )
+
+
+def test_create_without_execution_context_raises(monkeypatch):
+    monkeypatch.setattr(
+        large_binary_manager, "_ensure_bucket_exists", lambda bucket: None
+    )
+    monkeypatch.setattr(StorageConfig, "EXECUTION_ID", None, raising=False)
+
+    with pytest.raises(RuntimeError):
+        large_binary_manager.create()

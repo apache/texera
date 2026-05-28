@@ -42,6 +42,9 @@ class StorageConfig:
     S3_AUTH_USERNAME = None
     S3_AUTH_PASSWORD = None
 
+    # Execution context (set per worker at executor init, used to scope large binaries)
+    EXECUTION_ID = None
+
     @classmethod
     def initialize(
         cls,

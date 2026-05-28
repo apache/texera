@@ -16,6 +16,7 @@
 # under the License.
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
+from core.storage.storage_config import StorageConfig
 from core.util import get_one_of
 from proto.org.apache.texera.amber.core import OpExecWithCode
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
@@ -27,6 +28,9 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 class InitializeExecutorHandler(ControlHandler):
     async def initialize_executor(self, req: InitializeExecutorRequest) -> EmptyReturn:
         op_exec_with_code: OpExecWithCode = get_one_of(req.op_exec_init_info)
+        StorageConfig.EXECUTION_ID = (
+            req.execution_id.id if req.execution_id is not None else None
+        )
         self.context.executor_manager.initialize_executor(
             op_exec_with_code.code, req.is_source, op_exec_with_code.language
         )
