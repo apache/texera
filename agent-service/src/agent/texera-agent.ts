@@ -24,7 +24,7 @@ import { WorkflowState } from "./workflow-state";
 import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
 import { WorkflowResultState } from "./workflow-result-state";
 import { formatOperatorResult } from "./tools/result-formatting";
-import type { AgentSettings, ReActStep, TokenUsage, UserInfo } from "../types/agent";
+import type { AgentSettings, AgentSnapshot, ReActStep, TokenUsage, UserInfo } from "../types/agent";
 import {
   AgentState as AgentStateEnum,
   DEFAULT_AGENT_SETTINGS,
@@ -60,6 +60,8 @@ export interface TexeraAgentConfig {
   agentId: string;
   agentName?: string;
   systemPrompt?: string;
+  // Preserved across restarts when an agent is reconstructed from a snapshot.
+  createdAt?: Date;
 }
 
 export interface AgentMessageResult {
@@ -129,7 +131,7 @@ export class TexeraAgent {
     this.agentId = config.agentId;
     this.agentName = config.agentName || `Agent-${config.agentId}`;
     this.modelType = config.modelType;
-    this.createdAt = new Date();
+    this.createdAt = config.createdAt ?? new Date();
     this.model = config.model;
     this.systemPrompt = config.systemPrompt || "";
     this.log = createLogger("TexeraAgent", { agentId: this.agentId });
@@ -821,6 +823,107 @@ export class TexeraAgent {
     }
 
     return relevantSteps;
+  }
+
+  /**
+   * Produce a durable, JSON-serializable snapshot of this agent. The user token
+   * and execution-result caches are intentionally excluded (see AgentSnapshot).
+   */
+  toSnapshot(): AgentSnapshot {
+    const messageGroups: Record<string, string[]> = {};
+    for (const [messageId, steps] of this.reActStepsByMessageId) {
+      messageGroups[messageId] = steps.map(s => s.id);
+    }
+
+    return {
+      version: 1,
+      agentId: this.agentId,
+      agentName: this.agentName,
+      modelType: this.modelType,
+      createdAt: this.createdAt.toISOString(),
+      head: this.head,
+      stepCounter: this.stepCounter,
+      messageCounter: this.messageCounter,
+      settings: {
+        disabledTools: Array.from(this.settings.disabledTools),
+        maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
+        maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
+        operatorResultSerializationMode: this.settings.operatorResultSerializationMode,
+        toolTimeoutMs: this.settings.toolTimeoutMs,
+        executionTimeoutMs: this.settings.executionTimeoutMs,
+        maxSteps: this.settings.maxSteps,
+        allowedOperatorTypes: this.settings.allowedOperatorTypes,
+      },
+      delegate: this.delegateConfig
+        ? {
+            userInfo: this.delegateConfig.userInfo,
+            workflowId: this.delegateConfig.workflowId,
+            workflowName: this.delegateConfig.workflowName,
+            computingUnitId: this.delegateConfig.computingUnitId,
+          }
+        : undefined,
+      steps: Array.from(this.stepsById.values()),
+      messageGroups,
+      workflowContent: this.workflowState.getWorkflowContent(),
+    };
+  }
+
+  /**
+   * Restore conversation, workflow, settings, and delegate metadata from a
+   * snapshot. Must be called on a freshly constructed agent (one built with the
+   * snapshot's createdAt). The restored delegate carries no user token, so the
+   * caller must re-attach one before the agent can execute or auto-persist.
+   */
+  restoreFromSnapshot(snapshot: AgentSnapshot): void {
+    if (snapshot.version !== 1) {
+      throw new Error(`Unsupported agent snapshot version: ${snapshot.version}`);
+    }
+
+    this.stepCounter = snapshot.stepCounter;
+    this.messageCounter = snapshot.messageCounter;
+
+    this.settings = {
+      ...DEFAULT_AGENT_SETTINGS,
+      ...snapshot.settings,
+      disabledTools: new Set(snapshot.settings.disabledTools),
+      systemPrompt: this.systemPrompt,
+    };
+
+    this.stepsById = new Map(snapshot.steps.map(step => [step.id, step]));
+    this.reActStepsByMessageId = new Map();
+    for (const [messageId, stepIds] of Object.entries(snapshot.messageGroups)) {
+      const steps = stepIds.map(id => this.stepsById.get(id)).filter((s): s is ReActStep => s !== undefined);
+      this.reActStepsByMessageId.set(messageId, steps);
+    }
+
+    // Ensure the initial sentinel step always exists so HEAD traversal/checkout works.
+    if (!this.stepsById.has(INITIAL_STEP_ID)) {
+      this.stepsById.set(INITIAL_STEP_ID, {
+        id: INITIAL_STEP_ID,
+        messageId: "initial",
+        stepId: -1,
+        timestamp: Date.now(),
+        role: "user",
+        content: "",
+        isBegin: true,
+        isEnd: true,
+      });
+    }
+    this.head = snapshot.head;
+
+    if (snapshot.delegate) {
+      this.delegateConfig = {
+        userToken: "",
+        userInfo: snapshot.delegate.userInfo,
+        workflowId: snapshot.delegate.workflowId,
+        workflowName: snapshot.delegate.workflowName,
+        computingUnitId: snapshot.delegate.computingUnitId,
+      };
+    }
+
+    this.workflowState.setWorkflowContent(snapshot.workflowContent);
+    this.rebuildSystemPrompt();
+    this.tools = this.createTools();
   }
 
   destroy(): void {

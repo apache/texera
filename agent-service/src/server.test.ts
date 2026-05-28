@@ -17,8 +17,14 @@
  * under the License.
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
-import { buildApp, _resetAgentStoreForTests } from "./server";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtemp, rm } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
+import { buildApp, _resetAgentStoreForTests, _getSnapshotStoreForTests, rehydrateAgents } from "./server";
+import { AgentSnapshotStore } from "./persistence/agent-snapshot-store";
+import { OperatorResultSerializationMode } from "./types/agent";
+import type { AgentSnapshot } from "./types/agent";
 import { env } from "./config/env";
 
 const API = env.API_PREFIX;
@@ -219,5 +225,93 @@ describe(`PATCH ${API}/agents/:id/settings`, () => {
     );
     expect(reread.maxSteps).toBe(7);
     expect(reread.toolTimeoutSeconds).toBe(30);
+  });
+});
+
+describe("agent persistence (AGENT_STATE_DIR)", () => {
+  const prevDir = process.env.AGENT_STATE_DIR;
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "agent-server-persist-"));
+    process.env.AGENT_STATE_DIR = dir;
+    // Re-resolve the module's snapshot store against the fresh directory.
+    _resetAgentStoreForTests();
+  });
+
+  afterEach(async () => {
+    if (prevDir === undefined) delete process.env.AGENT_STATE_DIR;
+    else process.env.AGENT_STATE_DIR = prevDir;
+    _resetAgentStoreForTests();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  function diskSnapshot(agentId: string): AgentSnapshot {
+    return {
+      version: 1,
+      agentId,
+      agentName: "Restored",
+      modelType: "m",
+      createdAt: "2024-01-01T00:00:00.000Z",
+      head: "step-initial",
+      stepCounter: 0,
+      messageCounter: 0,
+      settings: {
+        disabledTools: [],
+        maxOperatorResultCharLimit: 2000,
+        maxOperatorResultCellCharLimit: 2000,
+        operatorResultSerializationMode: OperatorResultSerializationMode.TSV,
+        toolTimeoutMs: 240000,
+        executionTimeoutMs: 240000,
+        maxSteps: 100,
+        allowedOperatorTypes: [],
+      },
+      steps: [],
+      messageGroups: {},
+      workflowContent: {
+        operators: [],
+        operatorPositions: {},
+        links: [],
+        commentBoxes: [],
+        settings: { dataTransferBatchSize: 400 },
+      },
+    };
+  }
+
+  test("a created agent is written to disk", async () => {
+    const created = await postJson(`${API}/agents`, { modelType: "m", name: "Persisted" });
+    const { id } = await readJson<{ id: string }>(created);
+
+    // Force the debounced write to complete, then read with an independent store.
+    await _getSnapshotStoreForTests()!.flush();
+    const onDisk = await new AgentSnapshotStore(dir).load(id);
+
+    expect(onDisk).not.toBeNull();
+    expect(onDisk?.agentId).toBe(id);
+    expect(onDisk?.agentName).toBe("Persisted");
+  });
+
+  test("deleting an agent removes its snapshot file", async () => {
+    const created = await postJson(`${API}/agents`, { modelType: "m" });
+    const { id } = await readJson<{ id: string }>(created);
+    await _getSnapshotStoreForTests()!.flush();
+
+    await del(`${API}/agents/${id}`);
+
+    expect(await new AgentSnapshotStore(dir).load(id)).toBeNull();
+  });
+
+  test("rehydrateAgents restores a persisted agent so it is served again", async () => {
+    // Simulate a prior process: write a snapshot straight to disk.
+    await new AgentSnapshotStore(dir).save(diskSnapshot("agent-persisted-1"));
+
+    const restored = await rehydrateAgents(new AgentSnapshotStore(dir), () => ({}) as any);
+    expect(restored).toBe(1);
+
+    const res = await getJson(`${API}/agents/agent-persisted-1`);
+    expect(res.status).toBe(200);
+    const body = await readJson<{ id: string; name: string }>(res);
+    expect(body.id).toBe("agent-persisted-1");
+    expect(body.name).toBe("Restored");
   });
 });
