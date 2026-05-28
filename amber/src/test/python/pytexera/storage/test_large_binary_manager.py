@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import re
+
 import pytest
 from unittest.mock import patch, MagicMock
 from pytexera.storage import large_binary_manager
@@ -158,9 +160,6 @@ class TestLargeBinaryManager:
             uri = large_binary_manager.create()
             assert large_binary_manager.DEFAULT_BUCKET in uri
             assert f"objects/{StorageConfig.EXECUTION_ID}/" in uri
-
-
-import re
 
 
 def test_create_stamps_execution_id(monkeypatch):
