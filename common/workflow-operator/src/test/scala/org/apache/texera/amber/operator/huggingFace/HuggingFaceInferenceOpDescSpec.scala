@@ -21,6 +21,7 @@ package org.apache.texera.amber.operator.huggingFace
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.operator.huggingFace.codegen.{CodegenContext, TextGenCodegen}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
@@ -129,6 +130,55 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     makeDesc(temperature = 5.0).generatePythonCode() should include(
       "self.TEMPERATURE = 2.0"
     )
+  }
+
+  it should "tolerate null @JsonProperty values and fall back to safe defaults" in {
+    // Every user-input field can land as null when the JSON deserializer is
+    // handed a workflow that omits the field. generatePythonCode must not
+    // throw on any combination — and the generated Python must still parse.
+    val desc = new HuggingFaceInferenceOpDesc()
+    desc.hfApiToken = null
+    desc.modelId = null
+    desc.promptColumn = null
+    desc.systemPrompt = null
+    desc.resultColumn = null
+    desc.task = null
+    desc.maxNewTokens = null
+    desc.temperature = null
+    val code = desc.generatePythonCode()
+    code should include("class ProcessTableOperator(UDFTableOperator):")
+    code should include("def open(self):")
+    // System-prompt default is the empty-string sentinel (no fallback string
+    // injected) but the operator class still initializes the constant.
+    code should include("self.SYSTEM_PROMPT = ")
+    // maxNewTokens null path defaults to 256.
+    code should include("self.MAX_NEW_TOKENS = 256")
+    // temperature null path defaults to 0.7.
+    code should include("self.TEMPERATURE = 0.7")
+  }
+
+  "TextGenCodegen" should "advertise text-generation as its canonical task" in {
+    TextGenCodegen.task shouldBe "text-generation"
+  }
+
+  it should
+    "emit payload and parse snippets that don't depend on the CodegenContext" in {
+    // For text-generation, the codegen's only inputs to Python are static
+    // strings referencing self.* attributes — exercising both methods
+    // confirms they don't accidentally consume ctx fields (a future
+    // refactor regression would surface here).
+    val ctx = CodegenContext(
+      hfApiToken = "irrelevant",
+      modelId = "irrelevant",
+      promptColumn = "irrelevant",
+      resultColumn = "irrelevant",
+      task = "irrelevant",
+      systemPrompt = "irrelevant",
+      safeMaxTokens = 0,
+      safeTemp = 0.0
+    )
+    TextGenCodegen.payloadPython(ctx) should include("self.MODEL_ID")
+    TextGenCodegen.parsePython(ctx) should include("""body["choices"][0]["message"]["content"]""")
   }
 
   "getOutputSchemas" should "add the result column as a STRING to the inherited schema" in {
