@@ -79,7 +79,7 @@ class Heartbeat(Runnable, Stoppable):
 
     def _check_heartbeat(self) -> bool:
         """
-        Attempt to connect to the JVM port. Returns True iff socket.create_connection succeeds; 
+        Attempt to connect to the JVM port. Returns True iff socket.create_connection succeeds;
         a close() failure after a successful connection is logged but DOES NOT flip the return value.
 
         :return: bool, True if connect succeeded, False if connect failed.
