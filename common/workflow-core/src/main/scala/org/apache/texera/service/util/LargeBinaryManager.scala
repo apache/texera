@@ -86,18 +86,4 @@ object LargeBinaryManager extends LazyLogging {
     }
   }
 
-  /**
-    * Deletes all large binaries from the bucket. Destructive maintenance use only.
-    * Removed in a later task once no caller remains.
-    */
-  def deleteAllObjects(): Unit = {
-    try {
-      S3StorageClient.deleteDirectory(DEFAULT_BUCKET, "objects")
-      logger.info(s"Successfully deleted all large binaries from bucket: $DEFAULT_BUCKET")
-    } catch {
-      case e: Exception =>
-        logger.warn(s"Failed to delete large binaries from bucket: $DEFAULT_BUCKET", e)
-    }
-  }
-
 }
