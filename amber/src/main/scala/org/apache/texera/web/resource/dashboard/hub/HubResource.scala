@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource.dashboard.hub
 
+import com.typesafe.scalalogging.Logger
 import io.dropwizard.auth.Auth
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
@@ -41,6 +42,7 @@ import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
 }
 import org.jooq.Table
 import org.jooq.impl.DSL
+import org.slf4j.LoggerFactory
 
 import java.util.regex.Pattern
 import javax.servlet.http.HttpServletRequest
@@ -51,6 +53,8 @@ import scala.jdk.CollectionConverters._
 import scala.language.existentials
 
 object HubResource {
+  private lazy val logger: Logger = Logger(LoggerFactory.getLogger(getClass.getName))
+
   // Represents an entity reference for general-purpose batch APIs.
   // Used by: isLikedHelper, recordLikeAction, getCounts, userAccess
   case class UserRequest(entityId: Integer, entityType: EntityType)
@@ -306,17 +310,28 @@ object HubResource {
       .fetch()
 
     records.asScala
-      .map { record =>
+      .flatMap { record =>
         val dataset = record.into(DATASET).into(classOf[Dataset])
         val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
         val ownerEmail = record.into(USER).getEmail
-        DashboardDataset(
-          isOwner = if (uid == null) false else dataset.getOwnerUid == uid,
-          dataset = dataset,
-          accessPrivilege = datasetAccess.getPrivilege,
-          ownerEmail = ownerEmail,
-          size = LakeFSStorageClient.retrieveRepositorySize(dataset.getRepositoryName)
-        )
+        try {
+          Some(
+            DashboardDataset(
+              isOwner = if (uid == null) false else dataset.getOwnerUid == uid,
+              dataset = dataset,
+              accessPrivilege = datasetAccess.getPrivilege,
+              ownerEmail = ownerEmail,
+              size = LakeFSStorageClient.retrieveRepositorySize(dataset.getRepositoryName)
+            )
+          )
+        } catch {
+          case e: io.lakefs.clients.sdk.ApiException =>
+            logger.error(
+              s"LakeFS ApiException for dataset repository '${dataset.getRepositoryName}': ${e.getMessage}",
+              e
+            )
+            None
+        }
       }
       .toList
       .distinctBy(_.dataset.getDid)
