@@ -41,4 +41,12 @@ describe("AdminSettingsComponent", () => {
   it("should create", () => {
     expect(component).toBeTruthy();
   });
+
+  it("renders MiB unit beside both size-based inputs", () => {
+    const units = fixture.nativeElement.querySelectorAll(".input-with-unit .unit");
+    expect(units.length).toBe(2);
+    units.forEach((el: HTMLElement) => {
+      expect(el.textContent?.trim()).toBe("MiB");
+    });
+  });
 });
