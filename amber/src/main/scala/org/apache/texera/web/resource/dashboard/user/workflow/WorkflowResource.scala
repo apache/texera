@@ -611,7 +611,8 @@ class WorkflowResource extends LazyLogging {
         .asScala
         .toList
 
-      LargeBinaryManager.deleteAllObjects()
+      // Delete large binaries for each execution belonging to the workflows being removed
+      eids.foreach(eid => LargeBinaryManager.deleteByExecution(eid.longValue()))
 
       // Collect all URIs related to executions for cleanup
       val uris = eids.flatMap { eid =>
