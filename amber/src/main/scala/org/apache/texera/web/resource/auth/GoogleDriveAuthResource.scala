@@ -91,7 +91,7 @@ class GoogleDriveAuthResource extends LazyLogging {
 
     try {
       val blob = mapper.readTree(TokenEncryptionService.decrypt(record.getAuthBlob))
-      val refreshToken = blob.get("refreshToken").asText()
+      val refreshToken = blob.get("refreshToken").asText("")
 
       val tokenResponse = new GoogleRefreshTokenRequest(
         new NetHttpTransport(),
@@ -196,7 +196,7 @@ class GoogleDriveAuthResource extends LazyLogging {
     val url = new GoogleAuthorizationCodeRequestUrl(
       clientId,
       redirectUri,
-      java.util.Arrays.asList("https://www.googleapis.com/auth/drive")
+      java.util.Arrays.asList("https://www.googleapis.com/auth/drive.file")
     )
       .setState(stateToken)
       .setAccessType("offline")

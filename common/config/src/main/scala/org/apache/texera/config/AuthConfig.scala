@@ -49,7 +49,6 @@ object AuthConfig {
     synchronized {
       if (eSecretKey == null) {
         eSecretKey = conf.getString("auth.encryption.256-bit-secret").toLowerCase() match {
-          case "random" => getRandomHexString
           case key      => key
         }
       }
