@@ -405,7 +405,7 @@ class RegionExecutionCoordinator(
                   workerConfigs.length,
                   physicalOp.opExecInitInfo,
                   physicalOp.isSourceOperator,
-                  None
+                  Some(physicalOp.executionId)
                 ),
                 asyncRPCClient.mkContext(workerId)
               )
