@@ -2139,11 +2139,9 @@ class DatasetResource extends LazyLogging {
   }
 
   /**
-    * Get the cover image for a dataset.
-    * Returns a 307 redirect to the presigned S3 URL.
-    *
-    * @param did Dataset ID
-    * @return 307 Temporary Redirect to cover image
+    * 307 redirect to a presigned S3 URL for the dataset cover.
+    * For `<img src>` consumption of public covers; for JWT-aware callers
+    * (e.g., private datasets), use GET /{did}/cover-url.
     */
   @GET
   @Path("/{did}/cover")
@@ -2180,6 +2178,51 @@ class DatasetResource extends LazyLogging {
       )
 
       Response.temporaryRedirect(new URI(presignedUrl)).build()
+    }
+  }
+
+  /**
+    * Get a presigned S3 URL for the dataset cover image as JSON.
+    * JWT-aware variant of GET /{did}/cover; required for private datasets
+    * since `<img src>` cannot attach the Authorization header.
+    */
+  @GET
+  @Path("/{did}/cover-url")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getDatasetCoverUrl(
+      @PathParam("did") did: Integer,
+      @Auth sessionUser: Optional[SessionUser]
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val dataset = getDatasetByID(ctx, did)
+
+      val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
+
+      if (requesterUid.isEmpty && !dataset.getIsPublic) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      Option(dataset.getCoverImage) match {
+        case None =>
+          Response.ok(Map("url" -> null)).build()
+        case Some(coverImage) =>
+          val owner = getOwner(ctx, did)
+          val fullPath = s"${owner.getEmail}/${dataset.getName}/$coverImage"
+
+          val document = DocumentFactory
+            .openReadonlyDocument(FileResolver.resolve(fullPath))
+            .asInstanceOf[OnDataset]
+
+          val presignedUrl = LakeFSStorageClient.getFilePresignedUrl(
+            document.getRepositoryName(),
+            document.getVersionHash(),
+            document.getFileRelativePath()
+          )
+
+          Response.ok(Map("url" -> presignedUrl)).build()
+      }
     }
   }
 }

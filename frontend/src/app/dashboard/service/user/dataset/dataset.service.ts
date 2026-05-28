@@ -557,4 +557,8 @@ export class DatasetService {
       coverImage: coverImage,
     });
   }
+
+  public getDatasetCoverUrl(did: number): Observable<{ url: string | null }> {
+    return this.http.get<{ url: string | null }>(`${AppSettings.getApiEndpoint()}/dataset/${did}/cover-url`);
+  }
 }
