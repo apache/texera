@@ -2139,9 +2139,11 @@ class DatasetResource extends LazyLogging {
   }
 
   /**
-    * 307 redirect to a presigned S3 URL for the dataset cover.
-    * For `<img src>` consumption of public covers; for JWT-aware callers
-    * (e.g., private datasets), use GET /{did}/cover-url.
+    * Get the cover image for a dataset.
+    * Returns a 307 redirect to the presigned S3 URL.
+    *
+    * @param did Dataset ID
+    * @return 307 Temporary Redirect to cover image
     */
   @GET
   @Path("/{did}/cover")
