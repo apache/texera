@@ -24,6 +24,11 @@ import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport.Universal
 ThisBuild / Test / javaOptions ++=
   JdkOptions.jvmFlags((ThisBuild / baseDirectory).value)
 
+// Fail Java compilation on deprecation warnings so PRs can't reintroduce
+// deprecated-API patterns (e.g. scala.collection.JavaConverters in Java
+// callers — the modern Java entry point is scala.jdk.javaapi.CollectionConverters).
+// -Xlint:deprecation surfaces the per-call-site location, -Werror turns it fatal.
+ThisBuild / Compile / javacOptions ++= Seq("-Xlint:deprecation", "-Werror")
 // Emit one JUnit-XML file per spec under each module's target/test-reports/.
 // Codecov Test Analytics ingests these via `report_type: test_results` to
 // surface failing-test stack traces in PR comments and flag tests that have
