@@ -43,10 +43,11 @@ object AccessControlResource extends LazyLogging {
   private val wsapiWorkflowWebsocket: Regex = """.*/wsapi/workflow-websocket.*""".r
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
-  private val pveRoute: Regex = """.*/(?:api/|wsapi/)?pve(?:/.*)?""".r
+  private val pveRoute: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve(?:/.*)?$""".r
   // Path patterns whose cuid lives in the URL path rather than the query string.
-  private val pvePvesCuidPath: Regex = """.*/pve/pves/([0-9]+).*""".r
-  private val pvePackagesCuidPath: Regex = """.*/pve/([0-9]+)/[^/]+/packages/.+""".r
+  private val pvePvesCuidPath: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve/pves/([0-9]+)$""".r
+  private val pvePackagesCuidPath: Regex =
+    """^/?(?:auth/)?(?:api/|wsapi/)?pve/([0-9]+)/[^/]+/packages/.+$""".r
 
   /**
     * Authorize the request based on the path and headers.
