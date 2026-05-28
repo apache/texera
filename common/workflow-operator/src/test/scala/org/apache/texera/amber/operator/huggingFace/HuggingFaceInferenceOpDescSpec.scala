@@ -110,7 +110,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     // else in the template. If our encoding regressed back to raw literals
     // (e.g. `MODEL_ID = "MARKER_zXyq42"`), this assertion would fail.
     val marker = "MARKER_zXyq42"
-    val code = makeDesc(modelId = marker, promptColumn = marker, token = marker).generatePythonCode()
+    val code =
+      makeDesc(modelId = marker, promptColumn = marker, token = marker).generatePythonCode()
     code should not include marker
   }
 
