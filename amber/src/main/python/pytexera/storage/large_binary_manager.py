@@ -30,6 +30,18 @@ from core.storage.storage_config import StorageConfig
 _s3_client = None
 DEFAULT_BUCKET = "texera-large-binaries"
 
+# Per-worker execution context. A Python worker is a single process serving one
+# execution, so a module-level value is sufficient (no thread-local needed). It is
+# set at executor init and read by create() so the user-facing largebinary() API
+# stays execution-id-free.
+_current_execution_id = None
+
+
+def set_current_execution_id(execution_id):
+    """Sets the execution id used to scope large binaries created by this worker."""
+    global _current_execution_id
+    _current_execution_id = execution_id
+
 
 def _get_s3_client():
     """Get or initialize S3 client (lazy initialization, cached)."""
@@ -68,18 +80,18 @@ def create() -> str:
     Creates a new largebinary reference with a unique, execution-scoped S3 URI.
 
     The object key is namespaced by the current execution id so cleanup can delete
-    only this execution's objects. The execution id is injected by the system (set on
-    StorageConfig when the worker is initialized); callers never pass it.
+    only this execution's objects. The execution id is injected by the system (set via
+    set_current_execution_id() when the worker is initialized); callers never pass it.
 
     Returns:
         S3 URI string (format: s3://bucket/objects/{execution_id}/{uuid})
     """
     _ensure_bucket_exists(DEFAULT_BUCKET)
-    execution_id = StorageConfig.EXECUTION_ID
+    execution_id = _current_execution_id
     if execution_id is None:
         raise RuntimeError(
-            "largebinary() requires an execution context, but "
-            "StorageConfig.EXECUTION_ID is not set."
+            "largebinary() requires an execution context, but no execution id "
+            "has been set for this worker."
         )
     unique_id = uuid.uuid4()
     object_key = f"objects/{execution_id}/{unique_id}"

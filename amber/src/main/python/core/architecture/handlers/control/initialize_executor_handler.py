@@ -16,7 +16,6 @@
 # under the License.
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.storage.storage_config import StorageConfig
 from core.util import get_one_of
 from proto.org.apache.texera.amber.core import OpExecWithCode
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
@@ -27,10 +26,12 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 
 class InitializeExecutorHandler(ControlHandler):
     async def initialize_executor(self, req: InitializeExecutorRequest) -> EmptyReturn:
+        from pytexera.storage import large_binary_manager
+
         op_exec_with_code: OpExecWithCode = get_one_of(req.op_exec_init_info)
         # betterproto returns an empty (falsy) ExecutionIdentity when the field is
         # unset, not None, so use truthiness to detect a real id.
-        StorageConfig.EXECUTION_ID = (
+        large_binary_manager.set_current_execution_id(
             req.execution_id.id if req.execution_id else None
         )
         self.context.executor_manager.initialize_executor(

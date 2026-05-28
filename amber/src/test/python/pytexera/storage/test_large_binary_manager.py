@@ -45,10 +45,10 @@ class TestLargeBinaryManager:
                 s3_auth_password="minioadmin",
             )
         # Provide a default execution id so create() doesn't raise.
-        original_eid = StorageConfig.EXECUTION_ID
-        StorageConfig.EXECUTION_ID = 1
+        original_eid = large_binary_manager._current_execution_id
+        large_binary_manager.set_current_execution_id(1)
         yield
-        StorageConfig.EXECUTION_ID = original_eid
+        large_binary_manager.set_current_execution_id(original_eid)
 
     def test_get_s3_client_initializes_once(self):
         """Test that S3 client is initialized and cached."""
@@ -140,7 +140,7 @@ class TestLargeBinaryManager:
             # Check URI format: s3://bucket/objects/{eid}/{uuid}
             assert uri.startswith("s3://")
             assert uri.startswith(f"s3://{large_binary_manager.DEFAULT_BUCKET}/")
-            assert f"objects/{StorageConfig.EXECUTION_ID}/" in uri
+            assert f"objects/{large_binary_manager._current_execution_id}/" in uri
 
             # Verify bucket was checked/created
             mock_client.head_bucket.assert_called_once_with(
@@ -159,7 +159,7 @@ class TestLargeBinaryManager:
 
             uri = large_binary_manager.create()
             assert large_binary_manager.DEFAULT_BUCKET in uri
-            assert f"objects/{StorageConfig.EXECUTION_ID}/" in uri
+            assert f"objects/{large_binary_manager._current_execution_id}/" in uri
 
 
 def test_create_stamps_execution_id(monkeypatch):
@@ -167,7 +167,7 @@ def test_create_stamps_execution_id(monkeypatch):
     monkeypatch.setattr(
         large_binary_manager, "_ensure_bucket_exists", lambda bucket: None
     )
-    monkeypatch.setattr(StorageConfig, "EXECUTION_ID", 42, raising=False)
+    monkeypatch.setattr(large_binary_manager, "_current_execution_id", 42)
 
     uri = large_binary_manager.create()
 
@@ -180,7 +180,7 @@ def test_create_without_execution_context_raises(monkeypatch):
     monkeypatch.setattr(
         large_binary_manager, "_ensure_bucket_exists", lambda bucket: None
     )
-    monkeypatch.setattr(StorageConfig, "EXECUTION_ID", None, raising=False)
+    monkeypatch.setattr(large_binary_manager, "_current_execution_id", None)
 
     with pytest.raises(RuntimeError):
         large_binary_manager.create()
