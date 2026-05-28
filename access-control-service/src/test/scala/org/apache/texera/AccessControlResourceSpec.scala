@@ -234,8 +234,6 @@ class AccessControlResourceSpec
     response.getHeaderString(HeaderField.UserEmail) shouldBe testUser1.getEmail
   }
 
-  // Builds a UriInfo/HttpHeaders pair authenticated as testUser1, with the given path and
-  // (optional) cuid query param. Used by the PVE-route tests below.
   private def mockRequest(
       path: String,
       cuidQueryParam: Option[String]
