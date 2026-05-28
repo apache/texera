@@ -29,8 +29,6 @@ class InitializeExecutorHandler(ControlHandler):
         from pytexera.storage import large_binary_manager
 
         op_exec_with_code: OpExecWithCode = get_one_of(req.op_exec_init_info)
-        # betterproto returns an empty (falsy) ExecutionIdentity when the field is
-        # unset, not None, so use truthiness to detect a real id.
         large_binary_manager.set_current_execution_id(
             req.execution_id.id if req.execution_id else None
         )

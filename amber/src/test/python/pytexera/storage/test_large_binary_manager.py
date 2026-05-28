@@ -171,9 +171,7 @@ def test_create_stamps_execution_id(monkeypatch):
 
     uri = large_binary_manager.create()
 
-    assert re.fullmatch(
-        r"s3://texera-large-binaries/objects/42/[0-9a-fA-F-]+", uri
-    )
+    assert re.fullmatch(r"s3://texera-large-binaries/objects/42/[0-9a-fA-F-]+", uri)
 
 
 def test_create_without_execution_context_raises(monkeypatch):

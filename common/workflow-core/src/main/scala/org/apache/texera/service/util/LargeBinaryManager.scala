@@ -70,9 +70,20 @@ object LargeBinaryManager extends LazyLogging {
     *
     * @param executionId the execution whose large binaries should be removed
     */
-  def deleteByExecution(executionId: Long): Unit = {
+  def deleteByExecution(executionId: Long): Unit =
+    deleteByExecution(executionId, S3StorageClient.deleteDirectory)
+
+  /**
+    * Overload that takes the directory-delete operation as a parameter. Visible for
+    * testing so specs can exercise the swallow-and-log error path without a live
+    * S3/MinIO endpoint.
+    */
+  private[util] def deleteByExecution(
+      executionId: Long,
+      deleteDir: (String, String) => Unit
+  ): Unit = {
     try {
-      S3StorageClient.deleteDirectory(DEFAULT_BUCKET, s"objects/$executionId")
+      deleteDir(DEFAULT_BUCKET, s"objects/$executionId")
       logger.info(
         s"Deleted large binaries for execution $executionId from bucket: $DEFAULT_BUCKET"
       )

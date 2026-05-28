@@ -30,10 +30,7 @@ from core.storage.storage_config import StorageConfig
 _s3_client = None
 DEFAULT_BUCKET = "texera-large-binaries"
 
-# Per-worker execution context. A Python worker is a single process serving one
-# execution, so a module-level value is sufficient (no thread-local needed). It is
-# set at executor init and read by create() so the user-facing largebinary() API
-# stays execution-id-free.
+# Set at executor init and read by create()
 _current_execution_id = None
 
 
@@ -82,11 +79,10 @@ def _ensure_bucket_exists(bucket: str):
 
 def create() -> str:
     """
-    Creates a new largebinary reference with a unique, execution-scoped S3 URI.
+    Creates a new largebinary reference with a unique S3 URI.
 
     The object key is namespaced by the current execution id so cleanup can delete
-    only this execution's objects. The execution id is injected by the system (set via
-    set_current_execution_id() when the worker is initialized); callers never pass it.
+    only this execution's objects.
 
     Returns:
         S3 URI string (format: s3://bucket/objects/{execution_id}/{uuid})
