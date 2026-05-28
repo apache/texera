@@ -88,6 +88,7 @@ class TestCheckHeartbeat:
             return_value=fake_sock,
         ):
             assert hb._check_heartbeat() is True
+            fake_sock.close.assert_called_once()
 
 
 class TestRunEarlyExit:
