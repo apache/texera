@@ -236,10 +236,16 @@ export class AgentService {
 
   /**
    * Build HTTP headers for agent-service requests.
-   * Includes X-Agent-Workflow-Id for consistent hash routing in k8s.
+   * Includes the user's bearer token (used for access control when the agent
+   * service has AGENT_AUTH_REQUIRED enabled) and X-Agent-Workflow-Id for
+   * consistent hash routing in k8s.
    */
   private agentHeaders(agentId?: string): { headers: HttpHeaders } {
     let headers = new HttpHeaders();
+    const token = AuthService.getAccessToken();
+    if (token) {
+      headers = headers.set("Authorization", `Bearer ${token}`);
+    }
     if (agentId) {
       const wid = this.agentStateTracking.get(agentId)?.workflowId;
       if (wid !== undefined) {
@@ -256,7 +262,7 @@ export class AgentService {
    */
   private syncAgentsWithBackend(): void {
     this.http
-      .get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`)
+      .get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`, this.agentHeaders())
       .pipe(catchError(() => of({ agents: [] })))
       .subscribe(response => {
         const backendAgentIds = new Set(response.agents.map(a => a.id));
@@ -408,9 +414,13 @@ export class AgentService {
    * Start WebSocket connection for real-time ReActSteps updates
    */
   private startStatePolling(agentId: string, tracking: AgentStateTracking): void {
-    // Build WebSocket URL
+    // Build WebSocket URL. Browsers cannot set headers on the WS handshake, so
+    // the bearer token is passed as the access-token query parameter (matching
+    // the other Texera websocket clients) for access control.
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react`;
+    const token = AuthService.getAccessToken();
+    const tokenParam = token ? `?access-token=${encodeURIComponent(token)}` : "";
+    const wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react${tokenParam}`;
 
     const ws = new WebSocket(wsUrl);
     tracking.websocket = ws;
@@ -792,7 +802,7 @@ export class AgentService {
    * Also syncs local cache with backend - removes any stale agents that no longer exist on the backend.
    */
   public getAllAgents(): Observable<AgentInfo[]> {
-    return this.http.get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`).pipe(
+    return this.http.get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`, this.agentHeaders()).pipe(
       map(response => {
         const agents = response.agents.map(a => ({
           id: a.id,
