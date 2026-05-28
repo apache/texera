@@ -273,10 +273,6 @@ texeraEnvVars:
     value: "true"
   - name: USER_SYS_GOOGLE_CLIENT_ID
     value: ""
-  - name: USER_SYS_GOOGLE_CLIENT_SECRET
-    value: ""
-  - name: USER_SYS_GOOGLE_API_KEY
-    value: ""
   - name: USER_SYS_GOOGLE_SMTP_GMAIL
     value: ""
   - name: USER_SYS_GOOGLE_SMTP_PASSWORD
