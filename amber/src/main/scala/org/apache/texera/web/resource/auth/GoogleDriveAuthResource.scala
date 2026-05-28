@@ -21,15 +21,13 @@ package org.apache.texera.web.resource.auth
 import io.dropwizard.auth.Auth
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.auth.{JwtParser, SessionUser, TokenEncryptionService}
+import org.apache.texera.auth.{SessionUser, TokenEncryptionService}
 import org.apache.texera.web.model.http.response.DriveTokenIssueResponse
 import org.apache.texera.web.resource.auth.GoogleDriveAuthResource._
 import org.apache.texera.dao.jooq.generated.tables.daos.UserOauthTokenDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.UserOauthToken
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.config.UserSystemConfig
-import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
-import org.apache.texera.auth.JwtAuth
 import com.google.api.client.googleapis.auth.oauth2.{
   GoogleAuthorizationCodeRequestUrl,
   GoogleAuthorizationCodeTokenRequest,
@@ -40,6 +38,7 @@ import com.google.api.client.auth.oauth2.TokenResponseException
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 
+import java.util.concurrent.ConcurrentHashMap
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -51,7 +50,12 @@ object GoogleDriveAuthResource {
   private val STATUS_INVALID_GRANT = "invalid_grant"
   private val PROVIDER_GOOGLE_DRIVE = "google_drive"
 
+  private val STATE_TTL_MS = 10 * 60 * 1000L
+
   private val mapper = new ObjectMapper()
+
+  // state token → (uid, expiresAtMs)
+  private val pendingStates = new ConcurrentHashMap[String, (Int, Long)]()
 
   private def oauthTokenDao =
     new UserOauthTokenDao(
@@ -123,15 +127,15 @@ class GoogleDriveAuthResource extends LazyLogging {
       return Response.status(Response.Status.BAD_REQUEST).build()
     }
     try {
-      val sessionUserOpt = JwtParser.parseToken(state)
-      if (!sessionUserOpt.isPresent) {
+      val entry = pendingStates.remove(state)
+      if (entry == null || System.currentTimeMillis() > entry._2) {
         return Response
           .status(Response.Status.UNAUTHORIZED)
-          .entity("User is not authenticated")
+          .entity("OAuth state token is invalid or expired")
           .build()
       }
 
-      val uid = sessionUserOpt.get().getUid
+      val uid = entry._1
 
       val tokenResponse: GoogleTokenResponse = new GoogleAuthorizationCodeTokenRequest(
         new NetHttpTransport(),
@@ -186,15 +190,15 @@ class GoogleDriveAuthResource extends LazyLogging {
       @Auth sessionUser: SessionUser,
       @QueryParam("reauth") @DefaultValue("false") reauth: Boolean
   ): Response = {
-    val user = sessionUser.getUser
-    val state = JwtAuth.jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES))
+    val stateToken = java.util.UUID.randomUUID().toString
+    pendingStates.put(stateToken, (sessionUser.getUid, System.currentTimeMillis() + STATE_TTL_MS))
 
     val url = new GoogleAuthorizationCodeRequestUrl(
       clientId,
       redirectUri,
       java.util.Arrays.asList("https://www.googleapis.com/auth/drive")
     )
-      .setState(state)
+      .setState(stateToken)
       .setAccessType("offline")
       .set("prompt", if (reauth) "consent" else null)
       .set("include_granted_scopes", true)
