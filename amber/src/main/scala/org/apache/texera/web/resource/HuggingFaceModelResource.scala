@@ -201,6 +201,20 @@ class HuggingFaceModelResource {
         return errorResponse(Response.Status.NOT_FOUND, "Uploaded audio file was not found.")
       }
 
+      // Defense-in-depth: even though /upload-audio enforces MAX_AUDIO_BYTES on
+      // ingest, refuse to buffer an oversized file into heap on the response
+      // side. Catches files placed via a future-bug or out-of-band write.
+      val size = Files.size(requestedPath)
+      if (size > MAX_AUDIO_BYTES) {
+        logger.warn(
+          s"Uploaded audio file size $size exceeds cap $MAX_AUDIO_BYTES; rejecting."
+        )
+        return errorResponse(
+          Response.Status.REQUEST_ENTITY_TOO_LARGE,
+          "Uploaded audio file exceeds the size limit."
+        )
+      }
+
       val contentType = Option(Files.probeContentType(requestedPath))
         .filter(_.trim.nonEmpty)
         .getOrElse(inferAudioContentType(requestedPath))
@@ -239,28 +253,78 @@ class HuggingFaceModelResource {
         return errorResponse(Response.Status.FORBIDDEN, "Media URL host is not allowed.")
       }
 
-      val upstreamResponse = Unirest
+      // Stream the upstream response via asObject(Function<RawResponse, T>) so
+      // we never have to materialise it into a heap-resident byte[] before we
+      // can enforce the size cap. The function returns a MediaProxyOutcome
+      // that this method then converts into a Jersey Response.
+      val outcome = Unirest
         .get(trimmedUrl)
         .connectTimeout(CONNECT_TIMEOUT_MS)
         .socketTimeout(SOCKET_TIMEOUT_LONG_MS)
-        .asBytes()
+        .asObject((raw: kong.unirest.RawResponse) => streamMediaWithCap(raw))
+        .getBody
 
-      if (upstreamResponse.getStatus != 200) {
-        logger.warn(
-          s"Upstream media fetch returned ${upstreamResponse.getStatus}: ${upstreamResponse.getStatusText}"
-        )
-        return errorResponse(upstreamResponse.getStatus, "Failed to fetch remote media.")
+      outcome match {
+        case MediaProxyOk(bytes, contentType) =>
+          Response.ok(bytes, contentType.getOrElse(MediaType.APPLICATION_OCTET_STREAM)).build()
+        case MediaProxyError(status, message) =>
+          errorResponse(status, message)
       }
-
-      val contentType = Option(upstreamResponse.getHeaders.getFirst("Content-Type"))
-        .filter(_.trim.nonEmpty)
-        .getOrElse(MediaType.APPLICATION_OCTET_STREAM)
-      Response.ok(upstreamResponse.getBody, contentType).build()
     } catch {
       case e: Exception =>
         logger.error("Failed to proxy remote media", e)
         errorResponse(Response.Status.INTERNAL_SERVER_ERROR, "Failed to proxy remote media.")
     }
+  }
+
+  /**
+    * Read an upstream media response with a hard size cap. Aborts early both
+    * when the declared Content-Length exceeds the cap and when the body crosses
+    * it mid-read (in case the upstream lies about Content-Length or omits it).
+    */
+  private def streamMediaWithCap(raw: kong.unirest.RawResponse): MediaProxyOutcome = {
+    if (raw.getStatus != 200) {
+      logger.warn(s"Upstream media fetch returned ${raw.getStatus}: ${raw.getStatusText}")
+      return MediaProxyError(raw.getStatus, "Failed to fetch remote media.")
+    }
+
+    val declaredLength = Option(raw.getHeaders.getFirst("Content-Length"))
+      .flatMap(s => scala.util.Try(s.trim.toLong).toOption)
+    if (declaredLength.exists(_ > MAX_MEDIA_PROXY_BYTES)) {
+      logger.warn(
+        s"Upstream Content-Length ${declaredLength.get} exceeds cap $MAX_MEDIA_PROXY_BYTES; rejecting."
+      )
+      return MediaProxyError(
+        Response.Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode,
+        "Remote media exceeds the size limit."
+      )
+    }
+
+    val buffered = new java.io.ByteArrayOutputStream()
+    val buf = new Array[Byte](8 * 1024)
+    val in = raw.getContent
+    var totalBytes = 0L
+    var exceeded = false
+    var read = in.read(buf)
+    while (read != -1 && !exceeded) {
+      totalBytes += read
+      if (totalBytes > MAX_MEDIA_PROXY_BYTES) {
+        exceeded = true
+      } else {
+        buffered.write(buf, 0, read)
+        read = in.read(buf)
+      }
+    }
+    if (exceeded) {
+      logger.warn(s"Upstream media exceeded cap $MAX_MEDIA_PROXY_BYTES mid-stream; rejecting.")
+      return MediaProxyError(
+        Response.Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode,
+        "Remote media exceeds the size limit."
+      )
+    }
+
+    val contentType = Option(raw.getContentType).map(_.trim).filter(_.nonEmpty)
+    MediaProxyOk(buffered.toByteArray, contentType)
   }
 
   /** Search HF Hub for models matching a query within a task. */
@@ -593,6 +657,18 @@ object HuggingFaceModelResource {
   private[resource] val ALLOWED_AUDIO_EXTENSIONS: Set[String] =
     Set(".wav", ".mp3", ".mpeg", ".flac", ".ogg", ".oga", ".webm", ".opus", ".amr", ".m4a", ".aac")
   private[resource] val AUDIO_TEMP_TTL_MS: Long = 60L * 60L * 1000L // 1 hour
+
+  // ── /media-proxy size cap: bounds the upstream response we buffer in heap ──
+  // Sized to cover HF inference media outputs (text-to-image ~5 MiB,
+  // text-to-video ~30 MiB) with headroom. Bumps should land in their own PR.
+  private[resource] val MAX_MEDIA_PROXY_BYTES: Long = 50L * 1024L * 1024L // 50 MiB
+
+  /** Outcome of streaming an upstream media response with the size cap. */
+  private[resource] sealed trait MediaProxyOutcome
+  private[resource] case class MediaProxyOk(bytes: Array[Byte], contentType: Option[String])
+      extends MediaProxyOutcome
+  private[resource] case class MediaProxyError(status: Int, message: String)
+      extends MediaProxyOutcome
 
   // ── /media-proxy allowlist (SSRF protection) ──
   // Add new hosts here when integrating with a new HF inference provider.
