@@ -33,23 +33,62 @@ object LargeBinaryManager extends LazyLogging {
   val DEFAULT_BUCKET: String = "texera-large-binaries"
 
   /**
-    * Creates a new LargeBinary reference.
+    * Worker-scoped execution context. It is set on the data-processing thread when an
+    * executor is initialized, so that create() can stamp each object key with its owning
+    * execution id without threading the id through every operator. A thread-local keeps
+    * concurrent executions in the same JVM isolated, because each worker runs on its own
+    * data-processing thread.
+    */
+  private val currentExecutionId: ThreadLocal[Option[Long]] =
+    ThreadLocal.withInitial(() => Option.empty[Long])
+
+  /** Sets the execution id for large binaries created on the current thread. */
+  def setCurrentExecutionId(executionId: Long): Unit =
+    currentExecutionId.set(Some(executionId))
+
+  /**
+    * Creates a new LargeBinary reference scoped to the current execution.
     * The actual data upload happens separately via LargeBinaryOutputStream.
     *
-    * @return S3 URI string for the new LargeBinary (format: s3://bucket/key)
+    * @return S3 URI string for the new LargeBinary (format: s3://bucket/objects/{eid}/{uuid})
     */
   def create(): String = {
-    val objectKey = s"objects/${System.currentTimeMillis()}/${UUID.randomUUID()}"
-    val uri = s"s3://$DEFAULT_BUCKET/$objectKey"
-
-    uri
+    val eid = currentExecutionId
+      .get()
+      .getOrElse(
+        throw new IllegalStateException(
+          "LargeBinaryManager.create() requires an execution context, " +
+            "but none was set on the current thread."
+        )
+      )
+    val objectKey = s"objects/$eid/${UUID.randomUUID()}"
+    s"s3://$DEFAULT_BUCKET/$objectKey"
   }
 
   /**
-    * Deletes all large binaries from the bucket.
+    * Deletes all large binaries belonging to a single execution.
     *
-    * @throws java.lang.Exception if the deletion fails
-    * @return Unit
+    * @param executionId the execution whose large binaries should be removed
+    */
+  def deleteByExecution(executionId: Long): Unit = {
+    try {
+      S3StorageClient.deleteDirectory(DEFAULT_BUCKET, s"objects/$executionId")
+      logger.info(
+        s"Deleted large binaries for execution $executionId from bucket: $DEFAULT_BUCKET"
+      )
+    } catch {
+      case e: Exception =>
+        logger.warn(
+          s"Failed to delete large binaries for execution $executionId " +
+            s"from bucket: $DEFAULT_BUCKET",
+          e
+        )
+    }
+  }
+
+  /**
+    * Deletes all large binaries from the bucket. Destructive maintenance use only.
+    * Removed in a later task once no caller remains.
     */
   def deleteAllObjects(): Unit = {
     try {

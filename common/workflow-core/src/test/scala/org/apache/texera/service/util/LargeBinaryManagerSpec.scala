@@ -21,8 +21,18 @@ package org.apache.texera.service.util
 
 import org.apache.texera.amber.core.tuple.LargeBinary
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.BeforeAndAfterEach
 
-class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
+class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with BeforeAndAfterEach {
+
+  /** Execution id used by the bulk of the tests. */
+  private val TestExecutionId: Long = 9999L
+
+  /** Each test creates large binaries; they need an execution context on the thread. */
+  override def beforeEach(): Unit = {
+    super.beforeEach()
+    LargeBinaryManager.setCurrentExecutionId(TestExecutionId)
+  }
 
   /** Creates a large binary from string data and returns it. */
   private def createLargeBinary(data: String): LargeBinary = {
@@ -54,7 +64,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     assert(stream.readAllBytes().sameElements(data.getBytes))
     stream.close()
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryInputStream should read exact number of bytes") {
@@ -67,7 +77,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     assert(result.sameElements("0123456789".getBytes))
     stream.close()
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryInputStream should handle reading more bytes than available") {
@@ -81,7 +91,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     assert(result.sameElements(data.getBytes))
     stream.close()
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryInputStream should support standard single-byte read") {
@@ -94,7 +104,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     assert(stream.read() == -1) // EOF
     stream.close()
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryInputStream should return -1 at EOF") {
@@ -105,7 +115,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     assert(stream.read() == -1)
     stream.close()
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryInputStream should throw exception when reading from closed stream") {
@@ -117,7 +127,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     assertThrows[java.io.IOException](stream.read())
     assertThrows[java.io.IOException](stream.readAllBytes())
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryInputStream should handle multiple close calls") {
@@ -127,7 +137,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     stream.close()
     stream.close() // Should not throw
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryInputStream should read large data correctly") {
@@ -145,7 +155,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     assert(result.sameElements(largeData))
     stream.close()
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   // ========================================
@@ -200,18 +210,18 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
       out2.close()
     }
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryManager should handle delete with no objects gracefully") {
-    LargeBinaryManager.deleteAllObjects() // Should not throw exception
+    LargeBinaryManager.deleteByExecution(TestExecutionId) // Should not throw exception
   }
 
   test("LargeBinaryManager should delete all objects") {
     val pointer1 = createLargeBinary("Test data")
     val pointer2 = createLargeBinary("Test data")
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryManager should create bucket if it doesn't exist") {
@@ -219,7 +229,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
 
     assertStandardBucket(pointer)
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryManager should handle large objects correctly") {
@@ -237,7 +247,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     stream.close()
 
     assert(readData.sameElements(largeData))
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryManager should generate unique URIs for different objects") {
@@ -261,7 +271,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     assert(pointer1.getUri != pointer2.getUri)
     assert(pointer1.getObjectKey != pointer2.getObjectKey)
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryInputStream should handle multiple reads from the same large binary") {
@@ -279,7 +289,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     assert(readData1.sameElements(data.getBytes))
     assert(readData2.sameElements(data.getBytes))
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryManager should properly parse bucket name and object key from large binary") {
@@ -289,7 +299,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     assert(largeBinary.getObjectKey.nonEmpty)
     assert(!largeBinary.getObjectKey.startsWith("/"))
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   // ========================================
@@ -309,7 +319,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
 
     assertStandardBucket(largeBinary)
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryInputStream constructor should read large binary contents") {
@@ -322,7 +332,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
 
     assert(readData.sameElements(data.getBytes))
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryOutputStream and LargeBinaryInputStream should work together end-to-end") {
@@ -344,7 +354,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
 
     assert(readData.sameElements(data.getBytes))
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   // ========================================
@@ -368,7 +378,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
 
     assert(readData.sameElements(data.getBytes))
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryOutputStream should create large binary") {
@@ -381,7 +391,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
 
     assertStandardBucket(largeBinary)
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryOutputStream should handle large data correctly") {
@@ -399,7 +409,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
 
     assert(readData.sameElements(largeData))
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryOutputStream should handle multiple writes") {
@@ -416,7 +426,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
 
     assert(readData.sameElements("Hello World!".getBytes))
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryOutputStream should throw exception when writing to closed stream") {
@@ -427,7 +437,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
 
     assertThrows[java.io.IOException](outStream.write("more".getBytes))
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinaryOutputStream should handle close() being called multiple times") {
@@ -437,7 +447,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     outStream.close()
     outStream.close() // Should not throw
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("New LargeBinary() constructor should create unique URIs") {
@@ -447,7 +457,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     assert(largeBinary1.getUri != largeBinary2.getUri)
     assert(largeBinary1.getObjectKey != largeBinary2.getObjectKey)
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
   test("LargeBinary() and LargeBinaryOutputStream API should be symmetric with input") {
@@ -466,6 +476,42 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
 
     assert(readData.sameElements(data.getBytes))
 
-    LargeBinaryManager.deleteAllObjects()
+    LargeBinaryManager.deleteByExecution(TestExecutionId)
+  }
+
+  test("create() stamps the object key with the current execution id") {
+    LargeBinaryManager.setCurrentExecutionId(123L)
+    val uri = LargeBinaryManager.create()
+    assert(uri.startsWith("s3://texera-large-binaries/objects/123/"))
+  }
+
+  test("deleteByExecution removes only the target execution's binaries") {
+    // Create one binary under execution 1001 and another under 1002.
+    LargeBinaryManager.setCurrentExecutionId(1001L)
+    createLargeBinary("data for 1001")
+    LargeBinaryManager.setCurrentExecutionId(1002L)
+    createLargeBinary("data for 1002")
+
+    // Delete only execution 1001's binaries.
+    LargeBinaryManager.deleteByExecution(1001L)
+
+    try {
+      assert(!S3StorageClient.directoryExists("texera-large-binaries", "objects/1001"))
+      assert(S3StorageClient.directoryExists("texera-large-binaries", "objects/1002"))
+    } finally {
+      LargeBinaryManager.deleteByExecution(1002L)
+    }
+  }
+
+  test("create() throws when no execution context is set on the thread") {
+    // Run on a fresh thread, where the thread-local defaults to None.
+    @volatile var caught: Option[Throwable] = None
+    val t = new Thread(() => {
+      try LargeBinaryManager.create()
+      catch { case e: Throwable => caught = Some(e) }
+    })
+    t.start()
+    t.join()
+    assert(caught.exists(_.isInstanceOf[IllegalStateException]))
   }
 }
