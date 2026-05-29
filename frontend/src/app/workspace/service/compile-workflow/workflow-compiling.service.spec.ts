@@ -23,27 +23,28 @@ import { WorkflowCompilingService } from "./workflow-compiling.service";
 describe("WorkflowCompilingService.dropInvalidAttributeValues", () => {
   // A schema shaped like the Aggregate operator after schema propagation has filled in the
   // valid input attribute names ("col_y" is the only attribute available on the new input).
-  const aggregateSchema = (): JSONSchema7Definition => ({
-    type: "object",
-    properties: {
-      groupByKeys: {
-        type: "array",
-        autofill: "attributeNameList",
-        items: { type: "string", enum: ["col_y", ""] },
-      },
-      aggregations: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            attribute: { type: "string", autofill: "attributeName", enum: ["col_y"] },
-            aggFunction: { type: "string" },
-            resultAttribute: { type: "string" },
+  const aggregateSchema = (): JSONSchema7Definition =>
+    ({
+      type: "object",
+      properties: {
+        groupByKeys: {
+          type: "array",
+          autofill: "attributeNameList",
+          items: { type: "string", enum: ["col_y", ""] },
+        },
+        aggregations: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              attribute: { type: "string", autofill: "attributeName", enum: ["col_y"] },
+              aggFunction: { type: "string" },
+              resultAttribute: { type: "string" },
+            },
           },
         },
       },
-    },
-  } as unknown as JSONSchema7Definition);
+    }) as unknown as JSONSchema7Definition;
 
   it("drops list entries and resets single attributes that are no longer valid", () => {
     const properties = {
