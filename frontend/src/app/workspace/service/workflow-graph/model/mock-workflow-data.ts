@@ -122,6 +122,17 @@ export const mockPythonUDFPredicate: OperatorPredicate = {
   isDisabled: false,
 };
 
+export const mockHuggingFacePredicate: OperatorPredicate = {
+  operatorID: "8",
+  operatorType: "HuggingFace",
+  operatorVersion: "hf1",
+  operatorProperties: { task: "text-generation", modelId: "" },
+  inputPorts: [{ portID: "input-0" }],
+  outputPorts: [{ portID: "output-0" }],
+  showAdvanced: true,
+  isDisabled: false,
+};
+
 export const mockScanResultLink: OperatorLink = {
   linkID: "link-1",
   source: {

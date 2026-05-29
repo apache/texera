@@ -32,6 +32,7 @@ import { FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import {
+  mockHuggingFacePredicate,
   mockPoint,
   mockResultPredicate,
   mockScanPredicate,
@@ -336,5 +337,87 @@ describe("OperatorPropertyEditFrameComponent", () => {
       const descEl = fixture.debugElement.query(By.css(".operator-description"));
       expect(descEl).toBeNull();
     });
+  });
+
+  // ── HuggingFace task-aware visibility tests ──
+
+  it("should return null huggingFaceTaskPreview for non-HF operators", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview).toBeNull();
+  });
+
+  it("should return a task preview for HuggingFace operator with a known task", () => {
+    workflowActionService.addOperator(mockHuggingFacePredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockHuggingFacePredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("text");
+    expect(preview!.title).toBe("Text generation preview");
+  });
+
+  it("should return a fallback preview for HuggingFace operator with an unknown task", () => {
+    const hfPredicate = { ...cloneDeep(mockHuggingFacePredicate), operatorProperties: { task: "some-unknown-task", modelId: "" } };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("text");
+    expect(preview!.title).toBe("Some Unknown Task");
+  });
+
+  it("should return image kind preview for image-classification task", () => {
+    const hfPredicate = { ...cloneDeep(mockHuggingFacePredicate), operatorProperties: { task: "image-classification", modelId: "" } };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("image");
+  });
+
+  it("should return audio kind preview for text-to-speech task", () => {
+    const hfPredicate = { ...cloneDeep(mockHuggingFacePredicate), operatorProperties: { task: "text-to-speech", modelId: "" } };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("audio");
+  });
+
+  it("should return video kind preview for text-to-video task", () => {
+    const hfPredicate = { ...cloneDeep(mockHuggingFacePredicate), operatorProperties: { task: "text-to-video", modelId: "" } };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("video");
+  });
+
+  it("should return null preview when HuggingFace task is empty", () => {
+    const hfPredicate = { ...cloneDeep(mockHuggingFacePredicate), operatorProperties: { task: "", modelId: "" } };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview).toBeNull();
   });
 });
