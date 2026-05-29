@@ -70,6 +70,15 @@ object GoogleDriveAuthResource {
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class GoogleDriveAuthResource extends LazyLogging {
+  private def errorHtml(message: String): String =
+    s"""<html><body>
+       |<p style="font-family:sans-serif;padding:20px">$message</p>
+       |<script>
+       |window.opener?.postMessage('gdrive-error', window.location.origin);
+       |setTimeout(function(){ window.close(); }, 10000);
+       |</script>
+       |</body></html>""".stripMargin
+
   final private lazy val clientId = UserSystemConfig.googleClientId
   final private lazy val clientSecret = UserSystemConfig.googleClientSecret
   final private lazy val redirectUri = UserSystemConfig.appDomain
@@ -127,14 +136,13 @@ class GoogleDriveAuthResource extends LazyLogging {
       @QueryParam("state") @DefaultValue("") state: String
   ): Response = {
     if (code.isEmpty || state.isEmpty) {
-      return Response.status(Response.Status.BAD_REQUEST).build()
+      return Response.ok(errorHtml("Connection failed: invalid request. Please try again.")).build()
     }
     try {
       val entry = pendingStates.remove(state)
       if (entry == null || System.currentTimeMillis() > entry._2) {
         return Response
-          .status(Response.Status.UNAUTHORIZED)
-          .entity("OAuth state token is invalid or expired")
+          .ok(errorHtml("Connection failed: the authorisation request expired. Please try again."))
           .build()
       }
 
@@ -182,10 +190,16 @@ class GoogleDriveAuthResource extends LazyLogging {
     } catch {
       case e: TokenResponseException =>
         logger.error("Google token exchange failed in callback", e)
-        Response.status(Response.Status.BAD_GATEWAY).build()
+        Response
+          .ok(
+            errorHtml(
+              "Connection failed: could not complete sign-in with Google. Please try again."
+            )
+          )
+          .build()
       case e: Exception =>
         logger.error("Unexpected error in OAuth callback", e)
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR).build()
+        Response.ok(errorHtml("An unexpected error occurred. Please try again.")).build()
     }
   }
 
