@@ -782,7 +782,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getPVEs(): void {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
-    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
 
     this.workflowPveService
       .fetchPVEs(cuId)
@@ -802,7 +801,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           }));
 
           this.workflowPveService
-            .getSystemPackages(isLocal)
+            .getSystemPackages(cuId)
             .pipe(untilDestroyed(this))
             .subscribe({
               next: installedResp => {
@@ -880,11 +879,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
     const env = this.pves[index];
     const trimmedName = env.name.trim();
-    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
 
     env.socket?.close();
 
-    const websocketUrl = this.workflowPveService.getPveWebSocketUrl(cuId, trimmedName, isLocal, action, packages);
+    const websocketUrl = this.workflowPveService.getPveWebSocketUrl(cuId, trimmedName, action, packages);
 
     const socket = new WebSocket(websocketUrl);
 
@@ -967,7 +965,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
   createVirtualEnvironment(index: number): void {
     const env = this.pves[index];
     const trimmedName = env.name.trim();
-    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
 
     if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
       this.notificationService.error("Environment name must contain only letters and numbers.");
@@ -1066,7 +1063,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   private deleteUserPackages(index: number, onDone?: () => void): void {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
-    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
     const pveName = this.pves[index].name.trim();
     const packagesToDelete = [...this.pves[index].deletingPackages];
 
@@ -1094,7 +1090,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       const pkg = packagesToDelete[deleteIndex];
 
       this.workflowPveService
-        .deletePackage(cuId, pveName, pkg.name, isLocal)
+        .deletePackage(cuId, pveName, pkg.name)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: messages => {
