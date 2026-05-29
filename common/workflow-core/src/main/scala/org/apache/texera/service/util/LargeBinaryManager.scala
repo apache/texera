@@ -34,10 +34,7 @@ object LargeBinaryManager extends LazyLogging {
 
   /**
     * Worker-scoped execution context. It is set on the data-processing thread when an
-    * executor is initialized, so that create() can stamp each object key with its owning
-    * execution id without threading the id through every operator. A thread-local keeps
-    * concurrent executions in the same JVM isolated, because each worker runs on its own
-    * data-processing thread.
+    * executor is initialized.
     */
   private val currentExecutionId: ThreadLocal[Option[Long]] =
     ThreadLocal.withInitial(() => Option.empty[Long])
@@ -75,8 +72,7 @@ object LargeBinaryManager extends LazyLogging {
 
   /**
     * Overload that takes the directory-delete operation as a parameter. Visible for
-    * testing so specs can exercise the swallow-and-log error path without a live
-    * S3/MinIO endpoint.
+    * testing
     */
   private[util] def deleteByExecution(
       executionId: Long,
