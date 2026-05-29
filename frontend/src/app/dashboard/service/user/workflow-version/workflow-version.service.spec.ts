@@ -335,6 +335,14 @@ describe("WorkflowVersionService", () => {
       expect(modelAttr).toHaveBeenCalledWith("path.left-boundary/stroke", "rgba(0,0,0,0)");
       expect(modelAttr).toHaveBeenCalledWith("path.right-boundary/stroke", "rgba(0,0,0,0)");
     });
+
+    it("skips bracket clearing when the temp workflow is missing", () => {
+      actionSpy.getTempWorkflow.mockReturnValue(undefined);
+
+      service.unhighlightOpVersionDiff({ modified: [], added: [], deleted: ["dead"] });
+
+      expect(getMainJointPaper).not.toHaveBeenCalled();
+    });
   });
 
   // ─── getWorkflowsDifference / getOperatorsDifference ──────────────────────
