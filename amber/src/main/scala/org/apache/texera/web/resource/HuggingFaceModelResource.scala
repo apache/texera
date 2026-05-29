@@ -30,6 +30,7 @@ import java.net.URI
 import java.nio.file.{Files, Path => NioPath, Paths}
 import java.util.concurrent.{Callable, ForkJoinPool, TimeUnit}
 import java.util.stream.Collectors
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.jdk.CollectionConverters._
@@ -52,6 +53,7 @@ import scala.jdk.CollectionConverters._
   */
 @Path("/huggingface")
 @Produces(Array(MediaType.APPLICATION_JSON))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 class HuggingFaceModelResource {
 
   import HuggingFaceModelResource._
