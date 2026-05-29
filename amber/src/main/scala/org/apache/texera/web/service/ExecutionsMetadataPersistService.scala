@@ -77,7 +77,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
 
   def tryGetExistingExecution(executionId: ExecutionIdentity): Option[WorkflowExecutions] = {
     try {
-      Some(workflowExecutionsDao.fetchOneByEid(executionId.id.toInt))
+      Option(workflowExecutionsDao.fetchOneByEid(executionId.id.toInt))
     } catch {
       case t: Throwable =>
         logger.info("Unable to get execution. Error = " + t.getMessage)

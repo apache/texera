@@ -114,7 +114,7 @@ github:
           - "rel/*"
         excludes: []
       bypass_teams:
-        - root
+        - texera-committers
       restrict_deletion: true
       restrict_force_push: true
 notifications:
