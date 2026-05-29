@@ -38,6 +38,7 @@ import com.google.api.client.auth.oauth2.TokenResponseException
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 
+import java.sql.Timestamp
 import java.util.concurrent.ConcurrentHashMap
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -158,6 +159,7 @@ class GoogleDriveAuthResource extends LazyLogging {
 
       if (existing.isPresent) {
         existing.get().setAuthBlob(encryptedBlob)
+        existing.get().setUpdatedAt(new Timestamp(System.currentTimeMillis()))
         oauthTokenDao.update(existing.get())
       } else {
         val record = new UserOauthToken()
@@ -181,6 +183,22 @@ class GoogleDriveAuthResource extends LazyLogging {
         logger.error("Unexpected error in OAuth callback", e)
         Response.status(Response.Status.INTERNAL_SERVER_ERROR).build()
     }
+  }
+
+  @DELETE
+  @Path("/disconnect")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def disconnect(@Auth sessionUser: SessionUser): Response = {
+    val uid = sessionUser.getUid
+    val existing = oauthTokenDao.fetchByUid(uid).stream()
+      .filter(r => r.getProvider == PROVIDER_GOOGLE_DRIVE)
+      .findFirst()
+
+    if (existing.isPresent) {
+      oauthTokenDao.delete(existing.get())
+    }
+
+    Response.noContent().build()
   }
 
   @GET
