@@ -21,7 +21,12 @@ package org.apache.texera.amber.operator.huggingFace
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.huggingFace.codegen.{CodegenContext, TextGenCodegen}
+import org.apache.texera.amber.operator.huggingFace.codegen.{
+  AudioTaskCodegen,
+  CodegenContext,
+  MediaGenCodegen,
+  TextGenCodegen
+}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
@@ -39,7 +44,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       temperature: Double = 0.7,
       resultColumn: EncodableString = "hf_response",
       imageInput: EncodableString = "",
-      inputImageColumn: EncodableString = ""
+      inputImageColumn: EncodableString = "",
+      audioInput: EncodableString = "",
+      inputAudioColumn: EncodableString = ""
   ): HuggingFaceInferenceOpDesc = {
     val desc = new HuggingFaceInferenceOpDesc()
     desc.hfApiToken = token
@@ -52,6 +59,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     desc.resultColumn = resultColumn
     desc.imageInput = imageInput
     desc.inputImageColumn = inputImageColumn
+    desc.audioInput = audioInput
+    desc.inputAudioColumn = inputAudioColumn
     desc
   }
 
@@ -152,6 +161,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     desc.temperature = null
     desc.imageInput = null
     desc.inputImageColumn = null
+    desc.audioInput = null
+    desc.inputAudioColumn = null
     val code = desc.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator):")
     code should include("def open(self):")
@@ -399,6 +410,69 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     imageTasks.foreach { t =>
       val code = makeDesc(task = t).generatePythonCode()
       code should include("if task in image_only_tasks:")
+    }
+  }
+
+  "audio task family" should
+    "route ASR and audio-classification through AudioTaskCodegen as raw binary payloads" in {
+    val code =
+      makeDesc(task = "automatic-speech-recognition", inputAudioColumn = "audio")
+        .generatePythonCode()
+    code should include("self.AUDIO_INPUT = ")
+    code should include("self.INPUT_AUDIO_COLUMN = ")
+    code should include(
+      """audio_only_tasks = ("automatic-speech-recognition", "audio-classification")"""
+    )
+    code should include("payload = current_audio_bytes")
+    code should include("raw_binary_headers = audio_headers")
+    code should include("self._read_audio_input()")
+    code should include(
+      """if content_type.startswith("audio/") or content_type.startswith("video/"):"""
+    )
+  }
+
+  it should "route text-to-speech through AudioTaskCodegen and normalize audio URLs" in {
+    val code = makeDesc(task = "text-to-speech").generatePythonCode()
+    code should include("""elif task == "text-to-speech":""")
+    code should include("""payload = {"inputs": prompt_value}""")
+    code should include("self._audio_url_to_data_url(")
+    code should include("data:audio/mpeg;base64")
+  }
+
+  it should "register all audio task strings under the dispatcher" in {
+    AudioTaskCodegen.tasks should contain allOf (
+      "automatic-speech-recognition",
+      "audio-classification",
+      "text-to-speech"
+    )
+    AudioTaskCodegen.tasks.foreach { t =>
+      val code = makeDesc(task = t, inputAudioColumn = "audio").generatePythonCode()
+      code should include("if task in audio_only_tasks:")
+    }
+  }
+
+  "media generation task family" should
+    "route text-to-image through MediaGenCodegen and parse URL or b64 responses as data URLs" in {
+    val code = makeDesc(task = "text-to-image").generatePythonCode()
+    code should include("""if task in ("text-to-image", "text-to-video"):""")
+    code should include("""payload = {"inputs": prompt_value}""")
+    code should include("""if task == "text-to-image":""")
+    code should include("self._url_to_data_url(")
+    code should include("data:image/png;base64")
+  }
+
+  it should "route text-to-video through MediaGenCodegen and normalize remote video URLs" in {
+    val code = makeDesc(task = "text-to-video").generatePythonCode()
+    code should include("""elif task == "text-to-video":""")
+    code should include("self._url_to_data_url(")
+    code should include("video/mp4")
+  }
+
+  it should "register all media generation task strings under the dispatcher" in {
+    MediaGenCodegen.tasks should contain allOf ("text-to-image", "text-to-video")
+    MediaGenCodegen.tasks.foreach { t =>
+      val code = makeDesc(task = t).generatePythonCode()
+      code should include("""if task in ("text-to-image", "text-to-video"):""")
     }
   }
 
