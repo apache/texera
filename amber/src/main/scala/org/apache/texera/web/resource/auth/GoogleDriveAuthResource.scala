@@ -81,7 +81,9 @@ class GoogleDriveAuthResource extends LazyLogging {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def getDriveAccessToken(@Auth sessionUser: SessionUser): Response = {
     val uid = sessionUser.getUid
-    val record = oauthTokenDao.fetchByUid(uid).stream()
+    val record = oauthTokenDao
+      .fetchByUid(uid)
+      .stream()
       .filter(r => r.getProvider == PROVIDER_GOOGLE_DRIVE)
       .findFirst()
       .orElse(null)
@@ -153,7 +155,9 @@ class GoogleDriveAuthResource extends LazyLogging {
       val blobJson = mapper.writeValueAsString(blobMap)
       val encryptedBlob = TokenEncryptionService.encrypt(blobJson)
 
-      val existing = oauthTokenDao.fetchByUid(uid).stream()
+      val existing = oauthTokenDao
+        .fetchByUid(uid)
+        .stream()
         .filter(r => r.getProvider == PROVIDER_GOOGLE_DRIVE)
         .findFirst()
 
@@ -190,7 +194,9 @@ class GoogleDriveAuthResource extends LazyLogging {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def disconnect(@Auth sessionUser: SessionUser): Response = {
     val uid = sessionUser.getUid
-    val existing = oauthTokenDao.fetchByUid(uid).stream()
+    val existing = oauthTokenDao
+      .fetchByUid(uid)
+      .stream()
       .filter(r => r.getProvider == PROVIDER_GOOGLE_DRIVE)
       .findFirst()
 

@@ -25,7 +25,8 @@ import org.scalatest.matchers.should.Matchers
 class TokenEncryptionServiceSpec extends AnyFlatSpec with Matchers {
 
   "TokenEncryptionService" should "round-trip a plaintext string" in {
-    val plaintext = """{"refreshToken":"1//0gtoken","scopes":"https://www.googleapis.com/auth/drive"}"""
+    val plaintext =
+      """{"refreshToken":"1//0gtoken","scopes":"https://www.googleapis.com/auth/drive"}"""
     TokenEncryptionService.decrypt(TokenEncryptionService.encrypt(plaintext)) shouldBe plaintext
   }
 
