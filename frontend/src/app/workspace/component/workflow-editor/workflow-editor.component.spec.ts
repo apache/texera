@@ -117,11 +117,26 @@ describe("WorkflowEditorComponent", () => {
       expect(component).toBeTruthy();
     });
 
-    it("should hide regions and operator status on the canvas by default", () => {
-      // these classes keep the Regions/Status toggles off until the user enables them (see #5120)
+    it("should hide operator status on the canvas by default", () => {
+      // keeps the Status toggle off until the user enables it
       const editor = (component as any).editor as HTMLElement;
-      expect(editor.classList.contains("hide-region")).toBe(true);
       expect(editor.classList.contains("hide-operator-status")).toBe(true);
+    });
+
+    it("should create region elements hidden so the Regions toggle starts off on canvas and mini-map", () => {
+      const operatorID = "region_default_op";
+      const operator = new joint.shapes.basic.Rect({ position: { x: 0, y: 0 }, size: { width: 80, height: 40 } });
+      operator.set("id", operatorID);
+      jointGraph.addCell(operator);
+
+      // drive the region-update stream the editor subscribes to in handleRegionEvents
+      const executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
+      (executeWorkflowService as any).regionUpdateStream.next({ regions: [[1, [operatorID]]] });
+
+      const region = jointGraph.getCell("region-1");
+      expect(region).toBeTruthy();
+      // region visibility is a shared-model attribute, so hidden-by-default applies to both surfaces
+      expect(region.attr("body/visibility")).toBe("hidden");
     });
 
     it("should create element in the UI after adding operator in the model", () => {

@@ -362,7 +362,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private handleRegionEvents(): void {
-    this.editor.classList.add("hide-region");
     const Region = joint.dia.Element.define(
       "region",
       {
@@ -370,7 +369,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           body: {
             fill: "rgba(158,158,158,0.2)",
             pointerEvents: "none",
-            class: "region",
+            // Regions start hidden and are revealed via the View > Regions toggle. Driving visibility
+            // through this model attribute keeps the main canvas and the mini-map in sync (see #4027).
+            visibility: "hidden",
           },
         },
       },

@@ -554,29 +554,26 @@ describe("MenuComponent", () => {
     }
 
     describe("toggleRegion", () => {
-      it("removes hide-region and shows region elements when enabled", () => {
+      it("shows only region elements when enabled", () => {
         const region = fakeElement("region");
         const operator = fakeElement("operator");
-        const el = stubWrapper([region, operator]);
-        el.classList.add("hide-region");
+        stubWrapper([region, operator]);
 
         component.showRegion = true;
         component.toggleRegion();
 
-        // main canvas: class drives display, mini-map: per-element visibility attribute
-        expect(el.classList.contains("hide-region")).toBe(false);
+        // visibility is a shared-model attribute, so the toggle reaches both the canvas and the mini-map
         expect(region.attr).toHaveBeenCalledWith("body/visibility", "visible");
         expect(operator.attr).not.toHaveBeenCalled();
       });
 
-      it("adds hide-region and hides region elements when disabled", () => {
+      it("hides region elements when disabled", () => {
         const region = fakeElement("region");
-        const el = stubWrapper([region]);
+        stubWrapper([region]);
 
         component.showRegion = false;
         component.toggleRegion();
 
-        expect(el.classList.contains("hide-region")).toBe(true);
         expect(region.attr).toHaveBeenCalledWith("body/visibility", "hidden");
       });
     });
