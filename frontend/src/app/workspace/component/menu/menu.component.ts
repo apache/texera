@@ -542,13 +542,9 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public toggleRegion(): void {
-    // Region visibility is driven by the per-element `body/visibility` attribute on the shared
-    // JointJS model, so the toggle applies to both the main canvas and the mini-map (see #5120, #4027).
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .jointGraph.getElements()
-      .filter(el => el.get("type") === "region")
-      .forEach(el => el.attr("body/visibility", this.showRegion ? "visible" : "hidden"));
+    // The editor owns applying this to the shared JointJS model (both canvas and mini-map) and
+    // reapplies it whenever regions are recreated during execution (see #5120, #4027).
+    this.workflowActionService.getJointGraphWrapper().setRegionsDisplayed(this.showRegion);
   }
 
   /**

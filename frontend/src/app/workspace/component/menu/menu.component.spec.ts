@@ -554,27 +554,22 @@ describe("MenuComponent", () => {
     }
 
     describe("toggleRegion", () => {
-      it("shows only region elements when enabled", () => {
-        const region = fakeElement("region");
-        const operator = fakeElement("operator");
-        stubWrapper([region, operator]);
+      it("publishes the displayed flag to the joint graph wrapper when enabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setRegionsDisplayed");
 
         component.showRegion = true;
         component.toggleRegion();
 
-        // visibility is a shared-model attribute, so the toggle reaches both the canvas and the mini-map
-        expect(region.attr).toHaveBeenCalledWith("body/visibility", "visible");
-        expect(operator.attr).not.toHaveBeenCalled();
+        expect(setSpy).toHaveBeenCalledWith(true);
       });
 
-      it("hides region elements when disabled", () => {
-        const region = fakeElement("region");
-        stubWrapper([region]);
+      it("publishes the displayed flag to the joint graph wrapper when disabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setRegionsDisplayed");
 
         component.showRegion = false;
         component.toggleRegion();
 
-        expect(region.attr).toHaveBeenCalledWith("body/visibility", "hidden");
+        expect(setSpy).toHaveBeenCalledWith(false);
       });
     });
 

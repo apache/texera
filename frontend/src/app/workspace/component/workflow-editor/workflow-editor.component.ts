@@ -398,7 +398,15 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           this.updateRegionElement(element, ops);
           return { regionElement: element, operators: ops };
         });
+        // regions are recreated on every update, so reapply the current toggle state to the new elements
+        this.setRegionsVisibility(this.wrapper.getRegionsDisplayed());
       });
+
+    // apply the View > Regions toggle to all existing region elements (canvas and mini-map share the model)
+    this.wrapper
+      .getRegionsDisplayedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(displayed => this.setRegionsVisibility(displayed));
 
     this.paper.model.on("change:position", operator => {
       regionMap
@@ -418,6 +426,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         };
         this.paper.getModelById("region-" + region.id).attr("body/fill", colorMap[region.state]);
       });
+  }
+
+  private setRegionsVisibility(displayed: boolean): void {
+    this.paper.model
+      .getElements()
+      .filter(element => element.get("type") === "region")
+      .forEach(element => element.attr("body/visibility", displayed ? "visible" : "hidden"));
   }
 
   private updateRegionElement(regionElement: joint.dia.Element, operators: joint.dia.Cell[]) {
