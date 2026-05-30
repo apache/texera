@@ -526,4 +526,95 @@ describe("MenuComponent", () => {
     expect(config.nzTitle).toBe("Export All Operators Result");
     expect(config.nzData).toEqual(expect.objectContaining({ workflowName: "report-wf", sourceTriggered: "menu" }));
   });
+
+  describe("canvas display toggles", () => {
+    // A fake JointJS element that records `attr(path, value)` calls and answers `get("type")`.
+    function fakeElement(type: string) {
+      return {
+        type,
+        attrs: {} as Record<string, unknown>,
+        get(key: string) {
+          return key === "type" ? this.type : undefined;
+        },
+        attr: vi.fn(function (this: { attrs: Record<string, unknown> }, path: string, value: unknown) {
+          this.attrs[path] = value;
+        }),
+      };
+    }
+
+    // Stubs getJointGraphWrapper() with a paper element + model/graph backed by the given elements.
+    function stubWrapper(elements: ReturnType<typeof fakeElement>[]) {
+      const el = document.createElement("div");
+      const wrapper = {
+        mainPaper: { el, model: { getElements: () => elements } },
+        jointGraph: { getElements: () => elements },
+      };
+      vi.spyOn(workflowActionService, "getJointGraphWrapper").mockReturnValue(wrapper as any);
+      return el;
+    }
+
+    describe("toggleRegion", () => {
+      it("removes hide-region and shows region elements when enabled", () => {
+        const region = fakeElement("region");
+        const operator = fakeElement("operator");
+        const el = stubWrapper([region, operator]);
+        el.classList.add("hide-region");
+
+        component.showRegion = true;
+        component.toggleRegion();
+
+        // main canvas: class drives display, mini-map: per-element visibility attribute
+        expect(el.classList.contains("hide-region")).toBe(false);
+        expect(region.attr).toHaveBeenCalledWith("body/visibility", "visible");
+        expect(operator.attr).not.toHaveBeenCalled();
+      });
+
+      it("adds hide-region and hides region elements when disabled", () => {
+        const region = fakeElement("region");
+        const el = stubWrapper([region]);
+
+        component.showRegion = false;
+        component.toggleRegion();
+
+        expect(el.classList.contains("hide-region")).toBe(true);
+        expect(region.attr).toHaveBeenCalledWith("body/visibility", "hidden");
+      });
+    });
+
+    describe("toggleStatus", () => {
+      it("removes hide-operator-status when enabled and repositions the status label", () => {
+        const operator = fakeElement("operator");
+        const el = stubWrapper([operator]);
+        el.classList.add("hide-operator-status");
+
+        component.showStatus = true;
+        component.showNumWorkers = false;
+        component.toggleStatus();
+
+        expect(el.classList.contains("hide-operator-status")).toBe(false);
+        expect(operator.attr).toHaveBeenCalledWith(".texera-operator-state/ref-x", -10);
+        expect(operator.attr).toHaveBeenCalledWith(".texera-operator-state/ref-y", -35);
+      });
+
+      it("adds hide-operator-status when disabled", () => {
+        const operator = fakeElement("operator");
+        const el = stubWrapper([operator]);
+
+        component.showStatus = false;
+        component.toggleStatus();
+
+        expect(el.classList.contains("hide-operator-status")).toBe(true);
+      });
+
+      it("offsets the status label higher when worker counts are shown", () => {
+        const operator = fakeElement("operator");
+        stubWrapper([operator]);
+
+        component.showNumWorkers = true;
+        component.toggleStatus();
+
+        expect(operator.attr).toHaveBeenCalledWith(".texera-operator-state/ref-y", -55);
+      });
+    });
+  });
 });

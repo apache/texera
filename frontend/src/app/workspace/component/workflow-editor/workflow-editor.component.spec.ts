@@ -117,6 +117,13 @@ describe("WorkflowEditorComponent", () => {
       expect(component).toBeTruthy();
     });
 
+    it("should hide regions and operator status on the canvas by default", () => {
+      // these classes keep the Regions/Status toggles off until the user enables them (see #5120)
+      const editor = (component as any).editor as HTMLElement;
+      expect(editor.classList.contains("hide-region")).toBe(true);
+      expect(editor.classList.contains("hide-operator-status")).toBe(true);
+    });
+
     it("should create element in the UI after adding operator in the model", () => {
       const operatorID = "test_one_operator_1";
 
