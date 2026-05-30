@@ -40,10 +40,6 @@ import org.scalatest.matchers.should.Matchers
 // return 200 to unauthenticated callers even with role enforcement enabled.
 class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
-  // Companion to ConfigResource that's deliberately @RolesAllowed, so the same
-  // setup also proves the feature actually rejects when it should — a 200 on
-  // the @PermitAll endpoints would otherwise be consistent with the feature
-  // being silently no-op'd.
   // Mirror production's mapper: ConfigService bootstraps Dropwizard's default mapper
   // (Jackson.newObjectMapper) and registers DefaultScalaModule on top. Same call here.
   private val testMapper: ObjectMapper =
