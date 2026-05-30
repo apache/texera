@@ -28,13 +28,10 @@ import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, Use
 @Produces(Array(MediaType.APPLICATION_JSON))
 class ConfigResource {
 
-  // The frontend loads /config/gui and /config/user-system as an APP_INITIALIZER
-  // (GuiConfigService.load() in gui-config.service.ts) — i.e. before any login. They
-  // must answer unauthenticated callers so the login page can render. PR #5049 left
-  // @RolesAllowed on both endpoints, which once RolesAllowedDynamicFeature was
-  // registered started returning 403 during bootstrap and broke the whole app; that
-  // PR was reverted in #5173. @PermitAll keeps enforcement on for the rest of the
-  // service while explicitly whitelisting these two pre-login endpoints.
+  // These two endpoints are fetched by the frontend during app initialization,
+  // before any login, so they must answer unauthenticated callers — hence @PermitAll.
+  // They are the only endpoints in this resource, so role enforcement gates nothing
+  // here; @PermitAll is what keeps them reachable when role enforcement is enabled.
   @GET
   @PermitAll
   @Path("/gui")
