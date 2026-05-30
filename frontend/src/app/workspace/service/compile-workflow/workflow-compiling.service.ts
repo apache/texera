@@ -192,10 +192,10 @@ export class WorkflowCompilingService {
       if (inputSchema) {
         newDynamicSchema = WorkflowCompilingService.setOperatorInputAttrs(currentDynamicSchema, inputSchema);
 
-        // Now that the authoritative list of input attributes is known, drop any operator property
+        // Now that the list of input attributes is known, drop any operator property
         // values that reference attributes which no longer exist in the input schema (e.g. a copy-pasted
         // operator wired to a different upstream, or an operator re-wired to a new source). Otherwise
-        // these stale references cause a compile error that survives even after clearing properties.
+        // these old references cause a compile error that survives even after clearing properties.
         const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
         const { value: cleanedProperties, changed } = WorkflowCompilingService.dropInvalidAttributeValues(
           newDynamicSchema.jsonSchema,
@@ -407,16 +407,15 @@ export class WorkflowCompilingService {
   }
 
   /**
-   * Walks an operator's property values in tandem with its (schema-propagated) json schema and drops any
-   * value that references an input attribute which is no longer valid. This honors the contract documented
-   * on DynamicSchemaService.setDynamicSchema: when a new schema invalidates a property, the property is dropped.
+   * Walks an operator's property values with its json schema and drops any
+   * value that references an input attribute which is no longer valid.
    *
    * Only properties marked with an `autofill` annotation are affected, and only when the schema carries an
    * `enum` of valid attribute names (i.e. the input schema is known). Two cases are handled:
    *  - `attributeName`: a single column name. Reset to "" if it's not in the enum.
    *  - `attributeNameList`: a list of column names. Filter out entries that aren't in the enum.
    *
-   * Returns the (possibly new) properties object and whether anything changed. The input is never mutated.
+   * Returns the (possibly new) properties object and whether anything changed.
    */
   public static dropInvalidAttributeValues(
     schema: JSONSchema7Definition | undefined,
