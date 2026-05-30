@@ -29,22 +29,21 @@ import scala.jdk.CollectionConverters._
 
 class WorkflowToPythonTranslator extends LazyLogging {
 
+  // Output-port-level key. An operator with N output ports gets N entries
+  // (e.g. Split has port 0 and port 1, each with its own assigned dfN var).
+  private type PortKey = (String, Int) // (opId, portIdx)
+
   def translate(logicalPlan: LogicalPlan): String = {
-    val incoming = mutable.Map[String, ArrayBuffer[String]]()
-    val outgoing = mutable.Map[String, ArrayBuffer[String]]()
-
-    logicalPlan.operators.foreach { op =>
-      val id = op.operatorIdentifier.id
-      incoming(id) = ArrayBuffer.empty
-      outgoing(id) = ArrayBuffer.empty
-    }
-
+    // Track downstream connections per (opId, fromPortIdx). A port is a leaf
+    // if it has no outgoing edges — operator-level "no outgoing links" is too
+    // coarse for multi-output ops (Split's port 0 may have downstream while
+    // port 1 doesn't, or vice versa).
+    val outgoingFromPort = mutable.Map[PortKey, Int]().withDefaultValue(0)
     logicalPlan.links.foreach { link =>
-      outgoing(link.fromOpId.id) += link.toOpId.id
-      incoming(link.toOpId.id) += link.fromOpId.id
+      outgoingFromPort((link.fromOpId.id, link.fromPortId.id)) += 1
     }
 
-    val outputVar = mutable.Map[String, String]()
+    val outputVar = mutable.Map[PortKey, String]()
     var varCounter = 1
     val script = ArrayBuffer[String]()
 
@@ -61,10 +60,29 @@ class WorkflowToPythonTranslator extends LazyLogging {
       val opId = opIdentity.id
       val op = logicalPlan.getOperator(opIdentity)
       val displayName = op.operatorInfo.userFriendlyName
-      val inVars = incoming(opId).map(outputVar).toList
-      val outVar = s"df$varCounter"
-      varCounter += 1
-      outputVar(opId) = outVar
+
+      // Resolve upstream inputs in the consuming operator's input-port order
+      // (link.toPortId), NOT the order links happen to appear in the plan's
+      // link list. This makes in1df/in2df/... deterministic and correct for
+      // multi-input operators (joins, set ops) where port 0 vs port 1 carries
+      // semantics (e.g. build vs probe side). Ties on the same toPortId keep
+      // link order — relevant for variadic single-port operators like Union.
+      // Each upstream link is resolved via (fromOpId, fromPortId) so that a
+      // multi-output upstream (Split) hands each downstream the correct DF.
+      val inVars = logicalPlan
+        .getUpstreamLinks(opIdentity)
+        .sortBy(link => (link.toPortId.id, link.toPortId.internal))
+        .map(link => outputVar((link.fromOpId.id, link.fromPortId.id)))
+
+      // Allocate one dfN per declared output port. Existing single-output
+      // operators have outputPorts.size == 1, so they get exactly one var and
+      // their behavior is identical to the previous flat scheme.
+      val outVars = op.operatorInfo.outputPorts.map { port =>
+        val v = s"df$varCounter"
+        varCounter += 1
+        outputVar((opId, port.id.id)) = v
+        v
+      }
 
       script += s"# [$displayName]"
 
@@ -72,55 +90,88 @@ class WorkflowToPythonTranslator extends LazyLogging {
       // so the pattern match below will resolve to the correct descriptor (e.g. BarChartOpDesc).
       op match {
         case gen: StandaloneCodeGenerator =>
-          // generateStandaloneCode() returns a code block using in1df/out1df as placeholder
-          // variable names, which substituteVars() replaces with the actual assigned variable names.
-          script += substituteVars(gen.generateStandaloneCode(), inVars, outVar)
+          // generateStandaloneCode() returns a code block using in{N}df / out{N}df
+          // placeholders; substituteVars() replaces them with the assigned vars.
+          script += substituteVars(gen.generateStandaloneCode(), inVars, outVars, displayName)
 
         case _ =>
           logger.warn(
             s"Operator '$displayName' does not implement StandaloneCodeGenerator. Skipping."
           )
           script += s"# TODO: '$displayName' is not yet supported by the translator."
-          script += s"# $outVar = <output of $displayName>"
+          outVars.zipWithIndex.foreach {
+            case (v, i) => script += s"# $v = <output port $i of $displayName>"
+          }
       }
 
       script += ""
     }
 
-    // Print leaf operator outputs that produce DataFrames so the script
-    // gives visible output when run locally.
-    val leafIds = topoOrder.map(_.id).filter(id => outgoing(id).isEmpty)
-    val dataFrameLeaves = leafIds.filter { id =>
-      logicalPlan.getOperator(id) match {
-        case gen: StandaloneCodeGenerator => gen.producesDataFrame()
-        case _                            => false
-      }
+    // Leaf detection runs at the port level: a (opId, port) pair is a leaf
+    // if no link consumes it. For Split with one downstream port and one
+    // dangling port, only the dangling port is treated as a leaf to print.
+    val leafPorts = outputVar.keys.toList
+      .sortBy { case (_, portIdx) => portIdx }
+      .filter(key => outgoingFromPort(key) == 0)
+    val dataFrameLeafPorts = leafPorts.filter {
+      case (opId, _) =>
+        logicalPlan.getOperator(opId) match {
+          case gen: StandaloneCodeGenerator => gen.producesDataFrame()
+          case _                            => false
+        }
     }
 
-    if (dataFrameLeaves.nonEmpty) {
+    if (dataFrameLeafPorts.nonEmpty) {
       script += "# --- Output ---"
-      for (opId <- dataFrameLeaves) {
-        val varName = outputVar(opId)
-        val displayName = logicalPlan.getOperator(opId).operatorInfo.userFriendlyName
-        script += s"""print("\\n[$displayName] $varName:")"""
-        script += s"print($varName.head())"
-        script += ""
-      }
+      // Print in topological order of the producing operator so multi-port
+      // operators print contiguously and the order matches the script flow.
+      val topoIndex = topoOrder.map(_.id).zipWithIndex.toMap
+      dataFrameLeafPorts
+        .sortBy { case (opId, portIdx) => (topoIndex.getOrElse(opId, Int.MaxValue), portIdx) }
+        .foreach {
+          case (opId, portIdx) =>
+            val varName = outputVar((opId, portIdx))
+            val displayName = logicalPlan.getOperator(opId).operatorInfo.userFriendlyName
+            val portSuffix = if (outputVar.keys.count(_._1 == opId) > 1) s" port $portIdx" else ""
+            script += s"""print("\\n[$displayName$portSuffix] $varName:")"""
+            script += s"print($varName.head())"
+            script += ""
+        }
     }
 
     script.mkString("\n")
   }
 
-  // Replaces in1df/out1df placeholders with concrete variable names.
-  // Substitutes in reverse index order to prevent partial matches (e.g. in1df inside in10df).
-  private def substituteVars(code: String, inVars: List[String], outVar: String): String = {
+  // Replaces in{N}df / out{N}df placeholders with concrete variable names.
+  // Substitutes in reverse index order to prevent partial matches (e.g. in1df
+  // inside in10df). After substitution, scans for any leftover placeholders
+  // and logs a warning — that signals a mismatch between an operator's
+  // declared port count and what its generateStandaloneCode actually emits.
+  private def substituteVars(
+      code: String,
+      inVars: List[String],
+      outVars: List[String],
+      displayName: String
+  ): String = {
     var result = code
 
     inVars.zipWithIndex.reverse.foreach {
-      case (varName, idx) =>
-        result = result.replaceAll(s"\\bin${idx + 1}df\\b", varName)
+      case (v, idx) => result = result.replaceAll(s"\\bin${idx + 1}df\\b", v)
+    }
+    outVars.zipWithIndex.reverse.foreach {
+      case (v, idx) => result = result.replaceAll(s"\\bout${idx + 1}df\\b", v)
     }
 
-    result.replaceAll("""\bout1df\b""", outVar)
+    val leftoverIn = """\bin\d+df\b""".r.findAllIn(result).toSet
+    val leftoverOut = """\bout\d+df\b""".r.findAllIn(result).toSet
+    if (leftoverIn.nonEmpty || leftoverOut.nonEmpty) {
+      logger.warn(
+        s"Operator '$displayName' emitted placeholders that don't match its port " +
+          s"count: leftover inputs=$leftoverIn, leftover outputs=$leftoverOut. " +
+          s"Generated script will reference unbound variables."
+      )
+    }
+
+    result
   }
 }
