@@ -79,6 +79,9 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
 }
 
 object ConfigResourceAuthSpec {
+  // A deliberately @RolesAllowed companion to ConfigResource, so the same setup also
+  // proves the feature actually rejects when it should — a 200 on the @PermitAll
+  // endpoints would otherwise be consistent with the feature being silently no-op'd.
   @Path("/auth-probe")
   @Produces(Array(MediaType.APPLICATION_JSON))
   class ProtectedProbe {
