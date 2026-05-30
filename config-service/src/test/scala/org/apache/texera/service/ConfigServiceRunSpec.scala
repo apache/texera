@@ -30,9 +30,9 @@ import org.scalatest.matchers.should.Matchers
 
 class ConfigServiceRunSpec extends AnyFlatSpec with Matchers {
 
-  // Verifies that the @RolesAllowed annotations on ConfigResource are actually
-  // enforced by Jersey, which requires RolesAllowedDynamicFeature to be
-  // registered on the Jersey environment.
+  // ConfigResource's own endpoints are @PermitAll, but the service still registers
+  // RolesAllowedDynamicFeature so that any @RolesAllowed endpoint is enforced by
+  // Jersey. This verifies that registration actually happens.
   "ConfigService.run" should "register RolesAllowedDynamicFeature on the Jersey environment" in {
     val jersey = mock(classOf[JerseyEnvironment])
     val servlets = mock(classOf[ServletEnvironment])
