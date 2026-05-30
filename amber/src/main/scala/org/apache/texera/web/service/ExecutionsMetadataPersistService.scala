@@ -57,6 +57,15 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       environmentVersion: String,
       computingUnitId: Integer
   ): ExecutionIdentity = {
+    if (RemoteExecutionMetadata.enabled) {
+      return RemoteExecutionMetadata.createExecution(
+        workflowId.id,
+        uid,
+        executionName,
+        environmentVersion,
+        computingUnitId
+      )
+    }
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(workflowId.id.toInt)
     val newExecution = new WorkflowExecutions()
@@ -76,6 +85,10 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   }
 
   def tryGetExistingExecution(executionId: ExecutionIdentity): Option[WorkflowExecutions] = {
+    if (RemoteExecutionMetadata.enabled) {
+      // degraded: previous-execution lookup is not needed on the computing unit in remote mode.
+      return None
+    }
     try {
       Option(workflowExecutionsDao.fetchOneByEid(executionId.id.toInt))
     } catch {
@@ -88,6 +101,11 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   def tryUpdateExistingExecution(
       executionId: ExecutionIdentity
   )(updateFunc: WorkflowExecutions => Unit): Unit = {
+    if (RemoteExecutionMetadata.enabled) {
+      // no-op: execution-status updates are owned by the dashboard service in remote mode.
+      logger.debug("Skipping execution update in remote mode.")
+      return
+    }
     try {
       val execution = workflowExecutionsDao.fetchOneByEid(executionId.id.toInt)
       updateFunc(execution)

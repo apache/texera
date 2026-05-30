@@ -86,6 +86,9 @@ object SqlServer {
     instance.get
   }
 
+  /** Whether a database connection has been initialized in this process. */
+  def isInitialized: Boolean = instance.isDefined
+
   /**
     * A utility function for create a transaction block using given sql context
     * @param dsl the sql context

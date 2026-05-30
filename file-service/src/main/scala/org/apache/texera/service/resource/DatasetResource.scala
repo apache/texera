@@ -640,6 +640,26 @@ class DatasetResource extends LazyLogging {
     generatePresignedResponse(encodedUrl, repositoryName, commitHash, uid)
   }
 
+  /**
+    * Resolves a dataset path (`/ownerEmail/datasetName/versionName/relativePath`) to its
+    * `dataset:///` URI and returns it as plain text. This is the database-backed counterpart of
+    * [[org.apache.texera.amber.core.storage.RemoteDatasetResolver]], letting a computing unit
+    * resolve datasets over HTTP instead of querying Postgres directly (issue #5011).
+    */
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/resolve")
+  @Produces(Array(MediaType.TEXT_PLAIN))
+  def resolveDatasetPath(
+      @QueryParam("path") path: String,
+      @Auth user: SessionUser
+  ): String = {
+    if (path == null || path.trim.isEmpty) {
+      throw new BadRequestException("query parameter 'path' is required")
+    }
+    FileResolver.resolve(path).toString
+  }
+
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/presign-download-s3")
