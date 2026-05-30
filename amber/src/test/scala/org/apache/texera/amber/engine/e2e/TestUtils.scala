@@ -188,7 +188,7 @@ object TestUtils {
     var result: Map[OperatorIdentity, List[Tuple]] = null
     client.registerCallback[ExecutionStateUpdate](evt => {
       if (evt.state == COMPLETED) {
-        result = workflow.logicalPlan.getTerminalOperatorIds
+        result = workflow.logicalPlan.get.getTerminalOperatorIds
           .filter(terminalOpId => {
             val uri = getResultUriByLogicalPortId(
               workflow.context.executionId,

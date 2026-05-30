@@ -58,22 +58,34 @@ class ExecutionReconfigurationService(
   def modifyOperatorLogic(modifyLogicRequest: ModifyLogicRequest): TexeraWebSocketEvent = {
     val newOp = modifyLogicRequest.operator
     val opId = newOp.operatorIdentifier
-    val currentOp = workflow.logicalPlan.getOperator(opId)
-    val reconfiguredPhysicalOp =
-      currentOp.runtimeReconfiguration(
-        workflow.context.workflowId,
-        workflow.context.executionId,
-        currentOp,
-        newOp
-      )
-    reconfiguredPhysicalOp match {
-      case Failure(exception) => ModifyLogicResponse(opId.id, isValid = false, exception.getMessage)
-      case Success(op) => {
-        stateStore.reconfigurationStore.updateState(old =>
-          old.copy(unscheduledReconfigurations = old.unscheduledReconfigurations :+ op)
+    // Reconfiguration derives the new physical op from the original logical op. The logical plan is
+    // only present when the workflow was compiled in-process; when compilation was offloaded to the
+    // compiling-service the runtime holds only the physical plan, so reconfiguration is unavailable.
+    workflow.logicalPlan match {
+      case None =>
+        ModifyLogicResponse(
+          opId.id,
+          isValid = false,
+          "Operator reconfiguration is unavailable: the logical plan is not retained at runtime."
         )
-        ModifyLogicResponse(opId.id, isValid = true, "")
-      }
+      case Some(logicalPlan) =>
+        val currentOp = logicalPlan.getOperator(opId)
+        val reconfiguredPhysicalOp =
+          currentOp.runtimeReconfiguration(
+            workflow.context.workflowId,
+            workflow.context.executionId,
+            currentOp,
+            newOp
+          )
+        reconfiguredPhysicalOp match {
+          case Failure(exception) =>
+            ModifyLogicResponse(opId.id, isValid = false, exception.getMessage)
+          case Success(op) =>
+            stateStore.reconfigurationStore.updateState(old =>
+              old.copy(unscheduledReconfigurations = old.unscheduledReconfigurations :+ op)
+            )
+            ModifyLogicResponse(opId.id, isValid = true, "")
+        }
     }
   }
 

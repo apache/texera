@@ -54,7 +54,7 @@ class ProjectionOpDesc extends MapOpDesc {
     )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withDerivePartition(derivePartition())
+      .withDerivePartition(ProjectionPartition())
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
         require(attributes.nonEmpty, "Attributes must not be empty")
 
@@ -72,21 +72,6 @@ class ProjectionOpDesc extends MapOpDesc {
 
         Map(operatorInfo.outputPorts.head.id -> outputSchema)
       }))
-  }
-
-  def derivePartition()(partition: List[PartitionInfo]): PartitionInfo = {
-    val inputPartitionInfo = partition.head
-
-    val outputPartitionInfo = inputPartitionInfo match {
-      case HashPartition(hashAttributeNames) =>
-        if (hashAttributeNames.nonEmpty) HashPartition(hashAttributeNames) else UnknownPartition()
-      case RangePartition(rangeAttributeNames, min, max) =>
-        if (rangeAttributeNames.nonEmpty) RangePartition(rangeAttributeNames, min, max)
-        else UnknownPartition()
-      case _ => inputPartitionInfo
-    }
-
-    outputPartitionInfo
   }
 
   override def operatorInfo: OperatorInfo = {

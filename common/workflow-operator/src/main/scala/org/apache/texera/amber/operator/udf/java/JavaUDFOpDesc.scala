@@ -111,7 +111,7 @@ class JavaUDFOpDesc extends LogicalOp {
           operatorIdentifier,
           OpExecWithCode(code, "java")
         )
-        .withDerivePartition(_ => UnknownPartition())
+        .withDerivePartition(ToUnknown())
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
         .withPartitionRequirement(partitionRequirement)
@@ -127,7 +127,7 @@ class JavaUDFOpDesc extends LogicalOp {
           operatorIdentifier,
           OpExecWithCode(code, "java")
         )
-        .withDerivePartition(_ => UnknownPartition())
+        .withDerivePartition(ToUnknown())
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
         .withPartitionRequirement(partitionRequirement)

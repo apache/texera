@@ -109,7 +109,7 @@ class AggregateOpDesc extends LogicalOp {
         )
       )
       .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
-      .withDerivePartition(_ => HashPartition(groupByKeys))
+      .withDerivePartition(ToHash(groupByKeys))
 
     var plan = PhysicalPlan(
       operators = Set(partialPhysicalOp, finalPhysicalOp),

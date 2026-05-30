@@ -68,7 +68,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       )
     )
 
-    assert(workflow.logicalPlan.operators.size == 2)
+    assert(workflow.logicalPlan.get.operators.size == 2)
     assert(workflow.physicalPlan.getPhysicalOpsOfLogicalOp(csv.operatorIdentifier).nonEmpty)
     assert(workflow.physicalPlan.getPhysicalOpsOfLogicalOp(keyword.operatorIdentifier).nonEmpty)
   }

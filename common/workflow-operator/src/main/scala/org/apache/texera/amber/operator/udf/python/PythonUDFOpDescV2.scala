@@ -157,7 +157,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
       }
 
     physicalOp
-      .withDerivePartition(_ => UnknownPartition())
+      .withDerivePartition(ToUnknown())
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(partitionRequirement)

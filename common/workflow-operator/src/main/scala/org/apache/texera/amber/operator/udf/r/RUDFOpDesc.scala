@@ -125,7 +125,7 @@ class RUDFOpDesc extends LogicalOp {
           OpExecWithCode(code, r_operator_type)
         )
         .withParallelizable(false)
-    }.withDerivePartition(_ => UnknownPartition())
+    }.withDerivePartition(ToUnknown())
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(partitionRequirement)

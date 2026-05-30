@@ -20,8 +20,10 @@
 package org.apache.texera.amber.core.workflow
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.util.serde.PhysicalPlanDeserializer
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   OperatorIdentity,
@@ -36,6 +38,11 @@ import org.jgrapht.util.SupplierUtil
 
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
+// Deserialization is delegated to PhysicalPlanDeserializer: operators are reconstructed
+// with empty per-port link lists (links are dropped from the per-port serialized views),
+// then the per-port link lists are rehydrated by replaying `links`. Serialization uses the
+// default representation (each operator via its own PhysicalOpSerializer).
+@JsonDeserialize(using = classOf[PhysicalPlanDeserializer])
 case class PhysicalPlan(
     operators: Set[PhysicalOp],
     links: Set[PhysicalLink]

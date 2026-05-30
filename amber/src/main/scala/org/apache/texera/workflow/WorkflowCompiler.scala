@@ -155,6 +155,6 @@ class WorkflowCompiler(
       outputPortsNeedingStorage = outputPortsNeedingStorage
     )
 
-    Workflow(context, logicalPlan, physicalPlan)
+    Workflow(context, Some(logicalPlan), physicalPlan)
   }
 }

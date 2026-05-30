@@ -24,6 +24,9 @@ import org.apache.texera.workflow.LogicalPlan
 
 case class Workflow(
     context: WorkflowContext,
-    logicalPlan: LogicalPlan,
+    // The logical plan is only retained for in-JVM compilation paths (amber's WorkflowCompiler,
+    // e2e TestUtils). The runtime offloads compilation to the workflow-compiling-service over HTTP
+    // and builds a Workflow with `logicalPlan = None`; nothing on the execution path reads it.
+    logicalPlan: Option[LogicalPlan] = None,
     physicalPlan: PhysicalPlan
 )

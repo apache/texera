@@ -19,12 +19,13 @@
 
 package org.apache.texera.service
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.amber.config.StorageConfig
-import org.apache.texera.amber.util.ObjectMapperUtils
+import org.apache.texera.amber.util.{ObjectMapperUtils, PhysicalPlanSerdeModule}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
 import org.eclipse.jetty.servlet.FilterHolder
@@ -42,6 +43,15 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
     )
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+    // A logical plan may reach /compile from clients that re-serialize a fully-typed LogicalOp
+    // (e.g. ComputingUnitMaster forwarding a plan via JSONUtils.objectMapper), which emits the
+    // operator's derived getters in addition to its config. Those extra properties are not
+    // constructor fields here, so tolerate unknown properties rather than rejecting the request.
+    bootstrap.getObjectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    // also register the PhysicalPlan serializers so the /compile response (which now contains a
+    // PhysicalPlan with custom-serialized PortIdentity keys, OpExecInitInfo, and OutputMode) can be
+    // serialized byte-for-byte compatibly with JSONUtils.objectMapper on the consumer side.
+    PhysicalPlanSerdeModule.register(bootstrap.getObjectMapper)
   }
 
   override def run(

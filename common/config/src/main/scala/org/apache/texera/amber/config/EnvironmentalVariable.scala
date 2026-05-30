@@ -46,6 +46,10 @@ object EnvironmentalVariable {
   // computing unit can persist/read execution metadata without holding Postgres credentials (#5011).
   val ENV_DASHBOARD_SERVICE_EXECUTION_METADATA_ENDPOINT =
     "DASHBOARD_SERVICE_EXECUTION_METADATA_ENDPOINT"
+
+  // Endpoint of the workflow-compiling-service's /compile, so a computing unit can compile a
+  // workflow (logical plan -> physical plan) over HTTP instead of running the compiler in-process.
+  val ENV_WORKFLOW_COMPILING_SERVICE_ENDPOINT = "WORKFLOW_COMPILING_SERVICE_ENDPOINT"
   // When "true", the computing unit routes execution-metadata operations over HTTP instead of JDBC.
   val ENV_EXECUTION_METADATA_REMOTE = "EXECUTION_METADATA_REMOTE"
 

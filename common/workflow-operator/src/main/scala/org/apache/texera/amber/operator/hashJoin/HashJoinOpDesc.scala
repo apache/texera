@@ -143,7 +143,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
             Option(HashPartition(List(probeAttributeName)))
           )
         )
-        .withDerivePartition(_ => HashPartition(List(probeAttributeName)))
+        .withDerivePartition(ToHash(List(probeAttributeName)))
         .withParallelizable(true)
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas => {

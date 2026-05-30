@@ -38,7 +38,6 @@ import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutions
 import org.apache.texera.web.storage.ExecutionStateStore
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import org.apache.texera.web.{ComputingUnitMaster, SubscriptionManager, WebsocketInput}
-import org.apache.texera.workflow.WorkflowCompiler
 
 import java.net.URI
 import scala.collection.mutable
@@ -104,13 +103,23 @@ class WorkflowExecutionService(
   var executionConsoleService: ExecutionConsoleService = _
 
   def executeWorkflow(): Unit = {
-    try {
-      workflow = new WorkflowCompiler(workflowContext)
-        .compile(request.logicalPlan)
-    } catch {
-      case err: Throwable =>
-        errorHandler(err)
-    }
+    // Offload compilation to the workflow-compiling-service over HTTP and run the returned plan.
+    // The runtime does not need the logical plan, so it is left as None on the Workflow.
+    val physicalPlan =
+      try {
+        CompilingServiceClient.compile(
+          request.logicalPlan,
+          workflowContext.workflowId.id,
+          workflowContext.executionId.id
+        )
+      } catch {
+        case err: Throwable =>
+          // Compilation failed (e.g. an invalid workflow). Surface the error and stop here —
+          // continuing would dereference a null `workflow` and mask the real failure with an NPE.
+          errorHandler(err)
+          return
+      }
+    workflow = Workflow(workflowContext, None, physicalPlan)
 
     client = ComputingUnitMaster.createAmberRuntime(
       workflow.context,

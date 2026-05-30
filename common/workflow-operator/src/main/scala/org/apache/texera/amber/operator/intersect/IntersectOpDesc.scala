@@ -41,7 +41,7 @@ class IntersectOpDesc extends LogicalOp {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(List(Option(HashPartition()), Option(HashPartition())))
-      .withDerivePartition(_ => HashPartition())
+      .withDerivePartition(ToHash())
   }
 
   override def operatorInfo: OperatorInfo =

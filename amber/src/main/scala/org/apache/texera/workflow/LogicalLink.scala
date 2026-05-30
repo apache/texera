@@ -20,9 +20,15 @@
 package org.apache.texera.workflow
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.databind.annotation.JsonSerialize
+import com.fasterxml.jackson.databind.{JsonSerializer, SerializerProvider}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 
+// Serialized by LogicalLinkSerializer, which writes fromOpId / toOpId as bare string ids — the same
+// shape the @JsonCreator string constructor reads — so a LogicalLink round-trips through JSON.
+@JsonSerialize(using = classOf[LogicalLinkSerializer])
 case class LogicalLink(
     @JsonProperty("fromOpId") fromOpId: OperatorIdentity,
     fromPortId: PortIdentity,
@@ -50,5 +56,31 @@ case class LogicalLink(
       toPortId: PortIdentity
   ) = {
     this(OperatorIdentity(fromOpId), fromPortId, OperatorIdentity(toOpId), toPortId)
+  }
+}
+
+/**
+  * Emits `fromOpId` / `toOpId` as bare string ids (not the `{"id": ...}` object form Jackson would
+  * derive from the `OperatorIdentity` case class), matching the shape the `@JsonCreator` string
+  * constructor consumes. Without this, `writeValueAsString` produces JSON that the link's own
+  * deserializer cannot read back. Ports keep their default object serialization. See
+  * https://github.com/apache/texera/issues/5042. The ComputingUnitMaster ->
+  * workflow-compiling-service path relies on this round-trip (it re-serializes a logical plan
+  * and ships it over HTTP).
+  */
+class LogicalLinkSerializer extends JsonSerializer[LogicalLink] {
+  override def serialize(
+      link: LogicalLink,
+      gen: JsonGenerator,
+      provider: SerializerProvider
+  ): Unit = {
+    gen.writeStartObject()
+    gen.writeStringField("fromOpId", link.fromOpId.id)
+    gen.writeFieldName("fromPortId")
+    provider.defaultSerializeValue(link.fromPortId, gen)
+    gen.writeStringField("toOpId", link.toOpId.id)
+    gen.writeFieldName("toPortId")
+    provider.defaultSerializeValue(link.toPortId, gen)
+    gen.writeEndObject()
   }
 }

@@ -20,7 +20,7 @@
 package org.apache.texera.workflow
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.exc.{MismatchedInputException, ValueInstantiationException}
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -245,17 +245,13 @@ class LogicalLinkSpec extends AnyFlatSpec {
     assert(tree.has("toPortId"))
   }
 
-  it should "NOT round-trip through writeValueAsString (the @JsonCreator string overload is incompatible with the object-shape OperatorIdentity that writeValueAsString emits)" in {
-    // Characterization of a real asymmetry tracked by
-    // https://github.com/apache/texera/issues/5042. Production reads
-    // user-saved workflow JSON where `fromOpId`/`toOpId` are plain
-    // strings, but `objectMapper.writeValueAsString` writes
-    // OperatorIdentity as `{"id":"op-A"}` (the case-class object form).
-    // Re-reading the emitted JSON fails because Jackson dispatches on the
-    // @JsonCreator string overload, which can't accept an object for
-    // fromOpId. When the issue is fixed (additional @JsonCreator object
-    // overload or a custom @JsonDeserialize), this test must flip to a
-    // passing round-trip assertion alongside the fix.
+  it should "round-trip through writeValueAsString (fromOpId / toOpId emitted as bare strings)" in {
+    // Regression for https://github.com/apache/texera/issues/5042. Previously
+    // `objectMapper.writeValueAsString` wrote OperatorIdentity as the object `{"id":"op-A"}`,
+    // which the @JsonCreator string constructor could not re-read. `OperatorIdentityStringSerializer`
+    // now emits fromOpId / toOpId as bare strings — the same shape that constructor consumes — so a
+    // LogicalLink survives a writeValueAsString -> readValue round-trip. The ComputingUnitMaster ->
+    // workflow-compiling-service path relies on this (it re-serializes a logical plan over HTTP).
     val original = LogicalLink(
       OperatorIdentity("op-A"),
       PortIdentity(0),
@@ -263,17 +259,14 @@ class LogicalLinkSpec extends AnyFlatSpec {
       PortIdentity(1)
     )
     val json = objectMapper.writeValueAsString(original)
-    // Parse the emitted JSON and confirm the structural shape — fromOpId
-    // is an object with an `id` field of "op-A". Avoids depending on
-    // exact key ordering or escaping.
+    // fromOpId / toOpId are emitted as bare strings (not the `{"id": ...}` object form).
     val tree = objectMapper.readTree(json)
-    assert(tree.path("fromOpId").isObject, s"expected fromOpId to be an object: $json")
-    assert(tree.path("fromOpId").path("id").asText() == "op-A")
-    // Re-reading the just-emitted JSON fails because the @JsonCreator
-    // String overload can't accept the object-shape fromOpId.
-    intercept[MismatchedInputException] {
-      objectMapper.readValue(json, classOf[LogicalLink])
-    }
+    assert(tree.path("fromOpId").isTextual, s"expected fromOpId to be a string: $json")
+    assert(tree.path("fromOpId").asText() == "op-A")
+    assert(tree.path("toOpId").isTextual, s"expected toOpId to be a string: $json")
+    assert(tree.path("toOpId").asText() == "op-B")
+    // Re-reading the just-emitted JSON now succeeds and reproduces the original link.
+    assert(objectMapper.readValue(json, classOf[LogicalLink]) == original)
   }
 
   it should "reject missing string op-id fields when deserializing via Jackson" in {

@@ -23,11 +23,11 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.typesafe.scalalogging.LazyLogging
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
-import jakarta.ws.rs.{Consumes, POST, Path, Produces}
+import jakarta.ws.rs.{Consumes, POST, Path, Produces, QueryParam}
 import org.apache.texera.amber.compiler.WorkflowCompiler
 import org.apache.texera.amber.compiler.model.LogicalPlanPojo
 import org.apache.texera.amber.core.tuple.Attribute
-import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.texera.amber.util.serde.PortIdentityKeySerializer
@@ -63,10 +63,21 @@ class WorkflowCompilationResource extends LazyLogging {
   @POST
   @Path("")
   def compileWorkflow(
-      logicalPlanPojo: LogicalPlanPojo
+      logicalPlanPojo: LogicalPlanPojo,
+      @QueryParam("workflowId") workflowId: java.lang.Long,
+      @QueryParam("executionId") executionId: java.lang.Long
   ): WorkflowCompilationResponse = {
-    // a placeholder workflow context, as compiling a workflow doesn't require a wid from the frontend
-    val context = new WorkflowContext(workflowId = WorkflowIdentity(0))
+    // The frontend compiles for editing and passes no ids, so default to a placeholder context.
+    // A computing unit compiling before execution passes the real workflow/execution ids, so the
+    // resulting physical plan (e.g. OpExecSource.workflowIdentity, result-storage URIs) is built
+    // against the actual identities rather than the placeholder.
+    val context = new WorkflowContext(
+      workflowId =
+        if (workflowId != null) WorkflowIdentity(workflowId.longValue()) else WorkflowIdentity(0),
+      executionId =
+        if (executionId != null) ExecutionIdentity(executionId.longValue())
+        else WorkflowContext.DEFAULT_EXECUTION_ID
+    )
 
     // Compile the pojo using WorkflowCompiler
     val compilationResult = new WorkflowCompiler(context).compile(logicalPlanPojo)

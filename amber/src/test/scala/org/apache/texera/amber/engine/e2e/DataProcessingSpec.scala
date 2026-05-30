@@ -119,7 +119,7 @@ class DataProcessingSpec
     client
       .registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
-          results = workflow.logicalPlan.getTerminalOperatorIds
+          results = workflow.logicalPlan.get.getTerminalOperatorIds
             .filter(terminalOpId => {
               val uri = getResultUriByLogicalPortId(
                 workflowContext.executionId,

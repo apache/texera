@@ -134,7 +134,7 @@ class WorkflowService(
         (oldState, newState) =>
           {
             if (oldState.state != COMPLETED && newState.state == COMPLETED) {
-              lastCompletedLogicalPlan = Option.apply(executionService.workflow.logicalPlan)
+              lastCompletedLogicalPlan = executionService.workflow.logicalPlan
             }
             Iterable.empty
           }

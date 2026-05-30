@@ -19,8 +19,10 @@
 
 package org.apache.texera.amber.core.workflow
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties}
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.databind.annotation.{JsonDeserialize, JsonSerialize}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.util.serde.{PhysicalOpDeserializer, PhysicalOpSerializer}
 import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{
@@ -130,7 +132,7 @@ object PhysicalOp {
       opExecInitInfo,
       parallelizable = false,
       partitionRequirement = List(Option(SinglePartition())),
-      derivePartition = _ => SinglePartition()
+      partitionDeriveSpec = ToSingle()
     )
   }
 
@@ -156,21 +158,86 @@ object PhysicalOp {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
       .withLocationPreference(Some(PreferController))
   }
+
+  /**
+    * Rebuilds a [[PhysicalOp]] from the data produced by the serializable
+    * `inputPortsSerialized` / `outputPortsSerialized` views.
+    *
+    * The runtime `inputPorts` / `outputPorts` maps carry per-port link lists and an
+    * `Either[Throwable, Schema]` that are not directly serializable, so they are emitted
+    * as slimmed-down views (dropping links, mapping the `Either` to an `Option[Schema]`).
+    * Here the real maps are rebuilt with EMPTY link lists; the per-port link lists are
+    * then rehydrated at the [[PhysicalPlan]] level by replaying `links`.
+    *
+    * This is invoked by the custom `PhysicalOpDeserializer` (registered on
+    * `JSONUtils.objectMapper`) rather than via a `@JsonCreator`, because
+    * jackson-module-scala binds case classes to their primary constructor and does not
+    * reliably honor a companion-object creator.
+    */
+  def fromSerialized(
+      id: PhysicalOpIdentity,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      opExecInitInfo: OpExecInitInfo,
+      parallelizable: Boolean,
+      locationPreference: Option[LocationPreference],
+      partitionRequirement: List[Option[PartitionInfo]],
+      partitionDeriveSpec: DerivePartitionSpec,
+      inputPortsSerialized: Map[PortIdentity, (InputPort, Option[Schema])],
+      outputPortsSerialized: Map[PortIdentity, (OutputPort, Option[Schema])],
+      isOneToManyOp: Boolean,
+      suggestedWorkerNum: Option[Int],
+      pveName: String
+  ): PhysicalOp = {
+    def schemaEither(schemaOpt: Option[Schema]): Either[Throwable, Schema] =
+      schemaOpt match {
+        case Some(schema) => Right(schema)
+        case None         => Left(new SchemaNotAvailableException("schema is not available"))
+      }
+
+    val rebuiltInputPorts = inputPortsSerialized.map {
+      case (portId, (port, schemaOpt)) =>
+        portId -> ((port, List.empty[PhysicalLink], schemaEither(schemaOpt)))
+    }
+    val rebuiltOutputPorts = outputPortsSerialized.map {
+      case (portId, (port, schemaOpt)) =>
+        portId -> ((port, List.empty[PhysicalLink], schemaEither(schemaOpt)))
+    }
+
+    PhysicalOp(
+      id = id,
+      workflowId = workflowId,
+      executionId = executionId,
+      opExecInitInfo = opExecInitInfo,
+      parallelizable = parallelizable,
+      locationPreference = locationPreference,
+      partitionRequirement = partitionRequirement,
+      partitionDeriveSpec = partitionDeriveSpec,
+      inputPorts = rebuiltInputPorts,
+      outputPorts = rebuiltOutputPorts,
+      isOneToManyOp = isOneToManyOp,
+      suggestedWorkerNum = suggestedWorkerNum,
+      pveName = pveName
+    )
+  }
 }
 
-// In Scala case classes, @JsonIgnore on constructor parameters is not recognized by Jackson.
-// Use @JsonIgnoreProperties at the class level instead.
-@JsonIgnoreProperties(
-  Array(
-    "opExecInitInfo", // function type, ignore it
-    "derivePartition", // function type, ignore it
-    "inputPorts", // may contain very long stacktrace, ignore it
-    "outputPorts", // same reason with above
-    "propagateSchema", // function type, so ignore it
-    "locationPreference", // ignore it for the deserialization
-    "partitionRequirement" // ignore it for deserialization
-  )
-)
+// JSON (de)serialization of PhysicalOp is fully delegated to a dedicated
+// serializer/deserializer pair, because several fields cannot go through the default
+// jackson-module-scala case-class binding:
+//   - `inputPorts` / `outputPorts` hold per-port link lists and an
+//     `Either[Throwable, Schema]`; they are emitted as the slimmed-down
+//     `inputPortsSerialized` / `outputPortsSerialized` views (links dropped, `Either`
+//     collapsed to `Option[Schema]`) and the link lists are rehydrated at the
+//     `PhysicalPlan` level by replaying `links`.
+//   - `derivePartition` / `propagateSchema` are functions: `derivePartition` is rebuilt
+//     lazily from the serializable `partitionDeriveSpec`, and `propagateSchema` falls back
+//     to its identity default on deserialize (it is only consulted at compile time).
+//   - `partitionRequirement` (`List[Option[PartitionInfo]]`) needs explicit handling so the
+//     polymorphic `PartitionInfo` type discriminator survives the `Option` wrapper.
+// See `PhysicalOpSerializer` / `PhysicalOpDeserializer`.
+@JsonSerialize(using = classOf[PhysicalOpSerializer])
+@JsonDeserialize(using = classOf[PhysicalOpDeserializer])
 case class PhysicalOp(
     // the identifier of this PhysicalOp
     id: PhysicalOpIdentity,
@@ -186,9 +253,10 @@ case class PhysicalOp(
     locationPreference: Option[LocationPreference] = None,
     // requirement of partition policy (hash/range/single/none) on inputs
     partitionRequirement: List[Option[PartitionInfo]] = List(),
-    // derive the output partition info given the input partitions
-    // if not specified, by default the output partition is the same as input partition
-    derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
+    // serializable description of how the output partition is derived from the input
+    // partitions. If not specified, by default the output partition is the same as the
+    // (first) input partition (see [[Passthrough]]).
+    partitionDeriveSpec: DerivePartitionSpec = Passthrough(),
     // input/output ports of the physical operator
     // for operators with multiple input/output ports: must set these variables properly
     inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Either[Throwable, Schema])] =
@@ -203,6 +271,32 @@ case class PhysicalOp(
     // name of the PVE to execute within
     pveName: String = ""
 ) extends LazyLogging {
+
+  // derive the output partition info given the input partitions. Rebuilt lazily from the
+  // serializable `partitionDeriveSpec` so that it survives a JSON round-trip.
+  @JsonIgnore lazy val derivePartition: List[PartitionInfo] => PartitionInfo =
+    partitionDeriveSpec.toFunction
+
+  /**
+    * Serializable view of [[inputPorts]] used by [[PhysicalOpSerializer]] for JSON output:
+    * the per-port link lists are dropped (rehydrated at the [[PhysicalPlan]] level by
+    * replaying links) and the `Either[Throwable, Schema]` is collapsed to an
+    * `Option[Schema]`.
+    */
+  @JsonIgnore
+  def inputPortsSerialized: Map[PortIdentity, (InputPort, Option[Schema])] =
+    inputPorts.map {
+      case (portId, (port, _, schema)) => portId -> ((port, schema.toOption))
+    }
+
+  /**
+    * Serializable view of [[outputPorts]]; see [[inputPortsSerialized]].
+    */
+  @JsonIgnore
+  def outputPortsSerialized: Map[PortIdentity, (OutputPort, Option[Schema])] =
+    outputPorts.map {
+      case (portId, (port, _, schema)) => portId -> ((port, schema.toOption))
+    }
 
   // all the "dependee" links are also blocking
   lazy val dependeeInputs: List[PortIdentity] =
@@ -298,10 +392,11 @@ case class PhysicalOp(
   }
 
   /**
-    * creates a copy with the partition info derive function
+    * creates a copy with the partition-derivation spec. The runtime `derivePartition`
+    * function is rebuilt lazily from this spec.
     */
-  def withDerivePartition(derivePartition: List[PartitionInfo] => PartitionInfo): PhysicalOp = {
-    this.copy(derivePartition = derivePartition)
+  def withDerivePartition(partitionDeriveSpec: DerivePartitionSpec): PhysicalOp = {
+    this.copy(partitionDeriveSpec = partitionDeriveSpec)
   }
 
   /**

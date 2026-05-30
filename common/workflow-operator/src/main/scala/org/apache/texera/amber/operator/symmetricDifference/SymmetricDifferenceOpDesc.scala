@@ -45,7 +45,7 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(List(Option(HashPartition()), Option(HashPartition())))
-      .withDerivePartition(_ => HashPartition(List()))
+      .withDerivePartition(ToHash(List()))
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
         Preconditions.checkArgument(inputSchemas.values.toSet.size == 1)
         val outputSchema = inputSchemas.values.head

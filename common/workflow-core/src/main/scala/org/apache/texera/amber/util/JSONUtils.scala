@@ -20,12 +20,9 @@
 package org.apache.texera.amber.util
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include
-import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.util.serde.{PortIdentityKeyDeserializer, PortIdentityKeySerializer}
 
 import java.text.SimpleDateFormat
 import scala.jdk.CollectionConverters.IteratorHasAsScala
@@ -55,11 +52,7 @@ object JSONUtils {
   final val objectMapper = new ObjectMapper()
     .registerModule(DefaultScalaModule)
     .registerModule(new NoCtorDeserModule())
-    .registerModule(
-      new SimpleModule()
-        .addKeySerializer(classOf[PortIdentity], new PortIdentityKeySerializer())
-        .addKeyDeserializer(classOf[PortIdentity], new PortIdentityKeyDeserializer())
-    )
+    .registerModule(PhysicalPlanSerdeModule.physicalPlanModule)
     .setSerializationInclusion(Include.NON_NULL)
     .setSerializationInclusion(Include.NON_ABSENT)
     .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))

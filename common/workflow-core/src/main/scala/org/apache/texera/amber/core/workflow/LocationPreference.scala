@@ -19,15 +19,30 @@
 
 package org.apache.texera.amber.core.workflow
 
+import com.fasterxml.jackson.databind.annotation.{JsonDeserialize, JsonSerialize}
+import org.apache.texera.amber.util.serde.{
+  LocationPreferenceDeserializer,
+  LocationPreferenceSerializer
+}
+
 // LocationPreference defines where operators should run.
+//
+// The two concrete preferences are Scala `case object`s (singletons), so they cannot
+// carry a `@JsonTypeInfo` discriminator the way ordinary case classes do. Jackson
+// (de)serialization is provided by a dedicated (de)serializer registered on the trait,
+// which emits/parses a single `{"type": ...}` discriminator and always returns the
+// canonical singleton instance. This keeps `eq` identity and pattern matching
+// (`case PreferController =>`) working unchanged across a serialization round-trip.
+@JsonSerialize(using = classOf[LocationPreferenceSerializer])
+@JsonDeserialize(using = classOf[LocationPreferenceDeserializer])
 sealed trait LocationPreference extends Serializable
 
 // PreferController: Run on the controller node.
 // Example: For scan operators reading files.
-object PreferController extends LocationPreference
+case object PreferController extends LocationPreference
 
 // RoundRobinPreference: Distribute across worker nodes, per operator.
 // Example:
 // - Operator A: Worker 1 -> Node 1, Worker 2 -> Node 2, Worker 3 -> Node 3
 // - Operator B: Worker 1 -> Node 1, Worker 2 -> Node 2
-object RoundRobinPreference extends LocationPreference
+case object RoundRobinPreference extends LocationPreference
