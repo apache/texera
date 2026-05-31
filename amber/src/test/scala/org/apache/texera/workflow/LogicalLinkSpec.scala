@@ -21,6 +21,7 @@ package org.apache.texera.workflow
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException
+import org.apache.texera.amber.compiler.model.LogicalLink
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper

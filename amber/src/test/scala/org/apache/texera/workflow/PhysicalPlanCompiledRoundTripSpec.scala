@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.workflow.{PartitionInfo, PhysicalPlan, PortI
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.aggregate.AggregationFunction
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
+import org.apache.texera.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

@@ -19,8 +19,8 @@
 
 package org.apache.texera.web.model.websocket.request
 
+import org.apache.texera.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.workflow.LogicalLink
 
 case class EditingTimeCompilationRequest(
     operators: List[LogicalOp],

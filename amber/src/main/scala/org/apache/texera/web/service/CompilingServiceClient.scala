@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import org.apache.texera.amber.config.EnvironmentalVariable
 import org.apache.texera.amber.core.workflow.PhysicalPlan
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
+import org.apache.texera.amber.compiler.model.LogicalPlanPojo
 
 import java.net.{HttpURLConnection, URL}
 import java.nio.charset.StandardCharsets

@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.controller
 
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import org.apache.texera.workflow.LogicalPlan
+import org.apache.texera.amber.compiler.model.LogicalPlan
 
 case class Workflow(
     context: WorkflowContext,

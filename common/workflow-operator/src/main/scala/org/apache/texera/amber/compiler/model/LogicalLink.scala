@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.workflow
+package org.apache.texera.amber.compiler.model
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 import com.fasterxml.jackson.core.JsonGenerator

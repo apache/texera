@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package org.apache.texera.workflow
+package org.apache.texera.amber.compiler.model
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
-import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.util.SupplierUtil
 
@@ -61,6 +61,7 @@ object LogicalPlan {
   ): LogicalPlan = {
     LogicalPlan(pojo.operators, pojo.links)
   }
+
 }
 
 case class LogicalPlan(
@@ -76,12 +77,35 @@ case class LogicalPlan(
 
   def getTopologicalOpIds: util.Iterator[OperatorIdentity] = jgraphtDag.iterator()
 
+  def getOperator(opId: String): LogicalOp = operatorMap(OperatorIdentity(opId))
+
   def getOperator(opId: OperatorIdentity): LogicalOp = operatorMap(opId)
 
   def getTerminalOperatorIds: List[OperatorIdentity] =
     operatorMap.keys
       .filter(op => jgraphtDag.outDegreeOf(op) == 0)
       .toList
+
+  def addOperator(op: LogicalOp): LogicalPlan = {
+    // TODO: fix schema for the new operator
+    this.copy(operators :+ op, links)
+  }
+
+  def addLink(
+      fromOpId: OperatorIdentity,
+      fromPortId: PortIdentity,
+      toOpId: OperatorIdentity,
+      toPortId: PortIdentity
+  ): LogicalPlan = {
+    val newLink = LogicalLink(
+      fromOpId,
+      fromPortId,
+      toOpId,
+      toPortId
+    )
+    val newLinks = links :+ newLink
+    this.copy(operators, newLinks)
+  }
 
   def getUpstreamLinks(opId: OperatorIdentity): List[LogicalLink] = {
     links.filter(l => l.toOpId == opId)
@@ -90,7 +114,7 @@ case class LogicalPlan(
   /**
     * Resolve all user-given filename for the scan source operators to URIs, and call op.setFileUri to set the URi
     *
-    * @param errorList if given, put errors during resolving to it
+    * @param errorList if given, put errors during resolving to it; otherwise the error is thrown
     */
   def resolveScanSourceOpFileName(
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]

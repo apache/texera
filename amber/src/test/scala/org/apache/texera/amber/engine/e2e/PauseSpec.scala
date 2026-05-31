@@ -44,7 +44,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   stateReached
 }
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.amber.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 

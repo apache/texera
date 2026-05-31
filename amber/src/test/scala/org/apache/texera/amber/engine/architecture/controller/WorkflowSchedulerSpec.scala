@@ -23,7 +23,7 @@ import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.amber.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpec
 
 class WorkflowSchedulerSpec extends AnyFlatSpec {
