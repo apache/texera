@@ -154,6 +154,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[ProjectResource])
     environment.jersey.register(classOf[ProjectAccessResource])
     environment.jersey.register(classOf[WorkflowExecutionsResource])
+    environment.jersey.register(classOf[InternalExecutionMetadataResource])
     environment.jersey.register(classOf[DashboardResource])
     environment.jersey.register(classOf[GmailResource])
     environment.jersey.register(classOf[AdminExecutionResource])

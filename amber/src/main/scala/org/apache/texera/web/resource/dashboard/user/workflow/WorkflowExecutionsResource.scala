@@ -43,7 +43,11 @@ import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{WorkflowExecutions, User => UserPojo}
 import org.apache.texera.web.model.http.request.result.ResultExportRequest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
-import org.apache.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
+import org.apache.texera.web.service.{
+  ExecutionsMetadataPersistService,
+  RemoteExecutionMetadata,
+  ResultExportService
+}
 import org.jooq.DSLContext
 import play.api.libs.json.Json
 
@@ -68,6 +72,10 @@ object WorkflowExecutionsResource {
   }
 
   def getExpiredExecutionsWithResultOrLog(timeToLive: Int): List[WorkflowExecutions] = {
+    if (RemoteExecutionMetadata.enabled) {
+      // result/log cleanup is owned by the dashboard service in remote mode.
+      return List.empty
+    }
     val deadline = new Timestamp(
       System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)
     )
@@ -93,6 +101,9 @@ object WorkflowExecutionsResource {
     * @return Integer
     */
   def getLatestExecutionID(wid: Integer, cuid: Integer): Option[Integer] = {
+    if (RemoteExecutionMetadata.enabled) {
+      return RemoteExecutionMetadata.getLatestExecutionId(wid, cuid)
+    }
     val executions = context
       .select(WORKFLOW_EXECUTIONS.EID)
       .from(WORKFLOW_EXECUTIONS)
@@ -239,6 +250,23 @@ object WorkflowExecutionsResource {
       globalPortId: GlobalPortIdentity,
       uri: URI
   ): Unit = {
+    if (RemoteExecutionMetadata.enabled) {
+      RemoteExecutionMetadata.insertPortResultUri(
+        eid.id.toLong,
+        globalPortId.serializeAsString,
+        uri
+      )
+    } else {
+      insertOperatorPortResultUriSerialized(eid, globalPortId.serializeAsString, uri)
+    }
+  }
+
+  /** Inserts a port-result row using an already-serialized globalPortId, bypassing re-serialization. */
+  def insertOperatorPortResultUriSerialized(
+      eid: ExecutionIdentity,
+      globalPortIdSerialized: String,
+      uri: URI
+  ): Unit = {
     context
       .insertInto(OPERATOR_PORT_EXECUTIONS)
       .columns(
@@ -246,7 +274,7 @@ object WorkflowExecutionsResource {
         OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
         OPERATOR_PORT_EXECUTIONS.RESULT_URI
       )
-      .values(eid.id.toInt, globalPortId.serializeAsString, uri.toString)
+      .values(eid.id.toInt, globalPortIdSerialized, uri.toString)
       .execute()
   }
 
@@ -255,6 +283,9 @@ object WorkflowExecutionsResource {
       opId: String,
       uri: URI
   ): Unit = {
+    if (RemoteExecutionMetadata.enabled) {
+      return RemoteExecutionMetadata.insertOperatorConsoleUri(eid, opId, uri)
+    }
     context
       .insertInto(OPERATOR_EXECUTIONS)
       .columns(
@@ -267,6 +298,9 @@ object WorkflowExecutionsResource {
   }
 
   def updateRuntimeStatsUri(wid: Long, eid: Long, uri: URI): Unit = {
+    if (RemoteExecutionMetadata.enabled) {
+      return RemoteExecutionMetadata.updateRuntimeStatsUri(wid, eid, uri)
+    }
     context
       .update(WORKFLOW_EXECUTIONS)
       .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI, uri.toString)
@@ -286,6 +320,9 @@ object WorkflowExecutionsResource {
   }
 
   def getResultUrisByExecutionId(eid: ExecutionIdentity): List[URI] = {
+    if (RemoteExecutionMetadata.enabled) {
+      return List.empty
+    }
     context
       .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
       .from(OPERATOR_PORT_EXECUTIONS)
@@ -298,25 +335,29 @@ object WorkflowExecutionsResource {
   }
 
   def getConsoleMessagesUriByExecutionId(eid: ExecutionIdentity): List[URI] =
-    context
-      .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
-      .from(OPERATOR_EXECUTIONS)
-      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-      .fetchInto(classOf[String])
-      .asScala
-      .toList
-      .filter(uri => uri != null && uri.nonEmpty)
-      .map(URI.create)
+    if (RemoteExecutionMetadata.enabled) List.empty
+    else
+      context
+        .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
+        .from(OPERATOR_EXECUTIONS)
+        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+        .fetchInto(classOf[String])
+        .asScala
+        .toList
+        .filter(uri => uri != null && uri.nonEmpty)
+        .map(URI.create)
 
   def getRuntimeStatsUriByExecutionId(eid: ExecutionIdentity): Option[URI] =
-    Option(
-      context
-        .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
-        .from(WORKFLOW_EXECUTIONS)
-        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
-        .fetchOneInto(classOf[String])
-    ).filter(_.nonEmpty)
-      .map(URI.create)
+    if (RemoteExecutionMetadata.enabled) None
+    else
+      Option(
+        context
+          .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
+          .from(WORKFLOW_EXECUTIONS)
+          .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+          .fetchOneInto(classOf[String])
+      ).filter(_.nonEmpty)
+        .map(URI.create)
 
   def getWorkflowExecutions(
       wid: Integer,
@@ -359,6 +400,9 @@ object WorkflowExecutionsResource {
   }
 
   def deleteConsoleMessageAndExecutionResultUris(eid: ExecutionIdentity): Unit = {
+    if (RemoteExecutionMetadata.enabled) {
+      return
+    }
     context
       .delete(OPERATOR_PORT_EXECUTIONS)
       .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
@@ -486,6 +530,14 @@ object WorkflowExecutionsResource {
       opId: OperatorIdentity,
       portId: PortIdentity
   ): Option[URI] = {
+    if (RemoteExecutionMetadata.enabled) {
+      return RemoteExecutionMetadata.getResultUri(
+        eid.id.toLong,
+        opId.id,
+        portId.id,
+        portId.internal
+      )
+    }
     def isMatchingExternalPortURI(uri: URI): Boolean = {
       val (_, _, globalPortIdOption, resourceType) = VFSURIFactory.decodeURI(uri)
       globalPortIdOption.exists { globalPortId =>

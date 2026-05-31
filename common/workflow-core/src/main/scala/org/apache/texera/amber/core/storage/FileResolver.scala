@@ -113,6 +113,11 @@ object FileResolver {
     * @throws java.io.FileNotFoundException if the dataset file does not exist or cannot be created
     */
   private def datasetResolveFunc(fileName: String): URI = {
+    // Inside a computing-unit pod (which runs user code and must not hold DB credentials),
+    // resolve through the file-service over HTTP instead of querying Postgres directly.
+    if (RemoteDatasetResolver.enabled) {
+      return RemoteDatasetResolver.resolve(fileName)
+    }
     val (ownerEmail, datasetName, versionName, fileRelativePathSegments) =
       parseDatasetFilePath(fileName).getOrElse(
         throw new FileNotFoundException(s"Dataset file $fileName not found.")

@@ -25,7 +25,7 @@ import io.dropwizard.Configuration
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
-import org.apache.texera.amber.config.{ApplicationConfig, StorageConfig}
+import org.apache.texera.amber.config.{ApplicationConfig, EnvironmentalVariable, StorageConfig}
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
@@ -141,11 +141,20 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
   override def run(configuration: Configuration, environment: Environment): Unit = {
     ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
 
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
+    // In remote mode the CU routes execution-metadata operations over HTTP to the dashboard
+    // service and holds no Postgres credentials of its own (issue #5011).
+    val remote =
+      EnvironmentalVariable
+        .get(EnvironmentalVariable.ENV_EXECUTION_METADATA_REMOTE)
+        .contains("true")
+
+    if (!remote) {
+      SqlServer.initConnection(
+        StorageConfig.jdbcUrl,
+        StorageConfig.jdbcUsername,
+        StorageConfig.jdbcPassword
+      )
+    }
 
     environment.jersey.setUrlPattern("/api/*")
 
@@ -177,28 +186,32 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         new WebsocketPayloadSizeTuner(ApplicationConfig.maxWorkflowWebsocketRequestPayloadSizeKb)
       )
 
-    val timeToLive: Int = ApplicationConfig.sinkStorageTTLInSecs
-    if (ApplicationConfig.cleanupAllExecutionResults) {
-      // do one time cleanup of collections that were not closed gracefully before restart/crash
-      // retrieve all executions that were executing before the reboot.
-      val allExecutionsBeforeRestart: List[WorkflowExecutions] =
-        WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(-1)
-      cleanExecutions(
-        allExecutionsBeforeRestart,
-        statusByte => {
-          if (statusByte != maptoStatusCode(COMPLETED)) {
-            maptoStatusCode(FAILED) // for incomplete executions, mark them as failed.
-          } else {
-            statusByte
+    // Result/log cleanup needs a database connection and is owned by the dashboard service in
+    // remote mode, so skip it on the computing unit when running remotely.
+    if (!remote) {
+      val timeToLive: Int = ApplicationConfig.sinkStorageTTLInSecs
+      if (ApplicationConfig.cleanupAllExecutionResults) {
+        // do one time cleanup of collections that were not closed gracefully before restart/crash
+        // retrieve all executions that were executing before the reboot.
+        val allExecutionsBeforeRestart: List[WorkflowExecutions] =
+          WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(-1)
+        cleanExecutions(
+          allExecutionsBeforeRestart,
+          statusByte => {
+            if (statusByte != maptoStatusCode(COMPLETED)) {
+              maptoStatusCode(FAILED) // for incomplete executions, mark them as failed.
+            } else {
+              statusByte
+            }
           }
-        }
-      )
-    }
-    scheduleRecurringCallThroughActorSystem(
-      2.seconds,
-      ApplicationConfig.sinkStorageCleanUpCheckIntervalInSecs.seconds
-    ) {
-      recurringCheckExpiredResults(timeToLive)
+        )
+      }
+      scheduleRecurringCallThroughActorSystem(
+        2.seconds,
+        ApplicationConfig.sinkStorageCleanUpCheckIntervalInSecs.seconds
+      ) {
+        recurringCheckExpiredResults(timeToLive)
+      }
     }
 
     environment.jersey.register(classOf[WorkflowExecutionsResource])
