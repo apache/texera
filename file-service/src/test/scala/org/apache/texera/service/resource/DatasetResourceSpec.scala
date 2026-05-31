@@ -2531,6 +2531,50 @@ class DatasetResourceSpec
     response.getHeaderString("Location") should not be null
   }
 
+  "getDatasetCoverUrl" should "return presigned url for owner of private dataset" in {
+    testDatasetVersion
+
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setIsPublic(false)
+    dataset.setCoverImage(testCoverImagePath)
+    datasetDao.update(dataset)
+
+    val response = datasetResource.getDatasetCoverUrl(
+      baseDataset.getDid,
+      Optional.of(sessionUser)
+    )
+
+    response.getStatus shouldEqual 200
+    Option(entityAsScalaMap(response)("url")) shouldBe defined
+  }
+
+  it should "reject private dataset cover for users without access" in {
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(false)
+    dataset.setCoverImage("v1/cover.jpg")
+    datasetDao.update(dataset)
+
+    assertThrows[ForbiddenException] {
+      datasetResource.getDatasetCoverUrl(baseDataset.getDid, Optional.of(sessionUser2))
+    }
+  }
+
+  it should "return null url when no cover image is set" in {
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setCoverImage(null)
+    dataset.setIsPublic(true)
+    datasetDao.update(dataset)
+
+    val response = datasetResource.getDatasetCoverUrl(
+      baseDataset.getDid,
+      Optional.of(sessionUser)
+    )
+
+    response.getStatus shouldEqual 200
+    Option(entityAsScalaMap(response)("url")) shouldBe empty
+  }
+
   "LakeFS error handling" should "return 500 when ETag is invalid, with the message included in the error response body" in {
     val filePath = uniqueFilePath("error-body")
 
