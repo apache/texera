@@ -166,7 +166,7 @@ class ExecutionsMetadataPersistServiceSpec
   "insertNewExecution" should "insert a row tied to the latest workflow version" in {
     val id = ExecutionsMetadataPersistService.insertNewExecution(
       WorkflowIdentity(testWid.toLong),
-      testUid,
+      Some(testUid),
       executionName = "named-execution",
       environmentVersion = "env-1",
       computingUnitId = seededCuid
@@ -185,7 +185,7 @@ class ExecutionsMetadataPersistServiceSpec
   it should "skip setName when executionName is the empty string" in {
     val id = ExecutionsMetadataPersistService.insertNewExecution(
       WorkflowIdentity(testWid.toLong),
-      testUid,
+      Some(testUid),
       executionName = "",
       environmentVersion = "env-2",
       computingUnitId = seededCuid
@@ -198,12 +198,12 @@ class ExecutionsMetadataPersistServiceSpec
     stored.getName shouldBe "Untitled Execution"
   }
 
-  it should "reject a null uid up front with a clear error rather than a jOOQ violation" in {
-    // uid is NOT NULL, so require(...) rejects null before the insert.
+  it should "raise on a None uid rather than writing null to a NOT NULL column" in {
+    // uid is NOT NULL, so a None is rejected before the insert.
     val ex = intercept[IllegalArgumentException] {
       ExecutionsMetadataPersistService.insertNewExecution(
         WorkflowIdentity(testWid.toLong),
-        null,
+        None,
         executionName = "anonymous",
         environmentVersion = "env-3",
         computingUnitId = seededCuid

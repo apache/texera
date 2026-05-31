@@ -46,19 +46,17 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     * This method inserts a new entry of a workflow execution in the database and returns the generated eId
     *
     * @param workflowId the given workflow
-    * @param uid        user id that initiated the execution; must be non-null (uid is NOT NULL)
+    * @param uid        user id that initiated the execution; required (uid is NOT NULL)
     * @return generated execution ID
     */
 
   def insertNewExecution(
       workflowId: WorkflowIdentity,
-      uid: Integer,
+      uid: Option[Integer],
       executionName: String,
       environmentVersion: String,
       computingUnitId: Integer
   ): ExecutionIdentity = {
-    // uid is NOT NULL; reject up front instead of a cryptic jOOQ violation.
-    require(uid != null, "uid must be provided to persist a new workflow execution")
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(workflowId.id.toInt)
     val newExecution = new WorkflowExecutions()
@@ -66,7 +64,12 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       newExecution.setName(executionName)
     }
     newExecution.setVid(vid)
-    newExecution.setUid(uid)
+    // uid is NOT NULL in the DB; reject a missing uid rather than writing null.
+    newExecution.setUid(
+      uid.getOrElse(
+        throw new IllegalArgumentException("uid is required to persist a workflow execution")
+      )
+    )
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     newExecution.setEnvironmentVersion(environmentVersion)
 
