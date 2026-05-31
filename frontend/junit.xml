@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="94" failures="0" errors="0" time="5.087571098">
+    <testsuite name="src/app/workspace/component/workspace.component.spec.ts" timestamp="2026-05-31T22:02:19.054Z" hostname="fedora" tests="22" failures="0" errors="0" skipped="0" time="0.260585239">
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; ngOnInit &gt; parses numeric pid from route query params" time="0.027769207">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; ngOnInit &gt; treats non-numeric pid as undefined" time="0.009083991">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; ngOnInit &gt; enables highlighting on the workflow action service" time="0.009973248">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; ngAfterViewInit &gt; cold start (no wid in route): does not flip isLoading and registers metadata listener" time="0.018163744">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; ngAfterViewInit &gt; warm start (wid in route): sets isLoading=true and disables modification before load" time="0.011810069">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; loadWorkflowWithId &gt; on success: hands the workflow to the action service, clears undo/redo, and turns off loading" time="0.011063718">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; loadWorkflowWithId &gt; on failure: resets to a new workflow, surfaces an access error, and turns off loading" time="0.009642532">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; loadWorkflowWithId &gt; flags broken workflows via NotificationService.error but still loads them" time="0.009834339">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; loadWorkflowWithId &gt; when URL fragment matches an element in the graph, highlights it" time="0.013489087">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; loadWorkflowWithId &gt; when URL fragment does not match any element, surfaces an error and clears the fragment" time="0.007635142">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; triggerCenter &gt; delegates to the texera graph" time="0.009247255">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; registerAutoPersistWorkflow &gt; is idempotent — only subscribes to workflowChanged once across repeated calls" time="0.009589953">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; registerAutoPersistWorkflow &gt; updates the URL via location.go to /user/workflow/&lt;wid&gt; (no /dashboard prefix) when the persisted wid differs" time="0.009962687">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; registerAutoPersistWorkflow &gt; skips the URL update when the persisted wid matches the current metadata" time="0.009777733">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; updateViewCount &gt; posts a view event with the route&apos;s wid and the current user&apos;s uid" time="0.011406607">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; updateViewCount &gt; falls back to uid=0 when no user is signed in" time="0.009628254">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; onWIDChange &gt; syncs writeAccess from metadata.readonly each time the metadata changes" time="0.008983273">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; onWIDChange &gt; ignores metadata emissions that have no wid yet" time="0.012496988">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; ngOnDestroy &gt; persists the workflow on destroy when the user is signed in and persist is enabled" time="0.015325407">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; ngOnDestroy &gt; skips the persist call when the user is not signed in" time="0.010986164">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; copilotEnabled &gt; passes through to GuiConfigService.env.copilotEnabled" time="0.010425259">
+        </testcase>
+        <testcase classname="src/app/workspace/component/workspace.component.spec.ts" name="WorkspaceComponent &gt; child rendering side effects &gt; publishes the resolved ViewContainerRef to CodeEditorService.vc on view init" time="0.011049662">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/app/hub/component/browse-section/browse-section.component.spec.ts" timestamp="2026-05-31T22:02:19.056Z" hostname="fedora" tests="5" failures="0" errors="0" skipped="0" time="0.099623522">
+        <testcase classname="src/app/hub/component/browse-section/browse-section.component.spec.ts" name="BrowseSectionComponent &gt; should create" time="0.051622619">
+        </testcase>
+        <testcase classname="src/app/hub/component/browse-section/browse-section.component.spec.ts" name="BrowseSectionComponent &gt; entityRoutes initialization &gt; routes owned workflows to the user workspace" time="0.012480027">
+        </testcase>
+        <testcase classname="src/app/hub/component/browse-section/browse-section.component.spec.ts" name="BrowseSectionComponent &gt; entityRoutes initialization &gt; routes non-owned workflows to the hub workflow detail page" time="0.010488437">
+        </testcase>
+        <testcase classname="src/app/hub/component/browse-section/browse-section.component.spec.ts" name="BrowseSectionComponent &gt; entityRoutes initialization &gt; routes owned datasets to the user dataset page" time="0.010225908">
+        </testcase>
+        <testcase classname="src/app/hub/component/browse-section/browse-section.component.spec.ts" name="BrowseSectionComponent &gt; entityRoutes initialization &gt; routes non-owned datasets to the hub dataset detail page" time="0.012364301">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/app/workspace/component/menu/menu.component.spec.ts" timestamp="2026-05-31T22:02:19.057Z" hostname="fedora" tests="37" failures="0" errors="0" skipped="0" time="2.040496144">
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; should create" time="0.198376982">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; getRunButtonBehavior &gt; returns &apos;Invalid Workflow&apos; when the workflow is invalid" time="0.096334395">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; getRunButtonBehavior &gt; returns &apos;Empty Workflow&apos; when the workflow has no operators" time="0.067995677">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; getRunButtonBehavior &gt; returns &apos;Connect&apos; when no computing unit is attached" time="0.054375517">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; getRunButtonBehavior &gt; returns &apos;Run&apos; when connected and execution is uninitialized" time="0.053638163">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; getRunButtonBehavior &gt; returns &apos;Pause&apos; while a workflow is running" time="0.051673614">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; getRunButtonBehavior &gt; returns &apos;Resume&apos; when execution is paused" time="0.055678885">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; getRunButtonBehavior &gt; returns &apos;Connecting&apos; when a unit exists but the websocket is not connected" time="0.087358995">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; applyRunButtonBehavior copies the behavior onto the bound fields" time="0.069882041">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; re-applies run button behavior when the validation stream reports an empty workflow" time="0.100405618">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; hasOperators &gt; returns false on an empty graph" time="0.051971068">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; hasOperators &gt; returns true once an operator is added" time="0.083069446">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickAddCommentBox delegates to the workflow action service" time="0.045548234">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickDeleteAllOperators removes every operator from the graph" time="0.05687345">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickAutoLayout is a no-op when there are no operators" time="0.041647527">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickAutoLayout invokes auto layout when operators are present" time="0.047838581">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; handleKill delegates to executeWorkflowService.killWorkflow" time="0.038199465">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; handleCheckpoint delegates to executeWorkflowService.takeGlobalCheckpoint" time="0.038882627">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickClosePanels and onClickResetPanels delegate to PanelService" time="0.037372505">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; runWorkflow &gt; does nothing when the workflow is invalid" time="0.052278581">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; runWorkflow &gt; does nothing when the workflow is empty" time="0.049181392">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; runWorkflow &gt; opens the add-computing-unit modal when no unit is connected" time="0.039536025">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; runWorkflow &gt; submits the execution when connected" time="0.042128434">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onWorkflowNameChange forwards the new name to the workflow action service" time="0.046481051">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickExportWorkflow (save) &gt; serializes the workflow content as JSON and downloads it under the workflow name" time="0.047271734">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; version history &gt; onClickGetAllVersions delegates to workflowVersionService.displayWorkflowVersions" time="0.05204188">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; version history &gt; closeParticularVersionDisplay delegates to workflowVersionService" time="0.05335197">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; version history &gt; revertToVersion reverts and then persists the workflow" time="0.041216765">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; version history &gt; cloneVersion notifies success and closes the version panel when cloning succeeds" time="0.039094833">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; version history &gt; cloneVersion shows an error notification and does not close the panel when cloning fails" time="0.03907175">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickOpenShareAccess (share) &gt; looks up workflow owners and opens the share-access modal" time="0.043551965">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickOpenShareAccess (share) &gt; navigates to /user/workflow (no /dashboard prefix) when the modal reports the owner revoked their own access" time="0.038562802">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickOpenShareAccess (share) &gt; does not navigate when the share-access modal closes without revoking own access" time="0.035007369">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickCreateNewWorkflow resets the graph and navigates back to root" time="0.036914711">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickRestoreZoomOffsetDefault delegates to the joint graph wrapper" time="0.03822378">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickEditDescription opens the markdown description modal seeded with the current description" time="0.033500182">
+        </testcase>
+        <testcase classname="src/app/workspace/component/menu/menu.component.spec.ts" name="MenuComponent &gt; onClickExportExecutionResult opens the result-exportation modal with the current workflow name" time="0.03318784">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/app/dashboard/component/admin/execution/admin-execution.component.spec.ts" timestamp="2026-05-31T22:02:19.059Z" hostname="fedora" tests="2" failures="0" errors="0" skipped="0" time="0.285096606">
+        <testcase classname="src/app/dashboard/component/admin/execution/admin-execution.component.spec.ts" name="AdminDashboardComponent &gt; should create" time="0.151401078">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/admin/execution/admin-execution.component.spec.ts" name="AdminDashboardComponent &gt; renders the workflow link to /user/workflow/&lt;id&gt; when the admin has access" time="0.132082073">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/app/dashboard/component/user/list-item/list-item.component.spec.ts" timestamp="2026-05-31T22:02:19.059Z" hostname="fedora" tests="9" failures="0" errors="0" skipped="0" time="0.350229933">
+        <testcase classname="src/app/dashboard/component/user/list-item/list-item.component.spec.ts" name="ListItemComponent &gt; should update workflow name successfully" time="0.111881685">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/list-item/list-item.component.spec.ts" name="ListItemComponent &gt; should handle error when updating workflow name" time="0.067928482">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/list-item/list-item.component.spec.ts" name="ListItemComponent &gt; should update workflow description successfully" time="0.035658542">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/list-item/list-item.component.spec.ts" name="ListItemComponent &gt; should handle error when updating workflow description" time="0.040852658">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/list-item/list-item.component.spec.ts" name="ListItemComponent &gt; initializeEntry routes &gt; routes owned workflows to the user workspace" time="0.026162143">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/list-item/list-item.component.spec.ts" name="ListItemComponent &gt; initializeEntry routes &gt; routes non-owned workflows to the hub workflow detail page" time="0.024489357">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/list-item/list-item.component.spec.ts" name="ListItemComponent &gt; initializeEntry routes &gt; routes projects to the user project page" time="0.016506988">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/list-item/list-item.component.spec.ts" name="ListItemComponent &gt; initializeEntry routes &gt; routes owned datasets to the user dataset page" time="0.010961909">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/list-item/list-item.component.spec.ts" name="ListItemComponent &gt; initializeEntry routes &gt; routes non-owned datasets to the hub dataset detail page" time="0.013448121">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/app/dashboard/component/user/share-access/share-access.component.spec.ts" timestamp="2026-05-31T22:02:19.060Z" hostname="fedora" tests="4" failures="0" errors="0" skipped="0" time="0.31104995">
+        <testcase classname="src/app/dashboard/component/user/share-access/share-access.component.spec.ts" name="ShareAccessComponent.grantAccess &gt; uses the workflow dashboard path when sharing a workflow" time="0.164787023">
+            <system-err>
+
+  It looks like you&apos;re using ngModel on the same form field as formControlName.
+  Support for using the ngModel input property and ngModelChange event with
+  reactive form directives has been deprecated in Angular v6 and will be removed
+  in a future version of Angular.
+
+  For more information on this, see our API docs here:
+  https://v21.angular.dev/api/forms/FormControlName
+  
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/share-access/share-access.component.spec.ts" name="ShareAccessComponent.grantAccess &gt; uses the dataset dashboard path when sharing a dataset" time="0.052012054">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/share-access/share-access.component.spec.ts" name="ShareAccessComponent.grantAccess &gt; uses the project dashboard path when sharing a project" time="0.046773456">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/share-access/share-access.component.spec.ts" name="ShareAccessComponent.grantAccess &gt; omits the access URL when sharing a computing-unit" time="0.045031802">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" timestamp="2026-05-31T22:02:19.060Z" hostname="fedora" tests="12" failures="0" errors="0" skipped="0" time="1.603937545">
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; searchNoInput" time="0.390931538">
+            <system-out>
+Master Filter List: []
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; searchByWorkflowName" time="0.173501555">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; searchByOwners" time="0.139278677">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; searchByIDs" time="0.13354656">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; searchByProjects" time="0.108427561">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; searchByCreationTime" time="0.098815265">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; searchByModifyTime" time="0.093503321">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; searchByOperators" time="0.089415697">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; searchByManyOperators" time="0.11225506">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; searchByManyParameters" time="0.094033879">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; onClickCreateNewWorkflowFromDashboard &gt; navigates to /user/workflow/&lt;wid&gt; (no /dashboard prefix) on successful creation" time="0.085328734">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts" name="SavedWorkflowSectionComponent &gt; downloads checked files" time="0.082531103">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/app/dashboard/component/user/user-icon/user-icon.component.spec.ts" timestamp="2026-05-31T22:02:19.061Z" hostname="fedora" tests="3" failures="0" errors="0" skipped="0" time="0.136552159">
+        <testcase classname="src/app/dashboard/component/user/user-icon/user-icon.component.spec.ts" name="UserIconComponent &gt; should create" time="0.081900579">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-icon/user-icon.component.spec.ts" name="UserIconComponent &gt; onClickLogout &gt; navigates to /about (no /dashboard prefix) after logout" time="0.029686098">
+        </testcase>
+        <testcase classname="src/app/dashboard/component/user/user-icon/user-icon.component.spec.ts" name="UserIconComponent &gt; onClickLogout &gt; clears the flarum_remember cookie on logout" time="0.022657645">
+        </testcase>
+    </testsuite>
+</testsuites>
