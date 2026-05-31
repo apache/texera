@@ -117,6 +117,64 @@ describe("WorkflowEditorComponent", () => {
       expect(component).toBeTruthy();
     });
 
+    it("should hide operator status on the canvas by default", () => {
+      // keeps the Status toggle off until the user enables it
+      const editor = (component as any).editor as HTMLElement;
+      expect(editor.classList.contains("hide-operator-status")).toBe(true);
+    });
+
+    // Drives the region-update stream the editor subscribes to in handleRegionEvents, creating
+    // region-<id> elements around the given operator, and returns the operator id used.
+    function emitRegionUpdate(regionId: number): string {
+      const operatorID = `region_op_${regionId}`;
+      const operator = new joint.shapes.basic.Rect({ position: { x: 0, y: 0 }, size: { width: 80, height: 40 } });
+      operator.set("id", operatorID);
+      jointGraph.addCell(operator);
+      const executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
+      (executeWorkflowService as any).regionUpdateStream.next({ regions: [[regionId, [operatorID]]] });
+      return operatorID;
+    }
+
+    it("should create region elements hidden so the Regions toggle starts off on canvas and mini-map", () => {
+      emitRegionUpdate(1);
+
+      const region = jointGraph.getCell("region-1");
+      expect(region).toBeTruthy();
+      // region visibility is a shared-model attribute, so hidden-by-default applies to both surfaces
+      expect(region.attr("body/visibility")).toBe("hidden");
+    });
+
+    it("should show regions created during execution when the toggle is already on", () => {
+      // user enables Regions, then execution emits region updates
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setRegionsDisplayed(true);
+      emitRegionUpdate(1);
+
+      expect(jointGraph.getCell("region-1").attr("body/visibility")).toBe("visible");
+    });
+
+    it("should keep regions visible when they are recreated on a later execution update", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setRegionsDisplayed(true);
+      emitRegionUpdate(1);
+      // a subsequent update removes and recreates the region elements
+      emitRegionUpdate(2);
+
+      expect(jointGraph.getCell("region-2").attr("body/visibility")).toBe("visible");
+    });
+
+    it("should toggle visibility of existing regions when the displayed flag changes", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      emitRegionUpdate(1);
+      expect(jointGraph.getCell("region-1").attr("body/visibility")).toBe("hidden");
+
+      wrapper.setRegionsDisplayed(true);
+      expect(jointGraph.getCell("region-1").attr("body/visibility")).toBe("visible");
+
+      wrapper.setRegionsDisplayed(false);
+      expect(jointGraph.getCell("region-1").attr("body/visibility")).toBe("hidden");
+    });
+
     it("should create element in the UI after adding operator in the model", () => {
       const operatorID = "test_one_operator_1";
 
