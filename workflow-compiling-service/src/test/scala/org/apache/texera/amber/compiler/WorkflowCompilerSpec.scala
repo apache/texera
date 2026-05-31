@@ -228,11 +228,13 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
     assert(result.physicalPlan.isEmpty)
     assert(result.operatorIdToError.contains(broken.operatorIdentifier))
-    // FileResolver surfaces FileNotFoundException for a missing local path;
-    // pin the "does not exist" substring from that contract rather than a
-    // different file-type error wording.
+    // FileResolver.resolve falls through both resolvers and rethrows
+    // org.apache.commons.vfs2.FileNotFoundException(fileName); its message bundle
+    // renders as `Could not read from "<path>" because it is not a file.`, so the
+    // only stable substring across that wording and any java.io.FileNotFoundException
+    // fallback is the bad path itself.
     assert(
-      result.operatorIdToError(broken.operatorIdentifier).message.contains("does not exist"),
+      result.operatorIdToError(broken.operatorIdentifier).message.contains("missing.csv"),
       s"unexpected message: ${result.operatorIdToError(broken.operatorIdentifier).message}"
     )
   }
