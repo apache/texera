@@ -26,7 +26,9 @@ import io.dropwizard.testing.junit5.ResourceExtension
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
-import org.apache.texera.auth.JwtAuthFilter
+import org.apache.texera.auth.{JwtAuth, JwtAuthFilter}
+import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -75,6 +77,29 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     val response =
       resources.target("/auth-probe").request(MediaType.APPLICATION_JSON).get()
     response.getStatus shouldBe 403
+  }
+
+  it should "return 200 with a valid Bearer token whose role matches @RolesAllowed" in {
+    // Positive-direction sibling to the previous test. Without this, a filter-
+    // priority bug that lets RolesAllowedRequestFilter run *before* JwtAuthFilter
+    // is invisible to the spec: the no-auth case still 403s, the @PermitAll cases
+    // still 200, and the only path that actually exercises auth → authz ordering
+    // is "valid JWT → 200". Manual integration testing of PR #5199 found this:
+    // a real admin JWT was getting 403 on every @RolesAllowed endpoint until
+    // JwtAuthFilter was pinned to Priorities.AUTHENTICATION.
+    val u = new User()
+    u.setUid(1)
+    u.setName("test-admin")
+    u.setEmail("test-admin@example.com")
+    u.setGoogleId(null)
+    u.setRole(UserRoleEnum.ADMIN)
+    val token = JwtAuth.jwtToken(JwtAuth.jwtClaims(u, expireInDays = 1))
+    val response = resources
+      .target("/auth-probe")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer $token")
+      .get()
+    response.getStatus shouldBe 200
   }
 }
 
