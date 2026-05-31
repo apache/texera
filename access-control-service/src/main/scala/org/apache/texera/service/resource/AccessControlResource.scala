@@ -22,7 +22,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
 import jakarta.ws.rs.core._
-import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces}
+import jakarta.ws.rs.{Consumes, DELETE, GET, POST, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
@@ -43,6 +43,11 @@ object AccessControlResource extends LazyLogging {
   private val wsapiWorkflowWebsocket: Regex = """.*/wsapi/workflow-websocket.*""".r
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
+  private val pveRoute: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve(?:/.*)?$""".r
+  // Path patterns whose cuid lives in the URL path rather than the query string.
+  private val pvePvesCuidPath: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve/pves/([0-9]+)$""".r
+  private val pvePackagesCuidPath: Regex =
+    """^/?(?:auth/)?(?:api/|wsapi/)?pve/([0-9]+)/[^/]+/packages/.+$""".r
 
   /**
     * Authorize the request based on the path and headers.
@@ -60,7 +65,8 @@ object AccessControlResource extends LazyLogging {
     logger.info(s"Authorizing request for path: $path")
 
     path match {
-      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() =>
+      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() |
+          pveRoute() =>
         checkComputingUnitAccess(uriInfo, headers, bodyOpt)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
@@ -95,7 +101,14 @@ object AccessControlResource extends LazyLogging {
       qToken.orElse(hToken).orElse(bToken).getOrElse("")
     }
     logger.info(s"token extracted from request $token")
-    val cuid = queryParams.getOrElse("cuid", "")
+
+    val cuid = queryParams.get("cuid").filter(_.nonEmpty).getOrElse {
+      uriInfo.getPath match {
+        case pvePvesCuidPath(c)     => c
+        case pvePackagesCuidPath(c) => c
+        case _                      => ""
+      }
+    }
     val cuidInt =
       try {
         cuid.toInt
@@ -212,6 +225,15 @@ class AccessControlResource extends LazyLogging {
   ): Response = {
     logger.info("Request body: " + body)
     AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
+  }
+
+  @DELETE
+  @Path("/{path:.*}")
+  def authorizeDelete(
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders
+  ): Response = {
+    AccessControlResource.authorize(uriInfo, headers)
   }
 }
 
