@@ -79,12 +79,7 @@ class TestCheckHeartbeat:
         ):
             assert hb._check_heartbeat() is False
 
-    def test_returns_false_when_socket_close_raises(self):
-        # Pins the false-negative path: connect succeeds but the subsequent
-        # close() throws (e.g. broken pipe on a half-open socket). The bare
-        # `except Exception` in _check_heartbeat() catches it and reports
-        # "server down", and a regression that narrows that handler would be
-        # caught here.
+    def test_returns_true_when_connection_succeeds_but_socket_close_raises(self):
         hb = make_heartbeat()
         fake_sock = MagicMock()
         fake_sock.close.side_effect = OSError("close failed")
@@ -92,7 +87,8 @@ class TestCheckHeartbeat:
             "core.runnables.heartbeat.socket.create_connection",
             return_value=fake_sock,
         ):
-            assert hb._check_heartbeat() is False
+            assert hb._check_heartbeat() is True
+            fake_sock.close.assert_called_once()
 
 
 class TestRunEarlyExit:

@@ -37,7 +37,7 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
-  @JsonProperty(required = true)
+  @JsonProperty(required = true, defaultValue = "false")
   @JsonPropertyDescription("flatten nested objects and arrays")
   var flatten: Boolean = false
 
