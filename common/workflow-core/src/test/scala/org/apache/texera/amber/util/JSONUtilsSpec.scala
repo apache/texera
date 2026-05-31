@@ -79,16 +79,25 @@ class JSONUtilsSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "drop array-of-primitive elements when flatten=true (current behavior)" in {
-    // Pin: the docstring claims `{"E":["X","Y"]}` flattens to
-    // `{"E1":"X","E2":"Y"}`, but the implementation only emits an entry when
-    // the recursive call is iterating an *object* node. Recursing into a
-    // value node returns an empty map, so primitives inside an array are
-    // silently dropped. Document this divergence so a future fix that
-    // brings the code into line with the docstring will deliberately
-    // break this spec and force the contract to be reviewed together.
+  it should "flatten an array of primitives with parent<idx> keys when flatten=true" in {
+    // Matches the docstring's worked example: `{"E":["X","Y"]}` flattens to
+    // `{"E1":"X","E2":"Y"}` (parent name concatenated with the 1-based index,
+    // no separator).
     val node = parse("""{"a":"x","arr":["X","Y"]}""")
-    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map("a" -> "x")
+    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map(
+      "a" -> "x",
+      "arr1" -> "X",
+      "arr2" -> "Y"
+    )
+  }
+
+  it should "flatten a mixed array of objects and primitives when flatten=true" in {
+    val node = parse("""{"mix":[{"id":"a"},"X",{"id":"b"}]}""")
+    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map(
+      "mix1.id" -> "a",
+      "mix2" -> "X",
+      "mix3.id" -> "b"
+    )
   }
 
   it should "respect an explicit parentName for keying" in {
@@ -106,12 +115,14 @@ class JSONUtilsSpec extends AnyFlatSpec with Matchers {
     JSONUtils.JSONToMap(parse("null")) shouldBe Map.empty[String, String]
   }
 
-  it should "return an empty map for a top-level array even when flatten=true" in {
-    // A top-level array is iterated with parentName="" so children become
-    // "1", "2", ...; primitives inside still produce no entries (same root
-    // cause as the array-of-primitives case above), and a top-level array
-    // therefore yields nothing for primitive content.
-    JSONUtils.JSONToMap(parse("[1,2,3]"), flatten = true) shouldBe Map.empty[String, String]
+  it should "key a top-level array of primitives with the bare 1-based index" in {
+    // A top-level array is iterated with parentName="" so each primitive
+    // child is keyed by its 1-based index ("1", "2", ...).
+    JSONUtils.JSONToMap(parse("[1,2,3]"), flatten = true) shouldBe Map(
+      "1" -> "1",
+      "2" -> "2",
+      "3" -> "3"
+    )
   }
 
   it should "key a top-level array of objects with the bare 1-based index" in {

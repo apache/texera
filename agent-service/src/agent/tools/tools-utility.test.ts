@@ -25,7 +25,42 @@ import {
   formatModifyOperatorResult,
   formatExecuteOperatorResult,
   formatOperatorError,
+  getVisibleResultHeaders,
 } from "./tools-utility";
+
+describe("getVisibleResultHeaders", () => {
+  test("returns every key when no internal columns are present", () => {
+    expect(getVisibleResultHeaders({ a: 1, b: 2 })).toEqual(["a", "b"]);
+  });
+
+  test("strips __row_index__ from the result", () => {
+    expect(getVisibleResultHeaders({ __row_index__: 0, a: 1 })).toEqual(["a"]);
+  });
+
+  test("strips __is_visualization__ from the result", () => {
+    expect(getVisibleResultHeaders({ __is_visualization__: true, a: 1 })).toEqual(["a"]);
+  });
+
+  test("strips every known internal column at once", () => {
+    expect(getVisibleResultHeaders({ __row_index__: 0, __is_visualization__: true, a: 1, b: 2 })).toEqual(["a", "b"]);
+  });
+
+  test("preserves visible column order", () => {
+    expect(getVisibleResultHeaders({ z: 1, __row_index__: 0, a: 2, __is_visualization__: true, m: 3 })).toEqual([
+      "z",
+      "a",
+      "m",
+    ]);
+  });
+
+  test("returns an empty array for an empty row", () => {
+    expect(getVisibleResultHeaders({})).toEqual([]);
+  });
+
+  test("returns an empty array when only internal columns are present", () => {
+    expect(getVisibleResultHeaders({ __row_index__: 0, __is_visualization__: true })).toEqual([]);
+  });
+});
 
 describe("createToolResult", () => {
   test("returns the message unchanged", () => {

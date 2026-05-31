@@ -30,6 +30,7 @@ on:
       - synchronize
       - labeled
       - unlabeled
+  merge_group:
   workflow_dispatch:
 
 permissions:

@@ -65,13 +65,7 @@ class TestAtomicIntegerSingleThreaded:
         a.value = "100"
         assert a.value == 100
 
-    def test_get_and_set_currently_deadlocks_on_non_reentrant_lock(self):
-        # Bug pin: get_and_set acquires self._lock and then reads self.value,
-        # which is a property that ALSO tries to acquire self._lock. The lock
-        # is a non-reentrant threading.Lock, so the call deadlocks the moment
-        # it is invoked. Document via thread + timeout so the test surfaces
-        # the deadlock without hanging the whole suite, and pair it with an
-        # xfail-strict test below that asserts the intended contract.
+    def test_get_and_set_does_not_deadlock_on_non_reentrant_lock(self):
         a = AtomicInteger(10)
         started = threading.Event()
         completed = threading.Event()
@@ -96,23 +90,9 @@ class TestAtomicIntegerSingleThreaded:
         assert not errors, (
             f"get_and_set raised before reaching the deadlock spin: {errors[0]!r}"
         )
-        assert worker.is_alive(), (
-            "worker thread exited unexpectedly — get_and_set neither deadlocked "
-            "nor completed; the test no longer pins the documented bug."
-        )
-        assert not completed.is_set(), (
-            "get_and_set unexpectedly returned — the deadlock bug appears fixed; "
-            "delete this pinned test along with the xfail below."
-        )
+        assert not worker.is_alive()
+        assert completed.is_set()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "Known bug: AtomicInteger.get_and_set deadlocks because it holds "
-            "the non-reentrant lock while accessing the value property. "
-            "This xfail flips to XPASS when the bug is fixed."
-        ),
-    )
     @pytest.mark.timeout(2)
     def test_get_and_set_should_return_old_value_and_replace_state(self):
         a = AtomicInteger(10)

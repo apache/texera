@@ -81,12 +81,14 @@ type PveUserPackageRow = {
   name: string;
   versionOp?: "==" | ">=" | "<=";
   version?: string;
+  deleteToggle?: boolean;
 };
 
 type PveDraft = {
   name: string;
   userPackages: PveUserPackageRow[];
   newPackages: PveUserPackageRow[];
+  deletingPackages: { name: string; version: string }[];
   pipOutput: string;
   prettyPipOutput: string;
   expanded: boolean;
@@ -732,7 +734,21 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   addPackage(index: number): void {
     const env = this.pves[index];
-    env.newPackages.push({ name: "", version: "", versionOp: undefined });
+    env.newPackages.push({ name: "", version: "", versionOp: undefined, deleteToggle: false });
+  }
+
+  togglePackageDelete(index: number, pkg: PveUserPackageRow): void {
+    const env = this.pves[index];
+
+    pkg.deleteToggle = !pkg.deleteToggle;
+
+    const version = pkg.version ?? "";
+
+    env.deletingPackages = env.deletingPackages.filter(p => !(p.name === pkg.name && p.version === version));
+
+    if (pkg.deleteToggle) {
+      env.deletingPackages.push({ name: pkg.name, version });
+    }
   }
 
   addEnvironment(): void {
@@ -740,6 +756,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       name: "",
       userPackages: [],
       newPackages: [],
+      deletingPackages: [],
       pipOutput: "",
       prettyPipOutput: "",
       expanded: true,
@@ -765,7 +782,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getPVEs(): void {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
-    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
 
     this.workflowPveService
       .fetchPVEs(cuId)
@@ -776,6 +792,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
             name: pve.pveName,
             userPackages: this.parsePackageRows(pve.userPackages),
             newPackages: [],
+            deletingPackages: [],
             expanded: false,
             isInstalling: false,
             pipOutput: "",
@@ -784,7 +801,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           }));
 
           this.workflowPveService
-            .getSystemPackages(isLocal)
+            .getSystemPackages(cuId)
             .pipe(untilDestroyed(this))
             .subscribe({
               next: installedResp => {
@@ -862,11 +879,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
     const env = this.pves[index];
     const trimmedName = env.name.trim();
-    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
 
     env.socket?.close();
 
-    const websocketUrl = this.workflowPveService.getPveWebSocketUrl(cuId, trimmedName, isLocal, action, packages);
+    const websocketUrl = this.workflowPveService.getPveWebSocketUrl(cuId, trimmedName, action, packages);
 
     const socket = new WebSocket(websocketUrl);
 
@@ -956,7 +972,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
 
     if (env.isLocked) {
-      this.installUserPackages(index);
+      this.deleteUserPackages(index, () => {
+        this.installUserPackages(index);
+      });
       return;
     }
 
@@ -968,7 +986,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
 
     this.runPveWebSocket(index, "create", "Creating virtual environment...\n", [], () => {
-      this.installUserPackages(index);
+      this.deleteUserPackages(index, () => {
+        this.installUserPackages(index);
+      });
     });
   }
 
@@ -1019,6 +1039,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     if (packageArray.length === 0) {
       this.pves[index].newPackages = [];
+      this.pves[index].isInstalling = false;
       this.refreshUserPackages(index);
       return;
     }
@@ -1038,5 +1059,62 @@ export class ComputingUnitSelectionComponent implements OnInit {
         version: (version ?? "").trim(),
       };
     });
+  }
+
+  private deleteUserPackages(index: number, onDone?: () => void): void {
+    const cuId = this.selectedComputingUnit!.computingUnit.cuid;
+    const pveName = this.pves[index].name.trim();
+    const packagesToDelete = [...this.pves[index].deletingPackages];
+
+    if (packagesToDelete.length === 0) {
+      onDone?.();
+      return;
+    }
+
+    this.pves[index] = {
+      ...this.pves[index],
+      pipOutput: `${this.pves[index].pipOutput ?? ""}Deleting user packages...\n`,
+      isInstalling: true,
+    };
+
+    let deleteIndex = 0;
+
+    const deleteNext = (): void => {
+      if (deleteIndex >= packagesToDelete.length) {
+        this.pves[index].deletingPackages = [];
+        this.refreshUserPackages(index);
+        onDone?.();
+        return;
+      }
+
+      const pkg = packagesToDelete[deleteIndex];
+
+      this.workflowPveService
+        .deletePackage(cuId, pveName, pkg.name)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: messages => {
+            this.pves[index].pipOutput = `${this.pves[index].pipOutput ?? ""}${messages.join("\n")}\n`;
+
+            this.updatePrettyPipOutput(index);
+            this.scrollToBottomOfPipModal(index);
+
+            deleteIndex++;
+            deleteNext();
+          },
+          error: () => {
+            this.pves[index].pipOutput =
+              `${this.pves[index].pipOutput ?? ""}[PVE][ERR] Failed to delete package: ${pkg.name}\n`;
+
+            this.updatePrettyPipOutput(index);
+            this.scrollToBottomOfPipModal(index);
+
+            deleteIndex++;
+            deleteNext();
+          },
+        });
+    };
+
+    deleteNext();
   }
 }

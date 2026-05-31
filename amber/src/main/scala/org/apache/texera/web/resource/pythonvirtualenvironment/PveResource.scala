@@ -19,10 +19,15 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
+import org.apache.texera.config.KubernetesConfig
+
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters._
 import java.util
+import javax.ws.rs.DELETE
+import javax.ws.rs.PathParam
+import javax.ws.rs.core.Response
 
 @Path("/pve")
 @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -34,11 +39,8 @@ class PveResource {
   @Path("/system")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getSystemPackages: util.Map[String, util.List[String]] = {
+    val isLocal = !KubernetesConfig.kubernetesComputingUnitEnabled
     try {
-
-      // TODO: Support Kubernetes environment handling
-      val isLocal = true
-
       val systemPkgs =
         PveManager.getSystemPackages(isLocal).toList.asJava
 
@@ -58,9 +60,15 @@ class PveResource {
   @GET
   @Path("/pves")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def fetchPVEs(@QueryParam("cuid") cuid: Int): util.List[util.Map[String, Object]] = {
+  def fetchPVEs(@QueryParam("cuid") cuid: java.lang.Integer): Response = {
+    if (cuid == null) {
+      return Response
+        .status(Response.Status.BAD_REQUEST) // safeguard against cuid = 0
+        .entity("cuid query parameter is required")
+        .build()
+    }
     try {
-      PveManager
+      val pves = PveManager
         .getEnvironments(cuid)
         .map { pve =>
           Map(
@@ -69,7 +77,7 @@ class PveResource {
           ).asJava
         }
         .asJava
-
+      Response.ok(pves).build()
     } catch {
       case e: Exception =>
         e.printStackTrace()
@@ -85,4 +93,30 @@ class PveResource {
   def deleteEnvironments(@PathParam("cuId") cuid: Int): Unit = {
     PveManager.deleteEnvironments(cuid)
   }
+
+  // --------------------------------------------------
+  // Delete User Installed Package
+  // --------------------------------------------------
+  @DELETE
+  @Path("/{cuid}/{pveName}/packages/{packageName}")
+  def deletePackage(
+      @PathParam("cuid") cuid: Int,
+      @PathParam("pveName") pveName: String,
+      @PathParam("packageName") packageName: String
+  ): Response = {
+    val isLocal = !KubernetesConfig.kubernetesComputingUnitEnabled
+    val messages = PveManager.deletePackages(
+      cuid,
+      packageName,
+      pveName,
+      isLocal
+    )
+
+    if (messages.exists(_.contains("[PVE][ERR]"))) {
+      Response.status(Response.Status.BAD_REQUEST).entity(messages.asJava).build()
+    } else {
+      Response.ok(messages.asJava).build()
+    }
+  }
+
 }

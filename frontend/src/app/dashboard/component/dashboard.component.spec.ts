@@ -40,6 +40,7 @@ import {
 import type { Mock } from "vitest";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../common/testing/test-utils";
+import { GuiConfigService } from "../../common/service/gui-config.service";
 
 describe("DashboardComponent", () => {
   let component: DashboardComponent;
@@ -153,5 +154,12 @@ describe("DashboardComponent", () => {
 
     const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));
     expect(googleSignInBtn).toBeTruthy();
+  });
+
+  it("should render the powered-by attribution when attributionEnabled is true", () => {
+    TestBed.inject(GuiConfigService).env.attributionEnabled = true;
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.css("#powered-by"))).toBeTruthy();
   });
 });

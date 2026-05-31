@@ -53,6 +53,6 @@ class AtomicInteger:
 
     def get_and_set(self, v):
         with self._lock:
-            old_value = self.value
+            old_value = self._value
             self._value = int(v)
             return old_value

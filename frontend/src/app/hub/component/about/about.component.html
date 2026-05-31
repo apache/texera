@@ -17,15 +17,8 @@
  under the License.
 -->
 
-<div
-  class="about-page-container"
-  nz-row
-  nzJustify="space-around"
-  nzAlign="middle">
-  <div
-    nz-col
-    nzFlex="auto"
-    class="content">
+<div class="about-page-container">
+  <div class="content">
     <h1 class="about-title">About Texera</h1>
 
     <p>
@@ -37,16 +30,35 @@
       of large datasets.
     </p>
 
-    <h2 class="content-title">The platform has the following key features:</h2>
-    <ul class="text-content">
-      <li>Natural-language data science through AI agents</li>
-      <li>Intuitive GUI-based workflows for data science</li>
-      <li>Real-time collaboration for workflow editing and execution</li>
-      <li>Parallel backend engine for scalable big-data processing</li>
-      <li>Language-agnostic workflow runtime, native support for Python and Java</li>
-      <li>Separation of compute and storage for flexible cloud deployment</li>
-      <li>Runtime debugging and interactive workflow execution</li>
-    </ul>
+    <div
+      nz-row
+      nzAlign="top"
+      nzGutter="24"
+      class="features-row">
+      <div
+        nz-col
+        nzFlex="auto">
+        <h2 class="content-title">The platform has the following key features:</h2>
+        <ul class="text-content">
+          <li>Natural-language data science through AI agents</li>
+          <li>Intuitive GUI-based workflows for data science</li>
+          <li>Real-time collaboration for workflow editing and execution</li>
+          <li>Parallel backend engine for scalable big-data processing</li>
+          <li>Language-agnostic workflow runtime, native support for Python and Java</li>
+          <li>Separation of compute and storage for flexible cloud deployment</li>
+          <li>Runtime debugging and interactive workflow execution</li>
+        </ul>
+      </div>
+      <ng-container *ngIf="(isLogin$ | async) === false">
+        <div
+          *ngIf="this.config.env.localLogin"
+          nz-col
+          nzFlex="350px">
+          <texera-local-login class="login-container"></texera-local-login>
+        </div>
+      </ng-container>
+    </div>
+
     <img
       class="workflow-gui-screenshot"
       src="../../../../../assets/workflow_gui.png"
@@ -58,13 +70,5 @@
         <a href="https://github.com/apache/texera">source code</a> of the platform is available on GitHub.
       </p>
     </div>
-    <ng-container *ngIf="(isLogin$ | async) === false as isLogin">
-      <texera-local-login
-        *ngIf="this.config.env.localLogin"
-        class="login-container"
-        nz-col
-        nzFlex="300px">
-      </texera-local-login>
-    </ng-container>
   </div>
 </div>

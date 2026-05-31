@@ -17,6 +17,7 @@
 
 import pyarrow as pa
 from itertools import islice
+from loguru import logger
 from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table, FileScanTask
@@ -211,9 +212,9 @@ class IcebergIterator(Iterator[T]):
                             self.num_of_skipped_records += record_count
                             continue
                         yield task
-                except Exception:
-                    print("Could not read iceberg table:\n")
-                    raise Exception
+                except Exception as err:
+                    logger.exception(err)
+                    raise
             else:
                 return iter([])
 

@@ -18,7 +18,6 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { HttpClientModule } from "@angular/common/http";
 import { UserAvatarComponent } from "./user-avatar.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
@@ -32,7 +31,7 @@ describe("UserAvatarComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [UserAvatarComponent, HttpClientModule, HttpClientTestingModule, NzAvatarModule],
+      imports: [UserAvatarComponent, HttpClientTestingModule, NzAvatarModule],
       providers: [{ provide: UserService, useClass: StubUserService }, ...commonTestProviders],
     }).compileComponents();
   });

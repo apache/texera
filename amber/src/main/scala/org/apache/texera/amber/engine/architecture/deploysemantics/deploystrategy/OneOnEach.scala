@@ -31,12 +31,13 @@ class OneOnEach extends DeployStrategy {
 
   override def initialize(available: Array[Address]): Unit = {
     this.available = available
+    this.index = 0
   }
 
   override def next(): Address = {
     val i = index
     if (i >= available.length) {
-      throw new IndexOutOfBoundsException()
+      throw new NoSuchElementException("no available addresses")
     }
     index += 1
     available(i)

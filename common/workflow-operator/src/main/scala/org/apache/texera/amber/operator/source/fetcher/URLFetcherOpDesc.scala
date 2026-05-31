@@ -46,10 +46,14 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
   var decodingMethod: DecodingMethod = _
 
   override def sourceSchema(): Schema = {
+    require(
+      decodingMethod != null,
+      "URLFetcherOpDesc.decodingMethod must be set before sourceSchema is computed"
+    )
     Schema()
       .add(
         "URL content",
-        if (decodingMethod == DecodingMethod.UTF_8) AttributeType.STRING else AttributeType.ANY
+        if (decodingMethod eq DecodingMethod.UTF_8) AttributeType.STRING else AttributeType.BINARY
       )
   }
 

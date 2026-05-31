@@ -202,6 +202,17 @@
       </li>
     </ul>
     <span id="git-commit-id">Git hash: {{ gitCommitHash }}</span>
+    <span
+      *ngIf="!isCollapsed && config.env.attributionEnabled"
+      id="powered-by">
+      Powered by
+      <a
+        href="https://texera.io"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Texera</a
+      >
+    </span>
   </nz-sider>
 
   <div class="page-container">

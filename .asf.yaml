@@ -17,12 +17,16 @@
 
 # https://cwiki.apache.org/confluence/display/INFRA/Git+-+.asf.yaml+features
 
+meta:
+  environment: github_rulesets
+  nextgen: true
+
 github:
   description: "Human-AI Collaborative Data Science Using Visual Workflows"
   homepage: https://texera.apache.org/
   labels:
     - human-ai-collaboration
-    - ai-agents 
+    - ai-agents
     - visual-workflows
     - data-science
     - runtime-debugging
@@ -35,7 +39,7 @@ github:
   protected_tags:
     - "v*.*.*"
 
-  dependabot_alerts:  true
+  dependabot_alerts: true
   dependabot_updates: false
 
   features:
@@ -57,31 +61,66 @@ github:
     del_branch_on_merge: true
 
   enabled_merge_buttons:
-    squash:  true
+    squash: true
     squash_commit_message: PR_TITLE_AND_DESC
-    merge:   false
-    rebase:  false
-    
-  protected_branches:
-    main:
-      required_status_checks:
-        # strict means "Require branches to be up to date before merging".
-        strict: true
-        # contexts are the names of checks that must pass
-        contexts:
-          - Required Checks
-          - Check License Headers
-          - Validate PR title
-      required_pull_request_reviews:
-        dismiss_stale_reviews: false
-        require_code_owner_reviews: false
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_conversation_resolution: true
+    merge: false
+    rebase: false
 
+  rulesets:
+    - name: Merge Queue
+      target: branch
+      enforcement: active
+      conditions:
+        ref_name:
+          exclude: []
+          include:
+            - "~DEFAULT_BRANCH"
+      rules:
+        - type: deletion
+        - type: non_fast_forward
+        - type: merge_queue
+          parameters:
+            merge_method: SQUASH
+            max_entries_to_build: 5
+            min_entries_to_merge: 1
+            max_entries_to_merge: 5
+            min_entries_to_merge_wait_minutes: 5
+            grouping_strategy: ALLGREEN
+            check_response_timeout_minutes: 30
+        - type: pull_request
+          parameters:
+            allowed_merge_methods:
+              - squash
+            dismiss_stale_reviews_on_push: false
+            require_code_owner_review: false
+            require_last_push_approval: false
+            required_approving_review_count: 1
+            required_review_thread_resolution: true
+        - type: required_linear_history
+        - type: required_status_checks
+          parameters:
+            strict_required_status_checks_policy: false
+            required_status_checks:
+              - context: Required Checks
+              - context: Check License Headers
+              - context: Validate PR title
+
+    - name: "Default Branch Protection"
+      type: branch
+      branches:
+        includes:
+          - "~DEFAULT_BRANCH"
+          - "release/*"
+          - "rel/*"
+        excludes: []
+      bypass_teams:
+        - "root"
+        - "texera-committers"
+      restrict_deletion: true
+      restrict_force_push: true
 notifications:
-  commits:              commits@texera.apache.org
-  issues:               notifications@texera.apache.org
-  pullrequests:         notifications@texera.apache.org
-  discussions:          dev@texera.apache.org
-  jobs:                 commits@texera.apache.org
+  commits: commits@texera.apache.org
+  issues: notifications@texera.apache.org
+  pullrequests: notifications@texera.apache.org
+  discussions: dev@texera.apache.org
+  jobs: commits@texera.apache.org

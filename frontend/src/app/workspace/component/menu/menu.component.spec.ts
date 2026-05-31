@@ -18,7 +18,6 @@
  */
 
 import { DatePipe, Location } from "@angular/common";
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
@@ -44,7 +43,7 @@ import { ComputingUnitState } from "../../../common/type/computing-unit-connecti
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { saveAs } from "file-saver";
 import type { ModalOptions } from "ng-zorro-antd/modal";
-import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
+import type { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { WorkflowContent } from "../../../common/type/workflow";
 import type { Mocked } from "vitest";
 
@@ -65,10 +64,6 @@ describe("MenuComponent", () => {
   let validationStream$: BehaviorSubject<ValidationOutput>;
 
   beforeEach(async () => {
-    TestBed.overrideComponent(MenuComponent, {
-      set: { template: "" },
-    });
-
     await TestBed.configureTestingModule({
       imports: [MenuComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([]), NzModalModule],
       providers: [
@@ -79,12 +74,14 @@ describe("MenuComponent", () => {
           useValue: {
             getSelectedComputingUnit: () => of(null),
             getStatus: () => of(ComputingUnitState.NoComputingUnit),
+            // Read by ComputingUnitSelectionComponent.ngOnInit when the menu
+            // template renders the <texera-computing-unit-selection> child.
+            getAllComputingUnits: () => of([]),
           },
         },
         { provide: UserService, useClass: StubUserService },
         ...commonTestProviders,
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     workflowActionService = TestBed.inject(WorkflowActionService);
@@ -528,5 +525,88 @@ describe("MenuComponent", () => {
     const config = createSpy.mock.calls[0][0] as ModalOptions;
     expect(config.nzTitle).toBe("Export All Operators Result");
     expect(config.nzData).toEqual(expect.objectContaining({ workflowName: "report-wf", sourceTriggered: "menu" }));
+  });
+
+  describe("canvas display toggles", () => {
+    // A fake JointJS element that records `attr(path, value)` calls and answers `get("type")`.
+    function fakeElement(type: string) {
+      return {
+        type,
+        attrs: {} as Record<string, unknown>,
+        get(key: string) {
+          return key === "type" ? this.type : undefined;
+        },
+        attr: vi.fn(function (this: { attrs: Record<string, unknown> }, path: string, value: unknown) {
+          this.attrs[path] = value;
+        }),
+      };
+    }
+
+    // Stubs getJointGraphWrapper() with a paper element + model/graph backed by the given elements.
+    function stubWrapper(elements: ReturnType<typeof fakeElement>[]) {
+      const el = document.createElement("div");
+      const wrapper = {
+        mainPaper: { el, model: { getElements: () => elements } },
+        jointGraph: { getElements: () => elements },
+      };
+      vi.spyOn(workflowActionService, "getJointGraphWrapper").mockReturnValue(wrapper as any);
+      return el;
+    }
+
+    describe("toggleRegion", () => {
+      it("publishes the displayed flag to the joint graph wrapper when enabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setRegionsDisplayed");
+
+        component.showRegion = true;
+        component.toggleRegion();
+
+        expect(setSpy).toHaveBeenCalledWith(true);
+      });
+
+      it("publishes the displayed flag to the joint graph wrapper when disabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setRegionsDisplayed");
+
+        component.showRegion = false;
+        component.toggleRegion();
+
+        expect(setSpy).toHaveBeenCalledWith(false);
+      });
+    });
+
+    describe("toggleStatus", () => {
+      it("removes hide-operator-status when enabled and repositions the status label", () => {
+        const operator = fakeElement("operator");
+        const el = stubWrapper([operator]);
+        el.classList.add("hide-operator-status");
+
+        component.showStatus = true;
+        component.showNumWorkers = false;
+        component.toggleStatus();
+
+        expect(el.classList.contains("hide-operator-status")).toBe(false);
+        expect(operator.attr).toHaveBeenCalledWith(".texera-operator-state/ref-x", -10);
+        expect(operator.attr).toHaveBeenCalledWith(".texera-operator-state/ref-y", -35);
+      });
+
+      it("adds hide-operator-status when disabled", () => {
+        const operator = fakeElement("operator");
+        const el = stubWrapper([operator]);
+
+        component.showStatus = false;
+        component.toggleStatus();
+
+        expect(el.classList.contains("hide-operator-status")).toBe(true);
+      });
+
+      it("offsets the status label higher when worker counts are shown", () => {
+        const operator = fakeElement("operator");
+        stubWrapper([operator]);
+
+        component.showNumWorkers = true;
+        component.toggleStatus();
+
+        expect(operator.attr).toHaveBeenCalledWith(".texera-operator-state/ref-y", -55);
+      });
+    });
   });
 });

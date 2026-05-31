@@ -55,14 +55,6 @@ img {
   padding-bottom: 0;
 }
 
-.ant-select-selector {
-  height: 24px !important;
-}
-
-.ant-select-selection-item {
-  line-height: 24px !important;
-}
-
 .ant-form-item-label {
   padding-bottom: 0 !important;
 }
@@ -236,6 +228,21 @@ hr {
     padding: 14px !important;
   }
 
+  .operator-select {
+    height: 24px;
+  }
+
+  .operator-select nz-select,
+  .operator-select .ant-select,
+  .operator-select .ant-select-selector {
+    height: 24px !important;
+  }
+
+  .operator-select .ant-select-selection-item,
+  .operator-select .ant-select-selection-placeholder {
+    line-height: 22px !important;
+  }
+
   .ve-form {
     display: flex;
     flex-direction: column;
@@ -262,7 +269,7 @@ hr {
 
   .package-row {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 10px;
     bottom: 0px;
@@ -281,9 +288,10 @@ hr {
   .user-package-inputs {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 160px 1fr;
+    grid-template-columns: 1fr 160px 1fr 58px;
     gap: 14px;
     width: 100%;
+    align-items: center;
   }
 
   .field {
@@ -307,11 +315,6 @@ hr {
 
   .operator-select .ant-select {
     width: 100%;
-  }
-
-  .ant-input,
-  .ant-select-selector {
-    //border-radius: 10px !important;
   }
 
   .ant-input[disabled] {
@@ -369,22 +372,30 @@ hr {
     background: transparent;
   }
 
-  .user-package-header-row .package-column-label {
-    font-weight: 600;
-  }
-
   .new-packages-section {
     display: flex;
     flex-direction: column;
     gap: 2px;
   }
+  .user-package-inputs button {
+    align-self: center;
+    justify-self: center;
+  }
+
+  .highlighted-btn {
+    background-color: #ff4d4f !important; /* Ant Design red */
+    border-color: #ff4d4f !important;
+    color: white !important;
+  }
 
   .user-package-header-row {
-    display: grid;
-    grid-template-columns: 1fr 160px 1fr;
-    gap: 14px;
-    margin-bottom: 0;
-    padding: 0;
+    border: none;
+    background: transparent;
+    align-items: center;
+  }
+
+  .user-package-header-row .package-column-label {
+    font-weight: 600;
   }
 
   .system-header {

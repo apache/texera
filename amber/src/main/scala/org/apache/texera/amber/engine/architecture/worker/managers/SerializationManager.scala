@@ -39,7 +39,13 @@ class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLoggi
   def restoreExecutorState(
       chkpt: CheckpointState
   ): (OperatorExecutor, Iterator[(TupleLike, Option[PortIdentity])]) = {
-    val workerIdx = VirtualIdentityUtils.getWorkerIndex(actorId)
+    val workerIdx = VirtualIdentityUtils
+      .getWorkerIndex(actorId)
+      .getOrElse(
+        throw new IllegalStateException(
+          s"Expected worker actor id when restoring executor state, got: ${actorId.name}"
+        )
+      )
     val workerCount = execInitMsg.totalWorkerCount
     val executor = execInitMsg.opExecInitInfo match {
       case OpExecWithClassName(className, descString) =>

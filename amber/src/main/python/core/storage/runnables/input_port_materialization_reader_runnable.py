@@ -34,9 +34,10 @@ from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
-from core.models import Tuple, InternalQueue, DataFrame, DataPayload
+from core.models import Tuple, InternalQueue, DataFrame, DataPayload, State, StateFrame
 from core.models.internal_queue import DataElement, ECMElement
 from core.storage.document_factory import DocumentFactory
+from core.storage.vfs_uri_factory import VFSURIFactory
 from core.util import Stoppable, get_one_of
 from core.util.runnable import Runnable
 from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
@@ -132,14 +133,28 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
         emits an EndChannel ECM. Use the same partitioner implementation as that in
         output manager, where a tuple is batched by the partitioner and only
         selected as the input of this worker according to the partitioner.
+
+        States and tuples are persisted to separate tables, so the original
+        interleaving is lost and replay has to pick an order: we replay states
+        first because downstream operators typically need their state set up
+        before they process the incoming tuples. Every state is broadcast to
+        every downstream worker -- no partitioner filtering, unlike the tuple
+        loop. State is shared context (e.g. config / counters), not per-key
+        data, so each worker needs the full set.
         """
         try:
             self.materialization, self.tuple_schema = DocumentFactory.open_document(
-                self.uri
+                VFSURIFactory.result_uri(self.uri)
             )
             self.emit_ecm("StartChannel", EmbeddedControlMessageType.NO_ALIGNMENT)
-            storage_iterator = self.materialization.get()
 
+            state_document, _ = DocumentFactory.open_document(
+                VFSURIFactory.state_uri(self.uri)
+            )
+            for state_row in state_document.get():
+                self.emit_payload(StateFrame(State.from_tuple(state_row)))
+
+            storage_iterator = self.materialization.get()
             # Iterate and process tuples.
             for tup in storage_iterator:
                 if self._stopped:

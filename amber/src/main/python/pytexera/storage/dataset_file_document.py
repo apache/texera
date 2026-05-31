@@ -76,7 +76,21 @@ class DatasetFileDocument:
                 f"Failed to get presigned URL: {response.status_code} {response.text}"
             )
 
-        return response.json().get("presignedUrl")
+        try:
+            payload = response.json()
+        except ValueError as e:
+            raise RuntimeError(
+                f"Failed to get presigned URL: invalid JSON response: {response.text}"
+            ) from e
+
+        presigned_url = payload.get("presignedUrl")
+        if not isinstance(presigned_url, str) or not presigned_url:
+            raise RuntimeError(
+                f"Failed to get presigned URL: 'presignedUrl' missing from "
+                f"response: {response.text}"
+            )
+
+        return presigned_url
 
     def read_file(self) -> io.BytesIO:
         """

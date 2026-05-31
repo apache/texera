@@ -52,7 +52,13 @@ object ExecutorDeployment {
 
     operatorConfig.workerConfigs.foreach(workerConfig => {
       val workerId = workerConfig.workerId
-      val workerIndex = VirtualIdentityUtils.getWorkerIndex(workerId)
+      val workerIndex = VirtualIdentityUtils
+        .getWorkerIndex(workerId)
+        .getOrElse(
+          throw new IllegalStateException(
+            s"Expected worker actor id when deploying executor, got: ${workerId.name}"
+          )
+        )
       val locationPreference = op.locationPreference.getOrElse(RoundRobinPreference)
       val preferredAddress: Address = locationPreference match {
         case PreferController =>

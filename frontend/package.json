@@ -38,6 +38,7 @@
     "@codingame/monaco-vscode-java-default-extension": "8.0.4",
     "@codingame/monaco-vscode-python-default-extension": "8.0.4",
     "@codingame/monaco-vscode-r-default-extension": "8.0.4",
+    "@lezer/python": "1.1.18",
     "@ngneat/until-destroy": "8.1.4",
     "@ngx-formly/core": "6.3.12",
     "@ngx-formly/ng-zorro-antd": "6.3.12",

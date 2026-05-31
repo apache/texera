@@ -177,7 +177,7 @@ class WorkflowService(
   }
 
   private[this] def createWorkflowContext(): WorkflowContext = {
-    new WorkflowContext(workflowId)
+    new WorkflowContext(workflowId = workflowId, cuid = Some(computingUnitId))
   }
 
   def initExecutionService(

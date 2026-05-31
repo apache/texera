@@ -103,6 +103,15 @@ ECO_HEADERS = {
     "agent-npm": "Agent service npm packages",
 }
 
+# Used to point the user at a concrete file in the failure report when --license-binary is
+# not passed (npm / agent-npm / python CI invocations don't pass it).
+DEFAULT_TARGET_FILE = {
+    "npm":       "frontend/LICENSE-binary",
+    "agent-npm": "agent-service/LICENSE-binary",
+    "python":    "amber/LICENSE-binary-python",
+    "jar":       "amber/LICENSE-binary-java",
+}
+
 JAR_BULLET = re.compile(r"^\s*-\s+(\S+\.jar)\b")
 # `  - <name>@<version>` — npm form, name may start with @scope/.
 NPM_BULLET = re.compile(r"^\s*-\s+(@?[\w@/.\-]+)@([^\s@]+)\s*$")
@@ -250,12 +259,26 @@ def collect_jars(lib_dirs) -> set[str]:
     return result
 
 
-def collect_npm(path: Path) -> set[str]:
+def collect_npm(path: Path) -> tuple[set[str], dict[str, str]]:
     """3rdpartylicenses.json emitted by license-webpack-plugin (configured in
     frontend/custom-webpack.config.js): a JSON array of {name, version, license}
-    entries scoped to the actual webpack bundle."""
+    entries scoped to the actual webpack bundle. Returns (items, licenses)
+    where items is the set of '<name>@<version>' keys and licenses maps each
+    key to its declared license string (when present)."""
     data = json.loads(path.read_text())
-    return {f"{e['name']}@{e['version']}" for e in data if e.get('name') and e.get('version')}
+    items: set[str] = set()
+    licenses: dict[str, str] = {}
+    for e in data:
+        name = e.get('name')
+        version = e.get('version')
+        if not (name and version):
+            continue
+        key = f"{name}@{version}"
+        items.add(key)
+        lic = e.get('license')
+        if isinstance(lic, str) and lic.strip():
+            licenses[key] = lic.strip()
+    return items, licenses
 
 
 def canonicalize_python_name(name: str) -> str:
@@ -270,12 +293,15 @@ def canonicalize_python_version(version: str) -> str:
     return version.split("+", 1)[0]
 
 
-def collect_python(path: Path) -> set[str]:
+def collect_python(path: Path) -> tuple[set[str], dict[str, str]]:
     """pip-licenses CSV: Name,Version,License (header row). Names are
     canonicalized per PEP 503 so the compare is indifferent to whether
     a distribution uses hyphens, underscores, or dots; versions are
-    canonicalized to the public release form (no PEP 440 +local suffix)."""
-    result: set[str] = set()
+    canonicalized to the public release form (no PEP 440 +local suffix).
+    Returns (items, licenses) where items is the set of '<name>==<version>'
+    keys and licenses maps each key to its declared license string."""
+    items: set[str] = set()
+    licenses: dict[str, str] = {}
     with path.open(newline="") as f:
         reader = csv.reader(f)
         next(reader, None)  # header
@@ -283,8 +309,11 @@ def collect_python(path: Path) -> set[str]:
             if row and row[0] and row[1]:
                 name = canonicalize_python_name(row[0])
                 ver  = canonicalize_python_version(row[1])
-                result.add(f"{name}=={ver}")
-    return result
+                key = f"{name}=={ver}"
+                items.add(key)
+                if len(row) >= 3 and row[2].strip():
+                    licenses[key] = row[2].strip()
+    return items, licenses
 
 
 # --- diff ------------------------------------------------------------------
@@ -368,17 +397,40 @@ def report(
     label: str,
     kind: str,
     ignore_transitive_version: bool,
+    licenses: dict[str, str] | None = None,
+    target_file: str | None = None,
 ) -> int:
+    """Print a consolidated, actionable report. `licenses` maps an `added`
+    entry key to its declared license string (npm/python; empty for jar).
+    `target_file` is the per-module LICENSE-binary path the user should edit
+    — quoted in both the per-bullet hint and the ACTION REQUIRED block so a
+    failing CI step tells the user exactly which file to update."""
+    licenses = licenses or {}
     rc = 0
+    add_hint    = f" → add to {target_file}"      if target_file else ""
+    remove_hint = f" → remove from {target_file}" if target_file else ""
+    update_hint = f" → update in {target_file}"   if target_file else ""
+
+    def _added_line(entry: str) -> str:
+        lic = licenses.get(entry)
+        lic_part = f"  (license: {lic})" if lic else ""
+        return f"  + {entry}{lic_part}{add_hint}"
+
     if added:
         print(f"NEW {label} not claimed by LICENSE-binary:")
         for a in sorted(added):
-            print(f"  + {a}")
+            print(_added_line(a))
         print()
         print("ACTION REQUIRED")
         print(f"  1. Verify each dep's license is ASF Category A or B.")
-        print(f"  2. Add a bullet in LICENSE-binary under the matching license")
-        print(f"     section, either as '{kind}-compatible token' (see format below).")
+        if target_file:
+            print(f"  2. Add a bullet for each dep above to {target_file}")
+            print(f"     under the matching license section (see existing")
+            print(f"     '{kind}-compatible token' bullets for format).")
+        else:
+            print(f"  2. Add a bullet in the matching per-module LICENSE-binary")
+            print(f"     under the matching license section (see existing")
+            print(f"     '{kind}-compatible token' bullets for format).")
         print(f"  3. If an upstream NOTICE must be bubbled up, add to NOTICE-binary.")
         print()
         rc = 1
@@ -386,17 +438,23 @@ def report(
     if stale:
         print(f"STALE {label} claimed by LICENSE-binary but not actually bundled:")
         for s in sorted(stale):
-            print(f"  - {s}")
+            print(f"  - {s}{remove_hint}")
         print()
         print("ACTION REQUIRED")
-        print(f"  1. Remove the matching bullet / token from LICENSE-binary.")
+        if target_file:
+            print(f"  1. Remove the matching bullet / token from {target_file}.")
+        else:
+            print(f"  1. Remove the matching bullet / token from the per-module LICENSE-binary.")
         print(f"  2. Remove any matching attribution from NOTICE-binary.")
         print()
         rc = 1
 
     def _fmt_drift(entry: tuple[str, list[str], list[str]]) -> str:
         name, cvers, rvers = entry
-        return f"  ~ {name}: LICENSE-binary={', '.join(cvers)}  bundled={', '.join(rvers)}"
+        return (
+            f"  ~ {name}: LICENSE-binary={', '.join(cvers)}  "
+            f"bundled={', '.join(rvers)}{update_hint}"
+        )
 
     if drift_direct:
         print(f"DRIFT (direct) {label} — claimed versions differ from bundled:")
@@ -404,8 +462,12 @@ def report(
             print(_fmt_drift(entry))
         print()
         print("ACTION REQUIRED")
-        print(f"  Update LICENSE-binary to match the bundled versions. Direct deps")
-        print(f"  always block CI — a version bump may carry license changes.")
+        if target_file:
+            print(f"  Update {target_file} to match the bundled versions. Direct")
+            print(f"  deps always block CI — a version bump may carry license changes.")
+        else:
+            print(f"  Update LICENSE-binary to match the bundled versions. Direct deps")
+            print(f"  always block CI — a version bump may carry license changes.")
         print()
         rc = 1
 
@@ -423,7 +485,10 @@ def report(
                 print(_fmt_drift(entry))
             print()
             print("ACTION REQUIRED")
-            print(f"  Update LICENSE-binary to match the bundled versions, or rerun")
+            if target_file:
+                print(f"  Update {target_file} to match the bundled versions, or rerun")
+            else:
+                print(f"  Update LICENSE-binary to match the bundled versions, or rerun")
             print(f"  with --ignore-transitive-version to treat transitive drift as")
             print(f"  informational.")
             print()
@@ -523,48 +588,54 @@ def main() -> int:
 
     if args.license_binary is None:
         lb = build_default_license_binary()
+        target_file = DEFAULT_TARGET_FILE.get(args.kind)
     else:
         lb = Path(args.license_binary)
         if not lb.exists():
             sys.stderr.write(f"error: {lb} not found\n")
             return 2
+        target_file = args.license_binary
 
     if args.kind == "jar":
         claimed = parse_prose(lb, "jar")
         reality = collect_jars(args.inputs)
         direct_artifacts = load_direct_jar_artifacts()
         added, stale, dd, dt = diff_jars(_index_jar(claimed), _index_jar(reality), direct_artifacts)
-        rc = report(added, stale, dd, dt, "JVM jars", "jar", args.ignore_transitive_version)
+        rc = report(added, stale, dd, dt, "JVM jars", "jar",
+                    args.ignore_transitive_version, target_file=target_file)
         if rc == 0:
             print(f"OK: {len(reality)} JVM jars match LICENSE-binary.")
         return rc
 
     if args.kind == "npm":
         claimed = parse_prose(lb, "npm")
-        reality = collect_npm(Path(args.inputs[0]))
+        reality, lic_map = collect_npm(Path(args.inputs[0]))
         direct = load_direct_npm("frontend/package.json")
         added, stale, dd, dt = diff_simple(_index_npm(claimed), _index_npm(reality), direct, joiner="@")
-        rc = report(added, stale, dd, dt, "npm packages", "npm", args.ignore_transitive_version)
+        rc = report(added, stale, dd, dt, "npm packages", "npm",
+                    args.ignore_transitive_version, licenses=lic_map, target_file=target_file)
         if rc == 0:
             print(f"OK: {len(reality)} npm packages match LICENSE-binary.")
         return rc
 
     if args.kind == "agent-npm":
         claimed = parse_prose(lb, "agent-npm")
-        reality = collect_npm(Path(args.inputs[0]))
+        reality, lic_map = collect_npm(Path(args.inputs[0]))
         direct = load_direct_npm("agent-service/package.json")
         added, stale, dd, dt = diff_simple(_index_npm(claimed), _index_npm(reality), direct, joiner="@")
-        rc = report(added, stale, dd, dt, "agent-service npm packages", "agent-npm", args.ignore_transitive_version)
+        rc = report(added, stale, dd, dt, "agent-service npm packages", "agent-npm",
+                    args.ignore_transitive_version, licenses=lic_map, target_file=target_file)
         if rc == 0:
             print(f"OK: {len(reality)} agent-service npm packages match LICENSE-binary.")
         return rc
 
     if args.kind == "python":
         claimed = parse_prose(lb, "python")
-        reality = collect_python(Path(args.inputs[0]))
+        reality, lic_map = collect_python(Path(args.inputs[0]))
         direct = load_direct_python()
         added, stale, dd, dt = diff_simple(_index_python(claimed), _index_python(reality), direct, joiner="==")
-        rc = report(added, stale, dd, dt, "Python packages", "python", args.ignore_transitive_version)
+        rc = report(added, stale, dd, dt, "Python packages", "python",
+                    args.ignore_transitive_version, licenses=lic_map, target_file=target_file)
         if rc == 0:
             print(f"OK: {len(reality)} Python packages match LICENSE-binary.")
         return rc
