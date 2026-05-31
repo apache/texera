@@ -166,7 +166,7 @@ class ExecutionsMetadataPersistServiceSpec
   "insertNewExecution" should "insert a row tied to the latest workflow version" in {
     val id = ExecutionsMetadataPersistService.insertNewExecution(
       WorkflowIdentity(testWid.toLong),
-      Some(testUid),
+      testUid,
       executionName = "named-execution",
       environmentVersion = "env-1",
       computingUnitId = seededCuid
@@ -185,7 +185,7 @@ class ExecutionsMetadataPersistServiceSpec
   it should "skip setName when executionName is the empty string" in {
     val id = ExecutionsMetadataPersistService.insertNewExecution(
       WorkflowIdentity(testWid.toLong),
-      Some(testUid),
+      testUid,
       executionName = "",
       environmentVersion = "env-2",
       computingUnitId = seededCuid
@@ -198,18 +198,29 @@ class ExecutionsMetadataPersistServiceSpec
     stored.getName shouldBe "Untitled Execution"
   }
 
-  it should "raise on a None uid rather than writing null to a NOT NULL column" in {
-    // uid is NOT NULL, so a None is rejected before the insert.
+  it should "let the DB NOT NULL constraint reject a null uid (surfaced as a readable error)" in {
+    // No more pre-insert require: a null uid is passed straight to jOOQ and the
+    // DB's NOT NULL constraint rejects it. insertNewExecution catches the
+    // resulting DataAccessException (SQLState 23502) and rethrows a readable
+    // IllegalArgumentException. Assert both the readable message and that the
+    // original DB exception is preserved as the cause, and that nothing was
+    // written.
+    val before = workflowExecutionsDao.fetchByVid(seededVid).size()
+
     val ex = intercept[IllegalArgumentException] {
       ExecutionsMetadataPersistService.insertNewExecution(
         WorkflowIdentity(testWid.toLong),
-        None,
+        null, // uid is NOT NULL in the DB
         executionName = "anonymous",
         environmentVersion = "env-3",
         computingUnitId = seededCuid
       )
     }
     ex.getMessage should include("uid")
+    ex.getCause shouldBe a[org.jooq.exception.DataAccessException]
+
+    // The failed insert must not have persisted a row.
+    workflowExecutionsDao.fetchByVid(seededVid).size() shouldBe before
   }
 
   // -- tryGetExistingExecution ------------------------------------------------

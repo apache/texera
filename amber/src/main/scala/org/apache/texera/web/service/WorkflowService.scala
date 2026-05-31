@@ -204,7 +204,7 @@ class WorkflowService(
 
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
       workflowContext.workflowId,
-      uidOpt,
+      uidOpt.orNull,
       req.executionName,
       convertToJson(req.engineVersion),
       req.computingUnitId
