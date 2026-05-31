@@ -74,9 +74,12 @@ class InternalExecutionMetadataResource {
       request: CreateExecutionRequest,
       @Auth user: SessionUser
   ): CreateExecutionResponse = {
+    // The execution owner is the request's uid when the caller knows the real user; when the
+    // caller is a no-auth Computing Unit that sends no uid, fall back to the authenticated user of
+    // this metadata call (the holder of the CU's USER_JWT_TOKEN). workflow_executions.uid is NOT NULL.
     val eid = ExecutionsMetadataPersistService.insertNewExecution(
       WorkflowIdentity(request.workflowId),
-      request.uid,
+      request.uid.orElse(Option(user.getUid)),
       request.executionName,
       request.environmentVersion,
       request.computingUnitId

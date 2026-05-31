@@ -20,14 +20,10 @@
 package org.apache.texera.web
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.http.client.utils.URLEncodedUtils
-import org.apache.texera.auth.JwtAuth.jwtConsumer
 import org.apache.texera.auth.util.HeaderField
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 
-import java.net.URI
-import java.nio.charset.Charset
 import javax.websocket.HandshakeResponse
 import javax.websocket.server.{HandshakeRequest, ServerEndpointConfig}
 import scala.jdk.CollectionConverters.{ListHasAsScala, _}
@@ -82,36 +78,14 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
         )
         logger.debug(s"User created from headers: ID=$userId, Name=$userName")
       } else {
-        // SINGLE NODE MODE: Construct the User object from JWT in query parameters.
-        val params =
-          URLEncodedUtils.parse(new URI("?" + request.getQueryString), Charset.defaultCharset())
+        // SINGLE NODE MODE: the Computing Unit does not authenticate. It grants WRITE access and
+        // runs whatever physical plan the client sends — no JWT is parsed or validated, so the CU
+        // holds no JWT secret. The execution owner is resolved downstream from the CU's
+        // USER_JWT_TOKEN when metadata is persisted.
         config.getUserProperties.put(
           HeaderField.UserComputingUnitAccess,
           PrivilegeEnum.WRITE.name()
         )
-        params.asScala
-          .map(pair => pair.getName -> pair.getValue)
-          .toMap
-          .get("access-token")
-          .map(token => {
-            val claims = jwtConsumer.process(token).getJwtClaims
-            config.getUserProperties.put(
-              classOf[User].getName,
-              new User(
-                claims.getClaimValue("userId").asInstanceOf[Long].toInt,
-                claims.getSubject,
-                String.valueOf(claims.getClaimValue("email").asInstanceOf[String]),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-              )
-            )
-          })
       }
     } catch {
       case e: Exception =>

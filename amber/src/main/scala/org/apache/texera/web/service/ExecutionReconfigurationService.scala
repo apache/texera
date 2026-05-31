@@ -59,8 +59,8 @@ class ExecutionReconfigurationService(
     val newOp = modifyLogicRequest.operator
     val opId = newOp.operatorIdentifier
     // Reconfiguration derives the new physical op from the original logical op. The logical plan is
-    // only present when the workflow was compiled in-process; when compilation was offloaded to the
-    // compiling-service the runtime holds only the physical plan, so reconfiguration is unavailable.
+    // only present when the workflow was compiled in-process; when the client ships a pre-compiled
+    // physical plan the runtime holds only that, so reconfiguration is unavailable.
     workflow.logicalPlan match {
       case None =>
         ModifyLogicResponse(

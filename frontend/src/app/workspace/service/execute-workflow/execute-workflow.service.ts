@@ -29,6 +29,7 @@ import {
   LogicalPlan,
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
+import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import {
   OperatorCurrentTuples,
   RegionStateEvent,
@@ -100,7 +101,8 @@ export class ExecuteWorkflowService {
     private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService,
     @Inject(DOCUMENT) private document: Document,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private workflowCompilingService: WorkflowCompilingService
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
@@ -246,18 +248,30 @@ export class ExecuteWorkflowService {
       console.warn("No computing unit selected for workflow execution");
     }
 
-    const workflowExecuteRequest = {
-      executionName: executionName,
-      engineVersion: version.hash,
-      logicalPlan: logicalPlan,
-      replayFromExecution: replayExecutionInfo,
-      workflowSettings: workflowSettings,
-      emailNotificationEnabled: emailNotificationEnabled,
-      computingUnitId: computingUnitId, // Include the computing unit ID
-    };
-    // wait for the form debounce to complete, then send
+    // The Computing Unit runs a pre-compiled physical plan and never compiles or authenticates.
+    // Compile the workflow here (via the workflow-compiling-service) and ship the resulting physical
+    // plan; on a compile failure, surface it and do not start a run. Wait for the form debounce so
+    // the latest property edits are reflected before compiling.
     window.setTimeout(() => {
-      this.workflowWebsocketService.send("WorkflowExecuteRequest", workflowExecuteRequest);
+      this.workflowCompilingService.compileWorkflow(logicalPlan).subscribe(response => {
+        if (!response.physicalPlan) {
+          this.notificationService.error(
+            "Workflow compilation failed — resolve the operator errors and run again."
+          );
+          return;
+        }
+        const workflowExecuteRequest = {
+          executionName: executionName,
+          engineVersion: version.hash,
+          physicalPlan: response.physicalPlan,
+          opsToViewResult: logicalPlan.opsToViewResult ?? [],
+          replayFromExecution: replayExecutionInfo,
+          workflowSettings: workflowSettings,
+          emailNotificationEnabled: emailNotificationEnabled,
+          computingUnitId: computingUnitId, // Include the computing unit ID
+        };
+        this.workflowWebsocketService.send("WorkflowExecuteRequest", workflowExecuteRequest);
+      });
     }, FORM_DEBOUNCE_TIME_MS);
 
     // add flag for new execution of workflow

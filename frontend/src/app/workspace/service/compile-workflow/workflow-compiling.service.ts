@@ -37,6 +37,7 @@ import {
 } from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 import { LogicalPlan } from "../../types/execute-workflow.interface";
+import { PhysicalPlan } from "../../../common/type/physical-plan";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import { serializePortIdentity } from "../../../common/util/port-identity-serde";
@@ -121,6 +122,22 @@ export class WorkflowCompilingService {
 
   public getWorkflowCompilationState(): CompilationState {
     return this.currentCompilationStateInfo.state;
+  }
+
+  /** The physical plan from the most recent successful compilation, if any. */
+  public getPhysicalPlan(): PhysicalPlan | undefined {
+    return this.currentCompilationStateInfo.state === CompilationState.Succeeded
+      ? this.currentCompilationStateInfo.physicalPlan
+      : undefined;
+  }
+
+  /**
+   * Compile the given logical plan and emit the response (physical plan + schemas, or errors).
+   * Used on Run so the client ships a freshly-compiled physical plan to the Computing Unit, which
+   * then runs it directly without compiling.
+   */
+  public compileWorkflow(logicalPlan: LogicalPlan): Observable<WorkflowCompilationResponse> {
+    return this.compile(logicalPlan);
   }
 
   public getWorkflowCompilationErrors(): Readonly<Record<string, WorkflowFatalError>> {

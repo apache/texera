@@ -21,10 +21,8 @@ package org.apache.texera.web.resource
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import io.dropwizard.auth.Auth
 import org.apache.texera.amber.config.ApplicationConfig
 import org.apache.texera.amber.core.storage.DocumentFactory
-import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{
@@ -32,7 +30,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   OperatorIdentity,
   WorkflowIdentity
 }
-import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowSettings}
+import org.apache.texera.amber.core.workflow.{PhysicalPlan, PortIdentity, WorkflowSettings}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
   ConsoleMessageType
@@ -45,19 +43,15 @@ import org.apache.texera.amber.engine.common.executionruntimestate.{
   ExecutionStatsStore
 }
 import io.reactivex.rxjava3.core.Observable
-import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_EXECUTIONS
-import org.apache.texera.amber.compiler.model.LogicalPlanPojo
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
-import org.apache.texera.amber.compiler.model.LogicalLink
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.service.{ExecutionResultService, WorkflowService}
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 
 import java.net.URI
 import java.util.concurrent.TimeUnit
-import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.mutable
@@ -66,7 +60,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 
 case class SyncExecutionRequest(
     executionName: String,
-    logicalPlan: LogicalPlanPojo,
+    physicalPlan: PhysicalPlan,
     workflowSettings: Option[WorkflowSettings],
     targetOperatorIds: List[String],
     timeoutSeconds: Int,
@@ -122,14 +116,13 @@ class SyncExecutionResource extends LazyLogging {
   private val MAX_OPERATOR_RESULT_CHARS = 100000
   private val MAX_OPERATOR_RESULT_CELL_CHARS = 20000
 
+  // No @RolesAllowed / @Auth: the client ships a pre-compiled physical plan and the CU just runs it.
   @POST
   @Path("/{wid}/{cuid}/run")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def executeWorkflowSync(
       @PathParam("wid") workflowId: Long,
       @PathParam("cuid") computingUnitId: Int,
-      request: SyncExecutionRequest,
-      @Auth user: SessionUser
+      request: SyncExecutionRequest
   ): SyncExecutionResult = {
     val timeoutSeconds = request.timeoutSeconds
 
@@ -152,14 +145,12 @@ class SyncExecutionResource extends LazyLogging {
 
       shutdownPreviousExecution(workflowService)
 
-      // "Execute To" semantics: when a single target is given, run only its upstream sub-DAG.
-      val effectiveLogicalPlan =
-        computeSubDAGIfNeeded(request.logicalPlan, request.targetOperatorIds)
-
+      // The client already compiled (and scoped any "execute to" sub-DAG) into this physical plan.
       val executeRequest = WorkflowExecuteRequest(
         executionName = request.executionName,
         engineVersion = "1.0",
-        logicalPlan = effectiveLogicalPlan,
+        physicalPlan = request.physicalPlan,
+        opsToViewResult = request.targetOperatorIds,
         replayFromExecution = None,
         workflowSettings = request.workflowSettings
           .getOrElse(
@@ -169,9 +160,11 @@ class SyncExecutionResource extends LazyLogging {
         computingUnitId = computingUnitId
       )
 
+      // No authenticated user on the CU; the execution owner is resolved by the dashboard service
+      // from the CU's USER_JWT_TOKEN when metadata is persisted.
       workflowService.initExecutionService(
         executeRequest,
-        Some(user.getUser),
+        None,
         new URI(s"sync-execution://$workflowId")
       )
 
@@ -198,10 +191,18 @@ class SyncExecutionResource extends LazyLogging {
       // Guard against firing during that window by also requiring every declared external
       // input port to be present in the operator's input metrics — port-1 stats only appear
       // once probe actually starts consuming, which closes the race.
-      val targetExpectedExternalInputs: Map[String, Int] = effectiveLogicalPlan.operators
-        .filter(op => request.targetOperatorIds.contains(op.operatorIdentifier.id))
-        .map(op => op.operatorIdentifier.id -> op.operatorInfo.inputPorts.count(!_.id.internal))
-        .toMap
+      // Per target operator, the count of its EXTERNAL (non-internal) input ports — derived from
+      // the physical ops of that logical operator. A multi-input op (e.g. HashJoin) only truly
+      // finishes once every external input has reported, which closes the premature-COMPLETED race.
+      val targetExpectedExternalInputs: Map[String, Int] = request.targetOperatorIds.map { opId =>
+        val logicalOpId = OperatorIdentity(opId)
+        val externalInputPorts = request.physicalPlan.operators
+          .filter(_.id.logicalOpId == logicalOpId)
+          .flatMap(_.inputPorts.keys)
+          .filterNot(_.internal)
+          .toSet
+        opId -> externalInputPorts.size
+      }.toMap
 
       // Require COMPLETED, not just "has output", so upstream operators finish flushing
       // their data downstream before we tear the execution down.
@@ -839,53 +840,6 @@ class SyncExecutionResource extends LazyLogging {
       case TERMINATED    => "Terminated"
       case _             => "Unknown"
     }
-  }
-
-  private def computeSubDAGIfNeeded(
-      logicalPlan: LogicalPlanPojo,
-      targetOperatorIds: List[String]
-  ): LogicalPlanPojo = {
-    if (targetOperatorIds.length != 1) {
-      return logicalPlan
-    }
-
-    val targetOpId = targetOperatorIds.head
-    val operatorMap: Map[String, LogicalOp] =
-      logicalPlan.operators.map(op => op.operatorIdentifier.id -> op).toMap
-
-    if (!operatorMap.contains(targetOpId)) {
-      logger.warn(s"Target operator $targetOpId not found in logical plan, using full DAG")
-      return logicalPlan
-    }
-
-    val incomingLinks: Map[String, List[LogicalLink]] =
-      logicalPlan.links.groupBy(_.toOpId.id)
-
-    val visited = mutable.Set[String]()
-    val subDagOperators = mutable.ListBuffer[LogicalOp]()
-    val subDagLinks = mutable.ListBuffer[LogicalLink]()
-
-    def dfs(currentOpId: String): Unit = {
-      if (visited.contains(currentOpId)) return
-      visited.add(currentOpId)
-
-      operatorMap.get(currentOpId).foreach { op =>
-        subDagOperators += op
-        incomingLinks.getOrElse(currentOpId, List.empty).foreach { link =>
-          subDagLinks += link
-          dfs(link.fromOpId.id)
-        }
-      }
-    }
-
-    dfs(targetOpId)
-
-    LogicalPlanPojo(
-      operators = subDagOperators.toList,
-      links = subDagLinks.toList,
-      opsToViewResult = targetOperatorIds.filter(id => visited.contains(id)),
-      opsToReuseResult = logicalPlan.opsToReuseResult.filter(id => visited.contains(id))
-    )
   }
 
   @GET

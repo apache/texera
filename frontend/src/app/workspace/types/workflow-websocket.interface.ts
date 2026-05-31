@@ -28,6 +28,7 @@ import {
 import { IndexableObject } from "./result-table.interface";
 import { ConsoleUpdateEvent } from "./workflow-common.interface";
 import { SchemaAttribute } from "./workflow-compiling.interface";
+import { PhysicalPlan } from "../../common/type/physical-plan";
 
 /**
  *  @fileOverview Type Definitions of WebSocket (Ws) API
@@ -46,7 +47,10 @@ export interface WorkflowExecuteRequest
   extends Readonly<{
     executionName: string;
     engineVersion: string;
-    logicalPlan: LogicalPlan;
+    // The client compiles the workflow and sends the ready-to-run physical plan; the Computing
+    // Unit runs it directly without compiling. opsToViewResult marks which operators' results to store.
+    physicalPlan: PhysicalPlan;
+    opsToViewResult: ReadonlyArray<string>;
   }> {}
 
 export interface ReplayExecutionInfo

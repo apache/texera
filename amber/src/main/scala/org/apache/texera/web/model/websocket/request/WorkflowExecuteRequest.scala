@@ -20,8 +20,7 @@
 package org.apache.texera.web.model.websocket.request
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import org.apache.texera.amber.compiler.model.LogicalPlanPojo
-import org.apache.texera.amber.core.workflow.WorkflowSettings
+import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowSettings}
 
 case class ReplayExecutionInfo(
     @JsonDeserialize(contentAs = classOf[java.lang.Long])
@@ -29,10 +28,18 @@ case class ReplayExecutionInfo(
     interaction: String
 )
 
+/**
+  * Execution request the client sends to the ComputingUnitMaster. The client (frontend / agent
+  * service) compiles the workflow against the workflow-compiling-service and ships the resulting
+  * ready-to-run [[PhysicalPlan]] here, so the CU neither compiles nor authenticates — it just runs
+  * the plan. `opsToViewResult` (logical operator ids) is used to mark which output ports need
+  * result storage.
+  */
 case class WorkflowExecuteRequest(
     executionName: String,
     engineVersion: String,
-    logicalPlan: LogicalPlanPojo,
+    physicalPlan: PhysicalPlan,
+    opsToViewResult: List[String] = List.empty,
     replayFromExecution: Option[ReplayExecutionInfo], // contains execution Id, interaction Id.
     workflowSettings: WorkflowSettings,
     emailNotificationEnabled: Boolean,

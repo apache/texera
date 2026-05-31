@@ -20,8 +20,12 @@
 package org.apache.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.WorkflowContext
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, WorkflowContext}
 import org.apache.texera.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
@@ -50,6 +54,27 @@ object WorkflowExecutionService {
     WorkflowExecutionsResource
       .getLatestExecutionID(workflowId.id.toInt, computingUnitId)
       .map(eid => new ExecutionIdentity(eid.longValue()))
+  }
+
+  /**
+    * The non-internal output ports (across all physical operators) of the given to-view logical
+    * operators. Since the client ships a ready-to-run physical plan, the CU re-derives which ports
+    * need result storage from that plan plus the requested view operators. Terminal sink ports are
+    * materialized by the schedule generator regardless of this set.
+    */
+  def outputPortsForViewResult(
+      physicalPlan: org.apache.texera.amber.core.workflow.PhysicalPlan,
+      opsToViewResult: Seq[String]
+  ): Set[GlobalPortIdentity] = {
+    val viewOps = opsToViewResult.map(OperatorIdentity(_)).toSet
+    physicalPlan.operators
+      .filter(physicalOp => viewOps.contains(physicalOp.id.logicalOpId))
+      .flatMap { physicalOp =>
+        physicalOp.outputPorts.keys
+          .filterNot(_.internal)
+          .map(portId => GlobalPortIdentity(opId = physicalOp.id, portId = portId))
+      }
+      .toSet
   }
 }
 
@@ -103,23 +128,21 @@ class WorkflowExecutionService(
   var executionConsoleService: ExecutionConsoleService = _
 
   def executeWorkflow(): Unit = {
-    // Offload compilation to the workflow-compiling-service over HTTP and run the returned plan.
-    // The runtime does not need the logical plan, so it is left as None on the Workflow.
-    val physicalPlan =
-      try {
-        CompilingServiceClient.compile(
-          request.logicalPlan,
-          workflowContext.workflowId.id,
-          workflowContext.executionId.id
-        )
-      } catch {
-        case err: Throwable =>
-          // Compilation failed (e.g. an invalid workflow). Surface the error and stop here —
-          // continuing would dereference a null `workflow` and mask the real failure with an NPE.
-          errorHandler(err)
-          return
-      }
+    // The client (frontend / agent service) compiles the workflow against the
+    // workflow-compiling-service and sends the ready-to-run physical plan; the CU just runs it —
+    // no compilation, no authentication. The runtime does not need the logical plan (None).
+    val physicalPlan = request.physicalPlan
     workflow = Workflow(workflowContext, None, physicalPlan)
+
+    // Result-storage planning is an execution-time concern that does not travel in the physical
+    // plan: mark the output ports of the to-view operators as needing storage. (Terminal sink
+    // ports are materialized by the schedule generator regardless of this set.)
+    val viewOutputPorts =
+      WorkflowExecutionService.outputPortsForViewResult(physicalPlan, request.opsToViewResult)
+    workflowContext.workflowSettings = workflowContext.workflowSettings.copy(
+      outputPortsNeedingStorage =
+        workflowContext.workflowSettings.outputPortsNeedingStorage ++ viewOutputPorts
+    )
 
     client = ComputingUnitMaster.createAmberRuntime(
       workflow.context,

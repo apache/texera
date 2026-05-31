@@ -29,7 +29,6 @@ import {
   TexeraWebsocketRequestTypes,
 } from "../../types/workflow-websocket.interface";
 import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
-import { AuthService } from "../../../common/service/user/auth.service";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
@@ -103,14 +102,15 @@ export class WorkflowWebsocketService {
       console.log(`uId is ${uId}, defaulting to uId = 1`);
       uId = 1;
     }
+    // No access-token: the Computing Unit does not authenticate the websocket — it runs the
+    // pre-compiled physical plan the client sends.
     const websocketUrl =
       getWebsocketUrl(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, "") +
       "?wid=" +
       wId +
       "&uid=" +
       uId +
-      (isDefined(cuId) ? `&cuid=${cuId}` : "") +
-      (AuthService.getAccessToken() !== null ? "&access-token=" + AuthService.getAccessToken() : "");
+      (isDefined(cuId) ? `&cuid=${cuId}` : "");
     console.log("websocketUrl", websocketUrl);
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
     // setup reconnection logic

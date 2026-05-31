@@ -40,12 +40,11 @@ import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.engine.common.{AmberRuntime, Utils}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.apache.texera.amber.util.ObjectMapperUtils
+import org.apache.texera.amber.util.{ObjectMapperUtils, PhysicalPlanSerdeModule}
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
-import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.resource.{
   SyncExecutionResource,
@@ -136,6 +135,9 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     )
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+    // The execution request carries a pre-compiled PhysicalPlan; register its serializers so the
+    // CU deserializes it byte-for-byte compatibly with the workflow-compiling-service's output.
+    PhysicalPlanSerdeModule.register(bootstrap.getObjectMapper)
   }
 
   override def run(configuration: Configuration, environment: Environment): Unit = {
@@ -172,13 +174,14 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
 
     environment.jersey.register(classOf[PveResource])
 
-    setupJwtAuth(environment)
-
+    // The Computing Unit performs no JWT authentication and holds no JWT secret (issue #5011): no
+    // JwtAuthFilter and no RolesAllowedDynamicFeature are registered, so @RolesAllowed is not
+    // enforced and the execution endpoints are open — the client ships a pre-compiled physical
+    // plan. The value-factory binder below is kept ONLY so that @Auth-annotated parameters on
+    // co-registered dashboard resources stay injectable (resolving to no authenticated user);
+    // it does not validate tokens. Contrast TexeraWebApplication, which keeps full JWT auth.
     environment.jersey.register(
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])
-    )
-    environment.jersey.register(
-      classOf[org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature]
     )
     environment
       .servlets()
