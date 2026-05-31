@@ -152,21 +152,14 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
   }
 
   it should "return WorkflowCompilationFailure (not HTTP 500) when a scan source file cannot be resolved" in {
-    val brokenCsv = getCsvScanOpDesc("/does/not/exist/missing.csv", header = true)
-
-    val logicalPlanPojo = LogicalPlanPojo(
-      operators = List(brokenCsv),
-      links = List(),
-      opsToViewResult = List(),
-      opsToReuseResult = List()
+    val response = postCompile(
+      LogicalPlanPojo(
+        operators = List(csvOp("/does/not/exist/missing.csv")),
+        links = List.empty,
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
     )
-
-    val modifiedLogicalPlanJsonString = transformLogicalPlanPojoToJsonString(logicalPlanPojo)
-
-    val response = resources
-      .target("/compile")
-      .request(MediaType.APPLICATION_JSON)
-      .post(Entity.json(modifiedLogicalPlanJsonString))
 
     // Must not surface as HTTP 500 — the error must come back as a structured failure.
     assertThat(response.getStatus).isEqualTo(200)
