@@ -26,8 +26,9 @@
 // handler. This spec drives those by swapping the component's editorWrapper
 // for a fake-with-real-DOM and running in vitest's Playwright/Chromium
 // browser mode, where monaco-editor's codingame fork can be imported without
-// jsdom's missing-canvas / Node-Buffer-allocation tripwires (see the
-// nodePolyfills entry in vitest.browser.config.ts).
+// jsdom's missing-canvas / Node-Buffer-allocation tripwires (the Buffer/process
+// shim is wired as the first setupFile in vitest.browser.config.ts — see
+// src/browser-buffer-polyfill.ts).
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
