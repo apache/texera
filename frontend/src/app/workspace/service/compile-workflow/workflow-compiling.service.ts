@@ -19,6 +19,7 @@
 
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
+import { JSONSchema7Definition } from "json-schema";
 import { EMPTY, merge, Observable, ReplaySubject } from "rxjs";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
 import { AppSettings } from "../../../common/app-setting";
@@ -190,6 +191,19 @@ export class WorkflowCompilingService {
       let newDynamicSchema: OperatorSchema;
       if (inputSchema) {
         newDynamicSchema = WorkflowCompilingService.setOperatorInputAttrs(currentDynamicSchema, inputSchema);
+
+        // Now that the list of input attributes is known, drop any operator property
+        // values that reference attributes which no longer exist in the input schema (e.g. a copy-pasted
+        // operator wired to a different upstream, or an operator re-wired to a new source). Otherwise
+        // these old references cause a compile error that survives even after clearing properties.
+        const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+        const { value: cleanedProperties, changed } = WorkflowCompilingService.dropInvalidAttributeValues(
+          newDynamicSchema.jsonSchema,
+          operator.operatorProperties
+        );
+        if (changed) {
+          this.workflowActionService.setOperatorProperty(operatorID, cleanedProperties);
+        }
       } else {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
@@ -390,6 +404,75 @@ export class WorkflowCompilingService {
       ...operatorSchema,
       jsonSchema: newJsonSchema,
     };
+  }
+
+  /**
+   * Walks an operator's property values with its json schema and drops any
+   * value that references an input attribute which is no longer valid.
+   *
+   * Only properties marked with an `autofill` annotation are affected, and only when the schema carries an
+   * `enum` of valid attribute names (i.e. the input schema is known). Two cases are handled:
+   *  - `attributeName`: a single column name. Reset to "" if it's not in the enum.
+   *  - `attributeNameList`: a list of column names. Filter out entries that aren't in the enum.
+   *
+   * Returns the (possibly new) properties object and whether anything changed.
+   */
+  public static dropInvalidAttributeValues(
+    schema: JSONSchema7Definition | undefined,
+    value: any
+  ): { value: any; changed: boolean } {
+    if (typeof schema !== "object" || schema === null || value === undefined || value === null) {
+      return { value, changed: false };
+    }
+    const s = schema as CustomJSONSchema7;
+
+    if (s.autofill === "attributeNameList") {
+      const itemEnum = (s.items as CustomJSONSchema7 | undefined)?.enum;
+      if (Array.isArray(value) && Array.isArray(itemEnum)) {
+        const filtered = value.filter(v => itemEnum.includes(v));
+        return { value: filtered, changed: filtered.length !== value.length };
+      }
+      return { value, changed: false };
+    }
+
+    if (s.autofill === "attributeName") {
+      if (Array.isArray(s.enum) && typeof value === "string" && !s.enum.includes(value)) {
+        return { value: "", changed: true };
+      }
+      return { value, changed: false };
+    }
+
+    // recurse into object properties
+    if (s.properties && typeof value === "object" && !Array.isArray(value)) {
+      let changed = false;
+      const newValue = { ...value };
+      Object.entries(s.properties).forEach(([key, propSchema]) => {
+        if (key in newValue) {
+          const res = WorkflowCompilingService.dropInvalidAttributeValues(propSchema, newValue[key]);
+          if (res.changed) {
+            newValue[key] = res.value;
+            changed = true;
+          }
+        }
+      });
+      return { value: changed ? newValue : value, changed };
+    }
+
+    // recurse into array items (only when items is a single schema, not a tuple schema)
+    if (s.items && !Array.isArray(s.items) && Array.isArray(value)) {
+      let changed = false;
+      const newArr = value.map(item => {
+        const res = WorkflowCompilingService.dropInvalidAttributeValues(s.items as JSONSchema7Definition, item);
+        if (res.changed) {
+          changed = true;
+          return res.value;
+        }
+        return item;
+      });
+      return { value: changed ? newArr : value, changed };
+    }
+
+    return { value, changed: false };
   }
 
   public static restoreOperatorInputAttrs(operatorSchema: OperatorSchema): OperatorSchema {
