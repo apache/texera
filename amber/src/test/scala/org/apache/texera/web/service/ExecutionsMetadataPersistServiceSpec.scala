@@ -166,7 +166,7 @@ class ExecutionsMetadataPersistServiceSpec
   "insertNewExecution" should "insert a row tied to the latest workflow version" in {
     val id = ExecutionsMetadataPersistService.insertNewExecution(
       WorkflowIdentity(testWid.toLong),
-      Some(testUid),
+      testUid,
       executionName = "named-execution",
       environmentVersion = "env-1",
       computingUnitId = seededCuid
@@ -185,7 +185,7 @@ class ExecutionsMetadataPersistServiceSpec
   it should "skip setName when executionName is the empty string" in {
     val id = ExecutionsMetadataPersistService.insertNewExecution(
       WorkflowIdentity(testWid.toLong),
-      Some(testUid),
+      testUid,
       executionName = "",
       environmentVersion = "env-2",
       computingUnitId = seededCuid
@@ -198,17 +198,12 @@ class ExecutionsMetadataPersistServiceSpec
     stored.getName shouldBe "Untitled Execution"
   }
 
-  it should "throw a DB constraint violation when uid is None" in {
-    // The method signature accepts Option[Integer] for uid and calls
-    // `newExecution.setUid(uid.orNull)`, but workflow_executions.uid is
-    // NOT NULL per texera_ddl.sql, so passing None propagates a jOOQ
-    // DataAccessException. Pinning the current behavior so a future fix —
-    // either tightening the signature to a required Integer or making the
-    // column nullable — breaks the spec deliberately. See follow-up bug.
-    val ex = intercept[org.jooq.exception.DataAccessException] {
+  it should "reject a null uid up front with a clear error rather than a jOOQ violation" in {
+    // uid is NOT NULL, so require(...) rejects null before the insert.
+    val ex = intercept[IllegalArgumentException] {
       ExecutionsMetadataPersistService.insertNewExecution(
         WorkflowIdentity(testWid.toLong),
-        None,
+        null,
         executionName = "anonymous",
         environmentVersion = "env-3",
         computingUnitId = seededCuid
