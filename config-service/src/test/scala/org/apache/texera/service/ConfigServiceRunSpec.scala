@@ -19,10 +19,9 @@
 
 package org.apache.texera.service
 
+import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.core.setup.Environment
 import io.dropwizard.jersey.setup.JerseyEnvironment
-import io.dropwizard.jetty.MutableServletContextHandler
-import io.dropwizard.jetty.setup.ServletEnvironment
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -32,24 +31,18 @@ class ConfigServiceRunSpec extends AnyFlatSpec with Matchers {
 
   // ConfigResource's own endpoints are @PermitAll, but the service still registers
   // RolesAllowedDynamicFeature so that any @RolesAllowed endpoint is enforced by
-  // Jersey. This verifies that registration actually happens.
-  "ConfigService.run" should "register RolesAllowedDynamicFeature on the Jersey environment" in {
+  // Jersey. This verifies the helper actually runs the three registrations.
+  "ConfigService.registerAuthFeatures" should "register auth + RolesAllowedDynamicFeature on the Jersey environment" in {
     val jersey = mock(classOf[JerseyEnvironment])
-    val servlets = mock(classOf[ServletEnvironment])
-    val context = mock(classOf[MutableServletContextHandler])
     val env = mock(classOf[Environment])
     when(env.jersey).thenReturn(jersey)
-    when(env.servlets).thenReturn(servlets)
-    when(env.getApplicationContext).thenReturn(context)
 
-    val service = new ConfigService
-    // run() reaches into SqlServer near the end to preload defaults; that throws
-    // here because no real DB is wired up. By that point all Jersey registrations
-    // have already executed, so the verification below is still valid.
-    intercept[Exception] {
-      service.run(mock(classOf[ConfigServiceConfiguration]), env)
-    }
+    ConfigService.registerAuthFeatures(env)
 
     verify(jersey).register(classOf[RolesAllowedDynamicFeature])
+    verify(jersey).register(org.mockito.ArgumentMatchers.any(classOf[AuthDynamicFeature]))
+    verify(jersey).register(
+      org.mockito.ArgumentMatchers.any(classOf[AuthValueFactoryProvider.Binder[_]])
+    )
   }
 }

@@ -64,16 +64,7 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
 
     environment.jersey.register(classOf[HealthCheckResource])
 
-    // Register JWT authentication filter
-    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
-
-    // Enable @Auth annotation for injecting SessionUser
-    environment.jersey.register(
-      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
-    )
-
-    // Enforce @RolesAllowed annotations on resource methods
-    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
+    ConfigService.registerAuthFeatures(environment)
 
     environment.jersey.register(new ConfigResource)
 
@@ -113,6 +104,23 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
 }
 
 object ConfigService {
+  // Registers JWT auth, @Auth injection, and @RolesAllowed enforcement.
+  // Mirrors ComputingUnitManagingService.registerAuthFeatures and
+  // WorkflowCompilingService.registerAuthFeatures so the three services
+  // don't drift apart.
+  def registerAuthFeatures(environment: Environment): Unit = {
+    // Register JWT authentication filter
+    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
+
+    // Enable @Auth annotation for injecting SessionUser
+    environment.jersey.register(
+      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
+    )
+
+    // Enforce @RolesAllowed annotations on resource methods
+    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
+  }
+
   def main(args: Array[String]): Unit = {
     val configFilePath = Path
       .of(sys.env.getOrElse("TEXERA_HOME", "."))
