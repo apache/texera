@@ -479,12 +479,6 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
     LargeBinaryManager.deleteByExecution(TestExecutionId)
   }
 
-  test("create() stamps the object key with the current execution id") {
-    LargeBinaryManager.setCurrentExecutionId(123L)
-    val uri = LargeBinaryManager.create()
-    assert(uri.startsWith("s3://texera-large-binaries/objects/123/"))
-  }
-
   test("deleteByExecution removes only the target execution's binaries") {
     // Create one binary under execution 1001 and another under 1002.
     LargeBinaryManager.setCurrentExecutionId(1001L)
@@ -501,17 +495,5 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
     } finally {
       LargeBinaryManager.deleteByExecution(1002L)
     }
-  }
-
-  test("create() throws when no execution context is set on the thread") {
-    // Run on a fresh thread, where the thread-local defaults to None.
-    @volatile var caught: Option[Throwable] = None
-    val t = new Thread(() => {
-      try LargeBinaryManager.create()
-      catch { case e: Throwable => caught = Some(e) }
-    })
-    t.start()
-    t.join()
-    assert(caught.exists(_.isInstanceOf[IllegalStateException]))
   }
 }

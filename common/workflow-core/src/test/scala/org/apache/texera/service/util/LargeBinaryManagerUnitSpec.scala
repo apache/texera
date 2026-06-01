@@ -42,4 +42,32 @@ class LargeBinaryManagerUnitSpec extends AnyFunSuite {
     LargeBinaryManager.deleteByExecution(7L, (_, _) => throw new RuntimeException("boom"))
     succeed
   }
+
+  test("create returns a URI scoped to the current thread's execution id") {
+    // create() reads a thread-local; run on a dedicated thread so the execution
+    // context is isolated and does not leak into other tests.
+    @volatile var uri: String = ""
+    val thread = new Thread(() => {
+      LargeBinaryManager.setCurrentExecutionId(555L)
+      uri = LargeBinaryManager.create()
+    })
+    thread.start()
+    thread.join()
+    val prefix = s"s3://${LargeBinaryManager.DEFAULT_BUCKET}/objects/555/"
+    assert(uri.startsWith(prefix))
+    // a unique (UUID) suffix follows the execution-scoped prefix
+    assert(uri.stripPrefix(prefix).nonEmpty)
+  }
+
+  test("create throws when no execution context is set on the thread") {
+    // A fresh thread starts with no execution id, so create() must fail fast.
+    @volatile var caught: Option[Throwable] = None
+    val thread = new Thread(() => {
+      try LargeBinaryManager.create()
+      catch { case e: Throwable => caught = Some(e) }
+    })
+    thread.start()
+    thread.join()
+    assert(caught.exists(_.isInstanceOf[IllegalStateException]))
+  }
 }
