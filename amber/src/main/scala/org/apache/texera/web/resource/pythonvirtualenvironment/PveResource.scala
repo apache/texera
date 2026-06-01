@@ -19,6 +19,8 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
+import org.apache.texera.config.KubernetesConfig
+
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters._
@@ -37,11 +39,8 @@ class PveResource {
   @Path("/system")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getSystemPackages: util.Map[String, util.List[String]] = {
+    val isLocal = !KubernetesConfig.kubernetesComputingUnitEnabled
     try {
-
-      // TODO: Support Kubernetes environment handling
-      val isLocal = true
-
       val systemPkgs =
         PveManager.getSystemPackages(isLocal).toList.asJava
 
@@ -103,9 +102,9 @@ class PveResource {
   def deletePackage(
       @PathParam("cuid") cuid: Int,
       @PathParam("pveName") pveName: String,
-      @PathParam("packageName") packageName: String,
-      @QueryParam("isLocal") isLocal: Boolean
+      @PathParam("packageName") packageName: String
   ): Response = {
+    val isLocal = !KubernetesConfig.kubernetesComputingUnitEnabled
     val messages = PveManager.deletePackages(
       cuid,
       packageName,

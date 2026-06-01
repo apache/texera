@@ -26,8 +26,12 @@ import org.apache.texera.amber.core.workflow.WorkflowContext.{
   DEFAULT_WORKFLOW_ID
 }
 import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 
 class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
@@ -36,6 +40,18 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   before {
     csvScanSourceOpDesc = new CSVScanSourceOpDesc()
     parallelCsvScanSourceOpDesc = new ParallelCSVScanSourceOpDesc()
+  }
+
+  // Writes a CSV whose header row has an empty column (the third position),
+  // e.g. `id,name,,age`, and returns the absolute path.
+  private def writeCsvWithEmptyHeader(): String = {
+    val tmpFile = Files.createTempFile("empty-header-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(
+      tmpFile,
+      "id,name,,age\n1,Alice,x,30\n2,Bob,y,25\n".getBytes(StandardCharsets.UTF_8)
+    )
+    tmpFile.toString
   }
 
   it should "infer schema from single-line-data csv" in {
@@ -158,6 +174,40 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.getPhysicalOp(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
 
     assert(csvScanSourceOpDesc.customDelimiter.contains(","))
+  }
+
+  it should "auto-rename empty CSV column headers to column-N" in {
+    val path = writeCsvWithEmptyHeader()
+    csvScanSourceOpDesc.fileName = Some(path)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    val names = csvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
+    assert(names == List("id", "name", "column-3", "age"))
+  }
+
+  it should "auto-rename empty CSV column headers to column-N for parallel CSV" in {
+    val path = writeCsvWithEmptyHeader()
+    parallelCsvScanSourceOpDesc.fileName = Some(path)
+    parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
+    parallelCsvScanSourceOpDesc.hasHeader = true
+    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    val names = parallelCsvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
+    assert(names == List("id", "name", "column-3", "age"))
+  }
+
+  it should "auto-rename empty CSV column headers to column-N for old CSV" in {
+    val path = writeCsvWithEmptyHeader()
+    val oldCsvScanSourceOpDesc = new CSVOldScanSourceOpDesc()
+    oldCsvScanSourceOpDesc.fileName = Some(path)
+    oldCsvScanSourceOpDesc.customDelimiter = Some(",")
+    oldCsvScanSourceOpDesc.hasHeader = true
+    oldCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    val names = oldCsvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
+    assert(names == List("id", "name", "column-3", "age"))
   }
 
 }

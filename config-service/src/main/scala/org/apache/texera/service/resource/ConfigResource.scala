@@ -28,6 +28,10 @@ import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, Use
 @Produces(Array(MediaType.APPLICATION_JSON))
 class ConfigResource {
 
+  // These two endpoints are fetched by the frontend during app initialization,
+  // before any login, so they must answer unauthenticated callers — hence @PermitAll.
+  // They are the only endpoints in this resource, so role enforcement gates nothing
+  // here; @PermitAll is what keeps them reachable when role enforcement is enabled.
   @GET
   @PermitAll
   @Path("/gui")

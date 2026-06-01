@@ -29,6 +29,12 @@ import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 
 import java.security.Principal
 
+// Must run before Jersey's RolesAllowedRequestFilter (which sits at
+// Priorities.AUTHORIZATION = 2000). Without an explicit @Priority, this
+// filter defaults to Priorities.USER (5000) and would run *after* the
+// role check, so a request bearing a valid JWT would still be rejected
+// because the SecurityContext hasn't been populated yet. Pinning to
+// AUTHENTICATION (1000) restores the standard auth → authz ordering.
 @Provider
 @Priority(Priorities.AUTHENTICATION)
 class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {
