@@ -1,0 +1,133 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.translator.verify
+
+import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
+
+/**
+  * Per-category test runner for source operators (operators with no input
+  * ports — they read from an external resource and emit tuples).
+  *
+  * Adding a new source operator to Texera should yield free behavioral
+  * verification: enumerate via [[LogicalOp]]'s `@JsonSubTypes`, dispatch
+  * here if the operator's class is in [[handlers]], otherwise mark the
+  * test as ignored. Adding support for a new source format (parquet, ORC,
+  * a SQL adapter) means writing one [[SourceHandler]] object — the only
+  * file in the test tree that needs editing.
+  *
+  * Each handler is responsible for two things:
+  *   1. Generating a sample file the operator can read (CSV bytes, JSONL
+  *      bytes, Arrow stream, …). The file lives in `testRoot`.
+  *   2. Returning a fully-configured OpDesc instance pointing at that file
+  *      with all required fields populated.
+  *
+  * The runner itself is operator-agnostic: it asks the handler for an
+  * OpDesc, drives [[OpExecHarness]] (Path A) and [[StandaloneRunner]]
+  * (Path B), compares via [[Comparator]]. Sources have no input ports so
+  * `inputs = Map.empty` for both paths.
+  */
+object SourceCategoryRunner {
+
+  /** Maps an OpDesc class to the handler that knows how to fixture it. */
+  private val handlersByClass: Map[Class[_ <: LogicalOp], SourceHandler] =
+    Seq[SourceHandler](CsvScanHandler).map(h => h.opDescClass -> h).toMap
+
+  def canRun(opDescClass: Class[_ <: LogicalOp]): Boolean =
+    handlersByClass.contains(opDescClass)
+
+  /** Runs the parity test for the operator. Throws on mismatch. */
+  def run(opDescClass: Class[_ <: LogicalOp]): Unit = {
+    val handler = handlersByClass.getOrElse(
+      opDescClass,
+      throw new IllegalArgumentException(
+        s"No SourceHandler registered for ${opDescClass.getSimpleName}. " +
+          s"Add one to SourceCategoryRunner.handlersByClass."
+      )
+    )
+
+    val testRoot = Files.createTempDirectory(s"op-behavior-${opDescClass.getSimpleName}-")
+    val opDesc = handler.makeOpDesc(testRoot)
+
+    val actualDir = testRoot.resolve("actual")
+    Files.createDirectories(actualDir)
+
+    val pathA = OpExecHarness.execute(opDesc, inputs = Map.empty, outputDir = actualDir)
+    val pathB = StandaloneRunner.run(
+      opDesc = opDesc,
+      inputs = Map.empty,
+      outputPortCount = 1,
+      workDir = testRoot
+    )
+
+    val actual = pathA.outputs(PortIdentity(0))
+    val expected = pathB.outputs(1)
+    Comparator.assertEqual(actual, expected)
+  }
+}
+
+/**
+  * One source operator's recipe: which OpDesc class it handles, how to
+  * fixture a working instance of it. Operators in the same family share
+  * a handler (e.g. all CSV variants reuse [[CsvScanHandler]]'s sample
+  * file, even if they have different OpDesc classes).
+  */
+trait SourceHandler {
+
+  /** The concrete OpDesc class this handler tests. */
+  def opDescClass: Class[_ <: LogicalOp]
+
+  /**
+    * Generate the fixture file inside `testRoot` and return a configured
+    * OpDesc instance whose `fileName` (or analogous URI field) points at it.
+    */
+  def makeOpDesc(testRoot: Path): LogicalOp
+}
+
+/**
+  * Handler for `CSVScanSourceOpDesc`. Writes a 3-row CSV with an integer
+  * column and a string column — enough to exercise the read + type
+  * inference + header parsing in both paths.
+  */
+object CsvScanHandler extends SourceHandler {
+
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[CSVScanSourceOpDesc]
+
+  override def makeOpDesc(testRoot: Path): LogicalOp = {
+    val csvPath = testRoot.resolve("sample.csv")
+    val csvContent =
+      """id,name
+        |1,alice
+        |2,bob
+        |3,carol
+        |""".stripMargin
+    Files.write(csvPath, csvContent.getBytes(StandardCharsets.UTF_8))
+
+    val desc = new CSVScanSourceOpDesc()
+    desc.fileName = Some(csvPath.toUri.toString)
+    desc.customDelimiter = Some(",")
+    desc.hasHeader = true
+    desc
+  }
+}
