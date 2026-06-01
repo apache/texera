@@ -56,10 +56,10 @@ postgresql:
     resources:
       requests:
         cpu: "0.25"
-        memory: "256Mi"
+        memory: "512Mi"
       limits:
         cpu: "1"
-        memory: "256Mi"
+        memory: "1Gi"
     persistence:
       enabled: true
       size: 10Gi
@@ -338,6 +338,8 @@ texeraEnvVars:
     value: "true"
   - name: GUI_WORKFLOW_WORKSPACE_ASYNC_RENDERING_ENABLED
     value: "true"
+  - name: GUI_WORKFLOW_WORKSPACE_COPILOT_ENABLED
+    value: "true"
   - name: COMPUTING_UNIT_SHARING_ENABLED
     value: "true"
   - name: USER_SYS_INVITE_ONLY
@@ -361,6 +363,7 @@ pythonLanguageServer:
   name: python-language-server
   replicaCount: 1
   image: texera/pylsp:latest
+  imagePullPolicy: IfNotPresent
   imagePullSecret: regcred
   resources:
     limits:

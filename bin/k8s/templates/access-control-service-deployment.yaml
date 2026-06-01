@@ -59,8 +59,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-agent-service-secret
                   key: litellm-master-key
-            - name: GUI_WORKFLOW_WORKSPACE_COPILOT_ENABLED
-              value: "true"
             {{- end }}
             {{- range .Values.texeraEnvVars }}
             - name: {{ .name }}

@@ -18,8 +18,8 @@
 texera:
   # Container image registry and tag for all Texera services
   # Override these to use a different registry or version
-  imageRegistry: ghcr.io/apache
-  imageTag: latest
+  imageRegistry: docker.io/apache
+  imageTag: 1.1.0-incubating
 
 global:
   # Required by Bitnami sub-charts (postgresql, minio) to allow custom images
@@ -320,6 +320,8 @@ texeraEnvVars:
     value: "true"
   - name: GUI_WORKFLOW_WORKSPACE_ASYNC_RENDERING_ENABLED
     value: "true"
+  - name: GUI_WORKFLOW_WORKSPACE_COPILOT_ENABLED
+    value: "true"
   - name: COMPUTING_UNIT_SHARING_ENABLED
     value: "true"
   - name: USER_SYS_INVITE_ONLY
@@ -346,6 +348,7 @@ pythonLanguageServer:
   name: python-language-server
   replicaCount: 1
   image: texera/pylsp:latest
+  imagePullPolicy: IfNotPresent
   imagePullSecret: regcred
   resources:
     limits:
