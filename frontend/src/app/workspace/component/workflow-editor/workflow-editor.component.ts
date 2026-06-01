@@ -363,23 +363,52 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // the workflow page, where WorkspaceComponent calls reloadWorkflow and
     // operators are recreated from the workflow JSON — restore their visual
     // state from the cached status so completed runs don't appear to reset.
+    // Restores port labels / worker count via changeOperatorStatistics, then
+    // delegates the final border color to applyOperatorBorder so the same
+    // priority rules apply as for the validation pass.
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorAddStream()
       .pipe(untilDestroyed(this))
       .subscribe(operator => {
         const statistics = this.workflowStatusService.getCurrentStatus()[operator.operatorID];
-        if (!statistics) {
-          return;
+        if (statistics) {
+          this.jointUIService.changeOperatorStatistics(
+            this.paper,
+            operator.operatorID,
+            statistics,
+            this.isSource(operator.operatorID),
+            this.isSink(operator.operatorID)
+          );
         }
-        this.jointUIService.changeOperatorStatistics(
-          this.paper,
-          operator.operatorID,
-          statistics,
-          this.isSource(operator.operatorID),
-          this.isSink(operator.operatorID)
-        );
+        this.applyOperatorBorder(operator.operatorID);
       });
+  }
+
+  /**
+   * Single source of truth for the operator's border color. Both the
+   * validation stream and the operator-add stream route through here so
+   * the priority order is consistent regardless of which event fires last:
+   *   1. Invalid operator → red (validation takes priority).
+   *   2. Valid operator with a cached execution status → execution-state color.
+   *   3. Valid operator with no cached status → default valid (gray).
+   *
+   * Centralizing this here avoids the race where the validation pass
+   * overwrites a state-derived stroke (or vice versa) for an operator that
+   * is both invalid and has a cached execution status.
+   */
+  private applyOperatorBorder(operatorID: string): void {
+    const validation = this.validationWorkflowService.validateOperator(operatorID);
+    if (!validation.isValid) {
+      this.jointUIService.changeOperatorColor(this.paper, operatorID, false);
+      return;
+    }
+    const statistics = this.workflowStatusService.getCurrentStatus()[operatorID];
+    if (statistics) {
+      this.jointUIService.changeOperatorState(this.paper, operatorID, statistics.operatorState);
+    } else {
+      this.jointUIService.changeOperatorColor(this.paper, operatorID, true);
+    }
   }
 
   private handleRegionEvents(): void {
@@ -971,31 +1000,15 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Applies the validation result to the operator's border.
-   * - Invalid operators are drawn with a red border (validation takes priority).
-   * - Valid operators with a cached execution status keep their execution-state
-   *   border so e.g. a Completed (green) run isn't repainted gray when the user
-   *   navigates back to the workflow and reloadWorkflow re-adds the operators,
-   *   which triggers a validation pass that would otherwise overwrite the
-   *   execution-state stroke set by handleOperatorStatisticsUpdate.
-   * - Valid operators with no cached status get the default valid border.
+   * Applies the validation result to the operator's border. Delegates to
+   * applyOperatorBorder so validation, cached-execution-status, and the
+   * default-valid case are decided in one place.
    */
   private handleOperatorValidation(): void {
     this.validationWorkflowService
       .getOperatorValidationStream()
       .pipe(untilDestroyed(this))
-      .subscribe(value => {
-        if (!value.validation.isValid) {
-          this.jointUIService.changeOperatorColor(this.paper, value.operatorID, false);
-          return;
-        }
-        const statistics = this.workflowStatusService.getCurrentStatus()[value.operatorID];
-        if (statistics) {
-          this.jointUIService.changeOperatorState(this.paper, value.operatorID, statistics.operatorState);
-        } else {
-          this.jointUIService.changeOperatorColor(this.paper, value.operatorID, true);
-        }
-      });
+      .subscribe(value => this.applyOperatorBorder(value.operatorID));
   }
 
   /**
