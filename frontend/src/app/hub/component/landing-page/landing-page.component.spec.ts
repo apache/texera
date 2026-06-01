@@ -30,11 +30,7 @@ import { UserService } from "../../../common/service/user/user.service";
 import { StubUserService } from "../../../common/service/user/stub-user.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
-import {
-  HOME,
-  HUB_DATASET_RESULT,
-  HUB_WORKFLOW_RESULT,
-} from "../../../app-routing.constant";
+import { HOME, HUB_DATASET_RESULT, HUB_WORKFLOW_RESULT } from "../../../app-routing.constant";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("LandingPageComponent", () => {
