@@ -166,8 +166,8 @@ spec:
             type: PathPrefix
             value: /api/agents
       backendRefs:
-        - name: {{ .Values.agentService.name }}-svc
-          port: {{ .Values.agentService.service.port }}
+        - name: agent-service-svc
+          port: 3001
 {{- end }}
 ---
 # MinIO Route
