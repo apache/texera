@@ -17,32 +17,31 @@
  * under the License.
  */
 
-export const DASHBOARD = "/dashboard";
-export const DASHBOARD_HOME = `${DASHBOARD}/home`;
-export const DASHBOARD_ABOUT = `${DASHBOARD}/about`;
+export const HOME = "/home";
+export const ABOUT = "/about";
 
-export const DASHBOARD_HUB = `${DASHBOARD}/hub`;
-export const DASHBOARD_HUB_WORKFLOW = `${DASHBOARD_HUB}/workflow`;
-export const DASHBOARD_HUB_WORKFLOW_RESULT = `${DASHBOARD_HUB_WORKFLOW}/result`;
-export const DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL = `${DASHBOARD_HUB_WORKFLOW_RESULT}/detail`;
-export const DASHBOARD_HUB_DATASET = `${DASHBOARD_HUB}/dataset`;
-export const DASHBOARD_HUB_DATASET_RESULT = `${DASHBOARD_HUB_DATASET}/result`;
-export const DASHBOARD_HUB_DATASET_RESULT_DETAIL = `${DASHBOARD_HUB_DATASET_RESULT}/detail`;
+export const HUB = "/hub";
+export const HUB_WORKFLOW = `${HUB}/workflow`;
+export const HUB_WORKFLOW_RESULT = `${HUB_WORKFLOW}/result`;
+export const HUB_WORKFLOW_RESULT_DETAIL = `${HUB_WORKFLOW_RESULT}/detail`;
+export const HUB_DATASET = `${HUB}/dataset`;
+export const HUB_DATASET_RESULT = `${HUB_DATASET}/result`;
+export const HUB_DATASET_RESULT_DETAIL = `${HUB_DATASET_RESULT}/detail`;
 
-export const DASHBOARD_USER = `${DASHBOARD}/user`;
-export const DASHBOARD_USER_PROJECT = `${DASHBOARD_USER}/project`;
-export const DASHBOARD_USER_WORKSPACE = `${DASHBOARD_USER}/workflow`;
-export const DASHBOARD_USER_WORKFLOW = `${DASHBOARD_USER}/workflow`;
-export const DASHBOARD_USER_DATASET = `${DASHBOARD_USER}/dataset`;
-export const DASHBOARD_USER_DATASET_CREATE = `${DASHBOARD_USER_DATASET}/create`;
-export const DASHBOARD_USER_COMPUTING_UNIT = `${DASHBOARD_USER}/compute`;
-export const DASHBOARD_USER_QUOTA = `${DASHBOARD_USER}/quota`;
-export const DASHBOARD_USER_DISCUSSION = `${DASHBOARD_USER}/discussion`;
+export const USER = "/user";
+export const USER_PROJECT = `${USER}/project`;
+export const USER_WORKSPACE = `${USER}/workflow`;
+export const USER_WORKFLOW = `${USER}/workflow`;
+export const USER_DATASET = `${USER}/dataset`;
+export const USER_DATASET_CREATE = `${USER_DATASET}/create`;
+export const USER_COMPUTING_UNIT = `${USER}/compute`;
+export const USER_QUOTA = `${USER}/quota`;
+export const USER_DISCUSSION = `${USER}/discussion`;
 
-export const DASHBOARD_ADMIN = `${DASHBOARD}/admin`;
-export const DASHBOARD_ADMIN_USER = `${DASHBOARD_ADMIN}/user`;
-export const DASHBOARD_ADMIN_GMAIL = `${DASHBOARD_ADMIN}/gmail`;
-export const DASHBOARD_ADMIN_EXECUTION = `${DASHBOARD_ADMIN}/execution`;
-export const DASHBOARD_ADMIN_SETTINGS = `${DASHBOARD_ADMIN}/settings`;
+export const ADMIN = "/admin";
+export const ADMIN_USER = `${ADMIN}/user`;
+export const ADMIN_GMAIL = `${ADMIN}/gmail`;
+export const ADMIN_EXECUTION = `${ADMIN}/execution`;
+export const ADMIN_SETTINGS = `${ADMIN}/settings`;
 
-export const DASHBOARD_SEARCH = `${DASHBOARD}/search`;
+export const SEARCH = "/search";
