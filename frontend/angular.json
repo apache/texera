@@ -92,7 +92,10 @@
             "runnerConfig": "vitest.config.ts",
             "tsConfig": "src/tsconfig.spec.json",
             "include": ["**/*.spec.ts"],
-            "setupFiles": ["src/jsdom-svg-polyfill.ts"]
+            "setupFiles": ["src/jsdom-svg-polyfill.ts"],
+            "exclude": [
+              "**/*.browser.spec.ts"
+            ]
           }
         },
         "test-browser": {
@@ -102,7 +105,10 @@
             "runner": "vitest",
             "runnerConfig": "vitest.browser.config.ts",
             "tsConfig": "src/tsconfig.spec.json",
-            "include": ["**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts"]
+            "include": [
+              "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts",
+              "**/*.browser.spec.ts"
+            ]
           }
         }
       }
