@@ -71,7 +71,7 @@ class _StubLoopStart(LoopStartOperator):
         self._output_expr = output_expr
 
     def open(self) -> None:
-        self.state = {"loop_counter": 0}
+        self.state = {}
         exec(self._initialization, {}, self.state)
 
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -97,10 +97,9 @@ class _StubLoopEnd(LoopEndOperator):
         self.state = {}
 
     def process_state(self, state: State, port: int) -> Optional[State]:
-        loop_counter = int(state.get("loop_counter", 0))
-        if loop_counter > 0:
-            state["loop_counter"] = loop_counter - 1
-            return state
+        # Consume-only, mirroring the simplified codegen: the runtime owns
+        # loop_counter and the nested pass-through branch, so the operator only
+        # ever runs the matching-loop (consume) path.
         self.state = dict(state)
         self.state["table"] = loads(self.state["table"])
         exec(self._update, {}, self.state)
@@ -129,37 +128,10 @@ class TestLoopStartProcessState:
 
         assert result is None, "first-time state must not be forwarded"
         assert op.state["upstream_key"] == "v", "state was not merged into self.state"
-        # loop_counter is left at its open() value (0) on first entry.
-        assert op.state["loop_counter"] == 0
 
-    def test_reentry_state_with_loop_start_uri_increments_loop_counter(self):
-        # Re-entry from this LoopStart's own LoopEnd: the state carries
-        # LoopStartStateURI, so the base class must INCREMENT
-        # loop_counter and PASS THROUGH the state downstream. This is
-        # what main_loop's _attach_loop_start_id relies on.
-        op = _StubLoopStart()
-        op.open()
-        incoming = State({"LoopStartStateURI": "vfs:///x", "loop_counter": 0, "i": 2})
-
-        result = op.process_state(incoming, port=0)
-
-        assert result is not None, "re-entry state must be returned for downstream"
-        assert result["loop_counter"] == 1
-        # The user variable rides along.
-        assert result["i"] == 2
-
-    def test_reentry_at_nested_loop_counter_bumps_one(self):
-        # Nested loop: an outer loop's re-entry state passes through this
-        # inner LoopStart with a loop_counter already > 0 (because the
-        # outer LoopStart bumped it on its own re-entry first). The
-        # invariant is that we only ever +1, never reset.
-        op = _StubLoopStart()
-        op.open()
-        incoming = State({"LoopStartStateURI": "vfs:///outer", "loop_counter": 5})
-
-        result = op.process_state(incoming, port=0)
-
-        assert result["loop_counter"] == 6
+    # NOTE: LoopStart re-entry (+1) is owned by the worker runtime now, not the
+    # operator (which only does the first-entry merge above). It and the nested
+    # pass-through are covered in test_main_loop.py::TestLoopCounterRuntime.
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +174,9 @@ class TestLoopStartProduceStateOnFinish:
 
         assert produced["i"] == 0
         assert produced["acc"] == []
-        assert produced["loop_counter"] == 0
+        # loop_counter is no longer seeded into the operator's state; it is
+        # runtime-owned and rides on the StateFrame envelope.
+        assert "loop_counter" not in produced
 
 
 # ---------------------------------------------------------------------------
@@ -303,126 +277,8 @@ class TestLoopEndMatchingBranch:
 
 
 # ---------------------------------------------------------------------------
-# Nested loops — LoopEnd pass-through branch
+# Nested-loop counter behaviour -- LoopStart +1, LoopEnd -1, and the
+# depth-symmetric invariant -- is now owned by the worker runtime (the
+# operators no longer read or mutate loop_counter), so it is covered in
+# test_main_loop.py::TestLoopCounterRuntime rather than here.
 # ---------------------------------------------------------------------------
-
-
-class TestLoopEndNestedPassThrough:
-    def test_loop_counter_positive_decrements_and_passes_state_through(self):
-        # When the inner LoopEnd receives state with loop_counter > 0,
-        # the state belongs to an OUTER loop. The inner LoopEnd must
-        # decrement loop_counter and return the state for downstream
-        # routing (which eventually reaches the outer LoopEnd at
-        # loop_counter == 0).
-        op = _StubLoopEnd(update="i += 1")
-        op.state = {"sentinel": "must_not_be_overwritten"}
-
-        incoming = State({"loop_counter": 2, "outer_var": "v"})
-        result = op.process_state(incoming, port=0)
-
-        assert result is not None, "pass-through branch must emit state downstream"
-        assert result["loop_counter"] == 1
-        assert result["outer_var"] == "v"
-        # The pass-through branch must NOT overwrite self.state — the
-        # inner LoopEnd's own matching-loop state from a previous inner
-        # iteration must be preserved.
-        assert op.state == {"sentinel": "must_not_be_overwritten"}
-
-    def test_pass_through_chain_collapses_to_matching_branch_at_zero(self):
-        # Walk a state with loop_counter=3 through three levels of
-        # nested LoopEnds: each strips one level, and the fourth
-        # (loop_counter == 0) is the matching loop that runs the
-        # user's update. This pins the depth-symmetric invariant
-        # nested-for-loop scheduling depends on.
-        from pickle import dumps
-
-        outer = _StubLoopEnd(update="i += 10")
-        middle = _StubLoopEnd(update="i += 100")
-        inner = _StubLoopEnd(update="i += 1000")
-        match = _StubLoopEnd(update="i += 1")
-
-        state = State(
-            {
-                "loop_counter": 3,
-                "i": 0,
-                "table": dumps(Table([Tuple({"v": 1})])),
-            }
-        )
-
-        # Each outer→inner hop decrements once.
-        state = outer.process_state(state, port=0)
-        assert state["loop_counter"] == 2
-        state = middle.process_state(state, port=0)
-        assert state["loop_counter"] == 1
-        state = inner.process_state(state, port=0)
-        assert state["loop_counter"] == 0
-        # At loop_counter == 0 the matching LoopEnd consumes the state
-        # and runs ITS user update — not any of the pass-through ops'.
-        result = match.process_state(state, port=0)
-        assert result is None
-        assert match.state["i"] == 1, "only the matching LoopEnd's update should fire"
-
-
-# ---------------------------------------------------------------------------
-# Nested loops — round trip
-# ---------------------------------------------------------------------------
-
-
-class TestNestedLoopRoundTrip:
-    def test_outer_then_inner_loop_state_keeps_counters_symmetric(self):
-        # Simulate the state flow for one outer iteration that itself
-        # triggers one inner iteration:
-        #
-        #   outer LoopStart re-entry  → loop_counter 0 → 1
-        #   inner LoopStart re-entry  → loop_counter 1 → 2
-        #   inner LoopEnd             → loop_counter 2 → 1
-        #   outer LoopEnd             → loop_counter 1 → 0 (matching branch)
-        #
-        # The matching branch on the outer LoopEnd is reached iff every
-        # increment is mirrored by exactly one decrement. A bug in
-        # either side would land us in the wrong branch.
-        outer_start = _StubLoopStart()
-        inner_start = _StubLoopStart()
-        inner_end = _StubLoopEnd(update="outer_i += 100")
-        outer_end = _StubLoopEnd(update="outer_i += 1")
-        outer_start.open()
-        inner_start.open()
-
-        from pickle import dumps
-
-        # outer LoopEnd jumped back to outer LoopStart with this state.
-        state_in = State(
-            {
-                "LoopStartStateURI": "vfs:///outer",
-                "loop_counter": 0,
-                "outer_i": 0,
-                "table": dumps(Table([Tuple({"v": 1})])),
-            }
-        )
-
-        # outer LoopStart re-entry: +1
-        state_after_outer_start = outer_start.process_state(state_in, port=0)
-        assert state_after_outer_start["loop_counter"] == 1
-        # inner LoopStart sees the same passing state and +1 again.
-        state_after_inner_start = inner_start.process_state(
-            state_after_outer_start, port=0
-        )
-        assert state_after_inner_start["loop_counter"] == 2
-        # inner LoopEnd: pass-through branch (-1).
-        state_after_inner_end = inner_end.process_state(state_after_inner_start, port=0)
-        assert state_after_inner_end is not None
-        assert state_after_inner_end["loop_counter"] == 1
-        # outer LoopEnd: pass-through (-1) lands at 0, the matching branch.
-        # Now process_state would have to run the matching branch path
-        # because loop_counter == 0. To get there we need one more hop:
-        result = outer_end.process_state(state_after_inner_end, port=0)
-        # NOT yet at 0 — pass-through decrements to 0 and returns. The
-        # NEXT hop is the matching branch.
-        assert result is not None
-        assert result["loop_counter"] == 0
-
-        # Final landing on the matching branch consumes the state and
-        # runs the outer update (outer_i += 1).
-        matching = _StubLoopEnd(update="outer_i += 1")
-        assert matching.process_state(result, port=0) is None
-        assert matching.state["outer_i"] == 1

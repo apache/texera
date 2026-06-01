@@ -75,7 +75,7 @@ class LoopStartOpDesc extends LogicalOp {
        |class ProcessLoopStartOperator(LoopStartOperator):
        |    @overrides
        |    def open(self):
-       |        self.state = {"loop_counter": 0}
+       |        self.state = {}
        |        exec($initialization, {}, self.state)
        |
        |    @overrides

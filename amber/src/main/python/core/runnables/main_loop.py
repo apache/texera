@@ -29,6 +29,8 @@ from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
     InternalQueue,
+    StateFrame,
+    StateStorage,
     Tuple,
 )
 from core.models.internal_marker import StartChannel, EndChannel
@@ -119,8 +121,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # user-visible loop state is written back to LoopStart's input.
         for key in ("table", "output", "LoopStartId", "LoopStartStateURI"):
             state.pop(key, None)
-        writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
-        writer.put_one(State(state).to_tuple())
+        writer = DocumentFactory.create_document(uri, StateStorage.SCHEMA).writer("0")
+        # The back-edge fires only after the matching LoopEnd consumed at
+        # loop_counter == 0, so the next iteration's input starts at depth 0.
+        writer.put_one(StateStorage.to_tuple(State(state), 0))
         writer.close()
 
     def complete(self) -> None:
@@ -228,7 +232,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     output_tuple
                 )
 
-    def process_input_state(self) -> None:
+    def process_input_state(self, output_loop_counter: int = 0) -> None:
         self._switch_context()
         output_state = self.context.state_processing_manager.get_output_state()
         if output_state is not None:
@@ -237,16 +241,19 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self.context.output_manager.reset_storage()
             elif isinstance(executor, LoopStartOperator):
                 self._attach_loop_start_id(output_state)
-            for to, batch in self.context.output_manager.emit_state(output_state):
-                self._output_queue.put(
-                    DataElement(
-                        tag=ChannelIdentity(
-                            ActorVirtualIdentity(self.context.worker_id), to, False
-                        ),
-                        payload=batch,
-                    )
+            self._emit_and_save_state(output_state, output_loop_counter)
+
+    def _emit_and_save_state(self, state: State, loop_counter: int) -> None:
+        for to, batch in self.context.output_manager.emit_state(state, loop_counter):
+            self._output_queue.put(
+                DataElement(
+                    tag=ChannelIdentity(
+                        ActorVirtualIdentity(self.context.worker_id), to, False
+                    ),
+                    payload=batch,
                 )
-            self.context.output_manager.save_state_to_storage_if_needed(output_state)
+            )
+        self.context.output_manager.save_state_to_storage_if_needed(state, loop_counter)
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
         """
@@ -289,9 +296,29 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_input_tuple()
         self._check_and_process_control()
 
-    def _process_state(self, state_: State) -> None:
-        self.context.state_processing_manager.current_input_state = state_
-        self.process_input_state()
+    def _process_state_frame(self, frame: StateFrame) -> None:
+        # The runtime owns loop_counter; loop operators never see or mutate it.
+        # The LoopStart/LoopEnd nested pass-through branches are handled here --
+        # forwarding the state and skipping the operator -- so the operator's
+        # process_state only ever runs the first-entry / consume path.
+        state = frame.frame
+        in_counter = frame.loop_counter
+        executor = self.context.executor_manager.executor
+
+        if isinstance(executor, LoopEndOperator) and in_counter > 0:
+            # State belongs to an outer loop: step one level out and forward.
+            self._emit_and_save_state(state, in_counter - 1)
+            self._check_and_process_control()
+            return
+        if isinstance(executor, LoopStartOperator) and "LoopStartStateURI" in state:
+            # Outer loop's state flowing through an inner LoopStart: step one
+            # level deeper and forward.
+            self._emit_and_save_state(state, in_counter + 1)
+            self._check_and_process_control()
+            return
+
+        self.context.state_processing_manager.current_input_state = state
+        self.process_input_state(output_loop_counter=in_counter)
         self._check_and_process_control()
 
     def _process_start_channel(self) -> None:
@@ -460,8 +487,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     element,
                     Tuple,
                     self._process_tuple,
-                    State,
-                    self._process_state,
+                    StateFrame,
+                    self._process_state_frame,
                 )
             except Exception as err:
                 logger.exception(err)

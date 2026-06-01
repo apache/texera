@@ -41,7 +41,7 @@ from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
-from core.models import Tuple, Schema, StateFrame
+from core.models import Tuple, Schema, StateFrame, StateStorage
 from core.models.payload import DataPayload, DataFrame
 from core.models.state import State
 from core.storage.document_factory import DocumentFactory
@@ -211,14 +211,18 @@ class OutputManager:
                 PortStorageWriterElement(data_tuple=tuple_)
             )
 
-    def save_state_to_storage_if_needed(self, state: State, port_id=None) -> None:
+    def save_state_to_storage_if_needed(
+        self, state: State, loop_counter: int, port_id=None
+    ) -> None:
         # When port_id is omitted the same state row is fanned out to
         # every output port's state table. This mirrors the
         # broadcast-to-all-workers behavior on the emit side: state is
         # shared context, not per-key data, so every downstream operator
         # (and every worker reading the materialization) needs the full
         # set.
-        element = PortStorageWriterElement(data_tuple=state.to_tuple())
+        element = PortStorageWriterElement(
+            data_tuple=StateStorage.to_tuple(state, loop_counter)
+        )
         if port_id is None:
             for writer_queue, _, _ in self._port_state_writers.values():
                 writer_queue.put(element)
@@ -234,7 +238,7 @@ class OutputManager:
             self._ports[port_id].get_schema(),
         )
         DocumentFactory.create_document(
-            VFSURIFactory.state_uri(storage_uri_base), State.SCHEMA
+            VFSURIFactory.state_uri(storage_uri_base), StateStorage.SCHEMA
         )
         self.set_up_port_storage_writer(port_id, storage_uri_base)
 
@@ -311,7 +315,7 @@ class OutputManager:
         )
 
     def emit_state(
-        self, state: State
+        self, state: State, loop_counter: int
     ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         return chain(
             *(
@@ -319,7 +323,7 @@ class OutputManager:
                     (
                         receiver,
                         (
-                            StateFrame(payload)
+                            StateFrame(payload, loop_counter=loop_counter)
                             if isinstance(payload, State)
                             else self.tuple_to_frame(payload)
                         ),

@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.messaginglayer
 
-import org.apache.texera.amber.core.state.State
+import org.apache.texera.amber.core.state.{State, StateStorage}
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
 import org.apache.texera.amber.core.tuple._
@@ -242,7 +242,7 @@ class OutputManager(
     // emit side: state is shared context, not per-key data, so every
     // downstream operator (and every worker reading the materialization)
     // needs the full set.
-    stateWriterThreads.values.foreach(_.queue.put(Left(state.toTuple)))
+    stateWriterThreads.values.foreach(_.queue.put(Left(StateStorage.toTuple(state, 0L))))
   }
 
   /**

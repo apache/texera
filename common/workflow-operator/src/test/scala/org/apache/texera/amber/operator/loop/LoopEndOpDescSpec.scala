@@ -75,16 +75,16 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     code should include("def condition(self) -> bool:")
   }
 
-  it should "decrement loop_counter and pass state through when loop_counter > 0 (nested-loop case)" in {
-    // For nested loops the inner LoopEnd sees state belonging to an
-    // outer loop. The generated process_state recognises this by a
-    // positive loop_counter and just decrements + returns the state,
-    // leaving the actual loop-control work to the outer LoopEnd.
-    // Critical for nested-for-loop correctness -- pin its shape.
+  it should "generate a consume-only process_state with no loop_counter handling" in {
+    // loop_counter is owned by the worker runtime now, not the operator. The
+    // nested-loop pass-through (decrement + forward) happens in
+    // main_loop._process_state_frame before the operator is invoked, so the
+    // generated LoopEnd only ever runs the matching-loop (consume) path and
+    // must not read or mutate loop_counter. Pin the absence so a regression
+    // that re-introduces operator-side counter handling is caught.
     val code = desc().generatePythonCode()
-    code should include("loop_counter = int(state.get(\"loop_counter\", 0))")
-    code should include("if loop_counter > 0:")
-    code should include("state[\"loop_counter\"] = loop_counter - 1")
+    code should not include "loop_counter"
+    code should include("self.state = dict(state)")
   }
 
   it should "stash state, deserialize the pickled table, and run the decoded update on the matching-loop branch" in {

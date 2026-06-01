@@ -76,10 +76,6 @@ class LoopEndOpDesc extends LogicalOp {
        |class ProcessLoopEndOperator(LoopEndOperator):
        |    @overrides
        |    def process_state(self, state: State, port: int) -> Optional[State]:
-       |      loop_counter = int(state.get("loop_counter", 0))
-       |      if loop_counter > 0:
-       |        state["loop_counter"] = loop_counter - 1
-       |        return state
        |      self.state = dict(state)
        |      from pickle import loads
        |      self.state["table"] = loads(self.state["table"])

@@ -34,3 +34,6 @@ class DataFrame(DataPayload):
 @dataclass
 class StateFrame(DataPayload):
     frame: State
+    # Loop-control bookkeeping owned by the worker runtime, carried alongside
+    # the State payload (not inside it). Defaults to 0 for all non-loop state.
+    loop_counter: int = 0

@@ -296,9 +296,11 @@ class TableOperator(TupleOperatorV2):
 class LoopStartOperator(TableOperator):
     @overrides.final
     def process_state(self, state: State, port: int) -> Optional[State]:
-        if "LoopStartStateURI" in state:
-            state["loop_counter"] += 1
-            return state
+        # First-entry only: merge upstream state into self.state. The nested
+        # pass-through (state already carrying LoopStartStateURI) and all
+        # loop_counter bookkeeping are owned by the worker runtime
+        # (main_loop._process_state_frame), so this operator never sees the
+        # counter and never mutates the State it is handed.
         self.state.update(state)
         return None
 

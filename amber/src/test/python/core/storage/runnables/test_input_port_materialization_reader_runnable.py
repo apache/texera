@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.models import State, StateFrame
+from core.models import State, StateFrame, StateStorage
 from core.models.internal_queue import DataElement
 from core.models.schema import Schema
 from core.storage.runnables.input_port_materialization_reader_runnable import (
@@ -60,12 +60,13 @@ class TestRunStateReadingBlock:
         return instance
 
     def test_state_rows_are_emitted_as_state_frames(self, runnable):
-        state_a = State({"loop_counter": 0})
-        state_b = State({"loop_counter": 1})
+        state_a = State({"i": 0})
+        state_b = State({"i": 1})
 
-        # The state document yields opaque tuples; from_tuple deserializes
-        # them. Patch from_tuple so we don't have to wire a real
-        # serialization.
+        # The state document yields opaque 2-column tuples; StateStorage
+        # .from_tuple deserializes each into (State, loop_counter). Patch it
+        # so we don't have to wire a real serialization. The loop_counter
+        # must be carried onto the emitted StateFrame envelope.
         result_doc = MagicMock()
         result_doc.get.return_value = iter([])  # No materialized tuples.
         state_doc = MagicMock()
@@ -75,13 +76,13 @@ class TestRunStateReadingBlock:
             patch(
                 "core.storage.runnables.input_port_materialization_reader_runnable.DocumentFactory"
             ) as mock_factory,
-            patch.object(State, "from_tuple") as mock_from_tuple,
+            patch.object(StateStorage, "from_tuple") as mock_from_tuple,
         ):
             mock_factory.open_document.side_effect = [
                 (result_doc, runnable.tuple_schema),
                 (state_doc, None),
             ]
-            mock_from_tuple.side_effect = [state_a, state_b]
+            mock_from_tuple.side_effect = [(state_a, 0), (state_b, 1)]
 
             runnable.run()
 
@@ -96,4 +97,5 @@ class TestRunStateReadingBlock:
             and isinstance(call.args[0].payload, StateFrame)
         ]
         assert [sf.payload.frame for sf in state_frames] == [state_a, state_b]
+        assert [sf.payload.loop_counter for sf in state_frames] == [0, 1]
         assert runnable._finished is True

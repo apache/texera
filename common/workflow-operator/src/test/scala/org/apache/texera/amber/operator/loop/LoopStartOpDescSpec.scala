@@ -71,7 +71,10 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     // nothing.
     val code = desc(init = "i = 0", out = "table.iloc[i]").generatePythonCode()
     code should include("def open(self)")
-    code should include("\"loop_counter\": 0")
+    // loop_counter is runtime-owned now and must not be seeded into the
+    // operator's state; open() starts from an empty dict.
+    code should include("self.state = {}")
+    code should not include "loop_counter"
     code should include(s"exec(${decodeExpr("i = 0")}, {}, self.state)")
     code should include("def process_table(self, table: Table, port: int)")
     code should include(s"""exec("output = " + ${decodeExpr("table.iloc[i]")}, {}, self.state)""")

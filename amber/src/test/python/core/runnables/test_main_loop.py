@@ -36,6 +36,7 @@ from core.models.internal_queue import (
     DCMElement,
     ECMElement,
 )
+from core.models.operator import LoopEndOperator, LoopStartOperator
 from core.runnables import MainLoop
 from core.util import set_one_of
 from proto.org.apache.texera.amber.core import (
@@ -1150,7 +1151,9 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state: [(mock_data_output_channel.to_worker_id, StateFrame(state))],
+            lambda state, loop_counter: [
+                (mock_data_output_channel.to_worker_id, StateFrame(state))
+            ],
         )
 
         def fake_switch_context():
@@ -1167,8 +1170,8 @@ class TestMainLoop:
         first_state = State({"value": 1})
         second_state = State({"value": 41})
 
-        main_loop._process_state(first_state)
-        main_loop._process_state(second_state)
+        main_loop._process_state_frame(StateFrame(first_state))
+        main_loop._process_state_frame(StateFrame(second_state))
 
         first_output: DataElement = output_queue.get()
         second_output: DataElement = output_queue.get()
@@ -1360,7 +1363,9 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state: [(mock_data_output_channel.to_worker_id, StateFrame(state))],
+            lambda state, loop_counter: [
+                (mock_data_output_channel.to_worker_id, StateFrame(state))
+            ],
         )
 
         def fake_switch_context():
@@ -1377,8 +1382,8 @@ class TestMainLoop:
         first_state = State({"value": 1})
         second_state = State({"value": 41})
 
-        main_loop._process_state(first_state)
-        main_loop._process_state(second_state)
+        main_loop._process_state_frame(StateFrame(first_state))
+        main_loop._process_state_frame(StateFrame(second_state))
 
         first_output: DataElement = output_queue.get()
         second_output: DataElement = output_queue.get()
@@ -1414,12 +1419,14 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state: [(mock_data_output_channel.to_worker_id, StateFrame(state))],
+            lambda state, loop_counter: [
+                (mock_data_output_channel.to_worker_id, StateFrame(state))
+            ],
         )
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "save_state_to_storage_if_needed",
-            lambda state: saved_states.append(state),
+            lambda state, loop_counter: saved_states.append(state),
         )
 
         def fake_switch_context():
@@ -1433,8 +1440,8 @@ class TestMainLoop:
 
         monkeypatch.setattr(main_loop, "_switch_context", fake_switch_context)
 
-        main_loop._process_state(State({"value": 1}))
-        main_loop._process_state(State({"value": 41}))
+        main_loop._process_state_frame(StateFrame(State({"value": 1})))
+        main_loop._process_state_frame(StateFrame(State({"value": 41})))
 
         # Each input state produced one output state, so both must have
         # been persisted in order.
@@ -1458,7 +1465,7 @@ class TestMainLoop:
         # → `process_input_state` → DataProcessor.process_internal_marker
         # (StartChannel) → executor.produce_state_on_start → _set_output_state
         # → MainLoop reads output state → emit + save.
-        on_start_state = State({"flag": True, "loop_counter": 0})
+        on_start_state = State({"flag": True})
 
         class DummyExecutor:
             @staticmethod
@@ -1473,12 +1480,14 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state: [(mock_data_output_channel.to_worker_id, StateFrame(state))],
+            lambda state, loop_counter: [
+                (mock_data_output_channel.to_worker_id, StateFrame(state))
+            ],
         )
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "save_state_to_storage_if_needed",
-            lambda state: saved_states.append(state),
+            lambda state, loop_counter: saved_states.append(state),
         )
         # _send_ecm_to_data_channels touches output_manager state we don't
         # set up here; for this test the ECM forwarding is irrelevant -- the
@@ -1519,7 +1528,9 @@ class TestMainLoop:
             f"to storage. saved_states={saved_states}"
         )
         assert saved_states[0]["flag"] is True
-        assert saved_states[0]["loop_counter"] == 0
+        # loop_counter is no longer part of the user State; it rides on the
+        # StateFrame envelope / its own materialized column.
+        assert "loop_counter" not in saved_states[0]
         assert saved_states[0]["port"] == 0
 
     @pytest.mark.timeout(2)
@@ -1536,17 +1547,17 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state: [],
+            lambda state, loop_counter: [],
         )
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "save_state_to_storage_if_needed",
-            lambda state: save_calls.append(state),
+            lambda state, loop_counter: save_calls.append(state),
         )
         # Pretend DataProc consumed the input but produced no output.
         monkeypatch.setattr(main_loop, "_switch_context", lambda: None)
 
-        main_loop._process_state(State({"value": 1}))
+        main_loop._process_state_frame(StateFrame(State({"value": 1})))
 
         assert save_calls == []
 
@@ -1777,3 +1788,91 @@ class TestMainLoop:
         assert events[0][1].msg_type == ConsoleMessageType.ERROR
         assert "boom-from-executor" in events[0][1].title
         assert events[1][1] is PauseType.EXCEPTION_PAUSE
+
+    # -- Loop counter is runtime-owned (relocated from test_loop_operators) ---
+    #
+    # loop_counter is not part of State; it rides on the StateFrame envelope and
+    # the runtime (_process_state_frame) owns the +1/-1. On the nested
+    # pass-through branches the operator must be skipped entirely.
+
+    def _capture_state_emit(self, main_loop, monkeypatch):
+        """Stub emit/save/switch; return (emitted, switched) recorders."""
+        emitted = []
+        switched = []
+        monkeypatch.setattr(main_loop, "_check_and_process_control", lambda: None)
+        monkeypatch.setattr(main_loop, "_switch_context", lambda: switched.append(True))
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "emit_state",
+            lambda state, loop_counter: emitted.append((state, loop_counter)) or [],
+        )
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "save_state_to_storage_if_needed",
+            lambda state, loop_counter: None,
+        )
+        return emitted, switched
+
+    def test_loopstart_reentry_increments_counter_and_skips_operator(
+        self, main_loop, monkeypatch
+    ):
+        # A state already carrying LoopStartStateURI is an outer loop's state
+        # passing through this inner LoopStart. The runtime forwards it with
+        # loop_counter + 1 and must NOT invoke the operator.
+        class StubLoopStart(LoopStartOperator):
+            def process_table(self, table, port):
+                yield
+
+        main_loop.context.executor_manager.executor = StubLoopStart()
+        emitted, switched = self._capture_state_emit(main_loop, monkeypatch)
+
+        main_loop._process_state_frame(
+            StateFrame(State({"LoopStartStateURI": "vfs:///x", "i": 5}), loop_counter=1)
+        )
+
+        assert switched == [], "nested pass-through must not invoke the operator"
+        assert len(emitted) == 1
+        emitted_state, emitted_counter = emitted[0]
+        assert emitted_counter == 2  # 1 + 1
+        assert emitted_state["i"] == 5
+        assert "loop_counter" not in emitted_state  # never leaks into State
+
+    def test_loopend_passthrough_decrements_counter_and_skips_operator(
+        self, main_loop, monkeypatch
+    ):
+        # loop_counter > 0 at a LoopEnd means the state belongs to an outer
+        # loop: the runtime decrements and forwards, skipping the operator.
+        class StubLoopEnd(LoopEndOperator):
+            def condition(self):
+                return False
+
+        main_loop.context.executor_manager.executor = StubLoopEnd()
+        emitted, switched = self._capture_state_emit(main_loop, monkeypatch)
+
+        main_loop._process_state_frame(
+            StateFrame(State({"outer_var": "v"}), loop_counter=2)
+        )
+
+        assert switched == [], "pass-through must not invoke the operator"
+        assert len(emitted) == 1
+        emitted_state, emitted_counter = emitted[0]
+        assert emitted_counter == 1  # 2 - 1
+        assert emitted_state["outer_var"] == "v"
+
+    def test_loopend_consume_invokes_operator_at_counter_zero(
+        self, main_loop, monkeypatch
+    ):
+        # loop_counter == 0 is the matching loop: the runtime runs the operator
+        # (consume) via the context switch. The operator returns None, so no
+        # state is emitted; the loop-back is driven by complete() separately.
+        class StubLoopEnd(LoopEndOperator):
+            def condition(self):
+                return False
+
+        main_loop.context.executor_manager.executor = StubLoopEnd()
+        emitted, switched = self._capture_state_emit(main_loop, monkeypatch)
+
+        main_loop._process_state_frame(StateFrame(State({"i": 0}), loop_counter=0))
+
+        assert switched == [True], "consume branch must invoke the operator"
+        assert emitted == [], "operator returned None -> nothing emitted"

@@ -36,6 +36,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
+import org.apache.texera.amber.core.state.StateStorage
 import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.arrow.flight._
@@ -125,7 +126,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
       case DataFrame(frame) =>
         writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
       case StateFrame(state) =>
-        writeArrowStream(mutable.Queue(state.toTuple), from, "State")
+        writeArrowStream(mutable.Queue(StateStorage.toTuple(state, 0L)), from, "State")
     }
   }
 

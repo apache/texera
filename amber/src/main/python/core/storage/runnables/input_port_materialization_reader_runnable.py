@@ -34,7 +34,14 @@ from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
-from core.models import Tuple, InternalQueue, DataFrame, DataPayload, State, StateFrame
+from core.models import (
+    Tuple,
+    InternalQueue,
+    DataFrame,
+    DataPayload,
+    StateFrame,
+    StateStorage,
+)
 from core.models.internal_queue import DataElement, ECMElement
 from core.storage.document_factory import DocumentFactory
 from core.storage.vfs_uri_factory import VFSURIFactory
@@ -152,7 +159,8 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                 VFSURIFactory.state_uri(self.uri)
             )
             for state_row in state_document.get():
-                self.emit_payload(StateFrame(State.from_tuple(state_row)))
+                state, loop_counter = StateStorage.from_tuple(state_row)
+                self.emit_payload(StateFrame(state, loop_counter=loop_counter))
 
             storage_iterator = self.materialization.get()
             # Iterate and process tuples.
