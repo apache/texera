@@ -68,7 +68,9 @@ class LargeBinaryManager:
                 aws_access_key_id=StorageConfig.S3_AUTH_USERNAME,
                 aws_secret_access_key=StorageConfig.S3_AUTH_PASSWORD,
                 region_name=StorageConfig.S3_REGION,
-                config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+                config=Config(
+                    signature_version="s3v4", s3={"addressing_style": "path"}
+                ),
             )
         return self._s3_client
 
