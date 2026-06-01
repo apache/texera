@@ -49,7 +49,6 @@ import {
   DASHBOARD_HUB_DATASET_RESULT_DETAIL,
   DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL,
   DASHBOARD_USER_DATASET,
-  DASHBOARD_USER_PROJECT,
   DASHBOARD_USER_WORKSPACE,
 } from "../../../../app-routing.constant";
 import { isDefined } from "../../../../common/util/predicate";
@@ -152,9 +151,6 @@ export class ListItemComponent implements OnChanges {
         this.size = this.entry.size;
       }
       this.iconType = "project";
-    } else if (this.entry.type === "project") {
-      this.entryLink = [DASHBOARD_USER_PROJECT, String(this.entry.id)];
-      this.iconType = "container";
     } else if (this.entry.type === "dataset") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.dataset.isOwner;
