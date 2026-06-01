@@ -50,9 +50,10 @@ spec:
                   key: litellm-master-key
             # Postgres persistence: LiteLLM runs its Prisma migrations against this
             # database on startup and stores keys, spend, and (with STORE_MODEL_IN_DB)
-            # model config there, so state survives pod restarts.
+            # model config there, so state survives pod restarts. Defaults to the
+            # in-cluster Postgres; set litellm.databaseUrl to point at an external one.
             - name: DATABASE_URL
-              value: postgresql://postgres:{{ .Values.postgresql.auth.postgresPassword }}@{{ .Release.Name }}-postgresql:5432/{{ .Values.litellm.databaseName }}
+              value: {{ .Values.litellm.databaseUrl | default (printf "postgresql://postgres:%s@%s-postgresql:5432/%s" .Values.postgresql.auth.postgresPassword .Release.Name .Values.litellm.databaseName) | quote }}
             - name: STORE_MODEL_IN_DB
               value: "{{ .Values.litellm.storeModelInDb }}"
             {{- range $key, $value := .Values.litellm.providerApiKeys }}

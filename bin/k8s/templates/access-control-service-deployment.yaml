@@ -53,7 +53,7 @@ spec:
             {{- if .Values.litellm.enabled }}
             # LLM gateway used to serve /api/chat and /api/models to the agent service.
             - name: LITELLM_BASE_URL
-              value: http://{{ .Release.Name }}-{{ .Values.litellm.name }}-svc:{{ .Values.litellm.service.port }}
+              value: http://{{ .Values.litellm.name }}-svc:{{ .Values.litellm.service.port }}
             - name: LITELLM_MASTER_KEY
               valueFrom:
                 secretKeyRef:

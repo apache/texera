@@ -166,7 +166,7 @@ spec:
             type: PathPrefix
             value: /api/agents
       backendRefs:
-        - name: {{ .Release.Name }}-{{ .Values.agentService.name }}-svc
+        - name: {{ .Values.agentService.name }}-svc
           port: {{ .Values.agentService.service.port }}
 {{- end }}
 ---
