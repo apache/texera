@@ -18,6 +18,8 @@
  */
 
 import { createHmac, timingSafeEqual } from "crypto";
+import { existsSync, readFileSync } from "fs";
+import { resolve } from "path";
 import type { UserInfo } from "../types/agent";
 import { createLogger } from "../logger";
 
@@ -29,23 +31,39 @@ const log = createLogger("Auth");
 // `${header}.${payload}` keyed by AUTH_JWT_SECRET (UTF-8), with a 30s clock skew.
 const JWT_ALGORITHM = "HS256";
 const CLOCK_SKEW_SECONDS = 30;
+const AUTH_CONF_RELATIVE_PATH = "common/config/src/main/resources/auth.conf";
 
-// Auth settings are read from the environment at call time (not cached) so that
-// they can be toggled per request/per test without rebuilding the app.
-function getJwtSecret(): string {
-  return process.env.AUTH_JWT_SECRET ?? "";
+function readJwtSecretFromAuthConf(): string {
+  const candidates = [
+    resolve(import.meta.dir, "../../..", AUTH_CONF_RELATIVE_PATH),
+    resolve(process.cwd(), "..", AUTH_CONF_RELATIVE_PATH),
+    resolve(process.cwd(), AUTH_CONF_RELATIVE_PATH),
+  ];
+
+  for (const path of candidates) {
+    if (!existsSync(path)) continue;
+
+    const content = readFileSync(path, "utf-8");
+    const matches = content.matchAll(/256-bit-secret\s*=\s*(?:"([^"]+)"|([^\s#]+))/g);
+    for (const match of matches) {
+      const value = (match[1] ?? match[2] ?? "").trim();
+      if (!value || value.startsWith("${?")) continue;
+      if (value.toLowerCase() === "random") {
+        log.warn("auth.conf uses a random JWT secret; set AUTH_JWT_SECRET for agent-service");
+        return "";
+      }
+      return value.toLowerCase();
+    }
+  }
+
+  return "";
 }
 
-/**
- * Whether the agent service enforces authentication and per-user isolation.
- *
- * Opt-in via AGENT_AUTH_REQUIRED so the feature can be deployed and the client
- * updated before enforcement is switched on. When disabled the service keeps
- * its previous permissive behavior.
- */
-export function isAuthRequired(): boolean {
-  const v = process.env.AGENT_AUTH_REQUIRED;
-  return v === "true" || v === "1";
+// Auth settings are read at call time (not cached) so tests can override the
+// shared AUTH_JWT_SECRET without rebuilding the app.
+function getJwtSecret(): string {
+  const envSecret = process.env.AUTH_JWT_SECRET?.trim();
+  return (envSecret || readJwtSecretFromAuthConf()).toLowerCase();
 }
 
 function base64UrlToBuffer(segment: string): Buffer {
@@ -137,21 +155,11 @@ export function verifyToken(token: string): boolean {
 }
 
 /**
- * Accept a token for use. When enforcement is on this requires a valid HS256
- * signature and a live expiry; otherwise it falls back to an expiry-only check
- * to preserve the service's prior behavior.
+ * Accept a token for use. The agent service always requires the same verified
+ * HS256 user JWT as Texera's JVM services.
  */
 export function validateToken(token: string): boolean {
-  if (isAuthRequired()) {
-    return verifyToken(token);
-  }
-  try {
-    const payload = decodeJWT(token);
-    if (typeof payload.exp !== "number") return true;
-    return !isExpired(payload);
-  } catch {
-    return false;
-  }
+  return verifyToken(token);
 }
 
 export function createAuthHeaders(token: string): Record<string, string> {

@@ -21,7 +21,6 @@ import { Component, HostListener, Input, OnDestroy, OnInit, OnChanges, SimpleCha
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
 import { AgentService, AgentInfo } from "../../../service/agent/agent.service";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { calculateTotalTranslate3d } from "../../../../common/util/panel-dock";
 import { NgIf, NgClass, NgFor } from "@angular/common";
@@ -97,7 +96,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
 
   constructor(
     private agentService: AgentService,
-    private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService
   ) {}
 
@@ -154,6 +152,11 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
 
     // Switch to the agent's tab and activate it
     const agent = this.agents[agentIndex];
+    if (!this.canSwitchToAgent(agent)) {
+      this.notifyMissingComputingUnit();
+      this.agentIdToActivate = undefined;
+      return;
+    }
 
     // Deactivate previous agent if any
     if (this.activeAgentId) {
@@ -217,7 +220,7 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /**
-   * Handle tab selection change - validates workflow compatibility before switching
+   * Handle tab selection change - validates computing unit availability before switching
    */
   public onTabSelectChange(index: number): void {
     // Tab 0 is registration - always allow
@@ -234,22 +237,11 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const agent = this.agents[agentIndex];
-    const agentWorkflowId = agent.delegate?.workflowId;
-    const currentWorkflowId = this.workflowActionService.getWorkflowMetadata().wid;
-
-    // If agent has a workflow ID, check if it matches the current workflow
-    if (agentWorkflowId !== undefined && agentWorkflowId !== 0) {
-      if (currentWorkflowId !== agentWorkflowId) {
-        // Block switching - workflow mismatch
-        this.notificationService.warning(
-          `Cannot switch to agent "${agent.name}": It's working on a different workflow. ` +
-            `Open workflow #${agentWorkflowId} to interact with this agent.`
-        );
-        return;
-      }
+    if (!this.canSwitchToAgent(agent)) {
+      this.notifyMissingComputingUnit();
+      return;
     }
 
-    // Workflow matches or agent has no workflow - allow switch
     this.switchToAgent(agent.id, index);
   }
 
@@ -283,16 +275,15 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  private notifyMissingComputingUnit(): void {
+    this.notificationService.warning("Please connect to a computing unit before using an agent.");
+  }
+
   /**
-   * Check if an agent's workflow matches the current workspace workflow
+   * Check if the workspace can connect to an agent.
    */
-  public canSwitchToAgent(agent: AgentInfo): boolean {
-    const agentWorkflowId = agent.delegate?.workflowId;
-    if (agentWorkflowId === undefined || agentWorkflowId === 0) {
-      return true; // Agent has no workflow - always allow
-    }
-    const currentWorkflowId = this.workflowActionService.getWorkflowMetadata().wid;
-    return currentWorkflowId === agentWorkflowId;
+  public canSwitchToAgent(_agent: AgentInfo): boolean {
+    return this.agentService.hasRunningComputingUnit();
   }
 
   /**

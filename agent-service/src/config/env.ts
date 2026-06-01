@@ -34,6 +34,10 @@ const EnvSchema = z.object({
   WORKFLOW_COMPILING_SERVICE_ENDPOINT: z.string().url().default("http://localhost:9090"),
   WORKFLOW_EXECUTION_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8085"),
   EXECUTION_ENDPOINT_TEMPLATE: z.string().optional(),
+
+  STORAGE_JDBC_URL: z.string().default("jdbc:postgresql://localhost:5432/texera_db?currentSchema=texera_db,public"),
+  STORAGE_JDBC_USERNAME: z.string().default("postgres"),
+  STORAGE_JDBC_PASSWORD: z.string().default("postgres"),
 });
 
 export const env = EnvSchema.parse(process.env);

@@ -19,16 +19,10 @@
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createHmac } from "crypto";
-import {
-  createAuthHeaders,
-  extractUserFromToken,
-  getUidFromToken,
-  isAuthRequired,
-  validateToken,
-  verifyToken,
-} from "./auth-api";
+import { createAuthHeaders, extractUserFromToken, getUidFromToken, validateToken, verifyToken } from "./auth-api";
 
 const SECRET = "unit-test-secret-key";
+const AUTH_CONF_SECRET = "8a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d";
 
 function b64url(input: string | Buffer): string {
   return Buffer.from(input).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -50,18 +44,14 @@ function futureExp(): number {
 }
 
 const prevSecret = process.env.AUTH_JWT_SECRET;
-const prevRequired = process.env.AGENT_AUTH_REQUIRED;
 
 beforeEach(() => {
   delete process.env.AUTH_JWT_SECRET;
-  delete process.env.AGENT_AUTH_REQUIRED;
 });
 
 afterEach(() => {
   if (prevSecret === undefined) delete process.env.AUTH_JWT_SECRET;
   else process.env.AUTH_JWT_SECRET = prevSecret;
-  if (prevRequired === undefined) delete process.env.AGENT_AUTH_REQUIRED;
-  else process.env.AGENT_AUTH_REQUIRED = prevRequired;
 });
 
 describe("extractUserFromToken / getUidFromToken", () => {
@@ -73,19 +63,6 @@ describe("extractUserFromToken / getUidFromToken", () => {
 
   test("getUidFromToken returns undefined for a malformed token", () => {
     expect(getUidFromToken("not-a-jwt")).toBeUndefined();
-  });
-});
-
-describe("isAuthRequired", () => {
-  test("defaults to false", () => {
-    expect(isAuthRequired()).toBe(false);
-  });
-
-  test("is true for 'true' or '1'", () => {
-    process.env.AGENT_AUTH_REQUIRED = "true";
-    expect(isAuthRequired()).toBe(true);
-    process.env.AGENT_AUTH_REQUIRED = "1";
-    expect(isAuthRequired()).toBe(true);
   });
 });
 
@@ -119,32 +96,31 @@ describe("verifyToken", () => {
     expect(verifyToken("a.b")).toBe(false);
   });
 
-  test("returns false when no secret is configured", () => {
+  test("falls back to auth.conf when AUTH_JWT_SECRET is unset or empty", () => {
     delete process.env.AUTH_JWT_SECRET;
-    expect(verifyToken(signJwt({ sub: "u", userId: 1, exp: futureExp() }))).toBe(false);
+    expect(verifyToken(signJwt({ sub: "u", userId: 1, exp: futureExp() }, { secret: AUTH_CONF_SECRET }))).toBe(true);
+
+    process.env.AUTH_JWT_SECRET = "";
+    expect(verifyToken(signJwt({ sub: "u", userId: 1, exp: futureExp() }, { secret: AUTH_CONF_SECRET }))).toBe(true);
   });
 });
 
 describe("validateToken", () => {
-  test("enforced mode requires a valid signature", () => {
+  beforeEach(() => {
     process.env.AUTH_JWT_SECRET = SECRET;
-    process.env.AGENT_AUTH_REQUIRED = "true";
+  });
+
+  test("requires a valid signature", () => {
     expect(validateToken(signJwt({ sub: "u", userId: 1, exp: futureExp() }))).toBe(true);
     expect(validateToken(signJwt({ sub: "u", userId: 1, exp: futureExp() }, { secret: "x" }))).toBe(false);
   });
 
-  test("permissive mode accepts any unexpired, decodable token", () => {
-    // No enforcement: a token signed with an arbitrary secret is still accepted
-    // as long as it is well-formed and unexpired (prior behavior).
-    expect(validateToken(signJwt({ sub: "u", userId: 1, exp: futureExp() }, { secret: "anything" }))).toBe(true);
-  });
-
-  test("permissive mode rejects an expired token", () => {
+  test("rejects an expired token", () => {
     const exp = Math.floor(Date.now() / 1000) - 3600;
     expect(validateToken(signJwt({ sub: "u", userId: 1, exp }))).toBe(false);
   });
 
-  test("permissive mode rejects a malformed token", () => {
+  test("rejects a malformed token", () => {
     expect(validateToken("nonsense")).toBe(false);
   });
 });

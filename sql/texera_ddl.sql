@@ -51,6 +51,7 @@ DROP TABLE IF EXISTS operator_port_executions CASCADE;
 DROP TABLE IF EXISTS workflow_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_of_user CASCADE;
 DROP TABLE IF EXISTS user_config CASCADE;
+DROP TABLE IF EXISTS agent CASCADE;
 DROP TABLE IF EXISTS "user" CASCADE;
 DROP TABLE IF EXISTS user_last_active_time CASCADE;
 DROP TABLE IF EXISTS workflow CASCADE;
@@ -117,6 +118,19 @@ CREATE TABLE IF NOT EXISTS user_config
     key   VARCHAR(256) NOT NULL,
     value TEXT NOT NULL,
     PRIMARY KEY (uid, key),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+    );
+
+-- agent
+CREATE TABLE IF NOT EXISTS agent
+(
+    aid           UUID PRIMARY KEY,
+    uid           INT NOT NULL,
+    name          VARCHAR(128) NOT NULL,
+    model_type    VARCHAR(256) NOT NULL,
+    config        JSONB NOT NULL DEFAULT '{}'::jsonb,
+    react_steps   JSONB NOT NULL DEFAULT '[]'::jsonb,
+    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
 

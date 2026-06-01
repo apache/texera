@@ -24,8 +24,8 @@ import { randomUUID } from "crypto";
 import { TexeraAgent } from "./agent/texera-agent";
 import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
 import { getBackendConfig } from "./api/backend-api";
-import { extractUserFromToken, validateToken, isAuthRequired, getUidFromToken } from "./api/auth-api";
-import { retrieveWorkflow } from "./api/workflow-api";
+import { validateToken, getUidFromToken } from "./api/auth-api";
+import { type AgentMetadata, type AgentMetadataStore, PostgresAgentMetadataStore } from "./api/agent-metadata-store";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
 import { createLogger } from "./logger";
@@ -34,20 +34,15 @@ const log = createLogger("Server");
 const wsLog = createLogger("WS");
 import type {
   AgentInfo,
-  AgentDelegateConfig,
+  AgentTaskContext,
   CreateAgentRequest,
   UpdateAgentSettingsRequest,
-  AgentSettingsApi,
   ReActStep,
 } from "./types/agent";
 import { OperatorResultSerializationMode } from "./types/agent";
 
 const agentStore = new Map<string, TexeraAgent>();
-
-// agentId -> owning user's uid. Recorded at creation time from the delegate
-// token, independently of whether a workflow was loaded, so ownership does not
-// depend on the backend being reachable.
-const agentOwners = new Map<string, number>();
+let agentMetadataStore: AgentMetadataStore = new PostgresAgentMetadataStore();
 
 // Bearer token from the Authorization header (HTTP) or the access-token query
 // parameter (WebSocket, since browsers cannot set headers on the WS handshake).
@@ -64,33 +59,32 @@ function extractBearerToken(
   return typeof q === "string" && q.length > 0 ? q : undefined;
 }
 
-// Enforces authentication and per-user isolation. A no-op when AGENT_AUTH_REQUIRED
-// is off, preserving the service's prior permissive behavior. Throws errors the
-// router's onError maps to 401/403.
-function authorizeAgentAccess(agentId: string, token: string | undefined): void {
-  if (!isAuthRequired()) return;
+// Enforces authentication and per-user isolation. Throws errors the router's
+// onError maps to 401/403.
+async function authorizeAgentAccess(agentId: string, token: string | undefined): Promise<AgentMetadata> {
   if (!token || !validateToken(token)) {
     throw new Error("Unauthorized");
   }
-  const ownerUid = agentOwners.get(agentId);
-  // Ownerless agents (created before enforcement was enabled) are accessible to
-  // any authenticated user; owned agents only to their owner.
-  if (ownerUid !== undefined && getUidFromToken(token) !== ownerUid) {
+  const metadata = await agentMetadataStore.getAgent(agentId);
+  if (!metadata) {
+    throw new Error("Agent not found");
+  }
+  if (getUidFromToken(token) !== metadata.ownerUid) {
     throw new Error("Forbidden");
   }
+  return metadata;
 }
 
-async function createAgentInstance(
-  modelType: string,
-  customName?: string,
-  delegateConfig?: AgentDelegateConfig
-): Promise<{ agentId: string; agent: TexeraAgent }> {
-  const agentId = `agent-${randomUUID()}`;
+async function createAgentInstance(options: {
+  modelType: string;
+  name?: string;
+  agentId?: string;
+  createdAt?: Date;
+  config?: AgentMetadata["config"];
+  reactSteps?: ReActStep[];
+}): Promise<{ agentId: string; agent: TexeraAgent }> {
+  const agentId = options.agentId ?? randomUUID();
   const config = getBackendConfig();
-
-  if (delegateConfig?.userInfo?.uid !== undefined) {
-    agentOwners.set(agentId, delegateConfig.userInfo.uid);
-  }
 
   const openai = createOpenAI({
     baseURL: `${config.modelsEndpoint}/api`,
@@ -100,82 +94,62 @@ async function createAgentInstance(
   // Reasoning effort variants are configured as separate model entries in litellm-config.yaml
   // with extra_body to inject reasoning_effort, bypassing LiteLLM's param validation.
   const agent = new TexeraAgent({
-    model: openai.chat(modelType),
-    modelType,
+    model: openai.chat(options.modelType),
+    modelType: options.modelType,
     agentId,
-    agentName: customName || "Bob",
+    agentName: options.name || "Bob",
+    createdAt: options.createdAt,
+    persistedConfig: options.config,
+    reactSteps: options.reactSteps,
   });
 
   await agent.initialize();
 
-  if (delegateConfig?.workflowId && delegateConfig.userToken) {
-    try {
-      const workflow = await retrieveWorkflow(delegateConfig.userToken, delegateConfig.workflowId);
-      delegateConfig.workflowName = workflow.name;
-
-      const workflowState = agent.getWorkflowState();
-      workflowState.setWorkflowContent(workflow.content);
-
-      agent.setDelegateConfig({
-        userToken: delegateConfig.userToken,
-        userInfo: delegateConfig.userInfo,
-        workflowId: delegateConfig.workflowId,
-        workflowName: delegateConfig.workflowName,
-        computingUnitId: delegateConfig.computingUnitId,
-      });
-
-      log.info({ agentId, workflowId: delegateConfig.workflowId }, "loaded workflow for agent");
-    } catch (error) {
-      log.warn({ agentId, workflowId: delegateConfig.workflowId, err: error }, "failed to load workflow");
-    }
-  }
-
   agentStore.set(agentId, agent);
-  log.info({ agentId, delegate: !!delegateConfig }, "created agent");
+  log.info({ agentId }, "created agent");
 
   return { agentId, agent };
 }
 
 function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
-  const agentSettings = agent.getSettings();
-  const settingsApi: AgentSettingsApi = {
-    maxOperatorResultCharLimit: agentSettings.maxOperatorResultCharLimit,
-    maxOperatorResultCellCharLimit: agentSettings.maxOperatorResultCellCharLimit,
-    operatorResultSerializationMode: agentSettings.operatorResultSerializationMode,
-    toolTimeoutSeconds: Math.round(agentSettings.toolTimeoutMs / 1000),
-    executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
-    disabledTools: Array.from(agentSettings.disabledTools),
-    maxSteps: agentSettings.maxSteps,
-    allowedOperatorTypes: agentSettings.allowedOperatorTypes,
-  };
-
-  const delegateConfig = agent.getDelegateConfig();
-
   return {
     id: agentId,
     name: agent.agentName,
     modelType: agent.modelType,
     state: agent.getState(),
     createdAt: agent.createdAt,
-    delegate: delegateConfig
-      ? {
-          userToken: "***",
-          userInfo: delegateConfig.userInfo,
-          workflowId: delegateConfig.workflowId,
-          workflowName: delegateConfig.workflowName,
-          computingUnitId: delegateConfig.computingUnitId,
-        }
-      : undefined,
-    settings: settingsApi,
+    settings: agent.getSettingsApi(),
   };
 }
 
-function getAgent(agentId: string): TexeraAgent {
-  const agent = agentStore.get(agentId);
-  if (!agent) {
+async function getAgent(agentId: string, metadata?: AgentMetadata): Promise<TexeraAgent> {
+  const existing = agentStore.get(agentId);
+  if (existing) {
+    return existing;
+  }
+
+  const persisted = metadata ?? (await agentMetadataStore.getAgent(agentId));
+  if (!persisted) {
     throw new Error("Agent not found");
   }
+
+  const { agent } = await createAgentInstance({
+    agentId: persisted.id,
+    modelType: persisted.modelType,
+    name: persisted.name,
+    createdAt: persisted.createdAt,
+    config: persisted.config,
+    reactSteps: persisted.reactSteps,
+  });
   return agent;
+}
+
+async function persistAgentConfig(agentId: string, agent: TexeraAgent): Promise<void> {
+  await agentMetadataStore.updateAgentConfig(agentId, agent.getPersistedConfig());
+}
+
+async function persistAgentReActSteps(agentId: string, agent: TexeraAgent): Promise<void> {
+  await agentMetadataStore.updateAgentReActSteps(agentId, agent.getAllSteps());
 }
 
 const agentsRouter = new Elysia({ prefix: "/agents" })
@@ -205,68 +179,59 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       set.status = 400;
       return { error: "modelType is required" };
     }
+    if (errorMessage === "workflowId is required" || errorMessage === "computingUnitId is required") {
+      set.status = 400;
+      return { error: errorMessage };
+    }
     set.status = 500;
     return { error: errorMessage || "Internal server error" };
   })
   // Enforce ownership for every /:id route in one place. List and create carry
   // no :id and are authorized in their own handlers.
-  .onBeforeHandle(({ params, headers, query }) => {
+  .onBeforeHandle(async ({ params, headers, query }) => {
     const id = (params as Record<string, string | undefined>)?.id;
     if (!id) return;
-    if (!agentStore.has(id)) throw new Error("Agent not found");
-    authorizeAgentAccess(id, extractBearerToken(headers as any, query as any));
+    await authorizeAgentAccess(id, extractBearerToken(headers as any, query as any));
   })
-  .get("/", ({ headers, query }) => {
-    const entries = Array.from(agentStore.entries());
-
-    if (!isAuthRequired()) {
-      return { agents: entries.map(([id, agent]) => getAgentInfo(id, agent)) };
-    }
-
+  .get("/", async ({ headers, query }) => {
     const token = extractBearerToken(headers as any, query as any);
     if (!token || !validateToken(token)) {
       throw new Error("Unauthorized");
     }
-    // Scope the listing to the caller's own agents (plus any ownerless agents
-    // created before enforcement was enabled).
     const uid = getUidFromToken(token);
-    const visible = entries.filter(([id]) => {
-      const ownerUid = agentOwners.get(id);
-      return ownerUid === undefined || ownerUid === uid;
-    });
+    if (uid === undefined) {
+      throw new Error("Unauthorized");
+    }
+    const ownedAgents = await agentMetadataStore.listAgentsByOwner(uid);
+    const visible = await Promise.all(
+      ownedAgents.map(async metadata => [metadata.id, await getAgent(metadata.id, metadata)] as const)
+    );
     return { agents: visible.map(([id, agent]) => getAgentInfo(id, agent)) };
   })
 
   .post(
     "/",
-    async ({ body }) => {
-      const { modelType, name, userToken, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
+    async ({ body, headers, query }) => {
+      const { modelType, name, settings } = body as CreateAgentRequest;
 
       if (!modelType) {
         throw new Error("modelType is required");
       }
 
-      // When enforcement is on, every agent must have an owner, so a token is required.
-      if (isAuthRequired() && !userToken) {
+      const token = extractBearerToken(headers as any, query as any);
+      if (!token) {
+        throw new Error("Unauthorized");
+      }
+      if (!validateToken(token)) {
+        throw new Error("Invalid or expired token");
+      }
+
+      const uid = getUidFromToken(token);
+      if (uid === undefined) {
         throw new Error("Unauthorized");
       }
 
-      let delegateConfig: AgentDelegateConfig | undefined;
-      if (userToken) {
-        if (!validateToken(userToken)) {
-          throw new Error("Invalid or expired token");
-        }
-
-        const userInfo = extractUserFromToken(userToken);
-        delegateConfig = {
-          userToken,
-          userInfo,
-          workflowId,
-          computingUnitId,
-        };
-      }
-
-      const { agentId, agent } = await createAgentInstance(modelType, name, delegateConfig);
+      const { agentId, agent } = await createAgentInstance({ modelType, name });
 
       if (settings) {
         log.info(
@@ -291,15 +256,28 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         });
       }
 
+      try {
+        await agentMetadataStore.createAgent({
+          id: agentId,
+          ownerUid: uid,
+          name: agent.agentName,
+          modelType,
+          createdAt: agent.createdAt,
+          config: agent.getPersistedConfig(),
+          reactSteps: agent.getAllSteps(),
+        });
+      } catch (error) {
+        agent.destroy();
+        agentStore.delete(agentId);
+        throw error;
+      }
+
       return getAgentInfo(agentId, agent);
     },
     {
       body: t.Object({
         modelType: t.String(),
         name: t.Optional(t.String()),
-        userToken: t.Optional(t.String()),
-        workflowId: t.Optional(t.Number()),
-        computingUnitId: t.Optional(t.Number()),
         settings: t.Optional(
           t.Object({
             maxOperatorResultCharLimit: t.Optional(t.Number()),
@@ -316,8 +294,8 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   )
 
-  .get("/:id", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .get("/:id", async ({ params: { id } }) => {
+    const agent = await getAgent(id);
     return {
       ...getAgentInfo(id, agent),
       workflow: agent.getWorkflowState().getWorkflowContent(),
@@ -325,33 +303,29 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     };
   })
 
-  .delete("/:id", ({ params: { id }, set }) => {
+  .delete("/:id", async ({ params: { id } }) => {
     const agent = agentStore.get(id);
-    if (!agent) {
-      set.status = 404;
-      return { error: "Agent not found" };
-    }
 
-    agent.destroy();
+    await agentMetadataStore.deleteAgent(id);
+    agent?.destroy();
     agentStore.delete(id);
-    agentOwners.delete(id);
     return { deleted: true };
   })
 
-  .get("/:id/react-steps", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .get("/:id/react-steps", async ({ params: { id } }) => {
+    const agent = await getAgent(id);
     return { steps: agent.getReActSteps(), state: agent.getState() };
   })
 
-  .get("/:id/operator-results", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .get("/:id/operator-results", async ({ params: { id } }) => {
+    const agent = await getAgent(id);
     return { results: getOperatorResultSummaries(agent) };
   })
 
   .post(
     "/:id/steps-by-operators",
-    ({ params: { id }, body }) => {
-      const agent = getAgent(id);
+    async ({ params: { id }, body }) => {
+      const agent = await getAgent(id);
       const { operatorIds } = body;
       return { steps: agent.getReActStepsByOperatorIds(operatorIds || []) };
     },
@@ -362,25 +336,26 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   )
 
-  .get("/:id/system-info", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .get("/:id/system-info", async ({ params: { id } }) => {
+    const agent = await getAgent(id);
     return agent.getSystemInfo();
   })
 
-  .post("/:id/stop", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .post("/:id/stop", async ({ params: { id } }) => {
+    const agent = await getAgent(id);
     agent.stop();
     return { status: "stopping" };
   })
 
-  .post("/:id/clear", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .post("/:id/clear", async ({ params: { id } }) => {
+    const agent = await getAgent(id);
     agent.clearHistory();
+    await persistAgentReActSteps(id, agent);
     return { status: "cleared" };
   })
 
-  .post("/:id/checkout", ({ params: { id }, body }) => {
-    const agent = getAgent(id);
+  .post("/:id/checkout", async ({ params: { id }, body }) => {
+    const agent = await getAgent(id);
     const { stepId } = body as { stepId: string };
     if (!stepId) throw new Error("stepId is required");
 
@@ -404,32 +379,22 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     };
   })
 
-  .get("/:id/operator-types", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .get("/:id/operator-types", async ({ params: { id } }) => {
+    const agent = await getAgent(id);
     const metadataStore = agent.getMetadataStore();
     const allTypes = metadataStore.getAllOperatorTypes();
     return Object.entries(allTypes).map(([type, description]) => ({ type, description }));
   })
 
-  .get("/:id/settings", ({ params: { id } }) => {
-    const agent = getAgent(id);
-    const agentSettings = agent.getSettings();
-    return {
-      maxOperatorResultCharLimit: agentSettings.maxOperatorResultCharLimit,
-      maxOperatorResultCellCharLimit: agentSettings.maxOperatorResultCellCharLimit,
-      operatorResultSerializationMode: agentSettings.operatorResultSerializationMode,
-      toolTimeoutSeconds: Math.round(agentSettings.toolTimeoutMs / 1000),
-      executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
-      disabledTools: Array.from(agentSettings.disabledTools),
-      maxSteps: agentSettings.maxSteps,
-      allowedOperatorTypes: agentSettings.allowedOperatorTypes,
-    };
+  .get("/:id/settings", async ({ params: { id } }) => {
+    const agent = await getAgent(id);
+    return agent.getSettingsApi();
   })
 
   .patch(
     "/:id/settings",
-    ({ params: { id }, body }) => {
-      const agent = getAgent(id);
+    async ({ params: { id }, body }) => {
+      const agent = await getAgent(id);
       const settings = body as UpdateAgentSettingsRequest;
 
       log.info(
@@ -455,17 +420,9 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         allowedOperatorTypes: settings.allowedOperatorTypes,
       });
 
-      const agentSettings = agent.getSettings();
-      return {
-        maxOperatorResultCharLimit: agentSettings.maxOperatorResultCharLimit,
-        maxOperatorResultCellCharLimit: agentSettings.maxOperatorResultCellCharLimit,
-        operatorResultSerializationMode: agentSettings.operatorResultSerializationMode,
-        toolTimeoutSeconds: Math.round(agentSettings.toolTimeoutMs / 1000),
-        executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
-        disabledTools: Array.from(agentSettings.disabledTools),
-        maxSteps: agentSettings.maxSteps,
-        allowedOperatorTypes: agentSettings.allowedOperatorTypes,
-      };
+      await persistAgentConfig(id, agent);
+
+      return agent.getSettingsApi();
     },
     {
       body: t.Object({
@@ -485,6 +442,10 @@ interface WsMessage {
   type: "message" | "stop";
   content?: string;
   messageSource?: "chat" | "feedback";
+  userToken?: string;
+  workflowId?: number;
+  workflowName?: string;
+  computingUnitId?: number;
 }
 
 interface OperatorResultSummaryWs {
@@ -510,6 +471,31 @@ interface WsOutgoingMessage {
   headId?: string;
   operatorResults?: Record<string, OperatorResultSummaryWs>;
   workflowContent?: any;
+}
+
+function parseRequiredNumber(value: unknown, fieldName: "workflowId" | "computingUnitId"): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`${fieldName} is required`);
+  }
+  return parsed;
+}
+
+async function buildTaskContext(
+  agentId: string,
+  msg: WsMessage,
+  headers: Record<string, string | undefined> | undefined,
+  query: Record<string, string | undefined> | undefined
+): Promise<AgentTaskContext> {
+  const token = msg.userToken || extractBearerToken(headers, query);
+  await authorizeAgentAccess(agentId, token);
+
+  return {
+    userToken: token!,
+    workflowId: parseRequiredNumber(msg.workflowId, "workflowId"),
+    workflowName: typeof msg.workflowName === "string" ? msg.workflowName : undefined,
+    computingUnitId: parseRequiredNumber(msg.computingUnitId, "computingUnitId"),
+  };
 }
 
 function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummaryWs> {
@@ -562,23 +548,18 @@ export function buildApp() {
         .use(agentsRouter)
     )
     .ws(`${env.API_PREFIX}/agents/:id/react`, {
-      open(ws) {
+      async open(ws) {
         const agentId = (ws.data as any).params?.id;
         wsLog.info({ agentId }, "client connected");
-
-        const agent = agentStore.get(agentId);
-        if (!agent) {
-          ws.send(JSON.stringify({ type: "error", error: "Agent not found" }));
-          ws.close();
-          return;
-        }
 
         // Browsers cannot set headers on a WS handshake, so the token is read
         // from the access-token query parameter (consistent with the other
         // Texera websocket clients).
+        let agent: TexeraAgent;
         try {
           const token = extractBearerToken((ws.data as any).headers, (ws.data as any).query);
-          authorizeAgentAccess(agentId, token);
+          const metadata = await authorizeAgentAccess(agentId, token);
+          agent = await getAgent(agentId, metadata);
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unauthorized";
           ws.send(JSON.stringify({ type: "error", error: message }));
@@ -600,9 +581,11 @@ export function buildApp() {
 
       async message(ws, messageData) {
         const agentId = (ws.data as any).params?.id;
-        const agent = agentStore.get(agentId);
+        let agent: TexeraAgent;
 
-        if (!agent) {
+        try {
+          agent = await getAgent(agentId);
+        } catch {
           ws.send(JSON.stringify({ type: "error", error: "Agent not found" }));
           return;
         }
@@ -629,6 +612,14 @@ export function buildApp() {
 
           wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received message");
 
+          let taskContext: AgentTaskContext;
+          try {
+            taskContext = await buildTaskContext(agentId, msg, (ws.data as any).headers, (ws.data as any).query);
+          } catch (error: any) {
+            ws.send(JSON.stringify({ type: "error", error: error.message }));
+            return;
+          }
+
           agent.setStepCallback((step: ReActStep) => {
             const hasToolCalls = step.toolCalls && step.toolCalls.length > 0;
             broadcastToAgent(agentId, {
@@ -636,12 +627,15 @@ export function buildApp() {
               step,
               ...(hasToolCalls ? { operatorResults: getOperatorResultSummaries(agent) } : {}),
             });
+            void persistAgentReActSteps(agentId, agent).catch(error => {
+              wsLog.error({ agentId, err: error }, "failed to persist ReAct steps");
+            });
           });
 
           broadcastToAgent(agentId, { type: "state", state: "GENERATING" });
 
           try {
-            const result = await agent.sendMessage(msg.content, msg.messageSource);
+            const result = await agent.sendMessage(msg.content, taskContext, msg.messageSource);
 
             agent.setStepCallback(null);
 
@@ -649,6 +643,11 @@ export function buildApp() {
             const lastStep = allSteps[allSteps.length - 1];
             if (lastStep && lastStep.isEnd) {
               broadcastToAgent(agentId, { type: "step", step: lastStep });
+            }
+            try {
+              await persistAgentReActSteps(agentId, agent);
+            } catch (error) {
+              wsLog.error({ agentId, err: error }, "failed to persist ReAct steps");
             }
 
             broadcastToAgent(agentId, {
@@ -686,7 +685,10 @@ export function buildApp() {
 // Reset module-level state. Used by tests to start each case from a clean store.
 export function _resetAgentStoreForTests(): void {
   agentStore.clear();
-  agentOwners.clear();
+}
+
+export function _setAgentMetadataStoreForTests(store: AgentMetadataStore): void {
+  agentMetadataStore = store;
 }
 
 function printStartupMessage(app: ReturnType<typeof buildApp>) {
@@ -727,7 +729,7 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
   console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${getBackendConfig().apiEndpoint}`);
   console.log("");
   console.log("Features:");
-  console.log("  - Auto-persistence with debounce (500ms)");
+  console.log("  - Agent metadata and ReAct state persistence");
   console.log(LINE);
 }
 

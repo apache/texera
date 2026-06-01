@@ -34,6 +34,7 @@ RUN bun install --frozen-lockfile --production
 
 COPY agent-service/src ./src
 COPY agent-service/tsconfig.json ./
+COPY common/config/src/main/resources/auth.conf ./common/config/src/main/resources/auth.conf
 
 COPY agent-service/LICENSE-binary ./LICENSE
 COPY NOTICE ./NOTICE
