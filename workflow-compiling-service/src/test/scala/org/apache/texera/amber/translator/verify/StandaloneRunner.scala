@@ -112,7 +112,10 @@ object StandaloneRunner extends LazyLogging {
     val outBuf = ArrayBuffer.empty[String]
     val errBuf = ArrayBuffer.empty[String]
     val logger = ProcessLogger(line => outBuf += line, line => errBuf += line)
-    val exit = Process(Seq(pythonExe, scriptPath.toString)).!(logger)
+    // cwd = workDir so generated code using *relative* paths (e.g. CSVScan's
+    // basename-stripped `pd.read_csv("sample.csv")`) resolves against workDir.
+    // Absolute paths written by the prologue/epilogue are unaffected.
+    val exit = Process(Seq(pythonExe, scriptPath.toString), Some(workDir.toFile)).!(logger)
 
     val stdout = outBuf.mkString("\n")
     val stderr = errBuf.mkString("\n")
