@@ -128,6 +128,20 @@ spec:
         - group: gateway.envoyproxy.io
           kind: Backend
           name: texera-dynamic-backend
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /pve
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /api/pve
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: texera-dynamic-backend
 ---
 # Agent Service Route (a separate HTTPRoute so the BackendTrafficPolicy can
 # target it for consistent-hash routing). Covers REST and the
