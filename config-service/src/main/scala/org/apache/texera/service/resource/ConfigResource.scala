@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.annotation.security.RolesAllowed
+import jakarta.annotation.security.PermitAll
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
 import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, UserSystemConfig}
@@ -28,8 +28,12 @@ import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, Use
 @Produces(Array(MediaType.APPLICATION_JSON))
 class ConfigResource {
 
+  // These two endpoints are fetched by the frontend during app initialization,
+  // before any login, so they must answer unauthenticated callers — hence @PermitAll.
+  // They are the only endpoints in this resource, so role enforcement gates nothing
+  // here; @PermitAll is what keeps them reachable when role enforcement is enabled.
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @PermitAll
   @Path("/gui")
   def getGuiConfig: Map[String, Any] =
     Map(
@@ -64,7 +68,7 @@ class ConfigResource {
     )
 
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @PermitAll
   @Path("/user-system")
   def getUserSystemConfig: Map[String, Any] =
     Map(

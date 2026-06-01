@@ -321,8 +321,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     const refY = this.showNumWorkers ? -55 : -35;
     const paperModel = this.workflowActionService.getJointGraphWrapper().mainPaper.model as any;
     paperModel.getElements().forEach((el: any) => {
-      el.attr(".operator-status/ref-x", -10);
-      el.attr(".operator-status/ref-y", refY);
+      el.attr(".texera-operator-state/ref-x", -10);
+      el.attr(".texera-operator-state/ref-y", refY);
     });
   }
 
@@ -542,11 +542,9 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public toggleRegion(): void {
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .jointGraph.getElements()
-      .filter(el => el.get("type") === "region") // small improvement here too
-      .forEach(el => el.attr("body/visibility", this.showRegion ? "visible" : "hidden"));
+    // The editor owns applying this to the shared JointJS model (both canvas and mini-map) and
+    // reapplies it whenever regions are recreated during execution (see #5120, #4027).
+    this.workflowActionService.getJointGraphWrapper().setRegionsDisplayed(this.showRegion);
   }
 
   /**
