@@ -12,9 +12,6 @@ src/environments/version.ts
 # test coverage
 /coverage
 
-# test reports
-/junit.xml
-
 # vitest browser-mode snapshot baselines
 **/__screenshots__/
 
