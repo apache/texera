@@ -46,6 +46,7 @@ from core.storage.vfs_uri_factory import VFSURIFactory
 from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.customized_queue.queue_base import QueueElement
+from core.util.virtual_identity import get_operator_id
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
@@ -95,9 +96,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _attach_loop_start_id(self, output_state: State) -> None:
         if "LoopStartId" in output_state:
             return
-        output_state["LoopStartId"] = self.context.worker_id.split("-", 1)[1].rsplit(
-            "-main-0", 1
-        )[0]
+        output_state["LoopStartId"] = get_operator_id(self.context.worker_id)
         # The URI lives on the upstream operator's output port (which
         # LoopStart's first materialization reader is reading from).
         reader_runnables = (

@@ -24,7 +24,7 @@ from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
 )
 
-worker_name_pattern = re.compile(r"Worker:WF\d+-.+-(\w+)-(\d+)")
+worker_name_pattern = re.compile(r"Worker:WF(\d+)-(.+)-(\w+)-(\d+)")
 
 MATERIALIZATION_READER_ACTOR_PREFIX = "MATERIALIZATION_READER_"
 
@@ -32,8 +32,24 @@ MATERIALIZATION_READER_ACTOR_PREFIX = "MATERIALIZATION_READER_"
 def get_worker_index(worker_id: str) -> int:
     match = worker_name_pattern.match(worker_id)
     if match:
-        return int(match.group(2))
+        return int(match.group(4))
     raise ValueError("Invalid worker ID format")
+
+
+def get_operator_id(worker_id: str) -> str:
+    """
+    Extract the logical operator id from a worker actor name of the form
+    ``Worker:WF<workflowId>-<operatorId>-<layerName>-<workerIndex>``.
+
+    Mirrors the canonical parse in Scala ``VirtualIdentityUtils.getPhysicalOpId``.
+    Unlike the Scala sibling (which returns a ``__DummyOperator`` sentinel on a
+    non-match), this raises ``ValueError`` so a malformed worker id fails loudly
+    rather than yielding a wrong id silently.
+    """
+    match = worker_name_pattern.match(worker_id)
+    if match:
+        return match.group(2)
+    raise ValueError(f"Invalid worker ID format: {worker_id}")
 
 
 def serialize_global_port_identity(obj: GlobalPortIdentity) -> str:
