@@ -63,10 +63,6 @@ export class MockGuiConfigService {
     return of(this._config);
   }
 
-  loadPreLogin(): Observable<Partial<GuiConfig>> {
-    return of(this._config);
-  }
-
   loadPostLogin(): Observable<Partial<GuiConfig>> {
     return of(this._config);
   }

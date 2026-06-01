@@ -125,6 +125,16 @@ describe("UserService", () => {
     expect(service.isLogin()).toBe(true);
   });
 
+  it("loads the authenticated config when a googleLogin succeeds", async () => {
+    // googleLogin shares the same handleAccessToken plumbing as username/password
+    // login, so the post-login config fetch must fire here too — otherwise a
+    // user who only ever signs in through Google would see undefined flags.
+    const spy = vi.spyOn(config, "loadPostLogin");
+    await firstValueFrom(service.googleLogin("any-credential"));
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(service.isLogin()).toBe(true);
+  });
+
   it("orders the post-login config fetch before the userChanged event fires", async () => {
     // Subscribers to userChanged (header, sidebar, routing guards) drive the
     // initial dashboard render. If userChanged fires before loadPostLogin
