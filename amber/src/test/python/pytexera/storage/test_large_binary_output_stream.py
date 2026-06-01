@@ -24,7 +24,7 @@ from pytexera.storage.large_binary_output_stream import (
     LargeBinaryOutputStream,
     _QueueReader,
 )
-from pytexera.storage import large_binary_manager
+from pytexera.storage.large_binary_manager import large_binary_manager
 
 
 class TestLargeBinaryOutputStream:

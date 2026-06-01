@@ -19,7 +19,7 @@ import re
 
 import pytest
 from unittest.mock import patch, MagicMock
-from pytexera.storage import large_binary_manager
+from pytexera.storage.large_binary_manager import large_binary_manager
 from core.storage.storage_config import StorageConfig
 
 

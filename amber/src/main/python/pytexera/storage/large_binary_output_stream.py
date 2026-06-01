@@ -29,7 +29,7 @@ Usage:
 from typing import Optional, Union
 from io import IOBase
 from core.models.type.large_binary import largebinary
-from pytexera.storage import large_binary_manager
+from pytexera.storage.large_binary_manager import large_binary_manager
 import threading
 import queue
 

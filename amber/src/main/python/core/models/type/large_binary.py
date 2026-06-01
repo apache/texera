@@ -63,7 +63,7 @@ class largebinary:
         """
         if uri is None:
             # Lazy import to avoid circular dependencies
-            from pytexera.storage import large_binary_manager
+            from pytexera.storage.large_binary_manager import large_binary_manager
 
             uri = large_binary_manager.create()
 
