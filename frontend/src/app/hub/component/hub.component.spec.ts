@@ -30,11 +30,7 @@ import { HubComponent } from "./hub.component";
 import { commonTestProviders } from "../../common/testing/test-utils";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { SidebarTabs } from "../../common/type/gui-config";
-import {
-  DASHBOARD_HOME,
-  DASHBOARD_HUB_DATASET_RESULT,
-  DASHBOARD_HUB_WORKFLOW_RESULT,
-} from "../../app-routing.constant";
+import { HOME, HUB_DATASET_RESULT, HUB_WORKFLOW_RESULT } from "../../app-routing.constant";
 
 // Full SidebarTabs with all flags off; tests enable only the ones they need.
 function makeSidebarTabs(overrides: Partial<SidebarTabs> = {}): SidebarTabs {
@@ -162,8 +158,8 @@ describe("HubComponent", () => {
 
   it("binds each menu item's routerLink to the correct routing constant", () => {
     setup(false, makeSidebarTabs({ home_enabled: true, workflow_enabled: true, dataset_enabled: true }));
-    expect(routerLinkFor("Home")).toBe(DASHBOARD_HOME);
-    expect(routerLinkFor("Workflows")).toBe(DASHBOARD_HUB_WORKFLOW_RESULT);
-    expect(routerLinkFor("Datasets")).toBe(DASHBOARD_HUB_DATASET_RESULT);
+    expect(routerLinkFor("Home")).toBe(HOME);
+    expect(routerLinkFor("Workflows")).toBe(HUB_WORKFLOW_RESULT);
+    expect(routerLinkFor("Datasets")).toBe(HUB_DATASET_RESULT);
   });
 });
