@@ -29,7 +29,7 @@ Usage:
 from typing import Optional, Union
 from io import IOBase
 from core.models.type.large_binary import largebinary
-from pytexera.storage.large_binary_manager import large_binary_manager
+from pytexera.storage.large_binary_manager import LargeBinaryManager
 import threading
 import queue
 
@@ -154,8 +154,9 @@ class LargeBinaryOutputStream(IOBase):
 
             def upload_worker():
                 try:
-                    large_binary_manager._ensure_bucket_exists(self._bucket_name)
-                    s3 = large_binary_manager._get_s3_client()
+                    manager = LargeBinaryManager()
+                    manager._ensure_bucket_exists(self._bucket_name)
+                    s3 = manager._get_s3_client()
                     reader = _QueueReader(self._queue)
                     s3.upload_fileobj(reader, self._bucket_name, self._object_key)
                 except Exception as e:
@@ -231,7 +232,7 @@ class LargeBinaryOutputStream(IOBase):
     def _cleanup_failed_upload(self):
         """Clean up a failed upload by deleting the S3 object."""
         try:
-            s3 = large_binary_manager._get_s3_client()
+            s3 = LargeBinaryManager()._get_s3_client()
             s3.delete_object(Bucket=self._bucket_name, Key=self._object_key)
         except Exception:
             # Ignore cleanup errors - we're already handling an upload failure

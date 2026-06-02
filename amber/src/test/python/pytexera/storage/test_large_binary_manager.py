@@ -19,8 +19,11 @@ import re
 
 import pytest
 from unittest.mock import patch, MagicMock
-from pytexera.storage.large_binary_manager import large_binary_manager
+from pytexera.storage.large_binary_manager import LargeBinaryManager
 from core.storage.storage_config import StorageConfig
+
+# The manager is a singleton; bind the shared instance for the tests.
+large_binary_manager = LargeBinaryManager()
 
 
 class TestLargeBinaryManager:

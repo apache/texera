@@ -30,18 +30,25 @@ from core.storage.storage_config import StorageConfig
 class LargeBinaryManager:
     """Manages execution-scoped large binaries in S3 for a worker process.
 
-    A Python worker is a single process serving one execution, so a single shared
-    instance (the module-level ``large_binary_manager``) holds the cached S3 client
-    and the current execution id. Mirrors the JVM ``LargeBinaryManager``.
+    Implemented as a singleton: ``LargeBinaryManager()`` always returns the same
+    instance, so the cached S3 client and the current execution id are shared across
+    all callers in the worker process. A Python worker is a single process serving one
+    execution. Mirrors the JVM ``object LargeBinaryManager``.
     """
 
     DEFAULT_BUCKET = "texera-large-binaries"
 
-    def __init__(self):
-        self._s3_client = None
-        # Execution context: set at executor init and read by create() so the
-        # user-facing largebinary() API stays execution-id-free.
-        self._current_execution_id = None
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            instance = super().__new__(cls)
+            instance._s3_client = None
+            # Execution context: set at executor init and read by create() so the
+            # user-facing largebinary() API stays execution-id-free.
+            instance._current_execution_id = None
+            cls._instance = instance
+        return cls._instance
 
     def set_current_execution_id(self, execution_id):
         """Sets the execution id used to scope large binaries created by this worker."""
@@ -106,8 +113,3 @@ class LargeBinaryManager:
         unique_id = uuid.uuid4()
         object_key = f"objects/{execution_id}/{unique_id}"
         return f"s3://{self.DEFAULT_BUCKET}/{object_key}"
-
-
-# Shared singleton for the worker process. Consumers import this instance:
-#   from pytexera.storage.large_binary_manager import large_binary_manager
-large_binary_manager = LargeBinaryManager()
