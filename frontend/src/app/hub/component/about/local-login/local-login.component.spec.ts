@@ -239,14 +239,10 @@ describe("LocalLoginComponent", () => {
 
     it("surfaces the error's message via NotificationService.error on failure", () => {
       vi.spyOn(UserService, "validateUsername").mockReturnValue({ result: true, message: "ok" });
-      (userServiceMock.login as any) = vi.fn().mockReturnValue(throwError(() => new Error("boom")));
+      vi.mocked(userServiceMock.login!).mockReturnValueOnce(throwError(() => new Error("boom")));
       component.allForms.patchValue({ loginUsername: "alice", loginPassword: "secret" });
 
-      try {
-        component.login();
-      } catch {
-        // The component re-throws the error after notifying; swallow it here.
-      }
+      component.login();
 
       expect(notificationServiceMock.error).toHaveBeenCalledWith("boom");
       expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
@@ -254,14 +250,10 @@ describe("LocalLoginComponent", () => {
 
     it("falls back to 'Incorrect username or password' when the error has no message", () => {
       vi.spyOn(UserService, "validateUsername").mockReturnValue({ result: true, message: "ok" });
-      (userServiceMock.login as any) = vi.fn().mockReturnValue(throwError(() => ({})));
+      vi.mocked(userServiceMock.login!).mockReturnValueOnce(throwError(() => ({})));
       component.allForms.patchValue({ loginUsername: "alice", loginPassword: "secret" });
 
-      try {
-        component.login();
-      } catch {
-        // ignore re-thrown error
-      }
+      component.login();
 
       expect(notificationServiceMock.error).toHaveBeenCalledWith("Incorrect username or password");
     });
@@ -333,18 +325,14 @@ describe("LocalLoginComponent", () => {
 
     it("surfaces the error's message via NotificationService.error on failure", () => {
       vi.spyOn(UserService, "validateUsername").mockReturnValue({ result: true, message: "ok" });
-      (userServiceMock.register as any) = vi.fn().mockReturnValue(throwError(() => new Error("nope")));
+      vi.mocked(userServiceMock.register!).mockReturnValueOnce(throwError(() => new Error("nope")));
       component.allForms.patchValue({
         registerUsername: "alice",
         registerPassword: "abcdef",
         registerConfirmationPassword: "abcdef",
       });
 
-      try {
-        component.register();
-      } catch {
-        // ignore re-thrown error
-      }
+      component.register();
 
       expect(notificationServiceMock.error).toHaveBeenCalledWith("nope");
       expect(notificationServiceMock.success).not.toHaveBeenCalled();
@@ -352,18 +340,14 @@ describe("LocalLoginComponent", () => {
 
     it("falls back to 'Registration failed' when the error has no message", () => {
       vi.spyOn(UserService, "validateUsername").mockReturnValue({ result: true, message: "ok" });
-      (userServiceMock.register as any) = vi.fn().mockReturnValue(throwError(() => ({})));
+      vi.mocked(userServiceMock.register!).mockReturnValueOnce(throwError(() => ({})));
       component.allForms.patchValue({
         registerUsername: "alice",
         registerPassword: "abcdef",
         registerConfirmationPassword: "abcdef",
       });
 
-      try {
-        component.register();
-      } catch {
-        // ignore re-thrown error
-      }
+      component.register();
 
       expect(notificationServiceMock.error).toHaveBeenCalledWith("Registration failed");
     });
