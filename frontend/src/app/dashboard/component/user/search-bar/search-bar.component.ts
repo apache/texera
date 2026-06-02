@@ -28,7 +28,7 @@ import { DashboardEntry } from "../../../type/dashboard-entry";
 import { Observable, of, Subject } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
 import { UserService } from "../../../../common/service/user/user.service";
-import { DASHBOARD_SEARCH } from "../../../../app-routing.constant";
+import { SEARCH } from "../../../../app-routing.constant";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzInputGroupComponent, NzInputDirective } from "ng-zorro-antd/input";
@@ -137,7 +137,7 @@ export class SearchBarComponent {
   }
 
   performSearch(keyword: string) {
-    this.router.navigate([DASHBOARD_SEARCH], { queryParams: { q: keyword } });
+    this.router.navigate([SEARCH], { queryParams: { q: keyword } });
   }
 
   convertToName(resultItem: SearchResultItem): string {

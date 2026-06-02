@@ -28,7 +28,7 @@ spec:
   extAuth:
     http:
       backendRefs:
-        - name: {{ .Release.Name }}-{{ .Values.accessControlService.name }}-svc
+        - name: {{ .Values.accessControlService.name }}-svc
           port: {{ .Values.accessControlService.service.port }}
       path: /api/auth
       headersToBackend:
