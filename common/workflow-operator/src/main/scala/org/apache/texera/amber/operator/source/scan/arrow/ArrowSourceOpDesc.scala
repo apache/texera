@@ -25,6 +25,7 @@ import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -34,13 +35,19 @@ import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
 
 import java.io.IOException
 import java.net.URI
-import java.nio.file.{Files, StandardOpenOption}
+import java.nio.file.{Files, Paths, StandardOpenOption}
 import scala.util.Using
 
 @JsonIgnoreProperties(value = Array("fileEncoding"))
-class ArrowSourceOpDesc extends ScanSourceOpDesc {
+class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   fileTypeName = Option("Arrow")
+
+  override def generateStandaloneCode(): String = {
+    val rawPath = fileName.getOrElse("")
+    val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
+    s"""out1df = pd.read_feather("$basename")"""
+  }
 
   @throws[IOException]
   override def getPhysicalOp(

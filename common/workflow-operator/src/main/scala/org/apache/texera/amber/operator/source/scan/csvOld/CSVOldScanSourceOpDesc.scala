@@ -28,13 +28,15 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
 import java.net.URI
+import java.nio.file.Paths
 
-class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
+class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
@@ -72,6 +74,33 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
+  }
+
+  override def generateStandaloneCode(): String = {
+    val rawPath = fileName.getOrElse("")
+    val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
+    val sep = customDelimiter.getOrElse(",")
+    val encoding = fileEncoding.toString.replace("_", "-").toLowerCase
+    val headerArg = if (hasHeader) "0" else "None"
+
+    val args = scala.collection.mutable.ArrayBuffer[String]()
+    args += s"""filepath_or_buffer="$basename""""
+    args += s"""sep="$sep""""
+    args += s"""encoding="$encoding""""
+    args += s"header=$headerArg"
+
+    offset.foreach { o =>
+      if (hasHeader) args += s"skiprows=range(1, ${o + 1})"
+      else args += s"skiprows=$o"
+    }
+    limit.foreach(l => args += s"nrows=$l")
+
+    val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
+
+    if (hasHeader) readCall
+    else
+      s"""$readCall
+         |out1df.columns = [f"column-{i + 1}" for i in range(len(out1df.columns))]""".stripMargin
   }
 
   override def sourceSchema(): Schema = {

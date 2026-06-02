@@ -27,21 +27,53 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{Attribute, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.{JSONToMap, objectMapper}
 
 import java.io._
 import java.net.URI
+import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
+class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonPropertyDescription("flatten nested objects and arrays")
   var flatten: Boolean = false
 
   fileTypeName = Option("JSONL")
+
+  override def generateStandaloneCode(): String = {
+    val rawPath = fileName.getOrElse("")
+    val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
+    val enc = fileEncoding.toString.replace("_", "-").toLowerCase
+
+    val readArgs = scala.collection.mutable.ArrayBuffer[String]()
+    readArgs += s""""$basename""""
+    readArgs += "lines=True"
+    readArgs += s"""encoding="$enc""""
+    if (offset.isEmpty) limit.foreach(l => readArgs += s"nrows=$l")
+
+    val readExpr = s"pd.read_json(${readArgs.mkString(", ")})"
+    val baseExpr =
+      if (flatten) s"pd.json_normalize($readExpr.to_dict('records'))"
+      else readExpr
+
+    val lines = scala.collection.mutable.ArrayBuffer[String]()
+    lines += s"out1df = $baseExpr"
+
+    (offset, limit) match {
+      case (Some(o), Some(l)) =>
+        lines += s"out1df = out1df.iloc[$o:${o + l}].reset_index(drop=True)"
+      case (Some(o), None) =>
+        lines += s"out1df = out1df.iloc[$o:].reset_index(drop=True)"
+      case _ =>
+    }
+
+    lines.mkString("\n")
+  }
 
   @throws[IOException]
   override def getPhysicalOp(

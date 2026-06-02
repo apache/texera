@@ -28,7 +28,14 @@ import org.apache.texera.amber.operator.filter.{
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
-import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.csv.{CSVScanSourceOpDesc, ParallelCSVScanSourceOpDesc}
+import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
+import org.apache.texera.amber.operator.source.fetcher.{DecodingMethod, URLFetcherOpDesc}
+import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
+import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.FileAttributeType
 import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -161,6 +168,214 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("""fig.write_html("output.html")""")
     // producesDataFrame == false -> no trailing head() preview for the chart.
     script should not include "print(df2.head())"
+  }
+
+  // --- Characterization: CSVOldScanSourceOpDesc ---
+  it should "translate CSVOldScanSourceOpDesc into a pd.read_csv assignment" in {
+    val op = new CSVOldScanSourceOpDesc()
+    op.fileName = Some("file:/tmp/data.csv")
+    op.customDelimiter = Some(",")
+    op.hasHeader = true
+    val script = translate(List(op), Nil)
+
+    script should include("""df1 = pd.read_csv(filepath_or_buffer="data.csv"""")
+    script should include("""sep=","""")
+    script should include("header=0")
+    script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  it should "translate CSVOldScanSourceOpDesc with tab delimiter and no header" in {
+    val op = new CSVOldScanSourceOpDesc()
+    op.fileName = Some("file:/tmp/data.tsv")
+    op.customDelimiter = Some("\t")
+    op.hasHeader = false
+    val script = translate(List(op), Nil)
+
+    script should include("sep=\"\t\"")
+    script should include("header=None")
+    script should include("""df1.columns = [f"column-{i + 1}""")
+    script should not include "out1df"
+  }
+
+  // --- Characterization: ParallelCSVScanSourceOpDesc ---
+  it should "translate ParallelCSVScanSourceOpDesc into a pd.read_csv assignment" in {
+    val op = new ParallelCSVScanSourceOpDesc()
+    op.fileName = Some("file:/tmp/data.csv")
+    op.customDelimiter = Some(",")
+    op.hasHeader = true
+    val script = translate(List(op), Nil)
+
+    script should include("""df1 = pd.read_csv(filepath_or_buffer="data.csv"""")
+    script should include("header=0")
+    script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  it should "translate ParallelCSVScanSourceOpDesc with limit" in {
+    val op = new ParallelCSVScanSourceOpDesc()
+    op.fileName = Some("file:/tmp/data.csv")
+    op.customDelimiter = Some("|")
+    op.hasHeader = true
+    op.limit = Some(50)
+    val script = translate(List(op), Nil)
+
+    script should include("""sep="|"""")
+    script should include("nrows=50")
+    script should not include "out1df"
+  }
+
+  // --- Characterization: JSONLScanSourceOpDesc ---
+  it should "translate JSONLScanSourceOpDesc into a pd.read_json assignment" in {
+    val op = new JSONLScanSourceOpDesc()
+    op.fileName = Some("file:/tmp/data.jsonl")
+    op.flatten = false
+    val script = translate(List(op), Nil)
+
+    script should include("""df1 = pd.read_json("data.jsonl", lines=True""")
+    script should not include "json_normalize"
+    script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  it should "translate JSONLScanSourceOpDesc with flatten=true into pd.json_normalize" in {
+    val op = new JSONLScanSourceOpDesc()
+    op.fileName = Some("file:/tmp/nested.jsonl")
+    op.flatten = true
+    val script = translate(List(op), Nil)
+
+    script should include("pd.json_normalize(")
+    script should include("""pd.read_json("nested.jsonl", lines=True""")
+    script should not include "out1df"
+  }
+
+  // --- Characterization: ArrowSourceOpDesc ---
+  it should "translate ArrowSourceOpDesc into a pd.read_feather assignment" in {
+    val op = new ArrowSourceOpDesc()
+    op.fileName = Some("file:/tmp/data.arrow")
+    val script = translate(List(op), Nil)
+
+    script should include("""df1 = pd.read_feather("data.arrow")""")
+    script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  it should "translate ArrowSourceOpDesc substituting the correct dfN variable" in {
+    val arrow = new ArrowSourceOpDesc()
+    arrow.fileName = Some("file:/tmp/data.arrow")
+    val sort = sortBy("value", ascending = false)
+    val script = translate(List(arrow, sort), List(link(arrow, sort)))
+
+    script should include("""df1 = pd.read_feather("data.arrow")""")
+    script should include("""df2 = df1.sort_values""")
+    script should not include "out1df"
+  }
+
+  // --- Characterization: FileScanSourceOpDesc ---
+  it should "translate FileScanSourceOpDesc in STRING mode into a line-by-line read" in {
+    val op = new FileScanSourceOpDesc()
+    op.fileName = Some("file:/tmp/notes.txt")
+    val script = translate(List(op), Nil)
+
+    script should include("""with open("notes.txt", "r", encoding="utf-8") as _f:""")
+    script should include("""df1 = pd.DataFrame({"line": [l.rstrip("\n") for l in _f]})""")
+    script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  it should "translate FileScanSourceOpDesc in SINGLE_STRING mode as a whole-file read" in {
+    val op = new FileScanSourceOpDesc()
+    op.fileName = Some("file:/tmp/doc.txt")
+    op.attributeType = FileAttributeType.SINGLE_STRING
+    op.attributeName = "content"
+    val script = translate(List(op), Nil)
+
+    script should include("""with open("doc.txt", "r", encoding="utf-8") as _f:""")
+    script should include("""df1 = pd.DataFrame({"content": [_f.read()]})""")
+    script should not include "out1df"
+  }
+
+  // --- Characterization: TextInputSourceOpDesc ---
+  it should "translate TextInputSourceOpDesc in STRING mode into a splitlines read" in {
+    val op = new TextInputSourceOpDesc()
+    op.textInput = "alice\nbob\ncharlie"
+    val script = translate(List(op), Nil)
+
+    script should include("""_text = "alice\nbob\ncharlie"""")
+    script should include("""df1 = pd.DataFrame({"line": [l for l in _text.splitlines()]})""")
+    script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  it should "translate TextInputSourceOpDesc in SINGLE_STRING mode as a whole-input row" in {
+    val op = new TextInputSourceOpDesc()
+    op.textInput = "alice\nbob\ncharlie"
+    op.attributeType = FileAttributeType.SINGLE_STRING
+    op.attributeName = "content"
+    val script = translate(List(op), Nil)
+
+    script should include("""_text = "alice\nbob\ncharlie"""")
+    script should include("""df1 = pd.DataFrame({"content": [_text]})""")
+    script should not include "out1df"
+  }
+
+  // --- Characterization: FileScanOpDesc (input-driven file reader) ---
+  it should "translate FileScanOpDesc in STRING mode into a per-file flattened read" in {
+    val upstream = csvSource("file:/tmp/filenames.csv")
+    val op = new FileScanOpDesc()
+    val script = translate(List(upstream, op), List(link(upstream, op)))
+
+    script should include("_rows = []")
+    script should include("for _fn in df1.iloc[:, 0]:")
+    script should include("""    with open(_fn, "r", encoding="utf-8") as _f:""")
+    script should include("""        _rows.extend(l.rstrip("\n") for l in _f)""")
+    script should include("""df2 = pd.DataFrame({"line": _rows})""")
+    script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  it should "translate FileScanOpDesc in SINGLE_STRING mode with outputFileName=true" in {
+    val upstream = csvSource("file:/tmp/filenames.csv")
+    val op = new FileScanOpDesc()
+    op.attributeType = FileAttributeType.SINGLE_STRING
+    op.attributeName = "content"
+    op.outputFileName = true
+    val script = translate(List(upstream, op), List(link(upstream, op)))
+
+    script should include("for _fn in df1.iloc[:, 0]:")
+    script should include("""    with open(_fn, "r", encoding="utf-8") as _f:""")
+    script should include("        _rows.append((_fn, _f.read()))")
+    script should include("""df2 = pd.DataFrame(_rows, columns=["filename", "content"])""")
+    script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  // --- Characterization: URLFetcherOpDesc ---
+  it should "translate URLFetcherOpDesc with UTF_8 into a urllib fetch + decode" in {
+    val op = new URLFetcherOpDesc()
+    op.url = "https://example.com"
+    op.decodingMethod = DecodingMethod.UTF_8
+    val script = translate(List(op), Nil)
+
+    script should include("""_url = "https://example.com"""")
+    script should include("    with urllib.request.urlopen(_url) as _resp:")
+    script should include("        _content = _resp.read()")
+    script should include("""    _content = f"Fetch failed for URL: {_url}".encode("utf-8")""")
+    script should include("""df1 = pd.DataFrame({"URL content": [_content.decode("utf-8")]})""")
+    script should not include "out1df"
+  }
+
+  it should "translate URLFetcherOpDesc with RAW_BYTES into a urllib fetch without decode" in {
+    val op = new URLFetcherOpDesc()
+    op.url = "https://example.com/data.bin"
+    op.decodingMethod = DecodingMethod.RAW_BYTES
+    val script = translate(List(op), Nil)
+
+    script should include("""_url = "https://example.com/data.bin"""")
+    script should include("    with urllib.request.urlopen(_url) as _resp:")
+    script should include("""df1 = pd.DataFrame({"URL content": [_content]})""")
+    script should not include "[_content.decode"
+    script should not include "out1df"
   }
 
   // --- Regression: multi-input port ordering ---

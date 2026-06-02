@@ -25,12 +25,17 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
+import org.apache.texera.amber.operator.source.scan.FileAttributeType
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDesc {
+class TextInputSourceOpDesc
+    extends SourceOperatorDescriptor
+    with TextSourceOpDesc
+    with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text")
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
@@ -67,4 +72,43 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
+
+  override def generateStandaloneCode(): String = {
+    val text = objectMapper.writeValueAsString(textInput)
+    val col = attributeName
+    val buf = scala.collection.mutable.ArrayBuffer[String]()
+
+    buf += s"_text = $text"
+
+    val isBinary =
+      attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
+
+    if (attributeType.isSingle) {
+      val valueExpr = if (isBinary) """_text.encode("utf-8")""" else "_text"
+      buf += s"""out1df = pd.DataFrame({"$col": [$valueExpr]})"""
+    } else {
+      val castExpr = attributeType match {
+        case FileAttributeType.INTEGER   => "int(l)"
+        case FileAttributeType.LONG      => "int(l)"
+        case FileAttributeType.DOUBLE    => "float(l)"
+        case FileAttributeType.BOOLEAN   => """l.lower() == "true""""
+        case FileAttributeType.TIMESTAMP => "pd.Timestamp(l)"
+        case _                           => "l"
+      }
+      val hasSlice = fileScanOffset.isDefined || fileScanLimit.isDefined
+      if (hasSlice) {
+        val start = fileScanOffset.getOrElse(0)
+        val sliceExpr = fileScanLimit match {
+          case Some(l) => s"_lines[$start:${start + l}]"
+          case None    => s"_lines[$start:]"
+        }
+        buf += s"""_lines = [$castExpr for l in _text.splitlines()]"""
+        buf += s"""out1df = pd.DataFrame({"$col": $sliceExpr})"""
+      } else {
+        buf += s"""out1df = pd.DataFrame({"$col": [$castExpr for l in _text.splitlines()]})"""
+      }
+    }
+
+    buf.mkString("\n")
+  }
 }
