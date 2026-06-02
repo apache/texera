@@ -23,7 +23,7 @@ import { ActivatedRoute, Router } from "@angular/router";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { ArrowLeftOutline, EyeOutline, LikeOutline, UserOutline } from "@ant-design/icons-angular/icons";
-import { of, throwError } from "rxjs";
+import { config, of, throwError } from "rxjs";
 import { vi } from "vitest";
 
 import { HubWorkflowDetailComponent, THROTTLE_TIME_MS } from "./hub-workflow-detail.component";
@@ -52,6 +52,29 @@ class StubWorkflowEditorComponent {}
 
 @Component({ selector: "texera-mini-map", standalone: true, template: "" })
 class StubMiniMapComponent {}
+
+/**
+ * Capture the error reported by RxJS when a subscribe error-handler throws.
+ * loadWorkflowWithId throws `Failed to load workflow with id ...` from its error
+ * handler, which RxJS surfaces asynchronously via config.onUnhandledError; fake
+ * timers flush that report deterministically so the message can be asserted.
+ */
+function captureUnhandledRxjsError(run: () => void): Error | undefined {
+  const previousHandler = config.onUnhandledError;
+  let captured: Error | undefined;
+  config.onUnhandledError = (err: unknown) => {
+    captured = err as Error;
+  };
+  vi.useFakeTimers();
+  try {
+    run();
+    vi.runOnlyPendingTimers();
+  } finally {
+    vi.useRealTimers();
+    config.onUnhandledError = previousHandler;
+  }
+  return captured;
+}
 
 describe("HubWorkflowDetailComponent", () => {
   let fixture: ComponentFixture<HubWorkflowDetailComponent>;
@@ -99,7 +122,7 @@ describe("HubWorkflowDetailComponent", () => {
     };
   }
 
-  function configure(opts: { modalData?: { wid: number } | undefined; routeId?: number; userOverride?: any }) {
+  function configure(opts: { modalData?: { wid: number } | undefined; routeId?: string; userOverride?: any }) {
     TestBed.overrideComponent(HubWorkflowDetailComponent, {
       remove: { imports: [WorkflowEditorComponent, MiniMapComponent, MarkdownDescriptionComponent] },
       add: { imports: [StubWorkflowEditorComponent, StubMiniMapComponent, StubMarkdownDescriptionComponent] },
@@ -133,7 +156,7 @@ describe("HubWorkflowDetailComponent", () => {
 
   function build(opts: {
     modalData?: { wid: number } | undefined;
-    routeId?: number;
+    routeId?: string;
     userOverride?: any;
     detectChanges?: boolean;
   }) {
@@ -151,13 +174,13 @@ describe("HubWorkflowDetailComponent", () => {
 
   describe("constructor / wid resolution", () => {
     it("uses NZ_MODAL_DATA wid and leaves isHub false", () => {
-      build({ modalData: { wid: 42 }, routeId: 11 });
+      build({ modalData: { wid: 42 }, routeId: "11" });
       expect(component.wid).toBe(42);
       expect(component.isHub).toBe(false);
     });
 
     it("falls back to route.snapshot.params.id and sets isHub true", () => {
-      build({ modalData: undefined, routeId: 11 });
+      build({ modalData: undefined, routeId: "11" });
       expect(component.wid).toBe(11);
       expect(component.isHub).toBe(true);
     });
@@ -266,25 +289,27 @@ describe("HubWorkflowDetailComponent", () => {
     it("uses retrievePublicWorkflow when in hub mode and triggers center event", () => {
       const wf = {} as Workflow;
       workflowPersistServiceMock.retrievePublicWorkflow.mockReturnValue(of(wf));
-      build({ modalData: undefined, routeId: 9 });
+      build({ modalData: undefined, routeId: "9" });
       expect(workflowPersistServiceMock.retrievePublicWorkflow).toHaveBeenCalledWith(9);
       expect(workflowPersistServiceMock.retrieveWorkflow).not.toHaveBeenCalled();
       expect(workflowActionServiceMock.reloadWorkflow).toHaveBeenCalledWith(wf);
       expect(stubGraph.triggerCenterEvent).toHaveBeenCalledTimes(1);
     });
 
-    it("does not reload or trigger center event when retrieveWorkflow errors", () => {
+    it("reports the load failure and does not reload or trigger center event when retrieveWorkflow errors", () => {
       workflowPersistServiceMock.retrieveWorkflow.mockReturnValue(throwError(() => new Error("boom")));
-      build({ modalData: { wid: 5 } });
+      const unhandled = captureUnhandledRxjsError(() => build({ modalData: { wid: 5 } }));
       expect(workflowActionServiceMock.reloadWorkflow).not.toHaveBeenCalled();
       expect(stubGraph.triggerCenterEvent).not.toHaveBeenCalled();
+      expect(unhandled?.message).toBe("Failed to load workflow with id 5");
     });
 
-    it("does not reload or trigger center event when retrievePublicWorkflow errors", () => {
+    it("reports the load failure and does not reload or trigger center event when retrievePublicWorkflow errors", () => {
       workflowPersistServiceMock.retrievePublicWorkflow.mockReturnValue(throwError(() => new Error("boom")));
-      build({ modalData: undefined, routeId: 9 });
+      const unhandled = captureUnhandledRxjsError(() => build({ modalData: undefined, routeId: "9" }));
       expect(workflowActionServiceMock.reloadWorkflow).not.toHaveBeenCalled();
       expect(stubGraph.triggerCenterEvent).not.toHaveBeenCalled();
+      expect(unhandled?.message).toBe("Failed to load workflow with id 9");
     });
 
     it("skips loading when wid is undefined", () => {
