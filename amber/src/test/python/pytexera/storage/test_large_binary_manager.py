@@ -185,3 +185,12 @@ def test_create_without_execution_context_raises(monkeypatch):
 
     with pytest.raises(RuntimeError):
         large_binary_manager.create()
+
+
+def test_largebinarymanager_is_a_singleton(monkeypatch):
+    # Constructing the manager always returns the same shared instance.
+    assert LargeBinaryManager() is LargeBinaryManager()
+
+    # State set through one handle is visible through another (shared instance).
+    monkeypatch.setattr(LargeBinaryManager(), "_current_execution_id", 314)
+    assert LargeBinaryManager().get_current_execution_id() == 314
