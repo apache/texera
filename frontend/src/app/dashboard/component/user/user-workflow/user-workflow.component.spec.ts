@@ -60,6 +60,8 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { Router } from "@angular/router";
+import { USER_WORKSPACE } from "../../../../app-routing.constant";
 import type { Mocked } from "vitest";
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
@@ -308,6 +310,23 @@ describe("SavedWorkflowSectionComponent", () => {
         "mtime: 1970-01-01 ~ 1982-04-14",
       ])
     );
+  });
+
+  describe("onClickCreateNewWorkflowFromDashboard", () => {
+    it("navigates to /user/workflow/<wid> (no /dashboard prefix) on successful creation", () => {
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+      const persist = TestBed.inject(WorkflowPersistService) as any;
+      // StubWorkflowPersistService doesn't define createWorkflow — assign the
+      // method here so the component's call resolves to a controlled observable.
+      persist.createWorkflow = vi.fn().mockReturnValue(of({ workflow: { wid: 99 } }));
+      component.pid = undefined;
+
+      component.onClickCreateNewWorkflowFromDashboard();
+
+      expect(navigateSpy).toHaveBeenCalledWith([USER_WORKSPACE, 99]);
+      expect(USER_WORKSPACE).toBe("/user/workflow");
+    });
   });
 
   it("downloads checked files", async () => {

@@ -243,22 +243,22 @@ describe("ShareAccessComponent", () => {
 
     it("uses the workflow dashboard path when sharing a workflow", () => {
       const message = grantAndCaptureMessage(setupComponent({ type: "workflow", id: 11 }));
-      expect(message).toContain("/dashboard/user/workflow/11");
+      expect(message).toContain("/user/workflow/11");
     });
 
     it("uses the dataset dashboard path when sharing a dataset", () => {
       const message = grantAndCaptureMessage(setupComponent({ type: "dataset", id: 22 }));
-      expect(message).toContain("/dashboard/user/dataset/22");
+      expect(message).toContain("/user/dataset/22");
     });
 
     it("uses the project dashboard path when sharing a project", () => {
       const message = grantAndCaptureMessage(setupComponent({ type: "project", id: 33 }));
-      expect(message).toContain("/dashboard/user/project/33");
+      expect(message).toContain("/user/project/33");
     });
 
     it("omits the access URL when sharing a computing-unit", () => {
       const message = grantAndCaptureMessage(setupComponent({ type: "computing-unit", id: 44 }));
-      expect(message).not.toContain("/dashboard/user/");
+      expect(message).not.toContain("/user/");
     });
 
     it("calls ShareAccessService.grantAccess with the selected access level for each tag", () => {
