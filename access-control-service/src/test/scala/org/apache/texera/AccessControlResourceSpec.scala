@@ -233,4 +233,62 @@ class AccessControlResourceSpec
     response.getHeaderString(HeaderField.UserName) shouldBe testUser1.getName
     response.getHeaderString(HeaderField.UserEmail) shouldBe testUser1.getEmail
   }
+
+  private def mockRequest(
+      path: String,
+      cuidQueryParam: Option[String]
+  ): (UriInfo, HttpHeaders) = {
+    val mockUriInfo = mock(classOf[UriInfo])
+    val mockHttpHeaders = mock(classOf[HttpHeaders])
+
+    val queryParams = new MultivaluedHashMap[String, String]()
+    cuidQueryParam.foreach(queryParams.add("cuid", _))
+
+    val requestHeaders = new MultivaluedHashMap[String, String]()
+    requestHeaders.add("Authorization", "Bearer " + token)
+
+    when(mockUriInfo.getQueryParameters).thenReturn(queryParams)
+    when(mockUriInfo.getRequestUri).thenReturn(new URI(testURI))
+    when(mockUriInfo.getPath).thenReturn(path)
+    when(mockHttpHeaders.getRequestHeaders).thenReturn(requestHeaders)
+    when(mockHttpHeaders.getRequestHeader("Authorization"))
+      .thenReturn(util.Arrays.asList("Bearer " + token))
+
+    (mockUriInfo, mockHttpHeaders)
+  }
+
+  it should "return OK for /pve/system with cuid as query parameter" in {
+    val (uri, headers) = mockRequest("/pve/system", Some(testCU.getCuid.toString))
+    val response = new AccessControlResource().authorizeGet(uri, headers)
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+  }
+
+  it should "return OK for /pve/pves/{cuid} (cuid extracted from path)" in {
+    val (uri, headers) = mockRequest(s"/pve/pves/${testCU.getCuid}", None)
+    val response = new AccessControlResource().authorizeDelete(uri, headers)
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+  }
+
+  it should "return OK for /pve/{cuid}/{pveName}/packages/{packageName} (cuid extracted from path)" in {
+    val (uri, headers) = mockRequest(s"/pve/${testCU.getCuid}/myenv/packages/numpy", None)
+    val response = new AccessControlResource().authorizeDelete(uri, headers)
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+  }
+
+  it should "return FORBIDDEN for a PVE path with no cuid in query or path" in {
+    val (uri, headers) = mockRequest("/pve/no-cuid-anywhere", None)
+    val response = new AccessControlResource().authorizeGet(uri, headers)
+
+    response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+  }
+
+  it should "return FORBIDDEN for a non-PVE / non-whitelisted path" in {
+    val (uri, headers) = mockRequest("/random/garbage", Some(testCU.getCuid.toString))
+    val response = new AccessControlResource().authorizeGet(uri, headers)
+
+    response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+  }
 }

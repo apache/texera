@@ -25,7 +25,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { catchError } from "rxjs/operators";
 import { throwError } from "rxjs";
-import { DASHBOARD_USER_WORKFLOW } from "../../../../app-routing.constant";
+import { USER_WORKFLOW } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NgIf } from "@angular/common";
@@ -131,9 +131,7 @@ export class LocalLoginComponent implements OnInit {
         }),
         untilDestroyed(this)
       )
-      .subscribe(() =>
-        this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW)
-      );
+      .subscribe(() => this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || USER_WORKFLOW));
   }
 
   /**

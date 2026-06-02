@@ -118,13 +118,10 @@
         </div>
       </div>
       <img
-        *ngIf="coverImageUrl; else coverPlaceholder"
+        *ngIf="coverImageUrl"
         class="dataset-cover-image"
         [src]="coverImageUrl"
         alt="Dataset cover" />
-      <ng-template #coverPlaceholder>
-        <div class="dataset-cover-image"></div>
-      </ng-template>
     </div>
 
     <div class="description-section">

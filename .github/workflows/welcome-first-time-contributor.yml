@@ -1,0 +1,157 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Welcome first-time contributors when they open an issue or pull
+# request, pointing them at the comment-driven commands defined in
+# `comment-commands.yml` (/take, /request-review, /sub-issue, etc.).
+#
+# Detection uses the search API rather than `author_association`:
+# `author_association` is FIRST_TIME_CONTRIBUTOR only on the first
+# *commit/PR*, so it misses someone opening their first issue (they
+# show up as NONE alongside any non-member who has commented before).
+# Searching `repo:<repo> is:issue author:<login>` with `total_count
+# <= 1` cleanly covers both issues and PRs, tolerating the brief
+# indexing delay where the just-opened item may not be in results yet.
+#
+# Uses `pull_request_target` so PRs from forks still get a welcome
+# comment — `pull_request` from forks runs with a read-only token.
+name: Welcome first-time contributor
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    if: github.event.sender.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const isPR = context.eventName === 'pull_request_target';
+            const subject = isPR
+              ? context.payload.pull_request
+              : context.payload.issue;
+            const author = subject.user.login;
+            const issue_number = subject.number;
+            const { owner, repo } = context.repo;
+
+            // Hidden marker for idempotency: if a previous run already
+            // welcomed this issue/PR, the marker will be in an existing
+            // comment and we skip. Lets us survive workflow re-runs,
+            // reopen races, and future manual triggers.
+            const MARKER = '<!-- texera:welcome-first-time-contributor -->';
+            try {
+              const existing = await github.paginate(
+                github.rest.issues.listComments,
+                { owner, repo, issue_number, per_page: 100 },
+              );
+              if (existing.some((c) => (c.body || '').includes(MARKER))) {
+                core.info(`Already welcomed on #${issue_number}; skipping.`);
+                return;
+              }
+            } catch (e) {
+              core.warning(
+                `listComments on #${issue_number} failed: ${e.message}`,
+              );
+              // Fall through — better to risk a duplicate welcome than
+              // skip a genuine first-timer over a transient API error.
+            }
+
+            // Count prior items of the same kind by this author. The
+            // just-opened item may or may not be indexed yet, so we
+            // treat <=1 as "first time" (covers both 0 — not yet
+            // indexed — and 1 — only the new item).
+            const q = `repo:${owner}/${repo} is:${isPR ? 'pr' : 'issue'} author:${author}`;
+            let total = 0;
+            try {
+              const { data } = await github.rest.search.issuesAndPullRequests({
+                q, per_page: 1,
+              });
+              total = data.total_count;
+            } catch (e) {
+              core.warning(
+                `Search for prior items by ${author} failed: ${e.message}`,
+              );
+              return;
+            }
+            core.info(
+              `Author ${author} has ${total} ${isPR ? 'PR' : 'issue'}(s) ` +
+                `in ${owner}/${repo} (including this one if indexed).`,
+            );
+            if (total > 1) {
+              core.info(`${author} is not a first-time contributor; skipping.`);
+              return;
+            }
+
+            const body = [
+              MARKER,
+              `👋 Thanks for your first contribution to Texera, @${author}!`,
+              ``,
+              `You can drive common housekeeping tasks just by leaving a comment. Type the command on its own line.`,
+              ``,
+              `### On issues`,
+              ``,
+              `| Command | What it does |`,
+              `|---|---|`,
+              `| \`/take\` | Assign the issue to yourself (self-claim it) |`,
+              `| \`/untake\` | Remove yourself as assignee |`,
+              ``,
+              `To find unclaimed work, search \`is:issue is:open no:assignee\` — there's no "triage" label; the search filter *is* the triage state.`,
+              ``,
+              `### Linking sub-issues`,
+              ``,
+              `| Command | Where to run it | What it does |`,
+              `|---|---|---|`,
+              `| \`/sub-issue #12 #13\` | On the **parent** | Links #12 and #13 as children of this issue |`,
+              `| \`/unsub-issue #12 #13\` | On the **parent** | Unlinks those children |`,
+              `| \`/parent-issue #5\` | On the **child** | Sets #5 as this issue's parent |`,
+              `| \`/unparent-issue\` | On the **child** | Removes this issue's parent (auto-detected) |`,
+              `| \`/unparent-issue #5\` | On the **child** | Removes parent #5 explicitly |`,
+              ``,
+              `You can write references as \`#12\` or bare \`12\`. Cross-repo references like \`owner/repo#12\` aren't supported and are ignored.`,
+              ``,
+              `### On pull requests (author only)`,
+              ``,
+              `| Command | What it does |`,
+              `|---|---|`,
+              `| \`/request-review @user [@user ...]\` | Request reviews from those users |`,
+              `| \`/unrequest-review @user [@user ...]\` | Cancel those review requests |`,
+              ``,
+              `You can mention teams as \`@org/team\`, and \`@copilot\` works too. Only the PR **author** can use these commands.`,
+              ``,
+              `> **Note:** Commands must match exactly — \`/take this\` won't work, only \`/take\`. Bots are ignored, and you can't self-link an issue or set an issue as its own parent.`,
+              ``,
+              `For the full contribution flow, see [CONTRIBUTING.md](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md).`,
+            ].join('\n');
+
+            try {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number, body,
+              });
+              core.info(`Posted welcome comment on #${issue_number}`);
+            } catch (e) {
+              core.warning(
+                `Failed to post welcome on #${issue_number}: ${e.message}`,
+              );
+            }
