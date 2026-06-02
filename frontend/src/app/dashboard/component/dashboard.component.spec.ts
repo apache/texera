@@ -241,6 +241,8 @@ describe("DashboardComponent", () => {
       expect(flarumServiceMock.auth).not.toHaveBeenCalled();
       expect(flarumServiceMock.register).not.toHaveBeenCalled();
     });
+  });
+
   it("should hide the navbar on workflow workspace routes", () => {
     expect(component.isNavbarEnabled("/user/workflow/42")).toBe(false);
     expect(component.isNavbarEnabled("/user/workflow")).toBe(true);
