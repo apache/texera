@@ -19,8 +19,6 @@
 
 package org.apache.texera.amber.translator.verify
 
-import com.typesafe.scalalogging.LazyLogging
-
 import java.nio.file.{Files, Path, StandardCopyOption}
 import scala.collection.mutable.ArrayBuffer
 import scala.sys.process._
@@ -40,7 +38,7 @@ import scala.sys.process._
   * Python resolution mirrors [[StandaloneRunner.resolvePython]]:
   * `UDF_PYTHON_PATH` env var first, else `python3.12` on PATH.
   */
-object Comparator extends LazyLogging {
+object Comparator {
 
   // Resource path is absolute (leading slash) so getResourceAsStream resolves
   // against the classpath root regardless of caller's package.
