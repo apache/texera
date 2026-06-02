@@ -15,25 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-apiVersion: gateway.envoyproxy.io/v1alpha1
-kind: SecurityPolicy
+{{- if .Values.litellm.enabled }}
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-ext-auth
+  name: {{ .Release.Name }}-litellm-config
   namespace: {{ .Release.Namespace }}
-spec:
-  targetRefs:
-    - group: gateway.networking.k8s.io
-      kind: HTTPRoute
-      name: {{ .Release.Name }}-dynamic-routes
-  extAuth:
-    http:
-      backendRefs:
-        - name: {{ .Values.accessControlService.name }}-svc
-          port: {{ .Values.accessControlService.service.port }}
-      path: /api/auth
-      headersToBackend:
-        - x-user-computing-unit-access
-        - x-user-id
-        - x-user-name
-        - x-user-email
-        - Host
+data:
+  litellm-config.yaml: |
+{{ .Values.litellm.config | indent 4 }}
+{{- end }}

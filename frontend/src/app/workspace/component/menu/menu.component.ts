@@ -50,7 +50,7 @@ import { ResultExportationComponent } from "../result-exportation/result-exporta
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
-import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
+import { USER_WORKFLOW } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
@@ -138,7 +138,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
   public showStatus: boolean = false;
-  protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
+  protected readonly USER_WORKFLOW = USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
   @Input() public pid?: number = undefined;
@@ -344,7 +344,7 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
       if (result?.userRevokedOwnAccess) {
-        this.router.navigate([DASHBOARD_USER_WORKFLOW]);
+        this.router.navigate([USER_WORKFLOW]);
       }
     });
   }
