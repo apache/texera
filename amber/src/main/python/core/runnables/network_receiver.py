@@ -34,7 +34,6 @@ from core.models import (
     DataFrame,
     State,
     StateFrame,
-    StateStorage,
 )
 from core.models.internal_queue import (
     DataElement,
@@ -98,8 +97,8 @@ class NetworkReceiver(Runnable, Stoppable):
                 lambda _: DataFrame(table),
                 "State",
                 lambda _: StateFrame(
-                    State.from_json(table[StateStorage.CONTENT][0].as_py()),
-                    loop_counter=int(table[StateStorage.LOOP_COUNTER][0].as_py()),
+                    State.from_json(table[State.CONTENT][0].as_py()),
+                    loop_counter=int(table[State.LOOP_COUNTER][0].as_py()),
                 ),
                 "ECM",
                 lambda _: EmbeddedControlMessage().parse(table["payload"][0].as_py()),

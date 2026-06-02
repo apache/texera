@@ -25,13 +25,22 @@ from .tuple import Tuple
 
 class State(dict):
     CONTENT = "content"
-    SCHEMA = Schema(raw_schema={CONTENT: "STRING"})
+    # loop_counter is loop-control bookkeeping owned by the worker runtime, not
+    # user state -- it never appears in the content JSON. In memory it rides on
+    # the StateFrame envelope; it is materialized/serialized as its own column
+    # (parallel to content) by to_tuple(loop_counter). from_tuple() returns the
+    # bare State; callers that need the counter read the LOOP_COUNTER column.
+    LOOP_COUNTER = "loop_counter"
+    SCHEMA = Schema(raw_schema={CONTENT: "STRING", LOOP_COUNTER: "LONG"})
 
     def to_json(self) -> str:
         return json.dumps(_to_json_value(self), separators=(",", ":"))
 
-    def to_tuple(self) -> Tuple:
-        return Tuple({State.CONTENT: self.to_json()}, schema=State.SCHEMA)
+    def to_tuple(self, loop_counter: int = 0) -> Tuple:
+        return Tuple(
+            {State.CONTENT: self.to_json(), State.LOOP_COUNTER: int(loop_counter)},
+            schema=State.SCHEMA,
+        )
 
     @classmethod
     def from_json(cls, payload: str) -> "State":

@@ -220,7 +220,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
 
     val writer = stateDocument.writer(UUID.randomUUID().toString)
     writer.open()
-    writer.putOne(state.toTuple)
+    writer.putOne(state.toTuple())
     writer.close()
 
     val storedRows = stateDocument.get().toList
@@ -252,7 +252,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
 
     val writer = stateDocument.writer(UUID.randomUUID().toString)
     writer.open()
-    states.foreach(state => writer.putOne(state.toTuple))
+    states.foreach(state => writer.putOne(state.toTuple()))
     writer.close()
 
     val deserializedStates =

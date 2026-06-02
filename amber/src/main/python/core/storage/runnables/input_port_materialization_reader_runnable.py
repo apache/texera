@@ -39,8 +39,8 @@ from core.models import (
     InternalQueue,
     DataFrame,
     DataPayload,
+    State,
     StateFrame,
-    StateStorage,
 )
 from core.models.internal_queue import DataElement, ECMElement
 from core.storage.document_factory import DocumentFactory
@@ -159,8 +159,12 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                 VFSURIFactory.state_uri(self.uri)
             )
             for state_row in state_document.get():
-                state, loop_counter = StateStorage.from_tuple(state_row)
-                self.emit_payload(StateFrame(state, loop_counter=loop_counter))
+                self.emit_payload(
+                    StateFrame(
+                        State.from_tuple(state_row),
+                        loop_counter=state_row[State.LOOP_COUNTER],
+                    )
+                )
 
             storage_iterator = self.materialization.get()
             # Iterate and process tuples.

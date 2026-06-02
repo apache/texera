@@ -41,7 +41,7 @@ from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
-from core.models import Tuple, Schema, StateFrame, StateStorage
+from core.models import Tuple, Schema, StateFrame
 from core.models.payload import DataPayload, DataFrame
 from core.models.state import State
 from core.storage.document_factory import DocumentFactory
@@ -220,9 +220,7 @@ class OutputManager:
         # shared context, not per-key data, so every downstream operator
         # (and every worker reading the materialization) needs the full
         # set.
-        element = PortStorageWriterElement(
-            data_tuple=StateStorage.to_tuple(state, loop_counter)
-        )
+        element = PortStorageWriterElement(data_tuple=state.to_tuple(loop_counter))
         if port_id is None:
             for writer_queue, _, _ in self._port_state_writers.values():
                 writer_queue.put(element)
@@ -238,7 +236,7 @@ class OutputManager:
             self._ports[port_id].get_schema(),
         )
         DocumentFactory.create_document(
-            VFSURIFactory.state_uri(storage_uri_base), StateStorage.SCHEMA
+            VFSURIFactory.state_uri(storage_uri_base), State.SCHEMA
         )
         self.set_up_port_storage_writer(port_id, storage_uri_base)
 

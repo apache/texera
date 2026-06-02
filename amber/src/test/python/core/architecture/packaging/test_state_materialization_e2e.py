@@ -43,7 +43,7 @@ import pytest
 from pyiceberg.catalog.sql import SqlCatalog
 
 from core.architecture.packaging.output_manager import OutputManager
-from core.models import State, StateFrame, StateStorage
+from core.models import State, StateFrame
 from core.models.internal_queue import DataElement, InternalQueue
 from core.storage.document_factory import DocumentFactory
 from core.storage.iceberg.iceberg_catalog_instance import IcebergCatalogInstance
@@ -161,9 +161,7 @@ def test_state_written_by_output_manager_is_replayed_by_reader():
     DocumentFactory.create_document(
         VFSURIFactory.result_uri(base_uri), worker_schema_for_result
     )
-    DocumentFactory.create_document(
-        VFSURIFactory.state_uri(base_uri), StateStorage.SCHEMA
-    )
+    DocumentFactory.create_document(VFSURIFactory.state_uri(base_uri), State.SCHEMA)
 
     # 2. Producer side: spin up an OutputManager, set up real state +
     # result writer threads against the iceberg storage.
@@ -246,9 +244,7 @@ def test_state_table_persists_across_writer_close():
     port_id = PortIdentity(id=0, internal=False)
 
     DocumentFactory.create_document(VFSURIFactory.result_uri(base_uri), State.SCHEMA)
-    DocumentFactory.create_document(
-        VFSURIFactory.state_uri(base_uri), StateStorage.SCHEMA
-    )
+    DocumentFactory.create_document(VFSURIFactory.state_uri(base_uri), State.SCHEMA)
 
     producer = OutputManager(worker_id="Worker:WF0-test-producer2-main-0")
     producer.add_output_port(port_id, schema=State.SCHEMA, storage_uri_base=base_uri)
@@ -264,4 +260,5 @@ def test_state_table_persists_across_writer_close():
         f"expected exactly one row in the iceberg state table after the "
         f"writer was closed; got {len(rows)} rows"
     )
-    assert StateStorage.from_tuple(rows[0]) == (state, 0)
+    assert State.from_tuple(rows[0]) == state
+    assert rows[0][State.LOOP_COUNTER] == 0

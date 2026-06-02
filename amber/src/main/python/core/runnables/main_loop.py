@@ -30,7 +30,6 @@ from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
     InternalQueue,
     StateFrame,
-    StateStorage,
     Tuple,
 )
 from core.models.internal_marker import StartChannel, EndChannel
@@ -121,10 +120,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # user-visible loop state is written back to LoopStart's input.
         for key in ("table", "output", "LoopStartId", "LoopStartStateURI"):
             state.pop(key, None)
-        writer = DocumentFactory.create_document(uri, StateStorage.SCHEMA).writer("0")
+        writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
         # The back-edge fires only after the matching LoopEnd consumed at
         # loop_counter == 0, so the next iteration's input starts at depth 0.
-        writer.put_one(StateStorage.to_tuple(State(state), 0))
+        writer.put_one(State(state).to_tuple(0))
         writer.close()
 
     def complete(self) -> None:

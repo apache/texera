@@ -26,7 +26,6 @@ from .table import Table, TableLike
 from .batch import Batch, BatchLike
 from .schema import AttributeType, Field, Schema
 from .state import State
-from .state_storage import StateStorage
 from .operator import (
     Operator,
     TableOperator,
@@ -66,5 +65,4 @@ __all__ = [
     "Field",
     "Schema",
     "State",
-    "StateStorage",
 ]

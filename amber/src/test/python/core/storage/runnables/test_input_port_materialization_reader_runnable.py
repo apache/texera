@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.models import State, StateFrame, StateStorage
+from core.models import State, StateFrame
 from core.models.internal_queue import DataElement
 from core.models.schema import Schema
 from core.storage.runnables.input_port_materialization_reader_runnable import (
@@ -63,26 +63,28 @@ class TestRunStateReadingBlock:
         state_a = State({"i": 0})
         state_b = State({"i": 1})
 
-        # The state document yields opaque 2-column tuples; StateStorage
-        # .from_tuple deserializes each into (State, loop_counter). Patch it
-        # so we don't have to wire a real serialization. The loop_counter
-        # must be carried onto the emitted StateFrame envelope.
+        # The state document yields opaque 2-column tuples. State.from_tuple
+        # (patched) deserializes the content column; the reader reads the
+        # loop_counter column directly off the row and carries it onto the
+        # emitted StateFrame envelope.
+        row_a = {State.LOOP_COUNTER: 0}
+        row_b = {State.LOOP_COUNTER: 1}
         result_doc = MagicMock()
         result_doc.get.return_value = iter([])  # No materialized tuples.
         state_doc = MagicMock()
-        state_doc.get.return_value = iter(["row-a", "row-b"])
+        state_doc.get.return_value = iter([row_a, row_b])
 
         with (
             patch(
                 "core.storage.runnables.input_port_materialization_reader_runnable.DocumentFactory"
             ) as mock_factory,
-            patch.object(StateStorage, "from_tuple") as mock_from_tuple,
+            patch.object(State, "from_tuple") as mock_from_tuple,
         ):
             mock_factory.open_document.side_effect = [
                 (result_doc, runnable.tuple_schema),
                 (state_doc, None),
             ]
-            mock_from_tuple.side_effect = [(state_a, 0), (state_b, 1)]
+            mock_from_tuple.side_effect = [state_a, state_b]
 
             runnable.run()
 

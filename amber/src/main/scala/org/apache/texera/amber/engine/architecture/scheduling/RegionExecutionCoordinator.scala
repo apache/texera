@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.pekko.pattern.gracefulStop
 import com.twitter.util.{Duration => TwitterDuration, Future, JavaTimer, Return, Throw, Timer}
-import org.apache.texera.amber.core.state.StateStorage
+import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.VFSURIFactory.decodeURI
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
@@ -585,7 +585,7 @@ class RegionExecutionCoordinator(
           DocumentFactory.createDocument(resultURI, schema)
         }
         if (!isLoopEndRegion || !DocumentFactory.documentExists(stateURI)) {
-          DocumentFactory.createDocument(stateURI, StateStorage.schema)
+          DocumentFactory.createDocument(stateURI, State.schema)
         }
         if (!isRestart) {
           val (_, eid, _, _) = decodeURI(resultURI)

@@ -24,8 +24,8 @@ from core.models import (
     DataPayload,
     InternalQueue,
     DataFrame,
+    State,
     StateFrame,
-    StateStorage,
 )
 from core.models.internal_queue import (
     InternalQueueElement,
@@ -107,10 +107,10 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             data_header = PythonDataHeader(tag=to, payload_type="State")
             table = pa.Table.from_pydict(
                 {
-                    StateStorage.CONTENT: [data_payload.frame.to_json()],
-                    StateStorage.LOOP_COUNTER: [int(data_payload.loop_counter)],
+                    State.CONTENT: [data_payload.frame.to_json()],
+                    State.LOOP_COUNTER: [int(data_payload.loop_counter)],
                 },
-                schema=StateStorage.SCHEMA.as_arrow_schema(),
+                schema=State.SCHEMA.as_arrow_schema(),
             )
             self._proxy_client.send_data(bytes(data_header), table)
         else:
