@@ -30,7 +30,7 @@ import { Role, User } from "src/app/common/type/user";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
-import { DASHBOARD_HUB_WORKFLOW_RESULT, DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
+import { HUB_WORKFLOW_RESULT, USER_WORKSPACE } from "../../../../app-routing.constant";
 import { NgIf, NgClass } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -203,7 +203,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   }
 
   goBack(): void {
-    this.router.navigateByUrl(DASHBOARD_HUB_WORKFLOW_RESULT).catch(() => {
+    this.router.navigateByUrl(HUB_WORKFLOW_RESULT).catch(() => {
       this.notificationService.error("Go back failed. Please try again.");
     });
   }
@@ -216,7 +216,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       .cloneWorkflow(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(newWid => {
-        this.router.navigate([`${DASHBOARD_USER_WORKSPACE}/${newWid}`]).then(() => {
+        this.router.navigate([`${USER_WORKSPACE}/${newWid}`]).then(() => {
           this.notificationService.success("Clone Successful");
         });
       });

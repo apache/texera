@@ -24,7 +24,7 @@ import { Observable, of, ReplaySubject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { GuiConfigService } from "../gui-config.service";
-import { catchError, map, shareReplay } from "rxjs/operators";
+import { catchError, map, shareReplay, switchMap } from "rxjs/operators";
 
 /**
  * User Service manages User information. It relies on different
@@ -55,11 +55,13 @@ export class UserService {
     // validate the credentials with backend
     return this.authService
       .auth(username, password)
-      .pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
+      .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   public googleLogin(credential: string): Observable<void> {
-    return this.authService.googleAuth(credential).pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
+    return this.authService
+      .googleAuth(credential)
+      .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   public isLogin(): boolean {
@@ -82,7 +84,7 @@ export class UserService {
   public register(username: string, password: string): Observable<void> {
     return this.authService
       .register(username, password)
-      .pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
+      .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   /**
@@ -101,9 +103,24 @@ export class UserService {
     this.userChangeSubject.next(this.currentUser);
   }
 
-  private handleAccessToken(accessToken: string): void {
+  // Returns Observable<void> rather than void so callers (login / googleLogin /
+  // register) can switchMap through the post-login config fetch. The /config/gui
+  // and /config/user-system endpoints are @RolesAllowed, so we must wait for the
+  // new JWT to be in localStorage before they will answer; loginWithExistingToken
+  // also reads config.env.inviteOnly, so it must run after loadPostLogin resolves.
+  private handleAccessToken(accessToken: string): Observable<void> {
     AuthService.setAccessToken(accessToken);
-    this.changeUser(this.authService.loginWithExistingToken());
+    return this.config.loadPostLogin().pipe(
+      catchError((err: unknown) => {
+        // If the authenticated config fetch fails, still complete login with
+        // whatever we have. The JwtAuthFilter on every protected endpoint is
+        // the authoritative gate; degraded config is preferable to a stuck
+        // login flow.
+        console.warn("Failed to load authenticated config after login; continuing.", err);
+        return of(undefined);
+      }),
+      map(() => this.changeUser(this.authService.loginWithExistingToken()))
+    );
   }
 
   /**

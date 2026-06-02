@@ -23,6 +23,13 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { ChangeDetectorRef } from "@angular/core";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
+import {
+  HUB_DATASET_RESULT_DETAIL,
+  HUB_WORKFLOW_RESULT_DETAIL,
+  USER_DATASET,
+  USER_WORKSPACE,
+} from "../../../app-routing.constant";
 
 describe("BrowseSectionComponent", () => {
   let component: BrowseSectionComponent;
@@ -45,5 +52,35 @@ describe("BrowseSectionComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  describe("entityRoutes initialization", () => {
+    it("routes owned workflows to the user workspace", () => {
+      component.currentUid = 1;
+      component.entities = [{ id: 100, type: "workflow", accessibleUserIds: [1] } as unknown as DashboardEntry];
+      component.ngOnInit();
+      expect(component.entityRoutes[100]).toEqual([USER_WORKSPACE, "100"]);
+    });
+
+    it("routes non-owned workflows to the hub workflow detail page", () => {
+      component.currentUid = 1;
+      component.entities = [{ id: 101, type: "workflow", accessibleUserIds: [2] } as unknown as DashboardEntry];
+      component.ngOnInit();
+      expect(component.entityRoutes[101]).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "101"]);
+    });
+
+    it("routes owned datasets to the user dataset page", () => {
+      component.currentUid = 1;
+      component.entities = [{ id: 200, type: "dataset", accessibleUserIds: [1] } as unknown as DashboardEntry];
+      component.ngOnInit();
+      expect(component.entityRoutes[200]).toEqual([USER_DATASET, "200"]);
+    });
+
+    it("routes non-owned datasets to the hub dataset detail page", () => {
+      component.currentUid = 1;
+      component.entities = [{ id: 201, type: "dataset", accessibleUserIds: [2] } as unknown as DashboardEntry];
+      component.ngOnInit();
+      expect(component.entityRoutes[201]).toEqual([HUB_DATASET_RESULT_DETAIL, "201"]);
+    });
   });
 });

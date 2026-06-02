@@ -11090,6 +11090,7 @@ __metadata:
     ai: "npm:5.0.93"
     ajv: "npm:8.10.0"
     build-number-generator: "npm:3.1.0"
+    buffer: "npm:5.7.1"
     concaveman: "npm:2.0.0"
     concurrently: "npm:7.4.0"
     d3-shape: "npm:2.1.0"

@@ -22,14 +22,53 @@
     <div class="filter">
       <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
       <texera-filters #filters></texera-filters>
+      <div
+        *ngIf="searchType === 'dataset'"
+        class="view-toggle">
+        <button
+          nz-button
+          nzType="text"
+          [class.active]="viewMode === 'list'"
+          (click)="setViewMode('list')"
+          nz-tooltip="List view"
+          title="List view">
+          <i
+            nz-icon
+            nzType="bars"
+            nzTheme="outline"></i>
+        </button>
+        <button
+          nz-button
+          nzType="text"
+          [class.active]="viewMode === 'card'"
+          (click)="setViewMode('card')"
+          nz-tooltip="Card view"
+          title="Card view">
+          <i
+            nz-icon
+            nzType="table"
+            nzTheme="outline"></i>
+        </button>
+      </div>
     </div>
   </div>
+
+  <ng-template
+    #datasetCardTpl
+    let-entry>
+    <texera-dataset-card-item
+      [entry]="entry"
+      [currentUid]="currentUid">
+    </texera-dataset-card-item>
+  </ng-template>
 
   <div class="search-result">
     <texera-search-results
       [showResourceTypes]="true"
       [searchKeywords]="searchKeywords"
-      [currentUid]="this.currentUid">
+      [currentUid]="this.currentUid"
+      [viewMode]="searchType === 'dataset' ? viewMode : 'list'"
+      [cardTemplate]="searchType === 'dataset' ? datasetCardTpl : undefined">
     </texera-search-results>
   </div>
 </div>
