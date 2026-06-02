@@ -23,11 +23,28 @@
   [nzCover]="coverTpl"
   [routerLink]="entryLink">
   <div class="dataset-card-body-link">
-    <span
-      class="card-title"
-      [title]="entry.name">
-      {{ entry.name }}
-    </span>
+    <div class="card-title-row">
+      <span
+        class="card-title"
+        [title]="entry.name">
+        {{ entry.name }}
+      </span>
+      <button
+        *ngIf="showActions"
+        type="button"
+        class="more-btn"
+        nz-dropdown
+        nzTrigger="click"
+        nzPlacement="bottomRight"
+        [nzDropdownMenu]="actionMenu"
+        (click)="$event.stopPropagation(); $event.preventDefault()"
+        nz-tooltip="More actions">
+        <i
+          nz-icon
+          nzType="more"
+          nzTheme="outline"></i>
+      </button>
+    </div>
 
     <div class="card-meta">
       <div class="meta-line meta-line--owner">
@@ -99,3 +116,36 @@
     <span class="cover-id-badge">#{{ entry.id }}</span>
   </div>
 </ng-template>
+
+<nz-dropdown-menu #actionMenu="nzDropdownMenu">
+  <ul nz-menu>
+    <li
+      nz-menu-item
+      (click)="onClickOpenShareAccess()">
+      <i
+        nz-icon
+        nzType="share-alt"
+        class="action-menu-icon"></i>
+      Share
+    </li>
+    <li
+      nz-menu-item
+      (click)="onClickDownload()">
+      <i
+        nz-icon
+        nzType="cloud-download"
+        class="action-menu-icon"></i>
+      Download
+    </li>
+    <li
+      nz-menu-item
+      [nzDisabled]="disableDelete"
+      (click)="onClickDelete()">
+      <i
+        nz-icon
+        nzType="delete"
+        class="action-menu-icon"></i>
+      Delete
+    </li>
+  </ul>
+</nz-dropdown-menu>

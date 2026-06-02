@@ -130,6 +130,25 @@ describe("UserDatasetComponent", () => {
     });
   });
 
+  describe("view mode", () => {
+    const STORAGE_KEY = "texera.user.dataset.viewMode";
+
+    afterEach(() => localStorage.removeItem(STORAGE_KEY));
+
+    it("setViewMode switches to card and persists it", () => {
+      component.setViewMode("card");
+      expect(component.viewMode).toBe("card");
+      expect(localStorage.getItem(STORAGE_KEY)).toBe("card");
+    });
+
+    it("setViewMode switches back to list and persists it", () => {
+      component.setViewMode("card");
+      component.setViewMode("list");
+      expect(component.viewMode).toBe("list");
+      expect(localStorage.getItem(STORAGE_KEY)).toBe("list");
+    });
+  });
+
   describe("ngAfterViewInit", () => {
     it("subscribes to userChanged and calls search on each emission", () => {
       const searchSpy = vi.spyOn(component, "search").mockResolvedValue();

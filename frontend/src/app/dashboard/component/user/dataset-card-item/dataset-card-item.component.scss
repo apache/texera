@@ -60,10 +60,46 @@
   }
 }
 
+.action-menu-icon {
+  margin-right: 10px;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 10px;
+
+  .more-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #8c8c8c;
+    cursor: pointer;
+
+    i {
+      font-size: 18px;
+    }
+
+    &:hover {
+      background: #f0f0f0;
+      color: #1f1f1f;
+    }
+  }
+}
+
 .card-title {
+  flex: 1;
   display: -webkit-box;
   height: calc(15px * 1.35 * 2);
-  margin-bottom: 10px;
+  min-width: 0;
   font-size: 15px;
   font-weight: 600;
   line-height: 1.35;

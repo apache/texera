@@ -26,7 +26,9 @@ import type { Mocked } from "vitest";
 
 import { DatasetCardItemComponent } from "./dataset-card-item.component";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { DownloadService } from "../../../service/user/download/download.service";
 import { HubService } from "../../../../hub/service/hub.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -37,10 +39,13 @@ function makeDatasetEntry(overrides: Partial<any> = {}): DashboardEntry {
   return {
     type: "dataset",
     id: 42,
+    name: "ds",
+    accessLevel: "WRITE",
     accessibleUserIds: [1, 2],
     coverImageUrl: undefined,
     likeCount: 5,
     isLiked: false,
+    dataset: { isOwner: true },
     ...overrides,
   } as unknown as DashboardEntry;
 }
@@ -49,6 +54,8 @@ describe("DatasetCardItemComponent", () => {
   let component: DatasetCardItemComponent;
   let fixture: ComponentFixture<DatasetCardItemComponent>;
   let hubService: Mocked<HubService>;
+  let downloadService: Mocked<DownloadService>;
+  let modalService: Mocked<NzModalService>;
 
   beforeEach(async () => {
     const hubServiceSpy = {
@@ -62,6 +69,18 @@ describe("DatasetCardItemComponent", () => {
           provide: DatasetService,
           useValue: {
             getDatasetCoverUrl: vi.fn().mockReturnValue(of({ url: "https://s3.example/presigned" })),
+            retrieveOwners: vi.fn().mockReturnValue(of(["owner@example.com"])),
+          },
+        },
+        {
+          provide: DownloadService,
+          useValue: { downloadDataset: vi.fn().mockReturnValue(of(new Blob())) },
+        },
+        {
+          provide: NzModalService,
+          useValue: {
+            create: vi.fn().mockReturnValue({ componentInstance: { refresh: of() } }),
+            confirm: vi.fn(),
           },
         },
         { provide: HubService, useValue: hubServiceSpy },
@@ -73,6 +92,8 @@ describe("DatasetCardItemComponent", () => {
     fixture = TestBed.createComponent(DatasetCardItemComponent);
     component = fixture.componentInstance;
     hubService = TestBed.inject(HubService) as unknown as Mocked<HubService>;
+    downloadService = TestBed.inject(DownloadService) as unknown as Mocked<DownloadService>;
+    modalService = TestBed.inject(NzModalService) as unknown as Mocked<NzModalService>;
   });
 
   describe("entryLink", () => {
@@ -153,6 +174,64 @@ describe("DatasetCardItemComponent", () => {
       expect(hubService.toggleLike).toHaveBeenCalledWith(42, "dataset", true);
       expect(component.isLiked).toBe(false);
       expect(component.likeCount).toBe(6);
+    });
+  });
+
+  describe("actions menu", () => {
+    beforeEach(() => {
+      component.entry = makeDatasetEntry();
+      component.ngOnChanges({ entry: { currentValue: component.entry } } as any);
+    });
+
+    it("disableDelete mirrors dataset ownership", () => {
+      component.entry = makeDatasetEntry({ dataset: { isOwner: false } });
+      component.ngOnChanges({ entry: { currentValue: component.entry } } as any);
+      expect(component.disableDelete).toBe(true);
+    });
+
+    it("onClickDownload downloads the dataset by id and name", () => {
+      component.onClickDownload();
+      expect(downloadService.downloadDataset).toHaveBeenCalledWith(42, "ds");
+    });
+
+    it("onClickOpenShareAccess opens the share modal for the dataset", async () => {
+      await component.onClickOpenShareAccess();
+      expect(modalService.create).toHaveBeenCalledTimes(1);
+      const cfg = modalService.create.mock.calls[0][0] as any;
+      expect(cfg.nzData).toMatchObject({ type: "dataset", id: 42, writeAccess: true });
+    });
+
+    it("onClickDelete asks for confirmation and emits deleted on confirm", () => {
+      modalService.confirm.mockImplementation((cfg: any) => {
+        cfg.nzOnOk();
+        return {} as any;
+      });
+      const deletedSpy = vi.fn();
+      component.deleted.subscribe(deletedSpy);
+      component.onClickDelete();
+      expect(modalService.confirm).toHaveBeenCalledTimes(1);
+      expect(deletedSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("onClickDelete is a no-op when delete is disabled", () => {
+      component.disableDelete = true;
+      component.onClickDelete();
+      expect(modalService.confirm).not.toHaveBeenCalled();
+    });
+
+    it("renders the more-btn trigger in the title row when showActions is true", () => {
+      component.showActions = true;
+      component.entry = makeDatasetEntry();
+      fixture.detectChanges();
+      const trigger = fixture.nativeElement.querySelector(".card-title-row .more-btn");
+      expect(trigger).toBeTruthy();
+    });
+
+    it("does not render the more-btn trigger when showActions is false", () => {
+      component.showActions = false;
+      component.entry = makeDatasetEntry();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector(".more-btn")).toBeNull();
     });
   });
 });

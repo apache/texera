@@ -25,7 +25,8 @@ import { SearchService } from "../../../service/user/search.service";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { SortMethod } from "../../../type/sort-method";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import { SearchResultsComponent } from "../search-results/search-results.component";
+import { SearchResultsComponent, SearchResultsViewMode } from "../search-results/search-results.component";
+import { DatasetCardItemComponent } from "../dataset-card-item/dataset-card-item.component";
 import { FiltersComponent } from "../filters/filters.component";
 import { firstValueFrom } from "rxjs";
 import { USER_DATASET } from "../../../../app-routing.constant";
@@ -40,9 +41,12 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { FiltersInstructionsComponent } from "../filters-instructions/filters-instructions.component";
 import { NzSelectComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
+
+const USER_DATASET_VIEW_MODE_STORAGE_KEY = "texera.user.dataset.viewMode";
 
 @UntilDestroy()
 @Component({
@@ -59,14 +63,25 @@ import { FormsModule } from "@angular/forms";
     FiltersComponent,
     FiltersInstructionsComponent,
     NzSelectComponent,
+    NzTooltipModule,
     FormsModule,
     SearchResultsComponent,
+    DatasetCardItemComponent,
   ],
 })
 export class UserDatasetComponent implements AfterViewInit {
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
   public isLogin = this.userService.isLogin();
+  public viewMode: SearchResultsViewMode =
+    localStorage.getItem(USER_DATASET_VIEW_MODE_STORAGE_KEY) === "card" ? "card" : "list";
+
+  setViewMode(mode: SearchResultsViewMode): void {
+    if (this.viewMode === mode) return;
+    this.viewMode = mode;
+    localStorage.setItem(USER_DATASET_VIEW_MODE_STORAGE_KEY, mode);
+  }
+
   public currentUid = this.userService.getCurrentUser()?.uid;
   public hasMismatch = false; // Display warning when there are mismatched datasets
 
