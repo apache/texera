@@ -21,7 +21,7 @@ import { Injectable } from "@angular/core";
 import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot } from "@angular/router";
 import { GuiConfigService } from "../gui-config.service";
 import { UserService } from "./user.service";
-import { DASHBOARD_ABOUT } from "../../../app-routing.constant";
+import { ABOUT } from "../../../app-routing.constant";
 
 /**
  * AuthGuardService is a service can tell the router whether
@@ -38,7 +38,7 @@ export class AuthGuardService implements CanActivate {
     if (this.userService.isLogin()) {
       return true;
     } else {
-      this.router.navigate([DASHBOARD_ABOUT], { queryParams: { returnUrl: state.url === "/" ? null : state.url } });
+      this.router.navigate([ABOUT], { queryParams: { returnUrl: state.url === "/" ? null : state.url } });
       return false;
     }
   }

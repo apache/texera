@@ -94,7 +94,8 @@
             "include": ["**/*.spec.ts"],
             "setupFiles": ["src/jsdom-svg-polyfill.ts"],
             "exclude": [
-              "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts"
+              "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts",
+              "**/*.browser.spec.ts"
             ]
           }
         },
@@ -105,7 +106,10 @@
             "runner": "vitest",
             "runnerConfig": "vitest.browser.config.ts",
             "tsConfig": "src/tsconfig.spec.json",
-            "include": ["**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts"]
+            "include": [
+              "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts",
+              "**/*.browser.spec.ts"
+            ]
           }
         }
       }

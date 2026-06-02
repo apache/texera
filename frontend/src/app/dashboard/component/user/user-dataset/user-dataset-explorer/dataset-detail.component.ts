@@ -67,12 +67,10 @@ import { FilesUploaderComponent } from "../../files-uploader/files-uploader.comp
 import { NzProgressComponent } from "ng-zorro-antd/progress";
 import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
 import { NzInputDirective } from "ng-zorro-antd/input";
-import { AppSettings } from "../../../../../common/app-setting";
 
 export const THROTTLE_TIME_MS = 1000;
 export const ABORT_RETRY_MAX_ATTEMPTS = 10;
 export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
-const DEFAULT_COVER_IMAGE = "assets/card_background.jpg";
 
 @UntilDestroy()
 @Component({
@@ -121,7 +119,7 @@ export class DatasetDetailComponent implements OnInit {
   public datasetCreationTime: string = "";
   public datasetCreationTimeTooltip: string = "";
   public datasetIsPublic: boolean = false;
-  public coverImageUrl: string = "";
+  public coverImageUrl: string | null = null;
   public datasetIsDownloadable: boolean = true;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
   public ownerEmail: string = "";
@@ -332,8 +330,9 @@ export class DatasetDetailComponent implements OnInit {
 
   retrieveDatasetInfo() {
     if (this.did) {
+      const did = this.did;
       this.datasetService
-        .getDataset(this.did, this.isLogin)
+        .getDataset(did, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(dashboardDataset => {
           const dataset = dashboardDataset.dataset;
@@ -344,9 +343,17 @@ export class DatasetDetailComponent implements OnInit {
           this.datasetIsDownloadable = dataset.isDownloadable;
           this.ownerEmail = dashboardDataset.ownerEmail;
           this.isOwner = dashboardDataset.isOwner;
-          this.coverImageUrl = dataset.coverImage
-            ? `${AppSettings.getApiEndpoint()}/dataset/${this.did}/cover?v=${encodeURIComponent(dataset.coverImage)}`
-            : DEFAULT_COVER_IMAGE;
+          if (dataset.coverImage) {
+            this.datasetService
+              .getDatasetCoverUrl(did)
+              .pipe(untilDestroyed(this))
+              .subscribe({
+                next: ({ url }) => (this.coverImageUrl = url),
+                error: () => (this.coverImageUrl = null),
+              });
+          } else {
+            this.coverImageUrl = null;
+          }
           if (typeof dataset.creationTime === "number") {
             const date = new Date(dataset.creationTime);
             this.datasetCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
@@ -776,14 +783,21 @@ export class DatasetDetailComponent implements OnInit {
     if (!this.did || !this.selectedVersion) {
       return;
     }
+    const did = this.did;
 
     const newCoverPath = `${this.selectedVersion.name}/${filePath}`;
     this.datasetService
-      .updateDatasetCoverImage(this.did, newCoverPath)
+      .updateDatasetCoverImage(did, newCoverPath)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          this.coverImageUrl = `${AppSettings.getApiEndpoint()}/dataset/${this.did}/cover?v=${encodeURIComponent(newCoverPath)}`;
+          this.datasetService
+            .getDatasetCoverUrl(did)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: ({ url }) => (this.coverImageUrl = url),
+              error: () => (this.coverImageUrl = null),
+            });
           this.notificationService.success("Cover image updated.");
         },
         error: (err: unknown) => {
