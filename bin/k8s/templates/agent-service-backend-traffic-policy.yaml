@@ -15,25 +15,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Agents are stateful and held in memory per pod, so all requests for a given
+# workflow must reach the same replica. The client stamps X-Agent-Workflow-Id on
+# every agent request; pin routing to it with a consistent hash.
+{{- if .Values.agentService.enabled }}
 apiVersion: gateway.envoyproxy.io/v1alpha1
-kind: SecurityPolicy
+kind: BackendTrafficPolicy
 metadata:
-  name: {{ .Release.Name }}-ext-auth
+  name: {{ .Release.Name }}-agent-service-traffic-policy
   namespace: {{ .Release.Namespace }}
 spec:
   targetRefs:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-      name: {{ .Release.Name }}-dynamic-routes
-  extAuth:
-    http:
-      backendRefs:
-        - name: {{ .Values.accessControlService.name }}-svc
-          port: {{ .Values.accessControlService.service.port }}
-      path: /api/auth
-      headersToBackend:
-        - x-user-computing-unit-access
-        - x-user-id
-        - x-user-name
-        - x-user-email
-        - Host
+      name: {{ .Release.Name }}-agent-service-route
+  loadBalancer:
+    type: ConsistentHash
+    consistentHash:
+      type: Header
+      header:
+        name: X-Agent-Workflow-Id
+{{- end }}

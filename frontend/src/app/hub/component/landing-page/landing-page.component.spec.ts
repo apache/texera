@@ -30,11 +30,7 @@ import { UserService } from "../../../common/service/user/user.service";
 import { StubUserService } from "../../../common/service/user/stub-user.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
-import {
-  DASHBOARD_HOME,
-  DASHBOARD_HUB_DATASET_RESULT,
-  DASHBOARD_HUB_WORKFLOW_RESULT,
-} from "../../../app-routing.constant";
+import { HOME, HUB_DATASET_RESULT, HUB_WORKFLOW_RESULT } from "../../../app-routing.constant";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("LandingPageComponent", () => {
@@ -196,18 +192,18 @@ describe("LandingPageComponent", () => {
   it("navigateToSearch routes to the workflow hub result for 'workflow'", () => {
     build();
     component.navigateToSearch("workflow");
-    expect(routerNavigateSpy).toHaveBeenCalledWith([DASHBOARD_HUB_WORKFLOW_RESULT]);
+    expect(routerNavigateSpy).toHaveBeenCalledWith([HUB_WORKFLOW_RESULT]);
   });
 
   it("navigateToSearch routes to the dataset hub result for 'dataset'", () => {
     build();
     component.navigateToSearch("dataset");
-    expect(routerNavigateSpy).toHaveBeenCalledWith([DASHBOARD_HUB_DATASET_RESULT]);
+    expect(routerNavigateSpy).toHaveBeenCalledWith([HUB_DATASET_RESULT]);
   });
 
   it("navigateToSearch routes to the dashboard home for an unknown type", () => {
     build();
     component.navigateToSearch("something-else");
-    expect(routerNavigateSpy).toHaveBeenCalledWith([DASHBOARD_HOME]);
+    expect(routerNavigateSpy).toHaveBeenCalledWith([HOME]);
   });
 });

@@ -46,11 +46,11 @@ import { formatCount, formatRelativeTime } from "src/app/common/util/format.util
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import {
-  DASHBOARD_HUB_DATASET_RESULT_DETAIL,
-  DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL,
-  DASHBOARD_USER_DATASET,
-  DASHBOARD_USER_PROJECT,
-  DASHBOARD_USER_WORKSPACE,
+  HUB_DATASET_RESULT_DETAIL,
+  HUB_WORKFLOW_RESULT_DETAIL,
+  USER_DATASET,
+  USER_PROJECT,
+  USER_WORKSPACE,
 } from "../../../../app-routing.constant";
 import { isDefined } from "../../../../common/util/predicate";
 import { NzCardComponent } from "ng-zorro-antd/card";
@@ -145,24 +145,24 @@ export class ListItemComponent implements OnChanges {
         this.disableDelete = !this.entry.workflow.isOwner;
         this.owners = this.entry.accessibleUserIds;
         if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-          this.entryLink = [DASHBOARD_USER_WORKSPACE, String(this.entry.id)];
+          this.entryLink = [USER_WORKSPACE, String(this.entry.id)];
         } else {
-          this.entryLink = [DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
+          this.entryLink = [HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
         }
         this.size = this.entry.size;
       }
       this.iconType = "project";
     } else if (this.entry.type === "project") {
-      this.entryLink = [DASHBOARD_USER_PROJECT, String(this.entry.id)];
+      this.entryLink = [USER_PROJECT, String(this.entry.id)];
       this.iconType = "container";
     } else if (this.entry.type === "dataset") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.dataset.isOwner;
         this.owners = this.entry.accessibleUserIds;
         if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-          this.entryLink = [DASHBOARD_USER_DATASET, String(this.entry.id)];
+          this.entryLink = [USER_DATASET, String(this.entry.id)];
         } else {
-          this.entryLink = [DASHBOARD_HUB_DATASET_RESULT_DETAIL, String(this.entry.id)];
+          this.entryLink = [HUB_DATASET_RESULT_DETAIL, String(this.entry.id)];
         }
         this.iconType = "database";
         this.size = this.entry.size;
