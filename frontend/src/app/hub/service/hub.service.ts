@@ -20,6 +20,7 @@
 import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
+import { map, switchMap } from "rxjs/operators";
 import { AppSettings } from "../../common/app-setting";
 import { SearchResultItem } from "../../dashboard/type/search-result";
 
@@ -100,6 +101,26 @@ export class HubService {
     return this.http.post<boolean>(`${this.BASE_URL}/unlike`, body, {
       headers: new HttpHeaders({ "Content-Type": "application/json" }),
     });
+  }
+
+  /** Like/unlike, then re-fetch the count. */
+  public toggleLike(
+    entityId: number,
+    entityType: EntityType,
+    currentlyLiked: boolean
+  ): Observable<{ liked: boolean; likeCount: number }> {
+    const action$ = currentlyLiked ? this.postUnlike(entityId, entityType) : this.postLike(entityId, entityType);
+    return action$.pipe(
+      switchMap(success =>
+        this.getCounts([entityType], [entityId], [ActionType.Like]).pipe(
+          map(counts => {
+            const likeCount = counts[0]?.counts.like ?? 0;
+            const liked = success ? !currentlyLiked : currentlyLiked;
+            return { liked, likeCount };
+          })
+        )
+      )
+    );
   }
 
   public postView(entityId: number, userId: number, entityType: EntityType): Observable<number> {
