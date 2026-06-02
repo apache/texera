@@ -105,4 +105,9 @@ async function getReviewersFromBlameMock({ files, pullBaseSha, author }) {
   const result = await getReviewersFromBlameMock({ files: ['a.txt', 'b.txt', 'c.txt'], pullBaseSha: 'base', author: 'david' });
   console.log('mock reviewers:', result);
   console.log('expected reviewers: ["alice","bob","carol"]');
+
+  // Author-is-filtered: when blame points to the PR author, they should be excluded
+  const authorFilteredResult = await getReviewersFromBlameMock({ files: ['a.txt'], pullBaseSha: 'base', author: 'alice' });
+  console.log('author-filtered reviewers:', authorFilteredResult);
+  console.log('expected author-filtered reviewers: []');
 })();
