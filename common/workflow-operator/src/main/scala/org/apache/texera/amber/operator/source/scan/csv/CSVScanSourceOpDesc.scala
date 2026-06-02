@@ -120,7 +120,11 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
     header.indices.foldLeft(Schema()) { (schema, i) =>
-      schema.add(header(i), attributeTypeList(i))
+      // Auto-rename blank header positions to `column-N` so empty CSV headers
+      // (e.g. a trailing comma) do not propagate empty attribute names to
+      // downstream Iceberg/Parquet writers, which reject them.
+      val name = Option(header(i)).filter(_.nonEmpty).getOrElse(s"column-${i + 1}")
+      schema.add(name, attributeTypeList(i))
     }
 
   }

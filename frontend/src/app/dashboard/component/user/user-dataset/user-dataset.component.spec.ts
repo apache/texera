@@ -19,7 +19,7 @@
 
 import { of, Subject } from "rxjs";
 import { UserDatasetComponent } from "./user-dataset.component";
-import { DASHBOARD_USER_DATASET } from "../../../../app-routing.constant";
+import { USER_DATASET } from "../../../../app-routing.constant";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 import { SortMethod } from "../../../type/sort-method";
 import { User } from "../../../../common/type/user";
@@ -278,7 +278,7 @@ describe("UserDatasetComponent", () => {
 
       component.onClickOpenDatasetAddComponent();
 
-      expect(routerMock.navigate).toHaveBeenCalledWith([`${DASHBOARD_USER_DATASET}/123`]);
+      expect(routerMock.navigate).toHaveBeenCalledWith([`${USER_DATASET}/123`]);
     });
 
     it("on close with null result: does not navigate", () => {
