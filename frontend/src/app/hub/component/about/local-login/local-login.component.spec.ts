@@ -29,7 +29,7 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../../common/service/gui-config.service.mock";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-import { DASHBOARD_USER_WORKFLOW } from "../../../../app-routing.constant";
+import { USER_WORKFLOW } from "../../../../app-routing.constant";
 
 describe("LocalLoginComponent", () => {
   let component: LocalLoginComponent;
@@ -216,14 +216,14 @@ describe("LocalLoginComponent", () => {
       validateSpy.mockRestore();
     });
 
-    it("calls UserService.login with trimmed username and navigates to DASHBOARD_USER_WORKFLOW on success", () => {
+    it("calls UserService.login with trimmed username and navigates to USER_WORKFLOW on success", () => {
       vi.spyOn(UserService, "validateUsername").mockReturnValue({ result: true, message: "ok" });
       component.allForms.patchValue({ loginUsername: "  alice  ", loginPassword: "secret" });
 
       component.login();
 
       expect(userServiceMock.login).toHaveBeenCalledWith("alice", "secret");
-      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(DASHBOARD_USER_WORKFLOW);
+      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
       expect(component.loginErrorMessage).toBeUndefined();
     });
 
