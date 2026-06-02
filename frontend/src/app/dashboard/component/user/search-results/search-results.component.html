@@ -20,36 +20,60 @@
 <nz-card
   class="section-list-container"
   [nzBodyStyle]="{ height: '100%'}">
-  <!-- itemSize: the height (px) of each list item,
+  <!-- LIST VIEW -->
+  <ng-container *ngIf="viewMode === 'list'">
+    <!-- itemSize: the height (px) of each list item,
         this MUST be approximately the same as list item size set in CSS,
         .workflow-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
       -->
-  <cdk-virtual-scroll-viewport
-    itemSize="70"
-    class="virtual-scroll-container">
-    <nz-list>
-      <ng-container *ngFor="let entry of entries">
-        <texera-list-item
-          (deleted)="deleted.emit(entry)"
-          (duplicated)="duplicated.emit(entry)"
-          (refresh)="refresh.emit()"
-          [isPrivateSearch]="isPrivateSearch"
-          [editable]="editable"
-          [entry]="entry"
-          [currentUid]="this.currentUid"
-          (checkboxChanged)="onEntryCheckboxChange()">
-        </texera-list-item>
-      </ng-container>
-    </nz-list>
-    <div
-      nz-list-load-more
-      class="load-more">
-      <button
-        nz-button
-        *ngIf="!loading && more"
-        (click)="loadMore()">
-        Load more
-      </button>
+    <cdk-virtual-scroll-viewport
+      itemSize="70"
+      class="virtual-scroll-container">
+      <nz-list>
+        <ng-container *ngFor="let entry of entries">
+          <texera-list-item
+            (deleted)="deleted.emit(entry)"
+            (duplicated)="duplicated.emit(entry)"
+            (refresh)="refresh.emit()"
+            [isPrivateSearch]="isPrivateSearch"
+            [editable]="editable"
+            [entry]="entry"
+            [currentUid]="this.currentUid"
+            (checkboxChanged)="onEntryCheckboxChange()">
+          </texera-list-item>
+        </ng-container>
+      </nz-list>
+      <div
+        nz-list-load-more
+        class="load-more">
+        <button
+          nz-button
+          *ngIf="!loading && more"
+          (click)="loadMore()">
+          Load more
+        </button>
+      </div>
+    </cdk-virtual-scroll-viewport>
+  </ng-container>
+
+  <!-- CARD VIEW -->
+  <ng-container *ngIf="viewMode === 'card' && cardTemplate">
+    <div class="card-scroll-container">
+      <div class="card-grid">
+        <ng-container
+          *ngFor="let entry of entries; trackBy: trackByEntryId"
+          [ngTemplateOutlet]="cardTemplate"
+          [ngTemplateOutletContext]="{ $implicit: entry }">
+        </ng-container>
+      </div>
+      <div class="load-more">
+        <button
+          nz-button
+          *ngIf="!loading && more"
+          (click)="loadMore()">
+          Load more
+        </button>
+      </div>
     </div>
-  </cdk-virtual-scroll-viewport>
+  </ng-container>
 </nz-card>

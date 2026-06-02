@@ -50,6 +50,16 @@ spec:
               value: {{ .Values.workflowComputingUnitPool.name }}
             - name: KUBERNETES_COMPUTE_UNIT_POOL_NAMESPACE
               value: {{ .Values.workflowComputingUnitPool.namespace }}
+            {{- if .Values.litellm.enabled }}
+            # LLM gateway used to serve /api/chat and /api/models to the agent service.
+            - name: LITELLM_BASE_URL
+              value: http://{{ .Values.litellm.name }}-svc:{{ .Values.litellm.service.port }}
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-agent-service-secret
+                  key: litellm-master-key
+            {{- end }}
             {{- range .Values.texeraEnvVars }}
             - name: {{ .name }}
               value: "{{ .value }}"
