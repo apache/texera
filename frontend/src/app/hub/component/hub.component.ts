@@ -18,11 +18,7 @@
  */
 
 import { Component, Input } from "@angular/core";
-import {
-  DASHBOARD_HOME,
-  DASHBOARD_HUB_DATASET_RESULT,
-  DASHBOARD_HUB_WORKFLOW_RESULT,
-} from "../../app-routing.constant";
+import { HOME, HUB_DATASET_RESULT, HUB_WORKFLOW_RESULT } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { SidebarTabs } from "../../common/type/gui-config";
 import { NgIf } from "@angular/common";
@@ -41,9 +37,9 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 export class HubComponent {
   @Input() isLogin: boolean = false;
   @Input() sidebarTabs: SidebarTabs = {} as SidebarTabs;
-  protected readonly DASHBOARD_HOME = DASHBOARD_HOME;
-  protected readonly DASHBOARD_HUB_WORKFLOW_RESULT = DASHBOARD_HUB_WORKFLOW_RESULT;
-  protected readonly DASHBOARD_HUB_DATASET_RESULT = DASHBOARD_HUB_DATASET_RESULT;
+  protected readonly HOME = HOME;
+  protected readonly HUB_WORKFLOW_RESULT = HUB_WORKFLOW_RESULT;
+  protected readonly HUB_DATASET_RESULT = HUB_DATASET_RESULT;
 
   constructor(protected config: GuiConfigService) {}
 }
