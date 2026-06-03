@@ -16,7 +16,7 @@ Migrating notebook code into Texera operators, then wiring those operators with 
 
 ## 2. Example: convert a "tweet analysis" notebook into a workflow
 
-> The [notebook](https://hub.texera.io/dashboard/user/dataset/124), [dataset](https://hub.texera.io/dashboard/user/dataset/124) and [workflow](https://hub.texera.io/dashboard/user/workspace/1162) in this example are available on [TexeraHub](https://hub.texera.io/dashboard/about).
+> The [notebook](https://hub.texera.io/user/dataset/124), [dataset](https://hub.texera.io/user/dataset/124) and [workflow](https://hub.texera.io/user/workflow/1162) in this example are available on [TexeraHub](https://hub.texera.io/about).
 
 ### Notebook Overview
 We will use a Tweet-Analysis notebook to demonstrate the migration process. The notebook has three cells:

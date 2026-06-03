@@ -53,6 +53,7 @@ import {
   getComputingUnitCpuLimitUnit,
 } from "../../../../../common/util/computing-unit.util";
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
+import { formatRelativeTime } from "../../../../../common/util/format.util";
 import { ComputingUnitActionsService } from "../../../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
@@ -312,31 +313,7 @@ export class UserComputingUnitListItemComponent implements OnInit {
     return this.gpuOptions.length > 1 || (this.gpuOptions.length === 1 && this.gpuOptions[0] !== "0");
   }
 
-  formatTime(timestamp: number | undefined): string {
-    if (timestamp === undefined) {
-      return "Unknown"; // Return "Unknown" if the timestamp is undefined
-    }
-
-    const currentTime = new Date().getTime();
-    const timeDifference = currentTime - timestamp;
-
-    const minutesAgo = Math.floor(timeDifference / (1000 * 60));
-    const hoursAgo = Math.floor(timeDifference / (1000 * 60 * 60));
-    const daysAgo = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
-    const weeksAgo = Math.floor(daysAgo / 7);
-
-    if (minutesAgo < 60) {
-      return `${minutesAgo} minutes ago`;
-    } else if (hoursAgo < 24) {
-      return `${hoursAgo} hours ago`;
-    } else if (daysAgo < 7) {
-      return `${daysAgo} days ago`;
-    } else if (weeksAgo < 4) {
-      return `${weeksAgo} weeks ago`;
-    } else {
-      return new Date(timestamp).toLocaleDateString();
-    }
-  }
+  formatRelativeTime = formatRelativeTime;
 
   public async onClickOpenShareAccess(cuid: number): Promise<void> {
     this.computingUnitActionsService.openShareAccessModal(cuid, false);

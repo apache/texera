@@ -45,6 +45,7 @@ import { OperatorReuseCacheStatusService } from "../service/workflow-status/oper
 import { EntityType, HubService } from "../../hub/service/hub.service";
 import { commonTestProviders } from "../../common/testing/test-utils";
 import { WorkspaceComponent } from "./workspace.component";
+import { USER_WORKSPACE } from "../../app-routing.constant";
 
 describe("WorkspaceComponent", () => {
   let component: WorkspaceComponent;
@@ -304,6 +305,51 @@ describe("WorkspaceComponent", () => {
       component.registerAutoPersistWorkflow();
       component.registerAutoPersistWorkflow();
       expect(workflowActionService.workflowChanged).toHaveBeenCalledTimes(1);
+    });
+
+    it("updates the URL via location.go to /user/workflow/<wid> (no /dashboard prefix) when the persisted wid differs", async () => {
+      vi.useFakeTimers();
+      try {
+        const workflowChanged$ = new Subject<void>();
+        await createFixture();
+        workflowActionService.workflowChanged.mockReturnValue(workflowChanged$.asObservable());
+        // Persist returns a workflow with a different wid than what's currently
+        // on the metadata (wid: 42 in the stub). That mismatch is the trigger
+        // for the URL update.
+        const persistedWorkflow = { ...stubWorkflow, wid: 99 } as Workflow;
+        workflowPersistService.persistWorkflow.mockReturnValue(of(persistedWorkflow));
+
+        component.registerAutoPersistWorkflow();
+        workflowChanged$.next();
+        // Flush the debounceTime(SAVE_DEBOUNCE_TIME_IN_MS).
+        vi.advanceTimersByTime(5000);
+
+        expect(locationMock.go).toHaveBeenCalledWith(`${USER_WORKSPACE}/99`);
+        expect(USER_WORKSPACE).toBe("/user/workflow");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("skips the URL update when the persisted wid matches the current metadata", async () => {
+      vi.useFakeTimers();
+      try {
+        const workflowChanged$ = new Subject<void>();
+        await createFixture();
+        workflowActionService.workflowChanged.mockReturnValue(workflowChanged$.asObservable());
+        // Metadata wid is 42, persisted wid is also 42 → no URL update.
+        workflowPersistService.persistWorkflow.mockReturnValue(of(stubWorkflow));
+
+        component.registerAutoPersistWorkflow();
+        workflowChanged$.next();
+        vi.advanceTimersByTime(5000);
+
+        expect(locationMock.go).not.toHaveBeenCalled();
+        // Metadata is still synced even when the URL doesn't change.
+        expect(workflowActionService.setWorkflowMetadata).toHaveBeenCalledWith(stubWorkflow);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

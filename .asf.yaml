@@ -114,7 +114,11 @@ github:
           - "rel/*"
         excludes: []
       bypass_teams:
-        - root
+        - "root"
+        # Individual user (xuang7, v1.2 release manager) — listed here per INFRA
+        # guidance even though the open-source asfyaml parser only documents team
+        # slugs.
+        - "xuang7"
       restrict_deletion: true
       restrict_force_push: true
 notifications:

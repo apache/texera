@@ -130,3 +130,21 @@ nz-content {
     margin: 0 1rem 0 0; // add space to the right
   }
 }
+
+.card-scroll-container {
+  height: 100%;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  justify-content: start;
+  align-items: stretch;
+
+  > * {
+    max-width: 300px;
+  }
+}

@@ -30,6 +30,14 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
+import {
+  HUB_DATASET_RESULT_DETAIL,
+  HUB_WORKFLOW_RESULT_DETAIL,
+  USER_DATASET,
+  USER_PROJECT,
+  USER_WORKSPACE,
+} from "../../../../app-routing.constant";
+
 describe("ListItemComponent", () => {
   let component: ListItemComponent;
   let fixture: ComponentFixture<ListItemComponent>;
@@ -118,5 +126,67 @@ describe("ListItemComponent", () => {
     expect(workflowPersistService.updateWorkflowDescription).toHaveBeenCalledWith(1, newDescription);
     expect(component.entry.description).toBe("Old Description");
     expect(component.editingDescription).toBe(false);
+  });
+
+  describe("initializeEntry routes", () => {
+    const baseStats = { likeCount: 0, viewCount: 0, isLiked: false };
+
+    it("routes owned workflows to the user workspace", () => {
+      component.currentUid = 1;
+      component.entry = {
+        id: 100,
+        type: "workflow",
+        workflow: { isOwner: true },
+        accessibleUserIds: [1],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "100"]);
+    });
+
+    it("routes non-owned workflows to the hub workflow detail page", () => {
+      component.currentUid = 1;
+      component.entry = {
+        id: 101,
+        type: "workflow",
+        workflow: { isOwner: false },
+        accessibleUserIds: [2],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "101"]);
+    });
+
+    it("routes projects to the user project page", () => {
+      component.entry = { id: 200, type: "project", ...baseStats } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([USER_PROJECT, "200"]);
+    });
+
+    it("routes owned datasets to the user dataset page", () => {
+      component.currentUid = 1;
+      component.entry = {
+        id: 300,
+        type: "dataset",
+        dataset: { isOwner: true },
+        accessibleUserIds: [1],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([USER_DATASET, "300"]);
+    });
+
+    it("routes non-owned datasets to the hub dataset detail page", () => {
+      component.currentUid = 1;
+      component.entry = {
+        id: 301,
+        type: "dataset",
+        dataset: { isOwner: false },
+        accessibleUserIds: [2],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([HUB_DATASET_RESULT_DETAIL, "301"]);
+    });
   });
 });
