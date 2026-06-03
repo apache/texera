@@ -190,7 +190,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
 
   "image task family" should
     "route image-only tasks through ImageTaskCodegen (raw binary payload + image headers)" in {
-    val code = makeDesc(task = "image-classification", inputImageColumn = "img").generatePythonCode()
+    val code =
+      makeDesc(task = "image-classification", inputImageColumn = "img").generatePythonCode()
     code should include("self.IMAGE_INPUT = ")
     code should include("self.INPUT_IMAGE_COLUMN = ")
     code should include("if task in image_only_tasks:")

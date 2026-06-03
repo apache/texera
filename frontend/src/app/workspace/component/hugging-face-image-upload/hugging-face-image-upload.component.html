@@ -6,15 +6,27 @@
     class="hf-image-upload-input"
     (change)="onFileSelected($event)" />
 
-  <div *ngIf="previewSrc" class="hf-image-preview">
-    <img [src]="previewSrc" alt="Uploaded Hugging Face task input" />
+  <div
+    *ngIf="previewSrc"
+    class="hf-image-preview">
+    <img
+      [src]="previewSrc"
+      alt="Uploaded Hugging Face task input" />
     <div class="hf-image-meta">
       <span>{{ displayFileName || "Selected image" }}</span>
-      <button nz-button nzSize="small" type="button" (click)="clearImage(fileInput)">Clear</button>
+      <button
+        nz-button
+        nzSize="small"
+        type="button"
+        (click)="clearImage(fileInput)">
+        Clear
+      </button>
     </div>
   </div>
 
-  <div *ngIf="errorMessage" class="hf-image-error">
+  <div
+    *ngIf="errorMessage"
+    class="hf-image-error">
     {{ errorMessage }}
   </div>
 </div>
