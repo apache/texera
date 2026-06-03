@@ -24,20 +24,19 @@ extend. The tests use minimal stub subclasses that mirror what
 emit so the behavior covered here is the same shape that ships at
 runtime.
 
-Single-loop coverage:
-  - LoopStart's first-time state observation (merge into self.state).
-  - LoopEnd's process_table is the identity yield.
-  - End-to-end one-iteration loop driven through the matching-loop branch.
+Coverage:
+  - LoopStart's first-entry state merge into self.state.
+  - LoopEnd's process_table identity yield; condition is abstract.
+  - The guarded exec helpers (eval_output / run_update / eval_condition)
+    keep the reserved `table` / `output` names out of the persistent loop
+    state, so user code cannot silently clobber loop machinery.
+  - A multi-iteration loop driven to completion through the operators and the
+    State to_tuple/from_tuple round-trip (TestLoopRunsToCompletion).
 
-Nested-loop coverage:
-  - LoopStart.process_state with `LoopStartStateURI` already present
-    must increment `loop_counter` and pass the state through downstream
-    (this is what makes inner LoopStart not consume outer-loop state).
-  - LoopEnd's generated process_state, when `loop_counter > 0`, must
-    decrement and return the state unchanged so the outer LoopEnd is
-    the one that runs the user's update / condition.
-  - Round-trip outer × inner loop preserves the nesting invariant
-    (loop_counter is symmetric across LoopStart/LoopEnd traversals).
+loop_counter and the LoopStart jump metadata (LoopStartId / LoopStartStateURI)
+are owned by the worker runtime, not these operators -- they ride the
+StateFrame envelope as their own columns -- so their handling is covered in
+test_main_loop.py::TestLoopCounterRuntime.
 """
 
 from pickle import loads
@@ -270,3 +269,87 @@ class TestLoopEndMatchingBranch:
 # operators no longer read or mutate loop_counter), so it is covered in
 # test_main_loop.py::TestLoopCounterRuntime rather than here.
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Loop runs to completion -- multi-iteration composition of the real operators
+# (eval_output / run_update / eval_condition), the State to_tuple/from_tuple
+# round-trip that the materialized state channel performs, and the back-edge
+# hand-off of the user loop variables. This is the closest verifiable proxy
+# for a live single-loop run; the full-engine scheduler / region-re-execution
+# path is exercised by the integration CI job, not here.
+# ---------------------------------------------------------------------------
+
+
+class TestLoopRunsToCompletion:
+    @staticmethod
+    def _drive_single_loop(rows, init, output_expr, update, condition_expr):
+        """Drive one LoopStart -> LoopEnd loop to completion.
+
+        Mimics how the engine runs each iteration: the LoopStart region is
+        re-executed (a fresh operator whose open() seeds the loop variables,
+        the back-edge state overriding them, and the upstream table re-read),
+        the produced state crosses the materialized channel (a State
+        to_tuple/from_tuple round-trip), the LoopEnd runs the user update and
+        evaluates the condition, and on continuation only the user loop
+        variables are handed back over the back-edge.
+
+        Returns (iteration_count, emitted_body_rows, final_loop_vars).
+        """
+        back_edge = None
+        iterations = 0
+        emitted = []
+        while True:
+            iterations += 1
+            assert iterations <= 100, "loop failed to terminate"
+
+            start = _StubLoopStart(initialization=init, output_expr=output_expr)
+            start.open()
+            if back_edge is not None:
+                start.process_state(back_edge, port=0)
+            for row in rows:
+                list(start.process_tuple(row, port=0))
+            emitted.extend(o for o in start.on_finish(port=0) if o is not None)
+            produced = start.produce_state_on_finish(port=0)
+
+            # Cross-region hand-off: serialize + deserialize like the
+            # materialized state channel does.
+            forwarded = State.from_tuple(State(produced).to_tuple())
+
+            end = _StubLoopEnd(update=update, condition_expr=condition_expr)
+            end.run_update(update, forwarded)
+            if not end.condition():
+                return iterations, emitted, dict(end.state)
+
+            # Only the user loop variables cross the back-edge.
+            back_edge = State(end.state)
+
+    def test_single_loop_iterates_once_per_row_then_stops(self):
+        rows = [Tuple({"v": 1}), Tuple({"v": 2}), Tuple({"v": 3})]
+        iterations, emitted, final_vars = self._drive_single_loop(
+            rows,
+            init="i = 0",
+            output_expr="table.iloc[i]",
+            update="i += 1",
+            condition_expr="i < len(table)",
+        )
+        assert iterations == 3
+        assert len(emitted) == 3  # one loop-body row emitted per iteration
+        assert final_vars["i"] == 3
+
+    def test_accumulator_persists_and_reserved_names_never_leak(self):
+        rows = [Tuple({"v": 10}), Tuple({"v": 20}), Tuple({"v": 30})]
+        iterations, _, final_vars = self._drive_single_loop(
+            rows,
+            init="i = 0; total = 0",
+            output_expr="table.iloc[i]",
+            update="total += int(table.iloc[i]['v']); i += 1",
+            condition_expr="i < len(table)",
+        )
+        assert iterations == 3
+        assert final_vars["i"] == 3
+        assert final_vars["total"] == 60  # 10 + 20 + 30 carried across iterations
+        # `table`/`output` are runtime-reserved; they must never persist in the
+        # loop state that crosses the back-edge.
+        assert "table" not in final_vars
+        assert "output" not in final_vars
