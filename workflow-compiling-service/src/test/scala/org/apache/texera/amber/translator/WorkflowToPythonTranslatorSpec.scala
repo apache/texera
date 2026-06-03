@@ -35,7 +35,10 @@ import org.apache.texera.amber.operator.source.fetcher.{DecodingMethod, URLFetch
 import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
+import org.apache.texera.amber.operator.difference.DifferenceOpDesc
+import org.apache.texera.amber.operator.intersect.IntersectOpDesc
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
+import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
@@ -419,6 +422,92 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     // KNOWN LIMITATION: the in1df/in2df scheme can't express N-unknown inputs,
     // so a 3rd upstream is silently dropped — only the first two are concatted.
     script should include(s"= pd.concat([$aVar, $bVar], ignore_index=True)")
+  }
+
+  // --- SetOp: IntersectOpDesc (distinct rows in both; null-equal via duplicated) ---
+  it should "translate IntersectOpDesc into a concat + duplicated intersection" in {
+    val csvLeft = csvSource("file:/tmp/left.csv")
+    val csvRight = csvSource("file:/tmp/right.csv")
+    val intersect = new IntersectOpDesc()
+
+    // port-1 link before port-0 to pin in1df -> port 0 (left).
+    val links = List(
+      linkToPort(csvRight, intersect, toPort = 1),
+      linkToPort(csvLeft, intersect, toPort = 0)
+    )
+    val script = translate(List(csvRight, csvLeft, intersect), links)
+
+    val leftVar = varReading(script, "left.csv")
+    val rightVar = varReading(script, "right.csv")
+    script should include(
+      s"_both = pd.concat([$leftVar.drop_duplicates(), $rightVar.drop_duplicates()], ignore_index=True)"
+    )
+    script should include("""_both[_both.duplicated(keep="first")].reset_index(drop=True)""")
+    script should not include "in1df"
+    script should not include "in2df"
+    script should not include "out1df"
+  }
+
+  // --- SetOp: DifferenceOpDesc (left - right; asymmetric) ---
+  it should "translate DifferenceOpDesc into the [left, right, right] anti-join" in {
+    val csvLeft = csvSource("file:/tmp/left.csv")
+    val csvRight = csvSource("file:/tmp/right.csv")
+    val difference = new DifferenceOpDesc()
+
+    val links = List(
+      linkToPort(csvRight, difference, toPort = 1),
+      linkToPort(csvLeft, difference, toPort = 0)
+    )
+    val script = translate(List(csvRight, csvLeft, difference), links)
+
+    val leftVar = varReading(script, "left.csv")
+    val rightVar = varReading(script, "right.csv")
+    // left appears once, right twice -> only left-only rows survive drop_duplicates(keep=False).
+    script should include(
+      s"pd.concat([$leftVar.drop_duplicates(), $rightVar.drop_duplicates(), $rightVar.drop_duplicates()], ignore_index=True)"
+    )
+    script should include(".drop_duplicates(keep=False).reset_index(drop=True)")
+    script should not include "out1df"
+  }
+
+  it should "keep DifferenceOpDesc asymmetric when the port-0 source swaps" in {
+    val csvLeft = csvSource("file:/tmp/left.csv")
+    val csvRight = csvSource("file:/tmp/right.csv")
+    val difference = new DifferenceOpDesc()
+
+    // Swap which source feeds port 0: now right.csv is the left/minuend side.
+    val links = List(
+      linkToPort(csvRight, difference, toPort = 0),
+      linkToPort(csvLeft, difference, toPort = 1)
+    )
+    val script = translate(List(csvRight, csvLeft, difference), links)
+
+    val leftVar = varReading(script, "left.csv") // now wired to port 1 (right side)
+    val rightVar = varReading(script, "right.csv") // now wired to port 0 (left side)
+    script should include(
+      s"pd.concat([$rightVar.drop_duplicates(), $leftVar.drop_duplicates(), $leftVar.drop_duplicates()], ignore_index=True)"
+    )
+  }
+
+  // --- SetOp: SymmetricDifferenceOpDesc (rows in exactly one side) ---
+  it should "translate SymmetricDifferenceOpDesc into concat + drop_duplicates(keep=False)" in {
+    val csvLeft = csvSource("file:/tmp/left.csv")
+    val csvRight = csvSource("file:/tmp/right.csv")
+    val symDiff = new SymmetricDifferenceOpDesc()
+
+    val links = List(
+      linkToPort(csvRight, symDiff, toPort = 1),
+      linkToPort(csvLeft, symDiff, toPort = 0)
+    )
+    val script = translate(List(csvRight, csvLeft, symDiff), links)
+
+    val leftVar = varReading(script, "left.csv")
+    val rightVar = varReading(script, "right.csv")
+    script should include(
+      s"pd.concat([$leftVar.drop_duplicates(), $rightVar.drop_duplicates()], ignore_index=True)"
+    )
+    script should include(".drop_duplicates(keep=False).reset_index(drop=True)")
+    script should not include "out1df"
   }
 
   // --- Regression: multi-input port ordering ---

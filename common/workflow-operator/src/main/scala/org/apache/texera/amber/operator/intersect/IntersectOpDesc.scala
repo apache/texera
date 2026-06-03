@@ -22,10 +22,10 @@ package org.apache.texera.amber.operator.intersect
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 
-class IntersectOpDesc extends LogicalOp {
+class IntersectOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -52,4 +52,12 @@ class IntersectOpDesc extends LogicalOp {
       inputPorts = List(InputPort(PortIdentity()), InputPort(PortIdentity(1))),
       outputPorts = List(OutputPort(blocking = true))
     )
+
+  // IntersectOpExec returns leftSet.intersect(rightSet) over HashSet[Tuple]
+  // (distinct rows present in both inputs). We dedup each side, concat, and
+  // keep rows that occur twice. drop_duplicates/duplicated treat NaN == NaN,
+  // matching the JVM HashSet's null equality (pd.merge would not).
+  override def generateStandaloneCode(): String =
+    """_both = pd.concat([in1df.drop_duplicates(), in2df.drop_duplicates()], ignore_index=True)
+      |out1df = _both[_both.duplicated(keep="first")].reset_index(drop=True)""".stripMargin
 }

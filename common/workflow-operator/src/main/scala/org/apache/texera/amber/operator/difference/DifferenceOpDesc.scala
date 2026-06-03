@@ -23,10 +23,10 @@ import com.google.common.base.Preconditions
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 
-class DifferenceOpDesc extends LogicalOp {
+class DifferenceOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -61,4 +61,14 @@ class DifferenceOpDesc extends LogicalOp {
       ),
       outputPorts = List(OutputPort(blocking = true))
     )
+
+  // DifferenceOpExec returns leftHashSet.diff(rightHashSet): distinct rows in
+  // the left input (port 0) absent from the right (port 1). The [left, right,
+  // right] concat + drop_duplicates(keep=False) trick keeps only rows that
+  // occur exactly once: left-only rows survive, anything present in right (>=2
+  // copies) drops. NaN-equal like the JVM HashSet (pd.merge would not be).
+  override def generateStandaloneCode(): String =
+    "out1df = pd.concat([in1df.drop_duplicates(), in2df.drop_duplicates(), " +
+      "in2df.drop_duplicates()], ignore_index=True)" +
+      ".drop_duplicates(keep=False).reset_index(drop=True)"
 }
