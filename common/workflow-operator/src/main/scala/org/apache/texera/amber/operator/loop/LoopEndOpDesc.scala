@@ -76,16 +76,12 @@ class LoopEndOpDesc extends LogicalOp {
        |class ProcessLoopEndOperator(LoopEndOperator):
        |    @overrides
        |    def process_state(self, state: State, port: int) -> Optional[State]:
-       |      self.state = dict(state)
-       |      from pickle import loads
-       |      self.state["table"] = loads(self.state["table"])
-       |      exec($update, {}, self.state)
+       |      self.run_update($update, state)
        |      return None
        |
        |    @overrides
        |    def condition(self) -> bool:
-       |      exec("output = " + $condition, {}, self.state)
-       |      return self.state["output"]
+       |      return self.eval_condition($condition)
        |""".encode
   }
 }

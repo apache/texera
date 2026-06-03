@@ -305,17 +305,66 @@ class LoopStartOperator(TableOperator):
         return None
 
     @overrides.final
+    def eval_output(self, output_expr: str, table: Table) -> TableLike:
+        # Run the user's `output` expression in a throwaway namespace seeded
+        # with the loop variables and the input `table`. This lets user code
+        # read `table` and define `output` without those reserved names leaking
+        # into -- or being silently clobbered out of -- the persistent loop
+        # state (self.state), addressing the exec-namespace collision.
+        namespace = {**self.state, "table": table}
+        exec("output = " + output_expr, {}, namespace)
+        return namespace["output"]
+
+    @overrides.final
     def produce_state_on_finish(self, port: int) -> State:
         from pickle import dumps
 
-        self.state["table"] = dumps(Table(self._TableOperator__table_data[port]))
-        return dict(self.state)
+        # Emit the user's loop variables plus the pickled input table for the
+        # matching LoopEnd. `table`/`output` are runtime-reserved and are not
+        # kept in self.state, so drop any stray ones before adding the real
+        # pickled table.
+        produced = {
+            key: value
+            for key, value in self.state.items()
+            if key not in ("table", "output")
+        }
+        produced["table"] = dumps(Table(self._TableOperator__table_data[port]))
+        return produced
 
 
 class LoopEndOperator(TableOperator):
     @overrides.final
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         yield table
+
+    @overrides.final
+    def run_update(self, update_code: str, state: State) -> None:
+        # Run the user's `update` in a throwaway namespace seeded with the
+        # incoming loop variables and the unpickled input table, then persist
+        # only the user variables back into self.state. `table`/`output` are
+        # runtime-reserved and never persist, so user code cannot silently
+        # clobber loop machinery through them. The real input table is kept on
+        # self._loop_table so condition() can read it after the update.
+        from pickle import loads
+
+        table = loads(state["table"])
+        namespace = {
+            key: value for key, value in state.items() if key not in ("table", "output")
+        }
+        namespace["table"] = table
+        exec(update_code, {}, namespace)
+        self._loop_table = table
+        self.state = {
+            key: value
+            for key, value in namespace.items()
+            if key not in ("table", "output")
+        }
+
+    @overrides.final
+    def eval_condition(self, condition_expr: str) -> bool:
+        namespace = {**self.state, "table": self._loop_table}
+        exec("output = " + condition_expr, {}, namespace)
+        return namespace["output"]
 
     @abstractmethod
     def condition(self) -> bool:

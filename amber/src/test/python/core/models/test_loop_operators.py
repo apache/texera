@@ -60,9 +60,9 @@ from core.models.operator import LoopEndOperator, LoopStartOperator
 class _StubLoopStart(LoopStartOperator):
     """Mirrors `ProcessLoopStartOperator` from LoopStartOpDesc codegen.
 
-    open() seeds `loop_counter` to 0 and runs the user's `initialization`.
-    process_table runs the user's `output` expression and yields the
-    result for downstream.
+    open() runs the user's `initialization` to seed self.state with the loop
+    variables. process_table runs the user's `output` expression (via the
+    guarded eval_output helper) and yields the result for downstream.
     """
 
     def __init__(self, initialization="i = 0", output_expr="table.iloc[i]"):
@@ -75,19 +75,17 @@ class _StubLoopStart(LoopStartOperator):
         exec(self._initialization, {}, self.state)
 
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-        self.state["table"] = table
-        exec(f"output = {self._output_expr}", {}, self.state)
-        yield self.state["output"]
+        yield self.eval_output(self._output_expr, table)
 
 
 class _StubLoopEnd(LoopEndOperator):
     """Mirrors `ProcessLoopEndOperator` from LoopEndOpDesc codegen.
 
-    process_state recognises the nested-loop pass-through path
-    (`loop_counter > 0`) and decrements; on the matching-loop branch
-    it stashes the state, deserializes the pickled table, and runs the
-    user's `update`. condition() returns the boolean result of the
-    user's `condition` expression evaluated in self.state.
+    Consume-only: the runtime owns loop_counter and the nested pass-through, so
+    the operator only runs the matching-loop path. run_update / eval_condition
+    run the user's `update` / `condition` in a guarded namespace (user vars +
+    table) so `table`/`output` never persist in or get clobbered out of
+    self.state.
     """
 
     def __init__(self, update="i += 1", condition_expr="i < 3"):
@@ -97,17 +95,11 @@ class _StubLoopEnd(LoopEndOperator):
         self.state = {}
 
     def process_state(self, state: State, port: int) -> Optional[State]:
-        # Consume-only, mirroring the simplified codegen: the runtime owns
-        # loop_counter and the nested pass-through branch, so the operator only
-        # ever runs the matching-loop (consume) path.
-        self.state = dict(state)
-        self.state["table"] = loads(self.state["table"])
-        exec(self._update, {}, self.state)
+        self.run_update(self._update, state)
         return None
 
     def condition(self) -> bool:
-        exec(f"output = {self._condition_expr}", {}, self.state)
-        return self.state["output"]
+        return self.eval_condition(self._condition_expr)
 
 
 # ---------------------------------------------------------------------------
@@ -238,9 +230,10 @@ class TestLoopEndMatchingBranch:
 
         assert result is None, "matching-loop branch must not emit state downstream"
         assert op.state["i"] == 3, "user's update did not run on the matching branch"
-        # The table is unpickled in-place so condition() can see it as
-        # a real Table without a second round of deserialization.
-        assert isinstance(op.state["table"], Table)
+        # Only user variables persist in self.state; the unpickled table is kept
+        # off to the side (self._loop_table) for condition(), never in the state.
+        assert "table" not in op.state
+        assert isinstance(op._loop_table, Table)
 
     def test_condition_evaluates_user_expression_against_stashed_state(self):
         op = _StubLoopEnd(update="i += 1", condition_expr="i < 3")
@@ -250,7 +243,6 @@ class TestLoopEndMatchingBranch:
         op.process_state(
             State(
                 {
-                    "loop_counter": 0,
                     "i": 1,
                     "table": dumps(Table([Tuple({"v": 1})])),
                 }
@@ -263,7 +255,6 @@ class TestLoopEndMatchingBranch:
         op.process_state(
             State(
                 {
-                    "loop_counter": 0,
                     "i": 2,
                     "table": dumps(Table([Tuple({"v": 1})])),
                 }

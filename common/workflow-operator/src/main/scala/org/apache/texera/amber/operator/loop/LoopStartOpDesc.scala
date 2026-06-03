@@ -80,9 +80,7 @@ class LoopStartOpDesc extends LogicalOp {
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-       |        self.state["table"] = table
-       |        exec("output = " + $output, {}, self.state)
-       |        yield self.state["output"]
+       |        yield self.eval_output($output, table)
        |""".encode
   }
 }

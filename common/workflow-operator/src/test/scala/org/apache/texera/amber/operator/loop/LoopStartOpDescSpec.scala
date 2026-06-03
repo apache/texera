@@ -77,7 +77,9 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     code should not include "loop_counter"
     code should include(s"exec(${decodeExpr("i = 0")}, {}, self.state)")
     code should include("def process_table(self, table: Table, port: int)")
-    code should include(s"""exec("output = " + ${decodeExpr("table.iloc[i]")}, {}, self.state)""")
+    // The output expression runs through the guarded eval_output helper so
+    // `table`/`output` stay out of the persistent loop state.
+    code should include(s"yield self.eval_output(${decodeExpr("table.iloc[i]")}, table)")
   }
 
   // ---- codegen robustness -------------------------------------------------

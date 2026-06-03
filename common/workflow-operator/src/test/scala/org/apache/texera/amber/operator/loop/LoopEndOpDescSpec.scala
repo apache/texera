@@ -75,38 +75,32 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     code should include("def condition(self) -> bool:")
   }
 
-  it should "generate a consume-only process_state with no loop_counter handling" in {
-    // loop_counter is owned by the worker runtime now, not the operator. The
-    // nested-loop pass-through (decrement + forward) happens in
-    // main_loop._process_state_frame before the operator is invoked, so the
-    // generated LoopEnd only ever runs the matching-loop (consume) path and
-    // must not read or mutate loop_counter. Pin the absence so a regression
-    // that re-introduces operator-side counter handling is caught.
-    val code = desc().generatePythonCode()
-    code should not include "loop_counter"
-    code should include("self.state = dict(state)")
-  }
-
-  it should "stash state, deserialize the pickled table, and run the decoded update on the matching-loop branch" in {
+  it should "delegate the user update to run_update with no loop_counter handling" in {
+    // loop_counter is owned by the runtime; the nested-loop pass-through happens
+    // in main_loop._process_state_frame before the operator is invoked, so the
+    // generated LoopEnd only runs the matching-loop (consume) path. The user
+    // `update` runs through the guarded run_update helper (which keeps
+    // `table`/`output` out of self.state), not inline against self.state.
     val code = desc(update = "i = i + 7").generatePythonCode()
-    // The matching-loop branch is the path the user's `update`
-    // expression runs on. Pin the pickle round-trip and the exec call
-    // so a refactor of either is intentional.
-    code should include("self.state = dict(state)")
-    code should include("from pickle import loads")
-    code should include("self.state[\"table\"] = loads(self.state[\"table\"])")
-    code should include(s"exec(${decodeExpr("i = i + 7")}, {}, self.state)")
+    code should not include "loop_counter"
+    code should include(s"self.run_update(${decodeExpr("i = i + 7")}, state)")
   }
 
-  it should "evaluate the decoded user condition in process-shared state" in {
+  it should "not exec user code inline against self.state (the guard lives in the base helpers)" in {
+    // The table unpickling and the user update/condition exec now run in the
+    // LoopEnd base helpers (run_update / eval_condition) against a throwaway
+    // namespace, so `table`/`output` never persist in or get clobbered out of
+    // the loop state. The generated operator must not touch them directly or
+    // exec user code against self.state.
+    val code = desc(update = "i = i + 7", condition = "i < 3").generatePythonCode()
+    code should not include "exec("
+    code should not include "self.state[\"table\"]"
+    code should not include "self.state[\"output\"]"
+  }
+
+  it should "delegate the user condition to eval_condition" in {
     val code = desc(condition = "i < 3").generatePythonCode()
-    // condition() must read from self.state (populated by the matching-
-    // loop branch above) and assign into self.state["output"] before
-    // returning it. Pinning both the exec format and the assignment
-    // keeps a future "just return the expr" refactor from silently
-    // dropping the state side-effect main_loop.complete() depends on.
-    code should include(s"""exec("output = " + ${decodeExpr("i < 3")}, {}, self.state)""")
-    code should include("self.state[\"output\"]")
+    code should include(s"return self.eval_condition(${decodeExpr("i < 3")})")
   }
 
   // ---- codegen robustness -------------------------------------------------
