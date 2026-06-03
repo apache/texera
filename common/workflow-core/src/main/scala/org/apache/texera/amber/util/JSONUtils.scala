@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.serde.{PortIdentityKeyDeserializer, PortIdentityKeySerializer}
 
 import java.text.SimpleDateFormat
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 object JSONUtils {
@@ -87,27 +88,35 @@ object JSONUtils {
       flatten: Boolean = false,
       parentName: String = ""
   ): Map[String, String] = {
-    var result = Map[String, String]()
-    if (node.isObject) {
-      for (key <- node.fieldNames().asScala) {
-        val child: JsonNode = node.get(key)
-        val absoluteKey = (if (parentName.nonEmpty) parentName + "." else "") + key
-        if (flatten && (child.isObject || child.isArray)) {
-          result = result ++ JSONToMap(child, flatten, absoluteKey)
-        } else if (child.isValueNode) {
-          result = result + (absoluteKey -> child.asText())
-        } else {
-          // do nothing
+    val result = mutable.Map[String, String]()
+    // Traverse iteratively over a worklist of (node, parentName) pairs instead of
+    // recursing per nesting level, so deeply nested JSON cannot overflow the call
+    // stack. The per-node logic mirrors the original recursion exactly, and since
+    // the result is a Map the order in which pairs are emitted does not matter.
+    val stack = mutable.Stack[(JsonNode, String)]((node, parentName))
+    while (stack.nonEmpty) {
+      val (current, currentParent) = stack.pop()
+      if (current.isObject) {
+        for (key <- current.fieldNames().asScala) {
+          val child: JsonNode = current.get(key)
+          val absoluteKey = (if (currentParent.nonEmpty) currentParent + "." else "") + key
+          if (flatten && (child.isObject || child.isArray)) {
+            stack.push((child, absoluteKey))
+          } else if (child.isValueNode) {
+            result(absoluteKey) = child.asText()
+          } else {
+            // do nothing
+          }
         }
+      } else if (current.isArray) {
+        for ((child, i) <- current.elements().asScala.zipWithIndex) {
+          stack.push((child, currentParent + (i + 1)))
+        }
+      } else if (current.isValueNode && currentParent.nonEmpty) {
+        result(currentParent) = current.asText()
       }
-    } else if (node.isArray) {
-      for ((child, i) <- node.elements().asScala.zipWithIndex) {
-        result = result ++ JSONToMap(child, flatten, parentName + (i + 1))
-      }
-    } else if (node.isValueNode && parentName.nonEmpty) {
-      result = result + (parentName -> node.asText())
     }
-    result
+    result.toMap
   }
 
 }

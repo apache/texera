@@ -20,6 +20,7 @@
 package org.apache.texera.amber.util
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -131,6 +132,24 @@ class JSONUtilsSpec extends AnyFlatSpec with Matchers {
       "1.id" -> "a",
       "2.id" -> "b"
     )
+  }
+
+  it should "flatten very deeply nested JSON without overflowing the stack" in {
+    // The traversal is iterative, so nesting depth lives on the heap rather than
+    // the call stack: a depth that would StackOverflow a per-level recursion must
+    // still produce the dotted leaf key. Build the tree programmatically rather
+    // than via parse() so Jackson's own parser nesting limit doesn't cap the depth
+    // before JSONToMap runs. Shape: {"a":{"a":{...{"leaf":"v"}...}}}.
+    val depth = 20000
+    var current = JsonNodeFactory.instance.objectNode()
+    current.put("leaf", "v")
+    for (_ <- 1 to depth) {
+      val parent = JsonNodeFactory.instance.objectNode()
+      parent.set[JsonNode]("a", current)
+      current = parent
+    }
+    val expectedKey = ("a." * depth) + "leaf"
+    JSONUtils.JSONToMap(current, flatten = true) shouldBe Map(expectedKey -> "v")
   }
 
   // ----- objectMapper configuration -----
