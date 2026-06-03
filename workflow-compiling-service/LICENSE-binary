@@ -281,6 +281,7 @@ Scala/Java jars:
   - commons-pool.commons-pool-1.6.jar
   - dev.failsafe.failsafe-3.3.2.jar
   - io.airlift.aircompressor-0.27.jar
+  - io.dropwizard.dropwizard-auth-4.0.7.jar
   - io.dropwizard.dropwizard-configuration-4.0.7.jar
   - io.dropwizard.dropwizard-core-4.0.7.jar
   - io.dropwizard.dropwizard-health-4.0.7.jar
@@ -296,6 +297,7 @@ Scala/Java jars:
   - io.dropwizard.dropwizard-validation-4.0.7.jar
   - io.dropwizard.logback.logback-throttling-appender-1.4.2.jar
   - io.dropwizard.metrics.metrics-annotation-4.2.25.jar
+  - io.dropwizard.metrics.metrics-caffeine-4.2.25.jar
   - io.dropwizard.metrics.metrics-core-4.2.25.jar
   - io.dropwizard.metrics.metrics-healthchecks-4.2.25.jar
   - io.dropwizard.metrics.metrics-jakarta-servlets-4.2.25.jar
@@ -419,6 +421,7 @@ Scala/Java jars:
   - org.apache.yetus.audience-annotations-0.13.0.jar
   - org.apache.zookeeper.zookeeper-3.5.6.jar
   - org.apache.zookeeper.zookeeper-jute-3.5.6.jar
+  - org.bitbucket.b_c.jose4j-0.9.6.jar
   - org.eclipse.jetty.jetty-http-11.0.20.jar
   - org.eclipse.jetty.jetty-io-11.0.20.jar
   - org.eclipse.jetty.jetty-security-11.0.20.jar

@@ -24,11 +24,14 @@ import { UserService } from "./user.service";
 import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
 import { skip } from "rxjs/operators";
+import { firstValueFrom, Subject, throwError } from "rxjs";
 import { commonTestProviders } from "../../testing/test-utils";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { GuiConfigService } from "../gui-config.service";
 
 describe("UserService", () => {
   let service: UserService;
+  let config: GuiConfigService;
 
   beforeEach(() => {
     AuthService.removeAccessToken();
@@ -38,6 +41,7 @@ describe("UserService", () => {
     });
 
     service = TestBed.inject(UserService);
+    config = TestBed.inject(GuiConfigService);
   });
 
   afterAll(() => {
@@ -108,4 +112,62 @@ describe("UserService", () => {
       expect((service as any).currentUser).toBeFalsy();
     });
   }));
+
+  // ─── post-login config fetch coordination ─────────────────────────────────
+
+  it("loads the authenticated config when a fresh login succeeds", async () => {
+    // /config/gui and /config/user-system are @RolesAllowed; their values must
+    // be in memory before any post-login component reads config.env, otherwise
+    // the dashboard renders against undefined flags.
+    const spy = vi.spyOn(config, "loadPostLogin");
+    await firstValueFrom(service.login("test", "password"));
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(service.isLogin()).toBe(true);
+  });
+
+  it("loads the authenticated config when a googleLogin succeeds", async () => {
+    // googleLogin shares the same handleAccessToken plumbing as username/password
+    // login, so the post-login config fetch must fire here too — otherwise a
+    // user who only ever signs in through Google would see undefined flags.
+    const spy = vi.spyOn(config, "loadPostLogin");
+    await firstValueFrom(service.googleLogin("any-credential"));
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(service.isLogin()).toBe(true);
+  });
+
+  it("orders the post-login config fetch before the userChanged event fires", async () => {
+    // Subscribers to userChanged (header, sidebar, routing guards) drive the
+    // initial dashboard render. If userChanged fires before loadPostLogin
+    // resolves, those subscribers see env without the authenticated fields and
+    // mis-render (e.g. copilot button missing, inviteOnly check skipped).
+    const gate = new Subject<unknown>();
+    vi.spyOn(config, "loadPostLogin").mockReturnValue(gate.asObservable() as any);
+
+    const userEmissions: Array<unknown> = [];
+    service
+      .userChanged()
+      .pipe(skip(1))
+      .subscribe(u => userEmissions.push(u));
+
+    const loginPromise = firstValueFrom(service.login("test", "password"));
+    // Login is in-flight; loadPostLogin has not resolved yet, so userChanged
+    // must NOT have emitted a logged-in user yet.
+    expect(userEmissions).toEqual([]);
+
+    gate.next({});
+    gate.complete();
+    await loginPromise;
+
+    expect(userEmissions.length).toBe(1);
+    expect(userEmissions[0]).toBeTruthy();
+  });
+
+  it("still completes login when loadPostLogin fails", async () => {
+    // Backend hiccup on /config/gui must not strand the user on a blank screen.
+    // The JwtAuthFilter on every protected endpoint is the authoritative gate;
+    // degraded config is preferable to a stuck spinner.
+    vi.spyOn(config, "loadPostLogin").mockReturnValue(throwError(() => new Error("simulated 500")));
+    await firstValueFrom(service.login("test", "password"));
+    expect(service.isLogin()).toBe(true);
+  });
 });
