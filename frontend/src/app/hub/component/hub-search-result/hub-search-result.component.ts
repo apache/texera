@@ -19,8 +19,16 @@
 
 import { AfterViewInit, Component, Input, OnInit, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
-import { SearchResultsComponent } from "../../../dashboard/component/user/search-results/search-results.component";
+import { NgIf } from "@angular/common";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTooltipModule } from "ng-zorro-antd/tooltip";
+import {
+  SearchResultsComponent,
+  SearchResultsViewMode,
+} from "../../../dashboard/component/user/search-results/search-results.component";
 import { FiltersComponent } from "../../../dashboard/component/user/filters/filters.component";
+import { DatasetCardItemComponent } from "../../../dashboard/component/user/dataset-card-item/dataset-card-item.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SortMethod } from "../../../dashboard/type/sort-method";
 import { UserService } from "../../../common/service/user/user.service";
@@ -30,17 +38,36 @@ import { firstValueFrom } from "rxjs";
 import { map } from "rxjs/operators";
 import { SortButtonComponent } from "../../../dashboard/component/user/sort-button/sort-button.component";
 
+const HUB_DATASET_VIEW_MODE_STORAGE_KEY = "texera.hub.dataset.viewMode";
+
 @UntilDestroy()
 @Component({
   selector: "texera-hub-search",
   templateUrl: "./hub-search-result.component.html",
   styleUrls: ["./hub-search-result.component.scss"],
-  imports: [SortButtonComponent, FiltersComponent, SearchResultsComponent],
+  imports: [
+    NgIf,
+    NzButtonComponent,
+    NzIconDirective,
+    NzTooltipModule,
+    SortButtonComponent,
+    FiltersComponent,
+    SearchResultsComponent,
+    DatasetCardItemComponent,
+  ],
 })
 export class HubSearchResultComponent implements OnInit, AfterViewInit {
   public searchType: "dataset" | "workflow" = "workflow";
   public searchKeywords: string[] = [];
   currentUid = this.userService.getCurrentUser()?.uid;
+  public viewMode: SearchResultsViewMode =
+    localStorage.getItem(HUB_DATASET_VIEW_MODE_STORAGE_KEY) === "card" ? "card" : "list";
+
+  setViewMode(mode: SearchResultsViewMode): void {
+    if (this.viewMode === mode) return;
+    this.viewMode = mode;
+    localStorage.setItem(HUB_DATASET_VIEW_MODE_STORAGE_KEY, mode);
+  }
 
   private isLogin = false;
   private includePublic = true;

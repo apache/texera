@@ -36,6 +36,7 @@ import { NzUploadFile, NzUploadComponent } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
 import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
+import { CardItemComponent } from "../list-item/card-item/card-item.component";
 import { SearchService } from "../../../service/user/search.service";
 import { SortMethod } from "../../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
@@ -43,7 +44,7 @@ import { UserProjectService } from "../../../service/user/project/user-project.s
 import { map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
-import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
+import { USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
@@ -107,6 +108,7 @@ import { FormsModule } from "@angular/forms";
     NzSelectComponent,
     FormsModule,
     SearchResultsComponent,
+    CardItemComponent,
     NzSpaceCompactComponent,
   ],
 })
@@ -294,7 +296,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       .subscribe({
         next: (wid: number | undefined) => {
           // Use the wid here for navigation
-          this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]).then(null);
+          this.router.navigate([USER_WORKSPACE, wid]).then(null);
         },
         error: (err: unknown) => this.notificationService.error("Workflow creation failed"),
       });

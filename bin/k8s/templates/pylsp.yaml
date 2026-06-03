@@ -35,7 +35,7 @@ spec:
       containers:
         - name: {{ .Values.pythonLanguageServer.name }}
           image: {{ .Values.pythonLanguageServer.image | quote }}
-          imagePullPolicy: Always
+          imagePullPolicy: {{ .Values.pythonLanguageServer.imagePullPolicy | quote }}
           ports:
             - containerPort: 3000
           resources:

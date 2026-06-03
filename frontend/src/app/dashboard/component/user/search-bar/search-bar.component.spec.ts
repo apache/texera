@@ -28,7 +28,7 @@ import { SearchService } from "../../../service/user/search.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { SortMethod } from "../../../type/sort-method";
 import { SearchResult, SearchResultItem } from "../../../type/search-result";
-import { DASHBOARD_SEARCH } from "../../../../app-routing.constant";
+import { SEARCH } from "../../../../app-routing.constant";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 function makeWorkflowItem(name: string, wid: number = 1): SearchResultItem {
@@ -237,11 +237,11 @@ describe("SearchBarComponent", () => {
     });
   });
 
-  it("performSearch navigates to DASHBOARD_SEARCH with the keyword as the q query param", () => {
+  it("performSearch navigates to SEARCH with the keyword as the q query param", () => {
     const nav = vi.spyOn(router, "navigate").mockResolvedValue(true);
 
     component.performSearch("hello world");
 
-    expect(nav).toHaveBeenCalledWith([DASHBOARD_SEARCH], { queryParams: { q: "hello world" } });
+    expect(nav).toHaveBeenCalledWith([SEARCH], { queryParams: { q: "hello world" } });
   });
 });

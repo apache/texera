@@ -359,6 +359,57 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             });
         }
       });
+
+    // When operators are (re)added to the graph — e.g. after navigating back to
+    // the workflow page, where WorkspaceComponent calls reloadWorkflow and
+    // operators are recreated from the workflow JSON — restore their visual
+    // state from the cached status so completed runs don't appear to reset.
+    // Restores port labels / worker count via changeOperatorStatistics, then
+    // delegates the final border color to applyOperatorBorder so the same
+    // priority rules apply as for the validation pass.
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorAddStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(operator => {
+        const statistics = this.workflowStatusService.getCurrentStatus()[operator.operatorID];
+        if (statistics) {
+          this.jointUIService.changeOperatorStatistics(
+            this.paper,
+            operator.operatorID,
+            statistics,
+            this.isSource(operator.operatorID),
+            this.isSink(operator.operatorID)
+          );
+        }
+        this.applyOperatorBorder(operator.operatorID);
+      });
+  }
+
+  /**
+   * Single source of truth for the operator's border color. Both the
+   * validation stream and the operator-add stream route through here so
+   * the priority order is consistent regardless of which event fires last:
+   *   1. Invalid operator → red (validation takes priority).
+   *   2. Valid operator with a cached execution status → execution-state color.
+   *   3. Valid operator with no cached status → default valid (gray).
+   *
+   * Centralizing this here avoids the race where the validation pass
+   * overwrites a state-derived stroke (or vice versa) for an operator that
+   * is both invalid and has a cached execution status.
+   */
+  private applyOperatorBorder(operatorID: string): void {
+    const validation = this.validationWorkflowService.validateOperator(operatorID);
+    if (!validation.isValid) {
+      this.jointUIService.changeOperatorColor(this.paper, operatorID, false);
+      return;
+    }
+    const statistics = this.workflowStatusService.getCurrentStatus()[operatorID];
+    if (statistics) {
+      this.jointUIService.changeOperatorState(this.paper, operatorID, statistics.operatorState);
+    } else {
+      this.jointUIService.changeOperatorColor(this.paper, operatorID, true);
+    }
   }
 
   private handleRegionEvents(): void {
@@ -966,15 +1017,15 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * if the operator is valid , the border of the box will be default
+   * Applies the validation result to the operator's border. Delegates to
+   * applyOperatorBorder so validation, cached-execution-status, and the
+   * default-valid case are decided in one place.
    */
   private handleOperatorValidation(): void {
     this.validationWorkflowService
       .getOperatorValidationStream()
       .pipe(untilDestroyed(this))
-      .subscribe(value =>
-        this.jointUIService.changeOperatorColor(this.paper, value.operatorID, value.validation.isValid)
-      );
+      .subscribe(value => this.applyOperatorBorder(value.operatorID));
   }
 
   /**

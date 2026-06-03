@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { Router } from "@angular/router";
 import { UserIconComponent } from "./user-icon.component";
 import { UserService } from "../../../../common/service/user/user.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -26,6 +27,7 @@ import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";
 import { AboutComponent } from "../../../../hub/component/about/about.component";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { ABOUT } from "../../../../app-routing.constant";
 
 describe("UserIconComponent", () => {
   let component: UserIconComponent;
@@ -51,5 +53,35 @@ describe("UserIconComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  describe("onClickLogout", () => {
+    it("navigates to /about (no /dashboard prefix) after logout", () => {
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+      const userService = TestBed.inject(UserService);
+      const logoutSpy = vi.spyOn(userService, "logout").mockImplementation(() => {});
+
+      component.onClickLogout();
+
+      expect(logoutSpy).toHaveBeenCalledTimes(1);
+      expect(navigateSpy).toHaveBeenCalledWith([ABOUT]);
+      expect(ABOUT).toBe("/about");
+    });
+
+    it("clears the flarum_remember cookie on logout", () => {
+      const router = TestBed.inject(Router);
+      vi.spyOn(router, "navigate").mockResolvedValue(true);
+      const userService = TestBed.inject(UserService);
+      vi.spyOn(userService, "logout").mockImplementation(() => {});
+      // Seed the cookie so we can observe it being cleared. jsdom's
+      // document.cookie is the test surface here; assigning a value with a
+      // past expiry should expire the cookie immediately.
+      document.cookie = "flarum_remember=token; path=/;";
+
+      component.onClickLogout();
+
+      expect(document.cookie).not.toContain("flarum_remember=token");
+    });
   });
 });

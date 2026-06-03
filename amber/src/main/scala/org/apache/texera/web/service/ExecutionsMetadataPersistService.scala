@@ -22,6 +22,7 @@ package org.apache.texera.web.service
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.dao.SqlServer
+import org.jooq.exception.DataAccessException
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
@@ -52,7 +53,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
 
   def insertNewExecution(
       workflowId: WorkflowIdentity,
-      uid: Option[Integer],
+      uid: Integer,
       executionName: String,
       environmentVersion: String,
       computingUnitId: Integer
@@ -64,14 +65,25 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       newExecution.setName(executionName)
     }
     newExecution.setVid(vid)
-    newExecution.setUid(uid.orNull)
+    newExecution.setUid(uid)
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     newExecution.setEnvironmentVersion(environmentVersion)
 
     // Set computing unit ID if provided
     newExecution.setCuid(computingUnitId)
 
-    workflowExecutionsDao.insert(newExecution)
+    try {
+      workflowExecutionsDao.insert(newExecution)
+    } catch {
+      // A NOT NULL column (e.g. uid, vid, cuid) was null. Postgres reports this
+      // as SQLState 23502; surface a readable message instead of the raw
+      // jOOQ/JDBC stack trace, while preserving the original as the cause.
+      case e: DataAccessException if e.sqlState() == "23502" =>
+        throw new IllegalArgumentException(
+          "Cannot persist workflow execution: a required field (uid, vid, or cuid) was null.",
+          e
+        )
+    }
     ExecutionIdentity(newExecution.getEid.longValue())
   }
 

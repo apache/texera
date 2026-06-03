@@ -173,10 +173,27 @@
     </nz-select>
   </div>
 
+  <ng-template
+    #workflowCardTpl
+    let-entry>
+    <texera-card-item
+      class="workflow-card-item"
+      [entry]="entry"
+      [currentUid]="currentUid"
+      [isPrivateSearch]="true"
+      [editable]="true"
+      (deleted)="deleteWorkflow(entry)"
+      (duplicated)="onClickDuplicateWorkflow(entry)"
+      (refresh)="refreshSearchResult()"
+      (checkboxChanged)="searchResultsComponent.onEntryCheckboxChange()">
+    </texera-card-item>
+  </ng-template>
+
   <texera-search-results
     [editable]="true"
     [isPrivateSearch]="true"
-    [viewType]="viewType"
+    [viewMode]="viewType"
+    [cardTemplate]="workflowCardTpl"
     (deleted)="deleteWorkflow($event)"
     (refresh)="refreshSearchResult()"
     (duplicated)="onClickDuplicateWorkflow($event)"

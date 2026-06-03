@@ -45,6 +45,8 @@ import { saveAs } from "file-saver";
 import type { ModalOptions } from "ng-zorro-antd/modal";
 import type { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { WorkflowContent } from "../../../common/type/workflow";
+import { Router } from "@angular/router";
+import { USER_WORKFLOW } from "../../../app-routing.constant";
 import type { Mocked } from "vitest";
 
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
@@ -465,6 +467,31 @@ describe("MenuComponent", () => {
           inWorkspace: true,
         })
       );
+    });
+
+    it("navigates to /user/workflow (no /dashboard prefix) when the modal reports the owner revoked their own access", async () => {
+      vi.spyOn(workflowPersistService, "retrieveOwners").mockReturnValue(of([]));
+      const fakeModalRef = { afterClose: of({ userRevokedOwnAccess: true }) } as unknown as NzModalRef;
+      vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+
+      await component.onClickOpenShareAccess();
+
+      expect(navigateSpy).toHaveBeenCalledWith([USER_WORKFLOW]);
+      expect(USER_WORKFLOW).toBe("/user/workflow");
+    });
+
+    it("does not navigate when the share-access modal closes without revoking own access", async () => {
+      vi.spyOn(workflowPersistService, "retrieveOwners").mockReturnValue(of([]));
+      const fakeModalRef = { afterClose: of(undefined) } as unknown as NzModalRef;
+      vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+
+      await component.onClickOpenShareAccess();
+
+      expect(navigateSpy).not.toHaveBeenCalled();
     });
   });
 

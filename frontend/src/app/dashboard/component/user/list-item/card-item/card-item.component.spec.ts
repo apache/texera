@@ -30,7 +30,7 @@ import { UserService } from "../../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
-import { DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, DASHBOARD_USER_WORKSPACE } from "../../../../../app-routing.constant";
+import { HUB_WORKFLOW_RESULT_DETAIL, USER_WORKSPACE } from "../../../../../app-routing.constant";
 
 function makeWorkflowEntry(overrides: Partial<DashboardEntry> = {}): DashboardEntry {
   return {
@@ -122,11 +122,11 @@ describe("CardItemComponent", () => {
     component.currentUid = 42;
     component.entry = makeWorkflowEntry({ id: 7, accessibleUserIds: [42] });
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
-    expect(component.entryLink).toEqual([DASHBOARD_USER_WORKSPACE, "7"]);
+    expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]);
 
     component.entry = makeWorkflowEntry({ id: 7, accessibleUserIds: [99] });
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
-    expect(component.entryLink).toEqual([DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, "7"]);
+    expect(component.entryLink).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "7"]);
   });
 
   it("should format counts as kilo for values >= 1000", () => {
