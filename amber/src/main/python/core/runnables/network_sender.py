@@ -109,6 +109,8 @@ class NetworkSender(StoppableQueueBlockingRunnable):
                 {
                     State.CONTENT: [data_payload.frame.to_json()],
                     State.LOOP_COUNTER: [int(data_payload.loop_counter)],
+                    State.LOOP_START_ID: [data_payload.loop_start_id],
+                    State.LOOP_START_STATE_URI: [data_payload.loop_start_state_uri],
                 },
                 schema=State.SCHEMA.as_arrow_schema(),
             )

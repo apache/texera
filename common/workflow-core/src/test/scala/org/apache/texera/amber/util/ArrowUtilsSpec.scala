@@ -294,11 +294,12 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     // Arrow -> getTexeraTuple -> Tuple (PythonProxyServer) on the other.
     // The schema-only round-trip tests above don't exercise the per-row data
     // encode/decode, so a column dropped or mistyped there would slip through.
-    // Pin that a two-column State tuple (content STRING + loop_counter LONG)
-    // survives a real setTexeraTuple -> Arrow vectors -> getTexeraTuple
-    // round-trip with both columns intact -- the property the wire hop relies
-    // on after State gained its loop_counter column.
-    val original = State(Map("i" -> 5L, "label" -> "outer")).toTuple(3L)
+    // Pin that the full multi-column State tuple (content STRING + the
+    // loop-control columns loop_counter LONG, loop_start_id / loop_start_state_uri
+    // STRING) survives a real setTexeraTuple -> Arrow vectors -> getTexeraTuple
+    // round-trip with every column intact -- the property the wire hop relies on.
+    val original =
+      State(Map("i" -> 5L, "label" -> "outer")).toTuple(3L, "outer-loop", "vfs:///outer")
 
     val allocator = new RootAllocator()
     val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(original.getSchema), allocator)
@@ -309,13 +310,20 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
 
       val recovered = ArrowUtils.getTexeraTuple(0, root)
 
-      // Both columns survive the encode/decode, with names and types intact.
+      // Every column survives the encode/decode, with names and types intact.
       recovered.getSchema.getAttributes.toList.map(a => (a.getName, a.getType)) shouldBe
-        List(("content", AttributeType.STRING), ("loop_counter", AttributeType.LONG))
+        List(
+          ("content", AttributeType.STRING),
+          ("loop_counter", AttributeType.LONG),
+          ("loop_start_id", AttributeType.STRING),
+          ("loop_start_state_uri", AttributeType.STRING)
+        )
       // content (the user State JSON) round-trips...
       State.fromTuple(recovered).values shouldBe Map("i" -> 5L, "label" -> "outer")
-      // ...and so does the loop_counter column.
+      // ...and so do the loop-control columns.
       recovered.getField[java.lang.Long]("loop_counter").toLong shouldBe 3L
+      recovered.getField[String]("loop_start_id") shouldBe "outer-loop"
+      recovered.getField[String]("loop_start_state_uri") shouldBe "vfs:///outer"
     } finally {
       root.close()
       allocator.close()

@@ -84,6 +84,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
         super().__init__(self.__class__.__name__, queue=input_queue)
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
+        # Captured from the input StateFrame when a matching LoopEnd
+        # (loop_counter == 0) consumes a state, so complete()/_jump_to_loop_start
+        # knows which LoopStart to jump back to. This metadata rides the
+        # StateFrame envelope (not user state), so it is no longer read off
+        # executor.state.
+        self._loop_start_id: str = ""
+        self._loop_start_state_uri: str = ""
 
         self.context = Context(worker_id, input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -94,31 +101,34 @@ class MainLoop(StoppableQueueBlockingRunnable):
             target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
 
-    def _attach_loop_start_id(self, output_state: State) -> None:
-        if "LoopStartId" in output_state:
-            return
-        output_state["LoopStartId"] = get_operator_id(self.context.worker_id)
+    def _compute_loop_start_id(self) -> typing.Tuple[str, str]:
+        # A LoopStart stamps its own operator id and the iceberg URI its input
+        # is read from onto the state it emits; the matching LoopEnd reads them
+        # back to jump. These ride the StateFrame envelope, not user state.
+        loop_start_id = get_operator_id(self.context.worker_id)
         # The URI lives on the upstream operator's output port (which
         # LoopStart's first materialization reader is reading from).
         reader_runnables = (
             self.context.input_manager.get_input_port_mat_reader_threads()
         )
-        output_state["LoopStartStateURI"] = VFSURIFactory.state_uri(
+        loop_start_state_uri = VFSURIFactory.state_uri(
             next(iter(reader_runnables.values()))[0].uri
         )
+        return loop_start_id, loop_start_state_uri
 
     def _jump_to_loop_start(
         self, executor: LoopEndOperator, controller_interface
     ) -> None:
         state = executor.state
         controller_interface.jump_to_operator_region(
-            JumpToOperatorRegionRequest(OperatorIdentity(state["LoopStartId"]))
+            JumpToOperatorRegionRequest(OperatorIdentity(self._loop_start_id))
         )
-        uri = state["LoopStartStateURI"]
-        # Strip the per-iteration scratch (`table`, `output`) and the
-        # loop metadata (`LoopStartId`, `LoopStartStateURI`) so only the
-        # user-visible loop state is written back to LoopStart's input.
-        for key in ("table", "output", "LoopStartId", "LoopStartStateURI"):
+        uri = self._loop_start_state_uri
+        # Strip the per-iteration scratch (`table`, `output`) so only the
+        # user-visible loop state is written back to LoopStart's input. The
+        # loop metadata (counter, LoopStartId, LoopStartStateURI) is owned by
+        # the runtime and never lived in this dict.
+        for key in ("table", "output"):
             state.pop(key, None)
         writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
         # The back-edge fires only after the matching LoopEnd consumed at
@@ -231,7 +241,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     output_tuple
                 )
 
-    def process_input_state(self, output_loop_counter: int = 0) -> None:
+    def process_input_state(
+        self,
+        output_loop_counter: int = 0,
+        output_loop_start_id: str = "",
+        output_loop_start_state_uri: str = "",
+    ) -> None:
         self._switch_context()
         output_state = self.context.state_processing_manager.get_output_state()
         if output_state is not None:
@@ -239,11 +254,28 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if isinstance(executor, LoopEndOperator):
                 self.context.output_manager.reset_storage()
             elif isinstance(executor, LoopStartOperator):
-                self._attach_loop_start_id(output_state)
-            self._emit_and_save_state(output_state, output_loop_counter)
+                # A LoopStart stamps its own id/uri onto the state it emits.
+                (
+                    output_loop_start_id,
+                    output_loop_start_state_uri,
+                ) = self._compute_loop_start_id()
+            self._emit_and_save_state(
+                output_state,
+                output_loop_counter,
+                output_loop_start_id,
+                output_loop_start_state_uri,
+            )
 
-    def _emit_and_save_state(self, state: State, loop_counter: int) -> None:
-        for to, batch in self.context.output_manager.emit_state(state, loop_counter):
+    def _emit_and_save_state(
+        self,
+        state: State,
+        loop_counter: int,
+        loop_start_id: str = "",
+        loop_start_state_uri: str = "",
+    ) -> None:
+        for to, batch in self.context.output_manager.emit_state(
+            state, loop_counter, loop_start_id, loop_start_state_uri
+        ):
             self._output_queue.put(
                 DataElement(
                     tag=ChannelIdentity(
@@ -252,7 +284,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     payload=batch,
                 )
             )
-        self.context.output_manager.save_state_to_storage_if_needed(state, loop_counter)
+        self.context.output_manager.save_state_to_storage_if_needed(
+            state, loop_counter, loop_start_id, loop_start_state_uri
+        )
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
         """
@@ -305,19 +339,35 @@ class MainLoop(StoppableQueueBlockingRunnable):
         executor = self.context.executor_manager.executor
 
         if isinstance(executor, LoopEndOperator) and in_counter > 0:
-            # State belongs to an outer loop: step one level out and forward.
-            self._emit_and_save_state(state, in_counter - 1)
+            # State belongs to an outer loop: step one level out and forward,
+            # carrying the outer loop's id/uri unchanged.
+            self._emit_and_save_state(
+                state, in_counter - 1, frame.loop_start_id, frame.loop_start_state_uri
+            )
             self._check_and_process_control()
             return
-        if isinstance(executor, LoopStartOperator) and "LoopStartStateURI" in state:
+        if isinstance(executor, LoopStartOperator) and frame.loop_start_state_uri:
             # Outer loop's state flowing through an inner LoopStart: step one
-            # level deeper and forward.
-            self._emit_and_save_state(state, in_counter + 1)
+            # level deeper and forward, keeping the outer loop's id/uri.
+            self._emit_and_save_state(
+                state, in_counter + 1, frame.loop_start_id, frame.loop_start_state_uri
+            )
             self._check_and_process_control()
             return
 
+        if isinstance(executor, LoopEndOperator):
+            # Matching LoopEnd (in_counter == 0): it will consume this state and
+            # jump back. Remember which LoopStart to jump to -- it rides the
+            # envelope now, not user state -- for complete()/_jump_to_loop_start.
+            self._loop_start_id = frame.loop_start_id
+            self._loop_start_state_uri = frame.loop_start_state_uri
+
         self.context.state_processing_manager.current_input_state = state
-        self.process_input_state(output_loop_counter=in_counter)
+        self.process_input_state(
+            output_loop_counter=in_counter,
+            output_loop_start_id=frame.loop_start_id,
+            output_loop_start_state_uri=frame.loop_start_state_uri,
+        )
         self._check_and_process_control()
 
     def _process_start_channel(self) -> None:

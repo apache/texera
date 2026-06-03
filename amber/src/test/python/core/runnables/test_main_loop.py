@@ -1151,7 +1151,7 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state, loop_counter: [
+            lambda state, loop_counter, *_: [
                 (mock_data_output_channel.to_worker_id, StateFrame(state))
             ],
         )
@@ -1363,7 +1363,7 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state, loop_counter: [
+            lambda state, loop_counter, *_: [
                 (mock_data_output_channel.to_worker_id, StateFrame(state))
             ],
         )
@@ -1419,14 +1419,14 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state, loop_counter: [
+            lambda state, loop_counter, *_: [
                 (mock_data_output_channel.to_worker_id, StateFrame(state))
             ],
         )
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "save_state_to_storage_if_needed",
-            lambda state, loop_counter: saved_states.append(state),
+            lambda state, loop_counter, *_: saved_states.append(state),
         )
 
         def fake_switch_context():
@@ -1480,14 +1480,14 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state, loop_counter: [
+            lambda state, loop_counter, *_: [
                 (mock_data_output_channel.to_worker_id, StateFrame(state))
             ],
         )
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "save_state_to_storage_if_needed",
-            lambda state, loop_counter: saved_states.append(state),
+            lambda state, loop_counter, *_: saved_states.append(state),
         )
         # _send_ecm_to_data_channels touches output_manager state we don't
         # set up here; for this test the ECM forwarding is irrelevant -- the
@@ -1547,12 +1547,12 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state, loop_counter: [],
+            lambda state, loop_counter, *_: [],
         )
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "save_state_to_storage_if_needed",
-            lambda state, loop_counter: save_calls.append(state),
+            lambda state, loop_counter, *_: save_calls.append(state),
         )
         # Pretend DataProc consumed the input but produced no output.
         monkeypatch.setattr(main_loop, "_switch_context", lambda: None)
@@ -1796,7 +1796,12 @@ class TestMainLoop:
     # pass-through branches the operator must be skipped entirely.
 
     def _capture_state_emit(self, main_loop, monkeypatch):
-        """Stub emit/save/switch; return (emitted, switched) recorders."""
+        """Stub emit/save/switch; return (emitted, switched) recorders.
+
+        Each `emitted` entry is (state, loop_counter, loop_start_id,
+        loop_start_state_uri) so tests can assert the loop metadata the runtime
+        attaches to the StateFrame envelope.
+        """
         emitted = []
         switched = []
         monkeypatch.setattr(main_loop, "_check_and_process_control", lambda: None)
@@ -1804,21 +1809,27 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state, loop_counter: emitted.append((state, loop_counter)) or [],
+            lambda state, loop_counter, loop_start_id="", loop_start_state_uri="": (
+                emitted.append(
+                    (state, loop_counter, loop_start_id, loop_start_state_uri)
+                )
+                or []
+            ),
         )
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "save_state_to_storage_if_needed",
-            lambda state, loop_counter: None,
+            lambda state, loop_counter, *_: None,
         )
         return emitted, switched
 
     def test_loopstart_reentry_increments_counter_and_skips_operator(
         self, main_loop, monkeypatch
     ):
-        # A state already carrying LoopStartStateURI is an outer loop's state
-        # passing through this inner LoopStart. The runtime forwards it with
-        # loop_counter + 1 and must NOT invoke the operator.
+        # A state arriving with a loop_start_state_uri on its envelope is an
+        # outer loop's state passing through this inner LoopStart. The runtime
+        # forwards it with loop_counter + 1 (keeping the outer id/uri) and must
+        # NOT invoke the operator.
         class StubLoopStart(LoopStartOperator):
             def process_table(self, table, port):
                 yield
@@ -1827,15 +1838,22 @@ class TestMainLoop:
         emitted, switched = self._capture_state_emit(main_loop, monkeypatch)
 
         main_loop._process_state_frame(
-            StateFrame(State({"LoopStartStateURI": "vfs:///x", "i": 5}), loop_counter=1)
+            StateFrame(
+                State({"i": 5}),
+                loop_counter=1,
+                loop_start_id="outer-loop",
+                loop_start_state_uri="vfs:///outer",
+            )
         )
 
         assert switched == [], "nested pass-through must not invoke the operator"
         assert len(emitted) == 1
-        emitted_state, emitted_counter = emitted[0]
+        emitted_state, emitted_counter, emitted_id, emitted_uri = emitted[0]
         assert emitted_counter == 2  # 1 + 1
         assert emitted_state["i"] == 5
         assert "loop_counter" not in emitted_state  # never leaks into State
+        # the outer loop's id/uri ride through unchanged
+        assert (emitted_id, emitted_uri) == ("outer-loop", "vfs:///outer")
 
     def test_loopend_passthrough_decrements_counter_and_skips_operator(
         self, main_loop, monkeypatch
@@ -1850,14 +1868,21 @@ class TestMainLoop:
         emitted, switched = self._capture_state_emit(main_loop, monkeypatch)
 
         main_loop._process_state_frame(
-            StateFrame(State({"outer_var": "v"}), loop_counter=2)
+            StateFrame(
+                State({"outer_var": "v"}),
+                loop_counter=2,
+                loop_start_id="outer-loop",
+                loop_start_state_uri="vfs:///outer",
+            )
         )
 
         assert switched == [], "pass-through must not invoke the operator"
         assert len(emitted) == 1
-        emitted_state, emitted_counter = emitted[0]
+        emitted_state, emitted_counter, emitted_id, emitted_uri = emitted[0]
         assert emitted_counter == 1  # 2 - 1
         assert emitted_state["outer_var"] == "v"
+        # the outer loop's id/uri ride through unchanged
+        assert (emitted_id, emitted_uri) == ("outer-loop", "vfs:///outer")
 
     def test_loopend_consume_invokes_operator_at_counter_zero(
         self, main_loop, monkeypatch

@@ -63,12 +63,20 @@ class TestRunStateReadingBlock:
         state_a = State({"i": 0})
         state_b = State({"i": 1})
 
-        # The state document yields opaque 2-column tuples. State.from_tuple
+        # The state document yields opaque multi-column tuples. State.from_tuple
         # (patched) deserializes the content column; the reader reads the
-        # loop_counter column directly off the row and carries it onto the
+        # loop-control columns directly off the row and carries them onto the
         # emitted StateFrame envelope.
-        row_a = {State.LOOP_COUNTER: 0}
-        row_b = {State.LOOP_COUNTER: 1}
+        row_a = {
+            State.LOOP_COUNTER: 0,
+            State.LOOP_START_ID: "loop-a",
+            State.LOOP_START_STATE_URI: "vfs:///a",
+        }
+        row_b = {
+            State.LOOP_COUNTER: 1,
+            State.LOOP_START_ID: "loop-b",
+            State.LOOP_START_STATE_URI: "vfs:///b",
+        }
         result_doc = MagicMock()
         result_doc.get.return_value = iter([])  # No materialized tuples.
         state_doc = MagicMock()
@@ -100,4 +108,9 @@ class TestRunStateReadingBlock:
         ]
         assert [sf.payload.frame for sf in state_frames] == [state_a, state_b]
         assert [sf.payload.loop_counter for sf in state_frames] == [0, 1]
+        assert [sf.payload.loop_start_id for sf in state_frames] == ["loop-a", "loop-b"]
+        assert [sf.payload.loop_start_state_uri for sf in state_frames] == [
+            "vfs:///a",
+            "vfs:///b",
+        ]
         assert runnable._finished is True

@@ -224,13 +224,13 @@ class TestLoopEndMatchingBranch:
         # Simulate LoopStart's produced state arriving here.
         from pickle import dumps
 
+        # The content carries only user data (i) and the per-iteration table
+        # scratch. loop_counter / LoopStartId / LoopStartStateURI are
+        # runtime-owned and ride the StateFrame envelope, never the content.
         incoming = State(
             {
-                "loop_counter": 0,
                 "i": 2,
                 "table": dumps(Table([Tuple({"v": 1})])),
-                "LoopStartId": "outer-loop",
-                "LoopStartStateURI": "vfs:///outer",
             }
         )
 
@@ -241,9 +241,6 @@ class TestLoopEndMatchingBranch:
         # The table is unpickled in-place so condition() can see it as
         # a real Table without a second round of deserialization.
         assert isinstance(op.state["table"], Table)
-        # Loop metadata is preserved so _jump_to_loop_start can read it.
-        assert op.state["LoopStartId"] == "outer-loop"
-        assert op.state["LoopStartStateURI"] == "vfs:///outer"
 
     def test_condition_evaluates_user_expression_against_stashed_state(self):
         op = _StubLoopEnd(update="i += 1", condition_expr="i < 3")

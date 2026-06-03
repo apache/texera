@@ -35,5 +35,11 @@ class DataFrame(DataPayload):
 class StateFrame(DataPayload):
     frame: State
     # Loop-control bookkeeping owned by the worker runtime, carried alongside
-    # the State payload (not inside it). Defaults to 0 for all non-loop state.
+    # the State payload (not inside it) so it never collides with user state.
+    # Defaults are the "no loop" values for all non-loop state.
     loop_counter: int = 0
+    # Which LoopStart to jump back to, and the iceberg URI its input is read
+    # from. Set by the runtime on a LoopStart's output, consumed by the
+    # matching LoopEnd. Empty for non-loop / not-yet-stamped state.
+    loop_start_id: str = ""
+    loop_start_state_uri: str = ""
