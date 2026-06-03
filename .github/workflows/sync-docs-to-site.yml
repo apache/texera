@@ -71,12 +71,13 @@ jobs:
 
 
           def split_front_matter(text):
-              # Split a page into (front matter, body) on the '---' fences.
-              if not text.startswith("---\n"):
+              # Split into (front matter, body) on the '---' fences; tolerant of
+              # CRLF and trailing whitespace on the fences.
+              lines = text.splitlines()
+              if not lines or lines[0].strip() != "---":
                   return "", text
-              lines = text.split("\n")
               for i in range(1, len(lines)):
-                  if lines[i] == "---":
+                  if lines[i].strip() == "---":
                       return "\n".join(lines[: i + 1]) + "\n", "\n".join(lines[i + 1 :])
               return "", text
 
@@ -95,39 +96,52 @@ jobs:
           source_rels = set()
           created = updated = deleted = 0
 
-          # For each source page: keep the target's front matter, use the source body.
-          for sfile in sorted(source.rglob("*.md")):
+          # Mirror every file: .md keeps the target front matter, others copied as-is.
+          for sfile in sorted(source.rglob("*")):
+              if sfile.is_dir():
+                  continue
               rel = sfile.relative_to(source)
               source_rels.add(rel)
               tfile = target / rel
-
-              src_text = sfile.read_text(encoding="utf-8")
-              _, src_body = split_front_matter(src_text)
-
-              if tfile.exists():
-                  target_fm, _ = split_front_matter(tfile.read_text(encoding="utf-8"))
-              else:
-                  target_fm, _ = split_front_matter(src_text)
-
-              body = normalize_body(src_body)
-              if body:
-                  new_text = target_fm + ("\n" if target_fm else "") + body
-              else:
-                  new_text = target_fm
-
               existed = tfile.exists()
-              if not existed or tfile.read_text(encoding="utf-8") != new_text:
+
+              if sfile.suffix == ".md":
+                  src_text = sfile.read_text(encoding="utf-8")
+                  _, src_body = split_front_matter(src_text)
+
+                  if existed:
+                      target_fm, _ = split_front_matter(tfile.read_text(encoding="utf-8"))
+                  else:
+                      target_fm, _ = split_front_matter(src_text)
+
+                  body = normalize_body(src_body)
+                  if body:
+                      new_text = target_fm + ("\n" if target_fm else "") + body
+                  else:
+                      new_text = target_fm
+
+                  if existed and tfile.read_text(encoding="utf-8") == new_text:
+                      continue
                   tfile.parent.mkdir(parents=True, exist_ok=True)
                   tfile.write_text(new_text, encoding="utf-8")
-                  if existed:
-                      updated += 1
-                      print(f"  update  {rel}")
-                  else:
-                      created += 1
-                      print(f"  create  {rel}")
+              else:
+                  data = sfile.read_bytes()
+                  if existed and tfile.read_bytes() == data:
+                      continue
+                  tfile.parent.mkdir(parents=True, exist_ok=True)
+                  tfile.write_bytes(data)
 
-          # Delete target pages that no longer exist in the source.
-          for tfile in sorted(target.rglob("*.md")):
+              if existed:
+                  updated += 1
+                  print(f"  update  {rel}")
+              else:
+                  created += 1
+                  print(f"  create  {rel}")
+
+          # Delete target files no longer present in the source.
+          for tfile in sorted(target.rglob("*")):
+              if tfile.is_dir():
+                  continue
               rel = tfile.relative_to(target)
               if rel not in source_rels:
                   tfile.unlink()
@@ -177,7 +191,11 @@ jobs:
             fi
             echo "Push failed; refreshing origin/main and rebasing before retry."
             git fetch --no-tags origin main
-            git rebase origin/main
+            if ! git rebase origin/main; then
+              echo "::error::Rebase onto origin/main failed (likely conflicting edits to the same docs); aborting."
+              git rebase --abort || true
+              exit 1
+            fi
           done
 
           echo "::error::Failed to push synced docs after ${attempts} attempts."
