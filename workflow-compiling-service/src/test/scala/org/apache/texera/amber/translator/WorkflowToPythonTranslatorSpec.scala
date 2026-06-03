@@ -38,6 +38,7 @@ import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.difference.DifferenceOpDesc
 import org.apache.texera.amber.operator.hashJoin.{HashJoinOpDesc, JoinType}
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.intervalJoin.{IntervalJoinOpDesc, TimeIntervalType}
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
@@ -562,6 +563,75 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("""left_on="id", right_on="id"""")
     // Same name -> pandas keeps one key column (the build key); nothing to drop.
     script should not include "drop(columns="
+  }
+
+  // --- Join: IntervalJoinOpDesc ---
+  private def intervalJoin(
+      left: String,
+      right: String,
+      c: Long,
+      includeLeft: Boolean,
+      includeRight: Boolean,
+      unit: Option[TimeIntervalType]
+  ): IntervalJoinOpDesc = {
+    val ij = new IntervalJoinOpDesc()
+    ij.leftAttributeName = left
+    ij.rightAttributeName = right
+    ij.constant = c
+    ij.includeLeftBound = includeLeft
+    ij.includeRightBound = includeRight
+    ij.timeIntervalType = unit
+    ij
+  }
+
+  it should "translate IntervalJoinOpDesc inclusive bounds into a cross-join interval filter" in {
+    val csvLeft = csvSource("file:/tmp/left.csv")
+    val csvRight = csvSource("file:/tmp/right.csv")
+    val ij = intervalJoin("t", "start", 10, includeLeft = true, includeRight = true, None)
+
+    val links = List(
+      linkToPort(csvRight, ij, toPort = 1),
+      linkToPort(csvLeft, ij, toPort = 0)
+    )
+    val script = translate(List(csvRight, csvLeft, ij), links)
+
+    val leftVar = varReading(script, "left.csv") // port 0 (point side)
+    val rightVar = varReading(script, "right.csv") // port 1 (interval-start side)
+    script should include(s"""_l = $leftVar.assign(_iv_l=$leftVar["t"])""")
+    script should include(s"""_r = $rightVar.assign(_iv_r=$rightVar["start"])""")
+    script should include("""_pairs = _l.merge(_r, how="cross", suffixes=("", "#@1"))""")
+    script should include("""_iv_hi = _pairs["_iv_r"] + 10""")
+    script should include(
+      """_iv_match = (_pairs["_iv_l"] >= _pairs["_iv_r"]) & (_pairs["_iv_l"] <= _iv_hi)"""
+    )
+    script should include(""".drop(columns=["_iv_l", "_iv_r"]).reset_index(drop=True)""")
+    script should not include "in1df"
+    script should not include "in2df"
+    script should not include "out1df"
+  }
+
+  it should "use strict comparisons for IntervalJoinOpDesc exclusive bounds" in {
+    val csvLeft = csvSource("file:/tmp/left.csv")
+    val csvRight = csvSource("file:/tmp/right.csv")
+    val ij = intervalJoin("t", "start", 5, includeLeft = false, includeRight = false, None)
+    val links = List(link(csvLeft, ij), linkToPort(csvRight, ij, toPort = 1))
+    val script = translate(List(csvLeft, csvRight, ij), links)
+
+    script should include("""_iv_hi = _pairs["_iv_r"] + 5""")
+    script should include(
+      """_iv_match = (_pairs["_iv_l"] > _pairs["_iv_r"]) & (_pairs["_iv_l"] < _iv_hi)"""
+    )
+  }
+
+  it should "use pd.DateOffset for IntervalJoinOpDesc timestamp keys" in {
+    val csvLeft = csvSource("file:/tmp/left.csv")
+    val csvRight = csvSource("file:/tmp/right.csv")
+    val ij =
+      intervalJoin("t", "start", 2, includeLeft = true, includeRight = true, Some(TimeIntervalType.MONTH))
+    val links = List(link(csvLeft, ij), linkToPort(csvRight, ij, toPort = 1))
+    val script = translate(List(csvLeft, csvRight, ij), links)
+
+    script should include("""_iv_hi = _pairs["_iv_r"] + pd.DateOffset(months=2)""")
   }
 
   // --- Regression: multi-input port ordering ---

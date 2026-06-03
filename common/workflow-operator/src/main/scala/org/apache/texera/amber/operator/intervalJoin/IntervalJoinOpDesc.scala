@@ -26,7 +26,7 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -52,7 +52,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
   }
 }
 """)
-class IntervalJoinOpDesc extends LogicalOp {
+class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input attr")
@@ -146,6 +146,38 @@ class IntervalJoinOpDesc extends LogicalOp {
       ),
       outputPorts = List(OutputPort())
     )
+
+  // Inner interval join mirroring IntervalJoinOpExec: a left point matches a
+  // right row when leftKey is in [rightKey, rightKey + constant], with each
+  // bound's inclusivity toggled by include{Left,Right}Bound. Output keeps all
+  // left and all right columns (JoinUtils.joinTuples with no skip), right cols
+  // renamed "#@1" on conflict. We compute the full result via a cross-join +
+  // mask, so unlike the streaming exec we don't rely on inputs being sorted.
+  // A runtime dtype check picks numeric (+ constant) vs timestamp arithmetic;
+  // the offset unit is fixed here from timeIntervalType (default day).
+  override def generateStandaloneCode(): String = {
+    val leftLit = objectMapper.writeValueAsString(leftAttributeName)
+    val rightLit = objectMapper.writeValueAsString(rightAttributeName)
+    val loOp = if (includeLeftBound) ">=" else ">"
+    val hiOp = if (includeRightBound) "<=" else "<"
+    val offsetUnit = Option(timeIntervalType).flatten match {
+      case Some(TimeIntervalType.YEAR)   => "years"
+      case Some(TimeIntervalType.MONTH)  => "months"
+      case Some(TimeIntervalType.HOUR)   => "hours"
+      case Some(TimeIntervalType.MINUTE) => "minutes"
+      case Some(TimeIntervalType.SECOND) => "seconds"
+      case _                             => "days" // DAY or unset
+    }
+    s"""_l = in1df.assign(_iv_l=in1df[$leftLit])
+       |_r = in2df.assign(_iv_r=in2df[$rightLit])
+       |_pairs = _l.merge(_r, how="cross", suffixes=("", "#@1"))
+       |if pd.api.types.is_datetime64_any_dtype(_pairs["_iv_r"]):
+       |    _iv_hi = _pairs["_iv_r"] + pd.DateOffset($offsetUnit=$constant)
+       |else:
+       |    _iv_hi = _pairs["_iv_r"] + $constant
+       |_iv_match = (_pairs["_iv_l"] $loOp _pairs["_iv_r"]) & (_pairs["_iv_l"] $hiOp _iv_hi)
+       |out1df = _pairs[_iv_match].drop(columns=["_iv_l", "_iv_r"]).reset_index(drop=True)""".stripMargin
+  }
 
   def this(
       leftTableAttributeName: String,
