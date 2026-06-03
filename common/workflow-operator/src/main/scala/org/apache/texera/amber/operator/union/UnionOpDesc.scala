@@ -22,10 +22,10 @@ package org.apache.texera.amber.operator.union
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
-import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 
-class UnionOpDesc extends LogicalOp {
+class UnionOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -50,4 +50,16 @@ class UnionOpDesc extends LogicalOp {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+
+  // UNION ALL semantics: UnionOpExec passes every input tuple straight through
+  // (no dedup), so we concatenate and keep duplicates.
+  //
+  // KNOWN LIMITATION: Union has a single *variadic* input port that accepts N
+  // upstream links, with N unknown at codegen time. The translator's
+  // in1df/in2df placeholder scheme can only express a fixed arity, so we cover
+  // the 2-input case here. A 3rd+ upstream maps to an unreferenced in3df and is
+  // silently dropped. A general fix (a variadic placeholder) is integration-
+  // branch work — see the project Open Questions.
+  override def generateStandaloneCode(): String =
+    "out1df = pd.concat([in1df, in2df], ignore_index=True)"
 }

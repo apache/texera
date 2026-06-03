@@ -36,6 +36,7 @@ import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileSc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
+import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -376,6 +377,48 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("""df1 = pd.DataFrame({"URL content": [_content]})""")
     script should not include "[_content.decode"
     script should not include "out1df"
+  }
+
+  // --- SetOp: UnionOpDesc (variadic single port; 2-input concat, UNION ALL) ---
+  it should "translate UnionOpDesc into a pd.concat that keeps duplicates" in {
+    val csvA = csvSource("file:/tmp/a.csv")
+    val csvB = csvSource("file:/tmp/b.csv")
+    val union = new UnionOpDesc()
+
+    // Union has ONE variadic input port; both upstreams land on port 0. The
+    // tie on toPortId keeps link-list order, so in1df = first link (a.csv).
+    val links = List(
+      linkToPort(csvA, union, toPort = 0),
+      linkToPort(csvB, union, toPort = 0)
+    )
+    val script = translate(List(csvA, csvB, union), links)
+
+    val aVar = varReading(script, "a.csv")
+    val bVar = varReading(script, "b.csv")
+    script should include(s"= pd.concat([$aVar, $bVar], ignore_index=True)")
+    script should not include "in1df"
+    script should not include "in2df"
+    script should not include "out1df"
+  }
+
+  it should "only concat the first two inputs of a 3-input Union (variadic limitation)" in {
+    val csvA = csvSource("file:/tmp/a.csv")
+    val csvB = csvSource("file:/tmp/b.csv")
+    val csvC = csvSource("file:/tmp/c.csv")
+    val union = new UnionOpDesc()
+
+    val links = List(
+      linkToPort(csvA, union, toPort = 0),
+      linkToPort(csvB, union, toPort = 0),
+      linkToPort(csvC, union, toPort = 0)
+    )
+    val script = translate(List(csvA, csvB, csvC, union), links)
+
+    val aVar = varReading(script, "a.csv")
+    val bVar = varReading(script, "b.csv")
+    // KNOWN LIMITATION: the in1df/in2df scheme can't express N-unknown inputs,
+    // so a 3rd upstream is silently dropped — only the first two are concatted.
+    script should include(s"= pd.concat([$aVar, $bVar], ignore_index=True)")
   }
 
   // --- Regression: multi-input port ordering ---
