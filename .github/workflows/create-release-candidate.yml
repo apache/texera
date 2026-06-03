@@ -174,14 +174,14 @@ jobs:
 
           # Export the single-node directory from the tagged source
           mkdir -p "$TEMP_DIR/_raw"
-          git archive --format=tar "$TAG_NAME" -- bin/single-node/ sql/ | tar -x -C "$TEMP_DIR/_raw"
+          git archive --format=tar "$TAG_NAME" -- bin/single-node/ sql/ NOTICE | tar -x -C "$TEMP_DIR/_raw"
 
           # Copy deployment files
           cp "$TEMP_DIR/_raw/bin/single-node/docker-compose.yml" "$BUNDLE_DIR/"
           cp "$TEMP_DIR/_raw/bin/single-node/nginx.conf" "$BUNDLE_DIR/"
           cp "$TEMP_DIR/_raw/bin/single-node/litellm-config.yaml" "$BUNDLE_DIR/"
           cp "$TEMP_DIR/_raw/bin/single-node/LICENSE" "$BUNDLE_DIR/"
-          cp "$TEMP_DIR/_raw/bin/single-node/NOTICE" "$BUNDLE_DIR/"
+          cp "$TEMP_DIR/_raw/NOTICE" "$BUNDLE_DIR/"
           cp "$TEMP_DIR/_raw/bin/single-node/DISCLAIMER" "$BUNDLE_DIR/"
           cp -r "$TEMP_DIR/_raw/sql" "$BUNDLE_DIR/"
 
