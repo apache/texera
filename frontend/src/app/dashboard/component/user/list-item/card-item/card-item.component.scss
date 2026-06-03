@@ -16,6 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+// Styled to match the dataset card view (dataset-card-item.component.scss) for
+// a consistent card look across the dashboard: 8px radius, 124px cover, a
+// muted #8c8c8c / #595959 meta palette, #f0f0f0 dividers and a #e0506e like
+// accent. Markup/structure intentionally unchanged.
+
 .card-item {
   width: 100%;
   height: 100%;
@@ -24,9 +29,10 @@
   transition: box-shadow 0.2s;
   overflow: hidden;
   border-radius: 8px;
+  cursor: pointer;
 
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   }
 
   &.selected {
@@ -42,15 +48,11 @@
 }
 
 .card-preview {
-  height: 130px;
+  height: 124px;
   background-color: #f5f5f5;
   position: relative;
   cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
-
-  &:hover {
-    background-color: #e8e8e8;
-  }
+  overflow: hidden;
 }
 
 .card-preview-image {
@@ -72,6 +74,11 @@
   top: 8px;
   right: 8px;
   z-index: 10;
+  display: inline-flex;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .card-content {
@@ -80,6 +87,7 @@
   flex-direction: column;
   gap: 8px;
   flex: 1;
+  min-width: 0;
 }
 
 .card-header {
@@ -87,6 +95,7 @@
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
+  gap: 6px;
 }
 
 .title-container {
@@ -95,11 +104,13 @@
   gap: 8px;
   overflow: hidden;
   flex: 1;
+  min-width: 0;
 }
 
 .type-icon {
-  font-size: 20px;
-  color: #1890ff;
+  flex-shrink: 0;
+  font-size: 16px;
+  color: #8c8c8c;
 }
 
 .name-container {
@@ -108,20 +119,28 @@
 }
 
 .resource-name {
-  font-size: 16px;
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.85);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #1f1f1f;
 }
 
 .resource-name-edit-input {
   width: 100%;
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 600;
   padding: 2px 4px;
 }
 
 .edit-btn {
+  flex-shrink: 0;
   opacity: 0;
+  color: #8c8c8c;
   transition: opacity 0.2s;
+
+  &:hover {
+    color: #1f1f1f;
+  }
 }
 
 .card-item:hover .edit-btn {
@@ -131,16 +150,16 @@
 .card-description {
   flex: 0 0 auto;
   /* Do not grow */
-  height: 60px;
+  height: 56px;
   /* Fixed height */
   cursor: pointer;
   overflow: hidden;
-  margin-bottom: 8px;
 }
 
 .resource-description {
   font-size: 13px;
-  color: rgba(0, 0, 0, 0.45);
+  color: #8c8c8c;
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   line-clamp: 3;
@@ -161,9 +180,9 @@
 .card-meta {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  color: #8c8c8c;
   margin-top: auto;
 }
 
@@ -177,11 +196,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: #595959;
 
   span {
     display: flex;
     align-items: center;
     gap: 4px;
+    white-space: nowrap;
+
+    i {
+      font-size: 12px;
+      color: #8c8c8c;
+    }
   }
 }
 
@@ -196,19 +222,29 @@
 
 .action-btn {
   padding: 4px 8px;
-  color: rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+  color: #8c8c8c;
 
   &:hover {
-    color: #1890ff;
+    color: #1f1f1f;
+    background: #f0f0f0;
+  }
+}
+
+.like-btn {
+  &.liked,
+  &:not([disabled]):hover {
+    color: #e0506e;
   }
 }
 
 .liked {
-  color: #ff4d4f;
+  color: #e0506e;
 }
 
 .delete-btn:hover {
   color: #ff4d4f;
+  background: #fff1f0;
 }
 
 .truncate-single-line {
