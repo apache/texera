@@ -29,7 +29,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
@@ -53,7 +53,7 @@ object HashJoinOpDesc {
   }
 }
 """)
-class HashJoinOpDesc[K] extends LogicalOp {
+class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input Attribute")
@@ -200,4 +200,37 @@ class HashJoinOpDesc[K] extends LogicalOp {
       ),
       outputPorts = List(OutputPort())
     )
+
+  // Equi-join mirroring HashJoinBuild/Probe + JoinUtils.joinTuples: output is
+  // all build (left, port 0) columns plus all probe (right, port 1) columns
+  // except the probe key; right columns whose names collide with a left column
+  // get a "#@1" suffix (pandas' overlap-suffix on the right side). The build
+  // key is kept; the probe key is dropped when its name differs from the build
+  // key (when identical, pandas keeps a single key column = the build key).
+  //
+  // Known divergences from the JVM exec (documented; INNER is exact):
+  //   - Row order differs (Texera emits in hashmap-iteration order).
+  //   - Null join keys don't match in pd.merge (NaN != NaN); the JVM HashMap
+  //     can match null == null.
+  //   - For outer-join anti rows with colliding column names, Texera lands the
+  //     surviving value in a different column than pandas does.
+  override def generateStandaloneCode(): String = {
+    val buildKeyLit = objectMapper.writeValueAsString(buildAttributeName)
+    val probeKeyLit = objectMapper.writeValueAsString(probeAttributeName)
+    val how = joinType match {
+      case JoinType.INNER       => "inner"
+      case JoinType.LEFT_OUTER  => "left"
+      case JoinType.RIGHT_OUTER => "right"
+      case JoinType.FULL_OUTER  => "outer"
+    }
+    val merge =
+      s"""out1df = in1df.merge(in2df, how="$how", left_on=$buildKeyLit, """ +
+        s"""right_on=$probeKeyLit, suffixes=("", "#@1"))"""
+    val tail =
+      if (buildAttributeName != probeAttributeName)
+        s"out1df = out1df.drop(columns=[$probeKeyLit]).reset_index(drop=True)"
+      else
+        "out1df = out1df.reset_index(drop=True)"
+    s"$merge\n$tail"
+  }
 }

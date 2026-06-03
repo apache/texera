@@ -36,6 +36,7 @@ import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileSc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.difference.DifferenceOpDesc
+import org.apache.texera.amber.operator.hashJoin.{HashJoinOpDesc, JoinType}
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
@@ -508,6 +509,59 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     )
     script should include(".drop_duplicates(keep=False).reset_index(drop=True)")
     script should not include "out1df"
+  }
+
+  // --- Join: HashJoinOpDesc ---
+  private def hashJoin(build: String, probe: String, joinType: JoinType): HashJoinOpDesc[String] = {
+    val join = new HashJoinOpDesc[String]()
+    join.buildAttributeName = build
+    join.probeAttributeName = probe
+    join.joinType = joinType
+    join
+  }
+
+  it should "translate HashJoinOpDesc INNER into a pd.merge dropping the probe key" in {
+    val csvLeft = csvSource("file:/tmp/left.csv")
+    val csvRight = csvSource("file:/tmp/right.csv")
+    val join = hashJoin("id", "uid", JoinType.INNER)
+
+    val links = List(
+      linkToPort(csvRight, join, toPort = 1),
+      linkToPort(csvLeft, join, toPort = 0)
+    )
+    val script = translate(List(csvRight, csvLeft, join), links)
+
+    val leftVar = varReading(script, "left.csv") // build / port 0
+    val rightVar = varReading(script, "right.csv") // probe / port 1
+    script should include(
+      s"""$leftVar.merge($rightVar, how="inner", left_on="id", right_on="uid", suffixes=("", "#@1"))"""
+    )
+    script should include("""drop(columns=["uid"]).reset_index(drop=True)""")
+    script should not include "in1df"
+    script should not include "in2df"
+    script should not include "out1df"
+  }
+
+  it should "map HashJoinOpDesc LEFT_OUTER to how=left" in {
+    val csvLeft = csvSource("file:/tmp/left.csv")
+    val csvRight = csvSource("file:/tmp/right.csv")
+    val join = hashJoin("id", "uid", JoinType.LEFT_OUTER)
+    val links = List(link(csvLeft, join), linkToPort(csvRight, join, toPort = 1))
+    val script = translate(List(csvLeft, csvRight, join), links)
+
+    script should include("""how="left"""")
+  }
+
+  it should "not drop the join key when build and probe names are identical" in {
+    val csvLeft = csvSource("file:/tmp/left.csv")
+    val csvRight = csvSource("file:/tmp/right.csv")
+    val join = hashJoin("id", "id", JoinType.INNER)
+    val links = List(link(csvLeft, join), linkToPort(csvRight, join, toPort = 1))
+    val script = translate(List(csvLeft, csvRight, join), links)
+
+    script should include("""left_on="id", right_on="id"""")
+    // Same name -> pandas keeps one key column (the build key); nothing to drop.
+    script should not include "drop(columns="
   }
 
   // --- Regression: multi-input port ordering ---
