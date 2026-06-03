@@ -35,7 +35,7 @@ import { WorkflowActionService } from "../../../../workspace/service/workflow-gr
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { Role } from "../../../../common/type/user";
 import { Workflow } from "../../../../common/type/workflow";
-import { DASHBOARD_HUB_WORKFLOW_RESULT, DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
+import { HUB_WORKFLOW_RESULT, USER_WORKSPACE } from "../../../../app-routing.constant";
 import { MarkdownDescriptionComponent } from "../../../../dashboard/component/user/markdown-description/markdown-description.component";
 import { WorkflowEditorComponent } from "../../../../workspace/component/workflow-editor/workflow-editor.component";
 import { MiniMapComponent } from "../../../../workspace/component/workflow-editor/mini-map/mini-map.component";
@@ -329,10 +329,10 @@ describe("HubWorkflowDetailComponent", () => {
   });
 
   describe("goBack", () => {
-    it("navigates to DASHBOARD_HUB_WORKFLOW_RESULT", () => {
+    it("navigates to HUB_WORKFLOW_RESULT", () => {
       build({ modalData: { wid: 1 } });
       component.goBack();
-      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(DASHBOARD_HUB_WORKFLOW_RESULT);
+      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(HUB_WORKFLOW_RESULT);
     });
 
     it("notifies the user on navigation failure", async () => {
@@ -358,7 +358,7 @@ describe("HubWorkflowDetailComponent", () => {
       build({ modalData: { wid: 1 } });
       component.cloneWorkflow();
       expect(hubServiceMock.cloneWorkflow).toHaveBeenCalledWith(1);
-      expect(routerMock.navigate).toHaveBeenCalledWith([`${DASHBOARD_USER_WORKSPACE}/123`]);
+      expect(routerMock.navigate).toHaveBeenCalledWith([`${USER_WORKSPACE}/123`]);
       await Promise.resolve();
       await Promise.resolve();
       expect(notificationServiceMock.success).toHaveBeenCalledWith("Clone Successful");
