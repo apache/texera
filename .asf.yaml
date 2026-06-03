@@ -115,7 +115,8 @@ github:
         excludes: []
       bypass_teams:
         - "root"
-        - "texera-committers"
+      bypass_users:
+        - "xuang7"
       restrict_deletion: true
       restrict_force_push: true
 notifications:
