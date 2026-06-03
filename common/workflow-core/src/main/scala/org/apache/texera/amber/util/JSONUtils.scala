@@ -89,10 +89,6 @@ object JSONUtils {
       parentName: String = ""
   ): Map[String, String] = {
     val result = mutable.Map[String, String]()
-    // Traverse iteratively over a worklist of (node, parentName) pairs instead of
-    // recursing per nesting level, so deeply nested JSON cannot overflow the call
-    // stack. The per-node logic mirrors the original recursion exactly, and since
-    // the result is a Map the order in which pairs are emitted does not matter.
     val stack = mutable.Stack[(JsonNode, String)]((node, parentName))
     while (stack.nonEmpty) {
       val (current, currentParent) = stack.pop()
