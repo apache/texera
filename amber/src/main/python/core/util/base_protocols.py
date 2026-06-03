@@ -37,7 +37,7 @@ class KeyedPutable(Protocol):
 
 class Getable(Protocol):
     @abstractmethod
-    def get(self) -> T:
+    def get(self, timeout: Optional[float] = None) -> T:
         pass
 
 

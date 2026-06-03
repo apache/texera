@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import sys
+from queue import Empty
 from threading import RLock, Condition
 from typing import List, Optional, Generic, TypeVar, MutableMapping
 
@@ -296,19 +297,26 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         """
         self.get_sub_queue(key).put(item)
 
-    def get(self) -> T:
+    def get(self, timeout: Optional[float] = None) -> T:
         """
         Blocking get the next available item from the queue.
         - Disabled SubQueues are considered empty and will not be fetched.
         - When multiple SubQueues are enabled and have items, it selects the SubQueue
         by the order specified by the self.sub_queue_selection strategy.
 
+        :param timeout: optional seconds to block for; when given and no item
+            becomes available in time, raises queue.Empty. None blocks forever.
         :return: T, Any item that is available to the fetched.
         """
         self.take_lock.acquire()
         try:
-            while self.total_count.value == 0:
-                self.not_empty.wait()
+            if timeout is None:
+                while self.total_count.value == 0:
+                    self.not_empty.wait()
+            elif not self.not_empty.wait_for(
+                lambda: self.total_count.value > 0, timeout
+            ):
+                raise Empty
 
             # at this point we know there is an element
             sub_queue = self.sub_queue_selection.get_next()

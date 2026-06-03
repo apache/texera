@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from queue import Empty
+from threading import Event
+
 from loguru import logger
 from overrides import overrides
 
@@ -51,10 +54,13 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
     """
 
     RUNNABLE_STOP = QueueControl(msg="__RUNNABLE__STOP__MARKER__")
+    # seconds to block on each get before re-checking the stop flag
+    STOP_POLL_INTERVAL = 1.0
 
     def __init__(self, name: str, queue: IQueue):
         self._internal_queue = queue
         self.name = name
+        self._stopped = Event()
 
     @logger.catch(reraise=True)
     @overrides
@@ -84,13 +90,23 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
     @logger.catch(reraise=True)
     @overrides
     def stop(self):
+        self._stopped.set()
         self._internal_queue.put(StoppableQueueBlockingRunnable.RUNNABLE_STOP)
 
     def interruptible_get(self):
-        next_entry = self._internal_queue.get()
-        if next_entry == StoppableQueueBlockingRunnable.RUNNABLE_STOP:
-            raise StoppableQueueBlockingRunnable.InterruptRunnable
-        return next_entry
+        # Poll with a timeout so a missed RUNNABLE_STOP marker cannot park the
+        # thread forever; re-check the stop flag on every wakeup.
+        while not self._stopped.is_set():
+            try:
+                next_entry = self._internal_queue.get(
+                    timeout=StoppableQueueBlockingRunnable.STOP_POLL_INTERVAL
+                )
+            except Empty:
+                continue
+            if next_entry == StoppableQueueBlockingRunnable.RUNNABLE_STOP:
+                raise StoppableQueueBlockingRunnable.InterruptRunnable
+            return next_entry
+        raise StoppableQueueBlockingRunnable.InterruptRunnable
 
     class InterruptRunnable(Exception):
         """

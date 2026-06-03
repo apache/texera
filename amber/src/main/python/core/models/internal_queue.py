@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from threading import RLock
-from typing import TypeVar, Set
+from typing import Optional, TypeVar, Set
 
 from core.models.internal_marker import InternalMarker
 from core.models.payload import DataPayload
@@ -71,8 +71,8 @@ class InternalQueue(IQueue):
     def is_empty(self, key=None) -> bool:
         return self._queue.is_empty(key)
 
-    def get(self) -> T:
-        return self._queue.get()
+    def get(self, timeout: Optional[float] = None) -> T:
+        return self._queue.get(timeout)
 
     def put(self, item: T) -> None:
         if isinstance(item, InternalQueueElement):

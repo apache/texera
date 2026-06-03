@@ -18,6 +18,7 @@
 import pytest
 import random
 import time
+from queue import Empty
 from threading import Thread
 
 from core.util.customized_queue.linked_blocking_multi_queue import (
@@ -97,6 +98,29 @@ class TestLinkedBlockingMultiQueue:
 
         assert res == [1, 99, 3]
         assert queue.is_empty()
+
+    @pytest.mark.timeout(2)
+    def test_get_with_timeout_raises_empty_when_no_item(self, queue):
+        with pytest.raises(Empty):
+            queue.get(timeout=0.05)
+
+    @pytest.mark.timeout(2)
+    def test_get_with_timeout_returns_available_item(self, queue):
+        queue.put("data", 1)
+        assert queue.get(timeout=0.05) == 1
+
+    @pytest.mark.timeout(2)
+    def test_get_with_timeout_returns_item_arriving_during_wait(self, queue, reraise):
+        def producer():
+            with reraise:
+                time.sleep(0.1)
+                queue.put("data", 7)
+
+        producer_thread = Thread(target=producer)
+        producer_thread.start()
+        assert queue.get(timeout=2) == 7
+        producer_thread.join()
+        reraise()
 
     @pytest.mark.timeout(2)
     def test_producer_first_insert_sub(self, queue, reraise):
