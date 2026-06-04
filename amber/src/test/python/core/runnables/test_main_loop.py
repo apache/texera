@@ -1933,9 +1933,7 @@ class TestMainLoop:
         # the inline `split("-")` style flagged in the reviewer comment is
         # gone, and the test would fail loudly if a future refactor put it
         # back.
-        main_loop.context.worker_id = (
-            "Worker:WF211-LoopStart-operator-d71e0ab4-main-0"
-        )
+        main_loop.context.worker_id = "Worker:WF211-LoopStart-operator-d71e0ab4-main-0"
         monkeypatch.setattr(
             main_loop.context.input_manager,
             "get_input_port_mat_reader_threads",
@@ -2128,7 +2126,11 @@ class TestMainLoop:
 
         main_loop._jump_to_loop_start(_Executor(), self._stub_controller([]))
 
-        assert write_log[0] == ("create_document", "vfs:///wf/state/outer", State.SCHEMA)
+        assert write_log[0] == (
+            "create_document",
+            "vfs:///wf/state/outer",
+            State.SCHEMA,
+        )
         assert write_log[1] == ("writer", "0")
         # Call (1) put_one with the trimmed State as a depth-0 tuple,
         # then (2) close. Match the structure; the tuple object's
