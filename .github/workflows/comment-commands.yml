@@ -120,7 +120,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // `git blame` needs to runlocally in the runner. Use
+            // `git blame` needs to run locally in the runner. Use
             // Node's child_process helper to invoke the git CLI.
             const { execFileSync } = require('node:child_process');
             const body = (context.payload.comment.body || '').trim();
