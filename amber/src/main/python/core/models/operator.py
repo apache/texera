@@ -293,7 +293,62 @@ class TableOperator(TupleOperatorV2):
         yield
 
 
+# Names the loop runtime owns inside the eval namespaces and across the loop
+# boundary; explicitly stripped from every state dict that crosses Loop
+# Start / Loop End so user code can neither read nor persist them.
+# Other reserved names that used to live in user state -- ``loop_counter``,
+# ``LoopStartId``, ``LoopStartStateURI`` -- are no longer in ``self.state``
+# at all; they ride the StateFrame envelope (see ``core.models.payload``)
+# and are stamped/captured by ``MainLoop._process_state_frame``.
+_RESERVED_STATE_KEYS: frozenset = frozenset({"table", "output"})
+
+
 class LoopStartOperator(TableOperator):
+    """Base class for the runtime side of a Loop Start operator.
+
+    The generator in ``LoopStartOpDesc.scala`` emits a thin
+    ``ProcessLoopStartOperator(LoopStartOperator)`` subclass that does
+    nothing more than wire the user-supplied ``initialization`` and
+    ``output`` expressions into ``open()`` and ``process_table()``; all
+    substantive logic lives here.
+
+    Lifecycle
+    ---------
+    * ``open()`` runs once when the worker starts. The generated subclass
+      executes the user's ``initialization`` against a fresh ``self.state``
+      dict; after it returns ``self.state`` holds *only* the user's loop
+      variables.
+    * ``process_state(state, port)`` (final) runs once when upstream sends
+      this LoopStart its input state; it merges that state into
+      ``self.state``. The nested pass-through branch and all
+      ``loop_counter`` bookkeeping live in
+      ``MainLoop._process_state_frame``, not here.
+    * ``process_table(table, port)`` is provided by the generated subclass
+      and yields a downstream row via ``eval_output(...)`` against the
+      user's ``output`` expression.
+    * ``produce_state_on_finish(port)`` (final) emits the state crossing
+      the boundary to the matching LoopEnd: user variables plus the
+      pickled input table.
+
+    Subclass contract
+    -----------------
+    The generated subclass overrides ``open()`` and ``process_table()``
+    only. All other methods are ``@overrides.final``; do not override
+    them. After ``open()`` returns, ``self.state`` must be a dict
+    containing the user's loop variables (none of the reserved names in
+    ``_RESERVED_STATE_KEYS``).
+
+    Reserved names
+    --------------
+    * ``loop_counter`` / ``LoopStartId`` / ``LoopStartStateURI`` -- live on
+      the StateFrame envelope (``core.models.payload``), not in
+      ``self.state``. Stamped by this operator's worker via
+      ``MainLoop._compute_loop_start_id``.
+    * ``table`` / ``output`` -- transient names only available inside the
+      ``eval_output`` throwaway namespace; never persisted in
+      ``self.state``. See ``_RESERVED_STATE_KEYS``.
+    """
+
     @overrides.final
     def process_state(self, state: State, port: int) -> Optional[State]:
         # First-entry only: merge upstream state into self.state. The nested
@@ -326,13 +381,52 @@ class LoopStartOperator(TableOperator):
         produced = {
             key: value
             for key, value in self.state.items()
-            if key not in ("table", "output")
+            if key not in _RESERVED_STATE_KEYS
         }
         produced["table"] = dumps(Table(self._TableOperator__table_data[port]))
         return produced
 
 
 class LoopEndOperator(TableOperator):
+    """Base class for the runtime side of a Loop End operator.
+
+    The generator in ``LoopEndOpDesc.scala`` emits a thin
+    ``ProcessLoopEndOperator(LoopEndOperator)`` subclass that wires the
+    user-supplied ``update`` expression into ``process_state(...)`` (via
+    ``run_update``) and the ``condition`` expression into ``condition()``
+    (via ``eval_condition``); all substantive logic lives here.
+
+    Lifecycle
+    ---------
+    * ``process_table(table, port)`` (final) yields each input table
+      through as-is.
+    * ``process_state(state, port)`` is provided by the generated
+      subclass. It calls ``run_update(update_code, state)`` to unpickle
+      the input table, run the user's ``update`` in a throwaway
+      namespace, stash the table on ``self._loop_table``, and persist
+      only user variables back into ``self.state``. Returns ``None``.
+    * ``condition()`` is the abstract method the generated subclass
+      implements by delegating to ``eval_condition(...)`` against the
+      user's ``condition`` expression. Called by ``MainLoop.complete()``
+      to decide whether to fire the back-edge via
+      ``_jump_to_loop_start``.
+
+    Subclass contract
+    -----------------
+    The generated subclass overrides ``process_state()`` (delegating to
+    ``run_update``) and ``condition()`` (delegating to
+    ``eval_condition``). All other methods are ``@overrides.final``; do
+    not override them.
+
+    Reserved names
+    --------------
+    Same as ``LoopStartOperator``: ``loop_counter`` / ``LoopStartId`` /
+    ``LoopStartStateURI`` live on the StateFrame envelope (never in user
+    state); ``table`` / ``output`` are transient names available only
+    inside ``run_update`` / ``eval_condition``'s throwaway namespace and
+    are stripped from ``self.state``. See ``_RESERVED_STATE_KEYS``.
+    """
+
     @overrides.final
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         yield table
@@ -349,7 +443,9 @@ class LoopEndOperator(TableOperator):
 
         table = loads(state["table"])
         namespace = {
-            key: value for key, value in state.items() if key not in ("table", "output")
+            key: value
+            for key, value in state.items()
+            if key not in _RESERVED_STATE_KEYS
         }
         namespace["table"] = table
         exec(update_code, {}, namespace)
@@ -357,7 +453,7 @@ class LoopEndOperator(TableOperator):
         self.state = {
             key: value
             for key, value in namespace.items()
-            if key not in ("table", "output")
+            if key not in _RESERVED_STATE_KEYS
         }
 
     @overrides.final

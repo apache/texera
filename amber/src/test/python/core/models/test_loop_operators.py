@@ -45,7 +45,11 @@ from typing import Iterator, Optional
 import pytest
 
 from core.models import State, Table, TableLike, Tuple
-from core.models.operator import LoopEndOperator, LoopStartOperator
+from core.models.operator import (
+    _RESERVED_STATE_KEYS,
+    LoopEndOperator,
+    LoopStartOperator,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -353,3 +357,30 @@ class TestLoopRunsToCompletion:
         # loop state that crosses the back-edge.
         assert "table" not in final_vars
         assert "output" not in final_vars
+
+
+class TestReservedStateKeysConstant:
+    """The reviewer flagged that the reserved-name set was a string
+    convention rather than encoded as code. The filtering in
+    ``eval_output`` / ``run_update`` / ``produce_state_on_finish`` now
+    reads against a single ``_RESERVED_STATE_KEYS`` constant; this test
+    pins that the constant carries exactly the names documented on the
+    loop-operator class docstrings."""
+
+    def test_contains_table_and_output(self):
+        assert "table" in _RESERVED_STATE_KEYS
+        assert "output" in _RESERVED_STATE_KEYS
+
+    def test_does_not_contain_envelope_only_names(self):
+        # loop_counter / LoopStartId / LoopStartStateURI live on the
+        # StateFrame envelope, never in user state -- so they shouldn't
+        # appear in this filter list either.
+        assert "loop_counter" not in _RESERVED_STATE_KEYS
+        assert "LoopStartId" not in _RESERVED_STATE_KEYS
+        assert "LoopStartStateURI" not in _RESERVED_STATE_KEYS
+
+    def test_is_frozen(self):
+        # Mutability would let a future caller silently expand the
+        # reserved set; the constant is meant to be the single source of
+        # truth, so freeze it.
+        assert isinstance(_RESERVED_STATE_KEYS, frozenset)
