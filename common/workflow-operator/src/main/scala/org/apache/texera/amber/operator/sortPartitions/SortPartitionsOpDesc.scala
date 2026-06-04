@@ -24,7 +24,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, RangePartition}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -38,7 +38,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
   }
 }
 """)
-class SortPartitionsOpDesc extends LogicalOp {
+class SortPartitionsOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute")
@@ -84,4 +84,23 @@ class SortPartitionsOpDesc extends LogicalOp {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(blocking = true))
     )
+
+  // JVM op buffers all tuples and calls ArrayBuffer.sortWith with the comparator
+  // AttributeTypeUtils.compare(...) < 0. Scala's sortWith is guaranteed stable.
+  // AttributeTypeUtils.compare puts null < non-null (NULLS FIRST in ASC).
+  // Direction is ASC only (no DESC option); JSON schema restricts the attribute
+  // to INTEGER/LONG/DOUBLE. Domain min/max are partitioning hints unused at sort
+  // time, so the standalone code ignores them.
+  //
+  // pandas equivalent: stable mergesort, ascending, na_position="first" to
+  // mirror NULLS FIRST. Known divergence: Double NaN. JVM Double.compare orders
+  // NaN > +Inf (NaN last), while pandas treats NaN as missing and places it at
+  // na_position — so NaN sorts FIRST in this Python translation.
+  override def generateStandaloneCode(): String = {
+    val col = toPyDoubleQuotedLiteral(Option(sortAttributeName).getOrElse(""))
+    s"""out1df = in1df.sort_values(by=$col, ascending=True, kind="mergesort", na_position="first").reset_index(drop=True)"""
+  }
+
+  private def toPyDoubleQuotedLiteral(s: String): String =
+    "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
