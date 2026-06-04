@@ -23,10 +23,10 @@ import com.google.common.base.Preconditions
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 
-class SymmetricDifferenceOpDesc extends LogicalOp {
+class SymmetricDifferenceOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -62,4 +62,9 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       outputPorts = List(OutputPort(blocking = true))
     )
 
+  // Distinct rows in exactly one input. drop_duplicates(keep=False) drops rows
+  // seen on both sides. concat (not merge) so NaN == NaN matches the JVM HashSet.
+  override def generateStandaloneCode(): String =
+    "out1df = pd.concat([in1df.drop_duplicates(), in2df.drop_duplicates()], " +
+      "ignore_index=True).drop_duplicates(keep=False).reset_index(drop=True)"
 }

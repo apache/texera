@@ -25,11 +25,12 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class URLFetcherOpDesc extends SourceOperatorDescriptor {
+class URLFetcherOpDesc extends SourceOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL")
@@ -86,5 +87,26 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
+
+  // NOTE: the generated script uses `urllib.request.urlopen(...)`, but the
+  // translator's shared imports don't include `urllib.request`. Per the rule
+  // set 2026-05-26, we do not modify the translator on per-operator branches.
+  // Users must prepend `import urllib.request` to the generated script before
+  // running it. The manual test plan flags this. The import-management
+  // strategy will be handled on the integration branch.
+  override def generateStandaloneCode(): String = {
+    val urlLiteral = objectMapper.writeValueAsString(url)
+    val isUtf8 = decodingMethod == DecodingMethod.UTF_8
+    val valueExpr = if (isUtf8) """_content.decode("utf-8")""" else "_content"
+    val buf = scala.collection.mutable.ArrayBuffer[String]()
+    buf += s"_url = $urlLiteral"
+    buf += "try:"
+    buf += "    with urllib.request.urlopen(_url) as _resp:"
+    buf += "        _content = _resp.read()"
+    buf += "except Exception:"
+    buf += """    _content = f"Fetch failed for URL: {_url}".encode("utf-8")"""
+    buf += s"""out1df = pd.DataFrame({"URL content": [$valueExpr]})"""
+    buf.mkString("\n")
+  }
 
 }

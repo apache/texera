@@ -29,13 +29,17 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
-import org.apache.texera.amber.operator.source.scan.{FileDecodingMethod, ScanSourceOpDesc}
+import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod, ScanSourceOpDesc}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
+import java.net.URI
+import java.nio.file.Paths
+
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
-class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
+class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc with StandaloneCodeGenerator {
   @JsonProperty(defaultValue = "UTF_8", required = true)
   @JsonSchemaTitle("Encoding")
   @JsonSchemaInject(
@@ -63,6 +67,63 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   val outputFileName: Boolean = false
 
   fileTypeName = Option("")
+
+  override def generateStandaloneCode(): String = {
+    val rawPath = fileName.getOrElse("")
+    val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
+    val col = attributeName
+    val enc = encoding.toString.replace("_", "-").toLowerCase
+    val buf = scala.collection.mutable.ArrayBuffer[String]()
+
+    if (extract)
+      buf += s"""# WARNING: extract=true is not supported in standalone mode; provide the unarchived "$basename" directly."""
+
+    val isBinary =
+      attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
+
+    if (attributeType.isSingle) {
+      val openArgs =
+        if (isBinary) s""""$basename", "rb""""
+        else s""""$basename", "r", encoding="$enc""""
+      val dfCols =
+        if (outputFileName) s"""{"filename": "$basename", "$col": [_f.read()]}"""
+        else s"""{"$col": [_f.read()]}"""
+      buf += s"""with open($openArgs) as _f:"""
+      buf += s"""    out1df = pd.DataFrame($dfCols)"""
+    } else {
+      val castExpr = attributeType match {
+        case FileAttributeType.INTEGER   => "int(l.rstrip())"
+        case FileAttributeType.LONG      => "int(l.rstrip())"
+        case FileAttributeType.DOUBLE    => "float(l.rstrip())"
+        case FileAttributeType.BOOLEAN   => """l.rstrip().lower() == "true""""
+        case FileAttributeType.TIMESTAMP => "pd.Timestamp(l.rstrip())"
+        case _                           => """l.rstrip("\n")"""
+      }
+      val hasSlice = fileScanOffset.isDefined || fileScanLimit.isDefined
+      if (hasSlice) {
+        val start = fileScanOffset.getOrElse(0)
+        val sliceExpr = fileScanLimit match {
+          case Some(l) => s"_lines[$start:${start + l}]"
+          case None    => s"_lines[$start:]"
+        }
+        val dfCols =
+          if (outputFileName) s"""{"filename": "$basename", "$col": $sliceExpr}"""
+          else s"""{"$col": $sliceExpr}"""
+        buf += s"""with open("$basename", "r", encoding="$enc") as _f:"""
+        buf += s"""    _lines = [$castExpr for l in _f]"""
+        buf += s"""out1df = pd.DataFrame($dfCols)"""
+      } else {
+        val dfCols =
+          if (outputFileName)
+            s"""{"filename": "$basename", "$col": [$castExpr for l in _f]}"""
+          else s"""{"$col": [$castExpr for l in _f]}"""
+        buf += s"""with open("$basename", "r", encoding="$enc") as _f:"""
+        buf += s"""    out1df = pd.DataFrame($dfCols)"""
+      }
+    }
+
+    buf.mkString("\n")
+  }
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,

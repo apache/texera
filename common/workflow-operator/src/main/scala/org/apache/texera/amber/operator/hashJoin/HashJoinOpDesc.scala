@@ -29,7 +29,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
@@ -53,7 +53,7 @@ object HashJoinOpDesc {
   }
 }
 """)
-class HashJoinOpDesc[K] extends LogicalOp {
+class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input Attribute")
@@ -200,4 +200,28 @@ class HashJoinOpDesc[K] extends LogicalOp {
       ),
       outputPorts = List(OutputPort())
     )
+
+  // Equi-join: drop the probe key (kept only when its name differs from the
+  // build key), suffix colliding right columns "#@1" — matches JoinUtils. Known
+  // Texera divergences: row order, null keys (NaN != NaN in merge), outer
+  // anti-row column placement.
+  override def generateStandaloneCode(): String = {
+    val buildKeyLit = objectMapper.writeValueAsString(buildAttributeName)
+    val probeKeyLit = objectMapper.writeValueAsString(probeAttributeName)
+    val how = joinType match {
+      case JoinType.INNER       => "inner"
+      case JoinType.LEFT_OUTER  => "left"
+      case JoinType.RIGHT_OUTER => "right"
+      case JoinType.FULL_OUTER  => "outer"
+    }
+    val merge =
+      s"""out1df = in1df.merge(in2df, how="$how", left_on=$buildKeyLit, """ +
+        s"""right_on=$probeKeyLit, suffixes=("", "#@1"))"""
+    val tail =
+      if (buildAttributeName != probeAttributeName)
+        s"out1df = out1df.drop(columns=[$probeKeyLit]).reset_index(drop=True)"
+      else
+        "out1df = out1df.reset_index(drop=True)"
+    s"$merge\n$tail"
+  }
 }
