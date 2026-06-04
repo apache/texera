@@ -1902,6 +1902,60 @@ class TestMainLoop:
         assert switched == [True], "consume branch must invoke the operator"
         assert emitted == [], "operator returned None -> nothing emitted"
 
+    def test_user_state_excludes_envelope_metadata_on_consume_branch(
+        self, main_loop, monkeypatch
+    ):
+        # Reviewer feedback (#discussion_r3285892237): the envelope's
+        # loop metadata (loop_counter / loop_start_id /
+        # loop_start_state_uri) is internal runtime data and user code
+        # must not see it. After commit 30ba48c39f the URI is a typed
+        # StateFrame field, no longer a key in user State. This test
+        # pins that end to end: a StateFrame whose envelope carries the
+        # metadata must yield a user-facing `current_input_state` that
+        # contains only the inner State's keys -- never the envelope
+        # names.
+        class StubLoopEnd(LoopEndOperator):
+            def condition(self):
+                return False
+
+        main_loop.context.executor_manager.executor = StubLoopEnd()
+        # Standard stubs: emit/save/switch don't fire real work. The
+        # consume branch sets `current_input_state` to the inner State
+        # BEFORE the (stubbed) context switch, so the assertion below
+        # captures exactly what the operator would have received.
+        self._capture_state_emit(main_loop, monkeypatch)
+        # No output from the operator -> no emit work after consume.
+        monkeypatch.setattr(
+            main_loop.context.state_processing_manager,
+            "get_output_state",
+            lambda: None,
+        )
+
+        inner_state = State({"i": 42, "acc": [1, 2, 3]})
+        main_loop._process_state_frame(
+            StateFrame(
+                inner_state,
+                loop_counter=0,
+                loop_start_id="outer-loop",
+                loop_start_state_uri="vfs:///wf/state/outer",
+            )
+        )
+
+        # The runtime captured the envelope metadata onto its own
+        # instance state...
+        assert main_loop._loop_start_id == "outer-loop"
+        assert main_loop._loop_start_state_uri == "vfs:///wf/state/outer"
+        # ...but never wrote it into the user-facing State that the
+        # operator's process_state receives.
+        passed_to_operator = (
+            main_loop.context.state_processing_manager.current_input_state
+        )
+        assert isinstance(passed_to_operator, State)
+        assert set(passed_to_operator.keys()) == {"i", "acc"}
+        assert "LoopStartId" not in passed_to_operator
+        assert "LoopStartStateURI" not in passed_to_operator
+        assert "loop_counter" not in passed_to_operator
+
     # ------------------------------------------------------------------ #
     # _compute_loop_start_id / _jump_to_loop_start
     #
