@@ -51,15 +51,8 @@ class UnionOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort())
     )
 
-  // UNION ALL semantics: UnionOpExec passes every input tuple straight through
-  // (no dedup), so we concatenate and keep duplicates.
-  //
-  // KNOWN LIMITATION: Union has a single *variadic* input port that accepts N
-  // upstream links, with N unknown at codegen time. The translator's
-  // in1df/in2df placeholder scheme can only express a fixed arity, so we cover
-  // the 2-input case here. A 3rd+ upstream maps to an unreferenced in3df and is
-  // silently dropped. A general fix (a variadic placeholder) is integration-
-  // branch work — see the project Open Questions.
+  // UNION ALL (UnionOpExec passes tuples through, no dedup). Variadic port: the
+  // in1df/in2df scheme only expresses 2 inputs, so a 3rd+ upstream is dropped.
   override def generateStandaloneCode(): String =
     "out1df = pd.concat([in1df, in2df], ignore_index=True)"
 }

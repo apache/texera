@@ -201,19 +201,10 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort())
     )
 
-  // Equi-join mirroring HashJoinBuild/Probe + JoinUtils.joinTuples: output is
-  // all build (left, port 0) columns plus all probe (right, port 1) columns
-  // except the probe key; right columns whose names collide with a left column
-  // get a "#@1" suffix (pandas' overlap-suffix on the right side). The build
-  // key is kept; the probe key is dropped when its name differs from the build
-  // key (when identical, pandas keeps a single key column = the build key).
-  //
-  // Known divergences from the JVM exec (documented; INNER is exact):
-  //   - Row order differs (Texera emits in hashmap-iteration order).
-  //   - Null join keys don't match in pd.merge (NaN != NaN); the JVM HashMap
-  //     can match null == null.
-  //   - For outer-join anti rows with colliding column names, Texera lands the
-  //     surviving value in a different column than pandas does.
+  // Equi-join: drop the probe key (kept only when its name differs from the
+  // build key), suffix colliding right columns "#@1" — matches JoinUtils. Known
+  // Texera divergences: row order, null keys (NaN != NaN in merge), outer
+  // anti-row column placement.
   override def generateStandaloneCode(): String = {
     val buildKeyLit = objectMapper.writeValueAsString(buildAttributeName)
     val probeKeyLit = objectMapper.writeValueAsString(probeAttributeName)

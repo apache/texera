@@ -53,10 +53,8 @@ class IntersectOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  // IntersectOpExec returns leftSet.intersect(rightSet) over HashSet[Tuple]
-  // (distinct rows present in both inputs). We dedup each side, concat, and
-  // keep rows that occur twice. drop_duplicates/duplicated treat NaN == NaN,
-  // matching the JVM HashSet's null equality (pd.merge would not).
+  // Distinct rows in both inputs. concat + duplicated (not pd.merge) so NaN ==
+  // NaN matches the JVM HashSet's null equality.
   override def generateStandaloneCode(): String =
     """_both = pd.concat([in1df.drop_duplicates(), in2df.drop_duplicates()], ignore_index=True)
       |out1df = _both[_both.duplicated(keep="first")].reset_index(drop=True)""".stripMargin

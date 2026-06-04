@@ -147,14 +147,10 @@ class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort())
     )
 
-  // Inner interval join mirroring IntervalJoinOpExec: a left point matches a
-  // right row when leftKey is in [rightKey, rightKey + constant], with each
-  // bound's inclusivity toggled by include{Left,Right}Bound. Output keeps all
-  // left and all right columns (JoinUtils.joinTuples with no skip), right cols
-  // renamed "#@1" on conflict. We compute the full result via a cross-join +
-  // mask, so unlike the streaming exec we don't rely on inputs being sorted.
-  // A runtime dtype check picks numeric (+ constant) vs timestamp arithmetic;
-  // the offset unit is fixed here from timeIntervalType (default day).
+  // Inner interval join: left point in [rightKey, rightKey + constant], bounds
+  // toggled by include{Left,Right}Bound. Cross-join + mask computes the full
+  // result (no sorted-input assumption, unlike the exec). Runtime dtype check
+  // picks numeric vs pd.DateOffset (unit from timeIntervalType).
   override def generateStandaloneCode(): String = {
     val leftLit = objectMapper.writeValueAsString(leftAttributeName)
     val rightLit = objectMapper.writeValueAsString(rightAttributeName)

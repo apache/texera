@@ -62,11 +62,9 @@ class DifferenceOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  // DifferenceOpExec returns leftHashSet.diff(rightHashSet): distinct rows in
-  // the left input (port 0) absent from the right (port 1). The [left, right,
-  // right] concat + drop_duplicates(keep=False) trick keeps only rows that
-  // occur exactly once: left-only rows survive, anything present in right (>=2
-  // copies) drops. NaN-equal like the JVM HashSet (pd.merge would not be).
+  // Distinct rows in left (port 0) not in right (port 1). [left, right, right] +
+  // drop_duplicates(keep=False): right rows appear >=2x and drop, left-only
+  // survive. concat (not merge) so NaN == NaN matches the JVM HashSet.
   override def generateStandaloneCode(): String =
     "out1df = pd.concat([in1df.drop_duplicates(), in2df.drop_duplicates(), " +
       "in2df.drop_duplicates()], ignore_index=True)" +

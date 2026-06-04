@@ -62,11 +62,8 @@ class SymmetricDifferenceOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  // SymmetricDifferenceOpExec returns (left ∪ right) \ (left ∩ right): distinct
-  // rows in exactly one input. After per-side dedup, a concat where rows in
-  // both appear twice and rows in one appear once; drop_duplicates(keep=False)
-  // drops the twice-seen pairs, leaving the symmetric difference. NaN-equal
-  // like the JVM HashSet (pd.merge would not be).
+  // Distinct rows in exactly one input. drop_duplicates(keep=False) drops rows
+  // seen on both sides. concat (not merge) so NaN == NaN matches the JVM HashSet.
   override def generateStandaloneCode(): String =
     "out1df = pd.concat([in1df.drop_duplicates(), in2df.drop_duplicates()], " +
       "ignore_index=True).drop_duplicates(keep=False).reset_index(drop=True)"
