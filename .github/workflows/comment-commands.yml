@@ -154,6 +154,16 @@ jobs:
                 owner, repo, pull_number,
               });
 
+              // The default checkout targets the repo's default branch, so
+              // pull.base.sha may not be reachable when the PR targets a
+              // release or divergent branch. Fetch the base ref explicitly
+              // so git blame <base.sha> always works.
+              try {
+                execFileSync('git', ['fetch', 'origin', pull.base.ref], { encoding: 'utf8' });
+              } catch (e) {
+                core.warning(`git fetch for base ref ${pull.base.ref} failed: ${e.message}`);
+              }
+
               // List files changed in the pull request (paginated).
               const files = await github.paginate(github.rest.pulls.listFiles, {
                 owner, repo, pull_number, per_page: 100,
@@ -192,7 +202,11 @@ jobs:
                 return latest;
               }
 
-              const reviewers = new Set();
+              // Count how many changed files each candidate most recently
+              // touched. Top MAX_REVIEWERS avoids the GitHub 422 that
+              // rejects >15 reviewers and keeps noise low.
+              const MAX_REVIEWERS = 2;
+              const reviewerCounts = new Map(); // login -> file count
               for (const { filename } of files) {
                 let blameOutput;
                 try {
@@ -228,12 +242,32 @@ jobs:
 
                 // Don't request the PR author or bot accounts.
                 if (login.toLowerCase() === author.toLowerCase()) continue;
-                if (commit.author?.type === 'Bot' || commit.committer?.type === 'Bot') continue;
+                // Check bot-ness only on the identity that supplied login,
+                // so a human-authored commit applied by a bot committer is
+                // not wrongly excluded.
+                const loginSource = commit.author?.login ? commit.author : commit.committer;
+                if (loginSource?.type === 'Bot') continue;
 
-                reviewers.add(login);
+                // requestReviewers is atomic: one non-collaborator login
+                // causes the entire call to fail with 422 and no reviewers
+                // get added. Validate before counting.
+                try {
+                  await github.rest.repos.checkCollaborator({ owner, repo, username: login });
+                } catch (e) {
+                  core.info(`${login} is not a collaborator on ${repo}; skipping.`);
+                  continue;
+                }
+
+                // Count how many changed files each candidate last touched.
+                reviewerCounts.set(login, (reviewerCounts.get(login) ?? 0) + 1);
               }
 
-              return [...reviewers].sort();
+              // Return the top MAX_REVIEWERS candidates ranked by how many
+              // changed files they most recently touched.
+              return [...reviewerCounts.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, MAX_REVIEWERS)
+                .map(([login]) => login);
             }
 
             // Parse @user and @org/team mentions; route teams to the
