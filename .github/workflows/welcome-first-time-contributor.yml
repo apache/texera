@@ -112,7 +112,7 @@ jobs:
               ``,
               `- **Issues:** \`/take\` (self-assign), \`/untake\`. Find unclaimed work via \`is:issue is:open no:assignee\`.`,
               `- **Sub-issues:** on the parent, \`/sub-issue #5166 #5222\` / \`/unsub-issue #5166 #5222\`; on the child, \`/parent-issue #5166\` / \`/unparent-issue\` (parent auto-detected). Refs can be \`#5166\` or bare \`5166\`; cross-repo refs aren't supported.`,
-              `- **PRs (author only):** \`/request-review @user\` (or bare \`/request-review\` to auto-assign a reviewer) / \`/unrequest-review @user\`. Teams (\`@org/team\`) and \`@copilot\` work too.`,
+              `- **PRs (author only):** \`/request-review @user\` (or bare \`/request-review\` to auto-assign a reviewer) / \`/unrequest-review @user\`.`,
               ``,
               `Commands must match exactly — \`/take this\` won't work, only \`/take\`. For the full flow, see [CONTRIBUTING.md](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md).`,
             ].join('\n');
