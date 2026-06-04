@@ -24,7 +24,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
@@ -36,7 +36,7 @@ import scala.collection.mutable.ListBuffer
   * the lexicographic order and per-key direction (ASC/DESC).
   */
 //TODO(#3922): disallowing sorting on binary type
-class StableMergeSortOpDesc extends LogicalOp {
+class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   @JsonProperty(value = "keys", required = true)
   @JsonSchemaTitle("Sort Keys")
@@ -69,4 +69,26 @@ class StableMergeSortOpDesc extends LogicalOp {
       List(InputPort()),
       List(OutputPort(blocking = true))
     )
+
+  // JVM op runs an incremental stable merge sort with NULLS-LAST regardless of
+  // direction. pandas' sort_values(kind="mergesort") is stable, and
+  // na_position="last" is direction-independent — matches the JVM null policy
+  // exactly. Known divergence: floating-point NaN. JVM uses Double.compare,
+  // which orders NaN > +Inf (so NaN sorts last in ASC, first in DESC). pandas
+  // treats NaN as a missing value and always places it at na_position, so DESC
+  // ordering of a Double column with NaNs will differ.
+  override def generateStandaloneCode(): String = {
+    val criteria = Option(keys).getOrElse(ListBuffer.empty)
+    if (criteria.isEmpty) return "out1df = in1df.copy()"
+    val cols = criteria
+      .map(c => toPyDoubleQuotedLiteral(c.attributeName))
+      .mkString("[", ", ", "]")
+    val ascending = criteria
+      .map(c => if (c.sortPreference == SortPreference.ASC) "True" else "False")
+      .mkString("[", ", ", "]")
+    s"""out1df = in1df.sort_values(by=$cols, ascending=$ascending, kind="mergesort", na_position="last").reset_index(drop=True)"""
+  }
+
+  private def toPyDoubleQuotedLiteral(s: String): String =
+    "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
