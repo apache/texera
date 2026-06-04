@@ -204,7 +204,7 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  forumLogin() {
+  forumLogin(attemptRegister: boolean = true) {
     if (!document.cookie.includes("flarum_remember") && this.isLogin) {
       this.flarumService
         .auth()
@@ -214,13 +214,19 @@ export class DashboardComponent implements OnInit {
             document.cookie = `flarum_remember=${response.token};path=/`;
           },
           error: (err: unknown) => {
-            if ([404, 500].includes((err as HttpErrorResponse).status)) {
+            // Stop retrying on a missing/broken forum service, or once we have
+            // already attempted a registration, to avoid an infinite
+            // auth -> register -> auth loop when auth keeps failing.
+            if ([404, 500].includes((err as HttpErrorResponse).status) || !attemptRegister) {
               this.displayForum = false;
             } else {
               this.flarumService
                 .register()
                 .pipe(untilDestroyed(this))
-                .subscribe(() => this.forumLogin());
+                .subscribe({
+                  next: () => this.forumLogin(false),
+                  error: () => (this.displayForum = false),
+                });
             }
           },
         });
