@@ -107,13 +107,25 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # back to jump. These ride the StateFrame envelope, not user state.
         loop_start_id = get_operator_id(self.context.worker_id)
         # The URI lives on the upstream operator's output port (which
-        # LoopStart's first materialization reader is reading from).
+        # LoopStart's first materialization reader is reading from). LoopStart
+        # is constrained to a single input port + single reader, so fail loud
+        # rather than silently picking whichever dict iterator yields first --
+        # that would mask future graph mistakes by choosing an arbitrary URI.
         reader_runnables = (
             self.context.input_manager.get_input_port_mat_reader_threads()
         )
-        loop_start_state_uri = VFSURIFactory.state_uri(
-            next(iter(reader_runnables.values()))[0].uri
-        )
+        if len(reader_runnables) != 1:
+            raise RuntimeError(
+                f"LoopStart expected exactly one input port, "
+                f"got {len(reader_runnables)}"
+            )
+        [(_, readers)] = reader_runnables.items()
+        if len(readers) != 1:
+            raise RuntimeError(
+                f"LoopStart expected exactly one input reader on its port, "
+                f"got {len(readers)}"
+            )
+        loop_start_state_uri = VFSURIFactory.state_uri(readers[0].uri)
         return loop_start_id, loop_start_state_uri
 
     def _jump_to_loop_start(

@@ -1901,3 +1901,238 @@ class TestMainLoop:
 
         assert switched == [True], "consume branch must invoke the operator"
         assert emitted == [], "operator returned None -> nothing emitted"
+
+    # ------------------------------------------------------------------ #
+    # _compute_loop_start_id / _jump_to_loop_start
+    #
+    # Reviewer feedback (#discussion_r3285892249) flagged these as the
+    # most fragile loop-runtime methods. Most of the original concerns
+    # have since been addressed (worker-id parsing moved to the canonical
+    # `get_operator_id`; LoopStartId / LoopStartStateURI now ride the
+    # StateFrame envelope, not user state). What remained: the silent
+    # first-port pick in `_compute_loop_start_id`, and no unit coverage
+    # for either method. The cases below close both gaps.
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _stub_reader_runnables(uri):
+        """Build the dict shape that
+        `input_manager.get_input_port_mat_reader_threads` returns: one
+        port -> one reader runnable carrying the given URI."""
+
+        class _Reader:
+            def __init__(self, u):
+                self.uri = u
+
+        return {PortIdentity(0, internal=False): [_Reader(uri)]}
+
+    def test_compute_loop_start_id_parses_worker_id_via_canonical_helper(
+        self, main_loop, monkeypatch
+    ):
+        # Pin that we delegate the worker-id parse to `get_operator_id` --
+        # the inline `split("-")` style flagged in the reviewer comment is
+        # gone, and the test would fail loudly if a future refactor put it
+        # back.
+        main_loop.context.worker_id = (
+            "Worker:WF211-LoopStart-operator-d71e0ab4-main-0"
+        )
+        monkeypatch.setattr(
+            main_loop.context.input_manager,
+            "get_input_port_mat_reader_threads",
+            lambda: self._stub_reader_runnables("vfs:///wf/result/foo"),
+        )
+
+        op_id, _ = main_loop._compute_loop_start_id()
+
+        assert op_id == "LoopStart-operator-d71e0ab4"
+
+    def test_compute_loop_start_id_returns_state_uri_derived_from_reader(
+        self, main_loop, monkeypatch
+    ):
+        # The URI returned must be the state-channel form of the upstream
+        # reader's result URI, not the raw result URI -- the conversion
+        # via `VFSURIFactory.state_uri` must not be silently dropped.
+        main_loop.context.worker_id = "Worker:WF1-LoopStart-op-abc-main-0"
+        result_uri = "vfs:///wf/result/foo"
+        monkeypatch.setattr(
+            main_loop.context.input_manager,
+            "get_input_port_mat_reader_threads",
+            lambda: self._stub_reader_runnables(result_uri),
+        )
+
+        _, state_uri = main_loop._compute_loop_start_id()
+
+        from core.storage.vfs_uri_factory import VFSURIFactory
+
+        assert state_uri == VFSURIFactory.state_uri(result_uri)
+        # And the converted URI is genuinely different from the result
+        # URI (i.e. the conversion did something), so a no-op replacement
+        # would fail here too.
+        assert state_uri != result_uri
+
+    def test_compute_loop_start_id_raises_when_more_than_one_input_port(
+        self, main_loop, monkeypatch
+    ):
+        # Today a LoopStart with multiple input ports would silently pick
+        # whichever the dict iterator yields first. The defensive guard
+        # surfaces the misconfiguration loudly instead.
+        main_loop.context.worker_id = "Worker:WF1-LoopStart-op-abc-main-0"
+
+        class _R:
+            def __init__(self, u):
+                self.uri = u
+
+        two_ports = {
+            PortIdentity(0, internal=False): [_R("vfs:///a")],
+            PortIdentity(1, internal=False): [_R("vfs:///b")],
+        }
+        monkeypatch.setattr(
+            main_loop.context.input_manager,
+            "get_input_port_mat_reader_threads",
+            lambda: two_ports,
+        )
+
+        with pytest.raises(RuntimeError, match="exactly one input port"):
+            main_loop._compute_loop_start_id()
+
+    def test_compute_loop_start_id_raises_when_port_has_multiple_readers(
+        self, main_loop, monkeypatch
+    ):
+        # Same defensive guard for the second axis: a port with > 1
+        # reader runnable would have silently picked the first.
+        main_loop.context.worker_id = "Worker:WF1-LoopStart-op-abc-main-0"
+
+        class _R:
+            def __init__(self, u):
+                self.uri = u
+
+        monkeypatch.setattr(
+            main_loop.context.input_manager,
+            "get_input_port_mat_reader_threads",
+            lambda: {PortIdentity(0, internal=False): [_R("vfs:///a"), _R("vfs:///b")]},
+        )
+
+        with pytest.raises(RuntimeError, match="exactly one input reader"):
+            main_loop._compute_loop_start_id()
+
+    @staticmethod
+    def _stub_controller(record):
+        """A controller_interface stand-in that records every
+        jump_to_operator_region call into ``record``."""
+
+        class _Controller:
+            def jump_to_operator_region(self, request):
+                record.append(request)
+
+        return _Controller()
+
+    @staticmethod
+    def _patch_create_document(monkeypatch, write_log):
+        """Patch DocumentFactory.create_document at the symbol imported
+        into main_loop. Each call appends ``(uri, schema)`` to
+        ``write_log`` and returns an object whose ``writer(name)`` yields
+        a mock that records ``put_one`` and ``close`` calls into the
+        same list (tagged so order is observable)."""
+
+        class _Writer:
+            def __init__(self, log):
+                self._log = log
+
+            def put_one(self, item):
+                self._log.append(("put_one", item))
+
+            def close(self):
+                self._log.append(("close",))
+
+        class _Doc:
+            def __init__(self, log):
+                self._log = log
+
+            def writer(self, name):
+                self._log.append(("writer", name))
+                return _Writer(self._log)
+
+        def _create(uri, schema):
+            write_log.append(("create_document", uri, schema))
+            return _Doc(write_log)
+
+        monkeypatch.setattr(
+            "core.runnables.main_loop.DocumentFactory.create_document",
+            _create,
+        )
+
+    def test_jump_to_loop_start_sends_rpc_with_stamped_loop_start_id(
+        self, main_loop, monkeypatch
+    ):
+        main_loop._loop_start_id = "outer-loop"
+        main_loop._loop_start_state_uri = "vfs:///wf/state/outer"
+
+        rpc_calls = []
+        write_log = []
+        self._patch_create_document(monkeypatch, write_log)
+
+        class _Executor:
+            state = State({"i": 7})
+
+        main_loop._jump_to_loop_start(_Executor(), self._stub_controller(rpc_calls))
+
+        assert len(rpc_calls) == 1
+        # The request carries the loop_start_id we captured from the
+        # incoming StateFrame envelope -- never read off user state.
+        assert rpc_calls[0].target_operator_id.id == "outer-loop"
+
+    def test_jump_to_loop_start_strips_user_scratch_keys_but_preserves_user_vars(
+        self, main_loop, monkeypatch
+    ):
+        # `table` and `output` are runtime scratch the LoopStart's exec
+        # path stuffs into self.state; they must not survive into the
+        # state written back to LoopStart's input. Any other key is the
+        # user's own loop variable and must.
+        main_loop._loop_start_id = "outer"
+        main_loop._loop_start_state_uri = "vfs:///wf/state/outer"
+
+        write_log = []
+        self._patch_create_document(monkeypatch, write_log)
+
+        class _Executor:
+            state = State(
+                {"i": 7, "acc": [1, 2, 3], "table": "scratch", "output": "scratch"}
+            )
+
+        executor = _Executor()
+        main_loop._jump_to_loop_start(executor, self._stub_controller([]))
+
+        # Post-call: scratch keys gone, user vars survive.
+        assert "table" not in executor.state
+        assert "output" not in executor.state
+        assert executor.state["i"] == 7
+        assert executor.state["acc"] == [1, 2, 3]
+
+    def test_jump_to_loop_start_writes_state_via_create_document_then_close(
+        self, main_loop, monkeypatch
+    ):
+        # Pin the exact iceberg write contract: create_document with the
+        # stamped URI and State.SCHEMA, then open writer("0"), then a
+        # single put_one with `State(state).to_tuple(0)` (the trailing 0
+        # is the loop_counter for the next iteration's depth -- starts
+        # back at 0 because this fires only when an outer LoopEnd
+        # consumed at loop_counter == 0), then close.
+        main_loop._loop_start_id = "outer"
+        main_loop._loop_start_state_uri = "vfs:///wf/state/outer"
+
+        write_log = []
+        self._patch_create_document(monkeypatch, write_log)
+
+        class _Executor:
+            state = State({"i": 7})
+
+        main_loop._jump_to_loop_start(_Executor(), self._stub_controller([]))
+
+        assert write_log[0] == ("create_document", "vfs:///wf/state/outer", State.SCHEMA)
+        assert write_log[1] == ("writer", "0")
+        # Call (1) put_one with the trimmed State as a depth-0 tuple,
+        # then (2) close. Match the structure; the tuple object's
+        # internals are exercised elsewhere.
+        assert write_log[2][0] == "put_one"
+        assert write_log[2][1] == State({"i": 7}).to_tuple(0)
+        assert write_log[3] == ("close",)
