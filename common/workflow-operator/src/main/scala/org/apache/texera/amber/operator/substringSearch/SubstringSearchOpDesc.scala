@@ -24,12 +24,13 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.filter.FilterOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class SubstringSearchOpDesc extends FilterOpDesc {
+class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("attribute")
@@ -74,4 +75,16 @@ class SubstringSearchOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
+
+  override def generateStandaloneCode(): String = {
+    // JVM uses String.contains (case-sensitive) or toLowerCase.contains
+    // (case-insensitive). pandas str.contains with regex=False is the direct
+    // equivalent — the substring is matched literally, not as a regex.
+    val pyLiteral = toPyDoubleQuotedLiteral(Option(substring).getOrElse(""))
+    val caseArg = if (isCaseSensitive) "True" else "False"
+    s"""out1df = in1df[in1df["$attribute"].astype(str).str.contains($pyLiteral, regex=False, case=$caseArg, na=False)].reset_index(drop=True)"""
+  }
+
+  private def toPyDoubleQuotedLiteral(s: String): String =
+    "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
