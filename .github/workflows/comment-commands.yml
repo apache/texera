@@ -202,6 +202,20 @@ jobs:
                 return latest;
               }
 
+              // Fetch collaborators once as a fallback pool for files whose
+              // blamed commit has no linked GitHub login.
+              let collaboratorPool = [];
+              try {
+                const collabs = await github.paginate(github.rest.repos.listCollaborators, {
+                  owner, repo, per_page: 100,
+                });
+                collaboratorPool = collabs
+                  .filter(u => u.type !== 'Bot' && u.login.toLowerCase() !== author.toLowerCase())
+                  .map(u => u.login);
+              } catch (e) {
+                core.warning(`Could not fetch collaborators for fallback: ${e.message}`);
+              }
+
               // Count how many changed files each candidate most recently
               // touched. Top MAX_REVIEWERS avoids the GitHub 422 that
               // rejects >15 reviewers and keeps noise low.
@@ -232,12 +246,17 @@ jobs:
                   continue;
                 }
 
-                // Prefer the GitHub-linked author/committer; skip if
-                // there is no linked login (e.g., authored by email only).
-                const login = commit.author?.login ?? commit.committer?.login;
+                // Prefer the GitHub-linked author/committer; fall back to a
+                // random collaborator if the commit has no linked GitHub login
+                // (e.g., authored by email only).
+                let login = commit.author?.login ?? commit.committer?.login;
                 if (!login) {
-                  core.warning(`Commit ${latest.sha} from ${filename} has no GitHub user; skipping.`);
-                  continue;
+                  if (!collaboratorPool.length) {
+                    core.warning(`Commit ${latest.sha} from ${filename} has no GitHub user and no collaborator fallback; skipping.`);
+                    continue;
+                  }
+                  login = collaboratorPool[Math.floor(Math.random() * collaboratorPool.length)];
+                  core.info(`Commit ${latest.sha} from ${filename} has no GitHub user; falling back to random collaborator ${login}.`);
                 }
 
                 // Don't request the PR author or bot accounts.
