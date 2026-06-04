@@ -21,7 +21,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { DashboardComponent } from "./dashboard.component";
 import { ChangeDetectorRef, EventEmitter, NgZone } from "@angular/core";
 import { By } from "@angular/platform-browser";
-import { EMPTY, of } from "rxjs";
+import { EMPTY, of, throwError } from "rxjs";
 
 import { UserService } from "../../common/service/user/user.service";
 import { FlarumService } from "../service/user/flarum/flarum.service";
@@ -176,6 +176,71 @@ describe("DashboardComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.debugElement.query(By.css("#powered-by"))).toBeTruthy();
+  });
+
+  describe("forumLogin", () => {
+    const clearForumCookie = () =>
+      (document.cookie = "flarum_remember=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/");
+
+    beforeEach(() => {
+      clearForumCookie();
+      (userServiceMock.isLogin as Mock).mockReturnValue(true);
+      component.isLogin = true;
+      component.displayForum = true;
+      (flarumServiceMock.auth as Mock).mockClear();
+      (flarumServiceMock.register as Mock).mockClear();
+    });
+
+    afterEach(() => clearForumCookie());
+
+    it("stores the flarum_remember cookie on successful auth and does not register", () => {
+      (flarumServiceMock.auth as Mock).mockReturnValue(of({ token: "tok123" }));
+
+      component.forumLogin();
+
+      expect(document.cookie).toContain("flarum_remember=tok123");
+      expect(flarumServiceMock.register).not.toHaveBeenCalled();
+    });
+
+    it("hides the forum and does not register when auth fails with 404/500", () => {
+      (flarumServiceMock.auth as Mock).mockReturnValue(throwError(() => ({ status: 404 })));
+
+      component.forumLogin();
+
+      expect(component.displayForum).toBe(false);
+      expect(flarumServiceMock.register).not.toHaveBeenCalled();
+    });
+
+    it("registers at most once and stops when auth keeps failing (no infinite loop)", () => {
+      (flarumServiceMock.auth as Mock).mockReturnValue(throwError(() => ({ status: 401 })));
+      (flarumServiceMock.register as Mock).mockReturnValue(of(null));
+
+      component.forumLogin();
+
+      // auth -> register -> auth -> stop: register fires once, auth twice, then it terminates.
+      expect(flarumServiceMock.register).toHaveBeenCalledTimes(1);
+      expect(flarumServiceMock.auth).toHaveBeenCalledTimes(2);
+      expect(component.displayForum).toBe(false);
+    });
+
+    it("hides the forum when registration fails", () => {
+      (flarumServiceMock.auth as Mock).mockReturnValue(throwError(() => ({ status: 401 })));
+      (flarumServiceMock.register as Mock).mockReturnValue(throwError(() => ({ status: 500 })));
+
+      component.forumLogin();
+
+      expect(flarumServiceMock.register).toHaveBeenCalledTimes(1);
+      expect(component.displayForum).toBe(false);
+    });
+
+    it("does nothing when a flarum_remember cookie is already present", () => {
+      document.cookie = "flarum_remember=existing;path=/";
+
+      component.forumLogin();
+
+      expect(flarumServiceMock.auth).not.toHaveBeenCalled();
+      expect(flarumServiceMock.register).not.toHaveBeenCalled();
+    });
   });
 
   it("should hide the navbar on workflow workspace routes", () => {
