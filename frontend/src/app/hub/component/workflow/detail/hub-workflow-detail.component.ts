@@ -91,8 +91,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   ) {
     this.wid = input?.wid; //Accessing from the pop up. getting wid from the @Input
     if (!isDefined(this.wid)) {
-      // otherwise getting wid from the route
-      this.wid = this.route.snapshot.params.id;
+      // otherwise getting wid from the route; route params are strings at runtime,
+      // so coerce to the numeric wid the persist/hub services expect
+      const routeId = this.route.snapshot.params.id;
+      this.wid = isDefined(routeId) ? Number(routeId) : undefined;
       this.isHub = true;
     }
     this.currentUser = this.userService.getCurrentUser();
