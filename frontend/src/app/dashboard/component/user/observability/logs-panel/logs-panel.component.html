@@ -1,0 +1,246 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<form [formGroup]="form" class="logs-panel">
+  <!-- Row 1: time + service multi-select + level + free-text query.
+       This row alone covers most "give me last hour ERRORs from service
+       X" admin queries. -->
+  <div class="row">
+    <nz-range-picker
+      class="time"
+      [nzShowTime]="true"
+      [nzAllowClear]="false"
+      formControlName="range"></nz-range-picker>
+
+    <nz-select
+      class="services"
+      nzMode="multiple"
+      nzAllowClear
+      nzPlaceHolder="All services"
+      formControlName="services">
+      <nz-option
+        *ngFor="let s of sources.services"
+        [nzLabel]="s"
+        [nzValue]="s"></nz-option>
+    </nz-select>
+
+    <nz-select
+      class="level"
+      formControlName="level"
+      nzAllowClear
+      nzPlaceHolder="Level">
+      <nz-option *ngFor="let l of levels" [nzLabel]="l" [nzValue]="l"></nz-option>
+    </nz-select>
+
+    <nz-select
+      class="sort"
+      formControlName="sort"
+      nzPlaceHolder="Sort">
+      <nz-option
+        *ngFor="let s of sortOptions"
+        [nzLabel]="s.label"
+        [nzValue]="s.value"></nz-option>
+    </nz-select>
+
+    <input
+      nz-input
+      class="query"
+      type="text"
+      formControlName="query"
+      placeholder="Search log body..."
+      [attr.maxlength]="maxFreeTextLen" />
+  </div>
+
+  <!-- Row 2: CU / workflow / execution scope.
+       Combobox-like with autofilled IDs from /logs/sources.
+       nzShowSearch lets the user type to filter or type-add an ID
+       not yet in the autofill list — keeps the form usable even
+       when /sources hasn't reported a particular value yet. -->
+  <div class="row">
+    <nz-select
+      class="id"
+      formControlName="computingUnitId"
+      nzAllowClear
+      nzShowSearch
+      nzPlaceHolder="Computing Unit id (any)">
+      <nz-option
+        *ngFor="let id of sources.computingUnitIds"
+        [nzLabel]="'CU #' + id"
+        [nzValue]="id"></nz-option>
+    </nz-select>
+
+    <nz-select
+      class="id"
+      formControlName="workflowId"
+      nzAllowClear
+      nzShowSearch
+      nzPlaceHolder="Workflow id (any allowed)">
+      <nz-option
+        *ngFor="let id of sources.workflowIds"
+        [nzLabel]="'Workflow #' + id"
+        [nzValue]="id"></nz-option>
+    </nz-select>
+
+    <nz-select
+      class="id"
+      formControlName="userId"
+      nzAllowClear
+      nzShowSearch
+      nzPlaceHolder="User id (any)">
+      <nz-option
+        *ngFor="let id of sources.userIds"
+        [nzLabel]="'User #' + id"
+        [nzValue]="id"></nz-option>
+    </nz-select>
+
+    <input
+      nz-input
+      type="number"
+      formControlName="executionId"
+      placeholder="Execution id (optional)" />
+    <input
+      nz-input
+      class="page-size"
+      type="number"
+      formControlName="pageSize"
+      [attr.max]="maxPageSize"
+      placeholder="Page size" />
+    <nz-select
+      class="refresh"
+      formControlName="autoRefreshSec"
+      nzPlaceHolder="Auto-refresh">
+      <nz-option
+        *ngFor="let r of refreshOptions"
+        [nzLabel]="r.value === 0 ? 'Auto-refresh: off' : 'Auto: ' + r.label"
+        [nzValue]="r.value"></nz-option>
+    </nz-select>
+    <span
+      class="live-dot"
+      *ngIf="(form.value.autoRefreshSec ?? 0) > 0 && currentPage === 0"
+      title="Polling for new records"></span>
+
+    <button
+      nz-button
+      nzType="primary"
+      type="button"
+      [disabled]="loading || form.invalid"
+      (click)="search()">
+      Search
+    </button>
+    <button nz-button type="button" (click)="clear()">Clear</button>
+  </div>
+
+  <!-- Autofill diagnostics row. Renders only when something has been
+       loaded so an operator who sees "0" knows the /sources call is
+       failing or returning empty. -->
+  <div class="autofill-hint" *ngIf="sources">
+    Autofill: {{ sources.services.length }} services ·
+    {{ sources.workflowIds.length }} workflows ·
+    {{ sources.computingUnitIds.length }} CUs ·
+    {{ sources.userIds.length }} users
+    <span *ngIf="sources.computingUnitIds.length === 0 && sources.workflowIds.length === 0"
+          class="hint-warn">
+      — no IDs available; type an id directly into the dropdown.
+    </span>
+  </div>
+
+  <nz-alert
+    *ngIf="errorMessage"
+    nzType="error"
+    [nzMessage]="errorMessage"
+    nzShowIcon></nz-alert>
+</form>
+
+<div class="results">
+  <div class="meta" *ngIf="entries.length > 0">
+    <span class="count">{{ entries.length }} entries</span>
+    <span class="hint" *ngIf="nextCursor">More available — click "Load more" below.</span>
+  </div>
+
+  <p *ngIf="!loading && entries.length === 0 && !errorMessage" class="empty">
+    No log records match the current filters. Adjust the window or scope and try again.
+  </p>
+
+  <ul *ngIf="entries.length > 0" class="log-stream">
+    <li
+      *ngFor="let entry of entries; let i = index"
+      class="row-line"
+      [class.expanded]="expandedIndex === i"
+      [class.lvl-trace]="(entry.level | lowercase) === 'trace'"
+      [class.lvl-debug]="(entry.level | lowercase) === 'debug'"
+      [class.lvl-info]="(entry.level | lowercase) === 'info'"
+      [class.lvl-warn]="(entry.level | lowercase) === 'warn'"
+      [class.lvl-error]="(entry.level | lowercase) === 'error'"
+      (click)="toggleRow(i)">
+      <div class="cells">
+        <span class="ts">{{ entry.timestampMs | date: 'HH:mm:ss.SSS' }}</span>
+        <span class="lvl-chip">{{ entry.level || '—' }}</span>
+        <span
+          *ngIf="entry.attributes['service'] || entry.attributes['service.name']"
+          class="svc-chip"
+          [title]="'Filter to this service'"
+          (click)="$event.stopPropagation(); scopeToService(entry.attributes['service'] || entry.attributes['service.name'])">
+          {{ entry.attributes['service'] || entry.attributes['service.name'] }}
+        </span>
+        <span
+          *ngIf="entry.attributes['texera.computing_unit.id']"
+          class="cu-chip"
+          [title]="'Computing Unit id'">
+          CU #{{ entry.attributes['texera.computing_unit.id'] }}
+        </span>
+        <span class="body">{{ entry.body }}</span>
+      </div>
+
+      <!-- Attribute panel, expanded on click. -->
+      <dl *ngIf="expandedIndex === i" class="attrs" (click)="$event.stopPropagation()">
+        <ng-container *ngFor="let kv of entry.attributes | keyvalue">
+          <dt>{{ kv.key }}</dt>
+          <dd>{{ kv.value }}</dd>
+        </ng-container>
+        <ng-container *ngIf="entry.traceId">
+          <dt>trace_id</dt>
+          <dd>
+            <a (click)="openTrace(entry.traceId)" class="trace-link">{{ entry.traceId }}</a>
+          </dd>
+        </ng-container>
+        <ng-container *ngIf="entry.spanId">
+          <dt>span_id</dt>
+          <dd>{{ entry.spanId }}</dd>
+        </ng-container>
+      </dl>
+    </li>
+  </ul>
+
+  <div class="paginate" *ngIf="entries.length > 0 || currentPage > 0">
+    <button
+      nz-button
+      type="button"
+      [disabled]="loading || currentPage === 0"
+      (click)="prevPage()">
+      ← Previous
+    </button>
+    <span class="page-num">Page {{ currentPage + 1 }}</span>
+    <button
+      nz-button
+      type="button"
+      [disabled]="loading || !nextCursor"
+      (click)="nextPage()">
+      Next →
+    </button>
+  </div>
+</div>

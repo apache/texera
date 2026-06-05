@@ -30,7 +30,12 @@
     <!-- Per-signal panels are added by their respective PRs (obs/pr15-18);
          the shell ships the tab framework + health gating first. -->
     <nz-tab nzTitle="Logs">
-      <nz-empty nzNotFoundContent="Logs panel coming soon."></nz-empty>
+      <texera-observability-logs-panel
+        *ngIf="isReachable('logs'); else logsDisabled"></texera-observability-logs-panel>
+      <ng-template #logsDisabled>
+        <nz-empty
+          nzNotFoundContent="VictoriaLogs is unreachable or disabled. Enable the observability-logs profile in docker-compose."></nz-empty>
+      </ng-template>
     </nz-tab>
 
     <nz-tab nzTitle="Metrics">

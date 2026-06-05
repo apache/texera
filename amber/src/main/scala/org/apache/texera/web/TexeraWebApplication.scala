@@ -35,6 +35,7 @@ import org.apache.texera.observability.OtelInit
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
 import org.apache.texera.web.observability.gateway.{
   GatewayContext,
+  LogsResource,
   ObservabilityHealthResource
 }
 import org.apache.texera.web.resource._
@@ -184,6 +185,7 @@ class TexeraWebApplication
     // respective PRs (obs/pr10..13).
     logger.debug("Registering observability gateway resources")
     val obsCtx = GatewayContext.default()
+    environment.jersey.register(new LogsResource(obsCtx))
     environment.jersey.register(new ObservabilityHealthResource(obsCtx))
 
     AuthResource.createAdminUser()

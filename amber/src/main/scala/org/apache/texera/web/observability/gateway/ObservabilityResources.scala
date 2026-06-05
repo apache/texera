@@ -127,3 +127,232 @@ class ObservabilityHealthResource(ctx: GatewayContext) extends LazyLogging {
       .isRight
   }
 }
+@Path("/observability/logs")
+@Produces(Array(MediaType.APPLICATION_JSON))
+@Consumes(Array(MediaType.APPLICATION_JSON))
+class LogsResource(ctx: GatewayContext) extends LazyLogging {
+
+  @POST
+  @Path("/search")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def search(
+      request: RawLogsSearchRequest,
+      @Auth user: SessionUser,
+      @Context httpReq: HttpServletRequest
+  ): Response = {
+    logger.debug(s"logs search requested by user ${user.getUid}")
+    Preflight.run(ctx, user, httpReq) match {
+      case Left(err) => Respond.err(err)
+      case Right(scope) =>
+        validate(request) match {
+          case Invalid(err) => Respond.err(err)
+          case Valid(valid) =>
+            // Tenancy assertion: a caller-supplied workflowId must
+            // be in the resolved allow-set. No widening possible.
+            if (!ctx.scopeResolver.assertWorkflowAllowed(scope, valid.workflowId)) {
+              logger.warn(
+                s"logs search DENIED: user ${user.getUid} requested workflow " +
+                  s"${valid.workflowId.getOrElse("<none>")} outside their allowed scope"
+              )
+              Respond.err(GatewayError.Forbidden)
+            } else
+              runLogsQuery(valid, scope, httpReq, user)
+        }
+    }
+  }
+
+  private def runLogsQuery(
+      req: ValidatedLogsRequest,
+      scope: GatewayScope,
+      httpReq: HttpServletRequest,
+      user: SessionUser
+  ): Response = {
+    val query = LogsQLBuilder.build(req, scope)
+    logger.debug(
+      s"logs query for user ${user.getUid}: workflow=${req.workflowId.getOrElse("*")} " +
+        s"level=${req.level.map(_.toString).getOrElse("*")} pageSize=${req.pageSize.value} — LogsQL: $query"
+    )
+    // VictoriaLogs defaults the `start`/`end` URL params to "the last
+    // 5 minutes" when omitted, which silently shrinks every search
+    // regardless of what the user picked in the time picker. We pass
+    // both explicitly so the picked window actually drives the query.
+    // The seconds form is what /select/logsql/query expects.
+    val startSec = req.window.from.getEpochSecond
+    val endSec = req.window.to.getEpochSecond
+    val path =
+      s"/select/logsql/query?query=${java.net.URLEncoder.encode(query, "UTF-8")}" +
+        s"&start=$startSec&end=$endSec"
+    ctx.logsClient.get(path, scope, "logs") match {
+      case Left(err) => Respond.err(err)
+      case Right(resp) if !resp.isOk =>
+        Respond.err(GatewayError.BackendError("logs", resp.status))
+      case Right(resp) =>
+        // Pass the RAW NDJSON body. LogSanitizer strips C0 control
+        // characters including '\n' (intentionally — prevents log
+        // forging in OTel-bridged records); applying it to the
+        // whole body would collapse every line of VictoriaLogs's
+        // NDJSON output into a single line and break parsing.
+        // ResponseParsers.parseLogs redacts secrets per-field
+        // after splitting lines.
+        ResponseParsers.parseLogs(resp.body, req.pageSize.value) match {
+          case Left(err) => Respond.err(err)
+          case Right(parsed) =>
+            // If the response is exactly pageSize entries, more pages
+            // probably exist — surface the next offset as the cursor.
+            // (A short page means we definitely reached the end.) We
+            // can't reliably distinguish "exactly fits the page" from
+            // "more available" without a server total; assuming more
+            // is the conservative UX choice.
+            val pageFull = parsed.entries.size >= req.pageSize.value
+            val withCursor =
+              if (pageFull) parsed.copy(nextCursor = Some((req.offset + req.pageSize.value).toString))
+              else parsed
+            logger.info(
+              s"logs search ok for user ${user.getUid}: ${withCursor.total} entr(ies)" +
+                (if (pageFull) " (more pages available)" else "")
+            )
+            AuditLogger.record(
+              AuditLogger.Entry(
+                userId = user.getUid.longValue(),
+                remoteIp = Option(httpReq.getRemoteAddr).getOrElse("unknown"),
+                endpoint = "/observability/logs/search",
+                signal = "logs",
+                scope = scope,
+                query = query,
+                fromMs = req.window.from.toEpochMilli,
+                toMs = req.window.to.toEpochMilli,
+                hits = withCursor.total
+              )
+            )
+            Respond.json(withCursor)
+        }
+    }
+  }
+
+  /**
+   * Distinct filter values currently present in the logs store —
+   * powers the UI's autofill dropdowns (service / workflow / CU).
+   *
+   * GET because it has no body and no side effects, and so the
+   * frontend can cache it. The handler still goes through the
+   * standard preflight (rate limit + scope resolution) so an
+   * unauthenticated caller can't enumerate the workflow ids of
+   * other tenants.
+   */
+  @GET
+  @Path("/sources")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def sources(
+      @Auth user: SessionUser,
+      @Context httpReq: HttpServletRequest
+  ): Response = {
+    Preflight.run(ctx, user, httpReq) match {
+      case Left(err) => Respond.err(err)
+      case Right(scope) =>
+        // 7-day window is plenty for autofill — older streams aren't
+        // useful to operators debugging "right now".
+        val path = "/select/logsql/streams?query=*&start=7d"
+        ctx.logsClient.get(path, scope, "logs") match {
+          case Left(err) => Respond.err(err)
+          case Right(resp) if !resp.isOk =>
+            Respond.err(GatewayError.BackendError("logs", resp.status))
+          case Right(resp) =>
+            ResponseParsers.parseLogSources(resp.body, scope.allowedWorkflowIds) match {
+              case Left(err) => Respond.err(err)
+              case Right(parsed) =>
+                logger.debug(
+                  s"log sources for user ${user.getUid}: ${parsed.services.size} service(s), " +
+                    s"${parsed.workflowIds.size} workflow(s), ${parsed.computingUnitIds.size} CU(s), " +
+                    s"${parsed.userIds.size} user(s)"
+                )
+                Respond.json(parsed)
+            }
+        }
+    }
+  }
+
+  /** Force an `Option[Long]` from Jackson into a real boxed Long.
+   *  Jackson Scala deserializes a JSON number that fits in 32 bits
+   *  as `java.lang.Integer` regardless of the declared type
+   *  parameter (which is erased on the JVM). When downstream code
+   *  uses the value, Scala's runtime unbox throws ClassCastException.
+   *
+   *  Implementation: we MUST go through `Option[Any]` before calling
+   *  `.map` — `Option[Long].map` is specialized to `JFunction1$mcJJ$sp`
+   *  which unboxes the value to Long via BoxesRunTime BEFORE the
+   *  closure body runs, so any inline asInstanceOf there is too late.
+   *  Casting to `Option[Any]` selects the generic, non-specialized
+   *  apply path, which keeps the value boxed and hands it to the
+   *  closure as-is.
+   */
+  private def normaliseLong(opt: Option[Long]): Option[Long] = {
+    val anyOpt: Option[Any] = opt.asInstanceOf[Option[Any]]
+    anyOpt.map {
+      case n: java.lang.Number => n.longValue()
+      case other               => other.toString.toLong
+    }
+  }
+
+  private def validate(raw: RawLogsSearchRequest): ValidationResult[ValidatedLogsRequest] = {
+    TimeWindow.validate(Signal.Logs, raw.fromMs, raw.toMs) match {
+      case Invalid(e) => Invalid(e)
+      case Valid(window) =>
+        PageSize.validate(raw.pageSize) match {
+          case Invalid(e) => Invalid(e)
+          case Valid(pageSize) =>
+            val level: Option[LogLevel] = raw.level.flatMap(LogLevel.parse)
+            if (raw.level.isDefined && level.isEmpty) Invalid(GatewayError.BadLevel)
+            else
+              FreeText.validate(raw.query) match {
+                case Invalid(e) => Invalid(e)
+                case Valid(freeText) =>
+                  ServiceName.validateMany(raw.services) match {
+                    case Invalid(e) => Invalid(e)
+                    case Valid(services) =>
+                      // Sort: parse closed enum or fall back to default.
+                      val sortOrErr = raw.sort match {
+                        case None    => Right(LogSort.Default)
+                        case Some(s) => LogSort.parse(s).toRight(GatewayError.BadSort)
+                      }
+                      // Page cursor: opaque string in the wire shape;
+                      // we treat it as a Long offset internally. Empty
+                      // or absent → offset 0. Non-numeric → bad_cursor.
+                      val offsetOrErr: Either[GatewayError, Long] =
+                        raw.pageCursor match {
+                          case None | Some("") => Right(0L)
+                          case Some(s) =>
+                            try {
+                              val n = s.trim.toLong
+                              if (n < 0L) Left(GatewayError.BadCursor) else Right(n)
+                            } catch {
+                              case _: NumberFormatException => Left(GatewayError.BadCursor)
+                            }
+                        }
+                      (sortOrErr, offsetOrErr) match {
+                        case (Left(e), _) => Invalid(e)
+                        case (_, Left(e)) => Invalid(e)
+                        case (Right(sort), Right(offset)) =>
+                          Valid(
+                            ValidatedLogsRequest(
+                              workflowId = normaliseLong(raw.workflowId),
+                              executionId = normaliseLong(raw.executionId),
+                              computingUnitId = normaliseLong(raw.computingUnitId),
+                              userId = normaliseLong(raw.userId),
+                              services = services,
+                              level = level,
+                              query = freeText,
+                              sort = sort,
+                              window = window,
+                              pageSize = pageSize,
+                              offset = offset,
+                              pageCursor = raw.pageCursor
+                            )
+                          )
+                      }
+                  }
+              }
+        }
+    }
+  }
+}
+

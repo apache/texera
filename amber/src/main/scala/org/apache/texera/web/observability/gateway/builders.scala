@@ -60,3 +60,142 @@ case class GatewayScope(
     else allowedWorkflowIds.toSeq.sorted.mkString("|")
   }
 }
+
+object LogsQLBuilder {
+
+  /** Build a LogsQL query for VictoriaLogs. Returned string is safe
+   *  to ship as the ``query`` URL parameter to /select/logsql/query.
+   *
+   *  Layout: stream selector (label filters) then optional pipe
+   *  filters for body text. Free text is passed only to the
+   *  ``contains`` filter as a *value*, with backslashes and quotes
+   *  escaped. */
+  def build(req: ValidatedLogsRequest, scope: GatewayScope): String = {
+    val sb = new StringBuilder
+    // Start with the wildcard so a query without any filter clauses
+    // is still valid LogsQL. The `*` matches every record; subsequent
+    // `{field=...}` blocks narrow it. If a service filter is added,
+    // it replaces the wildcard (the parenthesised stream selector
+    // implies its own match set).
+    var hasStreamFilter = false
+
+    // Service filter. Two label keys exist in storage:
+    //   * `service` — used by the seed scripts and any service that
+    //     sets the field explicitly at ingest;
+    //   * `service.name` — the OTel resource attribute name, used by
+    //     anything bridged through the OTel collector (in particular
+    //     the running JVM's Logback → OTel pipeline).
+    //
+    // When the user picks specific services, we OR the two label
+    // variants so JVM-emitted records (service.name) and seed records
+    // (service) both match. The OR must be parenthesised so subsequent
+    // `{field=value}` filters apply to BOTH branches — otherwise
+    // LogsQL binds the trailing filter only to the second branch and
+    // a CU/workflow narrow leaks every record under `service=` past
+    // the filter.
+    //
+    // When the user has NOT picked specific services, we skip the
+    // service-key filter entirely. The earlier behaviour anchored on
+    // `texera-*`, but the seed scripts emit names like
+    // `dashboard-service` (no prefix) and only one running JVM
+    // (texera-web) uses the prefix — so anchoring excluded almost
+    // everything. The default view is meant to be "all logs the user
+    // can see", which is what no-filter gives.
+    if (req.services.nonEmpty) {
+      val alt = req.services.iterator.map(_.value).mkString("|")
+      sb.append(s"""(_stream:{service=~"^($alt)$$"} OR _stream:{service.name=~"^($alt)$$"})""")
+      hasStreamFilter = true
+    }
+
+    // All non-service field filters go through the pipe-filter form
+    // (`| filter key:value`) rather than the stream-selector form
+    // (`{key=value}`). The stream form only matches when the field is
+    // a configured stream label — which holds for seed records
+    // (texera.workflow.id, texera.computing_unit.id are stream labels)
+    // but NOT for OTel-bridged records (those keep the same fields as
+    // record attributes only). Pipe filters match both, so the same
+    // builder works against either data shape.
+    //
+    // Pipe filters must come AFTER the optional stream selector and
+    // are buffered separately so we can wedge `*` in front when no
+    // stream filter precedes them.
+    val pipes = new StringBuilder
+    // Option[Long]#foreach specializes to mcVJ$sp which unboxes the
+    // value to Long via BoxesRunTime BEFORE the closure runs. Jackson
+    // stores small JSON numbers as Integer regardless of the declared
+    // type — the unbox then crashes with ClassCastException. We
+    // launder through Option[Any] so the foreach uses the generic
+    // apply path and keeps the value boxed.
+    def appendId(field: String, id: Option[Long]): Unit =
+      id.asInstanceOf[Option[Any]].foreach(v => pipes.append(s" | filter $field:$v"))
+    appendId("texera.workflow.id", req.workflowId)
+    appendId("texera.execution.id", req.executionId)
+    appendId("texera.computing_unit.id", req.computingUnitId)
+    appendId("texera.user.id", req.userId)
+    req.level.foreach(l => pipes.append(s" | filter severity_text:${l.name}"))
+    req.query.foreach { ft =>
+      val escaped = escapeForLogsQL(ft.value)
+      pipes.append(s""" | filter contains_str("$escaped")""")
+    }
+
+    // Workflow filter — applied only when the user explicitly picks a
+    // workflow id. The earlier behaviour auto-applied the caller's
+    // entire scope.workflowIdsRegexAlt as a stream-label filter, which
+    // forced every matching record to carry a `texera.workflow.id`
+    // stream label. JVM-emitted OTel records don't carry that label
+    // (only attribute), so the default view excluded all live
+    // microservice logs — count stayed at the seed-only number even
+    // while workflows were running. Explicit pick is still authorised
+    // via ScopeResolver.assertWorkflowAllowed before we get here.
+    // ClassCastException trap: Jackson Scala deserializes JSON numbers
+    // that fit in 32 bits as java.lang.Integer, regardless of the
+    // declared Option[Long] type parameter (the parameter is erased on
+    // the JVM). A typed `id: Long` closure then unboxes via
+    // BoxesRunTime.unboxToLong and fails with Integer→Long cast. We
+    // sidestep the issue by treating each id as a String — the field
+    // is numeric in storage and string interpolation works either way.
+    // No stream filter at all? Prepend the wildcard so LogsQL has
+    // something to match against — `| filter ...` or `| sort by ...`
+    // alone is a parse error. The wildcard runs across every stream,
+    // which is exactly "show me everything" for the default tab.
+    if (!hasStreamFilter) sb.insert(0, "*")
+
+    // Now drop the buffered pipe filters in.
+    sb.append(pipes)
+
+    // Sort pipe — uses LogsQL's `| sort by(...)` syntax. Field names
+    // come from the closed [[LogSort]] enum so no client input
+    // reaches the pipe.
+    sb.append(" ").append(sortPipe(req.sort))
+
+    // Pagination: `| offset N` skips records, `| limit M` caps the
+    // page. The offset is a non-negative Long parsed from the
+    // pageCursor; the validator clamps it.
+    if (req.offset > 0L) sb.append(s" | offset ${req.offset}")
+    sb.append(s" | limit ${req.pageSize.value}")
+    sb.toString
+  }
+
+  /** LogsQL `| sort by (...)` fragment for the requested order. */
+  private[gateway] def sortPipe(sort: LogSort): String = sort match {
+    case LogSort.NewestFirst  => "| sort by (_time desc)"
+    case LogSort.OldestFirst  => "| sort by (_time asc)"
+    case LogSort.SeverityHigh => "| sort by (severity_number desc, _time desc)"
+    case LogSort.ServiceAsc   => "| sort by (service asc, _time desc)"
+  }
+
+  /** Escape a value for embedding inside a LogsQL double-quoted
+   *  string. Backslash and double-quote are the only metacharacters
+   *  we need to handle. */
+  private[gateway] def escapeForLogsQL(value: String): String = {
+    val out = new StringBuilder(value.length + 8)
+    var i = 0
+    while (i < value.length) {
+      val c = value.charAt(i)
+      if (c == '\\' || c == '"') out.append('\\')
+      out.append(c)
+      i += 1
+    }
+    out.toString
+  }
+}
