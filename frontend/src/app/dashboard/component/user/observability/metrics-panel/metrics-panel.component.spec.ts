@@ -25,10 +25,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { MetricsPanelComponent } from "./metrics-panel.component";
 import { ObservabilityService } from "../../../../service/user/observability/observability.service";
-import {
-  MetricsQueryResponse,
-  NamedMetric,
-} from "../../../../service/user/observability/observability.types";
+import { MetricsQueryResponse, NamedMetric } from "../../../../service/user/observability/observability.types";
 
 describe("MetricsPanelComponent", () => {
   let component: MetricsPanelComponent;
@@ -41,9 +38,7 @@ describe("MetricsPanelComponent", () => {
     mockService = { queryMetrics: vi.fn() };
     // Default: return empty points so the component can construct
     // chart options without exploding.
-    mockService.queryMetrics.mockReturnValue(
-      of<MetricsQueryResponse>({ metric: "stub", points: [] })
-    );
+    mockService.queryMetrics.mockReturnValue(of<MetricsQueryResponse>({ metric: "stub", points: [] }));
     await TestBed.configureTestingModule({
       imports: [MetricsPanelComponent, HttpClientTestingModule, NoopAnimationsModule],
       providers: [{ provide: ObservabilityService, useValue: mockService }],
@@ -117,10 +112,7 @@ describe("MetricsPanelComponent", () => {
     // ECharts `formatter` strings/functions can be a code-injection
     // vector if built from response data. The component file should
     // not declare ANY formatter property in the option object.
-    const componentSource = fs.readFileSync(
-      path.resolve(__dirname, "metrics-panel.component.ts"),
-      "utf-8"
-    );
+    const componentSource = fs.readFileSync(path.resolve(__dirname, "metrics-panel.component.ts"), "utf-8");
     // Permit the WORD "formatter" in comments (where we explain the
     // rule) but reject any actual `formatter:` property assignment.
     const codeLines = componentSource
@@ -145,8 +137,8 @@ describe("MetricsPanelComponent", () => {
     // option does NOT carry a title at all. The security invariant
     // is: nothing in the chart option set comes from response strings.
     const serialised = JSON.stringify(component.chartOptions);
-    expect(serialised).not.toContain('<script>');
-    expect(serialised).not.toContain('xss');
+    expect(serialised).not.toContain("<script>");
+    expect(serialised).not.toContain("xss");
   });
 
   // ---- summary stats (hero row above each chart) ---------------------
@@ -212,9 +204,7 @@ describe("MetricsPanelComponent", () => {
   });
 
   it("returns a placeholder summary for an empty response", () => {
-    mockService.queryMetrics.mockReturnValue(
-      of<MetricsQueryResponse>({ metric: "x", points: [] })
-    );
+    mockService.queryMetrics.mockReturnValue(of<MetricsQueryResponse>({ metric: "x", points: [] }));
     fixture.detectChanges();
     const s = component.summaries.runsPerDay!;
     expect(s.latest).toBe(0);

@@ -29,24 +29,25 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.web.observability.gateway.dtos._
 
 /**
- * Dropwizard resources for the observability gateway.
- *
- * Every endpoint runs the same five-step skeleton (see DESIGN.md):
- *   1. Auth      — handled by @Auth + @RolesAllowed.
- *   2. Rate limit — token bucket per user, per IP.
- *   3. Scope     — resolved from the SessionUser via ScopeResolver.
- *   4. Validate  — typed DTO validators reject anything out of range.
- *   5. Query     — typed builders only, then BackendClient with the
- *      AccountID/ProjectID headers. Response goes through redaction
- *      before reaching JSON.
- *
- * The resources are intentionally small — most of the security logic
- * lives in the dtos / builders / scope objects so it's unit-testable
- * without a Dropwizard fixture.
- */
+  * Dropwizard resources for the observability gateway.
+  *
+  * Every endpoint runs the same five-step skeleton (see DESIGN.md):
+  *   1. Auth      — handled by @Auth + @RolesAllowed.
+  *   2. Rate limit — token bucket per user, per IP.
+  *   3. Scope     — resolved from the SessionUser via ScopeResolver.
+  *   4. Validate  — typed DTO validators reject anything out of range.
+  *   5. Query     — typed builders only, then BackendClient with the
+  *      AccountID/ProjectID headers. Response goes through redaction
+  *      before reaching JSON.
+  *
+  * The resources are intentionally small — most of the security logic
+  * lives in the dtos / builders / scope objects so it's unit-testable
+  * without a Dropwizard fixture.
+  */
 
 /** Tiny helper that turns a [[GatewayError]] into a Dropwizard
- *  Response. Kept here so every resource uses the same shape. */
+  *  Response. Kept here so every resource uses the same shape.
+  */
 private[gateway] object Respond extends LazyLogging {
   def err(e: GatewayError): Response = {
     // One breadcrumb per rejected request, at a level keyed to severity:
@@ -162,7 +163,7 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
         // ResponseParsers.parseLogs redacts secrets per-field
         // after splitting lines.
         ResponseParsers.parseLogs(resp.body, req.pageSize.value) match {
-          case Left(err) => Respond.err(err)
+          case Left(err)     => Respond.err(err)
           case Right(parsed) =>
             // If the response is exactly pageSize entries, more pages
             // probably exist — surface the next offset as the cursor.
@@ -172,7 +173,8 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
             // is the conservative UX choice.
             val pageFull = parsed.entries.size >= req.pageSize.value
             val withCursor =
-              if (pageFull) parsed.copy(nextCursor = Some((req.offset + req.pageSize.value).toString))
+              if (pageFull)
+                parsed.copy(nextCursor = Some((req.offset + req.pageSize.value).toString))
               else parsed
             logger.info(
               s"logs search ok for user ${user.getUid}: ${withCursor.total} entr(ies)" +
@@ -197,15 +199,15 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
   }
 
   /**
-   * Distinct filter values currently present in the logs store —
-   * powers the UI's autofill dropdowns (service / workflow / CU).
-   *
-   * GET because it has no body and no side effects, and so the
-   * frontend can cache it. The handler still goes through the
-   * standard preflight (rate limit + scope resolution) so an
-   * unauthenticated caller can't enumerate the workflow ids of
-   * other tenants.
-   */
+    * Distinct filter values currently present in the logs store —
+    * powers the UI's autofill dropdowns (service / workflow / CU).
+    *
+    * GET because it has no body and no side effects, and so the
+    * frontend can cache it. The handler still goes through the
+    * standard preflight (rate limit + scope resolution) so an
+    * unauthenticated caller can't enumerate the workflow ids of
+    * other tenants.
+    */
   @GET
   @Path("/sources")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -214,7 +216,7 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
       @Context httpReq: HttpServletRequest
   ): Response = {
     Preflight.run(ctx, user, httpReq) match {
-      case Left(err) => Respond.err(err)
+      case Left(err)    => Respond.err(err)
       case Right(scope) =>
         // 7-day window is plenty for autofill — older streams aren't
         // useful to operators debugging "right now".
@@ -239,19 +241,19 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
   }
 
   /** Force an `Option[Long]` from Jackson into a real boxed Long.
-   *  Jackson Scala deserializes a JSON number that fits in 32 bits
-   *  as `java.lang.Integer` regardless of the declared type
-   *  parameter (which is erased on the JVM). When downstream code
-   *  uses the value, Scala's runtime unbox throws ClassCastException.
-   *
-   *  Implementation: we MUST go through `Option[Any]` before calling
-   *  `.map` — `Option[Long].map` is specialized to `JFunction1$mcJJ$sp`
-   *  which unboxes the value to Long via BoxesRunTime BEFORE the
-   *  closure body runs, so any inline asInstanceOf there is too late.
-   *  Casting to `Option[Any]` selects the generic, non-specialized
-   *  apply path, which keeps the value boxed and hands it to the
-   *  closure as-is.
-   */
+    *  Jackson Scala deserializes a JSON number that fits in 32 bits
+    *  as `java.lang.Integer` regardless of the declared type
+    *  parameter (which is erased on the JVM). When downstream code
+    *  uses the value, Scala's runtime unbox throws ClassCastException.
+    *
+    *  Implementation: we MUST go through `Option[Any]` before calling
+    *  `.map` — `Option[Long].map` is specialized to `JFunction1$mcJJ$sp`
+    *  which unboxes the value to Long via BoxesRunTime BEFORE the
+    *  closure body runs, so any inline asInstanceOf there is too late.
+    *  Casting to `Option[Any]` selects the generic, non-specialized
+    *  apply path, which keeps the value boxed and hands it to the
+    *  closure as-is.
+    */
   private def normaliseLong(opt: Option[Long]): Option[Long] = {
     val anyOpt: Option[Any] = opt.asInstanceOf[Option[Any]]
     anyOpt.map {
@@ -274,7 +276,7 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
                 case Invalid(e) => Invalid(e)
                 case Valid(freeText) =>
                   ServiceName.validateMany(raw.services) match {
-                    case Invalid(e) => Invalid(e)
+                    case Invalid(e)      => Invalid(e)
                     case Valid(services) =>
                       // Sort: parse closed enum or fall back to default.
                       val sortOrErr = raw.sort match {
@@ -344,7 +346,9 @@ class MetricsResource(ctx: GatewayContext) extends LazyLogging {
           case Invalid(err) => Respond.err(err)
           case Valid(valid) =>
             val q = MetricsQLBuilder.build(valid)
-            logger.debug(s"metrics query '${valid.metric.name}' step=${valid.stepSec}s — MetricsQL: $q")
+            logger.debug(
+              s"metrics query '${valid.metric.name}' step=${valid.stepSec}s — MetricsQL: $q"
+            )
             val path = s"/api/v1/query_range?query=${java.net.URLEncoder.encode(q, "UTF-8")}" +
               s"&start=${valid.window.from.getEpochSecond}&end=${valid.window.to.getEpochSecond}" +
               s"&step=${valid.stepSec}"
@@ -473,7 +477,9 @@ class ObservabilityHealthResource(ctx: GatewayContext) extends LazyLogging {
     )
     val unreachable = checks.collect { case (signal, false) => signal }.toSeq.sorted
     if (unreachable.nonEmpty)
-      logger.warn(s"observability health check: unreachable backend(s): ${unreachable.mkString(", ")}")
+      logger.warn(
+        s"observability health check: unreachable backend(s): ${unreachable.mkString(", ")}"
+      )
     else
       logger.debug(s"observability health check: all backends reachable")
     Respond.json(Map("status" -> "ok", "checks" -> checks))

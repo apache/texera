@@ -29,16 +29,16 @@ import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
 
 /**
- * Tests for [[BackendClient]] using an in-process JDK HttpServer.
- *
- * We avoid mocking the HttpClient — that would only exercise our
- * adapter glue. A real socket on the loopback exercises:
- *  - URL composition (path concatenation with the base URL)
- *  - AccountID / ProjectID headers (multi-tenancy guards)
- *  - Status code propagation into [[BackendResponse.isOk]]
- *  - Body decoding under UTF-8
- *  - The 10 MiB response cap that protects against runaway backends
- */
+  * Tests for [[BackendClient]] using an in-process JDK HttpServer.
+  *
+  * We avoid mocking the HttpClient — that would only exercise our
+  * adapter glue. A real socket on the loopback exercises:
+  *  - URL composition (path concatenation with the base URL)
+  *  - AccountID / ProjectID headers (multi-tenancy guards)
+  *  - Status code propagation into [[BackendResponse.isOk]]
+  *  - Body decoding under UTF-8
+  *  - The 10 MiB response cap that protects against runaway backends
+  */
 class BackendClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll with OptionValues {
 
   private var server: HttpServer = _
@@ -56,21 +56,24 @@ class BackendClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
 
   override def beforeAll(): Unit = {
     server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0)
-    server.createContext("/", new HttpHandler {
-      override def handle(ex: HttpExchange): Unit = {
-        lastHeaders.clear()
-        ex.getRequestHeaders.keySet().forEach { k =>
-          lastHeaders.put(k, ex.getRequestHeaders.getFirst(k))
+    server.createContext(
+      "/",
+      new HttpHandler {
+        override def handle(ex: HttpExchange): Unit = {
+          lastHeaders.clear()
+          ex.getRequestHeaders.keySet().forEach { k =>
+            lastHeaders.put(k, ex.getRequestHeaders.getFirst(k))
+          }
+          lastPath = ex.getRequestURI.toString
+          lastMethod = ex.getRequestMethod
+          lastBody = ex.getRequestBody.readAllBytes()
+          ex.getResponseHeaders.set("Content-Type", responseContentType)
+          ex.sendResponseHeaders(responseStatus, responseBody.length)
+          ex.getResponseBody.write(responseBody)
+          ex.getResponseBody.close()
         }
-        lastPath = ex.getRequestURI.toString
-        lastMethod = ex.getRequestMethod
-        lastBody = ex.getRequestBody.readAllBytes()
-        ex.getResponseHeaders.set("Content-Type", responseContentType)
-        ex.sendResponseHeaders(responseStatus, responseBody.length)
-        ex.getResponseBody.write(responseBody)
-        ex.getResponseBody.close()
       }
-    })
+    )
     server.setExecutor(null)
     server.start()
     baseUrl = s"http://127.0.0.1:${server.getAddress.getPort}"
@@ -112,7 +115,8 @@ class BackendClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
   }
 
   it should "default ProjectID to '0' when the allow-set is empty" in {
-    val emptyProject = GatewayScope(userId = 1L, allowedWorkflowIds = Set.empty, allowedProjectIds = Set.empty)
+    val emptyProject =
+      GatewayScope(userId = 1L, allowedWorkflowIds = Set.empty, allowedProjectIds = Set.empty)
     responseStatus = 200; responseBody = "{}".getBytes
     val client = new BackendClient(baseUrl)
     client.get("/x", emptyProject, "logs")
@@ -166,6 +170,9 @@ class BackendClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
     client.post("/insert", sent, "application/x-ndjson", scope, "logs")
     lastMethod shouldBe "POST"
     new String(lastBody, StandardCharsets.UTF_8) shouldBe "logs-payload"
-    lastHeaders.find { case (k, _) => k.equalsIgnoreCase("Content-Type") }.value._2 shouldBe "application/x-ndjson"
+    lastHeaders
+      .find { case (k, _) => k.equalsIgnoreCase("Content-Type") }
+      .value
+      ._2 shouldBe "application/x-ndjson"
   }
 }

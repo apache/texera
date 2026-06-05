@@ -50,15 +50,39 @@
     gap: 8px;
     flex-wrap: wrap;
 
-    .time { flex: 0 0 320px; min-width: 280px; }
-    .services { flex: 1 1 240px; min-width: 200px; }
-    .level { flex: 0 0 110px; }
-    .sort { flex: 0 0 180px; }
-    .query { flex: 1 1 240px; min-width: 200px; }
-    .id { flex: 1 1 200px; min-width: 180px; }
-    .page-size { flex: 0 0 110px; max-width: 120px; }
-    .refresh { flex: 0 0 150px; }
-    input, nz-select { min-width: 0; }
+    .time {
+      flex: 0 0 320px;
+      min-width: 280px;
+    }
+    .services {
+      flex: 1 1 240px;
+      min-width: 200px;
+    }
+    .level {
+      flex: 0 0 110px;
+    }
+    .sort {
+      flex: 0 0 180px;
+    }
+    .query {
+      flex: 1 1 240px;
+      min-width: 200px;
+    }
+    .id {
+      flex: 1 1 200px;
+      min-width: 180px;
+    }
+    .page-size {
+      flex: 0 0 110px;
+      max-width: 120px;
+    }
+    .refresh {
+      flex: 0 0 150px;
+    }
+    input,
+    nz-select {
+      min-width: 0;
+    }
 
     .live-dot {
       width: 8px;
@@ -73,9 +97,15 @@
 }
 
 @keyframes live-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(45, 171, 226, 0.55); }
-  70%  { box-shadow: 0 0 0 8px rgba(45, 171, 226, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(45, 171, 226, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(45, 171, 226, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(45, 171, 226, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(45, 171, 226, 0);
+  }
 }
 
 .results {
@@ -95,8 +125,13 @@
     color: rgba(0, 0, 0, 0.55);
     padding: 0 4px 6px;
 
-    .count { font-weight: 600; color: rgba(0, 0, 0, 0.7); }
-    .hint  { font-style: italic; }
+    .count {
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.7);
+    }
+    .hint {
+      font-style: italic;
+    }
   }
 
   .empty {
@@ -119,15 +154,31 @@
       border-left: 3px solid transparent;
       transition: background-color 0.15s;
 
-      &:hover { background-color: rgba(0, 0, 0, 0.04); }
-      &.expanded { background-color: rgba(0, 0, 0, 0.04); }
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+      }
+      &.expanded {
+        background-color: rgba(0, 0, 0, 0.04);
+      }
 
       // Severity-tinted left rail (Grafana-style stripe).
-      &.lvl-trace { border-left-color: #6c757d; }
-      &.lvl-debug { border-left-color: #5e7ce0; }
-      &.lvl-info  { border-left-color: #2dabe2; }
-      &.lvl-warn  { border-left-color: #d68f00; background-color: rgba(214, 143, 0, 0.04); }
-      &.lvl-error { border-left-color: #b3261e; background-color: rgba(179, 38, 30, 0.06); }
+      &.lvl-trace {
+        border-left-color: #6c757d;
+      }
+      &.lvl-debug {
+        border-left-color: #5e7ce0;
+      }
+      &.lvl-info {
+        border-left-color: #2dabe2;
+      }
+      &.lvl-warn {
+        border-left-color: #d68f00;
+        background-color: rgba(214, 143, 0, 0.04);
+      }
+      &.lvl-error {
+        border-left-color: #b3261e;
+        background-color: rgba(179, 38, 30, 0.06);
+      }
 
       .cells {
         display: grid;
@@ -154,12 +205,25 @@
         min-width: 50px;
       }
 
-      &.lvl-warn  .lvl-chip { background: #d68f00; color: white; }
-      &.lvl-error .lvl-chip { background: #b3261e; color: white; }
-      &.lvl-info  .lvl-chip { background: #2dabe2; color: white; }
-      &.lvl-debug .lvl-chip { background: #5e7ce0; color: white; }
+      &.lvl-warn .lvl-chip {
+        background: #d68f00;
+        color: white;
+      }
+      &.lvl-error .lvl-chip {
+        background: #b3261e;
+        color: white;
+      }
+      &.lvl-info .lvl-chip {
+        background: #2dabe2;
+        color: white;
+      }
+      &.lvl-debug .lvl-chip {
+        background: #5e7ce0;
+        color: white;
+      }
 
-      .svc-chip, .cu-chip {
+      .svc-chip,
+      .cu-chip {
         font-size: 10px;
         padding: 1px 6px;
         border-radius: 10px;

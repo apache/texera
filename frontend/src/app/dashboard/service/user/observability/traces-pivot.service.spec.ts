@@ -43,7 +43,7 @@ describe("TracesPivotService", () => {
     service.pivot("not-a-trace-id");
     service.pivot("../../etc/passwd");
     service.pivot("0AF7651916CD43DD8448EB211C80319C"); // uppercase
-    service.pivot("0af7651916cd43dd8448eb211c8031");   // too short
+    service.pivot("0af7651916cd43dd8448eb211c8031"); // too short
     service.pivot("");
     service.pivot(undefined as unknown as string);
     expect(observed).toEqual([]);

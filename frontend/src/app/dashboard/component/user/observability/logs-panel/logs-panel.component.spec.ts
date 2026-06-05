@@ -24,10 +24,7 @@ import { Subject, of, throwError } from "rxjs";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { LogsPanelComponent } from "./logs-panel.component";
-import {
-  ObservabilityService,
-  ValidationError,
-} from "../../../../service/user/observability/observability.service";
+import { ObservabilityService, ValidationError } from "../../../../service/user/observability/observability.service";
 import {
   LogEntry,
   LogSourcesResponse,
@@ -332,9 +329,7 @@ describe("LogsPanelComponent", () => {
   });
 
   it("clear() empties results and collapses any expanded row", () => {
-    component.entries = [
-      { timestampMs: 1, level: "INFO", body: "a", attributes: {} },
-    ];
+    component.entries = [{ timestampMs: 1, level: "INFO", body: "a", attributes: {} }];
     component.total = 1;
     component.expandedIndex = 0;
     component.clear();

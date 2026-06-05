@@ -22,11 +22,11 @@ package org.apache.texera.web.observability.gateway
 import org.apache.texera.config.ObservabilityGatewayConfig
 
 /**
- * Single bag of collaborators every observability resource needs.
- * Centralises wiring so the resource constructors stay short and so
- * tests can override one collaborator (e.g. stub the scope resolver)
- * without touching the rest.
- */
+  * Single bag of collaborators every observability resource needs.
+  * Centralises wiring so the resource constructors stay short and so
+  * tests can override one collaborator (e.g. stub the scope resolver)
+  * without touching the rest.
+  */
 case class GatewayContext(
     scopeResolver: ScopeResolver,
     perUserLimiter: RateLimiter,
@@ -46,11 +46,12 @@ case class GatewayContext(
 object GatewayContext {
 
   /** Build the production context. The backend query URLs come from
-   *  [[ObservabilityGatewayConfig]] (`observability-gateway.conf`), which
-   *  defaults to the host-local stack and is overridden inside docker via
-   *  the TEXERA_OBS_*_URL env vars set in bin/single-node/.env. A natively
-   *  run backend therefore reaches the loopback-published backends with no
-   *  extra configuration. */
+    *  [[ObservabilityGatewayConfig]] (`observability-gateway.conf`), which
+    *  defaults to the host-local stack and is overridden inside docker via
+    *  the TEXERA_OBS_*_URL env vars set in bin/single-node/.env. A natively
+    *  run backend therefore reaches the loopback-published backends with no
+    *  extra configuration.
+    */
   def default(): GatewayContext = {
     GatewayContext(
       scopeResolver = new ScopeResolver.Jooq(),

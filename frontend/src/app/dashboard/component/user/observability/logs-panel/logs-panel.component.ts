@@ -185,40 +185,43 @@ export class LogsPanelComponent implements OnInit, OnDestroy {
    *  autofill dropdowns. Called on init and after every successful
    *  search so newly-emitted services / CUs surface promptly. */
   refreshSources(): void {
-    this.observabilityService.logSources().subscribe({
-      next: s => {
-        // Defensive copy + normalisation: an empty object response,
-        // or a partial response, must not throw at template iteration
-        // time (*ngFor over undefined would NgError out the panel).
-        this.sources = {
-          services: s?.services ?? [],
-          workflowIds: s?.workflowIds ?? [],
-          computingUnitIds: s?.computingUnitIds ?? [],
-          userIds: s?.userIds ?? [],
-        };
-        // One concise console line so an operator can confirm autofill
-        // really did load — helps diagnose "empty dropdowns" without
-        // attaching a debugger. Cheap; only fires once on init + on
-        // explicit refresh.
-        // eslint-disable-next-line no-console
-        console.info(
-          `[observability] sources loaded: ${this.sources.services.length} services, ` +
-            `${this.sources.workflowIds.length} workflows, ` +
-            `${this.sources.computingUnitIds.length} CUs, ` +
-            `${this.sources.userIds.length} users`
-        );
-      },
-      // Autofill failures don't block search — the form still works
-      // with manual id entry. Surface only as a soft warning.
-      error: err => {
-        // Don't block the panel; the dropdowns just stay empty and the
-        // manual numeric inputs still work. Log a soft warning so the
-        // "why are my dropdowns empty?" question has an answer in the
-        // console rather than requiring a debugger.
-        // eslint-disable-next-line no-console
-        console.warn("[observability] log sources failed to load — filter dropdowns will be empty", err);
-      },
-    });
+    this.observabilityService
+      .logSources()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: s => {
+          // Defensive copy + normalisation: an empty object response,
+          // or a partial response, must not throw at template iteration
+          // time (*ngFor over undefined would NgError out the panel).
+          this.sources = {
+            services: s?.services ?? [],
+            workflowIds: s?.workflowIds ?? [],
+            computingUnitIds: s?.computingUnitIds ?? [],
+            userIds: s?.userIds ?? [],
+          };
+          // One concise console line so an operator can confirm autofill
+          // really did load — helps diagnose "empty dropdowns" without
+          // attaching a debugger. Cheap; only fires once on init + on
+          // explicit refresh.
+          // eslint-disable-next-line no-console
+          console.info(
+            `[observability] sources loaded: ${this.sources.services.length} services, ` +
+              `${this.sources.workflowIds.length} workflows, ` +
+              `${this.sources.computingUnitIds.length} CUs, ` +
+              `${this.sources.userIds.length} users`
+          );
+        },
+        // Autofill failures don't block search — the form still works
+        // with manual id entry. Surface only as a soft warning.
+        error: (err: unknown) => {
+          // Don't block the panel; the dropdowns just stay empty and the
+          // manual numeric inputs still work. Log a soft warning so the
+          // "why are my dropdowns empty?" question has an answer in the
+          // console rather than requiring a debugger.
+          // eslint-disable-next-line no-console
+          console.warn("[observability] log sources failed to load — filter dropdowns will be empty", err);
+        },
+      });
   }
 
   /** Called by the template when the user clicks a trace id on a
@@ -293,25 +296,28 @@ export class LogsPanelComponent implements OnInit, OnDestroy {
       this.currentSearch = null;
     }
     try {
-      this.currentSearch = this.observabilityService.searchLogs(req).subscribe({
-        next: resp => {
-          // Pagination: REPLACE the visible page (each page stands
-          // alone). The "Load more"-style append behaviour was
-          // confusing on long runs because the visible row count
-          // grew but the "Page" indicator didn't change.
-          this.entries = resp.entries;
-          this.total = resp.total;
-          this.nextCursor = resp.nextCursor;
-          this.loading = false;
-          this.expandedIndex = null;
-          this.currentSearch = null;
-        },
-        error: err => {
-          this.errorMessage = humanizeError(err);
-          this.loading = false;
-          this.currentSearch = null;
-        },
-      });
+      this.currentSearch = this.observabilityService
+        .searchLogs(req)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: resp => {
+            // Pagination: REPLACE the visible page (each page stands
+            // alone). The "Load more"-style append behaviour was
+            // confusing on long runs because the visible row count
+            // grew but the "Page" indicator didn't change.
+            this.entries = resp.entries;
+            this.total = resp.total;
+            this.nextCursor = resp.nextCursor;
+            this.loading = false;
+            this.expandedIndex = null;
+            this.currentSearch = null;
+          },
+          error: (err: unknown) => {
+            this.errorMessage = humanizeError(err);
+            this.loading = false;
+            this.currentSearch = null;
+          },
+        });
     } catch (e) {
       if (e instanceof ValidationError) {
         this.errorMessage = e.message;

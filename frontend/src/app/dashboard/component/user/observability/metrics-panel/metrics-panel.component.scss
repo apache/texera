@@ -118,9 +118,18 @@
         padding: 2px 8px;
         border-radius: 10px;
 
-        &.up   { color: #1a7f37; background: rgba(26, 127, 55, 0.12); }
-        &.down { color: #b3261e; background: rgba(179, 38, 30, 0.12); }
-        &.flat { color: rgba(0, 0, 0, 0.55); background: rgba(0, 0, 0, 0.06); }
+        &.up {
+          color: #1a7f37;
+          background: rgba(26, 127, 55, 0.12);
+        }
+        &.down {
+          color: #b3261e;
+          background: rgba(179, 38, 30, 0.12);
+        }
+        &.flat {
+          color: rgba(0, 0, 0, 0.55);
+          background: rgba(0, 0, 0, 0.06);
+        }
       }
     }
 

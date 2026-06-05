@@ -23,21 +23,21 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Simple token-bucket rate limiter, keyed by an arbitrary string
- * (typically userId or remote IP).
- *
- * Trade-offs vs. a fancier approach:
- *   - In-memory only. A single instance per JVM. A rolling-restart
- *     deploy would clear the buckets — acceptable for the
- *     observability gateway's traffic shape (low QPS, low
- *     consequences for a single missed limit at restart).
- *   - No background thread. Refill happens lazily on the next
- *     [[tryAcquire]] call against the same key. Simpler reasoning,
- *     no scheduler involved.
- *   - Keys never expire from the map. The map is bounded informally
- *     by the number of distinct (user, IP) tuples a deploy sees;
- *     a future PR can add a periodic clean-up if cardinality grows.
- */
+  * Simple token-bucket rate limiter, keyed by an arbitrary string
+  * (typically userId or remote IP).
+  *
+  * Trade-offs vs. a fancier approach:
+  *   - In-memory only. A single instance per JVM. A rolling-restart
+  *     deploy would clear the buckets — acceptable for the
+  *     observability gateway's traffic shape (low QPS, low
+  *     consequences for a single missed limit at restart).
+  *   - No background thread. Refill happens lazily on the next
+  *     [[tryAcquire]] call against the same key. Simpler reasoning,
+  *     no scheduler involved.
+  *   - Keys never expire from the map. The map is bounded informally
+  *     by the number of distinct (user, IP) tuples a deploy sees;
+  *     a future PR can add a periodic clean-up if cardinality grows.
+  */
 class RateLimiter(capacity: Long, refillPerSecond: Double) {
 
   require(capacity > 0, "capacity must be positive")
@@ -47,8 +47,9 @@ class RateLimiter(capacity: Long, refillPerSecond: Double) {
     new ConcurrentHashMap[String, AtomicReference[Bucket]]()
 
   /** Try to consume one token. Returns true on success, false on
-   *  rate-limit. Time-aware: the bucket refills based on wall clock
-   *  elapsed since the last call. */
+    *  rate-limit. Time-aware: the bucket refills based on wall clock
+    *  elapsed since the last call.
+    */
   def tryAcquire(key: String, nowMillis: Long = System.currentTimeMillis()): Boolean = {
     val ref = buckets.computeIfAbsent(
       key,
@@ -86,12 +87,15 @@ class RateLimiter(capacity: Long, refillPerSecond: Double) {
 }
 
 object RateLimiter {
+
   /** Default per-user limit per the PR plan: 20 req/s with a 20-
-   *  token burst capacity. */
+    *  token burst capacity.
+    */
   def defaultPerUser(): RateLimiter = new RateLimiter(capacity = 20, refillPerSecond = 20.0)
 
   /** Default per-IP limit: looser per-user limit, tighter per-IP
-   *  to defend against an attacker burning through a fleet of
-   *  accounts. */
+    *  to defend against an attacker burning through a fleet of
+    *  accounts.
+    */
   def defaultPerIp(): RateLimiter = new RateLimiter(capacity = 100, refillPerSecond = 50.0)
 }

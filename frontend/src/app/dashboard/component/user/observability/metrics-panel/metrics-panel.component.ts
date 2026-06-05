@@ -17,8 +17,9 @@
  * under the License.
  */
 
-import { Component, OnInit } from "@angular/core";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import { DatePipe, DecimalPipe, NgFor, NgIf } from "@angular/common";
+import { Subject, takeUntil } from "rxjs";
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzCardComponent } from "ng-zorro-antd/card";
@@ -29,31 +30,15 @@ import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { NgxEchartsDirective, provideEchartsCore } from "ngx-echarts";
 import * as echarts from "echarts/core";
 import { LineChart, GaugeChart } from "echarts/charts";
-import {
-  GridComponent,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-} from "echarts/components";
+import { GridComponent, TitleComponent, TooltipComponent, LegendComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import type { EChartsCoreOption } from "echarts/core";
 import { ObservabilityService, ValidationError } from "../../../../service/user/observability/observability.service";
-import {
-  MetricsQueryResponse,
-  NamedMetric,
-} from "../../../../service/user/observability/observability.types";
+import { MetricsQueryResponse, NamedMetric } from "../../../../service/user/observability/observability.types";
 
 // Register the minimum set of ECharts components we use. Tree-shaking
 // keeps the bundle reasonable.
-echarts.use([
-  LineChart,
-  GaugeChart,
-  GridComponent,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  CanvasRenderer,
-]);
+echarts.use([LineChart, GaugeChart, GridComponent, TitleComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
 
 /**
  * Workflow stats panel.
@@ -90,7 +75,7 @@ echarts.use([
     NgxEchartsDirective,
   ],
 })
-export class MetricsPanelComponent implements OnInit {
+export class MetricsPanelComponent implements OnInit, OnDestroy {
   // Static labels + descriptions shown for each chart. Source:
   // server-side closed enum; the values here are presentation only.
   // `aggregate` controls the hero stat: "latest" = last sample (default),
@@ -204,10 +189,17 @@ export class MetricsPanelComponent implements OnInit {
   loading = false;
   errorMessage: string | null = null;
 
+  private readonly destroy$ = new Subject<void>();
+
   constructor(private observabilityService: ObservabilityService) {}
 
   ngOnInit(): void {
     this.refresh();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   refresh(): void {
@@ -231,13 +223,14 @@ export class MetricsPanelComponent implements OnInit {
             toMs: range[1].getTime(),
             stepSec: v.stepSec ?? 60,
           })
+          .pipe(takeUntil(this.destroy$))
           .subscribe({
             next: resp => {
               this.chartOptions[desc.name] = this.buildOption(desc.title, desc.unit, resp);
               this.summaries[desc.name] = this.computeSummary(resp, desc.aggregate ?? "latest");
               this.loading = false;
             },
-            error: err => {
+            error: (err: unknown) => {
               // Per-metric breadcrumb: the fan-out shares a single
               // errorMessage, so without this an operator can't tell
               // which of the N charts actually failed.
@@ -301,7 +294,10 @@ export class MetricsPanelComponent implements OnInit {
           areaStyle: {
             color: {
               type: "linear",
-              x: 0, y: 0, x2: 0, y2: 1,
+              x: 0,
+              y: 0,
+              x2: 0,
+              y2: 1,
               colorStops: [
                 { offset: 0, color: "rgba(22, 104, 220, 0.30)" },
                 { offset: 1, color: "rgba(22, 104, 220, 0.02)" },
@@ -343,8 +339,7 @@ export class MetricsPanelComponent implements OnInit {
     } else if (latest !== 0) {
       deltaPct = 100;
     }
-    const trend: MetricSummary["trend"] =
-      Math.abs(deltaPct) < 0.5 ? "flat" : deltaPct > 0 ? "up" : "down";
+    const trend: MetricSummary["trend"] = Math.abs(deltaPct) < 0.5 ? "flat" : deltaPct > 0 ? "up" : "down";
     return { latest, deltaPct: Math.abs(deltaPct), trend };
   }
 }
