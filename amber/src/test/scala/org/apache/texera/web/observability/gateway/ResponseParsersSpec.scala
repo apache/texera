@@ -228,6 +228,76 @@ class ResponseParsersSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // ----- metrics ------------------------------------------------------
+
+  "ResponseParsers.parseMetrics" should "parse a Prometheus matrix into MetricPoint timeseries (seconds → ms)" in {
+    val body =
+      """{"status":"success","data":{"resultType":"matrix","result":[
+        |  {"metric":{"__name__":"x"},"values":[[1779961222,"25"],[1779961282,"113.5"]]}
+        |]}}""".stripMargin
+    val Right(parsed) = ResponseParsers.parseMetrics(body, metricName = "runsPerDay")
+    parsed.metric shouldBe "runsPerDay"
+    parsed.points.map(_.timestampMs) shouldBe Seq(1779961222000L, 1779961282000L)
+    parsed.points.map(_.value) shouldBe Seq(25.0, 113.5)
+  }
+
+  // Regression: a query_range payload larger than the log-line
+  // sanitizer's 16 KiB body cap must parse intact. The resource layer
+  // used to feed parseMetrics the whole-body-sanitized string, which
+  // truncated past MaxBodyBytes and appended "...[truncated]" — its
+  // leading '.' produced "Unexpected character ('.')" 502s on the
+  // Metrics page. The body must now reach the parser un-truncated.
+  it should "parse a metrics matrix larger than the log-sanitizer body cap" in {
+    val pointCount = 900
+    val points = (0 until pointCount)
+      .map(i => s"""[${1700000000 + i},"113.5"]""")
+      .mkString(",")
+    val body =
+      s"""{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"x"},"values":[$points]}]}}"""
+    body.length should be > LogSanitizer.MaxBodyBytes // i.e. > 16 KiB — the old truncation point
+    val Right(parsed) = ResponseParsers.parseMetrics(body, metricName = "x")
+    parsed.points should have size pointCount.toLong
+    parsed.points.last.value shouldBe 113.5
+  }
+
+  it should "handle an empty matrix result" in {
+    val body = """{"status":"success","data":{"resultType":"matrix","result":[]}}"""
+    val Right(parsed) = ResponseParsers.parseMetrics(body, metricName = "x")
+    parsed.points shouldBe empty
+  }
+
+  it should "handle an instant vector result" in {
+    val body =
+      """{"status":"success","data":{"resultType":"vector","result":[
+        |  {"metric":{"__name__":"x"},"value":[1700000000,"7"]}
+        |]}}""".stripMargin
+    val Right(parsed) = ResponseParsers.parseMetrics(body, metricName = "x")
+    parsed.points should have size 1
+    parsed.points.head.value shouldBe 7.0
+    parsed.points.head.timestampMs shouldBe 1700000000000L
+  }
+
+  it should "skip points whose value is not a number" in {
+    val body =
+      """{"status":"success","data":{"resultType":"matrix","result":[
+        |  {"metric":{},"values":[[1700000000,"NaNish"],[1700000001,"42"]]}
+        |]}}""".stripMargin
+    val Right(parsed) = ResponseParsers.parseMetrics(body, metricName = "x")
+    parsed.points.map(_.value) shouldBe Seq(42.0)
+  }
+
+  it should "return bad_backend_response when status != success" in {
+    val body = """{"status":"error","error":"oops"}"""
+    val Left(err) = ResponseParsers.parseMetrics(body, metricName = "x")
+    err.code shouldBe "bad_backend_response"
+  }
+
+  it should "return bad_backend_response on unparseable JSON" in {
+    val Left(err) = ResponseParsers.parseMetrics("not json", metricName = "x")
+    err.code shouldBe "bad_backend_response"
+    err.status shouldBe 502
+  }
+
   // ----- helper: epoch millis literal --------------------------------
 
   private def Instant(iso: String): Long = java.time.Instant.parse(iso).toEpochMilli

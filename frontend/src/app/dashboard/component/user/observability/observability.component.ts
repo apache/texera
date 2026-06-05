@@ -26,6 +26,7 @@ import { FormsModule } from "@angular/forms";
 import { ObservabilityService } from "../../../service/user/observability/observability.service";
 import { ObservabilityHealth } from "../../../service/user/observability/observability.types";
 import { LogsPanelComponent } from "./logs-panel/logs-panel.component";
+import { MetricsPanelComponent } from "./metrics-panel/metrics-panel.component";
 import { TracesPivotService } from "../../../service/user/observability/traces-pivot.service";
 import { OnDestroy } from "@angular/core";
 import { Subject, takeUntil } from "rxjs";
@@ -53,6 +54,7 @@ import { Subject, takeUntil } from "rxjs";
     NzAlertComponent,
     NzEmptyComponent,
     LogsPanelComponent,
+    MetricsPanelComponent,
   ],
 })
 export class ObservabilityComponent implements OnInit, OnDestroy {

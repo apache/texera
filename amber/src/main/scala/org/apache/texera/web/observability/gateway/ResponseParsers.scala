@@ -171,6 +171,50 @@ object ResponseParsers extends LazyLogging {
     LogEntryResponse(timestampMs, level, body, traceId, spanId, attributes.toMap)
   }
 
+  // ---- metrics (Prometheus query_range / query) ----------------------
+
+  def parseMetrics(body: String, metricName: String): Either[GatewayError, MetricsQueryResponse] = {
+    Try(mapper.readTree(body)) match {
+      case Failure(e) => Left(bad(s"VictoriaMetrics: ${e.getMessage}"))
+      case Success(root) =>
+        val status = root.path("status").asText("")
+        if (status != "success") {
+          Left(bad(s"VictoriaMetrics: status='$status'"))
+        } else {
+          val series = root.path("data").path("result")
+          val points = if (series.isArray && series.size() > 0) {
+            // Named-metric templates produce a single time series; if a
+            // backend ever returns more, we take the first deterministically.
+            val first = series.get(0)
+            val matrix = first.path("values")
+            val vector = first.path("value")
+            if (matrix.isArray) {
+              matrix.iterator().asScala.take(MaxPageSize).flatMap(parseMetricPoint).toSeq
+            } else if (vector.isArray) {
+              parseMetricPoint(vector).toSeq
+            } else {
+              Seq.empty[MetricPoint]
+            }
+          } else {
+            Seq.empty[MetricPoint]
+          }
+          Right(MetricsQueryResponse(metric = metricName, points = points))
+        }
+    }
+  }
+
+  private def parseMetricPoint(node: JsonNode): Option[MetricPoint] = {
+    if (!node.isArray || node.size() < 2) None
+    else {
+      // Prometheus convention: [timestamp_seconds, "string_value"].
+      val tsSec = node.get(0).asDouble(0.0)
+      val rawValue = node.get(1).asText("")
+      Try(rawValue.toDouble).toOption.map { d =>
+        MetricPoint(timestampMs = math.round(tsSec * 1000.0), value = d)
+      }
+    }
+  }
+
   // ---- small helpers -------------------------------------------------
 
   private def textOpt(node: JsonNode, field: String): Option[String] = {

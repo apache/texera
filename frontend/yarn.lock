@@ -9471,6 +9471,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"echarts@npm:6.1.0":
+  version: 6.1.0
+  resolution: "echarts@npm:6.1.0"
+  dependencies:
+    tslib: "npm:2.3.0"
+    zrender: "npm:6.1.0"
+  checksum: 10c0/a0911a9d75969ff946d0bce998e95e1924cdec7f5ca6be13ded376e2a47067c70b264ee8d04ba84345aa7895363e202f54c87d2bae114859bd154d565babc09c
+  languageName: node
+  linkType: hard
+
 "ee-first@npm:1.1.1":
   version: 1.1.1
   resolution: "ee-first@npm:1.1.1"
@@ -11099,6 +11109,7 @@ __metadata:
     concurrently: "npm:7.4.0"
     d3-shape: "npm:2.1.0"
     dagre: "npm:0.8.5"
+    echarts: "npm:6.1.0"
     eslint: "npm:8.57.0"
     eslint-plugin-rxjs: "npm:5.0.3"
     eslint-plugin-rxjs-angular: "npm:2.0.1"
@@ -11118,6 +11129,7 @@ __metadata:
     monaco-languageclient: "npm:8.8.3"
     ng-zorro-antd: "npm:21.2.2"
     ngx-color-picker: "npm:12.0.1"
+    ngx-echarts: "npm:21.0.0"
     ngx-file-drop: "npm:16.0.0"
     ngx-json-viewer: "npm:3.2.1"
     ngx-markdown: "npm:21.2.0"
@@ -13681,6 +13693,18 @@ __metadata:
     "@angular/core": ">=9.0.0"
     "@angular/forms": ">=9.0.0"
   checksum: 10c0/abdde0e9397f88832e9e76b8f97e55434eb6adab68e6671dbb0583848f052c435fe75a27d4e77eb770a77947a9892595b94c6af59ef86dc9715fc75df5d40552
+  languageName: node
+  linkType: hard
+
+"ngx-echarts@npm:21.0.0":
+  version: 21.0.0
+  resolution: "ngx-echarts@npm:21.0.0"
+  dependencies:
+    tslib: "npm:^2.3.0"
+  peerDependencies:
+    "@angular/core": ">=21.0.0"
+    echarts: ">=5.0.0"
+  checksum: 10c0/f22828a55107015c60b602fa3bdb52f7287d5a70461407b314effd4fd8218d9d2ab0fcd2333acafdbab80a6944a5d0633e83061bd6d876f293625dd9e5e6f29c
   languageName: node
   linkType: hard
 
@@ -17697,6 +17721,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tslib@npm:2.3.0":
+  version: 2.3.0
+  resolution: "tslib@npm:2.3.0"
+  checksum: 10c0/a845aed84e7e7dbb4c774582da60d7030ea39d67307250442d35c4c5dd77e4b44007098c37dd079e100029c76055f2a362734b8442ba828f8cc934f15ed9be61
+  languageName: node
+  linkType: hard
+
 "tslib@npm:2.3.1":
   version: 2.3.1
   resolution: "tslib@npm:2.3.1"
@@ -19068,5 +19099,14 @@ __metadata:
   version: 0.15.1
   resolution: "zone.js@npm:0.15.1"
   checksum: 10c0/4eca000f90dbea1c34f62e88ce56910dace8cdecbe14747b214f2af37aa511264c7bd50faf3e9b00612e95dc4567da156a9690fef1983bfcf74604a630d190ef
+  languageName: node
+  linkType: hard
+
+"zrender@npm:6.1.0":
+  version: 6.1.0
+  resolution: "zrender@npm:6.1.0"
+  dependencies:
+    tslib: "npm:2.3.0"
+  checksum: 10c0/bfdb5e2ccd70893a9e2c7f33959749a6a1abc8912c2b1af301a05593d677a2f6f6087cdc4f0bf73883b99eea2f2d11d1922c71c3bf0bd4e9e5b362fd32129bce
   languageName: node
   linkType: hard

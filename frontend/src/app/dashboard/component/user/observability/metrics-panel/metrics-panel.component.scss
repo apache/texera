@@ -1,0 +1,140 @@
+/* Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+// Wrap the whole panel in a flex column so the toolbar is pinned
+// at the top and the chart strip below it scrolls independently.
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.metrics-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex: 0 0 auto;
+
+  .row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    input,
+    nz-range-picker {
+      flex: 1 1 auto;
+      min-width: 140px;
+    }
+  }
+}
+
+.charts {
+  display: grid;
+  // One-card-wide on phones; two columns once we have room. The
+  // minmax(360px, 1fr) keeps each card legible on narrow screens
+  // without breaking the 2-up layout on desktop.
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 16px;
+  flex: 1 1 auto;
+  // The whole metric area scrolls inside the tab — the page itself
+  // does not scroll, the cards do. This is the "allow metrics to
+  // scroll" requirement: no matter how many cards we add later, the
+  // strip grows downward and the user pages through with the
+  // scrollbar.
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0; // critical for flex children to actually shrink
+  padding-right: 4px; // breathing room for the scrollbar
+
+  .metric-card {
+    display: flex;
+    flex-direction: column;
+    border-radius: 8px;
+
+    ::ng-deep .ant-card-body {
+      padding: 12px 16px;
+    }
+
+    .card-title-text {
+      vertical-align: middle;
+    }
+
+    // Small "ⓘ" affordance in the card header; hovering shows the
+    // metric's plain-language description via nz-tooltip.
+    .info-icon {
+      margin-left: 6px;
+      font-size: 13px;
+      color: rgba(0, 0, 0, 0.35);
+      cursor: help;
+      vertical-align: middle;
+      transition: color 0.15s ease;
+
+      &:hover {
+        color: #1668dc;
+      }
+    }
+
+    .hero {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 4px;
+
+      .value {
+        font-size: 28px;
+        font-weight: 600;
+        line-height: 1.1;
+        color: rgba(0, 0, 0, 0.85);
+      }
+
+      .unit {
+        font-size: 12px;
+        color: rgba(0, 0, 0, 0.55);
+      }
+
+      .delta {
+        margin-left: auto;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 10px;
+
+        &.up   { color: #1a7f37; background: rgba(26, 127, 55, 0.12); }
+        &.down { color: #b3261e; background: rgba(179, 38, 30, 0.12); }
+        &.flat { color: rgba(0, 0, 0, 0.55); background: rgba(0, 0, 0, 0.06); }
+      }
+    }
+
+    .chart {
+      height: 220px;
+      min-height: 220px;
+
+      &.empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(0, 0, 0, 0.45);
+        font-size: 13px;
+      }
+    }
+  }
+}

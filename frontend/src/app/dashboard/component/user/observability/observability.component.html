@@ -39,7 +39,12 @@
     </nz-tab>
 
     <nz-tab nzTitle="Metrics">
-      <nz-empty nzNotFoundContent="Metrics panel coming soon."></nz-empty>
+      <texera-observability-metrics-panel
+        *ngIf="isReachable('metrics'); else metricsDisabled"></texera-observability-metrics-panel>
+      <ng-template #metricsDisabled>
+        <nz-empty
+          nzNotFoundContent="VictoriaMetrics is unreachable or disabled. Enable the observability-metrics profile in docker-compose."></nz-empty>
+      </ng-template>
     </nz-tab>
 
     <nz-tab nzTitle="Traces">

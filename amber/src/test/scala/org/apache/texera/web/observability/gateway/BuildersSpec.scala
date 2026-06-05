@@ -236,4 +236,67 @@ class BuildersSpec extends AnyFlatSpec with Matchers {
     ServiceName.parse("Dashboard-Service") shouldBe Some(ServiceName("dashboard-service"))
   }
 
+  // ----- MetricsQLBuilder -----------------------------------------------
+
+  "MetricsQLBuilder" should "build a non-empty fixed template for every named metric" in {
+    for (m <- NamedMetric.all) {
+      val q = MetricsQLBuilder.build(ValidatedMetricsRequest(m, anyWindow, stepSec = 60))
+      withClue(s"metric=${m.name} ") { q.trim should not be empty }
+    }
+  }
+
+  it should "derive failure rate from the completions counter (there is no failures_total series)" in {
+    val q = MetricsQLBuilder.build(ValidatedMetricsRequest(NamedMetric.FailureRate, anyWindow, 60))
+    q should not include "texera_workflow_failures_total"
+    q should include("""texera_workflow_completions_total{texera_outcome!="success"}""")
+    q should startWith("100 *") // expressed as a percentage
+  }
+
+  it should "aggregate histogram buckets by (le) for quantile metrics" in {
+    for (m <- Seq(NamedMetric.P50Duration, NamedMetric.P95Duration, NamedMetric.P99Duration)) {
+      val q = MetricsQLBuilder.build(ValidatedMetricsRequest(m, anyWindow, 60))
+      withClue(s"metric=${m.name}, query=$q ") {
+        q should include("histogram_quantile(")
+        q should include("sum(rate(texera_workflow_duration_seconds_bucket[60s])) by (le)")
+      }
+    }
+  }
+
+  it should "never accept a metric name from the client (only the closed enum)" in {
+    // NamedMetric.parse rejects unknown strings.
+    NamedMetric.parse("rate(evil[1h])") shouldBe None
+    NamedMetric.parse("../../../etc/passwd") shouldBe None
+    NamedMetric.parse("runsPerDay") shouldBe Some(NamedMetric.RunsPerDay)
+  }
+
+  it should "produce only relative durations inside subquery ranges (regression: HTTP 422)" in {
+    // The previous RunsPerDay template embedded an absolute Unix timestamp
+    // as a subquery range, e.g. `[1779876877s:60s]`. Prometheus interprets
+    // that as "the last 56 years" and 422s. Guard the family of templates
+    // against any reintroduction by asserting no 10-digit second literal
+    // ever appears inside a `[...:...s]` block.
+    val tenDigitSecondsInRange = """\[\d{10,}s:""".r
+    val window = TimeWindow(
+      Instant.ofEpochMilli(1700000000_000L),
+      Instant.ofEpochMilli(1700000060_000L)
+    )
+    for (m <- NamedMetric.all) {
+      val q = MetricsQLBuilder.build(ValidatedMetricsRequest(m, window, stepSec = 60))
+      withClue(s"metric=${m.name}, query=$q ") {
+        tenDigitSecondsInRange.findFirstIn(q) shouldBe None
+      }
+    }
+  }
+
+  it should "count trailing-24h starts for RunsPerDay (increase, not per-second rate)" in {
+    val validated = ValidatedMetricsRequest(
+      metric = NamedMetric.RunsPerDay,
+      window = anyWindow,
+      stepSec = 60
+    )
+    // Must be increase()/count over [1d] — rate() would report a per-second
+    // value ~86400× too small for a "runs per day" card.
+    MetricsQLBuilder.build(validated) shouldBe "sum(increase(texera_workflow_starts_total[1d]))"
+  }
+
 }
