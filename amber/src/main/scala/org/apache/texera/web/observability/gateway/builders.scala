@@ -262,8 +262,9 @@ object MetricsQLBuilder {
 object JaegerQueryBuilder {
 
   /** Path component for the Jaeger Query API GET /api/traces/{id}.
-   *  The trace id has already been regex-validated in the DTO
-   *  layer, so this is a safe straight pass-through. */
+    *  The trace id has already been regex-validated in the DTO
+    *  layer, so this is a safe straight pass-through.
+    */
   def tracePath(req: ValidatedTracesGetRequest): String =
     s"/api/traces/${req.traceId}"
 }

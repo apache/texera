@@ -257,7 +257,9 @@ object ResponseParsers extends LazyLogging {
     val parentSpanId = {
       val refs = node.path("references")
       if (refs.isArray) {
-        refs.iterator().asScala
+        refs
+          .iterator()
+          .asScala
           .find(r => r.path("refType").asText("") == "CHILD_OF")
           .map(_.path("spanID").asText(""))
           .filter(_.nonEmpty)

@@ -103,9 +103,7 @@ describe("buildSpanTree (pure)", () => {
   });
 
   it("defends against self-parent cycles by treating them as roots", () => {
-    const spans: TraceSpan[] = [
-      { spanId: "x", parentSpanId: "x", name: "x", startMs: 0, endMs: 1, attributes: {} },
-    ];
+    const spans: TraceSpan[] = [{ spanId: "x", parentSpanId: "x", name: "x", startMs: 0, endMs: 1, attributes: {} }];
     const tree = buildSpanTree(spans);
     expect(tree.length).toBe(1);
     expect(tree[0].span.name).toBe("x");
