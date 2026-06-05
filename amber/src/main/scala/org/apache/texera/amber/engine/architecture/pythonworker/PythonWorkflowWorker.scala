@@ -187,8 +187,6 @@ class PythonWorkflowWorker(
     // Set the Iceberg related arguments based on the catalog type.
     val isPostgres = StorageConfig.icebergCatalogType == "postgres"
     val isRest = StorageConfig.icebergCatalogType == "rest"
-    // The arg order below is a positional contract: it MUST match the unpacking in
-    // texera_run_python_worker.py. Append new args at the end on both sides.
     pythonServerProcess = Process(
       Seq(
         pythonBin,

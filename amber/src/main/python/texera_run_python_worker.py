@@ -39,8 +39,6 @@ def init_loguru_logger(stream_log_level) -> None:
 
 
 if __name__ == "__main__":
-    # Positional contract: this order MUST match the Seq passed from
-    # PythonWorkflowWorker.scala. Append new args at the end on both sides.
     (
         _,
         worker_id,

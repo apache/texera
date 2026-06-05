@@ -637,9 +637,7 @@ class WorkflowResource extends LazyLogging {
       }
 
       // Delete large binaries for each execution belonging to the workflows being
-      // removed. Done after the transaction (like the document cleanup below) so a
-      // rollback — e.g. a workflow id that does not belong to the user — does not leave
-      // the workflow rows intact while their binaries are already gone.
+      // removed. Done after the transaction (like the document cleanup below).
       eids.foreach(eid => LargeBinaryManager.deleteByExecution(eid.longValue()))
 
       // Clean up document storage
