@@ -26,11 +26,11 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 
 /**
- * Smoke tests for the PR 6 docker-compose + collector config. Same
- * design as [[ParcaConfigSpec]] — string-level assertions, no YAML
- * parser, because the goal is to catch typos and licence-pin drift,
- * not to validate the upstream schemas.
- */
+  * Smoke tests for the PR 6 docker-compose + collector config. Same
+  * design as [[ParcaConfigSpec]] — string-level assertions, no YAML
+  * parser, because the goal is to catch typos and licence-pin drift,
+  * not to validate the upstream schemas.
+  */
 class ObservabilityComposeSpec extends AnyFlatSpec with Matchers {
 
   private def resolveBundled(relative: String): Path = {
@@ -150,9 +150,8 @@ class ObservabilityComposeSpec extends AnyFlatSpec with Matchers {
       "observability-traces",
       "observability-profiles"
     ).foreach { profile =>
-      val grepCount = text.split('\n').count(line =>
-        !line.trim.startsWith("#") && line.contains(profile)
-      )
+      val grepCount =
+        text.split('\n').count(line => !line.trim.startsWith("#") && line.contains(profile))
       withClue(s"$profile should be in default COMPOSE_PROFILES (non-comment): ")(
         grepCount should be >= 1
       )
