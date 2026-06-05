@@ -282,14 +282,14 @@ object ResponseParsers extends LazyLogging {
   // ---- profiles (Parca) ----------------------------------------------
 
   /**
-   * Parca's primary query API is Connect-RPC at
-   * /parca.query.v1alpha1.QueryService/Query. The gateway currently
-   * hits a Prometheus-style path that returns Parca's SPA HTML for
-   * the UI route, so in practice this parser sees non-JSON and
-   * returns an empty profile. When the gateway is upgraded to call
-   * the Connect-RPC endpoint, the same parser handles the flamegraph
-   * report shape `{report:{flamegraph:{root, total, ...}}}`.
-   */
+    * Parca's primary query API is Connect-RPC at
+    * /parca.query.v1alpha1.QueryService/Query. The gateway currently
+    * hits a Prometheus-style path that returns Parca's SPA HTML for
+    * the UI route, so in practice this parser sees non-JSON and
+    * returns an empty profile. When the gateway is upgraded to call
+    * the Connect-RPC endpoint, the same parser handles the flamegraph
+    * report shape `{report:{flamegraph:{root, total, ...}}}`.
+    */
   def parseProfiles(body: String): Either[GatewayError, ProfilesQueryResponse] = {
     val trimmed = body.trim
     if (trimmed.isEmpty || trimmed.charAt(0) != '{') {
@@ -310,7 +310,9 @@ object ResponseParsers extends LazyLogging {
             Right(ProfilesQueryResponse(root = None, totalSamples = 0L))
           } else {
             val total = flame.path("total").asLong(0L)
-            Right(ProfilesQueryResponse(root = parseFrame(flame.path("root")), totalSamples = total))
+            Right(
+              ProfilesQueryResponse(root = parseFrame(flame.path("root")), totalSamples = total)
+            )
           }
       }
     }

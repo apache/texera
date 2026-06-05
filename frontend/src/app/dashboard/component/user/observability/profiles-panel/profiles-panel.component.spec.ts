@@ -23,10 +23,7 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { of, throwError } from "rxjs";
 import { ProfilesPanelComponent } from "./profiles-panel.component";
 import { ObservabilityService } from "../../../../service/user/observability/observability.service";
-import {
-  FlameFrame,
-  ProfilesQueryResponse,
-} from "../../../../service/user/observability/observability.types";
+import { FlameFrame, ProfilesQueryResponse } from "../../../../service/user/observability/observability.types";
 
 describe("ProfilesPanelComponent", () => {
   let component: ProfilesPanelComponent;

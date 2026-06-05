@@ -30,30 +30,30 @@ import java.time.Duration
 import scala.util.{Failure, Success, Try}
 
 /**
- * Minimal gRPC-Web client for Parca's `QueryService`.
- *
- * Parca v0.28 ships only a gRPC API on :7070 — no JSON/REST gateway.
- * Reaching it from a HTTP/1.1 Java client (no HTTP/2) means using the
- * gRPC-Web framing over `application/grpc-web+proto`. We do that here
- * without pulling in a scalapb-generated client: the request body is
- * a hand-coded protobuf payload for one RPC (QueryRange), and the
- * response is walked at the wire-format level just deep enough to
- * surface a meaningful summary frame.
- *
- * Field numbers below were discovered empirically against a live
- * Parca 0.28 server; they match the proto schema published in the
- * parca-dev/parca repo at that tag. The single-RPC scope is the
- * point: a full flamegraph reader would need the nested Function /
- * Location / Mapping schema and is a much bigger PR.
- */
+  * Minimal gRPC-Web client for Parca's `QueryService`.
+  *
+  * Parca v0.28 ships only a gRPC API on :7070 — no JSON/REST gateway.
+  * Reaching it from a HTTP/1.1 Java client (no HTTP/2) means using the
+  * gRPC-Web framing over `application/grpc-web+proto`. We do that here
+  * without pulling in a scalapb-generated client: the request body is
+  * a hand-coded protobuf payload for one RPC (QueryRange), and the
+  * response is walked at the wire-format level just deep enough to
+  * surface a meaningful summary frame.
+  *
+  * Field numbers below were discovered empirically against a live
+  * Parca 0.28 server; they match the proto schema published in the
+  * parca-dev/parca repo at that tag. The single-RPC scope is the
+  * point: a full flamegraph reader would need the nested Function /
+  * Location / Mapping schema and is a much bigger PR.
+  */
 object ParcaClient extends LazyLogging {
 
   /** Reverse-engineered field layout for `query.v1alpha1.QueryRangeRequest`:
-   *   1 (string)  query
-   *   2 (message) start  google.protobuf.Timestamp
-   *   3 (message) end    google.protobuf.Timestamp
-   *   4 (varint)  limit
-   */
+    *   1 (string)  query
+    *   2 (message) start  google.protobuf.Timestamp
+    *   3 (message) end    google.protobuf.Timestamp
+    *   4 (varint)  limit
+    */
   def queryRange(
       baseUrl: String,
       profileQuery: String,
@@ -88,7 +88,9 @@ object ParcaClient extends LazyLogging {
       .connectTimeout(Duration.ofMillis(timeoutMs))
       .followRedirects(HttpClient.Redirect.NEVER)
       .build()
-    logger.debug(s"[profiles] sending gRPC-Web POST $baseUrl$path (${framed.length} bytes, timeout ${timeoutMs}ms)")
+    logger.debug(
+      s"[profiles] sending gRPC-Web POST $baseUrl$path (${framed.length} bytes, timeout ${timeoutMs}ms)"
+    )
     Try(client.send(req, BodyHandlers.ofByteArray())) match {
       case Failure(e) =>
         logger.warn(
@@ -110,7 +112,13 @@ object ParcaClient extends LazyLogging {
               .orElse(headerStr(resp, "Grpc-Message"))
               .getOrElse("")
             logger.warn(s"[profiles] Parca returned gRPC status=$other ${msg.take(120)}")
-            Left(GatewayError("backend_error", s"profiles backend gRPC status=$other ${msg.take(120)}", 502))
+            Left(
+              GatewayError(
+                "backend_error",
+                s"profiles backend gRPC status=$other ${msg.take(120)}",
+                502
+              )
+            )
         }
     }
   }
@@ -136,19 +144,21 @@ object ParcaClient extends LazyLogging {
   // ---- Response walking --------------------------------------------------
 
   /** QueryRangeResponse top-level layout:
-   *    1 (message, repeated) MetricsSeries  series
-   *  Each Series:
-   *    1 (message) LabelSet  labelset
-   *    2 (message, repeated) MetricsSample  samples
-   *  Each MetricsSample:
-   *    1 (message) google.protobuf.Timestamp timestamp
-   *    2 (varint)  value          // sample count or value
-   *    5 (varint)  duration_ns    // observed at runtime
-   */
-  private def parseQueryRangeResponse(body: Array[Byte]): Either[GatewayError, ParcaQueryRangeSummary] = {
+    *    1 (message, repeated) MetricsSeries  series
+    *  Each Series:
+    *    1 (message) LabelSet  labelset
+    *    2 (message, repeated) MetricsSample  samples
+    *  Each MetricsSample:
+    *    1 (message) google.protobuf.Timestamp timestamp
+    *    2 (varint)  value          // sample count or value
+    *    5 (varint)  duration_ns    // observed at runtime
+    */
+  private def parseQueryRangeResponse(
+      body: Array[Byte]
+  ): Either[GatewayError, ParcaQueryRangeSummary] = {
     val unframed = stripGrpcWebFrame(body) match {
       case Right(b) => b
-      case Left(e) => return Left(e)
+      case Left(e)  => return Left(e)
     }
     var seriesCount = 0
     var sampleCount = 0L
@@ -184,7 +194,8 @@ object ParcaClient extends LazyLogging {
   }
 
   /** LabelSet contains repeated Label{name (1), value (2)}. We render
-   *  the first key=value as a compact human-readable identifier. */
+    *  the first key=value as a compact human-readable identifier.
+    */
   private def extractFirstLabelString(bytes: Array[Byte]): Option[String] = {
     var name: Option[String] = None
     var value: Option[String] = None
@@ -192,8 +203,10 @@ object ParcaClient extends LazyLogging {
       case (1, Proto.LengthDelimited(b)) =>
         // first sub-label is itself a Label{name=1,value=2}
         Proto.foreachField(b) {
-          case (1, Proto.LengthDelimited(nb)) => if (name.isEmpty) name = Some(new String(nb, "UTF-8"))
-          case (2, Proto.LengthDelimited(vb)) => if (value.isEmpty) value = Some(new String(vb, "UTF-8"))
+          case (1, Proto.LengthDelimited(nb)) =>
+            if (name.isEmpty) name = Some(new String(nb, "UTF-8"))
+          case (2, Proto.LengthDelimited(vb)) =>
+            if (value.isEmpty) value = Some(new String(vb, "UTF-8"))
           case _ => ()
         }
       case _ => ()
@@ -210,7 +223,13 @@ object ParcaClient extends LazyLogging {
     else {
       val len = ByteBuffer.wrap(body, 1, 4).order(ByteOrder.BIG_ENDIAN).getInt
       if (len < 0 || 5 + len > body.length)
-        Left(GatewayError("bad_backend_response", "malformed gRPC-Web frame from profiles backend", 502))
+        Left(
+          GatewayError(
+            "bad_backend_response",
+            "malformed gRPC-Web frame from profiles backend",
+            502
+          )
+        )
       else Right(java.util.Arrays.copyOfRange(body, 5, 5 + len))
     }
   }
@@ -225,24 +244,25 @@ case class ParcaQueryRangeSummary(
 )
 
 /** Maps the lightweight Parca summary into the dashboard's
- *  [[FlameFrame]] DTO. The shape is a one-deep tree:
- *
- *    root (totalSampleCount)
- *      ├── series-label-1 (count)
- *      ├── series-label-2 (count)
- *      └── ...
- *
- *  Real call-stack flame nodes need the nested Function / Location /
- *  Mapping schema in Parca's profile.proto; pulling those in is the
- *  next PR. Until then this gives the dashboard real numbers from a
- *  real backend instead of an empty panel.
- */
+  *  [[FlameFrame]] DTO. The shape is a one-deep tree:
+  *
+  *    root (totalSampleCount)
+  *      ├── series-label-1 (count)
+  *      ├── series-label-2 (count)
+  *      └── ...
+  *
+  *  Real call-stack flame nodes need the nested Function / Location /
+  *  Mapping schema in Parca's profile.proto; pulling those in is the
+  *  next PR. Until then this gives the dashboard real numbers from a
+  *  real backend instead of an empty panel.
+  */
 object ParcaSummary {
   import org.apache.texera.web.observability.gateway.dtos._
 
   /** Cap on children rendered. The dashboard's flame view degrades on
-   *  thousands of siblings; we already cap at 1000 in upstream parsing
-   *  but trim again here to be defensive. */
+    *  thousands of siblings; we already cap at 1000 in upstream parsing
+    *  but trim again here to be defensive.
+    */
   private val MaxRenderedSeries: Int = 256
 
   def toProfilesResponse(summary: ParcaQueryRangeSummary): ProfilesQueryResponse = {
@@ -254,7 +274,8 @@ object ParcaSummary {
         .map(s => FlameFrame(name = s.label, value = s.sampleCount, children = Seq.empty))
       val rootName = s"parca_agent cpu samples (${summary.seriesCount} series)"
       ProfilesQueryResponse(
-        root = Some(FlameFrame(name = rootName, value = summary.totalSampleCount, children = children)),
+        root =
+          Some(FlameFrame(name = rootName, value = summary.totalSampleCount, children = children)),
         totalSamples = summary.totalSampleCount
       )
     }
@@ -287,19 +308,31 @@ private[gateway] object ProtoEncode {
     out.toByteArray
   }
 
-  private def writeVarintField(out: java.io.ByteArrayOutputStream, fieldNumber: Int, value: Long): Unit = {
+  private def writeVarintField(
+      out: java.io.ByteArrayOutputStream,
+      fieldNumber: Int,
+      value: Long
+  ): Unit = {
     writeVarint(out, ((fieldNumber.toLong) << 3) | 0L)
     writeVarint(out, value)
   }
 
-  private def writeString(out: java.io.ByteArrayOutputStream, fieldNumber: Int, value: String): Unit = {
+  private def writeString(
+      out: java.io.ByteArrayOutputStream,
+      fieldNumber: Int,
+      value: String
+  ): Unit = {
     val bytes = value.getBytes("UTF-8")
     writeVarint(out, ((fieldNumber.toLong) << 3) | 2L)
     writeVarint(out, bytes.length.toLong)
     out.write(bytes)
   }
 
-  private def writeMessage(out: java.io.ByteArrayOutputStream, fieldNumber: Int, value: Array[Byte]): Unit = {
+  private def writeMessage(
+      out: java.io.ByteArrayOutputStream,
+      fieldNumber: Int,
+      value: Array[Byte]
+  ): Unit = {
     writeVarint(out, ((fieldNumber.toLong) << 3) | 2L)
     writeVarint(out, value.length.toLong)
     out.write(value)
@@ -316,8 +349,9 @@ private[gateway] object ProtoEncode {
 }
 
 /** Tiny protobuf-wire-format reader. Just walks top-level fields and
- *  yields (field_number, value) pairs. Does not skip group fields
- *  (deprecated, not used by Parca). */
+  *  yields (field_number, value) pairs. Does not skip group fields
+  *  (deprecated, not used by Parca).
+  */
 private[gateway] object Proto {
 
   sealed trait Value

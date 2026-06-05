@@ -16,7 +16,9 @@
  specific language governing permissions and limitations
  under the License.
 -->
-<form [formGroup]="form" class="profiles-panel">
+<form
+  [formGroup]="form"
+  class="profiles-panel">
   <div class="row">
     <nz-range-picker
       [nzShowTime]="true"
@@ -50,9 +52,15 @@
 </form>
 
 <div class="result">
-  <p *ngIf="root" class="summary">Total samples: {{ totalSamples }}</p>
+  <p
+    *ngIf="root"
+    class="summary">
+    Total samples: {{ totalSamples }}
+  </p>
 
-  <texera-flame-chart *ngIf="root; else noSamples" [root]="root"></texera-flame-chart>
+  <texera-flame-chart
+    *ngIf="root; else noSamples"
+    [root]="root"></texera-flame-chart>
 
   <ng-template #noSamples>
     <nz-empty

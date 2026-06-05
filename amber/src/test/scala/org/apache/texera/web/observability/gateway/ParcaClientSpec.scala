@@ -70,10 +70,12 @@ class ParcaClientSpec extends AnyFlatSpec with Matchers with OptionValues {
   "ProtoEncode + Proto" should "round-trip a QueryRangeRequest through the wire format" in {
     // The encoder is private[gateway], but reachable from the same
     // package. The reader walks top-level fields.
-    val payload = TestAccess.encodeQueryRange("parca_agent:samples:count:cpu:nanoseconds:delta",
-                                              startMs = 1_700_000_000_000L,
-                                              endMs = 1_700_000_600_000L,
-                                              limit = 100)
+    val payload = TestAccess.encodeQueryRange(
+      "parca_agent:samples:count:cpu:nanoseconds:delta",
+      startMs = 1_700_000_000_000L,
+      endMs = 1_700_000_600_000L,
+      limit = 100
+    )
 
     val collected = scala.collection.mutable.Map.empty[Int, Any]
     TestAccess.walk(payload) {
@@ -159,7 +161,8 @@ class ParcaClientSpec extends AnyFlatSpec with Matchers with OptionValues {
 }
 
 /** Package-private hooks so the spec can poke at the private encoder/decoder
- *  without exposing them to the rest of the codebase. */
+  *  without exposing them to the rest of the codebase.
+  */
 private[gateway] object TestAccess {
   type V = Proto.VarInt
   val V = Proto.VarInt

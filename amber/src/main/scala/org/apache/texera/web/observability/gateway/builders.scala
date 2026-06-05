@@ -272,16 +272,18 @@ object JaegerQueryBuilder {
 object ParcaQueryBuilder {
 
   /** Parca profile-type that the eBPF agent emits. Format:
-   *  ``<name>:<sample-type>:<sample-unit>:<period-type>:<period-unit>:delta``.
-   *  Discovered via ProfileTypes RPC; the previous string
-   *  "parca_agent_cpu" was a Prometheus-style metric name that
-   *  Parca's query layer does not accept. */
+    *  ``<name>:<sample-type>:<sample-unit>:<period-type>:<period-unit>:delta``.
+    *  Discovered via ProfileTypes RPC; the previous string
+    *  "parca_agent_cpu" was a Prometheus-style metric name that
+    *  Parca's query layer does not accept.
+    */
   private val CpuProfileType = "parca_agent:samples:count:cpu:nanoseconds:delta"
 
   /** Build the Parca query string for a flame graph over the given
-   *  window. The leading profile-type identifier is hard-coded; only
-   *  numeric ids and the validated "texera" deployment label join the
-   *  selector body — no user free text. */
+    *  window. The leading profile-type identifier is hard-coded; only
+    *  numeric ids and the validated "texera" deployment label join the
+    *  selector body — no user free text.
+    */
   def build(req: ValidatedProfilesRequest, scope: GatewayScope): String = {
     val selectors = scala.collection.mutable.ArrayBuffer[String]()
     selectors += """deployment="texera""""

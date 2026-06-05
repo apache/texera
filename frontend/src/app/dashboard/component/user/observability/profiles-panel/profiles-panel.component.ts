@@ -17,22 +17,17 @@
  * under the License.
  */
 
-import { Component, OnInit } from "@angular/core";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { Subject, takeUntil } from "rxjs";
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzDatePickerComponent, NzRangePickerComponent } from "ng-zorro-antd/date-picker";
 import { NzEmptyComponent } from "ng-zorro-antd/empty";
 import { NzInputDirective } from "ng-zorro-antd/input";
-import {
-  ObservabilityService,
-  ValidationError,
-} from "../../../../service/user/observability/observability.service";
-import {
-  FlameFrame,
-  ProfilesQueryResponse,
-} from "../../../../service/user/observability/observability.types";
+import { ObservabilityService, ValidationError } from "../../../../service/user/observability/observability.service";
+import { FlameFrame, ProfilesQueryResponse } from "../../../../service/user/observability/observability.types";
 import { FlameChartComponent } from "./flame-chart/flame-chart.component";
 
 /**
@@ -65,7 +60,7 @@ import { FlameChartComponent } from "./flame-chart/flame-chart.component";
     FlameChartComponent,
   ],
 })
-export class ProfilesPanelComponent implements OnInit {
+export class ProfilesPanelComponent implements OnInit, OnDestroy {
   // nz-range-picker requires a tuple value; using two separate
   // FormControls crashes the picker at writeValue time.
   form = new FormGroup({
@@ -83,10 +78,17 @@ export class ProfilesPanelComponent implements OnInit {
   root: FlameFrame | null = null;
   totalSamples = 0;
 
+  private readonly destroy$ = new Subject<void>();
+
   constructor(private observabilityService: ObservabilityService) {}
 
   ngOnInit(): void {
     this.refresh();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   refresh(): void {
@@ -107,6 +109,7 @@ export class ProfilesPanelComponent implements OnInit {
           fromMs: range[0].getTime(),
           toMs: range[1].getTime(),
         })
+        .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: resp => {
             this.result = resp;
@@ -114,7 +117,7 @@ export class ProfilesPanelComponent implements OnInit {
             this.totalSamples = resp.totalSamples;
             this.loading = false;
           },
-          error: err => {
+          error: (err: unknown) => {
             this.errorMessage = humanizeError(err);
             this.loading = false;
           },
