@@ -55,7 +55,10 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
   "ReservoirSamplingOpExec.processTuple" should "buffer silently and emit nothing until onFinish" in {
     val exec = newExec(k = 3)
     val perTupleEmissions = (0 until 10).map(i => exec.processTuple(tuple(i), 0).toList)
-    assert(perTupleEmissions.forall(_.isEmpty), "processTuple should never emit; sampling emits on finish")
+    assert(
+      perTupleEmissions.forall(_.isEmpty),
+      "processTuple should never emit; sampling emits on finish"
+    )
   }
 
   "ReservoirSamplingOpExec.onFinish" should "return all input tuples in order when input size == k" in {
@@ -72,7 +75,10 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
     assert(emitted.size == 5, "reservoir must hold exactly k samples")
     assert(!emitted.contains(null), "no null padding when the reservoir is fully filled")
     val inputTuples = input.map(tuple).toSet
-    assert(emitted.forall(inputTuples.contains), "every sample must originate from the input stream")
+    assert(
+      emitted.forall(inputTuples.contains),
+      "every sample must originate from the input stream"
+    )
     assert(emitted.distinct.size == emitted.size, "each input tuple is sampled at most once")
   }
 
@@ -112,6 +118,9 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
     val emitted = runFinish(exec, 0 until 3)
     assert(emitted.size == 5)
     assert(emitted.take(3) == List(tuple(0), tuple(1), tuple(2)))
-    assert(emitted.drop(3) == List(null, null), "trailing reservoir slots are emitted as null tuples")
+    assert(
+      emitted.drop(3) == List(null, null),
+      "trailing reservoir slots are emitted as null tuples"
+    )
   }
 }
