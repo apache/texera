@@ -202,7 +202,7 @@ class WorkerSpec
           "org.apache.texera.amber.engine.architecture.worker.DummyOperatorExecutor"
         ),
         isSource = false,
-        executionId = Some(ExecutionIdentity(1L))
+        executionId = ExecutionIdentity(1L)
       ),
       AsyncRPCContext(CONTROLLER, identifier1),
       4

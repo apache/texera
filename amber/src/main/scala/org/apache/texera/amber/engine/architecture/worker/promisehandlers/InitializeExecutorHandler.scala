@@ -48,7 +48,7 @@ trait InitializeExecutorHandler {
     // Always overwrite the worker's large-binary execution context (None clears it) so a
     // missing id fails loudly in create() instead of reusing a stale value — matching the
     // Python worker's behavior.
-    LargeBinaryManager.setCurrentExecutionId(req.executionId.map(_.id))
+    LargeBinaryManager.setCurrentExecutionId(req.executionId.id)
     setupExecutor(req.opExecInitInfo, workerIdx, cachedTotalWorkerCount)
     EmptyReturn()
   }

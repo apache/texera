@@ -31,7 +31,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
   /** Each test creates large binaries; they need an execution context on the thread. */
   override def beforeEach(): Unit = {
     super.beforeEach()
-    LargeBinaryManager.setCurrentExecutionId(Some(TestExecutionId))
+    LargeBinaryManager.setCurrentExecutionId(TestExecutionId)
   }
 
   /** Creates a large binary from string data and returns it. */
@@ -481,9 +481,9 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
 
   test("deleteByExecution removes only the target execution's binaries") {
     // Create one binary under execution 1001 and another under 1002.
-    LargeBinaryManager.setCurrentExecutionId(Some(1001L))
+    LargeBinaryManager.setCurrentExecutionId(1001L)
     createLargeBinary("data for 1001")
-    LargeBinaryManager.setCurrentExecutionId(Some(1002L))
+    LargeBinaryManager.setCurrentExecutionId(1002L)
     createLargeBinary("data for 1002")
 
     // Delete only execution 1001's binaries.
@@ -496,7 +496,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
       // Keep the test self-contained: clean up 1002's objects and reset the thread's
       // execution id rather than relying on the next test's beforeEach.
       LargeBinaryManager.deleteByExecution(1002L)
-      LargeBinaryManager.setCurrentExecutionId(Some(TestExecutionId))
+      LargeBinaryManager.setCurrentExecutionId(TestExecutionId)
     }
   }
 }

@@ -43,13 +43,9 @@ object LargeBinaryManager extends LazyLogging {
   private val currentExecutionId: ThreadLocal[Option[Long]] =
     ThreadLocal.withInitial(() => Option.empty[Long])
 
-  /**
-    * Sets (or clears) the execution id for large binaries created on the current thread.
-    * Passing None clears it, so a missing id makes create() fail loudly rather than
-    * reusing a stale value — keeping behavior consistent with the Python worker.
-    */
-  def setCurrentExecutionId(executionId: Option[Long]): Unit =
-    currentExecutionId.set(executionId)
+  /** Sets the execution id for large binaries created on the current thread. */
+  def setCurrentExecutionId(executionId: Long): Unit =
+    currentExecutionId.set(Some(executionId))
 
   /**
     * Creates a new LargeBinary reference scoped to the current execution.

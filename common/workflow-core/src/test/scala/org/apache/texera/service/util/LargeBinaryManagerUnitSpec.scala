@@ -48,7 +48,7 @@ class LargeBinaryManagerUnitSpec extends AnyFunSuite {
     // context is isolated and does not leak into other tests.
     @volatile var uri: String = ""
     val thread = new Thread(() => {
-      LargeBinaryManager.setCurrentExecutionId(Some(555L))
+      LargeBinaryManager.setCurrentExecutionId(555L)
       uri = LargeBinaryManager.create()
     })
     thread.start()

@@ -252,7 +252,7 @@ message InitializeExecutorRequest {
   int32 totalWorkerCount = 1;
   core.OpExecInitInfo opExecInitInfo = 2;
   bool isSource = 3;
-  core.ExecutionIdentity executionId = 4;
+  core.ExecutionIdentity executionId = 4 [(scalapb.field).no_box = true];
 }
 
 message UpdateExecutorRequest {

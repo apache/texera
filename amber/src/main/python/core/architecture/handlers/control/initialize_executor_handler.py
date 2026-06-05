@@ -30,10 +30,8 @@ class InitializeExecutorHandler(ControlHandler):
         from pytexera.storage.large_binary_manager import LargeBinaryManager
 
         op_exec_with_code: OpExecWithCode = get_one_of(req.op_exec_init_info)
-        # An unset proto field arrives as None, so the missing id fail loudly in create()
-        LargeBinaryManager().set_current_execution_id(
-            req.execution_id.id if req.execution_id else None
-        )
+        # executionId is a required (no_box) field, so it is always present.
+        LargeBinaryManager().set_current_execution_id(req.execution_id.id)
         self.context.executor_manager.initialize_executor(
             op_exec_with_code.code, req.is_source, op_exec_with_code.language
         )
