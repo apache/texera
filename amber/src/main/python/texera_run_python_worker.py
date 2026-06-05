@@ -39,6 +39,8 @@ def init_loguru_logger(stream_log_level) -> None:
 
 
 if __name__ == "__main__":
+    # Positional contract: this order MUST match the Seq passed from
+    # PythonWorkflowWorker.scala. Append new args at the end on both sides.
     (
         _,
         worker_id,
@@ -59,6 +61,7 @@ if __name__ == "__main__":
         s3_region,
         s3_auth_username,
         s3_auth_password,
+        s3_large_binaries_bucket,
     ) = sys.argv
     init_loguru_logger(logger_level)
     StorageConfig.initialize(
@@ -76,6 +79,7 @@ if __name__ == "__main__":
         s3_region,
         s3_auth_username,
         s3_auth_password,
+        s3_large_binaries_bucket,
     )
 
     # Setting R_HOME environment variable for R-UDF usage

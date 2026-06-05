@@ -41,6 +41,7 @@ class StorageConfig:
     S3_REGION = None
     S3_AUTH_USERNAME = None
     S3_AUTH_PASSWORD = None
+    S3_LARGE_BINARIES_BUCKET = None
 
     @classmethod
     def initialize(
@@ -59,6 +60,7 @@ class StorageConfig:
         s3_region,
         s3_auth_username,
         s3_auth_password,
+        s3_large_binaries_bucket,
     ):
         if cls._initialized:
             raise RuntimeError(
@@ -82,6 +84,7 @@ class StorageConfig:
         cls.S3_REGION = s3_region
         cls.S3_AUTH_USERNAME = s3_auth_username
         cls.S3_AUTH_PASSWORD = s3_auth_password
+        cls.S3_LARGE_BINARIES_BUCKET = s3_large_binaries_bucket
 
         cls._initialized = True
 

@@ -20,6 +20,7 @@
 package org.apache.texera.service.util
 
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.config.StorageConfig
 
 import java.util.UUID
 
@@ -30,18 +31,25 @@ import java.util.UUID
   * normal tuple size limits.
   */
 object LargeBinaryManager extends LazyLogging {
-  val DEFAULT_BUCKET: String = "texera-large-binaries"
+  // Sourced from config so the JVM and Python workers (and cleanup) share one bucket.
+  val DEFAULT_BUCKET: String = StorageConfig.s3LargeBinariesBucket
 
   /**
-    * Worker-scoped execution context. It is set on the data-processing thread when an
-    * executor is initialized.
+    * Worker-scoped execution context for large binaries created on the current thread.
+    * It MUST be set on, and read from, the worker's data-processing thread — the same
+    * thread that runs the operator and calls create() — which is why a thread-local is
+    * used.
     */
   private val currentExecutionId: ThreadLocal[Option[Long]] =
     ThreadLocal.withInitial(() => Option.empty[Long])
 
-  /** Sets the execution id for large binaries created on the current thread. */
-  def setCurrentExecutionId(executionId: Long): Unit =
-    currentExecutionId.set(Some(executionId))
+  /**
+    * Sets (or clears) the execution id for large binaries created on the current thread.
+    * Passing None clears it, so a missing id makes create() fail loudly rather than
+    * reusing a stale value — keeping behavior consistent with the Python worker.
+    */
+  def setCurrentExecutionId(executionId: Option[Long]): Unit =
+    currentExecutionId.set(executionId)
 
   /**
     * Creates a new LargeBinary reference scoped to the current execution.
@@ -84,8 +92,12 @@ object LargeBinaryManager extends LazyLogging {
         s"Deleted large binaries for execution $executionId from bucket: $DEFAULT_BUCKET"
       )
     } catch {
+      // Swallowing is intentional: cleanup runs as a side effect of execution/workflow
+      // deletion and must not fail that operation. Logged at error because a failure
+      // here silently leaks storage (bad credentials, unreachable endpoint, partial
+      // delete), which would otherwise be invisible.
       case e: Exception =>
-        logger.warn(
+        logger.error(
           s"Failed to delete large binaries for execution $executionId " +
             s"from bucket: $DEFAULT_BUCKET",
           e

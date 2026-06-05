@@ -611,9 +611,6 @@ class WorkflowResource extends LazyLogging {
         .asScala
         .toList
 
-      // Delete large binaries for each execution belonging to the workflows being removed
-      eids.foreach(eid => LargeBinaryManager.deleteByExecution(eid.longValue()))
-
       // Collect all URIs related to executions for cleanup
       val uris = eids.flatMap { eid =>
         val executionId = ExecutionIdentity(eid.longValue())
@@ -638,6 +635,12 @@ class WorkflowResource extends LazyLogging {
           }
         }
       }
+
+      // Delete large binaries for each execution belonging to the workflows being
+      // removed. Done after the transaction (like the document cleanup below) so a
+      // rollback — e.g. a workflow id that does not belong to the user — does not leave
+      // the workflow rows intact while their binaries are already gone.
+      eids.foreach(eid => LargeBinaryManager.deleteByExecution(eid.longValue()))
 
       // Clean up document storage
       try {

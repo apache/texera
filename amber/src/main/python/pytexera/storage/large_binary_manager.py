@@ -33,10 +33,13 @@ class LargeBinaryManager:
     Implemented as a singleton: ``LargeBinaryManager()`` always returns the same
     instance, so the cached S3 client and the current execution id are shared across
     all callers in the worker process. A Python worker is a single process serving one
-    execution. Mirrors the JVM ``object LargeBinaryManager``.
-    """
+    execution.
 
-    DEFAULT_BUCKET = "texera-large-binaries"
+    Note: this differs from the JVM ``LargeBinaryManager`` in how the execution id is
+    held — a process-wide singleton here vs. a thread-local there — because a Python
+    worker is a single process per execution, whereas a JVM process hosts many workers
+    on separate threads.
+    """
 
     _instance = None
 
@@ -103,13 +106,20 @@ class LargeBinaryManager:
         Returns:
             S3 URI string (format: s3://bucket/objects/{execution_id}/{uuid})
         """
-        self._ensure_bucket_exists(self.DEFAULT_BUCKET)
+        # Validate the execution context before any S3 round-trip.
         execution_id = self.get_current_execution_id()
         if execution_id is None:
             raise RuntimeError(
                 "largebinary() requires an execution context, but no execution id "
                 "has been set for this worker."
             )
+        bucket = StorageConfig.S3_LARGE_BINARIES_BUCKET
+        if not bucket:
+            raise RuntimeError(
+                "Large-binaries bucket is not configured "
+                "(StorageConfig.S3_LARGE_BINARIES_BUCKET is unset)."
+            )
+        self._ensure_bucket_exists(bucket)
         unique_id = uuid.uuid4()
         object_key = f"objects/{execution_id}/{unique_id}"
-        return f"s3://{self.DEFAULT_BUCKET}/{object_key}"
+        return f"s3://{bucket}/{object_key}"

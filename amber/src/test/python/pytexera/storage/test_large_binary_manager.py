@@ -26,27 +26,32 @@ from core.storage.storage_config import StorageConfig
 large_binary_manager = LargeBinaryManager()
 
 
+@pytest.fixture(autouse=True)
+def _init_storage_config():
+    """Initialize StorageConfig (incl. the large-binaries bucket) for every test."""
+    if not StorageConfig._initialized:
+        StorageConfig.initialize(
+            catalog_type="postgres",
+            postgres_uri_without_scheme="localhost:5432/test",
+            postgres_username="test",
+            postgres_password="test",
+            rest_catalog_uri="http://localhost:8181/catalog/",
+            rest_catalog_warehouse_name="texera",
+            table_result_namespace="test",
+            table_state_namespace="test-state",
+            directory_path="/tmp/test",
+            commit_batch_size=1000,
+            s3_endpoint="http://localhost:9000",
+            s3_region="us-east-1",
+            s3_auth_username="minioadmin",
+            s3_auth_password="minioadmin",
+            s3_large_binaries_bucket="texera-large-binaries",
+        )
+
+
 class TestLargeBinaryManager:
     @pytest.fixture(autouse=True)
-    def setup_storage_config(self):
-        """Initialize StorageConfig for tests."""
-        if not StorageConfig._initialized:
-            StorageConfig.initialize(
-                catalog_type="postgres",
-                postgres_uri_without_scheme="localhost:5432/test",
-                postgres_username="test",
-                postgres_password="test",
-                rest_catalog_uri="http://localhost:8181/catalog/",
-                rest_catalog_warehouse_name="texera",
-                table_result_namespace="test",
-                table_state_namespace="test-state",
-                directory_path="/tmp/test",
-                commit_batch_size=1000,
-                s3_endpoint="http://localhost:9000",
-                s3_region="us-east-1",
-                s3_auth_username="minioadmin",
-                s3_auth_password="minioadmin",
-            )
+    def setup_execution_id(self):
         # Provide a default execution id so create() doesn't raise.
         original_eid = large_binary_manager.get_current_execution_id()
         large_binary_manager.set_current_execution_id(1)
@@ -142,12 +147,12 @@ class TestLargeBinaryManager:
 
             # Check URI format: s3://bucket/objects/{eid}/{uuid}
             assert uri.startswith("s3://")
-            assert uri.startswith(f"s3://{large_binary_manager.DEFAULT_BUCKET}/")
+            assert uri.startswith(f"s3://{StorageConfig.S3_LARGE_BINARIES_BUCKET}/")
             assert f"objects/{large_binary_manager.get_current_execution_id()}/" in uri
 
             # Verify bucket was checked/created
             mock_client.head_bucket.assert_called_once_with(
-                Bucket=large_binary_manager.DEFAULT_BUCKET
+                Bucket=StorageConfig.S3_LARGE_BINARIES_BUCKET
             )
 
     def test_create_uses_default_bucket(self):
@@ -161,7 +166,7 @@ class TestLargeBinaryManager:
             mock_client.exceptions.NoSuchBucket = type("NoSuchBucket", (Exception,), {})
 
             uri = large_binary_manager.create()
-            assert large_binary_manager.DEFAULT_BUCKET in uri
+            assert StorageConfig.S3_LARGE_BINARIES_BUCKET in uri
             assert f"objects/{large_binary_manager.get_current_execution_id()}/" in uri
 
 
@@ -170,27 +175,46 @@ def test_create_stamps_execution_id(monkeypatch):
     monkeypatch.setattr(
         large_binary_manager, "_ensure_bucket_exists", lambda bucket: None
     )
-    monkeypatch.setattr(large_binary_manager, "_current_execution_id", 42)
-
-    uri = large_binary_manager.create()
-
-    assert re.fullmatch(r"s3://texera-large-binaries/objects/42/[0-9a-fA-F-]+", uri)
-
-
-def test_create_without_execution_context_raises(monkeypatch):
-    monkeypatch.setattr(
-        large_binary_manager, "_ensure_bucket_exists", lambda bucket: None
-    )
-    monkeypatch.setattr(large_binary_manager, "_current_execution_id", None)
-
-    with pytest.raises(RuntimeError):
-        large_binary_manager.create()
+    original = large_binary_manager.get_current_execution_id()
+    large_binary_manager.set_current_execution_id(42)
+    try:
+        uri = large_binary_manager.create()
+        assert re.fullmatch(r"s3://texera-large-binaries/objects/42/[0-9a-fA-F-]+", uri)
+    finally:
+        large_binary_manager.set_current_execution_id(original)
 
 
-def test_largebinarymanager_is_a_singleton(monkeypatch):
+def test_create_without_execution_context_raises():
+    original = large_binary_manager.get_current_execution_id()
+    large_binary_manager.set_current_execution_id(None)
+    try:
+        with pytest.raises(RuntimeError):
+            large_binary_manager.create()
+    finally:
+        large_binary_manager.set_current_execution_id(original)
+
+
+def test_create_without_bucket_configured_raises(monkeypatch):
+    # An unconfigured bucket should fail with a clear error, not a cryptic S3 one.
+    monkeypatch.setattr(StorageConfig, "S3_LARGE_BINARIES_BUCKET", None)
+    original = large_binary_manager.get_current_execution_id()
+    large_binary_manager.set_current_execution_id(42)
+    try:
+        with pytest.raises(RuntimeError):
+            large_binary_manager.create()
+    finally:
+        large_binary_manager.set_current_execution_id(original)
+
+
+def test_largebinarymanager_is_a_singleton():
     # Constructing the manager always returns the same shared instance.
     assert LargeBinaryManager() is LargeBinaryManager()
 
     # State set through one handle is visible through another (shared instance).
-    monkeypatch.setattr(LargeBinaryManager(), "_current_execution_id", 314)
-    assert LargeBinaryManager().get_current_execution_id() == 314
+    mgr = LargeBinaryManager()
+    original = mgr.get_current_execution_id()
+    mgr.set_current_execution_id(314)
+    try:
+        assert LargeBinaryManager().get_current_execution_id() == 314
+    finally:
+        mgr.set_current_execution_id(original)

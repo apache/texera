@@ -108,6 +108,7 @@ def sqlite_iceberg_catalog():
             s3_region="unused",
             s3_auth_username="unused",
             s3_auth_password="unused",
+            s3_large_binaries_bucket="texera-large-binaries",
         )
 
     original_instance = IcebergCatalogInstance._instance

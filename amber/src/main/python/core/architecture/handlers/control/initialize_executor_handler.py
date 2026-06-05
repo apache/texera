@@ -26,9 +26,13 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 
 class InitializeExecutorHandler(ControlHandler):
     async def initialize_executor(self, req: InitializeExecutorRequest) -> EmptyReturn:
+        # Imported here (not at module top) to avoid a circular import via pytexera's
+        # package __init__, which pulls in the operator SDK.
         from pytexera.storage.large_binary_manager import LargeBinaryManager
 
         op_exec_with_code: OpExecWithCode = get_one_of(req.op_exec_init_info)
+        # An unset proto field arrives as a falsy/empty ExecutionIdentity, so the
+        # truthiness check yields None — making a missing id fail loudly in create().
         LargeBinaryManager().set_current_execution_id(
             req.execution_id.id if req.execution_id else None
         )
