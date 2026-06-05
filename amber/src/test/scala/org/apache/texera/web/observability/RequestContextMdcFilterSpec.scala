@@ -47,16 +47,19 @@ class RequestContextMdcFilterSpec extends AnyFlatSpec with Matchers with BeforeA
   }
 
   /** Captures the MDC state from inside the chain so we can assert on
-   *  the per-request context, not the post-finally cleared state. */
+    *  the per-request context, not the post-finally cleared state.
+    */
   private class CapturingChain extends FilterChain {
     var captured: Map[String, String] = Map.empty
     override def doFilter(request: ServletRequest, response: ServletResponse): Unit = {
       val ctx = MDC.getCopyOfContextMap
-      captured = if (ctx == null) Map.empty else {
-        val sb = scala.collection.mutable.Map.empty[String, String]
-        ctx.forEach((k, v) => sb.put(k, v))
-        sb.toMap
-      }
+      captured =
+        if (ctx == null) Map.empty
+        else {
+          val sb = scala.collection.mutable.Map.empty[String, String]
+          ctx.forEach((k, v) => sb.put(k, v))
+          sb.toMap
+        }
     }
   }
 
@@ -97,7 +100,8 @@ class RequestContextMdcFilterSpec extends AnyFlatSpec with Matchers with BeforeA
         "/api/workflow/999",
         headers = Map("X-Texera-Workflow-Id" -> "123")
       ),
-      null, chain
+      null,
+      chain
     )
     // Header wins.
     chain.captured("texera.workflow.id") shouldBe "123"
@@ -107,7 +111,8 @@ class RequestContextMdcFilterSpec extends AnyFlatSpec with Matchers with BeforeA
     val chain = new CapturingChain
     filter.doFilter(
       new StubReq("/", headers = Map("X-Texera-Workflow-Id" -> "evil\r\nINJECT")),
-      null, chain
+      null,
+      chain
     )
     chain.captured.get("texera.workflow.id") shouldBe None
   }
@@ -117,7 +122,8 @@ class RequestContextMdcFilterSpec extends AnyFlatSpec with Matchers with BeforeA
     val twentyDigits = "1" * 20
     filter.doFilter(
       new StubReq("/", headers = Map("X-Texera-Computing-Unit-Id" -> twentyDigits)),
-      null, chain
+      null,
+      chain
     )
     chain.captured.get("texera.computing_unit.id") shouldBe None
   }
@@ -157,7 +163,8 @@ class RequestContextMdcFilterSpec extends AnyFlatSpec with Matchers with BeforeA
         "/wsapi/workflow-websocket",
         params = Map("cuid" -> "8", "wid" -> "441", "eid" -> "9001")
       ),
-      null, chain
+      null,
+      chain
     )
     chain.captured should contain allOf (
       "texera.computing_unit.id" -> "8",
@@ -170,7 +177,8 @@ class RequestContextMdcFilterSpec extends AnyFlatSpec with Matchers with BeforeA
     val chain = new CapturingChain
     filter.doFilter(
       new StubReq("/x", params = Map("cuid" -> "abc")),
-      null, chain
+      null,
+      chain
     )
     chain.captured.get("texera.computing_unit.id") shouldBe None
   }
@@ -179,7 +187,8 @@ class RequestContextMdcFilterSpec extends AnyFlatSpec with Matchers with BeforeA
     val chain = new CapturingChain
     filter.doFilter(
       new StubReq("/api/workflow/441", params = Map("wid" -> "999")),
-      null, chain
+      null,
+      chain
     )
     // Path is checked first; param check skips when MDC already set.
     chain.captured("texera.workflow.id") shouldBe "441"
@@ -195,13 +204,16 @@ class RequestContextMdcFilterSpec extends AnyFlatSpec with Matchers with BeforeA
 }
 
 /** Local trait that gives the unimplemented HttpServletRequest a
- *  no-op default for every other method — keeps test classes small
- *  without pulling in a mocking library. */
+  *  no-op default for every other method — keeps test classes small
+  *  without pulling in a mocking library.
+  */
 private abstract class HttpServletRequestStub extends HttpServletRequest {
   // Unused methods throw — surfaces an unexpected dependency before it
   // silently returns null and produces a flaky test.
-  private def stub(): Nothing = throw new UnsupportedOperationException(
-    "method not stubbed; add to StubReq if a test requires it")
+  private def stub(): Nothing =
+    throw new UnsupportedOperationException(
+      "method not stubbed; add to StubReq if a test requires it"
+    )
   override def getAuthType: String = stub()
   override def getCookies: Array[javax.servlet.http.Cookie] = stub()
   override def getDateHeader(name: String): Long = stub()
@@ -230,7 +242,8 @@ private abstract class HttpServletRequestStub extends HttpServletRequest {
   override def logout(): Unit = stub()
   override def getParts: java.util.Collection[javax.servlet.http.Part] = stub()
   override def getPart(name: String): javax.servlet.http.Part = stub()
-  override def upgrade[T <: javax.servlet.http.HttpUpgradeHandler](handlerClass: Class[T]): T = stub()
+  override def upgrade[T <: javax.servlet.http.HttpUpgradeHandler](handlerClass: Class[T]): T =
+    stub()
   override def getRequestURL: StringBuffer = new StringBuffer(getRequestURI)
   override def getAttribute(name: String): AnyRef = null
   override def getAttributeNames: java.util.Enumeration[String] = stub()
@@ -264,9 +277,11 @@ private abstract class HttpServletRequestStub extends HttpServletRequest {
   override def getLocalPort: Int = 8080
   override def getServletContext: javax.servlet.ServletContext = null
   override def startAsync(): javax.servlet.AsyncContext = stub()
-  override def startAsync(req: ServletRequest, resp: ServletResponse): javax.servlet.AsyncContext = stub()
+  override def startAsync(req: ServletRequest, resp: ServletResponse): javax.servlet.AsyncContext =
+    stub()
   override def isAsyncStarted: Boolean = false
   override def isAsyncSupported: Boolean = false
   override def getAsyncContext: javax.servlet.AsyncContext = stub()
-  override def getDispatcherType: javax.servlet.DispatcherType = javax.servlet.DispatcherType.REQUEST
+  override def getDispatcherType: javax.servlet.DispatcherType =
+    javax.servlet.DispatcherType.REQUEST
 }

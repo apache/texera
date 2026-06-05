@@ -36,8 +36,9 @@ class BuildersSpec extends AnyFlatSpec with Matchers {
     GatewayScope(userId = 42L, allowedWorkflowIds = Set(7L, 8L), allowedProjectIds = Set(1L))
 
   /** Convenience constructor so each LogsQL test can specify only the
-   *  fields under test. Defaults are unconstrained (no workflow id,
-   *  no CU id, no service filter, no level/query). */
+    *  fields under test. Defaults are unconstrained (no workflow id,
+    *  no CU id, no service filter, no level/query).
+    */
   private def logsReq(
       workflowId: Option[Long] = None,
       executionId: Option[Long] = None,
@@ -198,7 +199,9 @@ class BuildersSpec extends AnyFlatSpec with Matchers {
     }
     LogsQLBuilder.build(logsReq(sort = LogSort.NewestFirst), scope) should include("_time desc")
     LogsQLBuilder.build(logsReq(sort = LogSort.OldestFirst), scope) should include("_time asc")
-    LogsQLBuilder.build(logsReq(sort = LogSort.SeverityHigh), scope) should include("severity_number desc")
+    LogsQLBuilder.build(logsReq(sort = LogSort.SeverityHigh), scope) should include(
+      "severity_number desc"
+    )
     LogsQLBuilder.build(logsReq(sort = LogSort.ServiceAsc), scope) should include("service asc")
   }
 

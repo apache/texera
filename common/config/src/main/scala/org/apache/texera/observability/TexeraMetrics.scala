@@ -25,20 +25,20 @@ import io.opentelemetry.api.common.{AttributeKey, Attributes}
 import io.opentelemetry.api.metrics.Meter
 
 /**
- * Strongly-typed façade for Texera-emitted metrics.
- *
- * Cardinality safety is enforced by the API surface, not by
- * documentation: there is no public method that accepts an arbitrary
- * string as a label key or value. The only labels that ever land on
- * an instrument are the two enums [[Outcome]] and [[WorkflowKind]],
- * each restricted to a fixed set. ``workflow.id`` / ``execution.id``
- * are deliberately NOT metric labels — per-execution detail belongs
- * in traces and logs, joined on ``trace_id`` at query time.
- *
- * Histogram bucket bounds are hard-coded constants so they can't be
- * coerced by request input. The OTel SDK applies its own default
- * attribute-value-length cap to anything that does slip through.
- */
+  * Strongly-typed façade for Texera-emitted metrics.
+  *
+  * Cardinality safety is enforced by the API surface, not by
+  * documentation: there is no public method that accepts an arbitrary
+  * string as a label key or value. The only labels that ever land on
+  * an instrument are the two enums [[Outcome]] and [[WorkflowKind]],
+  * each restricted to a fixed set. ``workflow.id`` / ``execution.id``
+  * are deliberately NOT metric labels — per-execution detail belongs
+  * in traces and logs, joined on ``trace_id`` at query time.
+  *
+  * Histogram bucket bounds are hard-coded constants so they can't be
+  * coerced by request input. The OTel SDK applies its own default
+  * attribute-value-length cap to anything that does slip through.
+  */
 object TexeraMetrics extends LazyLogging {
 
   /** Outcome enum, the only mutable label on lifecycle counters. */
@@ -50,7 +50,8 @@ object TexeraMetrics extends LazyLogging {
   }
 
   /** Workflow kind enum. Distinguishes interactive vs. scheduled
-   *  workflows for the dashboard's basic split — extend deliberately. */
+    *  workflows for the dashboard's basic split — extend deliberately.
+    */
   sealed abstract class WorkflowKind(val name: String)
   object WorkflowKind {
     case object Interactive extends WorkflowKind("interactive")
@@ -62,8 +63,9 @@ object TexeraMetrics extends LazyLogging {
   private val WorkflowKindKey: AttributeKey[String] = AttributeKey.stringKey("texera.workflow.kind")
 
   /** Histogram bucket bounds in seconds. Hard-coded — constants so
-   *  request input can't reshape the histogram. Range covers
-   *  fast (<1s) to long (>1h) workflows. */
+    *  request input can't reshape the histogram. Range covers
+    *  fast (<1s) to long (>1h) workflows.
+    */
   private val DurationBuckets: java.util.List[java.lang.Double] = {
     val builder = new java.util.ArrayList[java.lang.Double]()
     Seq(0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 300.0, 600.0, 1800.0, 3600.0)
@@ -99,36 +101,42 @@ object TexeraMetrics extends LazyLogging {
   @volatile private var activeExecutionsSupplier: () => Long = () => 0L
 
   /** Register the authoritative source of "currently active executions".
-   *  The supplier is polled on every metric collection, so the gauge always
-   *  reflects ground truth and can never leak. Called once at process
-   *  startup (e.g. by ComputingUnitMaster). */
-  def setActiveExecutionsSupplier(supplier: () => Long): Unit = synchronized {
-    activeExecutionsSupplier = supplier
-    ensureBound()
-  }
+    *  The supplier is polled on every metric collection, so the gauge always
+    *  reflects ground truth and can never leak. Called once at process
+    *  startup (e.g. by ComputingUnitMaster).
+    */
+  def setActiveExecutionsSupplier(supplier: () => Long): Unit =
+    synchronized {
+      activeExecutionsSupplier = supplier
+      ensureBound()
+    }
 
   /** Bind instruments to the current global meter. Idempotent — the
-   *  first call wins; later calls are no-ops. Tests can call
-   *  [[bindForTest]] with an explicit Meter, then [[resetForTest]] to
-   *  rebind. */
-  def ensureBound(): Unit = synchronized {
-    if (_starts == null) bind(GlobalOpenTelemetry.getMeter(InstrumentationScope))
-  }
+    *  first call wins; later calls are no-ops. Tests can call
+    *  [[bindForTest]] with an explicit Meter, then [[resetForTest]] to
+    *  rebind.
+    */
+  def ensureBound(): Unit =
+    synchronized {
+      if (_starts == null) bind(GlobalOpenTelemetry.getMeter(InstrumentationScope))
+    }
 
-  private[observability] def bindForTest(meter: Meter): Unit = synchronized {
-    bind(meter)
-  }
+  private[observability] def bindForTest(meter: Meter): Unit =
+    synchronized {
+      bind(meter)
+    }
 
-  private[observability] def resetForTest(): Unit = synchronized {
-    _starts = null
-    _completions = null
-    _cancellations = null
-    // The observable gauge registered a collection callback — close it so the
-    // previous test's meter provider stops being polled after it's discarded.
-    if (_active != null) _active.close()
-    _active = null
-    _duration = null
-  }
+  private[observability] def resetForTest(): Unit =
+    synchronized {
+      _starts = null
+      _completions = null
+      _cancellations = null
+      // The observable gauge registered a collection callback — close it so the
+      // previous test's meter provider stops being polled after it's discarded.
+      if (_active != null) _active.close()
+      _active = null
+      _duration = null
+    }
 
   private def bind(meter: Meter): Unit = {
     _starts = meter
@@ -157,7 +165,9 @@ object TexeraMetrics extends LazyLogging {
     _active = meter
       .gaugeBuilder("texera.workflow.active")
       .ofLongs()
-      .setDescription("Number of workflow executions currently in progress (observed from the live registry).")
+      .setDescription(
+        "Number of workflow executions currently in progress (observed from the live registry)."
+      )
       .buildWithCallback(obs => obs.record(activeExecutionsSupplier()))
     _duration = meter
       .histogramBuilder("texera.workflow.duration")
@@ -202,11 +212,12 @@ object TexeraMetrics extends LazyLogging {
   }
 
   /** A user-initiated kill/cancel. Bumps a dedicated counter. Deliberately
-   *  NOT recorded as a completion: a cancelled run never finished on its own,
-   *  so it must not drag down the success rate. No duration is recorded for
-   *  the same reason — a killed run's wall-clock time is not a real runtime
-   *  and would skew the duration percentiles. (The active gauge is observed
-   *  from the live registry and needs no decrement here.) */
+    *  NOT recorded as a completion: a cancelled run never finished on its own,
+    *  so it must not drag down the success rate. No duration is recorded for
+    *  the same reason — a killed run's wall-clock time is not a real runtime
+    *  and would skew the duration percentiles. (The active gauge is observed
+    *  from the live registry and needs no decrement here.)
+    */
   def recordCancellation(kind: WorkflowKind): Unit = {
     ensureBound()
     logger.debug(s"metric: workflow cancelled (kind=${kind.name}) — cancellations +1")

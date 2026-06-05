@@ -19,13 +19,9 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpErrorResponse } from "@angular/common/http";
 import { ObservabilityService, ValidationError } from "./observability.service";
-import {
-  LogsSearchRequest,
-  MAX_FREE_TEXT_LEN,
-  MAX_PAGE_SIZE,
-  MetricsQueryRequest,
-} from "./observability.types";
+import { LogsSearchRequest, MAX_FREE_TEXT_LEN, MAX_PAGE_SIZE, MetricsQueryRequest } from "./observability.types";
 
 describe("ObservabilityService", () => {
   let service: ObservabilityService;
@@ -121,15 +117,18 @@ describe("ObservabilityService", () => {
     let observedStatus = 0;
     service.searchLogs(req).subscribe({
       next: () => {},
-      error: err => {
-        observedStatus = err.status;
+      error: (err: unknown) => {
+        observedStatus = (err as HttpErrorResponse).status;
       },
     });
     const http = httpMock.expectOne(r => r.url.endsWith("/observability/logs/search"));
-    http.flush({ code: "forbidden", message: "no access to that scope" }, {
-      status: 403,
-      statusText: "Forbidden",
-    });
+    http.flush(
+      { code: "forbidden", message: "no access to that scope" },
+      {
+        status: 403,
+        statusText: "Forbidden",
+      }
+    );
     expect(observedStatus).toBe(403);
   });
 
@@ -186,7 +185,7 @@ describe("ObservabilityService", () => {
     expect(() => service.getTrace("not-a-trace-id")).toThrow(ValidationError);
     expect(() => service.getTrace("../../etc/passwd")).toThrow(ValidationError);
     expect(() => service.getTrace("0AF7651916CD43DD8448EB211C80319C")).toThrow(); // uppercase
-    expect(() => service.getTrace("0af7651916cd43dd8448eb211c80319")).toThrow();  // too short
+    expect(() => service.getTrace("0af7651916cd43dd8448eb211c80319")).toThrow(); // too short
     httpMock.expectNone(r => r.url.includes("/observability/traces/"));
   });
 
@@ -203,9 +202,7 @@ describe("ObservabilityService", () => {
   // ----- queryProfiles (PR 11) ----------------------------------------
 
   it("queryProfiles rejects an inverted time window client-side", () => {
-    expect(() =>
-      service.queryProfiles({ fromMs: 100, toMs: 50 })
-    ).toThrow(ValidationError);
+    expect(() => service.queryProfiles({ fromMs: 100, toMs: 50 })).toThrow(ValidationError);
     httpMock.expectNone(r => r.url.endsWith("/observability/profiles/query"));
   });
 

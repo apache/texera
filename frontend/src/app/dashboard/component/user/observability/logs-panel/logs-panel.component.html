@@ -16,7 +16,9 @@
  specific language governing permissions and limitations
  under the License.
 -->
-<form [formGroup]="form" class="logs-panel">
+<form
+  [formGroup]="form"
+  class="logs-panel">
   <!-- Row 1: time + service multi-select + level + free-text query.
        This row alone covers most "give me last hour ERRORs from service
        X" admin queries. -->
@@ -44,7 +46,10 @@
       formControlName="level"
       nzAllowClear
       nzPlaceHolder="Level">
-      <nz-option *ngFor="let l of levels" [nzLabel]="l" [nzValue]="l"></nz-option>
+      <nz-option
+        *ngFor="let l of levels"
+        [nzLabel]="l"
+        [nzValue]="l"></nz-option>
     </nz-select>
 
     <nz-select
@@ -142,19 +147,25 @@
       (click)="search()">
       Search
     </button>
-    <button nz-button type="button" (click)="clear()">Clear</button>
+    <button
+      nz-button
+      type="button"
+      (click)="clear()">
+      Clear
+    </button>
   </div>
 
   <!-- Autofill diagnostics row. Renders only when something has been
        loaded so an operator who sees "0" knows the /sources call is
        failing or returning empty. -->
-  <div class="autofill-hint" *ngIf="sources">
-    Autofill: {{ sources.services.length }} services ·
-    {{ sources.workflowIds.length }} workflows ·
-    {{ sources.computingUnitIds.length }} CUs ·
-    {{ sources.userIds.length }} users
-    <span *ngIf="sources.computingUnitIds.length === 0 && sources.workflowIds.length === 0"
-          class="hint-warn">
+  <div
+    class="autofill-hint"
+    *ngIf="sources">
+    Autofill: {{ sources.services.length }} services · {{ sources.workflowIds.length }} workflows · {{
+    sources.computingUnitIds.length }} CUs · {{ sources.userIds.length }} users
+    <span
+      *ngIf="sources.computingUnitIds.length === 0 && sources.workflowIds.length === 0"
+      class="hint-warn">
       — no IDs available; type an id directly into the dropdown.
     </span>
   </div>
@@ -167,16 +178,26 @@
 </form>
 
 <div class="results">
-  <div class="meta" *ngIf="entries.length > 0">
+  <div
+    class="meta"
+    *ngIf="entries.length > 0">
     <span class="count">{{ entries.length }} entries</span>
-    <span class="hint" *ngIf="nextCursor">More available — click "Load more" below.</span>
+    <span
+      class="hint"
+      *ngIf="nextCursor"
+      >More available — click "Load more" below.</span
+    >
   </div>
 
-  <p *ngIf="!loading && entries.length === 0 && !errorMessage" class="empty">
+  <p
+    *ngIf="!loading && entries.length === 0 && !errorMessage"
+    class="empty">
     No log records match the current filters. Adjust the window or scope and try again.
   </p>
 
-  <ul *ngIf="entries.length > 0" class="log-stream">
+  <ul
+    *ngIf="entries.length > 0"
+    class="log-stream">
     <li
       *ngFor="let entry of entries; let i = index"
       class="row-line"
@@ -207,7 +228,10 @@
       </div>
 
       <!-- Attribute panel, expanded on click. -->
-      <dl *ngIf="expandedIndex === i" class="attrs" (click)="$event.stopPropagation()">
+      <dl
+        *ngIf="expandedIndex === i"
+        class="attrs"
+        (click)="$event.stopPropagation()">
         <ng-container *ngFor="let kv of entry.attributes | keyvalue">
           <dt>{{ kv.key }}</dt>
           <dd>{{ kv.value }}</dd>
@@ -215,7 +239,11 @@
         <ng-container *ngIf="entry.traceId">
           <dt>trace_id</dt>
           <dd>
-            <a (click)="openTrace(entry.traceId)" class="trace-link">{{ entry.traceId }}</a>
+            <a
+              (click)="openTrace(entry.traceId)"
+              class="trace-link"
+              >{{ entry.traceId }}</a
+            >
           </dd>
         </ng-container>
         <ng-container *ngIf="entry.spanId">
@@ -226,7 +254,9 @@
     </li>
   </ul>
 
-  <div class="paginate" *ngIf="entries.length > 0 || currentPage > 0">
+  <div
+    class="paginate"
+    *ngIf="entries.length > 0 || currentPage > 0">
     <button
       nz-button
       type="button"
