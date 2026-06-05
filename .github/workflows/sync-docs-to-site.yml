@@ -1,0 +1,202 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Syncs docs/ into the website's content/docs/latest/ and pushes to the website.
+# Needs secret SITE_SYNC_TOKEN: a token with Contents:write on
+# apache/incubator-texera-site.
+
+name: Sync docs to website
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
+
+# Run one sync at a time.
+concurrency:
+  group: sync-docs-to-site
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    # Skip on forks.
+    if: github.repository == 'apache/texera'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout texera
+        uses: actions/checkout@v5
+        with:
+          path: texera
+
+      - name: Checkout incubator-texera-site
+        uses: actions/checkout@v5
+        with:
+          repository: apache/incubator-texera-site
+          ref: main
+          path: site
+          fetch-depth: 0
+          token: ${{ secrets.SITE_SYNC_TOKEN }}
+
+      - name: Sync docs/ into content/docs/latest/
+        env:
+          SOURCE_DOCS: texera/docs
+          TARGET_DOCS: site/content/docs/latest
+        run: |
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import sys
+
+          source = pathlib.Path(os.environ["SOURCE_DOCS"])
+          target = pathlib.Path(os.environ["TARGET_DOCS"])
+
+
+          def split_front_matter(text):
+              # Split into (front matter, body) on the '---' fences; tolerant of
+              # CRLF and trailing whitespace on the fences.
+              lines = text.splitlines()
+              if not lines or lines[0].strip() != "---":
+                  return "", text
+              for i in range(1, len(lines)):
+                  if lines[i].strip() == "---":
+                      return "\n".join(lines[: i + 1]) + "\n", "\n".join(lines[i + 1 :])
+              return "", text
+
+
+          def normalize_body(body):
+              # Trim surrounding blank lines; "" if the body is empty.
+              body = body.lstrip("\n").rstrip()
+              return body + "\n" if body else ""
+
+
+          if not source.is_dir():
+              print(f"error: source dir not found: {source}", file=sys.stderr)
+              sys.exit(2)
+          target.mkdir(parents=True, exist_ok=True)
+
+          source_rels = set()
+          created = updated = deleted = 0
+
+          # Mirror every file: .md keeps the target front matter, others copied as-is.
+          for sfile in sorted(source.rglob("*")):
+              if sfile.is_dir():
+                  continue
+              rel = sfile.relative_to(source)
+              source_rels.add(rel)
+              tfile = target / rel
+              existed = tfile.exists()
+
+              if sfile.suffix == ".md":
+                  src_text = sfile.read_text(encoding="utf-8")
+                  _, src_body = split_front_matter(src_text)
+
+                  if existed:
+                      target_fm, _ = split_front_matter(tfile.read_text(encoding="utf-8"))
+                  else:
+                      target_fm, _ = split_front_matter(src_text)
+
+                  body = normalize_body(src_body)
+                  if body:
+                      new_text = target_fm + ("\n" if target_fm else "") + body
+                  else:
+                      new_text = target_fm
+
+                  if existed and tfile.read_text(encoding="utf-8") == new_text:
+                      continue
+                  tfile.parent.mkdir(parents=True, exist_ok=True)
+                  tfile.write_text(new_text, encoding="utf-8")
+              else:
+                  data = sfile.read_bytes()
+                  if existed and tfile.read_bytes() == data:
+                      continue
+                  tfile.parent.mkdir(parents=True, exist_ok=True)
+                  tfile.write_bytes(data)
+
+              if existed:
+                  updated += 1
+                  print(f"  update  {rel}")
+              else:
+                  created += 1
+                  print(f"  create  {rel}")
+
+          # Delete target files no longer present in the source.
+          for tfile in sorted(target.rglob("*")):
+              if tfile.is_dir():
+                  continue
+              rel = tfile.relative_to(target)
+              if rel not in source_rels:
+                  tfile.unlink()
+                  deleted += 1
+                  print(f"  delete  {rel}")
+
+          print(f"Sync complete: {created} created, {updated} updated, {deleted} deleted.")
+          PY
+
+      - name: Commit and push to website
+        working-directory: site
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stop if the sync produced no changes.
+          git add -A content/docs/latest
+          if git diff --cached --quiet; then
+            echo "No documentation changes to sync."
+            exit 0
+          fi
+
+          short_sha="${SOURCE_SHA::7}"
+          git commit \
+            -m "docs: sync from ${SOURCE_REPO}@${short_sha}" \
+            -m "Automated sync of docs/ -> content/docs/latest/ from ${SOURCE_REPO}." \
+            -m "Source commit: ${SOURCE_SHA}" \
+            -m "Workflow run: ${RUN_URL}"
+
+          # Push, retrying with a rebase if main moved underneath us.
+          attempts=5
+          backoffs=(0 5 15 30 60)
+          for i in $(seq 0 $((attempts - 1))); do
+            if [[ "${backoffs[i]}" -gt 0 ]]; then
+              echo "Push attempt $((i + 1))/${attempts}: sleeping ${backoffs[i]}s"
+              sleep "${backoffs[i]}"
+            fi
+            if git push origin HEAD:main 2>&1; then
+              echo "Pushed synced docs to incubator-texera-site main."
+              exit 0
+            fi
+            echo "Push failed; refreshing origin/main and rebasing before retry."
+            git fetch --no-tags origin main
+            if ! git rebase origin/main; then
+              echo "::error::Rebase onto origin/main failed (likely conflicting edits to the same docs); aborting."
+              git rebase --abort || true
+              exit 1
+            fi
+          done
+
+          echo "::error::Failed to push synced docs after ${attempts} attempts."
+          exit 1
