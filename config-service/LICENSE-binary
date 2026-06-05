@@ -274,6 +274,18 @@ Scala/Java jars:
   - io.dropwizard.metrics.metrics-json-4.2.25.jar
   - io.dropwizard.metrics.metrics-jvm-4.2.25.jar
   - io.dropwizard.metrics.metrics-logback-4.2.25.jar
+  - io.opentelemetry.opentelemetry-api-1.50.0.jar
+  - io.opentelemetry.opentelemetry-context-1.50.0.jar
+  - io.opentelemetry.opentelemetry-exporter-common-1.50.0.jar
+  - io.opentelemetry.opentelemetry-exporter-otlp-1.50.0.jar
+  - io.opentelemetry.opentelemetry-exporter-otlp-common-1.50.0.jar
+  - io.opentelemetry.opentelemetry-exporter-sender-okhttp-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-common-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-extension-autoconfigure-spi-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-logs-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-metrics-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-trace-1.50.0.jar
   - io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar
   - jakarta.inject.jakarta.inject-api-2.0.1.jar
   - jakarta.validation.jakarta.validation-api-3.0.2.jar
