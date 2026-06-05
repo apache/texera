@@ -122,6 +122,17 @@
             <span>Quota</span>
           </li>
           <li
+            nz-menu-item
+            nz-tooltip="Logs, metrics, traces, and profiles"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="USER_OBSERVABILITY">
+            <span
+              nz-icon
+              nzType="monitor"></span>
+            <span>Observability</span>
+          </li>
+          <li
             *ngIf="sidebarTabs.forum_enabled"
             nz-menu-item
             nz-tooltip="Open the discussion forum"
