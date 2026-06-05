@@ -22,21 +22,22 @@ package org.apache.texera.web.observability.gateway
 import org.apache.texera.web.observability.gateway.dtos._
 
 /**
- * Typed query builders. Each takes a validated DTO + the caller's
- * resolved scope and returns a backend-specific query string + the
- * query parameters that should accompany it.
- *
- * Security invariant: no field of the input DTO is concatenated into
- * the output query without first passing through a typed accessor.
- * Even free-text fields are emitted only as escaped *values* in the
- * query DSL — never as DSL syntax.
- *
- * Each builder is pure (no side effects, no I/O). Exhaustive
- * injection tests live in BuildersSpec.
- */
+  * Typed query builders. Each takes a validated DTO + the caller's
+  * resolved scope and returns a backend-specific query string + the
+  * query parameters that should accompany it.
+  *
+  * Security invariant: no field of the input DTO is concatenated into
+  * the output query without first passing through a typed accessor.
+  * Even free-text fields are emitted only as escaped *values* in the
+  * query DSL — never as DSL syntax.
+  *
+  * Each builder is pure (no side effects, no I/O). Exhaustive
+  * injection tests live in BuildersSpec.
+  */
 
 /** Tenancy / scope envelope. Computed by [[ObservabilityScope]];
- *  every builder consumes it so the caller cannot widen scope. */
+  *  every builder consumes it so the caller cannot widen scope.
+  */
 case class GatewayScope(
     userId: Long,
     allowedWorkflowIds: Set[Long],
@@ -44,17 +45,19 @@ case class GatewayScope(
 ) {
 
   /** Allowed list joined as the typed parameter to a backend query.
-   *  Empty allowed-set yields "0" (a workflow id that cannot exist),
-   *  which produces a zero-result query without breaking syntax. */
+    *  Empty allowed-set yields "0" (a workflow id that cannot exist),
+    *  which produces a zero-result query without breaking syntax.
+    */
   def workflowIdsCsv: String = {
     if (allowedWorkflowIds.isEmpty) "0"
     else allowedWorkflowIds.toSeq.sorted.mkString(",")
   }
 
   /** Allowed list joined as a regex-alternation body (no anchors, no
-   *  parens). For use inside a LogsQL stream filter as
-   *  ``field=~"^(<body>)$"``. Empty allow-set yields "0" — a numeric
-   *  literal that matches nothing real and keeps regex syntax valid. */
+    *  parens). For use inside a LogsQL stream filter as
+    *  ``field=~"^(<body>)$"``. Empty allow-set yields "0" — a numeric
+    *  literal that matches nothing real and keeps regex syntax valid.
+    */
   def workflowIdsRegexAlt: String = {
     if (allowedWorkflowIds.isEmpty) "0"
     else allowedWorkflowIds.toSeq.sorted.mkString("|")

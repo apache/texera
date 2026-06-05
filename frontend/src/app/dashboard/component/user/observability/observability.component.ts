@@ -44,14 +44,7 @@ import { Subject, takeUntil } from "rxjs";
   selector: "texera-observability",
   templateUrl: "./observability.component.html",
   styleUrls: ["./observability.component.scss"],
-  imports: [
-    NgIf,
-    FormsModule,
-    NzTabsComponent,
-    NzTabComponent,
-    NzAlertComponent,
-    NzEmptyComponent,
-  ],
+  imports: [NgIf, FormsModule, NzTabsComponent, NzTabComponent, NzAlertComponent, NzEmptyComponent],
 })
 export class ObservabilityComponent implements OnInit, OnDestroy {
   /** Reachability state. ``null`` means "still loading". A failed
@@ -79,24 +72,27 @@ export class ObservabilityComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.observabilityService.health().subscribe({
-      next: h => {
-        this.health = h;
-        this.healthError = false;
-      },
-      error: err => {
-        // eslint-disable-next-line no-console
-        console.error(
-          "[observability] health check failed — gateway unreachable; rendering all signals as degraded",
-          err
-        );
-        this.health = {
-          status: "degraded",
-          checks: { logs: false, metrics: false, traces: false, profiles: false },
-        };
-        this.healthError = true;
-      },
-    });
+    this.observabilityService
+      .health()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: h => {
+          this.health = h;
+          this.healthError = false;
+        },
+        error: (err: unknown) => {
+          // eslint-disable-next-line no-console
+          console.error(
+            "[observability] health check failed — gateway unreachable; rendering all signals as degraded",
+            err
+          );
+          this.health = {
+            status: "degraded",
+            checks: { logs: false, metrics: false, traces: false, profiles: false },
+          };
+          this.healthError = true;
+        },
+      });
 
     this.tracesPivot.onPivot.pipe(takeUntil(this.destroy$)).subscribe(traceId => {
       this.pivotedTraceId = traceId;

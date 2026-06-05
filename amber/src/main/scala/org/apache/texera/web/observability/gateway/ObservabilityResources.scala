@@ -29,24 +29,25 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.web.observability.gateway.dtos._
 
 /**
- * Dropwizard resources for the observability gateway.
- *
- * Every endpoint runs the same five-step skeleton (see DESIGN.md):
- *   1. Auth      — handled by @Auth + @RolesAllowed.
- *   2. Rate limit — token bucket per user, per IP.
- *   3. Scope     — resolved from the SessionUser via ScopeResolver.
- *   4. Validate  — typed DTO validators reject anything out of range.
- *   5. Query     — typed builders only, then BackendClient with the
- *      AccountID/ProjectID headers. Response goes through redaction
- *      before reaching JSON.
- *
- * The resources are intentionally small — most of the security logic
- * lives in the dtos / builders / scope objects so it's unit-testable
- * without a Dropwizard fixture.
- */
+  * Dropwizard resources for the observability gateway.
+  *
+  * Every endpoint runs the same five-step skeleton (see DESIGN.md):
+  *   1. Auth      — handled by @Auth + @RolesAllowed.
+  *   2. Rate limit — token bucket per user, per IP.
+  *   3. Scope     — resolved from the SessionUser via ScopeResolver.
+  *   4. Validate  — typed DTO validators reject anything out of range.
+  *   5. Query     — typed builders only, then BackendClient with the
+  *      AccountID/ProjectID headers. Response goes through redaction
+  *      before reaching JSON.
+  *
+  * The resources are intentionally small — most of the security logic
+  * lives in the dtos / builders / scope objects so it's unit-testable
+  * without a Dropwizard fixture.
+  */
 
 /** Tiny helper that turns a [[GatewayError]] into a Dropwizard
- *  Response. Kept here so every resource uses the same shape. */
+  *  Response. Kept here so every resource uses the same shape.
+  */
 private[gateway] object Respond extends LazyLogging {
   def err(e: GatewayError): Response = {
     // One breadcrumb per rejected request, at a level keyed to severity:
@@ -111,7 +112,9 @@ class ObservabilityHealthResource(ctx: GatewayContext) extends LazyLogging {
     )
     val unreachable = checks.collect { case (signal, false) => signal }.toSeq.sorted
     if (unreachable.nonEmpty)
-      logger.warn(s"observability health check: unreachable backend(s): ${unreachable.mkString(", ")}")
+      logger.warn(
+        s"observability health check: unreachable backend(s): ${unreachable.mkString(", ")}"
+      )
     else
       logger.debug(s"observability health check: all backends reachable")
     Respond.json(Map("status" -> "ok", "checks" -> checks))

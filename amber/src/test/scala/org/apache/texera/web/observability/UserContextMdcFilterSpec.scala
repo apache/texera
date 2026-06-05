@@ -43,18 +43,19 @@ class UserContextMdcFilterSpec extends AnyFlatSpec with Matchers with BeforeAndA
     new SessionUser(u)
   }
 
-  private def secCtxWith(principal: Principal): SecurityContext = new SecurityContext {
-    override def getUserPrincipal: Principal = principal
-    override def isUserInRole(role: String): Boolean = false
-    override def isSecure: Boolean = false
-    override def getAuthenticationScheme: String = "STUB"
-  }
+  private def secCtxWith(principal: Principal): SecurityContext =
+    new SecurityContext {
+      override def getUserPrincipal: Principal = principal
+      override def isUserInRole(role: String): Boolean = false
+      override def isSecure: Boolean = false
+      override def getAuthenticationScheme: String = "STUB"
+    }
 
   /** Minimal ContainerRequestContext that only implements the
-   *  surface the filter actually touches. Avoids pulling Mockito for
-   *  what is effectively a one-method stub. */
-  private class StubRequest(secCtx: SecurityContext)
-      extends StubRequestContextBase {
+    *  surface the filter actually touches. Avoids pulling Mockito for
+    *  what is effectively a one-method stub.
+    */
+  private class StubRequest(secCtx: SecurityContext) extends StubRequestContextBase {
     override def getSecurityContext: SecurityContext = secCtx
   }
 
@@ -106,9 +107,11 @@ class UserContextMdcFilterSpec extends AnyFlatSpec with Matchers with BeforeAndA
 }
 
 /** Base stub that throws on every ContainerRequestContext method;
- *  subclasses override only what they need. Keeps the spec narrow on
- *  the actual filter dependencies (just `getSecurityContext`). */
-private abstract class StubRequestContextBase extends javax.ws.rs.container.ContainerRequestContext {
+  *  subclasses override only what they need. Keeps the spec narrow on
+  *  the actual filter dependencies (just `getSecurityContext`).
+  */
+private abstract class StubRequestContextBase
+    extends javax.ws.rs.container.ContainerRequestContext {
   private def stub(): Nothing =
     throw new UnsupportedOperationException("not stubbed; override if a test needs it")
   override def getProperty(name: String): AnyRef = null

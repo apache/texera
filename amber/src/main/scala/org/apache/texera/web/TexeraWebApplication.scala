@@ -33,10 +33,7 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.observability.OtelInit
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
-import org.apache.texera.web.observability.gateway.{
-  GatewayContext,
-  ObservabilityHealthResource
-}
+import org.apache.texera.web.observability.gateway.{GatewayContext, ObservabilityHealthResource}
 import org.apache.texera.web.resource._
 import org.apache.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import org.apache.texera.web.resource.dashboard.DashboardResource

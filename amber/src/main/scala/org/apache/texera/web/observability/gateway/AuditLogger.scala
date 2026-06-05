@@ -23,18 +23,18 @@ import org.apache.texera.observability.LogSanitizer
 import org.slf4j.{Logger, LoggerFactory}
 
 /**
- * Per-query audit log for the gateway.
- *
- * Lives on its own SLF4J logger name so operators can route audit
- * events to a dedicated appender (file/syslog/SIEM) separate from
- * application logs. The logback.xml in each service can selectively
- * disable propagation to the root appender if audit events should
- * NOT flow into the OTel collector.
- *
- * The audit line is one JSON-shaped string per query. Free-text
- * fields go through [[LogSanitizer.sanitize]] first so secret
- * patterns and CRLF injections cannot land in audit storage.
- */
+  * Per-query audit log for the gateway.
+  *
+  * Lives on its own SLF4J logger name so operators can route audit
+  * events to a dedicated appender (file/syslog/SIEM) separate from
+  * application logs. The logback.xml in each service can selectively
+  * disable propagation to the root appender if audit events should
+  * NOT flow into the OTel collector.
+  *
+  * The audit line is one JSON-shaped string per query. Free-text
+  * fields go through [[LogSanitizer.sanitize]] first so secret
+  * patterns and CRLF injections cannot land in audit storage.
+  */
 object AuditLogger {
 
   private val log: Logger = LoggerFactory.getLogger("texera.audit.observability")
@@ -78,10 +78,10 @@ object AuditLogger {
     while (i < s.length) {
       val c = s.charAt(i)
       c match {
-        case '"'  => out.append("\\\"")
-        case '\\' => out.append("\\\\")
-        case _ if c < 0x20 || c == 0x7F => // control chars stripped (defense in depth)
-        case _    => out.append(c)
+        case '"'                        => out.append("\\\"")
+        case '\\'                       => out.append("\\\\")
+        case _ if c < 0x20 || c == 0x7f => // control chars stripped (defense in depth)
+        case _                          => out.append(c)
       }
       i += 1
     }

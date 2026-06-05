@@ -25,32 +25,32 @@ import javax.servlet._
 import javax.servlet.http.HttpServletRequest
 
 /**
- * Servlet filter that pushes request-scoped IDs into the SLF4J MDC
- * so every log record emitted while handling a request carries
- * `texera.workflow.id`, `texera.execution.id`, and
- * `texera.computing_unit.id` when those are visible in the URL or
- * request headers.
- *
- * Without this, the OTel log appender bridges every Logback event
- * with no per-request context, so the dashboard's CU/workflow
- * filters match nothing live — the only records carrying those keys
- * are seed data pushed via the VictoriaLogs ingest API.
- *
- * Sources of IDs, in priority order:
- *   1. HTTP headers `X-Texera-Workflow-Id`, `X-Texera-Execution-Id`,
- *      `X-Texera-Computing-Unit-Id` — set explicitly by the
- *      Angular client when known.
- *   2. URL path segments matching `/workflow/<digits>`,
- *      `/execution/<digits>`, `/computing-unit/<digits>` (also the
- *      `/{wid}` / `/{cuid}` patterns used by some resources).
- *
- * MDC is ALWAYS cleared in a `finally` block so a thread reused for
- * a different request doesn't leak the previous request's labels.
- *
- * Keys here must stay in sync with [[LogSanitizer.AllowedMdcKeys]] —
- * any new key added here must be allowlisted there or the OTel
- * appender will silently drop it.
- */
+  * Servlet filter that pushes request-scoped IDs into the SLF4J MDC
+  * so every log record emitted while handling a request carries
+  * `texera.workflow.id`, `texera.execution.id`, and
+  * `texera.computing_unit.id` when those are visible in the URL or
+  * request headers.
+  *
+  * Without this, the OTel log appender bridges every Logback event
+  * with no per-request context, so the dashboard's CU/workflow
+  * filters match nothing live — the only records carrying those keys
+  * are seed data pushed via the VictoriaLogs ingest API.
+  *
+  * Sources of IDs, in priority order:
+  *   1. HTTP headers `X-Texera-Workflow-Id`, `X-Texera-Execution-Id`,
+  *      `X-Texera-Computing-Unit-Id` — set explicitly by the
+  *      Angular client when known.
+  *   2. URL path segments matching `/workflow/<digits>`,
+  *      `/execution/<digits>`, `/computing-unit/<digits>` (also the
+  *      `/{wid}` / `/{cuid}` patterns used by some resources).
+  *
+  * MDC is ALWAYS cleared in a `finally` block so a thread reused for
+  * a different request doesn't leak the previous request's labels.
+  *
+  * Keys here must stay in sync with [[LogSanitizer.AllowedMdcKeys]] —
+  * any new key added here must be allowlisted there or the OTel
+  * appender will silently drop it.
+  */
 class RequestContextMdcFilter extends Filter {
 
   override def init(filterConfig: FilterConfig): Unit = ()
@@ -87,8 +87,8 @@ class RequestContextMdcFilter extends Filter {
         applyParam(http, "eid", "texera.execution.id", pushed)
         applyParam(http, "cuid", "texera.computing_unit.id", pushed)
       case _ =>
-        // Non-HTTP request (websocket upgrades fall through here on
-        // some Servlet versions). No MDC context to add.
+      // Non-HTTP request (websocket upgrades fall through here on
+      // some Servlet versions). No MDC context to add.
     }
     try {
       chain.doFilter(request, response)
@@ -132,9 +132,10 @@ class RequestContextMdcFilter extends Filter {
   }
 
   /** Read a query parameter, validate it's a positive integer, push
-   *  to MDC. Same shape as applyHeader: numeric-only allowlist and a
-   *  length cap so a forged value can't inject newlines into the
-   *  rendered log line. */
+    *  to MDC. Same shape as applyHeader: numeric-only allowlist and a
+    *  length cap so a forged value can't inject newlines into the
+    *  rendered log line.
+    */
   private def applyParam(
       req: HttpServletRequest,
       paramName: String,
