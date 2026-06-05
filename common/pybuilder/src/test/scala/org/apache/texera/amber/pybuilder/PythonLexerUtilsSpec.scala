@@ -100,6 +100,37 @@ class PythonLexerUtilsSpec extends AnyFunSuite {
     assert(PythonLexerUtils.lineTail(text) == "")
   }
 
+  // -------- updateTripleQuotedStringState --------
+
+  test("updateTripleQuotedStringState: enters and exits triple single quoted strings") {
+    val opened = PythonLexerUtils.updateTripleQuotedStringState("sql = '''", None)
+    assert(opened.contains("'''"))
+
+    val stillOpen = PythonLexerUtils.updateTripleQuotedStringState("SELECT * FROM t", opened)
+    assert(stillOpen.contains("'''"))
+
+    val closed = PythonLexerUtils.updateTripleQuotedStringState("'''", stillOpen)
+    assert(closed.isEmpty)
+  }
+
+  test("updateTripleQuotedStringState: enters and exits triple double quoted strings") {
+    val opened = PythonLexerUtils.updateTripleQuotedStringState("sql = \"\"\"", None)
+    assert(opened.contains("\"\"\""))
+
+    val closed = PythonLexerUtils.updateTripleQuotedStringState("\"\"\"", opened)
+    assert(closed.isEmpty)
+  }
+
+  test("updateTripleQuotedStringState: ignores triple quotes in single-line comments") {
+    val state = PythonLexerUtils.updateTripleQuotedStringState("# ''' not a string", None)
+    assert(state.isEmpty)
+  }
+
+  test("updateTripleQuotedStringState: ignores triple quotes inside ordinary strings") {
+    val state = PythonLexerUtils.updateTripleQuotedStringState("value = \"'''\"", None)
+    assert(state.isEmpty)
+  }
+
   // -------- hasUnclosedQuote --------
 
   test("hasUnclosedQuote: empty string has no unclosed quote") {
