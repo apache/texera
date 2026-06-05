@@ -19,8 +19,6 @@
 
 package org.apache.texera.web.observability.gateway
 
-import org.apache.texera.web.observability.gateway.dtos._
-
 /**
   * Typed query builders. Each takes a validated DTO + the caller's
   * resolved scope and returns a backend-specific query string + the
