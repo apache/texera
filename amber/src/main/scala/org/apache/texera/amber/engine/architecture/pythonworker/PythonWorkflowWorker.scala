@@ -210,7 +210,7 @@ class PythonWorkflowWorker(
         StorageConfig.s3Region,
         StorageConfig.s3Username,
         StorageConfig.s3Password,
-        StorageConfig.s3LargeBinariesBucket
+        workerConfig.largeBinaryBaseUri
       )
     ).run(BasicIO.standard(false))
   }

@@ -59,7 +59,7 @@ if __name__ == "__main__":
         s3_region,
         s3_auth_username,
         s3_auth_password,
-        s3_large_binaries_bucket,
+        s3_large_binaries_base_uri,
     ) = sys.argv
     init_loguru_logger(logger_level)
     StorageConfig.initialize(
@@ -77,7 +77,7 @@ if __name__ == "__main__":
         s3_region,
         s3_auth_username,
         s3_auth_password,
-        s3_large_binaries_bucket,
+        s3_large_binaries_base_uri,
     )
 
     # Setting R_HOME environment variable for R-UDF usage

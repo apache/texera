@@ -28,10 +28,17 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
   /** Execution id used by the bulk of the tests. */
   private val TestExecutionId: Long = 9999L
 
-  /** Each test creates large binaries; they need an execution context on the thread. */
+  /**
+    * Seeds the thread's large-binary base URI for the given execution — the same value the
+    * controller hands down and the DP thread seeds in production.
+    */
+  private def setExecutionContext(eid: Long): Unit =
+    LargeBinaryManager.setCurrentBaseUri(LargeBinaryManager.baseUriForExecution(eid))
+
+  /** Each test creates large binaries; they need a base URI on the thread. */
   override def beforeEach(): Unit = {
     super.beforeEach()
-    LargeBinaryManager.setCurrentExecutionId(TestExecutionId)
+    setExecutionContext(TestExecutionId)
   }
 
   /** Creates a large binary from string data and returns it. */
@@ -481,9 +488,9 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
 
   test("deleteByExecution removes only the target execution's binaries") {
     // Create one binary under execution 1001 and another under 1002.
-    LargeBinaryManager.setCurrentExecutionId(1001L)
+    setExecutionContext(1001L)
     createLargeBinary("data for 1001")
-    LargeBinaryManager.setCurrentExecutionId(1002L)
+    setExecutionContext(1002L)
     createLargeBinary("data for 1002")
 
     // Delete only execution 1001's binaries.
@@ -494,9 +501,9 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
       assert(S3StorageClient.directoryExists("texera-large-binaries", "objects/1002"))
     } finally {
       // Keep the test self-contained: clean up 1002's objects and reset the thread's
-      // execution id rather than relying on the next test's beforeEach.
+      // base URI rather than relying on the next test's beforeEach.
       LargeBinaryManager.deleteByExecution(1002L)
-      LargeBinaryManager.setCurrentExecutionId(TestExecutionId)
+      setExecutionContext(TestExecutionId)
     }
   }
 }

@@ -27,7 +27,6 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import org.apache.texera.amber.util.VirtualIdentityUtils
-import org.apache.texera.service.util.LargeBinaryManager
 
 trait InitializeExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
@@ -45,10 +44,6 @@ trait InitializeExecutorHandler {
         )
       )
     cachedTotalWorkerCount = req.totalWorkerCount
-    // Always overwrite the worker's large-binary execution context (None clears it) so a
-    // missing id fails loudly in create() instead of reusing a stale value — matching the
-    // Python worker's behavior.
-    LargeBinaryManager.setCurrentExecutionId(req.executionId.id)
     setupExecutor(req.opExecInitInfo, workerIdx, cachedTotalWorkerCount)
     EmptyReturn()
   }

@@ -27,7 +27,6 @@ import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
-  ExecutionIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
@@ -201,8 +200,7 @@ class WorkerSpec
         OpExecWithClassName(
           "org.apache.texera.amber.engine.architecture.worker.DummyOperatorExecutor"
         ),
-        isSource = false,
-        executionId = ExecutionIdentity(1L)
+        isSource = false
       ),
       AsyncRPCContext(CONTROLLER, identifier1),
       4

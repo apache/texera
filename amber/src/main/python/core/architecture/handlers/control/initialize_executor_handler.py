@@ -26,12 +26,7 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 
 class InitializeExecutorHandler(ControlHandler):
     async def initialize_executor(self, req: InitializeExecutorRequest) -> EmptyReturn:
-        # Imported here to avoid a circular import via pytexera's package __init__
-        from pytexera.storage.large_binary_manager import LargeBinaryManager
-
         op_exec_with_code: OpExecWithCode = get_one_of(req.op_exec_init_info)
-        # executionId is a required (no_box) field, so it is always present.
-        LargeBinaryManager().set_current_execution_id(req.execution_id.id)
         self.context.executor_manager.initialize_executor(
             op_exec_with_code.code, req.is_source, op_exec_with_code.language
         )

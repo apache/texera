@@ -43,12 +43,12 @@ class LargeBinaryManagerUnitSpec extends AnyFunSuite {
     succeed
   }
 
-  test("create returns a URI scoped to the current thread's execution id") {
-    // create() reads a thread-local; run on a dedicated thread so the execution
-    // context is isolated and does not leak into other tests.
+  test("create returns a URI under the current thread's base URI") {
+    // create() reads a thread-local; run on a dedicated thread so the base URI is
+    // isolated and does not leak into other tests.
     @volatile var uri: String = ""
     val thread = new Thread(() => {
-      LargeBinaryManager.setCurrentExecutionId(555L)
+      LargeBinaryManager.setCurrentBaseUri(LargeBinaryManager.baseUriForExecution(555L))
       uri = LargeBinaryManager.create()
     })
     thread.start()
@@ -59,8 +59,8 @@ class LargeBinaryManagerUnitSpec extends AnyFunSuite {
     assert(uri.stripPrefix(prefix).nonEmpty)
   }
 
-  test("create throws when no execution context is set on the thread") {
-    // A fresh thread starts with no execution id, so create() must fail fast.
+  test("create throws when no base URI is set on the thread") {
+    // A fresh thread starts with no base URI, so create() must fail fast.
     @volatile var caught: Option[Throwable] = None
     val thread = new Thread(() => {
       try LargeBinaryManager.create()

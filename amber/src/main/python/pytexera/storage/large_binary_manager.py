@@ -28,17 +28,18 @@ from core.storage.storage_config import StorageConfig
 
 
 class LargeBinaryManager:
-    """Manages execution-scoped large binaries in S3 for a worker process.
+    """Manages large binaries in S3 for a worker process.
 
     Implemented as a singleton: ``LargeBinaryManager()`` always returns the same
-    instance, so the cached S3 client and the current execution id are shared across
-    all callers in the worker process. A Python worker is a single process serving one
-    execution.
+    instance, so the cached S3 client is shared across all callers in the worker process.
 
-    Note: this differs from the JVM ``LargeBinaryManager`` in how the execution id is
-    held — a process-wide singleton here vs. a thread-local there — because a Python
-    worker is a single process per execution, whereas a JVM process hosts many workers
-    on separate threads.
+    The execution-scoped base URI that create() appends to is named by the controller and
+    handed down as process config (``StorageConfig.S3_LARGE_BINARIES_BASE_URI``), so the
+    worker never holds an execution id. This is the Python counterpart of the JVM
+    ``LargeBinaryManager``; the two differ only in how the base URI reaches create() — a
+    process-wide config value here vs. a thread-local there — because a Python worker is a
+    single process per execution, whereas a JVM process hosts many workers on separate
+    threads.
     """
 
     _instance = None
@@ -47,19 +48,8 @@ class LargeBinaryManager:
         if cls._instance is None:
             instance = super().__new__(cls)
             instance._s3_client = None
-            # Execution context: set at executor init and read by create() so the
-            # user-facing largebinary() API stays execution-id-free.
-            instance._current_execution_id = None
             cls._instance = instance
         return cls._instance
-
-    def set_current_execution_id(self, execution_id):
-        """Sets the execution id used to scope large binaries created by this worker."""
-        self._current_execution_id = execution_id
-
-    def get_current_execution_id(self):
-        """Returns the execution id set for this worker, or None if unset."""
-        return self._current_execution_id
 
     def _get_s3_client(self):
         """Get or initialize the S3 client (lazy initialization, cached)."""
@@ -96,30 +86,23 @@ class LargeBinaryManager:
 
     def create(self) -> str:
         """
-        Creates a new largebinary reference with a unique, execution-scoped S3 URI.
+        Creates a new largebinary reference by appending a unique suffix to the
+        execution-scoped base URI handed down by the controller.
 
-        The object key is namespaced by the current execution id so cleanup can delete
-        only this execution's objects. The execution id is injected by the system (set
-        via set_current_execution_id() when the worker is initialized); callers never
-        pass it.
+        The base URI is injected by the system as process config
+        (``StorageConfig.S3_LARGE_BINARIES_BASE_URI``, set when the worker process starts),
+        so the worker never builds execution-scoped names itself and callers never pass an
+        execution id. The bucket is created on demand at upload time by
+        LargeBinaryOutputStream, so this is pure string construction with no S3 round-trip.
 
         Returns:
-            S3 URI string (format: s3://bucket/objects/{execution_id}/{uuid})
+            S3 URI string, e.g. s3://bucket/objects/{execution_id}/{uuid} — the
+            objects/{execution_id}/ structure comes from the base URI, not from here.
         """
-        # Validate the execution context before any S3 round-trip.
-        execution_id = self.get_current_execution_id()
-        if execution_id is None:
+        base_uri = StorageConfig.S3_LARGE_BINARIES_BASE_URI
+        if not base_uri:
             raise RuntimeError(
-                "largebinary() requires an execution context, but no execution id "
-                "has been set for this worker."
+                "largebinary() requires a large-binaries base URI, but none is "
+                "configured (StorageConfig.S3_LARGE_BINARIES_BASE_URI is unset)."
             )
-        bucket = StorageConfig.S3_LARGE_BINARIES_BUCKET
-        if not bucket:
-            raise RuntimeError(
-                "Large-binaries bucket is not configured "
-                "(StorageConfig.S3_LARGE_BINARIES_BUCKET is unset)."
-            )
-        self._ensure_bucket_exists(bucket)
-        unique_id = uuid.uuid4()
-        object_key = f"objects/{execution_id}/{unique_id}"
-        return f"s3://{bucket}/{object_key}"
+        return f"{base_uri}{uuid.uuid4()}"

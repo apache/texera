@@ -25,10 +25,13 @@ from core.storage.storage_config import StorageConfig
 # The manager is a singleton; bind the shared instance for the tests.
 large_binary_manager = LargeBinaryManager()
 
+# Execution-scoped base URI the controller hands down; create() appends a unique suffix.
+TEST_BASE_URI = "s3://texera-large-binaries/objects/1/"
+
 
 @pytest.fixture(autouse=True)
 def _init_storage_config():
-    """Initialize StorageConfig (incl. the large-binaries bucket) for every test."""
+    """Initialize StorageConfig (incl. the large-binaries base URI) for every test."""
     if not StorageConfig._initialized:
         StorageConfig.initialize(
             catalog_type="postgres",
@@ -45,19 +48,11 @@ def _init_storage_config():
             s3_region="us-east-1",
             s3_auth_username="minioadmin",
             s3_auth_password="minioadmin",
-            s3_large_binaries_bucket="texera-large-binaries",
+            s3_large_binaries_base_uri=TEST_BASE_URI,
         )
 
 
 class TestLargeBinaryManager:
-    @pytest.fixture(autouse=True)
-    def setup_execution_id(self):
-        # Provide a default execution id so create() doesn't raise.
-        original_eid = large_binary_manager.get_current_execution_id()
-        large_binary_manager.set_current_execution_id(1)
-        yield
-        large_binary_manager.set_current_execution_id(original_eid)
-
     def test_get_s3_client_initializes_once(self):
         """Test that S3 client is initialized and cached."""
         # Reset the client
@@ -133,88 +128,48 @@ class TestLargeBinaryManager:
             mock_client.head_bucket.assert_called_once_with(Bucket="test-bucket")
             mock_client.create_bucket.assert_called_once_with(Bucket="test-bucket")
 
-    def test_create_generates_unique_uri(self):
-        """Test that create() generates a unique execution-scoped S3 URI."""
-        large_binary_manager._s3_client = None
+    def test_create_appends_unique_suffix_to_base_uri(self):
+        """create() returns the configured base URI plus a unique suffix (no S3 call)."""
+        base = StorageConfig.S3_LARGE_BINARIES_BASE_URI
 
-        with patch("boto3.client") as mock_boto3_client:
-            mock_client = MagicMock()
-            mock_boto3_client.return_value = mock_client
-            mock_client.head_bucket.return_value = None
-            mock_client.exceptions.NoSuchBucket = type("NoSuchBucket", (Exception,), {})
+        uri1 = large_binary_manager.create()
+        uri2 = large_binary_manager.create()
 
-            uri = large_binary_manager.create()
-
-            # Check URI format: s3://bucket/objects/{eid}/{uuid}
-            assert uri.startswith("s3://")
-            assert uri.startswith(f"s3://{StorageConfig.S3_LARGE_BINARIES_BUCKET}/")
-            assert f"objects/{large_binary_manager.get_current_execution_id()}/" in uri
-
-            # Verify bucket was checked/created
-            mock_client.head_bucket.assert_called_once_with(
-                Bucket=StorageConfig.S3_LARGE_BINARIES_BUCKET
-            )
-
-    def test_create_uses_default_bucket(self):
-        """Test that create() uses the default bucket."""
-        large_binary_manager._s3_client = None
-
-        with patch("boto3.client") as mock_boto3_client:
-            mock_client = MagicMock()
-            mock_boto3_client.return_value = mock_client
-            mock_client.head_bucket.return_value = None
-            mock_client.exceptions.NoSuchBucket = type("NoSuchBucket", (Exception,), {})
-
-            uri = large_binary_manager.create()
-            assert StorageConfig.S3_LARGE_BINARIES_BUCKET in uri
-            assert f"objects/{large_binary_manager.get_current_execution_id()}/" in uri
+        assert uri1.startswith(base)
+        assert uri2.startswith(base)
+        # A non-empty, unique suffix follows the base URI.
+        assert uri1 != base
+        assert uri1 != uri2
 
 
-def test_create_stamps_execution_id(monkeypatch):
-    # Avoid touching real S3 while testing key generation.
+def test_create_matches_execution_scoped_key_shape(monkeypatch):
+    # The base URI is execution-scoped (controller-named); create() only appends a uuid.
     monkeypatch.setattr(
-        large_binary_manager, "_ensure_bucket_exists", lambda bucket: None
+        StorageConfig,
+        "S3_LARGE_BINARIES_BASE_URI",
+        "s3://texera-large-binaries/objects/42/",
     )
-    original = large_binary_manager.get_current_execution_id()
-    large_binary_manager.set_current_execution_id(42)
-    try:
-        uri = large_binary_manager.create()
-        assert re.fullmatch(r"s3://texera-large-binaries/objects/42/[0-9a-fA-F-]+", uri)
-    finally:
-        large_binary_manager.set_current_execution_id(original)
+    uri = large_binary_manager.create()
+    assert re.fullmatch(r"s3://texera-large-binaries/objects/42/[0-9a-fA-F-]+", uri)
 
 
-def test_create_without_execution_context_raises():
-    original = large_binary_manager.get_current_execution_id()
-    large_binary_manager.set_current_execution_id(None)
-    try:
-        with pytest.raises(RuntimeError):
-            large_binary_manager.create()
-    finally:
-        large_binary_manager.set_current_execution_id(original)
-
-
-def test_create_without_bucket_configured_raises(monkeypatch):
-    # An unconfigured bucket should fail with a clear error, not a cryptic S3 one.
-    monkeypatch.setattr(StorageConfig, "S3_LARGE_BINARIES_BUCKET", None)
-    original = large_binary_manager.get_current_execution_id()
-    large_binary_manager.set_current_execution_id(42)
-    try:
-        with pytest.raises(RuntimeError):
-            large_binary_manager.create()
-    finally:
-        large_binary_manager.set_current_execution_id(original)
+def test_create_without_base_uri_raises(monkeypatch):
+    # An unconfigured base URI should fail with a clear error, not a cryptic S3 one.
+    monkeypatch.setattr(StorageConfig, "S3_LARGE_BINARIES_BASE_URI", None)
+    with pytest.raises(RuntimeError):
+        large_binary_manager.create()
 
 
 def test_largebinarymanager_is_a_singleton():
     # Constructing the manager always returns the same shared instance.
     assert LargeBinaryManager() is LargeBinaryManager()
 
-    # State set through one handle is visible through another (shared instance).
+    # State (the cached S3 client) is shared across handles (same instance).
     mgr = LargeBinaryManager()
-    original = mgr.get_current_execution_id()
-    mgr.set_current_execution_id(314)
+    original = mgr._s3_client
+    sentinel = object()
+    mgr._s3_client = sentinel
     try:
-        assert LargeBinaryManager().get_current_execution_id() == 314
+        assert LargeBinaryManager()._s3_client is sentinel
     finally:
-        mgr.set_current_execution_id(original)
+        mgr._s3_client = original

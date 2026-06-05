@@ -35,35 +35,61 @@ object LargeBinaryManager extends LazyLogging {
   val DEFAULT_BUCKET: String = StorageConfig.s3LargeBinariesBucket
 
   /**
-    * Worker-scoped execution context for large binaries created on the current thread.
-    * It MUST be set on, and read from, the worker's data-processing thread — the same
-    * thread that runs the operator and calls create() — which is why a thread-local is
-    * used.
+    * The object-key prefix that namespaces one execution's large binaries. Single source
+    * of truth for the per-execution layout: baseUriForExecution() builds write URIs under
+    * it and deleteByExecution() deletes it, so the write and delete paths cannot drift.
     */
-  private val currentExecutionId: ThreadLocal[Option[Long]] =
-    ThreadLocal.withInitial(() => Option.empty[Long])
-
-  /** Sets the execution id for large binaries created on the current thread. */
-  def setCurrentExecutionId(executionId: Long): Unit =
-    currentExecutionId.set(Some(executionId))
+  private def executionPrefix(executionId: Long): String = s"objects/$executionId"
 
   /**
-    * Creates a new LargeBinary reference scoped to the current execution.
-    * The actual data upload happens separately via LargeBinaryOutputStream.
+    * Builds the execution-scoped base URI (trailing slash included) under which a given
+    * execution's large binaries live. The controller names this location and hands it to
+    * the worker (via WorkerConfig); create() only appends a unique suffix, so the worker
+    * never constructs execution-scoped names itself. Returns an empty string when the
+    * bucket is unconfigured, so create() fails loudly rather than minting a malformed URI.
+    */
+  def baseUriForExecution(executionId: Long): String =
+    if (DEFAULT_BUCKET.isEmpty) ""
+    else s"s3://$DEFAULT_BUCKET/${executionPrefix(executionId)}/"
+
+  /**
+    * Worker-scoped base URI for large binaries created on the current thread. It MUST be
+    * set on, and read from, the worker's data-processing thread — the same thread that
+    * runs the operator and calls create() — which is why a thread-local is used. It is
+    * seeded once when the DP thread starts, which assumes one worker (hence one DP thread)
+    * per execution; if workers are ever pooled or reused across executions, this must be
+    * re-seeded per execution.
+    */
+  private val currentBaseUri: ThreadLocal[Option[String]] =
+    ThreadLocal.withInitial(() => Option.empty[String])
+
+  /**
+    * Sets the base URI for large binaries created on the current thread. An empty string
+    * clears it, so a missing base URI makes create() fail loudly rather than reusing a
+    * stale value — keeping behavior consistent with the Python worker.
+    */
+  def setCurrentBaseUri(baseUri: String): Unit =
+    currentBaseUri.set(Option(baseUri).filter(_.nonEmpty))
+
+  /**
+    * Creates a new LargeBinary reference under the current thread's base URI by appending
+    * a unique suffix. The base URI is named by the controller and handed down, so the
+    * worker never builds execution-scoped names itself. The actual data upload happens
+    * separately via LargeBinaryOutputStream.
     *
-    * @return S3 URI string for the new LargeBinary (format: s3://bucket/objects/{eid}/{uuid})
+    * @return S3 URI for the new LargeBinary, e.g. s3://bucket/objects/{eid}/{uuid}; the
+    *         objects/{eid}/ structure comes from the base URI (baseUriForExecution), not here.
     */
   def create(): String = {
-    val eid = currentExecutionId
+    val baseUri = currentBaseUri
       .get()
       .getOrElse(
         throw new IllegalStateException(
-          "LargeBinaryManager.create() requires an execution context, " +
+          "LargeBinaryManager.create() requires a base URI, " +
             "but none was set on the current thread."
         )
       )
-    val objectKey = s"objects/$eid/${UUID.randomUUID()}"
-    s"s3://$DEFAULT_BUCKET/$objectKey"
+    s"$baseUri${UUID.randomUUID()}"
   }
 
   /**
@@ -83,7 +109,7 @@ object LargeBinaryManager extends LazyLogging {
       deleteDir: (String, String) => Unit
   ): Unit = {
     try {
-      deleteDir(DEFAULT_BUCKET, s"objects/$executionId")
+      deleteDir(DEFAULT_BUCKET, executionPrefix(executionId))
       logger.info(
         s"Deleted large binaries for execution $executionId from bucket: $DEFAULT_BUCKET"
       )
