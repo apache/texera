@@ -47,6 +47,12 @@ object LargeBinaryManager extends LazyLogging {
     * the worker (via WorkerConfig); create() only appends a unique suffix, so the worker
     * never constructs execution-scoped names itself. Returns an empty string when the
     * bucket is unconfigured, so create() fails loudly rather than minting a malformed URI.
+    *
+    * `executionId` must be a persisted execution id — the same EID cleanup later deletes.
+    * Ids are not reserved: the default/sentinel execution id (WorkflowContext.
+    * DEFAULT_EXECUTION_ID, currently 1) shares this numeric space, so large binaries must
+    * only be created under a real execution. Otherwise a default-context run and execution
+    * 1 would both land under objects/1/ and cleaning up one would take the other with it.
     */
   def baseUriForExecution(executionId: Long): String =
     if (DEFAULT_BUCKET.isEmpty) ""
@@ -56,8 +62,10 @@ object LargeBinaryManager extends LazyLogging {
     * Worker-scoped base URI for large binaries created on the current thread. It MUST be
     * set on, and read from, the worker's data-processing thread — the same thread that
     * runs the operator and calls create() — which is why a thread-local is used. It is
-    * seeded once when the DP thread starts, which assumes one worker (hence one DP thread)
-    * per execution; if workers are ever pooled or reused across executions, this must be
+    * seeded once when the DP thread starts, which assumes a DP thread serves a single
+    * execution (the normal case: a worker is created for one execution and not reused).
+    * Parallelism is fine — an execution's many workers each seed the same base URI on their
+    * own thread. If workers are ever pooled or reused across executions, this must be
     * re-seeded per execution.
     */
   private val currentBaseUri: ThreadLocal[Option[String]] =
@@ -94,6 +102,11 @@ object LargeBinaryManager extends LazyLogging {
 
   /**
     * Deletes all large binaries belonging to a single execution.
+    *
+    * Deletion goes through S3StorageClient.deleteDirectory, which removes a single S3
+    * listing page (up to 1000 objects) per call — ample for expected per-execution counts.
+    * An execution that produced more would leave the remainder behind and need a paginated
+    * delete (a separate change to deleteDirectory); not handled here.
     *
     * @param executionId the execution whose large binaries should be removed
     */

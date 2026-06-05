@@ -200,7 +200,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
     }
   }
 
-  test("LargeBinaryManager should delete all large binaries") {
+  test("deleteByExecution removes binaries written via new LargeBinary()") {
     val pointer1 = new LargeBinary()
     val out1 = new LargeBinaryOutputStream(pointer1)
     try {
@@ -224,7 +224,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
     LargeBinaryManager.deleteByExecution(TestExecutionId) // Should not throw exception
   }
 
-  test("LargeBinaryManager should delete all objects") {
+  test("deleteByExecution removes multiple binaries for the execution") {
     val pointer1 = createLargeBinary("Test data")
     val pointer2 = createLargeBinary("Test data")
 
@@ -503,6 +503,26 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
       // Keep the test self-contained: clean up 1002's objects and reset the thread's
       // base URI rather than relying on the next test's beforeEach.
       LargeBinaryManager.deleteByExecution(1002L)
+      setExecutionContext(TestExecutionId)
+    }
+  }
+
+  test("deleteByExecution distinguishes executions whose ids share a numeric prefix") {
+    // "objects/1" is a string prefix of "objects/11"; a prefix delete that dropped the
+    // trailing "/" would wipe both. Pin that deleting execution 1 leaves 11 untouched.
+    setExecutionContext(1L)
+    createLargeBinary("data for execution 1")
+    setExecutionContext(11L)
+    createLargeBinary("data for execution 11")
+
+    LargeBinaryManager.deleteByExecution(1L)
+
+    try {
+      assert(!S3StorageClient.directoryExists("texera-large-binaries", "objects/1"))
+      assert(S3StorageClient.directoryExists("texera-large-binaries", "objects/11"))
+    } finally {
+      // Self-contained cleanup, mirroring the isolation test above.
+      LargeBinaryManager.deleteByExecution(11L)
       setExecutionContext(TestExecutionId)
     }
   }

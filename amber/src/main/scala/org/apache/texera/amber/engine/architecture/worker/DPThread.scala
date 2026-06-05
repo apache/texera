@@ -99,8 +99,9 @@ class DPThread(
           // create() can append a unique suffix without knowing the execution id. The base
           // URI is named by the controller and handed down via WorkerConfig (empty when
           // unconfigured, which makes create() fail loudly). Seeded once per thread, which
-          // assumes one worker per execution; pooling/reusing workers across executions
-          // would require re-seeding here.
+          // assumes a DP thread serves a single execution (a worker is created per execution
+          // and not reused); pooling/reusing workers across executions would require
+          // re-seeding here.
           LargeBinaryManager.setCurrentBaseUri(largeBinaryBaseUri)
           logger.info("DP thread started")
           startFuture.complete(())

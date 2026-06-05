@@ -22,6 +22,7 @@ Users should not interact with this module directly. Use largebinary() construct
 and LargeBinaryInputStream/LargeBinaryOutputStream instead.
 """
 
+import threading
 import uuid
 from loguru import logger
 from core.storage.storage_config import StorageConfig
@@ -37,41 +38,50 @@ class LargeBinaryManager:
     handed down as process config (``StorageConfig.S3_LARGE_BINARIES_BASE_URI``), so the
     worker never holds an execution id. This is the Python counterpart of the JVM
     ``LargeBinaryManager``; the two differ only in how the base URI reaches create() — a
-    process-wide config value here vs. a thread-local there — because a Python worker is a
-    single process per execution, whereas a JVM process hosts many workers on separate
-    threads.
+    process-wide config value here vs. a thread-local there. A Python worker runs as its
+    own OS process serving a single execution, so process-wide config is safe; a JVM engine
+    process instead hosts many worker threads and is reused across executions, so the JVM
+    side scopes the base URI per DP thread (thread-local) rather than per process.
     """
 
     _instance = None
+    # Guards one-time singleton creation and S3-client init: the manager is reached from
+    # both the operator thread and LargeBinaryOutputStream's upload thread.
+    _lock = threading.Lock()
 
     def __new__(cls):
+        # Double-checked locking: skip the lock on the fast path once the instance exists.
         if cls._instance is None:
-            instance = super().__new__(cls)
-            instance._s3_client = None
-            cls._instance = instance
+            with cls._lock:
+                if cls._instance is None:
+                    instance = super().__new__(cls)
+                    instance._s3_client = None
+                    cls._instance = instance
         return cls._instance
 
     def _get_s3_client(self):
         """Get or initialize the S3 client (lazy initialization, cached)."""
         if self._s3_client is None:
-            try:
-                import boto3
-                from botocore.config import Config
-            except ImportError as e:
-                raise RuntimeError(
-                    "boto3 required. Install with: pip install boto3"
-                ) from e
+            with self._lock:
+                if self._s3_client is None:
+                    try:
+                        import boto3
+                        from botocore.config import Config
+                    except ImportError as e:
+                        raise RuntimeError(
+                            "boto3 required. Install with: pip install boto3"
+                        ) from e
 
-            self._s3_client = boto3.client(
-                "s3",
-                endpoint_url=StorageConfig.S3_ENDPOINT,
-                aws_access_key_id=StorageConfig.S3_AUTH_USERNAME,
-                aws_secret_access_key=StorageConfig.S3_AUTH_PASSWORD,
-                region_name=StorageConfig.S3_REGION,
-                config=Config(
-                    signature_version="s3v4", s3={"addressing_style": "path"}
-                ),
-            )
+                    self._s3_client = boto3.client(
+                        "s3",
+                        endpoint_url=StorageConfig.S3_ENDPOINT,
+                        aws_access_key_id=StorageConfig.S3_AUTH_USERNAME,
+                        aws_secret_access_key=StorageConfig.S3_AUTH_PASSWORD,
+                        region_name=StorageConfig.S3_REGION,
+                        config=Config(
+                            signature_version="s3v4", s3={"addressing_style": "path"}
+                        ),
+                    )
         return self._s3_client
 
     def _ensure_bucket_exists(self, bucket: str):
