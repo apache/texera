@@ -24,6 +24,11 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
 
+    <!-- Add notebook and workflow_notebook_mapping tables -->
+    <changeSet id="23" author="zyratlo">
+        <sqlFile path="sql/updates/23.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>
