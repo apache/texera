@@ -31,21 +31,21 @@ import io.opentelemetry.context.Context
 import java.util.concurrent.TimeUnit
 
 /**
- * Logback appender that forwards every event through [[LogSanitizer]]
- * before emitting it as an OTel LogRecord.
- *
- * Lifecycle:
- *  - Construct with no args (Logback / programmatic instantiation).
- *  - Call [[bind]] once with the active [[OpenTelemetry]] instance
- *    (done by [[OtelInit]] after the SDK is built). Until then,
- *    [[append]] is a silent no-op — log events keep flowing to
- *    stdout/file unimpeded.
- *  - Stopping the appender unbinds; subsequent events drop.
- *
- * This is intentionally a thin shim. All security-critical logic
- * lives in [[LogSanitizer]] so it can be tested without a Logback
- * fixture.
- */
+  * Logback appender that forwards every event through [[LogSanitizer]]
+  * before emitting it as an OTel LogRecord.
+  *
+  * Lifecycle:
+  *  - Construct with no args (Logback / programmatic instantiation).
+  *  - Call [[bind]] once with the active [[OpenTelemetry]] instance
+  *    (done by [[OtelInit]] after the SDK is built). Until then,
+  *    [[append]] is a silent no-op — log events keep flowing to
+  *    stdout/file unimpeded.
+  *  - Stopping the appender unbinds; subsequent events drop.
+  *
+  * This is intentionally a thin shim. All security-critical logic
+  * lives in [[LogSanitizer]] so it can be tested without a Logback
+  * fixture.
+  */
 class TexeraOtelLogAppender extends UnsynchronizedAppenderBase[ILoggingEvent] {
 
   // @volatile so a late [[bind]] is visible to appender threads
@@ -121,8 +121,9 @@ class TexeraOtelLogAppender extends UnsynchronizedAppenderBase[ILoggingEvent] {
   }
 
   /** Pretty-print a Logback throwable proxy. Matches what Logback's
-   *  default pattern layout would produce for `%ex` — class name,
-   *  message, full stack frames, then walks the cause chain. */
+    *  default pattern layout would produce for `%ex` — class name,
+    *  message, full stack frames, then walks the cause chain.
+    */
   private def formatThrowable(proxy: IThrowableProxy): String =
     ThrowableProxyUtil.asString(proxy)
 

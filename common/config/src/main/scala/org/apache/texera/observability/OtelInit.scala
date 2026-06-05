@@ -39,34 +39,35 @@ import java.time.Duration
 import scala.util.{Failure, Success, Try}
 
 /**
- * Bootstraps the OpenTelemetry SDK for a Texera service.
- *
- * Design notes:
- *  - Default-disabled. Sets up nothing unless `OTEL_SDK_DISABLED=false`.
- *  - We deliberately do not use the autoconfigure SPI: the security model
- *    requires endpoint + resource-attribute filtering to happen BEFORE
- *    any exporter is constructed. Autoconfigure would parse env vars
- *    behind our back.
- *  - Validation is a single pure function so it can be unit-tested
- *    without spinning the SDK.
- *  - On any validation failure we log one WARN and return None. We
- *    do NOT throw — observability is opt-in plumbing; misconfiguration
- *    must never crash the service.
- *  - This is the only place in Texera that reads `OTEL_*` environment
- *    variables. Other modules consume the returned `OpenTelemetry`
- *    instance directly.
- */
+  * Bootstraps the OpenTelemetry SDK for a Texera service.
+  *
+  * Design notes:
+  *  - Default-disabled. Sets up nothing unless `OTEL_SDK_DISABLED=false`.
+  *  - We deliberately do not use the autoconfigure SPI: the security model
+  *    requires endpoint + resource-attribute filtering to happen BEFORE
+  *    any exporter is constructed. Autoconfigure would parse env vars
+  *    behind our back.
+  *  - Validation is a single pure function so it can be unit-tested
+  *    without spinning the SDK.
+  *  - On any validation failure we log one WARN and return None. We
+  *    do NOT throw — observability is opt-in plumbing; misconfiguration
+  *    must never crash the service.
+  *  - This is the only place in Texera that reads `OTEL_*` environment
+  *    variables. Other modules consume the returned `OpenTelemetry`
+  *    instance directly.
+  */
 object OtelInit extends LazyLogging {
 
   /** Resource attribute keys we accept from OTEL_RESOURCE_ATTRIBUTES.
-   *  Resource attrs ride on every record this JVM emits (logs,
-   *  metrics, traces) — so for a per-CU JVM (ComputingUnitMaster /
-   *  ComputingUnitWorker) setting `texera.computing_unit.id=N` at
-   *  boot is enough to tag every record without per-request MDC
-   *  plumbing. Workflow/execution ids vary per task and still need
-   *  MDC at the message boundary, but exposing them in the allowlist
-   *  lets test harnesses + future per-task code populate them via
-   *  the same mechanism. */
+    *  Resource attrs ride on every record this JVM emits (logs,
+    *  metrics, traces) — so for a per-CU JVM (ComputingUnitMaster /
+    *  ComputingUnitWorker) setting `texera.computing_unit.id=N` at
+    *  boot is enough to tag every record without per-request MDC
+    *  plumbing. Workflow/execution ids vary per task and still need
+    *  MDC at the message boundary, but exposing them in the allowlist
+    *  lets test harnesses + future per-task code populate them via
+    *  the same mechanism.
+    */
   private[observability] val AllowedResourceKeys: Set[String] = Set(
     "service.name",
     "service.version",
@@ -88,16 +89,18 @@ object OtelInit extends LazyLogging {
   )
 
   /** Default endpoint when SDK is enabled but no endpoint set explicitly.
-   *  Uses 127.0.0.1 (not "localhost") so a natively-run service reaches the
-   *  IPv4-only collector port published by docker-compose — on dual-stack
-   *  hosts "localhost" resolves to ::1 first and the OTLP export silently
-   *  fails. Inside docker the endpoint is overridden to otel-collector:4317. */
+    *  Uses 127.0.0.1 (not "localhost") so a natively-run service reaches the
+    *  IPv4-only collector port published by docker-compose — on dual-stack
+    *  hosts "localhost" resolves to ::1 first and the OTLP export silently
+    *  fails. Inside docker the endpoint is overridden to otel-collector:4317.
+    */
   private val DefaultEndpoint = "http://127.0.0.1:4317"
 
   /** Metric export interval bounds. Values outside this range get
-   *  clamped to the default with a one-shot WARN. The lower bound
-   *  prevents an attacker tipping the exporter into busy-loop mode;
-   *  the upper bound keeps metrics useful for human operators. */
+    *  clamped to the default with a one-shot WARN. The lower bound
+    *  prevents an attacker tipping the exporter into busy-loop mode;
+    *  the upper bound keeps metrics useful for human operators.
+    */
   private[observability] val MinMetricIntervalMs: Long = 1000L
   private[observability] val MaxMetricIntervalMs: Long = 10L * 60L * 1000L
   private[observability] val DefaultMetricIntervalMs: Long = 60L * 1000L
@@ -107,78 +110,82 @@ object OtelInit extends LazyLogging {
   @volatile private var initialized: Option[OpenTelemetry] = None
 
   /**
-   * Initialize the SDK for the given service name.
-   * Returns Some(sdk) on success, None on disabled / invalid config.
-   *
-   * Side effect when enabled: attaches a [[TexeraOtelLogAppender]] to
-   * the Logback ROOT logger so application logs are mirrored to the
-   * OTel collector, with the security guards in [[LogSanitizer]]
-   * applied to every record.
-   */
-  def init(serviceName: String): Option[OpenTelemetry] = synchronized {
-    if (initialized.isDefined) return initialized
+    * Initialize the SDK for the given service name.
+    * Returns Some(sdk) on success, None on disabled / invalid config.
+    *
+    * Side effect when enabled: attaches a [[TexeraOtelLogAppender]] to
+    * the Logback ROOT logger so application logs are mirrored to the
+    * OTel collector, with the security guards in [[LogSanitizer]]
+    * applied to every record.
+    */
+  def init(serviceName: String): Option[OpenTelemetry] =
+    synchronized {
+      if (initialized.isDefined) return initialized
 
-    val env = (key: String) => Option(System.getenv(key))
-    val result = initInternal(
-      serviceName = serviceName,
-      envProvider = env,
-      spanExporterFactory = buildOtlpSpanExporter,
-      logExporterFactory = endpoint => Some(buildOtlpLogExporter(endpoint)),
-      metricExporterFactory = endpoint => Some(buildOtlpMetricExporter(endpoint)),
-      logbackAttacher = LogbackBinder.attach
-    )
-    // Register globally so [[TexeraTracer]] and any other OTel-aware
-    // code can call ``GlobalOpenTelemetry.getTracer(...)`` without
-    // threading the SDK through every callsite. set() throws on a
-    // second call within the same JVM — our outer ``initialized``
-    // guard makes that unreachable, but wrap defensively. The test
-    // path deliberately skips this so multiple isolated SDKs can be
-    // built within one JVM.
-    result.foreach { sdk =>
-      Try(GlobalOpenTelemetry.set(sdk)).failed.foreach { t =>
-        logger.warn(
-          s"GlobalOpenTelemetry already set; using the existing instance: ${t.getMessage}"
-        )
+      val env = (key: String) => Option(System.getenv(key))
+      val result = initInternal(
+        serviceName = serviceName,
+        envProvider = env,
+        spanExporterFactory = buildOtlpSpanExporter,
+        logExporterFactory = endpoint => Some(buildOtlpLogExporter(endpoint)),
+        metricExporterFactory = endpoint => Some(buildOtlpMetricExporter(endpoint)),
+        logbackAttacher = LogbackBinder.attach
+      )
+      // Register globally so [[TexeraTracer]] and any other OTel-aware
+      // code can call ``GlobalOpenTelemetry.getTracer(...)`` without
+      // threading the SDK through every callsite. set() throws on a
+      // second call within the same JVM — our outer ``initialized``
+      // guard makes that unreachable, but wrap defensively. The test
+      // path deliberately skips this so multiple isolated SDKs can be
+      // built within one JVM.
+      result.foreach { sdk =>
+        Try(GlobalOpenTelemetry.set(sdk)).failed.foreach { t =>
+          logger.warn(
+            s"GlobalOpenTelemetry already set; using the existing instance: ${t.getMessage}"
+          )
+        }
       }
+      result
     }
-    result
-  }
 
   /**
-   * Test-only entry point. Allows the test to inject an env-var map
-   * and a span exporter so the SDK does not attempt a real network
-   * connection. The Logback appender is NOT attached in tests —
-   * appender tests construct it directly with an in-memory log
-   * exporter.
-   */
+    * Test-only entry point. Allows the test to inject an env-var map
+    * and a span exporter so the SDK does not attempt a real network
+    * connection. The Logback appender is NOT attached in tests —
+    * appender tests construct it directly with an in-memory log
+    * exporter.
+    */
   private[observability] def initForTest(
       serviceName: String,
       envOverride: Map[String, String],
       exporter: SpanExporter,
       metricExporter: Option[MetricExporter] = None
-  ): Option[OpenTelemetry] = synchronized {
-    initInternal(
-      serviceName = serviceName,
-      envProvider = envOverride.get,
-      spanExporterFactory = _ => exporter,
-      logExporterFactory = _ => None,
-      metricExporterFactory = _ => metricExporter,
-      logbackAttacher = (_, _) => () // no-op in tests
-    )
-  }
+  ): Option[OpenTelemetry] =
+    synchronized {
+      initInternal(
+        serviceName = serviceName,
+        envProvider = envOverride.get,
+        spanExporterFactory = _ => exporter,
+        logExporterFactory = _ => None,
+        metricExporterFactory = _ => metricExporter,
+        logbackAttacher = (_, _) => () // no-op in tests
+      )
+    }
 
   /** Test-only: forget any previously-installed SDK. Does not unregister
-   * shutdown hooks (the previous SDK is closed instead). */
-  private[observability] def resetForTest(): Unit = synchronized {
-    initialized.foreach {
-      case sdk: OpenTelemetrySdk =>
-        Try(sdk.getSdkTracerProvider.close())
-        Try(sdk.getSdkLoggerProvider.close())
-        Try(sdk.getSdkMeterProvider.close())
-      case _ => ()
+    * shutdown hooks (the previous SDK is closed instead).
+    */
+  private[observability] def resetForTest(): Unit =
+    synchronized {
+      initialized.foreach {
+        case sdk: OpenTelemetrySdk =>
+          Try(sdk.getSdkTracerProvider.close())
+          Try(sdk.getSdkLoggerProvider.close())
+          Try(sdk.getSdkMeterProvider.close())
+        case _ => ()
+      }
+      initialized = None
     }
-    initialized = None
-  }
 
   private def initInternal(
       serviceName: String,
@@ -200,7 +207,9 @@ object OtelInit extends LazyLogging {
     // dev time is a quiet no-op rather than a startup failure.
     val disabled = envProvider("OTEL_SDK_DISABLED").getOrElse("false")
     if (disabled.equalsIgnoreCase("true")) {
-      logger.info("OpenTelemetry SDK disabled (OTEL_SDK_DISABLED=true). No telemetry will be emitted.")
+      logger.info(
+        "OpenTelemetry SDK disabled (OTEL_SDK_DISABLED=true). No telemetry will be emitted."
+      )
       return None
     }
 
@@ -284,12 +293,17 @@ object OtelInit extends LazyLogging {
     // Make sure providers flush on shutdown. We add the hook only after
     // the SDK has been fully built so a panic during init doesn't leave
     // a dangling hook pointing at a half-constructed provider.
-    Runtime.getRuntime.addShutdownHook(new Thread(() => {
-      Try(tracerProvider.close())
-      loggerProviderOpt.foreach(lp => Try(lp.close()))
-      meterProviderOpt.foreach(mp => Try(mp.close()))
-      ()
-    }, "otel-shutdown"))
+    Runtime.getRuntime.addShutdownHook(
+      new Thread(
+        () => {
+          Try(tracerProvider.close())
+          loggerProviderOpt.foreach(lp => Try(lp.close()))
+          meterProviderOpt.foreach(mp => Try(mp.close()))
+          ()
+        },
+        "otel-shutdown"
+      )
+    )
 
     initialized = Some(sdk)
     logger.info(s"OpenTelemetry SDK initialized for service '$serviceName' (endpoint=$endpoint).")
@@ -297,10 +311,10 @@ object OtelInit extends LazyLogging {
   }
 
   /**
-   * Validate that the endpoint is parseable, uses an allowlisted scheme,
-   * and resolves to an allowlisted host. Pure function — safe to test
-   * without standing up the SDK.
-   */
+    * Validate that the endpoint is parseable, uses an allowlisted scheme,
+    * and resolves to an allowlisted host. Pure function — safe to test
+    * without standing up the SDK.
+    */
   private[observability] def validateEndpoint(
       endpoint: String,
       allowedHosts: Set[String]
@@ -313,7 +327,9 @@ object OtelInit extends LazyLogging {
         if (scheme.isEmpty) {
           Left("missing scheme")
         } else if (!AllowedSchemes.contains(scheme)) {
-          Left(s"scheme '$scheme' not in allowlist ${AllowedSchemes.toSeq.sorted.mkString("{", ",", "}")}")
+          Left(
+            s"scheme '$scheme' not in allowlist ${AllowedSchemes.toSeq.sorted.mkString("{", ",", "}")}"
+          )
         } else {
           val host = Option(uri.getHost).map(_.toLowerCase).getOrElse("")
           if (host.isEmpty) {
@@ -328,10 +344,10 @@ object OtelInit extends LazyLogging {
   }
 
   /**
-   * Build a Resource from the service name plus the allowlisted subset
-   * of OTEL_RESOURCE_ATTRIBUTES. Unknown keys are dropped silently;
-   * service.name from env is ignored in favour of the argument.
-   */
+    * Build a Resource from the service name plus the allowlisted subset
+    * of OTEL_RESOURCE_ATTRIBUTES. Unknown keys are dropped silently;
+    * service.name from env is ignored in favour of the argument.
+    */
   private[observability] def buildResource(serviceName: String, rawAttrs: String): Resource = {
     val builder = Attributes.builder()
     builder.put(AttributeKey.stringKey("service.name"), serviceName)
@@ -371,11 +387,11 @@ object OtelInit extends LazyLogging {
     OtlpGrpcMetricExporter.builder().setEndpoint(endpoint).build()
 
   /**
-   * Parse and clamp OTEL_METRIC_EXPORT_INTERVAL (milliseconds).
-   * Out-of-range or unparseable input falls back to the default and
-   * emits a single WARN. Pure-ish — easy to test without standing up
-   * the meter SDK.
-   */
+    * Parse and clamp OTEL_METRIC_EXPORT_INTERVAL (milliseconds).
+    * Out-of-range or unparseable input falls back to the default and
+    * emits a single WARN. Pure-ish — easy to test without standing up
+    * the meter SDK.
+    */
   private[observability] def clampIntervalMs(raw: Option[String]): Long = {
     raw match {
       case None => DefaultMetricIntervalMs
@@ -401,18 +417,18 @@ object OtelInit extends LazyLogging {
 }
 
 /**
- * Hides the Logback attach step behind a small object so [[OtelInit]]
- * doesn't import Logback types directly (keeps the SDK init testable
- * without a Logback dependency on the classpath in test runs that
- * inject a mock attacher).
- */
+  * Hides the Logback attach step behind a small object so [[OtelInit]]
+  * doesn't import Logback types directly (keeps the SDK init testable
+  * without a Logback dependency on the classpath in test runs that
+  * inject a mock attacher).
+  */
 private[observability] object LogbackBinder extends LazyLogging {
 
   /** Attempts to find the Logback ROOT logger, attach a fresh
-   *  [[TexeraOtelLogAppender]] bound to `otel`, and start it. If
-   *  Logback is not the active SLF4J binding (or for any other
-   *  classpath issue), emits one WARN and returns — never throws.
-   */
+    *  [[TexeraOtelLogAppender]] bound to `otel`, and start it. If
+    *  Logback is not the active SLF4J binding (or for any other
+    *  classpath issue), emits one WARN and returns — never throws.
+    */
   def attach(serviceName: String, otel: OpenTelemetry): Unit = {
     val factory = org.slf4j.LoggerFactory.getILoggerFactory
     factory match {
