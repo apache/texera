@@ -487,6 +487,189 @@ services:
     command: >
       sh -c 'apk add --no-cache curl jq bash > /dev/null 2>&1 && bash /examples/load-examples.sh'
 
+  # ========================================================================
+  # Part 5: Observability stack (PR 6).
+  #
+  # All six services live in this single compose file (no separate
+  # observability compose file, no monolithic observability profile).
+  # Per-signal profiles let an operator drop one without disturbing
+  # the others — see bin/single-node/up.sh and bin/single-node/.env
+  # (COMPOSE_PROFILES default includes every observability profile so
+  # `docker compose up` runs the whole stack).
+  #
+  # Network posture: every receiver/HTTP port binds to loopback
+  # (127.0.0.1) on the host or stays inside the texera-single-node
+  # bridge network entirely. No 0.0.0.0 host bindings, no Ingress.
+  # ========================================================================
+
+  # OpenTelemetry Collector — the single OTLP ingress for all three
+  # signals. Reads bin/observability/otel-collector/config.yaml.
+  # Apache-2.0; pinned to the contrib distribution.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.153.0
+    container_name: texera-otel-collector
+    profiles: [observability-collector]
+    restart: always
+    user: "10001:10001"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ../observability/otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    # Local dev override: publish OTLP receiver ports on the host
+    # loopback so a Scala backend running outside docker (sbt /
+    # IntelliJ) can emit telemetry. In compose-only deploys, services
+    # talk to otel-collector:4317/:4318 via the bridge network.
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: "1.0"
+
+  # VictoriaLogs — Apache-2.0 log store. LogsQL query API on 9428.
+  victorialogs:
+    image: victoriametrics/victoria-logs:v1.50.0
+    container_name: texera-victorialogs
+    profiles: [observability-logs]
+    restart: always
+    user: "10002:10002"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - "-storageDataPath=/data"
+      - "-retentionPeriod=30d"
+      - "-httpListenAddr=:9428"
+    volumes:
+      - victorialogs_data:/data
+    # Loopback-only host binding so an operator can curl the query
+    # API from the host for ad-hoc debugging without exposing it to
+    # the network.
+    ports:
+      - "127.0.0.1:9428:9428"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
+  # VictoriaMetrics — Apache-2.0 metrics store. Accepts Prometheus
+  # remote-write from the collector at /api/v1/write, MetricsQL on
+  # /api/v1/query.
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.144.0
+    container_name: texera-victoriametrics
+    profiles: [observability-metrics]
+    restart: always
+    user: "10003:10003"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - "-storageDataPath=/data"
+      - "-retentionPeriod=90d"
+      - "-httpListenAddr=:8428"
+    volumes:
+      - victoriametrics_data:/data
+    ports:
+      - "127.0.0.1:8428:8428"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
+  # Jaeger v2 — Apache-2.0 traces backend + UI. v2 accepts OTLP
+  # natively. The query API lives at :16686, OTLP ingest at :4317
+  # (kept inside the bridge network only — only the collector talks
+  # to it).
+  jaeger:
+    image: jaegertracing/jaeger:2.18.0
+    container_name: texera-jaeger
+    profiles: [observability-traces]
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    # In-memory storage for the single-node deployment — restarts
+    # wipe traces. Any deploy needing trace persistence must swap
+    # in Cassandra or OpenSearch-backed storage here.
+    ports:
+      - "127.0.0.1:16686:16686"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
+  # Parca server — Apache-2.0 profiles backend. Reads
+  # bin/observability/parca/parca.yaml (PR 5). FILESYSTEM storage.
+  parca:
+    image: ghcr.io/parca-dev/parca:v0.28.0
+    container_name: texera-parca
+    profiles: [observability-profiles]
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ../observability/parca/parca.yaml:/parca.yaml:ro
+      - parca_data:/var/lib/parca
+    command:
+      - "/parca"
+      - "--config-path=/parca.yaml"
+    ports:
+      - "127.0.0.1:7070:7070"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
+  # Parca eBPF agent — Apache-2.0. Linux-only, privileged.
+  # See bin/observability/parca/README.md for the full deploy
+  # posture. The privileged + bind-mount block here is the ONLY
+  # observability service that requires elevated permissions; the
+  # surface is documented and reviewed.
+  parca-agent:
+    image: ghcr.io/parca-dev/parca-agent:v0.47.1
+    container_name: texera-parca-agent
+    profiles: [observability-profiles]
+    restart: always
+    depends_on:
+      parca:
+        condition: service_started
+    env_file:
+      - ../observability/parca/parca-agent.env
+    # eBPF requires CAP_SYS_ADMIN-class privileges. macOS / Windows
+    # developers cannot run this — they should drop the
+    # observability-profiles profile from COMPOSE_PROFILES.
+    privileged: true
+    pid: "host"
+    # Bind-mount kernel state read-only — the agent reads /proc and
+    # /sys for stack-trace symbolization but cannot write to either.
+    volumes:
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    # parca-agent ships as a distroless image (no /bin/sh), so flags
+    # are passed directly. env_file values above are kept as the
+    # source of truth — edit both if you change a value.
+    command:
+      - "--remote-store-address=parca:7070"
+      - "--remote-store-insecure=true"
+      - "--node=texera-dev"
+      - "--metadata-external-labels=deployment=texera;cluster=local"
+      - "--profiling-cpu-sampling-frequency=19"
+      - "--log-level=info"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
 networks:
   default:
     name: texera-single-node
@@ -496,3 +679,9 @@ volumes:
   minio_data:
   postgres_data:
   workflow_result_data:
+  # Observability storage. Each backend gets its own named volume so
+  # an operator can drop one signal's history (e.g. logs) without
+  # touching the others.
+  victorialogs_data:
+  victoriametrics_data:
+  parca_data:
