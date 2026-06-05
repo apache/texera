@@ -105,9 +105,11 @@ class ResponseParsersSpec extends AnyFlatSpec with Matchers {
     // every record into one blob; Jackson then parsed only the first
     // top-level object and hits dropped to ~0. This test pins the
     // requirement: the parser must keep working on the raw NDJSON.
-    val body = (1 to 5).map(i =>
-      s"""{"_msg":"line $i","_time":"2026-05-28T09:00:0${i % 10}.000Z","severity_text":"INFO"}"""
-    ).mkString("\n")
+    val body = (1 to 5)
+      .map(i =>
+        s"""{"_msg":"line $i","_time":"2026-05-28T09:00:0${i % 10}.000Z","severity_text":"INFO"}"""
+      )
+      .mkString("\n")
     val Right(parsed) = ResponseParsers.parseLogs(body, pageSize = 100)
     parsed.entries should have size 5
     parsed.entries.map(_.body) shouldBe Seq("line 1", "line 2", "line 3", "line 4", "line 5")
@@ -116,9 +118,11 @@ class ResponseParsersSpec extends AnyFlatSpec with Matchers {
   it should "produce only 1 (or 0) entries on the broken path where newlines were stripped" in {
     // Demonstrates the pre-fix failure mode: simulate the previous
     // sanitize-then-parse pipeline by stripping '\n' first.
-    val body = (1 to 5).map(i =>
-      s"""{"_msg":"line $i","_time":"2026-05-28T09:00:0${i % 10}.000Z","severity_text":"INFO"}"""
-    ).mkString("\n")
+    val body = (1 to 5)
+      .map(i =>
+        s"""{"_msg":"line $i","_time":"2026-05-28T09:00:0${i % 10}.000Z","severity_text":"INFO"}"""
+      )
+      .mkString("\n")
     val collapsed = body.replace("\n", "")
     val Right(parsed) = ResponseParsers.parseLogs(collapsed, pageSize = 100)
     parsed.entries.size should (be <= 1)
@@ -127,21 +131,24 @@ class ResponseParsersSpec extends AnyFlatSpec with Matchers {
   // ---- per-entry secret redaction -----------------------------------
 
   it should "redact bearer tokens inside the entry body via LogSanitizer" in {
-    val body = """{"_msg":"sent Authorization: Bearer abcdefghijklmnop with the request","_time":"2026-05-28T09:00:00.000Z","severity_text":"INFO"}"""
+    val body =
+      """{"_msg":"sent Authorization: Bearer abcdefghijklmnop with the request","_time":"2026-05-28T09:00:00.000Z","severity_text":"INFO"}"""
     val Right(parsed) = ResponseParsers.parseLogs(body, pageSize = 1)
     parsed.entries.head.body should not include "Bearer abcdefghijklmnop"
     parsed.entries.head.body should include("[REDACTED]")
   }
 
   it should "redact password=value patterns inside attribute values" in {
-    val body = """{"_msg":"ok","_time":"2026-05-28T09:00:00.000Z","severity_text":"INFO","leak":"password=hunter2"}"""
+    val body =
+      """{"_msg":"ok","_time":"2026-05-28T09:00:00.000Z","severity_text":"INFO","leak":"password=hunter2"}"""
     val Right(parsed) = ResponseParsers.parseLogs(body, pageSize = 1)
     parsed.entries.head.attributes("leak") should not include "hunter2"
     parsed.entries.head.attributes("leak") should include("[REDACTED]")
   }
 
   it should "redact AWS access key IDs anywhere in the entry" in {
-    val body = """{"_msg":"key seen: AKIAIOSFODNN7EXAMPLE in handler","_time":"2026-05-28T09:00:00.000Z","severity_text":"WARN"}"""
+    val body =
+      """{"_msg":"key seen: AKIAIOSFODNN7EXAMPLE in handler","_time":"2026-05-28T09:00:00.000Z","severity_text":"WARN"}"""
     val Right(parsed) = ResponseParsers.parseLogs(body, pageSize = 1)
     parsed.entries.head.body should not include "AKIAIOSFODNN7EXAMPLE"
     parsed.entries.head.body should include("[REDACTED]")
@@ -159,9 +166,12 @@ class ResponseParsersSpec extends AnyFlatSpec with Matchers {
         |  {"value":"{service=\"dashboard-service\",texera.workflow.id=\"3\",texera.computing_unit.id=\"99\",texera.user.id=\"1\"}","hits":2}
         |]}""".stripMargin
 
-    val Right(parsed) = ResponseParsers.parseLogSources(body, allowedWorkflowIds = Set(3L, 441L, 442L))
+    val Right(parsed) =
+      ResponseParsers.parseLogSources(body, allowedWorkflowIds = Set(3L, 441L, 442L))
     parsed.services should contain theSameElementsAs Seq(
-      "dashboard-service", "texera-web", "workflow-runtime-coordinator-service"
+      "dashboard-service",
+      "texera-web",
+      "workflow-runtime-coordinator-service"
     )
     // Workflow 442 is allowed but not seen → not returned. Workflow ids
     // we saw but the user can't access (e.g. another tenant) are filtered out.
@@ -183,7 +193,8 @@ class ResponseParsersSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "be empty when VL has no streams yet" in {
-    val Right(parsed) = ResponseParsers.parseLogSources("""{"values":[]}""", allowedWorkflowIds = Set(1L))
+    val Right(parsed) =
+      ResponseParsers.parseLogSources("""{"values":[]}""", allowedWorkflowIds = Set(1L))
     parsed.services shouldBe empty
     parsed.workflowIds shouldBe empty
     parsed.computingUnitIds shouldBe empty

@@ -25,16 +25,9 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzEmptyComponent } from "ng-zorro-antd/empty";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { Subject, takeUntil } from "rxjs";
-import {
-  ObservabilityService,
-  ValidationError,
-} from "../../../../service/user/observability/observability.service";
+import { ObservabilityService, ValidationError } from "../../../../service/user/observability/observability.service";
 import { TracesPivotService } from "../../../../service/user/observability/traces-pivot.service";
-import {
-  TRACE_ID_RE,
-  TraceSpan,
-  TracesGetResponse,
-} from "../../../../service/user/observability/observability.types";
+import { TRACE_ID_RE, TraceSpan, TracesGetResponse } from "../../../../service/user/observability/observability.types";
 
 /**
  * Trace tree panel.
@@ -59,14 +52,7 @@ import {
   selector: "texera-observability-traces-panel",
   templateUrl: "./traces-panel.component.html",
   styleUrls: ["./traces-panel.component.scss"],
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    NzAlertComponent,
-    NzButtonComponent,
-    NzEmptyComponent,
-    NzInputDirective,
-  ],
+  imports: [CommonModule, ReactiveFormsModule, NzAlertComponent, NzButtonComponent, NzEmptyComponent, NzInputDirective],
 })
 export class TracesPanelComponent implements OnInit, OnChanges, OnDestroy {
   /** Set by the shell after a logs→traces pivot. Changes here
@@ -74,10 +60,7 @@ export class TracesPanelComponent implements OnInit, OnChanges, OnDestroy {
   @Input() initialTraceId: string | null = null;
 
   form = new FormGroup({
-    traceId: new FormControl<string>("", [
-      Validators.required,
-      Validators.pattern(TRACE_ID_RE),
-    ]),
+    traceId: new FormControl<string>("", [Validators.required, Validators.pattern(TRACE_ID_RE)]),
   });
 
   loading = false;
@@ -129,17 +112,20 @@ export class TracesPanelComponent implements OnInit, OnChanges, OnDestroy {
     this.spanTree = [];
 
     try {
-      this.observabilityService.getTrace(id).subscribe({
-        next: resp => {
-          this.trace = resp;
-          this.spanTree = buildSpanTree(resp.spans);
-          this.loading = false;
-        },
-        error: err => {
-          this.errorMessage = humanizeError(err);
-          this.loading = false;
-        },
-      });
+      this.observabilityService
+        .getTrace(id)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: resp => {
+            this.trace = resp;
+            this.spanTree = buildSpanTree(resp.spans);
+            this.loading = false;
+          },
+          error: (err: unknown) => {
+            this.errorMessage = humanizeError(err);
+            this.loading = false;
+          },
+        });
     } catch (e) {
       if (e instanceof ValidationError) {
         this.errorMessage = e.message;

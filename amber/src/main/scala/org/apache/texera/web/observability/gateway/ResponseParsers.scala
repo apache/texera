@@ -30,22 +30,22 @@ import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 /**
- * Pure response parsers for the four observability backends.
- *
- * Each method takes the post-redaction body string and returns either
- * a typed response DTO or a [[GatewayError]] with code
- * "bad_backend_response" (HTTP 502). Parsers never throw — they trap
- * Jackson errors and turn them into Lefts so the resource layer can
- * surface a clean error to the UI.
- *
- * Design notes:
- *   - JsonNode traversal (not bind-to-case-class) so unexpected extra
- *     fields are ignored rather than failing the whole response.
- *   - Hard caps via [[dtos.MaxPageSize]] on every collection field —
- *     a backend that returns a million records cannot OOM us.
- *   - Pure functions: no I/O, no clock reads, no global state. The
- *     spec exercises every branch with captured fixtures.
- */
+  * Pure response parsers for the four observability backends.
+  *
+  * Each method takes the post-redaction body string and returns either
+  * a typed response DTO or a [[GatewayError]] with code
+  * "bad_backend_response" (HTTP 502). Parsers never throw — they trap
+  * Jackson errors and turn them into Lefts so the resource layer can
+  * surface a clean error to the UI.
+  *
+  * Design notes:
+  *   - JsonNode traversal (not bind-to-case-class) so unexpected extra
+  *     fields are ignored rather than failing the whole response.
+  *   - Hard caps via [[dtos.MaxPageSize]] on every collection field —
+  *     a backend that returns a million records cannot OOM us.
+  *   - Pure functions: no I/O, no clock reads, no global state. The
+  *     spec exercises every branch with captured fixtures.
+  */
 object ResponseParsers extends LazyLogging {
 
   private val mapper: ObjectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
@@ -62,9 +62,19 @@ object ResponseParsers extends LazyLogging {
   // ---- logs (VictoriaLogs LogsQL NDJSON) ------------------------------
 
   /** Keys that map to first-class fields on [[LogEntryResponse]] and
-   *  therefore should NOT be re-emitted as attributes. */
+    *  therefore should NOT be re-emitted as attributes.
+    */
   private val LogReservedKeys: Set[String] =
-    Set("_msg", "_time", "trace_id", "span_id", "severity_text", "severity_number", "_stream", "_stream_id")
+    Set(
+      "_msg",
+      "_time",
+      "trace_id",
+      "span_id",
+      "severity_text",
+      "severity_number",
+      "_stream",
+      "_stream_id"
+    )
 
   def parseLogs(body: String, pageSize: Int): Either[GatewayError, LogsSearchResponse] = {
     val cap = pageSize.max(1).min(MaxPageSize)
@@ -85,11 +95,11 @@ object ResponseParsers extends LazyLogging {
   // ---- log sources (VictoriaLogs /streams) --------------------------
 
   /** Pattern that extracts a single label=value pair out of a LogsQL
-   *  stream selector body. Stream labels are written
-   *  ``key="value"`` (or ``key=value`` for legacy data). We require
-   *  the equals sign; anything that doesn't look like a label is
-   *  silently skipped — never throws.
-   */
+    *  stream selector body. Stream labels are written
+    *  ``key="value"`` (or ``key=value`` for legacy data). We require
+    *  the equals sign; anything that doesn't look like a label is
+    *  silently skipped — never throws.
+    */
   private val StreamLabelPattern = """([a-zA-Z0-9_.-]+)\s*=\s*"?([^",}]*)"?""".r
 
   def parseLogSources(
@@ -135,24 +145,29 @@ object ResponseParsers extends LazyLogging {
         // will only ever see those CUs' / users' log records via
         // the same scope path).
         val allowedWorkflows = workflowIds.iterator.filter(allowedWorkflowIds.contains).toSeq
-        Right(LogSourcesResponse(
-          services = services.toSeq.sorted,
-          workflowIds = allowedWorkflows.sorted,
-          computingUnitIds = cuIds.toSeq.sorted,
-          userIds = userIds.toSeq.sorted
-        ))
+        Right(
+          LogSourcesResponse(
+            services = services.toSeq.sorted,
+            workflowIds = allowedWorkflows.sorted,
+            computingUnitIds = cuIds.toSeq.sorted,
+            userIds = userIds.toSeq.sorted
+          )
+        )
     }
   }
 
   /** Per-entry redaction. Replaces the whole-body sanitize that used
-   *  to run before parsing — that approach stripped '\n' from the
-   *  NDJSON stream and collapsed every record into a single blob.
-   *  Sanitizing each field after parsing preserves line boundaries
-   *  and still scrubs secret patterns / oversized bodies. */
+    *  to run before parsing — that approach stripped '\n' from the
+    *  NDJSON stream and collapsed every record into a single blob.
+    *  Sanitizing each field after parsing preserves line boundaries
+    *  and still scrubs secret patterns / oversized bodies.
+    */
   private def redactLogEntry(entry: LogEntryResponse): LogEntryResponse =
     entry.copy(
       body = LogSanitizer.sanitize(entry.body),
-      attributes = entry.attributes.iterator.map { case (k, v) => k -> LogSanitizer.sanitize(v) }.toMap
+      attributes = entry.attributes.iterator.map {
+        case (k, v) => k -> LogSanitizer.sanitize(v)
+      }.toMap
     )
 
   private def parseLogEntry(node: JsonNode): LogEntryResponse = {
@@ -242,7 +257,9 @@ object ResponseParsers extends LazyLogging {
     val parentSpanId = {
       val refs = node.path("references")
       if (refs.isArray) {
-        refs.iterator().asScala
+        refs
+          .iterator()
+          .asScala
           .find(r => r.path("refType").asText("") == "CHILD_OF")
           .map(_.path("spanID").asText(""))
           .filter(_.nonEmpty)

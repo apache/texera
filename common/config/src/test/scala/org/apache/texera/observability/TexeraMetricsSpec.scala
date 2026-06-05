@@ -93,7 +93,9 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
       "texera.workflow.duration"
     )
 
-    metrics("texera.workflow.completions").getLongSumData.getPoints.asScala.head.getValue shouldBe 1L
+    metrics(
+      "texera.workflow.completions"
+    ).getLongSumData.getPoints.asScala.head.getValue shouldBe 1L
 
     val histogram = metrics("texera.workflow.duration").getHistogramData.getPoints.asScala.head
     histogram.getCount shouldBe 1L
@@ -111,7 +113,9 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
     // series the query never reads).
     val completion = metrics("texera.workflow.completions").getLongSumData.getPoints.asScala.head
     completion.getValue shouldBe 1L
-    completion.getAttributes.asMap.asScala.map { case (k, v) => k.getKey -> v.toString } should contain(
+    completion.getAttributes.asMap.asScala.map {
+      case (k, v) => k.getKey -> v.toString
+    } should contain(
       "texera.outcome" -> "failure"
     )
     metrics("texera.workflow.duration").getHistogramData.getPoints.asScala.head.getSum shouldBe 12.0
@@ -124,7 +128,9 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
     TexeraMetrics.recordCancellation(TexeraMetrics.WorkflowKind.Interactive)
 
     val metrics = collectAll()
-    metrics("texera.workflow.cancellations").getLongSumData.getPoints.asScala.head.getValue shouldBe 1L
+    metrics(
+      "texera.workflow.cancellations"
+    ).getLongSumData.getPoints.asScala.head.getValue shouldBe 1L
     // A kill is not a completion and records no duration: it must not
     // drag down the success rate nor skew the duration percentiles.
     metrics.keySet should not contain "texera.workflow.completions"

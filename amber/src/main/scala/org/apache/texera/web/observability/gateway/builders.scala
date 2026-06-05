@@ -22,21 +22,22 @@ package org.apache.texera.web.observability.gateway
 import org.apache.texera.web.observability.gateway.dtos._
 
 /**
- * Typed query builders. Each takes a validated DTO + the caller's
- * resolved scope and returns a backend-specific query string + the
- * query parameters that should accompany it.
- *
- * Security invariant: no field of the input DTO is concatenated into
- * the output query without first passing through a typed accessor.
- * Even free-text fields are emitted only as escaped *values* in the
- * query DSL — never as DSL syntax.
- *
- * Each builder is pure (no side effects, no I/O). Exhaustive
- * injection tests live in BuildersSpec.
- */
+  * Typed query builders. Each takes a validated DTO + the caller's
+  * resolved scope and returns a backend-specific query string + the
+  * query parameters that should accompany it.
+  *
+  * Security invariant: no field of the input DTO is concatenated into
+  * the output query without first passing through a typed accessor.
+  * Even free-text fields are emitted only as escaped *values* in the
+  * query DSL — never as DSL syntax.
+  *
+  * Each builder is pure (no side effects, no I/O). Exhaustive
+  * injection tests live in BuildersSpec.
+  */
 
 /** Tenancy / scope envelope. Computed by [[ObservabilityScope]];
- *  every builder consumes it so the caller cannot widen scope. */
+  *  every builder consumes it so the caller cannot widen scope.
+  */
 case class GatewayScope(
     userId: Long,
     allowedWorkflowIds: Set[Long],
@@ -44,17 +45,19 @@ case class GatewayScope(
 ) {
 
   /** Allowed list joined as the typed parameter to a backend query.
-   *  Empty allowed-set yields "0" (a workflow id that cannot exist),
-   *  which produces a zero-result query without breaking syntax. */
+    *  Empty allowed-set yields "0" (a workflow id that cannot exist),
+    *  which produces a zero-result query without breaking syntax.
+    */
   def workflowIdsCsv: String = {
     if (allowedWorkflowIds.isEmpty) "0"
     else allowedWorkflowIds.toSeq.sorted.mkString(",")
   }
 
   /** Allowed list joined as a regex-alternation body (no anchors, no
-   *  parens). For use inside a LogsQL stream filter as
-   *  ``field=~"^(<body>)$"``. Empty allow-set yields "0" — a numeric
-   *  literal that matches nothing real and keeps regex syntax valid. */
+    *  parens). For use inside a LogsQL stream filter as
+    *  ``field=~"^(<body>)$"``. Empty allow-set yields "0" — a numeric
+    *  literal that matches nothing real and keeps regex syntax valid.
+    */
   def workflowIdsRegexAlt: String = {
     if (allowedWorkflowIds.isEmpty) "0"
     else allowedWorkflowIds.toSeq.sorted.mkString("|")
@@ -64,12 +67,13 @@ case class GatewayScope(
 object LogsQLBuilder {
 
   /** Build a LogsQL query for VictoriaLogs. Returned string is safe
-   *  to ship as the ``query`` URL parameter to /select/logsql/query.
-   *
-   *  Layout: stream selector (label filters) then optional pipe
-   *  filters for body text. Free text is passed only to the
-   *  ``contains`` filter as a *value*, with backslashes and quotes
-   *  escaped. */
+    *  to ship as the ``query`` URL parameter to /select/logsql/query.
+    *
+    *  Layout: stream selector (label filters) then optional pipe
+    *  filters for body text. Free text is passed only to the
+    *  ``contains`` filter as a *value*, with backslashes and quotes
+    *  escaped.
+    */
   def build(req: ValidatedLogsRequest, scope: GatewayScope): String = {
     val sb = new StringBuilder
     // Start with the wildcard so a query without any filter clauses
@@ -177,16 +181,18 @@ object LogsQLBuilder {
   }
 
   /** LogsQL `| sort by (...)` fragment for the requested order. */
-  private[gateway] def sortPipe(sort: LogSort): String = sort match {
-    case LogSort.NewestFirst  => "| sort by (_time desc)"
-    case LogSort.OldestFirst  => "| sort by (_time asc)"
-    case LogSort.SeverityHigh => "| sort by (severity_number desc, _time desc)"
-    case LogSort.ServiceAsc   => "| sort by (service asc, _time desc)"
-  }
+  private[gateway] def sortPipe(sort: LogSort): String =
+    sort match {
+      case LogSort.NewestFirst  => "| sort by (_time desc)"
+      case LogSort.OldestFirst  => "| sort by (_time asc)"
+      case LogSort.SeverityHigh => "| sort by (severity_number desc, _time desc)"
+      case LogSort.ServiceAsc   => "| sort by (service asc, _time desc)"
+    }
 
   /** Escape a value for embedding inside a LogsQL double-quoted
-   *  string. Backslash and double-quote are the only metacharacters
-   *  we need to handle. */
+    *  string. Backslash and double-quote are the only metacharacters
+    *  we need to handle.
+    */
   private[gateway] def escapeForLogsQL(value: String): String = {
     val out = new StringBuilder(value.length + 8)
     var i = 0
@@ -203,9 +209,10 @@ object LogsQLBuilder {
 object MetricsQLBuilder {
 
   /** Server-side templates for the named queries we expose. The
-   *  client picks the name; we substitute only the validated
-   *  step + window parameters. There is no public path for the
-   *  client to supply raw MetricsQL. */
+    *  client picks the name; we substitute only the validated
+    *  step + window parameters. There is no public path for the
+    *  client to supply raw MetricsQL.
+    */
   def build(req: ValidatedMetricsRequest): String = {
     // Per-bucket lookback window for the rate()/increase() family. Tied
     // to the caller's step so each plotted point summarises its own bucket.
@@ -255,8 +262,9 @@ object MetricsQLBuilder {
 object JaegerQueryBuilder {
 
   /** Path component for the Jaeger Query API GET /api/traces/{id}.
-   *  The trace id has already been regex-validated in the DTO
-   *  layer, so this is a safe straight pass-through. */
+    *  The trace id has already been regex-validated in the DTO
+    *  layer, so this is a safe straight pass-through.
+    */
   def tracePath(req: ValidatedTracesGetRequest): String =
     s"/api/traces/${req.traceId}"
 }

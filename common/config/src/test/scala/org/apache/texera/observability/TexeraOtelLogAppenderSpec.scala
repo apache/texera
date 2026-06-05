@@ -36,8 +36,9 @@ import scala.jdk.CollectionConverters._
 class TexeraOtelLogAppenderSpec extends AnyFlatSpec with Matchers {
 
   /** Build an OpenTelemetry SDK whose LoggerProvider drains to the
-   *  given in-memory exporter via the synchronous SimpleLogRecordProcessor,
-   *  so tests don't depend on batch timing. */
+    *  given in-memory exporter via the synchronous SimpleLogRecordProcessor,
+    *  so tests don't depend on batch timing.
+    */
   private def newFixture(): (OpenTelemetry, InMemoryLogRecordExporter, TexeraOtelLogAppender) = {
     val exporter = InMemoryLogRecordExporter.create()
     val lp = SdkLoggerProvider
@@ -83,7 +84,13 @@ class TexeraOtelLogAppenderSpec extends AnyFlatSpec with Matchers {
       appender.doAppend(makeEvent(s"msg-$lvl", lvl))
     }
     val severities = exporter.getFinishedLogRecordItems.asScala.map(_.getSeverity).toSet
-    severities shouldBe Set(Severity.TRACE, Severity.DEBUG, Severity.INFO, Severity.WARN, Severity.ERROR)
+    severities shouldBe Set(
+      Severity.TRACE,
+      Severity.DEBUG,
+      Severity.INFO,
+      Severity.WARN,
+      Severity.ERROR
+    )
   }
 
   // ----- security: sanitisation happens at the boundary -----------------

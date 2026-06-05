@@ -16,7 +16,9 @@
  specific language governing permissions and limitations
  under the License.
 -->
-<form [formGroup]="form" class="traces-panel">
+<form
+  [formGroup]="form"
+  class="traces-panel">
   <div class="row">
     <input
       nz-input
@@ -41,17 +43,22 @@
     nzShowIcon></nz-alert>
 </form>
 
-<div class="tree" *ngIf="trace; else noTrace">
-  <p class="trace-header">
-    Trace <span class="mono">{{ trace.traceId }}</span> — {{ trace.spans.length }} span(s)
-  </p>
+<div
+  class="tree"
+  *ngIf="trace; else noTrace">
+  <p class="trace-header">Trace <span class="mono">{{ trace.traceId }}</span> — {{ trace.spans.length }} span(s)</p>
 
-  <ng-container *ngTemplateOutlet="nodeTpl; context: { nodes: spanTree, depth: 0 }">
-  </ng-container>
+  <ng-container *ngTemplateOutlet="nodeTpl; context: { nodes: spanTree, depth: 0 }"> </ng-container>
 
-  <ng-template #nodeTpl let-nodes="nodes" let-depth="depth">
+  <ng-template
+    #nodeTpl
+    let-nodes="nodes"
+    let-depth="depth">
     <ul class="span-list">
-      <li *ngFor="let n of nodes" class="span-row" [style.paddingLeft.px]="depth * 16">
+      <li
+        *ngFor="let n of nodes"
+        class="span-row"
+        [style.paddingLeft.px]="depth * 16">
         <!--
           Span name is bound via {{ }} interpolation only — never
           via [innerHTML]. The gateway has redacted it, but the
@@ -59,15 +66,15 @@
         -->
         <span class="span-name">{{ n.span.name }}</span>
         <span class="duration">{{ n.durationMs }} ms</span>
-        <ul class="attrs" *ngIf="n.span.attributes && (n.span.attributes | keyvalue)?.length">
+        <ul
+          class="attrs"
+          *ngIf="n.span.attributes && (n.span.attributes | keyvalue)?.length">
           <li *ngFor="let attr of n.span.attributes | keyvalue">
             <span class="attr-key">{{ attr.key }}</span>
             <span class="attr-val">{{ attr.value }}</span>
           </li>
         </ul>
-        <ng-container
-          *ngTemplateOutlet="nodeTpl; context: { nodes: n.children, depth: depth + 1 }">
-        </ng-container>
+        <ng-container *ngTemplateOutlet="nodeTpl; context: { nodes: n.children, depth: depth + 1 }"> </ng-container>
       </li>
     </ul>
   </ng-template>

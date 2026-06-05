@@ -21,14 +21,14 @@ package org.apache.texera.config
 import com.typesafe.config.{Config, ConfigFactory}
 
 /**
- * Query endpoints for the observability dashboard's backend gateway.
- *
- * Source of truth is `observability-gateway.conf`, which defaults to the
- * host-local stack and lets each URL be overridden per deployment via the
- * `TEXERA_OBS_*_URL` env vars (docker-compose sets these to the bridge-network
- * service names). This is the query side; the OTLP export endpoint that
- * services push to is configured separately in [[org.apache.texera.observability.OtelInit]].
- */
+  * Query endpoints for the observability dashboard's backend gateway.
+  *
+  * Source of truth is `observability-gateway.conf`, which defaults to the
+  * host-local stack and lets each URL be overridden per deployment via the
+  * `TEXERA_OBS_*_URL` env vars (docker-compose sets these to the bridge-network
+  * service names). This is the query side; the OTLP export endpoint that
+  * services push to is configured separately in [[org.apache.texera.observability.OtelInit]].
+  */
 object ObservabilityGatewayConfig {
   private val conf: Config =
     ConfigFactory.parseResources("observability-gateway.conf").resolve()

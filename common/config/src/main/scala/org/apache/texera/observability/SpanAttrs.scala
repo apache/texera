@@ -23,27 +23,28 @@ import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.trace.{Span, SpanBuilder}
 
 /**
- * Thin helper for setting span attributes safely.
- *
- * Three rules:
- *  1. Typed setters only — no public escape hatch for arbitrary
- *     untyped strings to land on a span as untrusted free text.
- *  2. Free-text values are CRLF-stripped + capped at
- *     [[FreeTextMaxLen]] to prevent log/span forging via embedded
- *     newlines.
- *  3. Operator IDs and workflow/execution IDs must match a strict
- *     character set — otherwise dropped silently (the operator
- *     identifier should be a stable internal value, not user free
- *     text).
- */
+  * Thin helper for setting span attributes safely.
+  *
+  * Three rules:
+  *  1. Typed setters only — no public escape hatch for arbitrary
+  *     untyped strings to land on a span as untrusted free text.
+  *  2. Free-text values are CRLF-stripped + capped at
+  *     [[FreeTextMaxLen]] to prevent log/span forging via embedded
+  *     newlines.
+  *  3. Operator IDs and workflow/execution IDs must match a strict
+  *     character set — otherwise dropped silently (the operator
+  *     identifier should be a stable internal value, not user free
+  *     text).
+  */
 object SpanAttrs {
 
   /** Maximum length for free-text span attribute values. */
   val FreeTextMaxLen: Int = 256
 
   /** Validates the shape we accept for operator IDs: alnum + `_.-`,
-   *  1–64 chars. Anything else is dropped (not coerced — we'd rather
-   *  miss a label than leak an unbounded string into a span). */
+    *  1–64 chars. Anything else is dropped (not coerced — we'd rather
+    *  miss a label than leak an unbounded string into a span).
+    */
   private val OperatorIdPattern = "^[A-Za-z0-9_.\\-]{1,64}$".r.pattern
 
   // ---- Standard Texera correlation labels ------------------------------
@@ -71,8 +72,9 @@ object SpanAttrs {
     b.setAttribute(UserId, java.lang.Long.valueOf(id))
 
   /** Sets the operator id only if it passes the strict character
-   *  check; otherwise the attribute is omitted. Returns the same
-   *  builder either way for fluent chaining. */
+    *  check; otherwise the attribute is omitted. Returns the same
+    *  builder either way for fluent chaining.
+    */
   def withOperatorId(b: SpanBuilder, id: String): SpanBuilder = {
     if (id != null && OperatorIdPattern.matcher(id).matches()) {
       b.setAttribute(OperatorId, id)
@@ -88,8 +90,10 @@ object SpanAttrs {
 
   // ---- Typed setters for Span (used after a span is active) ------------
 
-  def setWorkflowId(s: Span, id: Long): Span = s.setAttribute(WorkflowId, java.lang.Long.valueOf(id))
-  def setExecutionId(s: Span, id: Long): Span = s.setAttribute(ExecutionId, java.lang.Long.valueOf(id))
+  def setWorkflowId(s: Span, id: Long): Span =
+    s.setAttribute(WorkflowId, java.lang.Long.valueOf(id))
+  def setExecutionId(s: Span, id: Long): Span =
+    s.setAttribute(ExecutionId, java.lang.Long.valueOf(id))
   def setOperatorId(s: Span, id: String): Span = {
     if (id != null && OperatorIdPattern.matcher(id).matches()) s.setAttribute(OperatorId, id)
     else s
@@ -102,13 +106,13 @@ object SpanAttrs {
   // ---- Pure helpers (exposed for testing) ------------------------------
 
   /**
-   * Strip CR/LF and other C0 control characters from a free-text
-   * value, then cap at [[FreeTextMaxLen]]. Returns null for
-   * null/empty input (caller skips the setAttribute call).
-   */
+    * Strip CR/LF and other C0 control characters from a free-text
+    * value, then cap at [[FreeTextMaxLen]]. Returns null for
+    * null/empty input (caller skips the setAttribute call).
+    */
   def sanitizeFreeText(value: String): String = {
     if (value == null || value.isEmpty) return null
-    val stripped = value.filter(c => c >= 0x20 && c != 0x7F)
+    val stripped = value.filter(c => c >= 0x20 && c != 0x7f)
     if (stripped.isEmpty) null
     else if (stripped.length <= FreeTextMaxLen) stripped
     else stripped.substring(0, FreeTextMaxLen)
