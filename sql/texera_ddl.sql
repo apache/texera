@@ -74,6 +74,8 @@ DROP TABLE IF EXISTS dataset_user_likes CASCADE;
 DROP TABLE IF EXISTS dataset_view_count CASCADE;
 DROP TABLE IF EXISTS site_settings CASCADE;
 DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
+DROP TABLE IF EXISTS notebook CASCADE;
+DROP TABLE IF EXISTS workflow_notebook_mapping CASCADE;
 
 -- ============================================
 -- 4. Create PostgreSQL enum types
@@ -433,6 +435,28 @@ CREATE TABLE IF NOT EXISTS computing_unit_user_access
     PRIMARY KEY (cuid, uid),
     FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE,
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
+
+-- notebook table
+CREATE TABLE IF NOT EXISTS notebook
+(
+    nid         SERIAL  NOT NULL PRIMARY KEY,
+    wid         INT     NOT NULL UNIQUE,
+    notebook    JSONB   NOT NULL,
+    UNIQUE (wid, nid),
+    FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
+);
+
+-- workflow_notebook_mapping table
+CREATE TABLE IF NOT EXISTS workflow_notebook_mapping
+(
+    wid         INT     NOT NULL,
+    vid         INT     NOT NULL,
+    nid         INT     NOT NULL,
+    mapping     JSONB   NOT NULL,
+    PRIMARY KEY (wid, vid, nid),
+    FOREIGN KEY (vid) REFERENCES workflow_version(vid) ON DELETE CASCADE,
+    FOREIGN KEY (wid, nid) REFERENCES notebook(wid, nid) ON DELETE CASCADE
 );
 
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
