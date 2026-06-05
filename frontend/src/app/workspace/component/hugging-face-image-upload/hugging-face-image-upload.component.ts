@@ -22,6 +22,8 @@ import { CommonModule } from "@angular/common";
 import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { NzButtonModule } from "ng-zorro-antd/button";
 
+// Keep in sync with PythonCodegenBase._compress_image_bytes(max_bytes) on the backend:
+// the uploaded data URL must stay within the size the inference helpers expect.
 const MAX_DATA_URL_LENGTH = 45000;
 const INITIAL_MAX_DIMENSION = 512;
 const MIN_MAX_DIMENSION = 160;

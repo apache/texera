@@ -285,7 +285,12 @@ object PythonCodegenBase {
        |                from urllib.parse import urlparse as _urlparse
        |                poll_path = _urlparse(poll_url).path
        |                poll_url = f"{base}{poll_path}"
-       |                for _ in range(300):
+       |                # Worst case: 300 polls × 2s = ~10 minutes per row before we give
+       |                # up. Sized for text-to-video which legitimately takes minutes on
+       |                # Replicate. process_table is synchronous, so emit a progress
+       |                # line every 30 polls (~1 min) to distinguish slow work from a
+       |                # hang in the worker log.
+       |                for poll_idx in range(300):
        |                    _time.sleep(2)
        |                    poll_resp = requests.get(poll_url, headers=json_headers, timeout=30)
        |                    if poll_resp.status_code != 200:
@@ -293,6 +298,8 @@ object PythonCodegenBase {
        |                    status = poll_resp.json().get("status", "")
        |                    if status in ("succeeded", "failed", "canceled"):
        |                        return poll_resp
+       |                    if (poll_idx + 1) % 30 == 0:
+       |                        print(f"[hf] Replicate still running for model '{self.MODEL_ID}' after {(poll_idx + 1) * 2}s; will wait up to 600s.")
        |                return poll_resp
        |            return resp
        |
@@ -323,7 +330,10 @@ object PythonCodegenBase {
        |            result_url = f"{base}{_urlparse(get_path).path}"
        |            import time as _time
        |            poll_resp = submit_resp
-       |            for _ in range(120):
+       |            # Worst case: 120 polls × 1s = ~2 minutes per row. Emit a progress
+       |            # line every 30 polls (~30 s) so the worker log distinguishes slow
+       |            # work from a hang.
+       |            for poll_idx in range(120):
        |                _time.sleep(1)
        |                poll_resp = requests.get(result_url, headers=json_headers, timeout=30)
        |                if poll_resp.status_code != 200:
@@ -331,6 +341,8 @@ object PythonCodegenBase {
        |                status = poll_resp.json().get("data", {}).get("status", "")
        |                if status in ("completed", "failed"):
        |                    return poll_resp
+       |                if (poll_idx + 1) % 30 == 0:
+       |                    print(f"[hf] Wavespeed still running for model '{self.MODEL_ID}' after {poll_idx + 1}s; will wait up to 120s.")
        |            return poll_resp
        |
        |        if provider_name in self.OPENAI_COMPATIBLE_PROVIDERS:

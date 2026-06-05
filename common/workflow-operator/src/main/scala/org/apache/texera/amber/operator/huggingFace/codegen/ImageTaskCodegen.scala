@@ -90,7 +90,12 @@ object ImageTaskCodegen extends TaskCodegen {
       |                use_raw_binary_body = True
       |                raw_binary_headers = image_headers
       |            elif task == "zero-shot-image-classification":
-      |                labels = []
+      |                # Zero-shot requires the caller to supply candidate labels.
+      |                # We reuse the prompt column as a comma-separated label list so
+      |                # the task is shippable without a dedicated operator field.
+      |                # TODO: replace with a first-class `candidateLabels` field once
+      |                # the property panel supports task-specific inputs.
+      |                labels = [s.strip() for s in prompt_value.split(",") if s.strip()]
       |                payload = {
       |                    "inputs": self._image_input_as_base64(current_image_bytes),
       |                    "parameters": {"candidate_labels": labels},
