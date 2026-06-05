@@ -21,6 +21,7 @@ package org.apache.texera.amber.core.tuple;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.texera.amber.pybuilder.EncodableStringAnnotation;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -49,6 +50,7 @@ public class Attribute implements Serializable {
 
     @JsonProperty(value = "attributeName", required = true)
     @NotBlank(message = "Attribute name is required")
+    @EncodableStringAnnotation
     public String getName() {
         return attributeName;
     }
