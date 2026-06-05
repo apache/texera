@@ -95,6 +95,28 @@ object PythonCodegenBase {
        |        "clarifai",
        |    ]
        |
+       |    # Per-provider chat-completions route overrides. Providers not listed
+       |    # here use the default `v1/chat/completions` path. Single source of
+       |    # truth for both _post_with_fallback (text-gen) and _call_provider
+       |    # (OpenAI-compatible fallback) so the two stay in sync as providers
+       |    # are added.
+       |    CHAT_ROUTES = {
+       |        "groq": "openai/v1/chat/completions",
+       |        "fireworks-ai": "inference/v1/chat/completions",
+       |        "cohere": "compatibility/v1/chat/completions",
+       |        "clarifai": "v2/ext/openai/v1/chat/completions",
+       |        "deepinfra": "v1/openai/chat/completions",
+       |    }
+       |
+       |    # Third-party providers that speak the OpenAI chat-completions
+       |    # protocol. Used by _call_provider's OpenAI-compatible branch.
+       |    OPENAI_COMPATIBLE_PROVIDERS = (
+       |        "cerebras", "sambanova", "groq", "novita", "nebius",
+       |        "fireworks-ai", "together", "hyperbolic", "cohere", "clarifai",
+       |        "deepinfra", "featherless-ai", "nscale", "nvidia", "openai",
+       |        "ovhcloud", "publicai", "scaleway", "baseten",
+       |    )
+       |
        |    def open(self):
        |        # User-provided strings reach the operator via base64-encoded
        |        # decode expressions so they cannot break Python syntax or
@@ -159,14 +181,7 @@ object PythonCodegenBase {
        |            provider_id = prov["providerId"]
        |            try:
        |                if self.TASK == "text-generation":
-       |                    chat_routes = {
-       |                        "groq": "openai/v1/chat/completions",
-       |                        "fireworks-ai": "inference/v1/chat/completions",
-       |                        "cohere": "compatibility/v1/chat/completions",
-       |                        "clarifai": "v2/ext/openai/v1/chat/completions",
-       |                        "deepinfra": "v1/openai/chat/completions",
-       |                    }
-       |                    route = chat_routes.get(provider_name, "v1/chat/completions")
+       |                    route = self.CHAT_ROUTES.get(provider_name, "v1/chat/completions")
        |                    url = f"https://router.huggingface.co/{provider_name}/{route}"
        |                    resp = requests.post(url, headers=json_headers, json=pipeline_payload, timeout=120)
        |                elif provider_name == "hf-inference":
@@ -201,21 +216,8 @@ object PythonCodegenBase {
        |        codegens.
        |        '''
        |        base = f"https://router.huggingface.co/{provider_name}"
-       |        CUSTOM_CHAT_ROUTES = {
-       |            "groq": "openai/v1/chat/completions",
-       |            "fireworks-ai": "inference/v1/chat/completions",
-       |            "cohere": "compatibility/v1/chat/completions",
-       |            "clarifai": "v2/ext/openai/v1/chat/completions",
-       |            "deepinfra": "v1/openai/chat/completions",
-       |        }
-       |        openai_providers = (
-       |            "cerebras", "sambanova", "groq", "novita", "nebius",
-       |            "fireworks-ai", "together", "hyperbolic", "cohere", "clarifai",
-       |            "deepinfra", "featherless-ai", "nscale", "nvidia", "openai",
-       |            "ovhcloud", "publicai", "scaleway", "baseten",
-       |        )
-       |        if provider_name in openai_providers:
-       |            url = f"{base}/{CUSTOM_CHAT_ROUTES.get(provider_name, 'v1/chat/completions')}"
+       |        if provider_name in self.OPENAI_COMPATIBLE_PROVIDERS:
+       |            url = f"{base}/{self.CHAT_ROUTES.get(provider_name, 'v1/chat/completions')}"
        |            messages = [{"role": "user", "content": prompt_value}]
        |            return requests.post(
        |                url,
@@ -351,7 +353,10 @@ object PythonCodegenBase {
        |        return f"{title}: {detail}"
        |
        |    def _format_http_error(self, title, status_code, response_text):
-       |        detail = response_text.strip()
+       |        # Cap at 200 chars to match the truncation in _post_with_fallback's
+       |        # error-detail extraction; a large body / HTML error page would
+       |        # otherwise land verbatim in the result cell.
+       |        detail = response_text.strip()[:200]
        |        if not detail:
        |            detail = "<empty response>"
        |        return f"{title} [status={status_code}] response={detail}"
