@@ -26,14 +26,14 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 
 /**
- * Smoke test for the bundled Parca configuration files.
- *
- * Intentionally lightweight: we are guarding against accidental
- * deletion / emptying / tag drift, not validating Parca's schema.
- * The real config validation happens when the agent starts up
- * inside its container — but a unit-level smoke test catches typos
- * before a developer pushes them.
- */
+  * Smoke test for the bundled Parca configuration files.
+  *
+  * Intentionally lightweight: we are guarding against accidental
+  * deletion / emptying / tag drift, not validating Parca's schema.
+  * The real config validation happens when the agent starts up
+  * inside its container — but a unit-level smoke test catches typos
+  * before a developer pushes them.
+  */
 class ParcaConfigSpec extends AnyFlatSpec with Matchers {
 
   // sbt runs tests with the module dir as CWD, but a developer who
@@ -100,8 +100,7 @@ class ParcaConfigSpec extends AnyFlatSpec with Matchers {
     // This assertion makes the design intent enforceable. Comments
     // are skipped — they're allowed (and required) to explain the
     // rule.
-    val configLines = new String(Files.readAllBytes(agentEnv), StandardCharsets.UTF_8)
-      .linesIterator
+    val configLines = new String(Files.readAllBytes(agentEnv), StandardCharsets.UTF_8).linesIterator
       .map(_.trim)
       .filter(line => line.nonEmpty && !line.startsWith("#"))
       .toSeq

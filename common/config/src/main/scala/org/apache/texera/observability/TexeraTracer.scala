@@ -24,22 +24,22 @@ import io.opentelemetry.api.trace.{Span, SpanBuilder, StatusCode, Tracer}
 import io.opentelemetry.context.{Context, Scope}
 
 /**
- * Thin convenience wrapper around the global OTel tracer.
- *
- * Two reasons to go through this rather than calling
- * ``GlobalOpenTelemetry.getTracer`` directly at every callsite:
- *
- *  1. Single instrumentation scope name (``org.apache.texera``) — so
- *     every Texera-produced span shows up under one logical scope in
- *     the backend, separable from anything emitted by transitive
- *     libraries.
- *  2. One ergonomic ``withSpan`` API that handles exception → status,
- *     scope cleanup, and span end in a single try/finally. Callers
- *     don't have to remember the ceremony at every site.
- *
- * When the SDK is disabled, ``GlobalOpenTelemetry.getTracer`` returns
- * a no-op tracer, so calling these methods is safe at any time.
- */
+  * Thin convenience wrapper around the global OTel tracer.
+  *
+  * Two reasons to go through this rather than calling
+  * ``GlobalOpenTelemetry.getTracer`` directly at every callsite:
+  *
+  *  1. Single instrumentation scope name (``org.apache.texera``) — so
+  *     every Texera-produced span shows up under one logical scope in
+  *     the backend, separable from anything emitted by transitive
+  *     libraries.
+  *  2. One ergonomic ``withSpan`` API that handles exception → status,
+  *     scope cleanup, and span end in a single try/finally. Callers
+  *     don't have to remember the ceremony at every site.
+  *
+  * When the SDK is disabled, ``GlobalOpenTelemetry.getTracer`` returns
+  * a no-op tracer, so calling these methods is safe at any time.
+  */
 object TexeraTracer {
 
   private val InstrumentationScope = "org.apache.texera"
@@ -49,13 +49,13 @@ object TexeraTracer {
   def spanBuilder(name: String): SpanBuilder = tracer.spanBuilder(name)
 
   /**
-   * Run ``block`` inside a fresh span; record exceptions, propagate
-   * the right span status, and ensure the span is ended exactly once.
-   *
-   * Use this for synchronous critical sections. For async (Future-
-   * returning) code paths use ``withAsyncSpan`` so the span doesn't
-   * close before the async work completes.
-   */
+    * Run ``block`` inside a fresh span; record exceptions, propagate
+    * the right span status, and ensure the span is ended exactly once.
+    *
+    * Use this for synchronous critical sections. For async (Future-
+    * returning) code paths use ``withAsyncSpan`` so the span doesn't
+    * close before the async work completes.
+    */
   def withSpan[T](name: String, configure: SpanBuilder => SpanBuilder = identity)(
       block: Span => T
   ): T = {
@@ -75,10 +75,10 @@ object TexeraTracer {
   }
 
   /**
-   * Snapshot the current OTel ``Context`` so async callbacks can
-   * re-attach it via ``Context.makeCurrent`` later. Useful at the
-   * Scala↔Python boundary where the calling thread is not the
-   * receiving thread.
-   */
+    * Snapshot the current OTel ``Context`` so async callbacks can
+    * re-attach it via ``Context.makeCurrent`` later. Useful at the
+    * Scala↔Python boundary where the calling thread is not the
+    * receiving thread.
+    */
   def currentContext: Context = Context.current()
 }

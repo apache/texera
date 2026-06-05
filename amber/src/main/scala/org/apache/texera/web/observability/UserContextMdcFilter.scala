@@ -33,21 +33,21 @@ import javax.ws.rs.ext.Provider
 import javax.ws.rs.Priorities
 
 /**
- * Jersey filter that pushes the authenticated user's id into the
- * SLF4J MDC so every log record emitted while handling the request
- * carries `texera.user.id`.
- *
- * Why Jersey and not a Servlet filter:
- *  - Authentication is wired as a Jersey `ContainerRequestFilter`
- *    (see [[org.apache.texera.auth.JwtAuthFilter]]) — by the time
- *    Servlet filters run, `SecurityContext.getUserPrincipal` is
- *    still null. A Jersey filter ordered after auth picks it up.
- *  - Priorities.AUTHENTICATION + 100 places us in the
- *    AUTHORIZATION bucket which is guaranteed to run AFTER auth.
- *
- * Symmetric request/response interfaces let us pair set + clear
- * without leaking MDC across threads in the worker pool.
- */
+  * Jersey filter that pushes the authenticated user's id into the
+  * SLF4J MDC so every log record emitted while handling the request
+  * carries `texera.user.id`.
+  *
+  * Why Jersey and not a Servlet filter:
+  *  - Authentication is wired as a Jersey `ContainerRequestFilter`
+  *    (see [[org.apache.texera.auth.JwtAuthFilter]]) — by the time
+  *    Servlet filters run, `SecurityContext.getUserPrincipal` is
+  *    still null. A Jersey filter ordered after auth picks it up.
+  *  - Priorities.AUTHENTICATION + 100 places us in the
+  *    AUTHORIZATION bucket which is guaranteed to run AFTER auth.
+  *
+  * Symmetric request/response interfaces let us pair set + clear
+  * without leaking MDC across threads in the worker pool.
+  */
 @Provider
 @Priority(Priorities.AUTHORIZATION)
 class UserContextMdcFilter extends ContainerRequestFilter with ContainerResponseFilter {
@@ -75,8 +75,10 @@ class UserContextMdcFilter extends ContainerRequestFilter with ContainerResponse
 }
 
 object UserContextMdcFilter {
+
   /** MDC key — must stay in sync with
-   *  [[org.apache.texera.observability.LogSanitizer.AllowedMdcKeys]]
-   *  or the OTel log appender drops it before emit. */
+    *  [[org.apache.texera.observability.LogSanitizer.AllowedMdcKeys]]
+    *  or the OTel log appender drops it before emit.
+    */
   val UserIdKey: String = "texera.user.id"
 }

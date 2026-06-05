@@ -103,9 +103,7 @@ export class ObservabilityService {
    */
   getTrace(traceId: string): Observable<TracesGetResponse> {
     assertValidTraceId(traceId);
-    return this.http.get<TracesGetResponse>(
-      `${BASE_URL}/traces/${encodeURIComponent(traceId)}`
-    );
+    return this.http.get<TracesGetResponse>(`${BASE_URL}/traces/${encodeURIComponent(traceId)}`);
   }
 
   /**
@@ -129,10 +127,7 @@ function assertValid(req: LogsSearchRequest): void {
     throw new ValidationError("bad_page_size", `pageSize must be between 1 and ${MAX_PAGE_SIZE}.`);
   }
   if (req.query !== undefined && req.query.length > MAX_FREE_TEXT_LEN) {
-    throw new ValidationError(
-      "free_text_too_long",
-      `Query text must be ${MAX_FREE_TEXT_LEN} characters or fewer.`
-    );
+    throw new ValidationError("free_text_too_long", `Query text must be ${MAX_FREE_TEXT_LEN} characters or fewer.`);
   }
 }
 
@@ -156,10 +151,7 @@ function assertValidProfiles(req: ProfilesQueryRequest): void {
 
 function assertValidTraceId(traceId: string): void {
   if (typeof traceId !== "string" || !TRACE_ID_RE.test(traceId)) {
-    throw new ValidationError(
-      "bad_trace_id",
-      "Trace id must be 32 lowercase hex characters."
-    );
+    throw new ValidationError("bad_trace_id", "Trace id must be 32 lowercase hex characters.");
   }
 }
 

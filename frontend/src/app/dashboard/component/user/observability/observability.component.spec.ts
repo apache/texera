@@ -93,10 +93,12 @@ describe("ObservabilityComponent", () => {
   });
 
   it("starts on the Logs tab (index 0)", () => {
-    mockService.health.mockReturnValue(of({
-      status: "ok",
-      checks: { logs: true, metrics: true, traces: true, profiles: true },
-    } as ObservabilityHealth));
+    mockService.health.mockReturnValue(
+      of({
+        status: "ok",
+        checks: { logs: true, metrics: true, traces: true, profiles: true },
+      } as ObservabilityHealth)
+    );
     fixture.detectChanges();
     expect(component.activeTab).toBe(0);
   });

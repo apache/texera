@@ -22,22 +22,22 @@ package org.apache.texera.web.observability.gateway
 import java.time.{Duration, Instant}
 
 /**
- * Strongly-typed request / response DTOs for the gateway.
- *
- * Every field is either a typed primitive (Long, Instant, enum) or
- * a length-/range-validated wrapper. There is no public field that
- * accepts an arbitrary string and lets it through to a backend
- * query language verbatim — the typed builders in [[builders]]
- * receive only validated values from these DTOs.
- *
- * Time-window caps differ per signal, per the PR plan:
- *   logs     ≤ 7  days
- *   metrics  ≤ 90 days
- *   traces   ≤ 24 hours
- *   profiles ≤ 7  days
- *
- * Page size is server-clamped at [[MaxPageSize]] for every signal.
- */
+  * Strongly-typed request / response DTOs for the gateway.
+  *
+  * Every field is either a typed primitive (Long, Instant, enum) or
+  * a length-/range-validated wrapper. There is no public field that
+  * accepts an arbitrary string and lets it through to a backend
+  * query language verbatim — the typed builders in [[builders]]
+  * receive only validated values from these DTOs.
+  *
+  * Time-window caps differ per signal, per the PR plan:
+  *   logs     ≤ 7  days
+  *   metrics  ≤ 90 days
+  *   traces   ≤ 24 hours
+  *   profiles ≤ 7  days
+  *
+  * Page size is server-clamped at [[MaxPageSize]] for every signal.
+  */
 object dtos {
 
   val MaxPageSize: Int = 1000
@@ -45,7 +45,8 @@ object dtos {
   val MaxResponseBytes: Long = 10L * 1024L * 1024L // 10 MiB hard cap
 
   /** Log severity, exposed to the UI as a closed enum. The wire
-   *  value is the standard OTel severity-text string. */
+    *  value is the standard OTel severity-text string.
+    */
   sealed abstract class LogLevel(val name: String)
   object LogLevel {
     case object TRACE extends LogLevel("TRACE")
@@ -69,25 +70,28 @@ object dtos {
   }
 
   /** Maximum time window per signal, in seconds. */
-  def maxWindowSeconds(signal: Signal): Long = signal match {
-    case Signal.Logs     => 7L * 24L * 3600L
-    case Signal.Metrics  => 90L * 24L * 3600L
-    case Signal.Traces   => 24L * 3600L
-    case Signal.Profiles => 7L * 24L * 3600L
-  }
+  def maxWindowSeconds(signal: Signal): Long =
+    signal match {
+      case Signal.Logs     => 7L * 24L * 3600L
+      case Signal.Metrics  => 90L * 24L * 3600L
+      case Signal.Traces   => 24L * 3600L
+      case Signal.Profiles => 7L * 24L * 3600L
+    }
 
   // ---- typed unions for validator results -------------------------------
 
   /** Result of validating an inbound request. Either a clean
-   *  typed value, or a GatewayError with a stable code + message
-   *  shape suitable for serializing to JSON. */
+    *  typed value, or a GatewayError with a stable code + message
+    *  shape suitable for serializing to JSON.
+    */
   sealed trait ValidationResult[+T]
   case class Valid[T](value: T) extends ValidationResult[T]
   case class Invalid(error: GatewayError) extends ValidationResult[Nothing]
 
   /** Stable error shape returned to the UI. ``code`` is a short
-   *  machine-readable token, ``message`` is human-readable and
-   *  redaction-safe (we never echo raw user input here). */
+    *  machine-readable token, ``message`` is human-readable and
+    *  redaction-safe (we never echo raw user input here).
+    */
   case class GatewayError(code: String, message: String, status: Int)
 
   object GatewayError {
@@ -122,7 +126,8 @@ object dtos {
   // ---- shared bits ------------------------------------------------------
 
   /** Validated time window. Both ends are Instants, range bounded
-   *  per signal, ``to > from`` strictly. */
+    *  per signal, ``to > from`` strictly.
+    */
   case class TimeWindow(from: Instant, to: Instant)
 
   object TimeWindow {
@@ -141,8 +146,9 @@ object dtos {
   }
 
   /** Free text used as a *value* (never as syntax) in a backend
-   *  query. Length-capped and CRLF-stripped before reaching a
-   *  builder. ``None`` for absent input. */
+    *  query. Length-capped and CRLF-stripped before reaching a
+    *  builder. ``None`` for absent input.
+    */
   case class FreeText(value: String)
 
   object FreeText {
@@ -152,7 +158,7 @@ object dtos {
         case Some(s) =>
           if (s.length > MaxFreeTextLen) Invalid(GatewayError.FreeTextTooLong)
           else {
-            val stripped = s.filter(c => c >= 0x20 && c != 0x7F)
+            val stripped = s.filter(c => c >= 0x20 && c != 0x7f)
             if (stripped.isEmpty) Valid(None) else Valid(Some(FreeText(stripped)))
           }
       }
@@ -171,7 +177,8 @@ object dtos {
   // ---- per-signal request DTOs (validated) -----------------------------
 
   /** Inbound logs search request before validation. Strings/longs
-   *  only — never reaches a query builder unvalidated. */
+    *  only — never reaches a query builder unvalidated.
+    */
   case class RawLogsSearchRequest(
       workflowId: Option[Long],
       executionId: Option[Long],
@@ -207,8 +214,9 @@ object dtos {
   )
 
   /** Closed enum of sort orders. Backed by a LogsQL `| sort by (...)`
-   *  clause; the LogsQL fragment is in [[LogsQLBuilder]] so this DTO
-   *  stays storage-agnostic. */
+    *  clause; the LogsQL fragment is in [[LogsQLBuilder]] so this DTO
+    *  stays storage-agnostic.
+    */
   sealed abstract class LogSort(val name: String)
   object LogSort {
     case object NewestFirst extends LogSort("newest")
@@ -222,10 +230,11 @@ object dtos {
   }
 
   /** Validated service name. Texera service names are emitted by the
-   *  OTel resource attribute `service.name` — we know they match the
-   *  pattern `texera-?[a-z0-9-]+` because the JVM bootstrap controls
-   *  them. We enforce that pattern here so a forged value cannot
-   *  inject LogsQL syntax via the service filter. */
+    *  OTel resource attribute `service.name` — we know they match the
+    *  pattern `texera-?[a-z0-9-]+` because the JVM bootstrap controls
+    *  them. We enforce that pattern here so a forged value cannot
+    *  inject LogsQL syntax via the service filter.
+    */
   case class ServiceName(value: String)
 
   object ServiceName {
@@ -269,10 +278,11 @@ object dtos {
   )
 
   /** Distinct filter values currently present in the logs store.
-   *  Powers the UI's autofill dropdowns for service / workflow id /
-   *  CU id / user id. Service names are returned as raw strings
-   *  (the UI doesn't need typed parsing — it just renders the chip
-   *  and passes the value back). */
+    *  Powers the UI's autofill dropdowns for service / workflow id /
+    *  CU id / user id. Service names are returned as raw strings
+    *  (the UI doesn't need typed parsing — it just renders the chip
+    *  and passes the value back).
+    */
   case class LogSourcesResponse(
       services: Seq[String],
       workflowIds: Seq[Long],
@@ -283,7 +293,8 @@ object dtos {
   // ---- metrics ---------------------------------------------------------
 
   /** Named server-side metric query. We do not let the client send
-   *  raw MetricsQL — they pick from a fixed enum. */
+    *  raw MetricsQL — they pick from a fixed enum.
+    */
   sealed abstract class NamedMetric(val name: String)
   object NamedMetric {
     case object RunsPerDay extends NamedMetric("runsPerDay")
@@ -297,8 +308,17 @@ object dtos {
     case object P99Duration extends NamedMetric("p99Duration")
 
     val all: Seq[NamedMetric] =
-      Seq(RunsPerDay, TotalRuns, ActiveWorkflows, SuccessRate, FailureRate,
-          AvgDuration, P50Duration, P95Duration, P99Duration)
+      Seq(
+        RunsPerDay,
+        TotalRuns,
+        ActiveWorkflows,
+        SuccessRate,
+        FailureRate,
+        AvgDuration,
+        P50Duration,
+        P95Duration,
+        P99Duration
+      )
     def parse(raw: String): Option[NamedMetric] =
       Option(raw).flatMap(s => all.find(_.name == s))
   }
@@ -326,7 +346,8 @@ object dtos {
   // ---- traces ----------------------------------------------------------
 
   /** Inbound trace lookup. ``traceId`` must match the regex
-   *  ``^[0-9a-f]{32}$`` (same as W3C trace-id). */
+    *  ``^[0-9a-f]{32}$`` (same as W3C trace-id).
+    */
   case class RawTracesGetRequest(traceId: String)
 
   case class ValidatedTracesGetRequest(traceId: String)
@@ -368,7 +389,8 @@ object dtos {
   )
 
   /** Profiles are returned as a tree of frames. We render the tree
-   *  in the UI; the gateway is only responsible for shape + size. */
+    *  in the UI; the gateway is only responsible for shape + size.
+    */
   case class FlameFrame(name: String, value: Long, children: Seq[FlameFrame])
 
   case class ProfilesQueryResponse(root: Option[FlameFrame], totalSamples: Long)
