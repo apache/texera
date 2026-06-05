@@ -47,8 +47,8 @@ agent-service:
 engine:
   # Non-Python, non-integration parts of amber/. Pure Python changes
   # under amber/src/{main,test}/python/** intentionally fall through to
-  # the `python` label (which the labeler also matches via **/*.py),
-  # so they only trigger the python + amber-integration stacks rather
+  # the `pyamber` label (which the labeler also matches via **/*.py),
+  # so they only trigger the pyamber + amber-integration stacks rather
   # than the full Scala-only `amber` stack. Integration specs live
   # under amber/src/test/integration/** (added to sbt's Test sources
   # via amber/build.sbt) and are caught by the `amber-integration`
@@ -80,9 +80,9 @@ amber-integration:
       - any-glob-to-any-file:
           - 'amber/src/test/integration/**'
 
-python:
+pyamber:
   # Includes pip requirement manifests so dependency-only PRs still
-  # exercise the Python + amber-integration stacks. Without this a
+  # exercise the pyamber + amber-integration stacks. Without this a
   # bumped requirements.txt would only get `dependencies` (no stack
   # mapping) and silently skip CI for the very deps it's changing.
   - changed-files:

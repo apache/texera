@@ -52,7 +52,7 @@ on:
         required: false
         type: boolean
         default: true
-      run_python:
+      run_pyamber:
         required: false
         type: boolean
         default: true
@@ -624,8 +624,8 @@ jobs:
           disable_search: true
           fail_ci_if_error: false
 
-  python:
-    if: ${{ inputs.run_python }}
+  pyamber:
+    if: ${{ inputs.run_pyamber }}
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -715,15 +715,15 @@ jobs:
         # test PR comments and flaky-test detection on main.
         run: |
           cd amber && pytest -m "not integration" --cov=src/main/python --cov-report=xml --junit-xml=junit.xml -sv
-      - name: Upload python coverage to Codecov
+      - name: Upload pyamber coverage to Codecov
         if: matrix.python-version == '3.12' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/coverage.xml
-          flags: python
+          flags: pyamber
           fail_ci_if_error: false
-      - name: Upload python test results to Codecov
+      - name: Upload pyamber test results to Codecov
         # Test Analytics ingestion. Runs on the same 3.12 leg that uploads
         # coverage to keep one canonical source per flag. `!cancelled()`
         # rather than `always()` so we still upload on test failure (the
@@ -733,22 +733,22 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/junit.xml
-          flags: python
+          flags: pyamber
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
 
-  python-state-materialization-mac:
+  pyamber-state-materialization-mac:
     # Diagnostic leg: cross-region state materialization is reported to
-    # fail on macOS while working on Windows / Linux. The main `python`
+    # fail on macOS while working on Windows / Linux. The main `pyamber`
     # job above runs only on ubuntu-latest because it depends on a
     # postgres service container (service containers don't work on
     # macOS runners). The state-materialization integration tests use
     # an in-process sqlite-backed SqlCatalog instead, so we can run
     # them on macOS without postgres infra. If they fail here but pass
-    # in the main `python` job, we've reproduced the macOS-specific
+    # in the main `pyamber` job, we've reproduced the macOS-specific
     # regression in CI.
-    if: ${{ inputs.run_python }}
+    if: ${{ inputs.run_pyamber }}
     runs-on: macos-latest
     steps:
       - name: Checkout Texera

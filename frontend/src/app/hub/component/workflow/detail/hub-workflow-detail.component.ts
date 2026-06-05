@@ -30,7 +30,7 @@ import { Role, User } from "src/app/common/type/user";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
-import { DASHBOARD_HUB_WORKFLOW_RESULT, DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
+import { HUB_WORKFLOW_RESULT, USER_WORKSPACE } from "../../../../app-routing.constant";
 import { NgIf, NgClass } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -91,8 +91,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   ) {
     this.wid = input?.wid; //Accessing from the pop up. getting wid from the @Input
     if (!isDefined(this.wid)) {
-      // otherwise getting wid from the route
-      this.wid = this.route.snapshot.params.id;
+      // otherwise getting wid from the route; route params are strings at runtime,
+      // so coerce to the numeric wid the persist/hub services expect
+      const routeId = this.route.snapshot.params.id;
+      this.wid = isDefined(routeId) ? Number(routeId) : undefined;
       this.isHub = true;
     }
     this.currentUser = this.userService.getCurrentUser();
@@ -203,7 +205,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   }
 
   goBack(): void {
-    this.router.navigateByUrl(DASHBOARD_HUB_WORKFLOW_RESULT).catch(() => {
+    this.router.navigateByUrl(HUB_WORKFLOW_RESULT).catch(() => {
       this.notificationService.error("Go back failed. Please try again.");
     });
   }
@@ -216,7 +218,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       .cloneWorkflow(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(newWid => {
-        this.router.navigate([`${DASHBOARD_USER_WORKSPACE}/${newWid}`]).then(() => {
+        this.router.navigate([`${USER_WORKSPACE}/${newWid}`]).then(() => {
           this.notificationService.success("Clone Successful");
         });
       });
