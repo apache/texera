@@ -39,9 +39,16 @@ class OtelInitSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
   // ----- validateEndpoint: pure function, exhaustive cases -------------
 
   "validateEndpoint" should "accept a loopback OTLP gRPC URL" in {
-    OtelInit.validateEndpoint("http://localhost:4317", OtelInit.DefaultAllowedHosts) shouldBe Right(())
-    OtelInit.validateEndpoint("grpc://127.0.0.1:4317", OtelInit.DefaultAllowedHosts) shouldBe Right(())
-    OtelInit.validateEndpoint("https://localhost:4318", OtelInit.DefaultAllowedHosts) shouldBe Right(())
+    OtelInit.validateEndpoint("http://localhost:4317", OtelInit.DefaultAllowedHosts) shouldBe Right(
+      ()
+    )
+    OtelInit.validateEndpoint("grpc://127.0.0.1:4317", OtelInit.DefaultAllowedHosts) shouldBe Right(
+      ()
+    )
+    OtelInit.validateEndpoint(
+      "https://localhost:4318",
+      OtelInit.DefaultAllowedHosts
+    ) shouldBe Right(())
   }
 
   it should "reject file:// schemes (path traversal style attack)" in {
@@ -83,14 +90,18 @@ class OtelInitSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
 
   "buildResource" should "always include the service.name from the argument" in {
     val r = OtelInit.buildResource("my-service", "")
-    Option(r.getAttribute(io.opentelemetry.api.common.AttributeKey.stringKey("service.name"))) shouldBe Some(
+    Option(
+      r.getAttribute(io.opentelemetry.api.common.AttributeKey.stringKey("service.name"))
+    ) shouldBe Some(
       "my-service"
     )
   }
 
   it should "honor allowlisted keys from OTEL_RESOURCE_ATTRIBUTES" in {
     val r = OtelInit.buildResource("svc", "service.version=1.2.3,deployment.environment=staging")
-    Option(r.getAttribute(io.opentelemetry.api.common.AttributeKey.stringKey("service.version"))) shouldBe Some(
+    Option(
+      r.getAttribute(io.opentelemetry.api.common.AttributeKey.stringKey("service.version"))
+    ) shouldBe Some(
       "1.2.3"
     )
     Option(
@@ -115,7 +126,9 @@ class OtelInitSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
 
   it should "refuse to let OTEL_RESOURCE_ATTRIBUTES override service.name" in {
     val r = OtelInit.buildResource("real-svc", "service.name=spoofed")
-    Option(r.getAttribute(io.opentelemetry.api.common.AttributeKey.stringKey("service.name"))) shouldBe Some(
+    Option(
+      r.getAttribute(io.opentelemetry.api.common.AttributeKey.stringKey("service.name"))
+    ) shouldBe Some(
       "real-svc"
     )
   }
@@ -140,7 +153,9 @@ class OtelInitSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
 
   it should "ignore malformed pairs without crashing" in {
     val r = OtelInit.buildResource("svc", ",,,=,foo,service.version=,=bar,service.version=1.0,")
-    Option(r.getAttribute(io.opentelemetry.api.common.AttributeKey.stringKey("service.version"))) shouldBe Some(
+    Option(
+      r.getAttribute(io.opentelemetry.api.common.AttributeKey.stringKey("service.version"))
+    ) shouldBe Some(
       "1.0"
     )
   }
