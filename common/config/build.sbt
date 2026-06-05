@@ -48,7 +48,28 @@ Compile / scalacOptions ++= Seq(
 // Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
+// OpenTelemetry version is pinned here as the single source of truth; all
+// services pick it up transitively via dependsOn(Config). Bump deliberately.
+val openTelemetryVersion = "1.50.0"
+
 // Core Dependencies
 libraryDependencies ++= Seq(
-  "com.typesafe" % "config" % "1.4.6" // For configuration management
+  "com.typesafe" % "config" % "1.4.6",                                  // For configuration management
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",            // for LazyLogging in OtelInit
+  // OpenTelemetry SDK bootstrap (Apache-2.0). We deliberately do NOT use
+  // sdk-extension-autoconfigure: the security model requires that endpoint
+  // + resource-attribute filtering run before any exporter is configured.
+  "io.opentelemetry" % "opentelemetry-api" % openTelemetryVersion,
+  "io.opentelemetry" % "opentelemetry-sdk" % openTelemetryVersion,
+  "io.opentelemetry" % "opentelemetry-exporter-otlp" % openTelemetryVersion,
+  // Logback Classic — needed at compile time to write the OTel log
+  // appender. Marked `provided` because every service already brings
+  // Logback in transitively (via Dropwizard / SLF4J), so we don't
+  // bundle a second copy.
+  "ch.qos.logback" % "logback-classic" % "1.2.13" % "provided",
+  // Test-only: in-memory exporter for OtelInitSpec; avoids hitting a real
+  // collector during unit tests.
+  "io.opentelemetry" % "opentelemetry-sdk-testing" % openTelemetryVersion % Test,
+  "ch.qos.logback" % "logback-classic" % "1.2.13" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.17" % Test
 )
