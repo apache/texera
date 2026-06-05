@@ -298,6 +298,53 @@ class ResponseParsersSpec extends AnyFlatSpec with Matchers {
     err.status shouldBe 502
   }
 
+  // ----- traces -------------------------------------------------------
+
+  "ResponseParsers.parseTraces" should "parse a Jaeger trace with parent reference and tags" in {
+    val body =
+      """{"data":[{"traceID":"tid","spans":[
+        |  {"spanID":"root","operationName":"root.op","startTime":1000,"duration":2000,
+        |   "references":[],"tags":[{"key":"k","value":"v"}]},
+        |  {"spanID":"child","operationName":"child.op","startTime":1500,"duration":300,
+        |   "references":[{"refType":"CHILD_OF","spanID":"root"}],"tags":[]}
+        |]}]}""".stripMargin
+
+    val Right(parsed) = ResponseParsers.parseTraces(body, traceId = "tid")
+    parsed.traceId shouldBe "tid"
+    parsed.spans should have size 2
+
+    val root = parsed.spans.head
+    root.spanId shouldBe "root"
+    root.parentSpanId shouldBe None
+    root.name shouldBe "root.op"
+    root.startMs shouldBe 1L // 1000us → 1ms
+    root.endMs shouldBe 3L // (1000+2000)us → 3ms
+    root.attributes shouldBe Map("k" -> "v")
+
+    val child = parsed.spans(1)
+    child.parentSpanId shouldBe Some("root")
+  }
+
+  it should "ignore non-CHILD_OF references" in {
+    val body =
+      """{"data":[{"traceID":"t","spans":[
+        |  {"spanID":"s","operationName":"x","startTime":0,"duration":0,
+        |   "references":[{"refType":"FOLLOWS_FROM","spanID":"other"}],"tags":[]}
+        |]}]}""".stripMargin
+    val Right(parsed) = ResponseParsers.parseTraces(body, traceId = "t")
+    parsed.spans.head.parentSpanId shouldBe None
+  }
+
+  it should "return an empty spans list when Jaeger returns no traces" in {
+    val Right(parsed) = ResponseParsers.parseTraces("""{"data":[]}""", traceId = "t")
+    parsed.spans shouldBe empty
+  }
+
+  it should "return bad_backend_response on malformed JSON" in {
+    val Left(err) = ResponseParsers.parseTraces("not json", traceId = "t")
+    err.code shouldBe "bad_backend_response"
+  }
+
   // ----- helper: epoch millis literal --------------------------------
 
   private def Instant(iso: String): Long = java.time.Instant.parse(iso).toEpochMilli

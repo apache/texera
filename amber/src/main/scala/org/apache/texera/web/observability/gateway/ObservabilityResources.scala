@@ -400,6 +400,62 @@ class MetricsResource(ctx: GatewayContext) extends LazyLogging {
   }
 }
 
+@Path("/observability/traces")
+@Produces(Array(MediaType.APPLICATION_JSON))
+class TracesResource(ctx: GatewayContext) extends LazyLogging {
+
+  @GET
+  @Path("/{traceId}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def get(
+      @PathParam("traceId") traceId: String,
+      @Auth user: SessionUser,
+      @Context httpReq: HttpServletRequest
+  ): Response = {
+    logger.debug(s"trace fetch requested by user ${user.getUid} for traceId=$traceId")
+    Preflight.run(ctx, user, httpReq) match {
+      case Left(err) => Respond.err(err)
+      case Right(scope) =>
+        ValidatedTracesGetRequest.validate(RawTracesGetRequest(traceId)) match {
+          case Invalid(err) => Respond.err(err)
+          case Valid(valid) =>
+            val path = JaegerQueryBuilder.tracePath(valid)
+            ctx.tracesClient.get(path, scope, "traces") match {
+              case Left(err) => Respond.err(err)
+              case Right(resp) if !resp.isOk =>
+                Respond.err(GatewayError.BackendError("traces", resp.status))
+              case Right(resp) =>
+                // Same reason as metrics: whole-body redaction truncates any
+                // trace over 16 KiB and corrupts the JSON. parseTraces scrubs
+                // secrets per span attribute instead (as parseLogs does).
+                ResponseParsers.parseTraces(resp.body, valid.traceId) match {
+                  case Left(err) => Respond.err(err)
+                  case Right(parsed) =>
+                    logger.info(
+                      s"trace fetch ok for user ${user.getUid}: traceId=${valid.traceId} " +
+                        s"with ${parsed.spans.size} span(s)"
+                    )
+                    AuditLogger.record(
+                      AuditLogger.Entry(
+                        userId = user.getUid.longValue(),
+                        remoteIp = Option(httpReq.getRemoteAddr).getOrElse("unknown"),
+                        endpoint = s"/observability/traces/${valid.traceId}",
+                        signal = "traces",
+                        scope = scope,
+                        query = valid.traceId,
+                        fromMs = 0L,
+                        toMs = 0L,
+                        hits = parsed.spans.size.toLong
+                      )
+                    )
+                    Respond.json(parsed)
+                }
+            }
+        }
+    }
+  }
+}
+
 @Path("/observability/health")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class ObservabilityHealthResource(ctx: GatewayContext) extends LazyLogging {

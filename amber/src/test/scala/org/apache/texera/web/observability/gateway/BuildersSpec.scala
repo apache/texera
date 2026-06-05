@@ -299,4 +299,11 @@ class BuildersSpec extends AnyFlatSpec with Matchers {
     MetricsQLBuilder.build(validated) shouldBe "sum(increase(texera_workflow_starts_total[1d]))"
   }
 
+  // ----- JaegerQueryBuilder --------------------------------------------
+
+  "JaegerQueryBuilder" should "embed the validated trace id directly into the path" in {
+    val v = ValidatedTracesGetRequest("0af7651916cd43dd8448eb211c80319c")
+    JaegerQueryBuilder.tracePath(v) shouldBe "/api/traces/0af7651916cd43dd8448eb211c80319c"
+  }
+
 }

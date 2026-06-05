@@ -37,7 +37,8 @@ import org.apache.texera.web.observability.gateway.{
   GatewayContext,
   LogsResource,
   MetricsResource,
-  ObservabilityHealthResource
+  ObservabilityHealthResource,
+  TracesResource
 }
 import org.apache.texera.web.resource._
 import org.apache.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
@@ -188,6 +189,7 @@ class TexeraWebApplication
     val obsCtx = GatewayContext.default()
     environment.jersey.register(new LogsResource(obsCtx))
     environment.jersey.register(new MetricsResource(obsCtx))
+    environment.jersey.register(new TracesResource(obsCtx))
     environment.jersey.register(new ObservabilityHealthResource(obsCtx))
 
     AuthResource.createAdminUser()

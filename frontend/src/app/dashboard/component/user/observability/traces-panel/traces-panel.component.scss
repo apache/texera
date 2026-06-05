@@ -1,0 +1,95 @@
+/* Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.traces-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+
+  .row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+
+    input {
+      flex: 1 1 auto;
+      font-family: "Menlo", "Consolas", monospace;
+    }
+  }
+}
+
+.tree {
+  font-family: "Menlo", "Consolas", monospace;
+  font-size: 12px;
+  flex: 1 1 auto;
+  overflow: auto;
+
+  .trace-header {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.65);
+
+    .mono {
+      font-family: "Menlo", "Consolas", monospace;
+    }
+  }
+
+  .span-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .span-row {
+    padding: 4px 0;
+    border-bottom: 1px dashed #f0f0f0;
+
+    .span-name {
+      font-weight: 600;
+      margin-right: 8px;
+    }
+
+    .duration {
+      color: rgba(0, 0, 0, 0.45);
+    }
+
+    .attrs {
+      list-style: none;
+      padding-left: 16px;
+      margin: 4px 0;
+
+      li {
+        display: flex;
+        gap: 8px;
+        font-size: 11px;
+        color: rgba(0, 0, 0, 0.6);
+
+        .attr-key {
+          font-weight: 600;
+          min-width: 140px;
+        }
+
+        .attr-val {
+          word-break: break-word;
+        }
+      }
+    }
+  }
+}

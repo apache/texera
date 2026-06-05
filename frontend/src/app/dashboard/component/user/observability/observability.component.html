@@ -48,7 +48,13 @@
     </nz-tab>
 
     <nz-tab nzTitle="Traces">
-      <nz-empty nzNotFoundContent="Traces panel coming soon."></nz-empty>
+      <texera-observability-traces-panel
+        *ngIf="isReachable('traces'); else tracesDisabled"
+        [initialTraceId]="pivotedTraceId"></texera-observability-traces-panel>
+      <ng-template #tracesDisabled>
+        <nz-empty
+          nzNotFoundContent="Jaeger is unreachable or disabled. Enable the observability-traces profile in docker-compose."></nz-empty>
+      </ng-template>
     </nz-tab>
 
     <nz-tab nzTitle="Profiles">

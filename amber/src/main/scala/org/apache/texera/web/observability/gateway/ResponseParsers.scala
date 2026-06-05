@@ -215,6 +215,53 @@ object ResponseParsers extends LazyLogging {
     }
   }
 
+  // ---- traces (Jaeger Query API) -------------------------------------
+
+  def parseTraces(body: String, traceId: String): Either[GatewayError, TracesGetResponse] = {
+    Try(mapper.readTree(body)) match {
+      case Failure(e) => Left(bad(s"Jaeger: ${e.getMessage}"))
+      case Success(root) =>
+        val data = root.path("data")
+        val spans = if (data.isArray && data.size() > 0) {
+          val spanArr = data.get(0).path("spans")
+          if (spanArr.isArray) {
+            spanArr.iterator().asScala.take(MaxPageSize).map(parseSpan).toSeq
+          } else Seq.empty
+        } else Seq.empty
+        Right(TracesGetResponse(traceId = traceId, spans = spans))
+    }
+  }
+
+  private def parseSpan(node: JsonNode): TraceSpanResponse = {
+    val spanId = node.path("spanID").asText("")
+    val name = node.path("operationName").asText("")
+    val startUs = node.path("startTime").asLong(0L)
+    val durationUs = node.path("duration").asLong(0L)
+    val startMs = startUs / 1000L
+    val endMs = (startUs + durationUs) / 1000L
+    val parentSpanId = {
+      val refs = node.path("references")
+      if (refs.isArray) {
+        refs.iterator().asScala
+          .find(r => r.path("refType").asText("") == "CHILD_OF")
+          .map(_.path("spanID").asText(""))
+          .filter(_.nonEmpty)
+      } else None
+    }
+    val attributes = scala.collection.mutable.Map.empty[String, String]
+    val tags = node.path("tags")
+    if (tags.isArray) {
+      tags.iterator().asScala.foreach { t =>
+        val k = t.path("key").asText("")
+        // Per-field secret scrub: tag values are the only free-form,
+        // potentially-sensitive data on a span. Sanitizing per value
+        // (rather than whole-body) keeps the JSON intact for large traces.
+        if (k.nonEmpty) attributes.put(k, LogSanitizer.sanitize(t.path("value").asText("")))
+      }
+    }
+    TraceSpanResponse(spanId, parentSpanId, name, startMs, endMs, attributes.toMap)
+  }
+
   // ---- small helpers -------------------------------------------------
 
   private def textOpt(node: JsonNode, field: String): Option[String] = {
