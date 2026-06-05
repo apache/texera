@@ -20,35 +20,38 @@
 package org.apache.texera.observability
 
 /**
- * Pure validators for W3C Trace Context headers crossing the
- * Scala↔Python boundary. The single rule: if the inbound bytes do
- * not match the strict regex, we discard the value and start a fresh
- * trace. We never echo a rejected value back into a span, log, or
- * error message.
- *
- * Spec reference: https://www.w3.org/TR/trace-context/
- *
- * The regexes here intentionally do NOT use any context-sensitive
- * grouping or backreferences — keeps the validators safe against
- * pathological inputs (ReDoS) and trivially fast.
- */
+  * Pure validators for W3C Trace Context headers crossing the
+  * Scala↔Python boundary. The single rule: if the inbound bytes do
+  * not match the strict regex, we discard the value and start a fresh
+  * trace. We never echo a rejected value back into a span, log, or
+  * error message.
+  *
+  * Spec reference: https://www.w3.org/TR/trace-context/
+  *
+  * The regexes here intentionally do NOT use any context-sensitive
+  * grouping or backreferences — keeps the validators safe against
+  * pathological inputs (ReDoS) and trivially fast.
+  */
 object TraceparentValidator {
 
   /** W3C traceparent format: `<version>-<trace-id>-<parent-id>-<flags>`.
-   *  We accept only version `00` (the only published version) with the
-   *  canonical 32-hex / 16-hex / 2-hex layout. All hex lowercase per
-   *  spec — uppercase is invalid. */
+    *  We accept only version `00` (the only published version) with the
+    *  canonical 32-hex / 16-hex / 2-hex layout. All hex lowercase per
+    *  spec — uppercase is invalid.
+    */
   private val TraceparentPattern =
     "^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$".r.pattern
 
   /** Bounded tracestate length. Spec recommends ≤512 chars. We are
-   *  stricter to remove a small DoS surface — an attacker can't send
-   *  a 1 MiB tracestate to balloon downstream context allocations. */
+    *  stricter to remove a small DoS surface — an attacker can't send
+    *  a 1 MiB tracestate to balloon downstream context allocations.
+    */
   val MaxTracestateLength: Int = 512
 
   /** Validate a traceparent header. Returns the input unchanged on
-   *  success, None on any failure (rejected — caller starts a fresh
-   *  trace). Null and empty are silent failures. */
+    *  success, None on any failure (rejected — caller starts a fresh
+    *  trace). Null and empty are silent failures.
+    */
   def validateTraceparent(header: String): Option[String] = {
     if (header == null || header.isEmpty) return None
     // Trace-id and parent-id must not be all-zero per spec — an
@@ -62,8 +65,9 @@ object TraceparentValidator {
   }
 
   /** Validate a tracestate header. Spec: comma-separated list of
-   *  key=value pairs, ASCII-printable only, total length capped.
-   *  Returns the input unchanged on success, None on rejection. */
+    *  key=value pairs, ASCII-printable only, total length capped.
+    *  Returns the input unchanged on success, None on rejection.
+    */
   def validateTracestate(header: String): Option[String] = {
     if (header == null || header.isEmpty) return None
     if (header.length > MaxTracestateLength) return None
@@ -86,7 +90,7 @@ object TraceparentValidator {
       val c = s.charAt(i)
       // Allow printable ASCII range (0x20-0x7E). Tab and CR/LF are
       // rejected — a tracestate must not span lines.
-      if (c < 0x20 || c > 0x7E) return false
+      if (c < 0x20 || c > 0x7e) return false
       i += 1
     }
     true
