@@ -260,3 +260,30 @@ object JaegerQueryBuilder {
   def tracePath(req: ValidatedTracesGetRequest): String =
     s"/api/traces/${req.traceId}"
 }
+
+object ParcaQueryBuilder {
+
+  /** Parca profile-type that the eBPF agent emits. Format:
+   *  ``<name>:<sample-type>:<sample-unit>:<period-type>:<period-unit>:delta``.
+   *  Discovered via ProfileTypes RPC; the previous string
+   *  "parca_agent_cpu" was a Prometheus-style metric name that
+   *  Parca's query layer does not accept. */
+  private val CpuProfileType = "parca_agent:samples:count:cpu:nanoseconds:delta"
+
+  /** Build the Parca query string for a flame graph over the given
+   *  window. The leading profile-type identifier is hard-coded; only
+   *  numeric ids and the validated "texera" deployment label join the
+   *  selector body — no user free text. */
+  def build(req: ValidatedProfilesRequest, scope: GatewayScope): String = {
+    val selectors = scala.collection.mutable.ArrayBuffer[String]()
+    selectors += """deployment="texera""""
+    req.workflowId.foreach { id =>
+      selectors += s"""texera_workflow_id="$id""""
+    }
+    req.executionId.foreach { id =>
+      selectors += s"""texera_execution_id="$id""""
+    }
+    val selectorBody = selectors.mkString(",")
+    s"""$CpuProfileType{$selectorBody}"""
+  }
+}

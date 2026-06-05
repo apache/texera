@@ -262,6 +262,60 @@ object ResponseParsers extends LazyLogging {
     TraceSpanResponse(spanId, parentSpanId, name, startMs, endMs, attributes.toMap)
   }
 
+  // ---- profiles (Parca) ----------------------------------------------
+
+  /**
+   * Parca's primary query API is Connect-RPC at
+   * /parca.query.v1alpha1.QueryService/Query. The gateway currently
+   * hits a Prometheus-style path that returns Parca's SPA HTML for
+   * the UI route, so in practice this parser sees non-JSON and
+   * returns an empty profile. When the gateway is upgraded to call
+   * the Connect-RPC endpoint, the same parser handles the flamegraph
+   * report shape `{report:{flamegraph:{root, total, ...}}}`.
+   */
+  def parseProfiles(body: String): Either[GatewayError, ProfilesQueryResponse] = {
+    val trimmed = body.trim
+    if (trimmed.isEmpty || trimmed.charAt(0) != '{') {
+      // Non-JSON (HTML SPA, empty body, ...). Not a parse error — just
+      // no profile data. Pre-empts the JSON parser so we don't 502
+      // on a backend that's serving its UI on the same port.
+      Right(ProfilesQueryResponse(root = None, totalSamples = 0L))
+    } else {
+      Try(mapper.readTree(trimmed)) match {
+        case Failure(e) => Left(bad(s"Parca: ${e.getMessage}"))
+        case Success(root) =>
+          val flame = {
+            val nested = root.path("report").path("flamegraph")
+            if (!nested.isMissingNode && !nested.isNull) nested
+            else root.path("flamegraph")
+          }
+          if (flame.isMissingNode || flame.isNull) {
+            Right(ProfilesQueryResponse(root = None, totalSamples = 0L))
+          } else {
+            val total = flame.path("total").asLong(0L)
+            Right(ProfilesQueryResponse(root = parseFrame(flame.path("root")), totalSamples = total))
+          }
+      }
+    }
+  }
+
+  private def parseFrame(node: JsonNode): Option[FlameFrame] = {
+    if (node.isMissingNode || node.isNull) None
+    else {
+      val name = node.path("name").asText("")
+      // Parca's flamegraph nodes use "cumulative" for total samples
+      // under that frame; older shapes use "value". Accept either.
+      val value =
+        if (!node.path("cumulative").isMissingNode) node.path("cumulative").asLong(0L)
+        else node.path("value").asLong(0L)
+      val kids = node.path("children")
+      val children =
+        if (kids.isArray) kids.iterator().asScala.take(MaxPageSize).flatMap(parseFrame).toSeq
+        else Seq.empty
+      Some(FlameFrame(name, value, children))
+    }
+  }
+
   // ---- small helpers -------------------------------------------------
 
   private def textOpt(node: JsonNode, field: String): Option[String] = {

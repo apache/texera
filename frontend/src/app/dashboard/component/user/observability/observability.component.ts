@@ -28,6 +28,7 @@ import { ObservabilityHealth } from "../../../service/user/observability/observa
 import { LogsPanelComponent } from "./logs-panel/logs-panel.component";
 import { MetricsPanelComponent } from "./metrics-panel/metrics-panel.component";
 import { TracesPanelComponent } from "./traces-panel/traces-panel.component";
+import { ProfilesPanelComponent } from "./profiles-panel/profiles-panel.component";
 import { TracesPivotService } from "../../../service/user/observability/traces-pivot.service";
 import { OnDestroy } from "@angular/core";
 import { Subject, takeUntil } from "rxjs";
@@ -57,6 +58,7 @@ import { Subject, takeUntil } from "rxjs";
     LogsPanelComponent,
     MetricsPanelComponent,
     TracesPanelComponent,
+    ProfilesPanelComponent,
   ],
 })
 export class ObservabilityComponent implements OnInit, OnDestroy {

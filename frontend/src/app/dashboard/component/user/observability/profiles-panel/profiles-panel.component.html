@@ -1,0 +1,62 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<form [formGroup]="form" class="profiles-panel">
+  <div class="row">
+    <nz-range-picker
+      [nzShowTime]="true"
+      [nzAllowClear]="false"
+      formControlName="range"></nz-range-picker>
+    <input
+      nz-input
+      type="number"
+      formControlName="workflowId"
+      placeholder="Workflow id (optional)" />
+    <input
+      nz-input
+      type="number"
+      formControlName="executionId"
+      placeholder="Execution id (optional)" />
+    <button
+      nz-button
+      nzType="primary"
+      type="button"
+      [disabled]="loading || form.invalid"
+      (click)="refresh()">
+      Refresh
+    </button>
+  </div>
+
+  <nz-alert
+    *ngIf="errorMessage"
+    nzType="error"
+    [nzMessage]="errorMessage"
+    nzShowIcon></nz-alert>
+</form>
+
+<div class="result">
+  <p *ngIf="root" class="summary">Total samples: {{ totalSamples }}</p>
+
+  <texera-flame-chart *ngIf="root; else noSamples" [root]="root"></texera-flame-chart>
+
+  <ng-template #noSamples>
+    <nz-empty
+      *ngIf="!loading && !errorMessage"
+      nzNotFoundContent="No CPU samples for the selected window. The Parca eBPF agent may not be running on this host, or the workflow has only just started. On non-Linux dev machines, set TEXERA_OBSERVABILITY_PROFILES=disabled in .env."></nz-empty>
+  </ng-template>
+</div>

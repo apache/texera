@@ -38,6 +38,7 @@ import org.apache.texera.web.observability.gateway.{
   LogsResource,
   MetricsResource,
   ObservabilityHealthResource,
+  ProfilesResource,
   TracesResource
 }
 import org.apache.texera.web.resource._
@@ -190,6 +191,7 @@ class TexeraWebApplication
     environment.jersey.register(new LogsResource(obsCtx))
     environment.jersey.register(new MetricsResource(obsCtx))
     environment.jersey.register(new TracesResource(obsCtx))
+    environment.jersey.register(new ProfilesResource(obsCtx))
     environment.jersey.register(new ObservabilityHealthResource(obsCtx))
 
     AuthResource.createAdminUser()

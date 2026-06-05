@@ -200,3 +200,23 @@ process.on("unhandledRejection", reason => {
   if (isBenignIconError(reason)) return;
   console.error(reason);
 });
+
+/**
+ * ECharts (via ngx-echarts) requires `ResizeObserver` to react to
+ * container size changes. jsdom doesn't ship it. A no-op stub is
+ * enough for unit tests — nothing in our specs asserts that the chart
+ * re-lays-out on resize; the assertions read component state
+ * (`chartOptions`, `summaries`) before any resize event would fire.
+ *
+ * Keeping the stub here rather than inside the metrics-panel spec so
+ * any future spec that mounts an `[echarts]` directive picks it up
+ * automatically.
+ */
+if (typeof (globalThis as Record<string, unknown>).ResizeObserver === "undefined") {
+  class ResizeObserverStub {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  (globalThis as Record<string, unknown>).ResizeObserver = ResizeObserverStub;
+}

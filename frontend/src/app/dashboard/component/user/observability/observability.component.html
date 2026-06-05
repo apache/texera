@@ -58,7 +58,12 @@
     </nz-tab>
 
     <nz-tab nzTitle="Profiles">
-      <nz-empty nzNotFoundContent="Profiles panel coming soon."></nz-empty>
+      <texera-observability-profiles-panel
+        *ngIf="isReachable('profiles'); else profilesDisabled"></texera-observability-profiles-panel>
+      <ng-template #profilesDisabled>
+        <nz-empty
+          nzNotFoundContent="Parca is unreachable or disabled. eBPF agent requires a Linux host with privileged container access — non-Linux developers should set TEXERA_OBSERVABILITY_PROFILES=disabled in .env."></nz-empty>
+      </ng-template>
     </nz-tab>
   </nz-tabs>
 </div>

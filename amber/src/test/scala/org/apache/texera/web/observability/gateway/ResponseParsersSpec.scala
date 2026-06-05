@@ -345,6 +345,54 @@ class ResponseParsersSpec extends AnyFlatSpec with Matchers {
     err.code shouldBe "bad_backend_response"
   }
 
+  // ----- profiles -----------------------------------------------------
+
+  "ResponseParsers.parseProfiles" should "return empty result when body is not JSON (HTML/SPA)" in {
+    val Right(parsed) = ResponseParsers.parseProfiles("<!DOCTYPE html><html>...</html>")
+    parsed.root shouldBe None
+    parsed.totalSamples shouldBe 0L
+  }
+
+  it should "parse a nested Parca report.flamegraph shape" in {
+    val body =
+      """{"report":{"flamegraph":{
+        |  "total":"1000",
+        |  "root":{"name":"root","cumulative":"1000","children":[
+        |    {"name":"a","cumulative":"600","children":[]},
+        |    {"name":"b","cumulative":"400","children":[]}
+        |  ]}
+        |}}}""".stripMargin
+    val Right(parsed) = ResponseParsers.parseProfiles(body)
+    parsed.totalSamples shouldBe 1000L
+    parsed.root shouldBe defined
+    val r = parsed.root.get
+    r.name shouldBe "root"
+    r.value shouldBe 1000L
+    r.children.map(_.name) shouldBe Seq("a", "b")
+    r.children.map(_.value) shouldBe Seq(600L, 400L)
+  }
+
+  it should "parse a flat flamegraph shape (no report wrapper)" in {
+    val body =
+      """{"flamegraph":{"total":"42","root":{"name":"x","cumulative":"42","children":[]}}}"""
+    val Right(parsed) = ResponseParsers.parseProfiles(body)
+    parsed.totalSamples shouldBe 42L
+    parsed.root.map(_.name) shouldBe Some("x")
+  }
+
+  it should "fall back to 'value' when 'cumulative' is absent" in {
+    val body =
+      """{"flamegraph":{"total":"5","root":{"name":"x","value":"5","children":[]}}}"""
+    val Right(parsed) = ResponseParsers.parseProfiles(body)
+    parsed.root.map(_.value) shouldBe Some(5L)
+  }
+
+  it should "return empty when the JSON has no flamegraph" in {
+    val Right(parsed) = ResponseParsers.parseProfiles("""{"something":"else"}""")
+    parsed.root shouldBe None
+    parsed.totalSamples shouldBe 0L
+  }
+
   // ----- helper: epoch millis literal --------------------------------
 
   private def Instant(iso: String): Long = java.time.Instant.parse(iso).toEpochMilli
