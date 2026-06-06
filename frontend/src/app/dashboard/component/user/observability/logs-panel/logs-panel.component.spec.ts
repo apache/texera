@@ -32,6 +32,14 @@ import {
   MAX_PAGE_SIZE,
 } from "../../../../service/user/observability/observability.types";
 
+// The unit-test bundler rewrites `__dirname` to the bundle root, so the
+// template can only be located by its stable path under the frontend
+// working directory (cwd is always `frontend/` in CI and locally).
+const templatePath = path.resolve(
+  process.cwd(),
+  "src/app/dashboard/component/user/observability/logs-panel/logs-panel.component.html"
+);
+
 describe("LogsPanelComponent", () => {
   let component: LogsPanelComponent;
   let fixture: ComponentFixture<LogsPanelComponent>;
@@ -121,8 +129,7 @@ describe("LogsPanelComponent", () => {
     // each sources.* array actually exists — combined with the
     // component-state assertion above, this proves the autofill is
     // wired end-to-end.
-    const tplPath = path.resolve(__dirname, "logs-panel.component.html");
-    const tpl = fs.readFileSync(tplPath, "utf-8");
+    const tpl = fs.readFileSync(templatePath, "utf-8");
     expect(tpl).toMatch(/\*ngFor[^>]+sources\.services/);
     expect(tpl).toMatch(/\*ngFor[^>]+sources\.workflowIds/);
     expect(tpl).toMatch(/\*ngFor[^>]+sources\.computingUnitIds/);
@@ -344,7 +351,6 @@ describe("LogsPanelComponent", () => {
     // Defence-in-depth: even though the gateway has run LogSanitizer
     // over the body, the template should bind via {{ }} only so an
     // accidentally-unsanitised body can never execute as HTML.
-    const templatePath = path.resolve(__dirname, "logs-panel.component.html");
     const tpl = fs.readFileSync(templatePath, "utf-8");
     expect(tpl).not.toMatch(/\[innerHTML\]\s*=\s*['"][^'"]*entry\.body/);
     expect(tpl).toMatch(/{{\s*entry\.body\s*}}/);
