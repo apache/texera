@@ -246,6 +246,21 @@ jobs:
             /tmp/dists/amber-*/lib || check_exit=$?
           ./bin/licensing/audit_jar_licenses.py /tmp/dists/amber-*/lib || true
           exit "$check_exit"
+      - name: Verify amber NOTICE-binary matches generator output
+        # amber/NOTICE-binary is generated from the bundled jars' META-INF/NOTICE
+        # content via bin/licensing/generate_notice_binary.py, plus
+        # amber/NOTICE-binary-python for the python-only (non-jar) attributions.
+        # Regenerate against the amber dist lib dir unzipped by the step above
+        # and diff against the committed file. Drift means a dep was added,
+        # removed, or bumped without rerunning the generator — fix by running:
+        #   ./bin/licensing/generate_notice_binary.py amber/NOTICE-binary /tmp/dists/amber-*/lib --extras amber/NOTICE-binary-python
+        run: |
+          set -euo pipefail
+          ./bin/licensing/generate_notice_binary.py /tmp/notice-amber.txt /tmp/dists/amber-*/lib --extras amber/NOTICE-binary-python
+          if ! diff -u amber/NOTICE-binary /tmp/notice-amber.txt; then
+            echo "::error::amber/NOTICE-binary differs from generator output. Regenerate with bin/licensing/generate_notice_binary.py and commit."
+            exit 1
+          fi
       - name: Create texera_db_for_test_cases
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
@@ -602,6 +617,20 @@ jobs:
             /tmp/dists/${{ matrix.service }}-*/lib || check_exit=$?
           ./bin/licensing/audit_jar_licenses.py /tmp/dists/${{ matrix.service }}-*/lib || true
           exit "$check_exit"
+      - name: Verify ${{ matrix.service }} NOTICE-binary matches generator output
+        # Each service's NOTICE-binary is generated from its bundled jars'
+        # META-INF/NOTICE content via bin/licensing/generate_notice_binary.py.
+        # Regenerate against the dist lib dir unzipped by the step above and
+        # diff against the committed file. Drift means a dep was added, removed,
+        # or bumped without rerunning the generator — fix by running:
+        #   ./bin/licensing/generate_notice_binary.py ${{ matrix.service }}/NOTICE-binary /tmp/dists/${{ matrix.service }}-*/lib
+        run: |
+          set -euo pipefail
+          ./bin/licensing/generate_notice_binary.py /tmp/notice-${{ matrix.service }}.txt /tmp/dists/${{ matrix.service }}-*/lib
+          if ! diff -u ${{ matrix.service }}/NOTICE-binary /tmp/notice-${{ matrix.service }}.txt; then
+            echo "::error::${{ matrix.service }}/NOTICE-binary differs from generator output. Regenerate with bin/licensing/generate_notice_binary.py and commit."
+            exit 1
+          fi
       - name: Upload ${{ matrix.service }} coverage to Codecov
         # Per-service flag so each matrix entry has its own Codecov view
         # rather than being merged into one umbrella `platform` flag.

@@ -1,0 +1,24 @@
+--------------------------------------------------------------------------------
+aiohttp (vendored MIT-licensed C parser code)
+--------------------------------------------------------------------------------
+
+The aiohttp wheel is primarily Apache-2.0 but bundles a small amount of
+MIT-licensed C code used for HTTP parsing. The MIT attribution required
+for redistribution of that code is:
+
+  Copyright (c) the aiohttp contributors and upstream authors of the
+  vendored parser source. Distributed under the MIT License.
+
+Consumers of the aiohttp wheel must preserve that MIT copyright notice in
+any downstream redistribution of the parser source or object code.
+
+--------------------------------------------------------------------------------
+Matplotlib
+--------------------------------------------------------------------------------
+
+Matplotlib is distributed under the "Matplotlib License", a modification of
+the PSF License. The attribution required for redistribution is:
+
+  Copyright (c) 2012- Matplotlib Development Team; All Rights Reserved.
+
+The full license text is covered by licenses/LICENSE-PSF-2.0.txt.
