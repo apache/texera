@@ -58,6 +58,7 @@ class ReservoirSamplingOpExec(descString: String, idx: Int, workerCount: Int)
     Iterator()
   }
 
-  override def onFinish(port: Int): Iterator[TupleLike] = reservoir.iterator
+  // take(n): emit only filled slots; trailing slots are null when n < count
+  override def onFinish(port: Int): Iterator[TupleLike] = reservoir.iterator.take(n)
 
 }
