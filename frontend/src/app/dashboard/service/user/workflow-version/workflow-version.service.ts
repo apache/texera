@@ -271,6 +271,20 @@ export class WorkflowVersionService {
     for (const id of differentOpIDsList.added.concat(differentOpIDsList.modified)) {
       this.highlightOpBoundary(id, "0,0,0,0");
     }
+
+    if (differentOpIDsList.deleted.length > 0) {
+      const tempWorkflow = this.workflowActionService.getTempWorkflow();
+      if (tempWorkflow != undefined) {
+        for (const link of tempWorkflow.content.links) {
+          if (differentOpIDsList.deleted.includes(link.source.operatorID) && link.target.operatorID != undefined) {
+            this.highlightOpBracket(link.target.operatorID, "0,0,0,0", "left-");
+          }
+          if (differentOpIDsList.deleted.includes(link.target.operatorID) && link.source.operatorID != undefined) {
+            this.highlightOpBracket(link.source.operatorID, "0,0,0,0", "right-");
+          }
+        }
+      }
+    }
     this.operatorPropertyDiff = {};
   }
 
