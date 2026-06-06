@@ -19,7 +19,6 @@
 
 package org.apache.texera.web.observability.gateway
 
-import org.apache.texera.web.observability.gateway.dtos._
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
