@@ -78,6 +78,7 @@ import { NzCardModule } from "ng-zorro-antd/card";
 import { NzTagModule } from "ng-zorro-antd/tag";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { BlobErrorHttpInterceptor } from "./common/service/blob-error-http-interceptor.service";
+import { UnauthorizedHttpInterceptor } from "./common/service/unauthorized-http-interceptor.service";
 import { ConsoleFrameComponent } from "./workspace/component/result-panel/console-frame/console-frame.component";
 import { ResultTableFrameComponent } from "./workspace/component/result-panel/result-table-frame/result-table-frame.component";
 import { RowModalComponent } from "./workspace/component/result-panel/result-panel-modal.component";
@@ -203,7 +204,7 @@ registerLocaleData(en);
     JwtModule.forRoot({
       config: {
         tokenGetter: AuthService.getAccessToken,
-        skipWhenExpired: false,
+        skipWhenExpired: true,
         throwNoTokenError: false,
         disallowedRoutes: ["forum/api/users"],
       },
@@ -373,6 +374,11 @@ registerLocaleData(en);
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
+      multi: true,
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: UnauthorizedHttpInterceptor,
       multi: true,
     },
     {
