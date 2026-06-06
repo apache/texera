@@ -19,9 +19,12 @@
 
 package org.apache.texera.web.service
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+
+import java.sql.Timestamp
 
 import scala.jdk.CollectionConverters._
 import org.apache.texera.web.service.ExecutionResultService.{
@@ -512,6 +515,16 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
 
     val text = ExecutionResultService.convertTuplesToJson(List(tuple)).head.get("b").asText()
     text shouldBe "<binary 1111111100...010, size = 3 bytes>"
+  }
+
+  // TIMESTAMP passes through to the shared objectMapper unchanged.
+  it should "pass timestamp fields through unchanged to the shared serializer" in {
+    val schema = new Schema(List(new Attribute("ts", AttributeType.TIMESTAMP)))
+    val ts = Timestamp.valueOf("2023-01-15 08:30:45.123")
+    val tuple = Tuple.builder(schema).add("ts", AttributeType.TIMESTAMP, ts).build()
+
+    val node = ExecutionResultService.convertTuplesToJson(List(tuple)).head.get("ts")
+    node shouldBe objectMapper.valueToTree[JsonNode](ts)
   }
 
   // The WebOutputMode / WebResultUpdate ADTs are serialized to the frontend over
