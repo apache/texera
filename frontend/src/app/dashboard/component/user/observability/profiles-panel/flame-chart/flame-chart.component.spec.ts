@@ -142,7 +142,13 @@ describe("FlameChartComponent", () => {
   // ----- security tripwire -------------------------------------------
 
   it("renders frame names via interpolation, never via [innerHTML]", () => {
-    const templatePath = path.resolve(__dirname, "flame-chart.component.html");
+    // The unit-test bundler rewrites `__dirname` to the bundle root, so the
+    // template can only be located by its stable path under the frontend
+    // working directory (cwd is always `frontend/` in CI and locally).
+    const templatePath = path.resolve(
+      process.cwd(),
+      "src/app/dashboard/component/user/observability/profiles-panel/flame-chart/flame-chart.component.html"
+    );
     const tpl = fs.readFileSync(templatePath, "utf-8");
     expect(tpl).not.toMatch(/\[innerHTML\]/);
     expect(tpl).toMatch(/{{\s*row\.name\s*}}/);
