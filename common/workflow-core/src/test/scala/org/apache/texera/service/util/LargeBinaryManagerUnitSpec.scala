@@ -22,9 +22,8 @@ package org.apache.texera.service.util
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
-  * Unit tests for [[LargeBinaryManager.deleteByExecution]] that do not require a live
-  * S3/MinIO endpoint. The directory-delete operation is injected so both the success
-  * and the swallow-and-log error path can be exercised deterministically.
+  * Unit tests for [[LargeBinaryManager.deleteByExecution]] with the directory-delete op
+  * injected, so success and the swallow-and-log error path run without a live S3 endpoint.
   */
 class LargeBinaryManagerUnitSpec extends AnyFunSuite {
 

@@ -31,26 +31,21 @@ from core.storage.storage_config import StorageConfig
 class LargeBinaryManager:
     """Manages large binaries in S3 for a worker process.
 
-    Implemented as a singleton: ``LargeBinaryManager()`` always returns the same
-    instance, so the cached S3 client is shared across all callers in the worker process.
-
-    The execution-scoped base URI that create() appends to is named by the controller and
-    handed down as process config (``StorageConfig.S3_LARGE_BINARIES_BASE_URI``), so the
-    worker never holds an execution id. This is the Python counterpart of the JVM
-    ``LargeBinaryManager``; the two differ only in how the base URI reaches create() — a
-    process-wide config value here vs. a thread-local there. A Python worker runs as its
-    own OS process serving a single execution, so process-wide config is safe; a JVM engine
-    process instead hosts many worker threads and is reused across executions, so the JVM
-    side scopes the base URI per DP thread (thread-local) rather than per process.
+    A singleton, so the cached S3 client is shared process-wide. create() appends a
+    unique suffix to an execution-scoped base URI handed down by the controller as
+    process config (``StorageConfig.S3_LARGE_BINARIES_BASE_URI``); the worker never
+    holds an execution id. This is the Python counterpart of the JVM
+    ``LargeBinaryManager``, which uses a thread-local instead because one JVM process
+    runs many workers across executions (a Python worker is one process per execution).
     """
 
     _instance = None
-    # Guards one-time singleton creation and S3-client init: the manager is reached from
-    # both the operator thread and LargeBinaryOutputStream's upload thread.
+    # Guards singleton creation and S3-client init; reached from the operator and upload
+    # threads.
     _lock = threading.Lock()
 
     def __new__(cls):
-        # Double-checked locking: skip the lock on the fast path once the instance exists.
+        # Double-checked locking: skip the lock once the instance exists.
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -95,19 +90,10 @@ class LargeBinaryManager:
             logger.info(f"Created bucket: {bucket}")
 
     def create(self) -> str:
-        """
-        Creates a new largebinary reference by appending a unique suffix to the
-        execution-scoped base URI handed down by the controller.
+        """Append a unique suffix to the controller-provided base URI.
 
-        The base URI is injected by the system as process config
-        (``StorageConfig.S3_LARGE_BINARIES_BASE_URI``, set when the worker process starts),
-        so the worker never builds execution-scoped names itself and callers never pass an
-        execution id. The bucket is created on demand at upload time by
-        LargeBinaryOutputStream, so this is pure string construction with no S3 round-trip.
-
-        Returns:
-            S3 URI string, e.g. s3://bucket/objects/{execution_id}/{uuid} — the
-            objects/{execution_id}/ structure comes from the base URI, not from here.
+        Pure string construction (no S3 round-trip); the bucket is created on demand at
+        upload time. Returns e.g. ``s3://bucket/objects/{execution_id}/{uuid}``.
         """
         base_uri = StorageConfig.S3_LARGE_BINARIES_BASE_URI
         if not base_uri:

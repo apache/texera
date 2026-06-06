@@ -95,13 +95,9 @@ class DPThread(
       dpThread = dpThreadExecutor.submit(new Runnable() {
         def run(): Unit = {
           Thread.currentThread().setName(getThreadName)
-          // Seed this DP thread's large-binary base URI before any tuple is processed, so
-          // create() can append a unique suffix without knowing the execution id. The base
-          // URI is named by the controller and handed down via WorkerConfig (empty when
-          // unconfigured, which makes create() fail loudly). Seeded once per thread, which
-          // assumes a DP thread serves a single execution (a worker is created per execution
-          // and not reused); pooling/reusing workers across executions would require
-          // re-seeding here.
+          // Seed this thread's large-binary base URI (from WorkerConfig) before any tuple,
+          // so create() can append a suffix without the execution id. Once per thread,
+          // assuming a thread serves one execution.
           LargeBinaryManager.setCurrentBaseUri(largeBinaryBaseUri)
           logger.info("DP thread started")
           startFuture.complete(())
