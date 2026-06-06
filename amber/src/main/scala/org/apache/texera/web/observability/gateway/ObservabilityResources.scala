@@ -21,8 +21,9 @@ package org.apache.texera.web.observability.gateway
 
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
-import javax.ws.rs.core.{MediaType, Response}
+import javax.ws.rs.core.{Context, MediaType, Response}
 import javax.servlet.http.HttpServletRequest
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.web.observability.gateway.dtos._
