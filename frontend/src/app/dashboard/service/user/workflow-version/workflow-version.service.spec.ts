@@ -310,6 +310,41 @@ describe("WorkflowVersionService", () => {
     });
   });
 
+  // ─── unhighlightOpVersionDiff ─────────────────────────────────────────────
+
+  describe("unhighlightOpVersionDiff", () => {
+    it("resets the boundary fill of added and modified ops to transparent", () => {
+      service.unhighlightOpVersionDiff({ modified: ["m"], added: ["a"], deleted: [] });
+
+      expect(paperGetModelById).toHaveBeenCalledWith("m");
+      expect(paperGetModelById).toHaveBeenCalledWith("a");
+      expect(modelAttr).toHaveBeenCalledWith("rect.boundary/fill", "rgba(0,0,0,0)");
+    });
+
+    it("resets the red brackets drawn around the neighbors of deleted ops", () => {
+      const tempWorkflow = buildWorkflow({
+        content: buildContent({
+          operators: [buildOperator({ operatorID: "alive-left" }), buildOperator({ operatorID: "alive-right" })],
+          links: [buildLink("dead", "alive-right"), buildLink("alive-left", "dead")],
+        }),
+      });
+      actionSpy.getTempWorkflow.mockReturnValue(tempWorkflow);
+
+      service.unhighlightOpVersionDiff({ modified: [], added: [], deleted: ["dead"] });
+
+      expect(modelAttr).toHaveBeenCalledWith("path.left-boundary/stroke", "rgba(0,0,0,0)");
+      expect(modelAttr).toHaveBeenCalledWith("path.right-boundary/stroke", "rgba(0,0,0,0)");
+    });
+
+    it("skips bracket clearing when the temp workflow is missing", () => {
+      actionSpy.getTempWorkflow.mockReturnValue(undefined);
+
+      service.unhighlightOpVersionDiff({ modified: [], added: [], deleted: ["dead"] });
+
+      expect(getMainJointPaper).not.toHaveBeenCalled();
+    });
+  });
+
   // ─── getWorkflowsDifference / getOperatorsDifference ──────────────────────
 
   describe("getWorkflowsDifference", () => {
