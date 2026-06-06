@@ -75,4 +75,6 @@ object GuiConfig {
     conf.getInt("gui.workflow-workspace.limit-columns")
   val guiAttributionEnabled: Boolean =
     conf.getBoolean("gui.attribution-enabled")
+  val guiWorkflowWorkspacePythonNotebookMigrationEnabled: Boolean =
+    conf.getBoolean("gui.workflow-workspace.python-notebook-migration-enabled")
 }

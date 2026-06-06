@@ -33,7 +33,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { catchError, debounceTime, filter, mergeMap, tap } from "rxjs/operators";
+import { catchError, debounceTime, filter, mergeMap, switchMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -43,7 +43,7 @@ import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { firstValueFrom, of, Subscription, timer } from "rxjs";
+import { EMPTY, firstValueFrom, of, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
@@ -154,14 +154,12 @@ export class MenuComponent implements OnInit, OnDestroy {
   public runDisable = false;
 
   public executionDuration = 0;
-  private durationUpdateSubscription: Subscription = new Subscription();
 
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
 
   // Computing unit status variables
-  private computingUnitStatusSubscription: Subscription = new Subscription();
   public selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   public computingUnitStatus: ComputingUnitState = ComputingUnitState.NoComputingUnit;
 
@@ -193,17 +191,14 @@ export class MenuComponent implements OnInit, OnDestroy {
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        this.executionDuration = event.duration;
-        this.durationUpdateSubscription.unsubscribe();
-        if (event.isRunning) {
-          this.durationUpdateSubscription = timer(1000, 1000)
-            .pipe(untilDestroyed(this))
-            .subscribe(() => {
-              this.executionDuration += 1000;
-            });
-        }
+      .pipe(
+        tap(event => (this.executionDuration = event.duration)),
+        // restart the 1s timer on each event, only while running
+        switchMap(event => (event.isRunning ? timer(1000, 1000) : EMPTY)),
+        untilDestroyed(this)
+      )
+      .subscribe(() => {
+        this.executionDuration += 1000;
       });
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -254,7 +249,6 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.workflowResultExportService.resetFlags();
-    this.computingUnitStatusSubscription.unsubscribe();
   }
 
   private subscribeToComputingUnitSelection(): void {
@@ -271,15 +265,13 @@ export class MenuComponent implements OnInit, OnDestroy {
    */
   private subscribeToComputingUnitStatus(): void {
     // Subscribe to get the computing unit status
-    this.computingUnitStatusSubscription.add(
-      this.computingUnitStatusService
-        .getStatus()
-        .pipe(untilDestroyed(this))
-        .subscribe(status => {
-          this.computingUnitStatus = status;
-          this.applyRunButtonBehavior(this.getRunButtonBehavior());
-        })
-    );
+    this.computingUnitStatusService
+      .getStatus()
+      .pipe(untilDestroyed(this))
+      .subscribe(status => {
+        this.computingUnitStatus = status;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior());
+      });
   }
 
   /**
