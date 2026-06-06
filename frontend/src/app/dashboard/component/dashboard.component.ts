@@ -83,7 +83,7 @@ export class DashboardComponent implements OnInit {
 
   isAdmin: boolean = this.userService.isAdmin();
   isLogin = this.userService.isLogin();
-  public gitCommitHash: string = Version.raw;
+  public buildNumber: string = Version.buildNumber;
   displayForum: boolean = true;
   displayNavbar: boolean = true;
   isCollapsed: boolean = false;
