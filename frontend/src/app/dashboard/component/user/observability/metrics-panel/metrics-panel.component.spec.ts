@@ -27,6 +27,14 @@ import { MetricsPanelComponent } from "./metrics-panel.component";
 import { ObservabilityService } from "../../../../service/user/observability/observability.service";
 import { MetricsQueryResponse, NamedMetric } from "../../../../service/user/observability/observability.types";
 
+// The unit-test bundler rewrites `__dirname` to the bundle root, so the
+// component source can only be located by its stable path under the
+// frontend working directory (cwd is always `frontend/` in CI and locally).
+const componentPath = path.resolve(
+  process.cwd(),
+  "src/app/dashboard/component/user/observability/metrics-panel/metrics-panel.component.ts"
+);
+
 describe("MetricsPanelComponent", () => {
   let component: MetricsPanelComponent;
   let fixture: ComponentFixture<MetricsPanelComponent>;
@@ -112,7 +120,7 @@ describe("MetricsPanelComponent", () => {
     // ECharts `formatter` strings/functions can be a code-injection
     // vector if built from response data. The component file should
     // not declare ANY formatter property in the option object.
-    const componentSource = fs.readFileSync(path.resolve(__dirname, "metrics-panel.component.ts"), "utf-8");
+    const componentSource = fs.readFileSync(componentPath, "utf-8");
     // Permit the WORD "formatter" in comments (where we explain the
     // rule) but reject any actual `formatter:` property assignment.
     const codeLines = componentSource

@@ -370,6 +370,13 @@ Dependencies under the Unlicense
 Angular / npm packages:
   - robust-predicates@3.0.3
 
+--------------------------------------------------------------------------------
+Dependencies under the BSD Zero Clause License (0BSD)
+--------------------------------------------------------------------------------
+
+Angular / npm packages:
+  - tslib@2.3.0
+
 Individual jars may contain their own META-INF/LICENSE and META-INF/NOTICE
 files that apply to their specific contents; those files continue to govern
 the use of those components.

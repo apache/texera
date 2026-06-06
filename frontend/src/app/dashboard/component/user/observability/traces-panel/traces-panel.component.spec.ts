@@ -28,6 +28,14 @@ import { ObservabilityService } from "../../../../service/user/observability/obs
 import { TracesPivotService } from "../../../../service/user/observability/traces-pivot.service";
 import { TraceSpan } from "../../../../service/user/observability/observability.types";
 
+// The unit-test bundler rewrites `__dirname` to the bundle root, so the
+// template can only be located by its stable path under the frontend
+// working directory (cwd is always `frontend/` in CI and locally).
+const templatePath = path.resolve(
+  process.cwd(),
+  "src/app/dashboard/component/user/observability/traces-panel/traces-panel.component.html"
+);
+
 describe("TracesPanelComponent", () => {
   let component: TracesPanelComponent;
   let fixture: ComponentFixture<TracesPanelComponent>;
@@ -80,7 +88,6 @@ describe("TracesPanelComponent", () => {
   });
 
   it("renders span name via {{ }} interpolation, never [innerHTML]", () => {
-    const templatePath = path.resolve(__dirname, "traces-panel.component.html");
     const tpl = fs.readFileSync(templatePath, "utf-8");
     expect(tpl).not.toMatch(/\[innerHTML\]\s*=\s*['"][^'"]*span(\.|\?)/);
     expect(tpl).toMatch(/{{\s*n\.span\.name\s*}}/);
