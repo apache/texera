@@ -60,9 +60,5 @@ libraryDependencies ++= Seq(
   "jakarta.annotation" % "jakarta.annotation-api" % "2.1.1",            // for @Priority on JwtAuthFilter
   "jakarta.servlet" % "jakarta.servlet-api" % "5.0.0" % "provided",    // for RequestLoggingFilter
   "org.eclipse.jetty" % "jetty-servlet" % "11.0.24" % "provided",      // for FilterHolder
-  "org.scalatest" %% "scalatest" % "3.2.17" % Test,
-  // Pulls in Jersey impl so UnauthorizedExceptionMapperSpec can `Response.status(...).build()`.
-  // Without it, jakarta.ws.rs-api alone has no RuntimeDelegate provider on the classpath
-  // and Response.build throws ClassNotFoundException at test time.
-  "org.glassfish.jersey.core" % "jersey-common" % "3.0.16" % Test
+  "org.scalatest" %% "scalatest" % "3.2.17" % Test
 )
