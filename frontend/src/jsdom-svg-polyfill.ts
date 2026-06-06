@@ -96,6 +96,26 @@ if (SVG_ELEMENT_GLOBAL?.prototype) {
 }
 
 /**
+ * jsdom doesn't implement `ResizeObserver` (a browser layout API). ngx-echarts
+ * constructs one in its directive's `ngOnInit` to track the chart container's
+ * size; without it the metrics/traces panel specs crash with
+ * `Error: please install a polyfill for ResizeObserver` the moment a chart is
+ * rendered via `detectChanges()`.
+ *
+ * An inert stub is enough: specs assert on the bound ECharts option object and
+ * component state, not on rendered pixel geometry (which jsdom can't produce
+ * anyway). Real resize behaviour belongs under Vitest browser mode.
+ */
+const resizeObserverGlobal = globalThis as unknown as { ResizeObserver?: unknown };
+if (typeof resizeObserverGlobal.ResizeObserver !== "function") {
+  resizeObserverGlobal.ResizeObserver = class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  };
+}
+
+/**
  * jsdom doesn't implement the legacy `document.queryCommandSupported`,
  * which monaco-editor probes during initialization. Without it the
  * editor's setup throws even when no spec actually exercises monaco.
