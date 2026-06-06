@@ -91,7 +91,12 @@ object JSONUtils {
     val result = mutable.Map[String, String]()
     val stack = mutable.Stack[(JsonNode, String)]((node, parentName))
     while (stack.nonEmpty) {
-      val (current, currentParent) = stack.pop()
+      // Read via _1/_2 rather than `val (a, b) = ...`: tuple destructuring
+      // desugars to a pattern match with an unreachable MatchError branch that
+      // coverage tools report as a permanently uncovered branch.
+      val entry = stack.pop()
+      val current = entry._1
+      val currentParent = entry._2
       if (current.isObject) {
         for (key <- current.fieldNames().asScala) {
           val child: JsonNode = current.get(key)

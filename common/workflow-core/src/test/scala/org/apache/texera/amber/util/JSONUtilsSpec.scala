@@ -20,7 +20,7 @@
 package org.apache.texera.amber.util
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.JsonNodeFactory
+import com.fasterxml.jackson.databind.node.{JsonNodeFactory, MissingNode}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -160,6 +160,13 @@ class JSONUtilsSpec extends AnyFlatSpec with Matchers {
 
   it should "return an empty map for a top-level empty array" in {
     JSONUtils.JSONToMap(parse("[]"), flatten = true) shouldBe Map.empty[String, String]
+  }
+
+  it should "ignore a node that is neither object, array, nor value node" in {
+    // Defensive branch: a MissingNode is none of object/array/value, so the
+    // traversal pops it and contributes nothing. Guards against a node type
+    // that slips past all three predicates silently corrupting the result.
+    JSONUtils.JSONToMap(MissingNode.getInstance()) shouldBe Map.empty[String, String]
   }
 
   it should "flatten very deeply nested JSON without overflowing the stack" in {
