@@ -186,9 +186,14 @@ class EngineCommonConversionsSpec extends AnyFlatSpec with BeforeAndAfterAll {
   }
 
   it should "preserve a Map[String, Int] payload" in {
-    val original = scala.collection.immutable.HashMap("x" -> 1, "y" -> 2, "z" -> 3)
+    // Deserialize into the trait `immutable.Map[String, Int]`, not the
+    // concrete `HashMap` impl — the serializer is allowed to restore a
+    // different (still value-equal) immutable Map implementation, and
+    // we are pinning value preservation, not the concrete class.
+    val original: scala.collection.immutable.Map[String, Int] =
+      scala.collection.immutable.HashMap("x" -> 1, "y" -> 2, "z" -> 3)
     val s = SerializedState.fromObject(original, testSerde)
-    val restored = s.toObject[scala.collection.immutable.HashMap[String, Int]](testSerde)
+    val restored = s.toObject[scala.collection.immutable.Map[String, Int]](testSerde)
     assert(restored == original)
   }
 
