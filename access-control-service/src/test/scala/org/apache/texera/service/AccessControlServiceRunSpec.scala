@@ -25,6 +25,7 @@ import io.dropwizard.jetty.MutableServletContextHandler
 import io.dropwizard.jetty.setup.ServletEnvironment
 import org.apache.texera.auth.UnauthorizedExceptionMapper
 import org.apache.texera.service.activity.UserActivityEventListener
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.mockito.ArgumentMatchers.isA
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -46,6 +47,11 @@ class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
 
     verify(jersey).register(isA(classOf[UserActivityEventListener]))
     verify(jersey).register(classOf[UnauthorizedExceptionMapper])
+    // The LiteLLM proxies are @RolesAllowed("REGULAR", "ADMIN"); without the
+    // dynamic feature Jersey ignores those annotations and the role gate
+    // would silently no-op, putting us back at "anonymous can spend LLM
+    // credits". Pin the registration here so a future refactor can't drop it.
+    verify(jersey).register(classOf[RolesAllowedDynamicFeature])
     verify(jersey).setUrlPattern("/api/*")
   }
 }

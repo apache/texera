@@ -20,7 +20,7 @@ package org.apache.texera.service.resource
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import jakarta.annotation.security.PermitAll
+import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
 import jakarta.ws.rs.core._
 import jakarta.ws.rs.{Consumes, DELETE, GET, POST, Path, Produces}
@@ -243,13 +243,12 @@ class AccessControlResource extends LazyLogging {
   }
 }
 
-// LiteLLM proxy: gates on `guiWorkflowWorkspaceCopilotEnabled`, not on
-// JWT. Preserve pre-eager-filter behavior (anonymous access permitted when
-// the feature flag is on) by opting out of the filter's eager 401. Whether
-// /chat/* should require an authenticated user is a separate hardening
-// decision tracked outside this PR.
+// LiteLLM proxy: forwards chat completions to the deployment's LiteLLM
+// instance using the server's master key. Restricted to authenticated
+// REGULAR / ADMIN users so anonymous callers can't spend the deployment's
+// LLM credits when `guiWorkflowWorkspaceCopilotEnabled` is on.
 @Path("/chat")
-@PermitAll
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class LiteLLMProxyResource extends LazyLogging {
@@ -322,7 +321,7 @@ class LiteLLMProxyResource extends LazyLogging {
 }
 
 @Path("/models")
-@PermitAll
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class LiteLLMModelsResource extends LazyLogging {
 
