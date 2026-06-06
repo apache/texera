@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.annotation.security.PermitAll
+import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
 import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, UserSystemConfig}
@@ -28,12 +28,26 @@ import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, Use
 @Produces(Array(MediaType.APPLICATION_JSON))
 class ConfigResource {
 
-  // These two endpoints are fetched by the frontend during app initialization,
-  // before any login, so they must answer unauthenticated callers — hence @PermitAll.
-  // They are the only endpoints in this resource, so role enforcement gates nothing
-  // here; @PermitAll is what keeps them reachable when role enforcement is enabled.
+  // Anonymous endpoint loaded by the frontend's APP_INITIALIZER before any user has
+  // logged in. Only fields that the login page (or the logged-out branches of the
+  // dashboard shell) actually need belong here — anything else lives on /gui or
+  // /user-system, both of which require authentication.
   @GET
   @PermitAll
+  @Path("/pre-login")
+  def getPreLoginConfig: Map[String, Any] =
+    Map(
+      "localLogin" -> GuiConfig.guiLoginLocalLogin,
+      "googleLogin" -> GuiConfig.guiLoginGoogleLogin,
+      "defaultLocalUser" -> Map(
+        "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
+        "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
+      ),
+      "attributionEnabled" -> GuiConfig.guiAttributionEnabled
+    )
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/gui")
   def getGuiConfig: Map[String, Any] =
     Map(
@@ -41,8 +55,6 @@ class ConfigResource {
       "exportExecutionResultEnabled" -> GuiConfig.guiWorkflowWorkspaceExportExecutionResultEnabled,
       "autoAttributeCorrectionEnabled" -> GuiConfig.guiWorkflowWorkspaceAutoAttributeCorrectionEnabled,
       "selectingFilesFromDatasetsEnabled" -> GuiConfig.guiWorkflowWorkspaceSelectingFilesFromDatasetsEnabled,
-      "localLogin" -> GuiConfig.guiLoginLocalLogin,
-      "googleLogin" -> GuiConfig.guiLoginGoogleLogin,
       "userPresetEnabled" -> GuiConfig.guiWorkflowWorkspaceUserPresetEnabled,
       "workflowExecutionsTrackingEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowExecutionsTrackingEnabled,
       "linkBreakpointEnabled" -> GuiConfig.guiWorkflowWorkspaceLinkBreakpointEnabled,
@@ -55,20 +67,15 @@ class ConfigResource {
       "sharingComputingUnitEnabled" -> ComputingUnitConfig.sharingComputingUnitEnabled,
       "operatorConsoleMessageBufferSize" -> GuiConfig.guiWorkflowWorkspaceOperatorConsoleMessageBufferSize,
       "pythonLanguageServerPort" -> GuiConfig.guiWorkflowWorkspacePythonLanguageServerPort,
-      "defaultLocalUser" -> Map(
-        "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
-        "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
-      ),
       "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,
       "copilotEnabled" -> GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
       "limitColumns" -> GuiConfig.guiWorkflowWorkspaceLimitColumns,
-      "attributionEnabled" -> GuiConfig.guiAttributionEnabled,
       // flags from the auth.conf if needed
       "expirationTimeInMinutes" -> AuthConfig.jwtExpirationMinutes
     )
 
   @GET
-  @PermitAll
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/user-system")
   def getUserSystemConfig: Map[String, Any] =
     Map(

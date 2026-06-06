@@ -15,7 +15,7 @@
 # limitations under the License.
 
 # Codecov configuration for apache/texera. The repo uploads four flags
-# (frontend, scala, python, agent-service); without an explicit config,
+# (frontend, scala, pyamber, agent-service); without an explicit config,
 # defaults bite us in three places that this file fixes:
 #   1. Single-stack PRs leave non-uploaded flags as `?` in the comment
 #      and drop them from the rollup. Carry forward instead.
@@ -77,7 +77,7 @@ comment:
   # `flag_management.default_rules.carryforward: true` above already
   # backfills missing flags from main, but Codecov's default still
   # hides those rows from the PR comment. Show them so a frontend-only
-  # or python-only PR's table lists every flag — fresh-data rows track
+  # or pyamber-only PR's table lists every flag — fresh-data rows track
   # the patch and carryforward'd rows render with `<ø>` to make their
   # unchanged status obvious.
   show_carryforward_flags: true

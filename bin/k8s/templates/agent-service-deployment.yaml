@@ -1,0 +1,79 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+{{- if .Values.agentService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.agentService.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.agentService.name }}
+spec:
+  replicas: {{ .Values.agentService.numOfPods | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.agentService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.agentService.name }}
+    spec:
+      containers:
+        - name: {{ .Values.agentService.name }}
+          image: {{ .Values.texera.imageRegistry }}/{{ .Values.agentService.imageName }}:{{ .Values.texera.imageTag }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.agentService.service.port }}
+          # Env names match the agent service's config schema (agent-service/src/config/env.ts).
+          env:
+            - name: PORT
+              value: "{{ .Values.agentService.service.port }}"
+            # Dashboard service: workflow CRUD + operator metadata.
+            - name: TEXERA_DASHBOARD_SERVICE_ENDPOINT
+              value: http://{{ .Values.webserver.name }}-svc:{{ .Values.webserver.service.port }}
+            # LLM gateway: access-control-service serves /api/chat and /api/models,
+            # forwarding to LiteLLM (mirrors the single-node nginx routing).
+            - name: LLM_ENDPOINT
+              value: http://{{ .Values.accessControlService.name }}-svc:{{ .Values.accessControlService.service.port }}
+            - name: WORKFLOW_COMPILING_SERVICE_ENDPOINT
+              value: http://{{ .Values.workflowCompilingService.name }}-svc:{{ .Values.workflowCompilingService.service.port }}
+            # Per-computing-unit execution endpoint; "{cuid}" is substituted with the
+            # computing unit id at request time.
+            - name: EXECUTION_ENDPOINT_TEMPLATE
+              value: http://computing-unit-{cuid}.{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:{{ .Values.workflowComputingUnitPool.service.port }}
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-agent-service-secret
+                  key: llm-api-key
+          # The service loads operator metadata from the dashboard service on
+          # startup, so gate readiness on its health endpoint before the gateway
+          # routes traffic here. /api/healthcheck needs no auth.
+          readinessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: {{ .Values.agentService.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: {{ .Values.agentService.service.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+{{- end }}
