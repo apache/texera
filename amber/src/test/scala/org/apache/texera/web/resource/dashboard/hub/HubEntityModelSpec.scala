@@ -39,10 +39,15 @@ class HubEntityModelSpec extends AnyFlatSpec {
   it should "have toString equal to value (override pin)" in {
     // The trait override `toString = value` is what reaches log lines and
     // tracking pipelines. Pin so a regression that returns the case-object
-    // name (e.g. "View" instead of "view") breaks here.
+    // name (e.g. "View" instead of "view") breaks here. Use the class
+    // simpleName in the failure message — not toString, which is what
+    // we are pinning — so a regression produces a readable diagnostic.
     val all: List[ActionType] =
       List(ActionType.View, ActionType.Like, ActionType.Clone, ActionType.Unlike)
-    all.foreach(a => assert(a.toString == a.value, s"$a.toString != $a.value"))
+    all.foreach { a =>
+      val name = a.getClass.getSimpleName
+      assert(a.toString == a.value, s"$name.toString = '${a.toString}' but value = '${a.value}'")
+    }
   }
 
   "ActionType.fromString" should "match each subtype exactly" in {
@@ -66,10 +71,13 @@ class HubEntityModelSpec extends AnyFlatSpec {
     assert(ex.getMessage.contains("delete"), s"unexpected message: ${ex.getMessage}")
   }
 
-  it should "throw IllegalArgumentException for an empty string" in {
-    intercept[IllegalArgumentException] {
+  it should "throw IllegalArgumentException for an empty string, naming the empty input" in {
+    // Pin the concrete `''` representation in the message, not just that
+    // an exception is thrown (`"".contains("")` is trivially true).
+    val ex = intercept[IllegalArgumentException] {
       ActionType.fromString("")
     }
+    assert(ex.getMessage.contains("''"), s"unexpected message: ${ex.getMessage}")
   }
 
   "ActionType Jackson round-trip" should "serialize each subtype as its lowercase string value" in {
@@ -104,8 +112,13 @@ class HubEntityModelSpec extends AnyFlatSpec {
   }
 
   it should "have toString equal to value (override pin)" in {
+    // Same stable-name pattern as ActionType — don't use the SUT
+    // (toString) in the failure message.
     val all: List[EntityType] = List(EntityType.Workflow, EntityType.Dataset)
-    all.foreach(e => assert(e.toString == e.value, s"$e.toString != $e.value"))
+    all.foreach { e =>
+      val name = e.getClass.getSimpleName
+      assert(e.toString == e.value, s"$name.toString = '${e.toString}' but value = '${e.value}'")
+    }
   }
 
   "EntityType.fromString" should "match each subtype exactly" in {
@@ -125,10 +138,11 @@ class HubEntityModelSpec extends AnyFlatSpec {
     assert(ex.getMessage.contains("project"))
   }
 
-  it should "throw IllegalArgumentException for an empty string" in {
-    intercept[IllegalArgumentException] {
+  it should "throw IllegalArgumentException for an empty string, naming the empty input" in {
+    val ex = intercept[IllegalArgumentException] {
       EntityType.fromString("")
     }
+    assert(ex.getMessage.contains("''"), s"unexpected message: ${ex.getMessage}")
   }
 
   "EntityType Jackson round-trip" should "serialize / deserialize each subtype as its lowercase string value" in {
