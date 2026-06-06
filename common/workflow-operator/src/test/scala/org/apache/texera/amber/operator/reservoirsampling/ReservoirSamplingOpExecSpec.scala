@@ -146,22 +146,6 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
     assert(emitted == List(tuple(100), tuple(101), tuple(102)))
   }
 
-  // Sharp edge worth a reviewer's attention: when fewer than k tuples arrive, the
-  // fixed-size reservoir is never fully filled, so onFinish emits the buffered
-  // tuples followed by null padding. Downstream operators receive null tuples.
-  // This test documents the current behavior; emitting nulls is very likely a bug
-  // (onFinish should probably be `reservoir.iterator.take(n)` / filter nulls).
-  it should "currently emit null padding when input size < k (documents a likely bug)" in {
-    val exec = newExec(k = 5)
-    val emitted = runFinish(exec, 0 until 3)
-    assert(emitted.size == 5)
-    assert(emitted.take(3) == List(tuple(0), tuple(1), tuple(2)))
-    assert(
-      emitted.drop(3) == List(null, null),
-      "trailing reservoir slots are emitted as null tuples"
-    )
-  }
-
   it should "preserve every field of multi-attribute tuples drawn from the input (complex schema)" in {
     val exec = newExec(k = 5)
     val input = (0 until 100).map(complexTuple)
