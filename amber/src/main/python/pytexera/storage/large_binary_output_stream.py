@@ -160,6 +160,10 @@ class LargeBinaryOutputStream(IOBase):
                     reader = _QueueReader(self._queue)
                     s3.upload_fileobj(reader, self._bucket_name, self._object_key)
                 except Exception as e:
+                    # Record the failure first so the next write() call can
+                    # immediately raise, then best-effort clean up the object.
+                    with self._lock:
+                        self._upload_exception = e
                     if s3 is not None:
                         try:
                             s3.delete_object(
@@ -167,8 +171,6 @@ class LargeBinaryOutputStream(IOBase):
                             )
                         except Exception:
                             pass
-                    with self._lock:
-                        self._upload_exception = e
                 finally:
                     self._upload_complete.set()
 

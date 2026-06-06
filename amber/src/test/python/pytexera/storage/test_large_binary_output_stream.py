@@ -248,7 +248,7 @@ class TestLargeBinaryOutputStream:
             stream.close()
 
 
-class TestCleanupFailedUpload:
+class TestUploadWorkerCleanup:
     """Direct unit tests for the upload worker's silent-swallow cleanup."""
 
     @pytest.fixture
