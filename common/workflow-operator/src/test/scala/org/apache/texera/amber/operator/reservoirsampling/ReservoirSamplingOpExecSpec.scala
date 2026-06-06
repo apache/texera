@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.reservoirsampling
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -31,6 +32,26 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
   private def tuple(v: Int): Tuple =
     Tuple.builder(schema).add(new Attribute("v", AttributeType.INTEGER), Integer.valueOf(v)).build()
 
+  // A wider schema mixing every primitive attribute type, to prove sampling treats
+  // tuples opaquely and preserves all fields regardless of arity or type.
+  private val complexSchema: Schema =
+    Schema()
+      .add(new Attribute("id", AttributeType.INTEGER))
+      .add(new Attribute("label", AttributeType.STRING))
+      .add(new Attribute("score", AttributeType.DOUBLE))
+      .add(new Attribute("flag", AttributeType.BOOLEAN))
+      .add(new Attribute("big", AttributeType.LONG))
+
+  private def complexTuple(i: Int): Tuple =
+    Tuple
+      .builder(complexSchema)
+      .add(new Attribute("id", AttributeType.INTEGER), Integer.valueOf(i))
+      .add(new Attribute("label", AttributeType.STRING), s"row-$i")
+      .add(new Attribute("score", AttributeType.DOUBLE), java.lang.Double.valueOf(i * 1.5))
+      .add(new Attribute("flag", AttributeType.BOOLEAN), java.lang.Boolean.valueOf(i % 2 == 0))
+      .add(new Attribute("big", AttributeType.LONG), java.lang.Long.valueOf(i.toLong))
+      .build()
+
   // LogicalOp is registered for polymorphic Jackson deserialization via the
   // `operatorType` discriminator, so a hand-rolled `{"k":N}` string would fail
   // to bind. Serialize a real `ReservoirSamplingOpDesc` to embed the discriminator.
@@ -40,6 +61,19 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
     objectMapper.writeValueAsString(d)
   }
 
+  // `k` is renamed by @JsonProperty, so resolve the JSON key from the annotation
+  // rather than hard-coding it, then overwrite that slot with null on a real desc.
+  private def descWithNullK: String = {
+    val node = objectMapper.valueToTree[ObjectNode](new ReservoirSamplingOpDesc())
+    val keyForK =
+      classOf[ReservoirSamplingOpDesc]
+        .getDeclaredField("k")
+        .getAnnotation(classOf[com.fasterxml.jackson.annotation.JsonProperty])
+        .value()
+    node.putNull(keyForK)
+    objectMapper.writeValueAsString(node)
+  }
+
   private def newExec(k: Int, idx: Int = 0, workerCount: Int = 1): ReservoirSamplingOpExec = {
     val exec = new ReservoirSamplingOpExec(desc(k), idx, workerCount)
     exec.open()
@@ -47,8 +81,12 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
   }
 
   /** Feed every value through processTuple, then drain onFinish into a list. */
-  private def runFinish(exec: ReservoirSamplingOpExec, values: Seq[Int]): List[Tuple] = {
-    values.foreach(v => exec.processTuple(tuple(v), 0))
+  private def runFinish(exec: ReservoirSamplingOpExec, values: Seq[Int]): List[Tuple] =
+    runFinishTuples(exec, values.map(tuple))
+
+  /** Feed pre-built tuples through processTuple, then drain onFinish into a list. */
+  private def runFinishTuples(exec: ReservoirSamplingOpExec, tuples: Seq[Tuple]): List[Tuple] = {
+    tuples.foreach(t => exec.processTuple(t, 0))
     exec.onFinish(0).map(_.asInstanceOf[Tuple]).toList
   }
 
@@ -122,5 +160,38 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
       emitted.drop(3) == List(null, null),
       "trailing reservoir slots are emitted as null tuples"
     )
+  }
+
+  it should "preserve every field of multi-attribute tuples drawn from the input (complex schema)" in {
+    val exec = newExec(k = 5)
+    val input = (0 until 100).map(complexTuple)
+    val emitted = runFinishTuples(exec, input)
+
+    assert(emitted.size == 5, "reservoir must hold exactly k samples")
+    assert(!emitted.contains(null), "no null padding when the reservoir is fully filled")
+    val inputTuples = input.toSet
+    assert(
+      emitted.forall(inputTuples.contains),
+      "each sample is an intact input tuple with all five attributes preserved"
+    )
+    assert(emitted.distinct.size == emitted.size, "each input tuple is sampled at most once")
+  }
+
+  "ReservoirSamplingOpExec with a bad k" should "reject a negative k with a negative-sized reservoir" in {
+    // equallyPartitionGoal(-1, 1) -> count = -1, so open() allocates Array.ofDim(-1).
+    assertThrows[NegativeArraySizeException] {
+      newExec(k = -1)
+    }
+  }
+
+  it should "coerce a null k to 0 and reject sampling a populated stream" in {
+    // A null k deserializes to the primitive default 0, yielding a zero-length
+    // reservoir; the first replacement draw then calls Random.nextInt(0).
+    val exec = new ReservoirSamplingOpExec(descWithNullK, 0, 1)
+    exec.open()
+    assert(exec.onFinish(0).isEmpty, "an empty reservoir emits nothing")
+    assertThrows[IllegalArgumentException] {
+      exec.processTuple(tuple(0), 0)
+    }
   }
 }
