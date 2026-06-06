@@ -22,8 +22,8 @@ name: License Binary Checker
 # one tracking issue (label `license-binary-drift`). Sub-task of #4688.
 on:
   schedule:
-    # 11:00 UTC daily = 04:00 PDT / 03:00 PST.
-    - cron: "0 11 * * *"
+    # 11:00 UTC every Monday = 04:00 PDT / 03:00 PST.
+    - cron: "0 11 * * 1"
   workflow_dispatch:
 
 permissions:
