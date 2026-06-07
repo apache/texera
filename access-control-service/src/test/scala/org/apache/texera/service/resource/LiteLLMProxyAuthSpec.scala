@@ -189,9 +189,8 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     response.getStatus shouldBe 403
   }
 
-  it should "reach the LiteLLM proxy path with a REGULAR-role token" in {
-    // 502 only comes from the resource's catch branch on a failed upstream
-    // call — status code alone proves the auth pipeline did not reject.
+  it should "return 502 when the upstream LiteLLM call fails" in {
+    // Exercises the resource's catch branch via a connect-refused upstream.
     val response = resources
       .target("/chat/completions")
       .request(MediaType.APPLICATION_JSON)
@@ -228,7 +227,7 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     response.getStatus shouldBe 403
   }
 
-  it should "reach the LiteLLM proxy path with an ADMIN-role token" in {
+  it should "return 502 when the upstream LiteLLM call fails" in {
     val response = resources
       .target("/models")
       .request(MediaType.APPLICATION_JSON)
