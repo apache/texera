@@ -26,7 +26,7 @@ import io.dropwizard.testing.junit5.ResourceExtension
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
-import org.apache.texera.auth.{JwtAuth, JwtAuthFilter}
+import org.apache.texera.auth.{JwtAuth, JwtAuthFilter, UnauthorizedExceptionMapper}
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
@@ -39,8 +39,10 @@ import org.scalatest.matchers.should.Matchers
 // without an Authorization header. /config/pre-login is the only @PermitAll
 // endpoint and must answer unauthenticated callers (bootstrap regression guard,
 // same shape as the break that caused PR #5049 to be reverted in #5173).
-// /config/gui and /config/user-system are now @RolesAllowed; they must reject
-// anonymous traffic and accept callers with a valid Bearer token.
+// /config/gui and /config/user-system are @RolesAllowed; they must reject
+// anonymous traffic with a 401 (now from JwtAuthFilter's eager check, not
+// from a downstream RolesAllowedRequestFilter 403) and accept callers with a
+// valid Bearer token.
 class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
   // Mirror production's mapper: ConfigService bootstraps Dropwizard's default mapper
@@ -52,6 +54,7 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     .builder()
     .setMapper(testMapper)
     .addProvider(classOf[JwtAuthFilter])
+    .addProvider(classOf[UnauthorizedExceptionMapper])
     .addProvider(classOf[RolesAllowedDynamicFeature])
     .addResource(new ConfigResource)
     .addResource(new ConfigResourceAuthSpec.ProtectedProbe)
@@ -101,9 +104,10 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     )
   }
 
-  "GET /config/gui" should "return 403 without an Authorization header" in {
+  "GET /config/gui" should "return 401 with a Bearer challenge without an Authorization header" in {
     val response = resources.target("/config/gui").request(MediaType.APPLICATION_JSON).get()
-    response.getStatus shouldBe 403
+    response.getStatus shouldBe 401
+    response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
   }
 
   it should "return 200 with a valid Bearer token whose role matches @RolesAllowed" in {
@@ -132,10 +136,11 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     )
   }
 
-  "GET /config/user-system" should "return 403 without an Authorization header" in {
+  "GET /config/user-system" should "return 401 with a Bearer challenge without an Authorization header" in {
     val response =
       resources.target("/config/user-system").request(MediaType.APPLICATION_JSON).get()
-    response.getStatus shouldBe 403
+    response.getStatus shouldBe 401
+    response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
   }
 
   it should "return 200 with a valid Bearer token whose role matches @RolesAllowed" in {
@@ -147,13 +152,15 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     response.getStatus shouldBe 200
   }
 
-  "GET an @RolesAllowed probe endpoint" should "return 403 without an Authorization header" in {
-    // Sanity: with no SecurityContext set by JwtAuthFilter, RolesAllowedDynamicFeature
-    // must reject. Catches the case where the feature is registered but somehow
-    // disabled (e.g. swallowed exception during setup).
+  "GET an @RolesAllowed probe endpoint" should "return 401 without an Authorization header" in {
+    // Sanity: JwtAuthFilter is now eager — missing Authorization is rejected
+    // by the filter itself with a 401 + Bearer challenge, before
+    // RolesAllowedDynamicFeature ever sees the request. Pre-eager behavior
+    // here was a 403 from the role filter; the test pins the new contract.
     val response =
       resources.target("/auth-probe").request(MediaType.APPLICATION_JSON).get()
-    response.getStatus shouldBe 403
+    response.getStatus shouldBe 401
+    response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
   }
 
   it should "return 200 with a valid Bearer token whose role matches @RolesAllowed" in {

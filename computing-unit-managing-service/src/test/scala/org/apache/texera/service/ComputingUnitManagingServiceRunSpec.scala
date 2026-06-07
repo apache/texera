@@ -22,6 +22,7 @@ package org.apache.texera.service
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.core.setup.Environment
 import io.dropwizard.jersey.setup.JerseyEnvironment
+import org.apache.texera.auth.UnauthorizedExceptionMapper
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -40,6 +41,7 @@ class ComputingUnitManagingServiceRunSpec extends AnyFlatSpec with Matchers {
     ComputingUnitManagingService.registerAuthFeatures(env)
 
     verify(jersey).register(classOf[RolesAllowedDynamicFeature])
+    verify(jersey).register(classOf[UnauthorizedExceptionMapper])
     verify(jersey).register(org.mockito.ArgumentMatchers.any(classOf[AuthDynamicFeature]))
     verify(jersey).register(
       org.mockito.ArgumentMatchers.any(classOf[AuthValueFactoryProvider.Binder[_]])

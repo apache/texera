@@ -260,7 +260,7 @@ jobs:
         # `WorkflowExecutionService/jacoco` only runs that project's
         # Test config (sbt's `test` task does not transit dependsOn),
         # so common modules' tests are listed explicitly here. Modules
-        # with no tests (Auth, Config) are skipped.
+        # with no tests (Config) are skipped.
         #
         # AMBER_TEST_FILTER=skip-integration tells amber/build.sbt to
         # exclude @org.apache.texera.amber.tags.IntegrationTest specs;
@@ -269,6 +269,7 @@ jobs:
           AMBER_TEST_FILTER: skip-integration
         run: |
           sbt "DAO/jacoco" \
+              "Auth/jacoco" \
               "PyBuilder/jacoco" \
               "WorkflowCore/jacoco" \
               "WorkflowOperator/jacoco" \

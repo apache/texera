@@ -24,7 +24,12 @@ import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, Substituting
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.amber.config.StorageConfig
-import org.apache.texera.auth.{JwtAuthFilter, RequestLoggingFilter, SessionUser}
+import org.apache.texera.auth.{
+  JwtAuthFilter,
+  RequestLoggingFilter,
+  SessionUser,
+  UnauthorizedExceptionMapper
+}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.activity.UserActivityEventListener
 import org.apache.texera.service.resource.{
@@ -72,6 +77,7 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
 
     // Register JWT authentication filter
     environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
+    environment.jersey.register(classOf[UnauthorizedExceptionMapper])
 
     // Enable @Auth annotation for injecting SessionUser
     environment.jersey.register(

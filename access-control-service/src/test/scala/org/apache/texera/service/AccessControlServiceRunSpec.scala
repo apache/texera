@@ -23,6 +23,7 @@ import io.dropwizard.core.setup.Environment
 import io.dropwizard.jersey.setup.JerseyEnvironment
 import io.dropwizard.jetty.MutableServletContextHandler
 import io.dropwizard.jetty.setup.ServletEnvironment
+import org.apache.texera.auth.UnauthorizedExceptionMapper
 import org.apache.texera.service.activity.UserActivityEventListener
 import org.mockito.ArgumentMatchers.isA
 import org.mockito.Mockito.{mock, verify, when}
@@ -44,6 +45,7 @@ class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
     service.run(mock(classOf[AccessControlServiceConfiguration]), env)
 
     verify(jersey).register(isA(classOf[UserActivityEventListener]))
+    verify(jersey).register(classOf[UnauthorizedExceptionMapper])
     verify(jersey).setUrlPattern("/api/*")
   }
 }
