@@ -26,143 +26,25 @@ import org.apache.texera.amber.core.executor.{
   OperatorExecutor
 }
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
-import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.texera.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest
 import org.apache.texera.amber.engine.common.{CheckpointState, CheckpointSupport}
 import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.scalatest.flatspec.AnyFlatSpec
 
-class WorkerManagersAdditionalSpec extends AnyFlatSpec {
-
-  // ===========================================================================
-  // StatisticsManager
-  // ===========================================================================
-
-  "StatisticsManager (default state)" should "initialize all counters and accumulators to zero" in {
-    val mgr = new StatisticsManager
-    assert(mgr.getInputTupleCount == 0L)
-    assert(mgr.getOutputTupleCount == 0L)
-    // Empty executor fixture so getStatistics can be invoked; only the
-    // counters / time accumulators are exercised here.
-    val stats = mgr.getStatistics(EmptyExec)
-    assert(stats.inputTupleMetrics.isEmpty)
-    assert(stats.outputTupleMetrics.isEmpty)
-    assert(stats.dataProcessingTime == 0L)
-    assert(stats.controlProcessingTime == 0L)
-    assert(stats.idleTime == 0L)
-  }
-
-  "StatisticsManager.increaseInputStatistics" should "accumulate count and size per port" in {
-    val mgr = new StatisticsManager
-    val p0 = PortIdentity(0)
-    val p1 = PortIdentity(1)
-    mgr.increaseInputStatistics(p0, size = 100L)
-    mgr.increaseInputStatistics(p0, size = 50L)
-    mgr.increaseInputStatistics(p1, size = 200L)
-    assert(mgr.getInputTupleCount == 3L)
-    val stats = mgr.getStatistics(EmptyExec)
-    val p0Metrics = stats.inputTupleMetrics.find(_.portId == p0).get.tupleMetrics
-    val p1Metrics = stats.inputTupleMetrics.find(_.portId == p1).get.tupleMetrics
-    assert(p0Metrics.count == 2L && p0Metrics.size == 150L)
-    assert(p1Metrics.count == 1L && p1Metrics.size == 200L)
-  }
-
-  it should "reject negative tuple sizes with IllegalArgumentException" in {
-    val mgr = new StatisticsManager
-    intercept[IllegalArgumentException] {
-      mgr.increaseInputStatistics(PortIdentity(0), size = -1L)
-    }
-  }
-
-  "StatisticsManager.increaseOutputStatistics" should "accumulate count and size per port" in {
-    val mgr = new StatisticsManager
-    val p0 = PortIdentity(0)
-    mgr.increaseOutputStatistics(p0, size = 10L)
-    mgr.increaseOutputStatistics(p0, size = 20L)
-    assert(mgr.getOutputTupleCount == 2L)
-    val stats = mgr.getStatistics(EmptyExec)
-    val out = stats.outputTupleMetrics.find(_.portId == p0).get.tupleMetrics
-    assert(out.count == 2L && out.size == 30L)
-  }
-
-  it should "reject negative tuple sizes with IllegalArgumentException" in {
-    val mgr = new StatisticsManager
-    intercept[IllegalArgumentException] {
-      mgr.increaseOutputStatistics(PortIdentity(0), size = -7L)
-    }
-  }
-
-  "StatisticsManager.increaseDataProcessingTime" should "accumulate non-negative time" in {
-    val mgr = new StatisticsManager
-    mgr.increaseDataProcessingTime(100L)
-    mgr.increaseDataProcessingTime(50L)
-    assert(mgr.getStatistics(EmptyExec).dataProcessingTime == 150L)
-  }
-
-  it should "reject negative time with IllegalArgumentException" in {
-    val mgr = new StatisticsManager
-    intercept[IllegalArgumentException] {
-      mgr.increaseDataProcessingTime(-1L)
-    }
-  }
-
-  "StatisticsManager.increaseControlProcessingTime" should "accumulate non-negative time" in {
-    val mgr = new StatisticsManager
-    mgr.increaseControlProcessingTime(33L)
-    mgr.increaseControlProcessingTime(22L)
-    assert(mgr.getStatistics(EmptyExec).controlProcessingTime == 55L)
-  }
-
-  it should "reject negative time with IllegalArgumentException" in {
-    val mgr = new StatisticsManager
-    intercept[IllegalArgumentException] {
-      mgr.increaseControlProcessingTime(-1L)
-    }
-  }
-
-  "StatisticsManager.updateTotalExecutionTime" should
-    "compute elapsed since the start time and project to idle (total − data − control)" in {
-    val mgr = new StatisticsManager
-    mgr.initializeWorkerStartTime(1000L)
-    mgr.increaseDataProcessingTime(100L)
-    mgr.increaseControlProcessingTime(50L)
-    mgr.updateTotalExecutionTime(1500L)
-    val stats = mgr.getStatistics(EmptyExec)
-    // total = 1500 - 1000 = 500; idle = 500 - 100 - 50 = 350
-    assert(stats.dataProcessingTime == 100L)
-    assert(stats.controlProcessingTime == 50L)
-    assert(stats.idleTime == 350L)
-  }
-
-  it should "reject a `time` argument earlier than the recorded workerStartTime" in {
-    val mgr = new StatisticsManager
-    mgr.initializeWorkerStartTime(1000L)
-    intercept[IllegalArgumentException] {
-      mgr.updateTotalExecutionTime(999L)
-    }
-  }
-
-  it should "accept time equal to workerStartTime (zero elapsed)" in {
-    val mgr = new StatisticsManager
-    mgr.initializeWorkerStartTime(1000L)
-    mgr.updateTotalExecutionTime(1000L)
-    val stats = mgr.getStatistics(EmptyExec)
-    assert(stats.idleTime == 0L)
-  }
-
-  // ===========================================================================
-  // SerializationManager
-  // ===========================================================================
+class SerializationManagerSpec extends AnyFlatSpec {
 
   // Build a real worker actor id via the same utility production uses, so
   // VirtualIdentityUtils.getWorkerIndex returns Some(idx) and the
   // "expected worker actor id" guard doesn't fire.
-  private val workflowIdent = org.apache.texera.amber.core.virtualidentity.WorkflowIdentity(1L)
-  private val opId = org.apache.texera.amber.core.virtualidentity.PhysicalOpIdentity(
-    org.apache.texera.amber.core.virtualidentity.OperatorIdentity("op-a"),
-    "main"
-  )
+  private val workflowIdent = WorkflowIdentity(1L)
+  private val opId = PhysicalOpIdentity(OperatorIdentity("op-a"), "main")
   private val workerActorId: ActorVirtualIdentity =
     VirtualIdentityUtils.createWorkerIdentity(workflowIdent, opId, workerId = 0)
   // A non-worker actor id (created via the plain string constructor, not the
@@ -183,7 +65,7 @@ class WorkerManagersAdditionalSpec extends AnyFlatSpec {
     mgr.setOpInitialization(
       mkRequest(
         OpExecWithClassName(
-          className = classOf[WorkerManagersAdditionalSpec.NoArgExec].getName,
+          className = classOf[SerializationManagerSpec.NoArgExec].getName,
           descString = ""
         )
       )
@@ -199,16 +81,15 @@ class WorkerManagersAdditionalSpec extends AnyFlatSpec {
     mgr.setOpInitialization(
       mkRequest(
         OpExecWithClassName(
-          className = classOf[WorkerManagersAdditionalSpec.NoArgExec].getName,
+          className = classOf[SerializationManagerSpec.NoArgExec].getName,
           descString = ""
         )
       )
     )
     val (executor, iter) = mgr.restoreExecutorState(new CheckpointState())
-    assert(executor.isInstanceOf[WorkerManagersAdditionalSpec.NoArgExec])
+    assert(executor.isInstanceOf[SerializationManagerSpec.NoArgExec])
     // Non-CheckpointSupport executor → empty restoration iterator.
-    val restoredList = iter.toList
-    assert(restoredList.isEmpty)
+    assert(iter.toList.isEmpty)
   }
 
   it should "throw UnsupportedOperationException on OpExecInitInfo.Empty (unsupported variant)" in {
@@ -224,13 +105,13 @@ class WorkerManagersAdditionalSpec extends AnyFlatSpec {
     mgr.setOpInitialization(
       mkRequest(
         OpExecWithClassName(
-          className = classOf[WorkerManagersAdditionalSpec.CheckpointAwareExec].getName,
+          className = classOf[SerializationManagerSpec.CheckpointAwareExec].getName,
           descString = ""
         )
       )
     )
     val (executor, iter) = mgr.restoreExecutorState(new CheckpointState())
-    assert(executor.isInstanceOf[WorkerManagersAdditionalSpec.CheckpointAwareExec])
+    assert(executor.isInstanceOf[SerializationManagerSpec.CheckpointAwareExec])
     // The fixture returns a sentinel via deserializeState; if the
     // SerializationManager mistakenly used the non-CheckpointSupport
     // path (Iterator.empty), this would fail.
@@ -281,7 +162,7 @@ class WorkerManagersAdditionalSpec extends AnyFlatSpec {
   }
 }
 
-object WorkerManagersAdditionalSpec {
+object SerializationManagerSpec {
   // No-arg executor fixture for the ExecFactory reflection path. Lives on
   // the companion (top-level binary name) so Class.forName + the no-arg
   // constructor reach it without an enclosing-instance reference.
@@ -303,20 +184,10 @@ object WorkerManagersAdditionalSpec {
     override def deserializeState(
         checkpoint: CheckpointState
     ): Iterator[(TupleLike, Option[PortIdentity])] = {
-      val sentinel: TupleLike = Tuple
-        .builder(
-          new org.apache.texera.amber.core.tuple.Schema()
-        )
-        .build()
+      val sentinel: TupleLike =
+        Tuple.builder(new org.apache.texera.amber.core.tuple.Schema()).build()
       Iterator((sentinel, None))
     }
     override def getEstimatedCheckpointCost: Long = 0L
   }
-}
-
-// Empty-iterator executor fixture for the StatisticsManager tests. Lives at
-// top level (separate file-private object) so `mgr.getStatistics(EmptyExec)`
-// can be called without dragging an enclosing instance.
-private object EmptyExec extends OperatorExecutor {
-  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
 }
