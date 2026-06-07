@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,16 +17,16 @@
  * under the License.
  */
 
-package org.apache.texera.service.resource
+import packageJson from "../../package.json";
+import { Version } from "./version";
 
-import jakarta.annotation.security.PermitAll
-import jakarta.ws.rs.core.MediaType
-import jakarta.ws.rs.{GET, Path, Produces}
+describe("Version (dev environment)", () => {
+  it("exposes the version from package.json", () => {
+    expect(Version.version).toBe(packageJson.version);
+    expect(Version.version.length).toBeGreaterThan(0);
+  });
 
-@Path("/healthcheck")
-@PermitAll
-@Produces(Array(MediaType.APPLICATION_JSON))
-class HealthCheckResource {
-  @GET
-  def healthCheck: Map[String, String] = Map("status" -> "ok")
-}
+  it('uses the "dev" build number placeholder', () => {
+    expect(Version.buildNumber).toBe("dev");
+  });
+});
