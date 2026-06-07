@@ -2195,6 +2195,7 @@ class DatasetResource extends LazyLogging {
     * since `<img src>` cannot attach the Authorization header.
     */
   @GET
+  @PermitAll
   @Path("/{did}/cover-url")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getDatasetCoverUrl(

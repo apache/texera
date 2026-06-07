@@ -51,6 +51,26 @@ class CoreExecutorReflectionSpec extends AnyFlatSpec {
     succeed
   }
 
+  "OperatorExecutor.open / close" should
+    "honor a subclass override (counting invocations across the lifecycle)" in {
+    // Pin that the defaults are real method dispatches, not direct calls
+    // to no-op stubs — a subclass override must be reachable from any
+    // call site that invokes open / close on the trait.
+    class CountingExec extends OperatorExecutor {
+      var opens = 0
+      var closes = 0
+      override def open(): Unit = opens += 1
+      override def close(): Unit = closes += 1
+      override def processTuple(t: Tuple, p: Int): Iterator[TupleLike] = Iterator.empty
+    }
+    val exec = new CountingExec
+    exec.open()
+    exec.open()
+    exec.close()
+    assert(exec.opens == 2)
+    assert(exec.closes == 1)
+  }
+
   "OperatorExecutor.produceStateOnStart" should "default to None for any port" in {
     val exec = new IdentityExec
     assert(exec.produceStateOnStart(0).isEmpty)
@@ -69,6 +89,36 @@ class CoreExecutorReflectionSpec extends AnyFlatSpec {
     assert(out.size == 1)
     assert(out.head._1.asInstanceOf[Tuple] == tuple(1))
     assert(out.head._2.isEmpty)
+  }
+
+  it should "forward the input port id to the underlying processTuple verbatim" in {
+    // Pin: the default wrapper must hand the same `port` to the subclass
+    // override, not substitute a constant. A regression that hard-codes
+    // port = 0 would be invisible to the basic delegation test above.
+    var seenPort = -1
+    val exec = new OperatorExecutor {
+      override def processTuple(t: Tuple, p: Int): Iterator[TupleLike] = {
+        seenPort = p
+        Iterator.single(t)
+      }
+    }
+    exec.processTupleMultiPort(tuple(0), port = 9).toList
+    assert(seenPort == 9)
+  }
+
+  it should "produce as many output pairs as the underlying processTuple emits (zero / many fan-out)" in {
+    val empty = new OperatorExecutor {
+      override def processTuple(t: Tuple, p: Int): Iterator[TupleLike] = Iterator.empty
+    }
+    assert(empty.processTupleMultiPort(tuple(0), 0).isEmpty)
+
+    val fanOut = new OperatorExecutor {
+      override def processTuple(t: Tuple, p: Int): Iterator[TupleLike] =
+        Iterator(tuple(1), tuple(2), tuple(3))
+    }
+    val outs = fanOut.processTupleMultiPort(tuple(0), 0).toList
+    assert(outs.size == 3)
+    assert(outs.forall(_._2.isEmpty), "every emitted pair must have port = None under the default")
   }
 
   "OperatorExecutor.produceStateOnFinish" should "default to None for any port" in {
@@ -103,6 +153,22 @@ class CoreExecutorReflectionSpec extends AnyFlatSpec {
   "SourceOperatorExecutor.processTupleMultiPort" should "always return an empty iterator" in {
     val exec = new CountingSource
     assert(exec.processTupleMultiPort(tuple(99), 0).isEmpty)
+  }
+
+  it should "never invoke produceTuple on the input-side path" in {
+    // Sources only emit through onFinishMultiPort. A regression in
+    // processTupleMultiPort that accidentally drained produceTuple
+    // (discarding the output) wouldn't be caught by an empty-iterator
+    // check alone — pin via a counter.
+    var producedCalls = 0
+    val src = new SourceOperatorExecutor {
+      override def produceTuple(): Iterator[TupleLike] = {
+        producedCalls += 1
+        Iterator.empty
+      }
+    }
+    src.processTupleMultiPort(tuple(0), 0).toList
+    assert(producedCalls == 0, "input-side path must not call produceTuple")
   }
 
   "SourceOperatorExecutor.onFinishMultiPort" should "delegate to produceTuple with no port routing" in {
@@ -160,6 +226,18 @@ class CoreExecutorReflectionSpec extends AnyFlatSpec {
   it should "raise ClassNotFoundException for unknown class names" in {
     assertThrows[ClassNotFoundException] {
       ExecFactory.newExecFromJavaClassName("does.not.exist.AtAll")
+    }
+  }
+
+  it should "propagate NoSuchMethodException when no constructor matches either factory branch" in {
+    // A fixture with only a `(Long)` constructor — neither the (no-arg)
+    // branch (which also tries (Int, Int) on catch) nor the (String)
+    // branch (which falls back to (String, Int, Int)) matches a single
+    // `Long` argument. Both throws propagate as NoSuchMethodException.
+    assertThrows[NoSuchMethodException] {
+      ExecFactory.newExecFromJavaClassName(
+        classOf[CoreExecutorReflectionSpec.LongArgExec].getName
+      )
     }
   }
 
@@ -221,6 +299,14 @@ private object CoreExecutorReflectionSpec {
 
   class StringIdxCountExec(val desc: String, val idx: Int, val workerCount: Int)
       extends OperatorExecutor {
+    override def processTuple(
+        tuple: org.apache.texera.amber.core.tuple.Tuple,
+        port: Int
+    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
+  }
+
+  /** Only a `(Long)` constructor — neither factory branch matches. */
+  class LongArgExec(val n: Long) extends OperatorExecutor {
     override def processTuple(
         tuple: org.apache.texera.amber.core.tuple.Tuple,
         port: Int

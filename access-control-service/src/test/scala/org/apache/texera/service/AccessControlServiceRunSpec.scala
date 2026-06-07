@@ -23,8 +23,8 @@ import io.dropwizard.core.setup.Environment
 import io.dropwizard.jersey.setup.JerseyEnvironment
 import io.dropwizard.jetty.MutableServletContextHandler
 import io.dropwizard.jetty.setup.ServletEnvironment
+import org.apache.texera.auth.UnauthorizedExceptionMapper
 import org.apache.texera.service.activity.UserActivityEventListener
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.mockito.ArgumentMatchers.isA
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -32,7 +32,7 @@ import org.scalatest.matchers.should.Matchers
 
 class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
 
-  private def runWithMockEnv(): JerseyEnvironment = {
+  "AccessControlService.run" should "register UserActivityEventListener on the Jersey environment" in {
     val jersey = mock(classOf[JerseyEnvironment])
     val servlets = mock(classOf[ServletEnvironment])
     val context = mock(classOf[MutableServletContextHandler])
@@ -41,20 +41,11 @@ class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
     when(env.servlets).thenReturn(servlets)
     when(env.getApplicationContext).thenReturn(context)
 
-    new AccessControlService().run(mock(classOf[AccessControlServiceConfiguration]), env)
-    jersey
-  }
+    val service = new AccessControlService
+    service.run(mock(classOf[AccessControlServiceConfiguration]), env)
 
-  "AccessControlService.run" should "register UserActivityEventListener on the Jersey environment" in {
-    val jersey = runWithMockEnv()
     verify(jersey).register(isA(classOf[UserActivityEventListener]))
+    verify(jersey).register(classOf[UnauthorizedExceptionMapper])
     verify(jersey).setUrlPattern("/api/*")
-  }
-
-  // Without RolesAllowedDynamicFeature registered, @RolesAllowed on LiteLLM
-  // resources and @PermitAll on AccessControlResource have no effect.
-  it should "register RolesAllowedDynamicFeature so role annotations are enforced" in {
-    val jersey = runWithMockEnv()
-    verify(jersey).register(classOf[RolesAllowedDynamicFeature])
   }
 }
