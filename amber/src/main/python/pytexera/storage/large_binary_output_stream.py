@@ -153,14 +153,24 @@ class LargeBinaryOutputStream(IOBase):
         if self._upload_thread is None:
 
             def upload_worker():
+                s3 = None
                 try:
                     large_binary_manager._ensure_bucket_exists(self._bucket_name)
                     s3 = large_binary_manager._get_s3_client()
                     reader = _QueueReader(self._queue)
                     s3.upload_fileobj(reader, self._bucket_name, self._object_key)
                 except Exception as e:
+                    # Record the failure first so the next write() call can
+                    # immediately raise, then best-effort clean up the object.
                     with self._lock:
                         self._upload_exception = e
+                    if s3 is not None:
+                        try:
+                            s3.delete_object(
+                                Bucket=self._bucket_name, Key=self._object_key
+                            )
+                        except Exception:
+                            pass
                 finally:
                     self._upload_complete.set()
 
@@ -214,12 +224,10 @@ class LargeBinaryOutputStream(IOBase):
                 self._upload_thread.join()
                 self._upload_complete.wait()
 
-                # Check for errors and cleanup if needed
                 with self._lock:
                     exception = self._upload_exception
 
                 if exception is not None:
-                    self._cleanup_failed_upload()
                     raise IOError(
                         f"Failed to complete upload: {exception}"
                     ) from exception
@@ -227,15 +235,6 @@ class LargeBinaryOutputStream(IOBase):
             # Mark IOBase as closed even if we raised, so __del__ skips
             # the second close() call on Python 3.13+.
             super().close()
-
-    def _cleanup_failed_upload(self):
-        """Clean up a failed upload by deleting the S3 object."""
-        try:
-            s3 = large_binary_manager._get_s3_client()
-            s3.delete_object(Bucket=self._bucket_name, Key=self._object_key)
-        except Exception:
-            # Ignore cleanup errors - we're already handling an upload failure
-            pass
 
     def __enter__(self):
         """Context manager entry."""
