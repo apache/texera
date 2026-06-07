@@ -248,8 +248,8 @@ class TestLargeBinaryOutputStream:
             stream.close()
 
 
-class TestCleanupFailedUpload:
-    """Direct unit tests for _cleanup_failed_upload's silent-swallow path."""
+class TestUploadWorkerCleanup:
+    """Direct unit tests for the upload worker's silent-swallow cleanup."""
 
     @pytest.fixture
     def large_binary(self):
