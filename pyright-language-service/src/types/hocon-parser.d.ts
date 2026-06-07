@@ -21,7 +21,7 @@ declare module 'hocon-parser' {
   /**
    * The module itself is callable, accepting a string (HOCON config) and returning a parsed object.
    */
-  function hoconParser(input: string): any;
+  function hoconParser(input: string): Record<string, unknown>;
 
   export = hoconParser;
 }
