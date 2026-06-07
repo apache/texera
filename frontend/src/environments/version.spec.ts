@@ -17,12 +17,16 @@
  * under the License.
  */
 
-// Default import: Angular's webpack rejects named JSON imports.
 import packageJson from "../../package.json";
+import { Version } from "./version";
 
-// Dev placeholder. Production builds replace this file with the generated
-// version.prod.ts (see angular.json fileReplacements + frontend/build-version.js).
-export const Version = {
-  buildNumber: "dev",
-  version: packageJson.version,
-};
+describe("Version (dev environment)", () => {
+  it("exposes the version from package.json", () => {
+    expect(Version.version).toBe(packageJson.version);
+    expect(Version.version.length).toBeGreaterThan(0);
+  });
+
+  it('uses the "dev" build number placeholder', () => {
+    expect(Version.buildNumber).toBe("dev");
+  });
+});
