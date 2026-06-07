@@ -47,10 +47,7 @@ class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
 
     verify(jersey).register(isA(classOf[UserActivityEventListener]))
     verify(jersey).register(classOf[UnauthorizedExceptionMapper])
-    // The LiteLLM proxies are @RolesAllowed("REGULAR", "ADMIN"); without the
-    // dynamic feature Jersey ignores those annotations and the role gate
-    // would silently no-op, putting us back at "anonymous can spend LLM
-    // credits". Pin the registration here so a future refactor can't drop it.
+    // Without this feature Jersey ignores @RolesAllowed on the LiteLLM proxies.
     verify(jersey).register(classOf[RolesAllowedDynamicFeature])
     verify(jersey).setUrlPattern("/api/*")
   }

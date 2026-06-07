@@ -243,10 +243,8 @@ class AccessControlResource extends LazyLogging {
   }
 }
 
-// LiteLLM proxy: forwards chat completions to the deployment's LiteLLM
-// instance using the server's master key. Restricted to authenticated
-// REGULAR / ADMIN users so anonymous callers can't spend the deployment's
-// LLM credits when `guiWorkflowWorkspaceCopilotEnabled` is on.
+// Forwards chat completions to LiteLLM with the server's master key, so
+// only authenticated users may call it.
 @Path("/chat")
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))

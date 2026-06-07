@@ -85,9 +85,7 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
 
-    // Enforce @RolesAllowed annotations on the LiteLLM proxy resources.
-    // Without this Jersey feature the annotations are decorative — the filter
-    // would still accept any authenticated caller because no role gate runs.
+    // Required for @RolesAllowed on resources to be enforced.
     environment.jersey.register(classOf[RolesAllowedDynamicFeature])
 
     // Record USER_LAST_ACTIVE_TIME on every matched, completed request.
