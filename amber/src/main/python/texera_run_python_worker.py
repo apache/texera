@@ -18,8 +18,19 @@
 import sys
 from loguru import logger
 
-from core.python_worker import PythonWorker
-from core.storage.storage_config import StorageConfig
+try:
+    from core.python_worker import PythonWorker
+    from core.storage.storage_config import StorageConfig
+except ModuleNotFoundError as e:
+    if e.name == "proto" or (e.name or "").startswith("proto."):
+        sys.exit(
+            "Python proto bindings are missing (amber/src/main/python/proto/). "
+            "They are generated, not checked in. Generate them by running "
+            "`bash bin/python-proto-gen.sh` from the repo root (requires protoc and "
+            '`pip install "betterproto[compiler]"`), or build the engine with sbt, '
+            "which regenerates them on compile."
+        )
+    raise
 
 
 def init_loguru_logger(stream_log_level) -> None:
