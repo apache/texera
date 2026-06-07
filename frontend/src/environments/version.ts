@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,16 +17,11 @@
  * under the License.
  */
 
-package org.apache.texera.service.resource
+import { version } from "../../package.json";
 
-import jakarta.annotation.security.PermitAll
-import jakarta.ws.rs.core.MediaType
-import jakarta.ws.rs.{GET, Path, Produces}
-
-@Path("/healthcheck")
-@PermitAll
-@Produces(Array(MediaType.APPLICATION_JSON))
-class HealthCheckResource {
-  @GET
-  def healthCheck: Map[String, String] = Map("status" -> "ok")
-}
+// Dev placeholder. Production builds replace this file with the generated
+// version.prod.ts (see angular.json fileReplacements + frontend/build-version.js).
+export const Version = {
+  buildNumber: "dev",
+  version,
+};
