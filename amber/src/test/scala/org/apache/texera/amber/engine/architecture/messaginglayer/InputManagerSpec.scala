@@ -142,9 +142,11 @@ class InputManagerSpec extends AnyFlatSpec {
     mgr.initBatch(cid, Array(tuple(10), tuple(20), tuple(30)))
     assert(mgr.currentChannelId == cid)
     assert(mgr.hasUnfinishedInput)
-    // Cursor is BEFORE the first element after initBatch; getCurrentTuple
-    // throws ArrayIndexOutOfBoundsException at -1, so we go through
-    // getNextTuple first.
+    // Prove the cursor was reset to before-first: the FIRST `getNextTuple`
+    // returns the first element of the batch (idx 0), not idx 1 or later.
+    // If `initBatch` had not reset `currentInputIdx` back to -1, the
+    // first `getNextTuple` would skip past element 0.
+    assert(mgr.getNextTuple == tuple(10))
   }
 
   it should "drive getNextTuple to yield elements in order and complete after the last one" in {
