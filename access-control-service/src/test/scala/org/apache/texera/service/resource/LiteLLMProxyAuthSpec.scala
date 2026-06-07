@@ -44,14 +44,32 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
   private val testMapper: ObjectMapper =
     Jackson.newObjectMapper().registerModule(DefaultScalaModule)
 
+  // Inject copilotEnabled = true and a guaranteed-unreachable upstream so
+  // requests that pass the auth + role gates fall straight into the
+  // resource's "proxy attempt failed" branch — that 502 confirms the auth
+  // pipeline didn't short-circuit before the resource body ran.
+  private val unreachableLiteLLM = "http://127.0.0.1:1"
+
   private val resources: ResourceExtension = ResourceExtension
     .builder()
     .setMapper(testMapper)
     .addProvider(classOf[JwtAuthFilter])
     .addProvider(classOf[UnauthorizedExceptionMapper])
     .addProvider(classOf[RolesAllowedDynamicFeature])
-    .addResource(new LiteLLMProxyResource)
-    .addResource(new LiteLLMModelsResource)
+    .addResource(
+      new LiteLLMProxyResource(
+        copilotEnabled = true,
+        litellmBaseUrl = unreachableLiteLLM,
+        litellmApiKey = "test"
+      )
+    )
+    .addResource(
+      new LiteLLMModelsResource(
+        copilotEnabled = true,
+        litellmBaseUrl = unreachableLiteLLM,
+        litellmApiKey = "test"
+      )
+    )
     .build()
 
   override protected def beforeAll(): Unit = resources.before()
@@ -87,18 +105,14 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     response.getStatus shouldBe 403
   }
 
-  it should "reach the resource body with a REGULAR-role token" in {
-    // copilot-enabled defaults to false in gui.conf, so the resource itself
-    // returns 403 with the "Copilot feature is disabled" entity. Asserting on
-    // the body distinguishes that path from a RolesAllowed rejection (which
-    // produces no body).
+  it should "reach the LiteLLM proxy path with a REGULAR-role token" in {
     val response = resources
       .target("/chat/completions")
       .request(MediaType.APPLICATION_JSON)
       .header("Authorization", s"Bearer ${token(UserRoleEnum.REGULAR)}")
       .post(Entity.json(chatBody))
-    response.getStatus shouldBe 403
-    response.readEntity(classOf[String]) should include("Copilot feature is disabled")
+    response.getStatus shouldBe 502
+    response.readEntity(classOf[String]) should include("Failed to proxy request to LiteLLM")
   }
 
   "GET /models without an Authorization header" should "return 401 with a Bearer challenge" in {
@@ -116,13 +130,13 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     response.getStatus shouldBe 403
   }
 
-  it should "reach the resource body with an ADMIN-role token" in {
+  it should "reach the LiteLLM proxy path with an ADMIN-role token" in {
     val response = resources
       .target("/models")
       .request(MediaType.APPLICATION_JSON)
       .header("Authorization", s"Bearer ${token(UserRoleEnum.ADMIN)}")
       .get()
-    response.getStatus shouldBe 403
-    response.readEntity(classOf[String]) should include("Copilot feature is disabled")
+    response.getStatus shouldBe 502
+    response.readEntity(classOf[String]) should include("Failed to fetch models from LiteLLM")
   }
 }

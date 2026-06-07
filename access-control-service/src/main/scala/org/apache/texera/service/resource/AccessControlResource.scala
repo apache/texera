@@ -249,11 +249,21 @@ class AccessControlResource extends LazyLogging {
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
-class LiteLLMProxyResource extends LazyLogging {
+class LiteLLMProxyResource(
+    copilotEnabled: Boolean,
+    litellmBaseUrl: String,
+    litellmApiKey: String
+) extends LazyLogging {
+
+  // No-arg constructor for Jersey reflection. Tests use the param-ful form.
+  def this() =
+    this(
+      GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
+      LLMConfig.baseUrl,
+      LLMConfig.masterKey
+    )
 
   private val client: Client = ClientBuilder.newClient()
-  private val litellmBaseUrl: String = LLMConfig.baseUrl
-  private val litellmApiKey: String = LLMConfig.masterKey
 
   @POST
   @Path("/{path:.*}")
@@ -262,7 +272,7 @@ class LiteLLMProxyResource extends LazyLogging {
       @Context headers: HttpHeaders,
       body: String
   ): Response = {
-    if (!GuiConfig.guiWorkflowWorkspaceCopilotEnabled) {
+    if (!copilotEnabled) {
       return Response
         .status(Response.Status.FORBIDDEN)
         .entity("""{"error": "Copilot feature is disabled"}""")
@@ -321,15 +331,25 @@ class LiteLLMProxyResource extends LazyLogging {
 @Path("/models")
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
-class LiteLLMModelsResource extends LazyLogging {
+class LiteLLMModelsResource(
+    copilotEnabled: Boolean,
+    litellmBaseUrl: String,
+    litellmApiKey: String
+) extends LazyLogging {
+
+  // No-arg constructor for Jersey reflection. Tests use the param-ful form.
+  def this() =
+    this(
+      GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
+      LLMConfig.baseUrl,
+      LLMConfig.masterKey
+    )
 
   private val client: Client = ClientBuilder.newClient()
-  private val litellmBaseUrl: String = LLMConfig.baseUrl
-  private val litellmApiKey: String = LLMConfig.masterKey
 
   @GET
   def getModels: Response = {
-    if (!GuiConfig.guiWorkflowWorkspaceCopilotEnabled) {
+    if (!copilotEnabled) {
       return Response
         .status(Response.Status.FORBIDDEN)
         .entity("""{"error": "Copilot feature is disabled"}""")
