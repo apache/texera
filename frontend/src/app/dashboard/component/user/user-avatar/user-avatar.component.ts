@@ -20,16 +20,14 @@
 import { Component, Input, OnChanges } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { Observable, of } from "rxjs";
-import { NgIf, AsyncPipe } from "@angular/common";
-import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
-import { NzIconDirective } from "ng-zorro-antd/icon";
+import { AsyncPipe } from "@angular/common";
 import { NzAvatarComponent } from "ng-zorro-antd/avatar";
 
 @Component({
   selector: "texera-user-avatar",
   templateUrl: "./user-avatar.component.html",
   styleUrls: ["./user-avatar.component.scss"],
-  imports: [NgIf, ɵNzTransitionPatchDirective, NzIconDirective, NzAvatarComponent, AsyncPipe],
+  imports: [NzAvatarComponent, AsyncPipe],
 })
 
 /**
@@ -41,7 +39,6 @@ export class UserAvatarComponent implements OnChanges {
   @Input() googleAvatar?: string;
   @Input() userName?: string;
   @Input() userColor?: string;
-  @Input() isOwner: Boolean = false;
   avatarUrl$: Observable<string | undefined> = of(undefined);
 
   constructor(private userService: UserService) {}

@@ -134,7 +134,7 @@
         <button
           nz-button
           title="List View"
-          (click)="viewType = 'list'"
+          (click)="setViewType('list')"
           [nzType]="viewType === 'list' ? 'primary' : 'default'">
           <i
             nz-icon
@@ -144,7 +144,7 @@
         <button
           nz-button
           title="Card View"
-          (click)="viewType = 'card'"
+          (click)="setViewType('card')"
           [nzType]="viewType === 'card' ? 'primary' : 'default'">
           <i
             nz-icon

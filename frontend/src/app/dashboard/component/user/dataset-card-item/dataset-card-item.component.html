@@ -38,8 +38,7 @@
             class="meta-avatar"
             [googleAvatar]="entry.ownerGoogleAvatar"
             userColor="#1E90FF"
-            [userName]="entry.ownerName || entry.ownerEmail || 'Unknown'"
-            [isOwner]="entry.ownerId === currentUid">
+            [userName]="entry.ownerName || entry.ownerEmail || 'Unknown'">
           </texera-user-avatar>
           <span class="meta-owner-name truncate-single-line">
             {{ entry.ownerName || entry.ownerEmail || 'Unknown' }}
