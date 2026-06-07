@@ -68,12 +68,19 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with BeforeAndAfterAll {
     super.afterAll()
   }
 
+  // `Files.walk` returns a closeable Stream backed by an open directory
+  // handle — wrap in try/finally so the handle is released even if
+  // traversal throws, otherwise temp-dir deletion can flake on Windows.
   private def deleteRecursively(p: Path): Unit = {
     if (!Files.exists(p)) return
-    Files
-      .walk(p)
-      .sorted(java.util.Comparator.reverseOrder())
-      .forEach(child => Files.deleteIfExists(child))
+    val stream = Files.walk(p)
+    try {
+      stream
+        .sorted(java.util.Comparator.reverseOrder())
+        .forEach(child => Files.deleteIfExists(child))
+    } finally {
+      stream.close()
+    }
   }
 
   // ---------------------------------------------------------------------------

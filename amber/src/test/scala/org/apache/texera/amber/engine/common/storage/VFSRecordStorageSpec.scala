@@ -81,14 +81,21 @@ class VFSRecordStorageSpec extends AnyFlatSpec with BeforeAndAfterAll {
   }
 
   // Always clean from the parent temp root so any sibling files / partial
-  // state created by a failing test are also removed.
+  // state created by a failing test are also removed. `Files.walk` returns
+  // a closeable Stream backed by an open directory handle — wrap in
+  // try/finally so the handle is released even if traversal throws,
+  // otherwise temp-dir deletion can flake on Windows.
   private def cleanup(sub: Path): Unit = {
     val root = sub.getParent
     if (root == null || !Files.exists(root)) return
-    Files
-      .walk(root)
-      .sorted(java.util.Comparator.reverseOrder())
-      .forEach(child => Files.deleteIfExists(child))
+    val stream = Files.walk(root)
+    try {
+      stream
+        .sorted(java.util.Comparator.reverseOrder())
+        .forEach(child => Files.deleteIfExists(child))
+    } finally {
+      stream.close()
+    }
   }
 
   // ---------------------------------------------------------------------------
