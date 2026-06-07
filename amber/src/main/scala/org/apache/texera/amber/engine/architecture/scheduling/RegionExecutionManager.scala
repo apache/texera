@@ -23,7 +23,6 @@ import org.apache.pekko.pattern.gracefulStop
 import com.twitter.util.{Duration => TwitterDuration, Future, JavaTimer, Return, Throw, Timer}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import org.apache.texera.amber.core.storage.VFSURIFactory.decodeURI
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
@@ -39,6 +38,7 @@ import org.apache.texera.amber.engine.architecture.coordinator.execution.{
 import org.apache.texera.amber.engine.architecture.coordinator.{
   CoordinatorConfig,
   ExecutionStatsUpdate,
+  OperatorPortResultUriAvailable,
   RuntimeStatisticsPersist,
   WorkerAssignmentUpdate
 }
@@ -58,7 +58,6 @@ import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.web.SessionState
 import org.apache.texera.web.model.websocket.event.RegionStateEvent
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -642,11 +641,8 @@ class RegionExecutionManager(
             DocumentFactory.createOrReuseDocument(uri, sch, reuseStorage)
         }
         if (!isRestart) {
-          val (_, eid, _, _) = decodeURI(resultURI)
-          WorkflowExecutionsResource.insertOperatorPortResultUri(
-            eid = eid,
-            globalPortId = outputPortId,
-            uri = resultURI
+          asyncRPCClient.sendToClient(
+            OperatorPortResultUriAvailable(outputPortId, resultURI)
           )
         }
     }
