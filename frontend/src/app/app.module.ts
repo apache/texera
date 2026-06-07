@@ -207,7 +207,7 @@ registerLocaleData(en);
         tokenGetter: AuthService.getAccessToken,
         skipWhenExpired: true,
         throwNoTokenError: false,
-        disallowedRoutes: ["forum/api/users"],
+        disallowedRoutes: ["forum/api/users", "api/config/pre-login"],
       },
     }),
     BrowserAnimationsModule,

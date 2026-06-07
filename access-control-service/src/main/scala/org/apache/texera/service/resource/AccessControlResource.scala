@@ -20,6 +20,7 @@ package org.apache.texera.service.resource
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import jakarta.annotation.security.PermitAll
 import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
 import jakarta.ws.rs.core._
 import jakarta.ws.rs.{Consumes, DELETE, GET, POST, Path, Produces}
@@ -203,8 +204,13 @@ object AccessControlResource extends LazyLogging {
       .orElse(extractTokenFromMultipart(body))
   }
 }
+// The routing proxy authenticates each request itself via parseToken in the
+// resource body (returning 403 on missing/invalid tokens), so it must opt
+// out of the filter's eager 401 check. @PermitAll lets requests reach the
+// resource code, which then performs its own auth.
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/auth")
+@PermitAll
 class AccessControlResource extends LazyLogging {
 
   @GET
@@ -237,7 +243,13 @@ class AccessControlResource extends LazyLogging {
   }
 }
 
+// LiteLLM proxy: gates on `guiWorkflowWorkspaceCopilotEnabled`, not on
+// JWT. Preserve pre-eager-filter behavior (anonymous access permitted when
+// the feature flag is on) by opting out of the filter's eager 401. Whether
+// /chat/* should require an authenticated user is a separate hardening
+// decision tracked outside this PR.
 @Path("/chat")
+@PermitAll
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class LiteLLMProxyResource extends LazyLogging {
@@ -310,6 +322,7 @@ class LiteLLMProxyResource extends LazyLogging {
 }
 
 @Path("/models")
+@PermitAll
 @Produces(Array(MediaType.APPLICATION_JSON))
 class LiteLLMModelsResource extends LazyLogging {
 
