@@ -19,6 +19,7 @@
 
 package org.apache.texera.workflow
 
+import org.apache.commons.vfs2.FileNotFoundException
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.TestOperators
@@ -213,7 +214,11 @@ class LogicalPlanSpec extends AnyFlatSpec {
 
   private def csvWithMissingFile(): CSVScanSourceOpDesc = {
     val op = TestOperators.headerlessSmallCsvScanOpDesc()
-    op.fileName = Some("/definitely/does/not/exist.csv")
+    // Use a relative single-segment file name so `FileResolver` short-
+    // circuits BOTH resolvers without touching the DB: localResolveFunc
+    // fails (file doesn't exist) and datasetResolveFunc's parser bails
+    // immediately (path segments < 4) before any dataset DB query.
+    op.fileName = Some("nonexistent-test-file.csv")
     op
   }
 
@@ -228,10 +233,13 @@ class LogicalPlanSpec extends AnyFlatSpec {
     assert(opId == brokenOp.operatorIdentifier)
   }
 
-  it should "rethrow the first failure when no errorList is provided" in {
+  it should "rethrow FileNotFoundException when no errorList is provided" in {
+    // `FileResolver.resolve` raises `org.apache.commons.vfs2.FileNotFoundException`
+    // when all resolvers fail. Pin the specific type so an unrelated failure
+    // mode (e.g. NPE) doesn't silently satisfy this test.
     val brokenOp = csvWithMissingFile()
     val plan = LogicalPlan(List(brokenOp), List.empty)
-    intercept[Throwable] {
+    intercept[FileNotFoundException] {
       plan.resolveScanSourceOpFileName(None)
     }
   }
