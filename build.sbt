@@ -16,7 +16,7 @@
 // under the License.
 
 ThisBuild / organization := "org.apache.texera"
-ThisBuild / version      := "1.1.0-incubating"
+ThisBuild / version      := "1.3.0-incubating-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.18"
 
 // Pull JDK 17+ JVM flags from .jvmopts so every JVM the build launches sees the same list.
@@ -125,7 +125,7 @@ lazy val FileService = (project in file("file-service"))
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Config)
+  .dependsOn(WorkflowOperator, Auth, Config)
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(

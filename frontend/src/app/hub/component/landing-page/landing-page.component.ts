@@ -24,11 +24,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
-import {
-  DASHBOARD_HOME,
-  DASHBOARD_HUB_DATASET_RESULT,
-  DASHBOARD_HUB_WORKFLOW_RESULT,
-} from "../../../app-routing.constant";
+import { HOME, HUB_DATASET_RESULT, HUB_WORKFLOW_RESULT } from "../../../app-routing.constant";
 import { UserService } from "../../../common/service/user/user.service";
 import { BrowseSectionComponent } from "../browse-section/browse-section.component";
 
@@ -119,13 +115,13 @@ export class LandingPageComponent implements OnInit {
 
     switch (type) {
       case "workflow":
-        path = DASHBOARD_HUB_WORKFLOW_RESULT;
+        path = HUB_WORKFLOW_RESULT;
         break;
       case "dataset":
-        path = DASHBOARD_HUB_DATASET_RESULT;
+        path = HUB_DATASET_RESULT;
         break;
       default:
-        path = DASHBOARD_HOME;
+        path = HOME;
     }
 
     this.router.navigate([path]);

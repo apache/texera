@@ -52,7 +52,7 @@ on:
         required: false
         type: boolean
         default: true
-      run_python:
+      run_pyamber:
         required: false
         type: boolean
         default: true
@@ -260,7 +260,7 @@ jobs:
         # `WorkflowExecutionService/jacoco` only runs that project's
         # Test config (sbt's `test` task does not transit dependsOn),
         # so common modules' tests are listed explicitly here. Modules
-        # with no tests (Auth, Config) are skipped.
+        # with no tests (Config) are skipped.
         #
         # AMBER_TEST_FILTER=skip-integration tells amber/build.sbt to
         # exclude @org.apache.texera.amber.tags.IntegrationTest specs;
@@ -269,6 +269,7 @@ jobs:
           AMBER_TEST_FILTER: skip-integration
         run: |
           sbt "DAO/jacoco" \
+              "Auth/jacoco" \
               "PyBuilder/jacoco" \
               "WorkflowCore/jacoco" \
               "WorkflowOperator/jacoco" \
@@ -355,11 +356,21 @@ jobs:
         # mirrors a subset of common deps (e.g. pillow); without this
         # flag a dependabot bump to a version not yet mirrored there
         # fails to resolve even though PyPI has it.
+        # dev-requirements.txt provides the betterproto plugin used by
+        # bin/python-proto-gen.sh.
         run: |
           python -m pip install uv
           if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
           if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt; fi
+      - name: Install protoc
+        # Version pinned in bin/protoc-version.txt.
+        run: |
+          PROTOC_VERSION=$(cat bin/protoc-version.txt)
+          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          sudo unzip -o /tmp/protoc.zip -d /usr/local
+          sudo chmod +x /usr/local/bin/protoc
+          sudo chmod -R a+rX /usr/local/include/google
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
@@ -467,6 +478,10 @@ jobs:
             }
           }
           EOF
+      - name: Generate Python proto bindings
+        # Integration specs spawn Python UDF workers that import the
+        # generated betterproto bindings. Independent of sbt and the JDK.
+        run: bash bin/python-proto-gen.sh
       - name: Lint and run amber integration tests
         # AMBER_TEST_FILTER=integration-only tells amber/build.sbt to
         # keep only @org.apache.texera.amber.tags.IntegrationTest
@@ -610,8 +625,8 @@ jobs:
           disable_search: true
           fail_ci_if_error: false
 
-  python:
-    if: ${{ inputs.run_python }}
+  pyamber:
+    if: ${{ inputs.run_pyamber }}
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -685,21 +700,31 @@ jobs:
         run: |
           python -m pip install uv
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
+      - name: Install protoc
+        # Version pinned in bin/protoc-version.txt.
+        run: |
+          PROTOC_VERSION=$(cat bin/protoc-version.txt)
+          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          sudo unzip -o /tmp/protoc.zip -d /usr/local
+          sudo chmod +x /usr/local/bin/protoc
+          sudo chmod -R a+rX /usr/local/include/google
+      - name: Generate Python proto bindings
+        run: bash bin/python-proto-gen.sh
       - name: Test with pytest
         # --junit-xml emits a JUnit-XML report alongside the coverage XML
         # so the Test Analytics upload below can feed Codecov's failing-
         # test PR comments and flaky-test detection on main.
         run: |
           cd amber && pytest -m "not integration" --cov=src/main/python --cov-report=xml --junit-xml=junit.xml -sv
-      - name: Upload python coverage to Codecov
+      - name: Upload pyamber coverage to Codecov
         if: matrix.python-version == '3.12' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/coverage.xml
-          flags: python
+          flags: pyamber
           fail_ci_if_error: false
-      - name: Upload python test results to Codecov
+      - name: Upload pyamber test results to Codecov
         # Test Analytics ingestion. Runs on the same 3.12 leg that uploads
         # coverage to keep one canonical source per flag. `!cancelled()`
         # rather than `always()` so we still upload on test failure (the
@@ -709,22 +734,22 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/junit.xml
-          flags: python
+          flags: pyamber
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
 
-  python-state-materialization-mac:
+  pyamber-state-materialization-mac:
     # Diagnostic leg: cross-region state materialization is reported to
-    # fail on macOS while working on Windows / Linux. The main `python`
+    # fail on macOS while working on Windows / Linux. The main `pyamber`
     # job above runs only on ubuntu-latest because it depends on a
     # postgres service container (service containers don't work on
     # macOS runners). The state-materialization integration tests use
     # an in-process sqlite-backed SqlCatalog instead, so we can run
     # them on macOS without postgres infra. If they fail here but pass
-    # in the main `python` job, we've reproduced the macOS-specific
+    # in the main `pyamber` job, we've reproduced the macOS-specific
     # regression in CI.
-    if: ${{ inputs.run_python }}
+    if: ${{ inputs.run_pyamber }}
     runs-on: macos-latest
     steps:
       - name: Checkout Texera
@@ -745,6 +770,12 @@ jobs:
           if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
           if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
+      - name: Install protoc
+        # Homebrew protoc; this job doesn't exercise scalapb so the
+        # bin/protoc-version.txt pin doesn't apply here.
+        run: brew install protobuf
+      - name: Generate Python proto bindings
+        run: bash bin/python-proto-gen.sh
       - name: Run state-materialization integration tests
         run: |
           cd amber && pytest -sv \

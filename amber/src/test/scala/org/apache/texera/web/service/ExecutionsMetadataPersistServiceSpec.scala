@@ -166,7 +166,7 @@ class ExecutionsMetadataPersistServiceSpec
   "insertNewExecution" should "insert a row tied to the latest workflow version" in {
     val id = ExecutionsMetadataPersistService.insertNewExecution(
       WorkflowIdentity(testWid.toLong),
-      Some(testUid),
+      testUid,
       executionName = "named-execution",
       environmentVersion = "env-1",
       computingUnitId = seededCuid
@@ -185,7 +185,7 @@ class ExecutionsMetadataPersistServiceSpec
   it should "skip setName when executionName is the empty string" in {
     val id = ExecutionsMetadataPersistService.insertNewExecution(
       WorkflowIdentity(testWid.toLong),
-      Some(testUid),
+      testUid,
       executionName = "",
       environmentVersion = "env-2",
       computingUnitId = seededCuid
@@ -198,23 +198,29 @@ class ExecutionsMetadataPersistServiceSpec
     stored.getName shouldBe "Untitled Execution"
   }
 
-  it should "throw a DB constraint violation when uid is None" in {
-    // The method signature accepts Option[Integer] for uid and calls
-    // `newExecution.setUid(uid.orNull)`, but workflow_executions.uid is
-    // NOT NULL per texera_ddl.sql, so passing None propagates a jOOQ
-    // DataAccessException. Pinning the current behavior so a future fix —
-    // either tightening the signature to a required Integer or making the
-    // column nullable — breaks the spec deliberately. See follow-up bug.
-    val ex = intercept[org.jooq.exception.DataAccessException] {
+  it should "let the DB NOT NULL constraint reject a null uid (surfaced as a readable error)" in {
+    // No more pre-insert require: a null uid is passed straight to jOOQ and the
+    // DB's NOT NULL constraint rejects it. insertNewExecution catches the
+    // resulting DataAccessException (SQLState 23502) and rethrows a readable
+    // IllegalArgumentException. Assert both the readable message and that the
+    // original DB exception is preserved as the cause, and that nothing was
+    // written.
+    val before = workflowExecutionsDao.fetchByVid(seededVid).size()
+
+    val ex = intercept[IllegalArgumentException] {
       ExecutionsMetadataPersistService.insertNewExecution(
         WorkflowIdentity(testWid.toLong),
-        None,
+        null, // uid is NOT NULL in the DB
         executionName = "anonymous",
         environmentVersion = "env-3",
         computingUnitId = seededCuid
       )
     }
     ex.getMessage should include("uid")
+    ex.getCause shouldBe a[org.jooq.exception.DataAccessException]
+
+    // The failed insert must not have persisted a row.
+    workflowExecutionsDao.fetchByVid(seededVid).size() shouldBe before
   }
 
   // -- tryGetExistingExecution ------------------------------------------------
@@ -228,31 +234,11 @@ class ExecutionsMetadataPersistServiceSpec
     fetched.get.getEid shouldBe eid
   }
 
-  it should "currently return Some(null) for an unknown eid (latent bug)" in {
-    // Pin actual behavior: `fetchOneByEid` returns null for a miss (no throw),
-    // and the production code wraps the result in `Some(...)` before the
-    // try/catch can convert it to None. So the Option contract is broken for
-    // misses — callers that destructure with `getOrElse` get the null through.
-    // The catch only fires on hard errors (e.g. a closed connection), which
-    // is why the method name says "tryGet". Filed as a follow-up bug.
+  it should "return None for an unknown eid" in {
     val fetched = ExecutionsMetadataPersistService.tryGetExistingExecution(
       ExecutionIdentity(-1L)
     )
-    fetched shouldBe Some(null)
-  }
-
-  it should "(intended contract) return None for an unknown eid" in {
-    // xfail-strict equivalent in ScalaTest: invert via intercept. When the
-    // bug above is fixed (e.g. `Option(workflowExecutionsDao.fetchOneByEid(...))`
-    // instead of `Some(...)`), the inner assertion will pass, intercept will
-    // not catch a TestFailedException, and this test will flip red — forcing
-    // the pinned-behavior test above to be updated in the same PR.
-    intercept[org.scalatest.exceptions.TestFailedException] {
-      val fetched = ExecutionsMetadataPersistService.tryGetExistingExecution(
-        ExecutionIdentity(-1L)
-      )
-      fetched shouldBe None
-    }
+    fetched shouldBe None
   }
 
   // -- tryUpdateExistingExecution ---------------------------------------------

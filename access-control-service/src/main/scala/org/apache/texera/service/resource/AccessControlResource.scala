@@ -20,9 +20,10 @@ package org.apache.texera.service.resource
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import jakarta.annotation.security.PermitAll
 import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
 import jakarta.ws.rs.core._
-import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces}
+import jakarta.ws.rs.{Consumes, DELETE, GET, POST, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
@@ -43,6 +44,11 @@ object AccessControlResource extends LazyLogging {
   private val wsapiWorkflowWebsocket: Regex = """.*/wsapi/workflow-websocket.*""".r
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
+  private val pveRoute: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve(?:/.*)?$""".r
+  // Path patterns whose cuid lives in the URL path rather than the query string.
+  private val pvePvesCuidPath: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve/pves/([0-9]+)$""".r
+  private val pvePackagesCuidPath: Regex =
+    """^/?(?:auth/)?(?:api/|wsapi/)?pve/([0-9]+)/[^/]+/packages/.+$""".r
 
   /**
     * Authorize the request based on the path and headers.
@@ -60,7 +66,8 @@ object AccessControlResource extends LazyLogging {
     logger.info(s"Authorizing request for path: $path")
 
     path match {
-      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() =>
+      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() |
+          pveRoute() =>
         checkComputingUnitAccess(uriInfo, headers, bodyOpt)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
@@ -95,7 +102,14 @@ object AccessControlResource extends LazyLogging {
       qToken.orElse(hToken).orElse(bToken).getOrElse("")
     }
     logger.info(s"token extracted from request $token")
-    val cuid = queryParams.getOrElse("cuid", "")
+
+    val cuid = queryParams.get("cuid").filter(_.nonEmpty).getOrElse {
+      uriInfo.getPath match {
+        case pvePvesCuidPath(c)     => c
+        case pvePackagesCuidPath(c) => c
+        case _                      => ""
+      }
+    }
     val cuidInt =
       try {
         cuid.toInt
@@ -190,8 +204,13 @@ object AccessControlResource extends LazyLogging {
       .orElse(extractTokenFromMultipart(body))
   }
 }
+// The routing proxy authenticates each request itself via parseToken in the
+// resource body (returning 403 on missing/invalid tokens), so it must opt
+// out of the filter's eager 401 check. @PermitAll lets requests reach the
+// resource code, which then performs its own auth.
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/auth")
+@PermitAll
 class AccessControlResource extends LazyLogging {
 
   @GET
@@ -213,9 +232,24 @@ class AccessControlResource extends LazyLogging {
     logger.info("Request body: " + body)
     AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
   }
+
+  @DELETE
+  @Path("/{path:.*}")
+  def authorizeDelete(
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders
+  ): Response = {
+    AccessControlResource.authorize(uriInfo, headers)
+  }
 }
 
+// LiteLLM proxy: gates on `guiWorkflowWorkspaceCopilotEnabled`, not on
+// JWT. Preserve pre-eager-filter behavior (anonymous access permitted when
+// the feature flag is on) by opting out of the filter's eager 401. Whether
+// /chat/* should require an authenticated user is a separate hardening
+// decision tracked outside this PR.
 @Path("/chat")
+@PermitAll
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class LiteLLMProxyResource extends LazyLogging {
@@ -288,6 +322,7 @@ class LiteLLMProxyResource extends LazyLogging {
 }
 
 @Path("/models")
+@PermitAll
 @Produces(Array(MediaType.APPLICATION_JSON))
 class LiteLLMModelsResource extends LazyLogging {
 
