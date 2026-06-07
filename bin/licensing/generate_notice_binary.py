@@ -47,7 +47,7 @@ import re
 import sys
 import zipfile
 from collections import defaultdict
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 SEP = "-" * 80
@@ -56,9 +56,14 @@ TEXERA_OWN_JAR_PREFIX = "org.apache.texera."
 NOTICE_NAMES_TOPLEVEL = {"notice", "notice.txt", "notice.md"}
 
 
-def is_notice_entry(parts: list[str]) -> bool:
-    """Return True if the zip entry path is a NOTICE-style file we want to
-    pick up. Mirrors audit_jar_licenses.py's classifier (notice side)."""
+def is_notice_entry(entry_name: str) -> bool:
+    """Return True if the zip entry is a NOTICE-style file we want to pick up.
+    Mirrors audit_jar_licenses.py's classifier (notice side). ZIP entry names
+    are always POSIX ('/'-separated) regardless of host OS, so PurePosixPath
+    parses them portably."""
+    parts = PurePosixPath(entry_name).parts
+    if not parts:
+        return False
     if len(parts) == 1:
         return parts[0].lower() in NOTICE_NAMES_TOPLEVEL
     if parts[0].upper() != "META-INF":
@@ -74,7 +79,7 @@ def extract_notice_blob(jar_path: Path) -> str | None:
     try:
         with zipfile.ZipFile(jar_path) as zf:
             for name in zf.namelist():
-                if is_notice_entry(name.split("/")):
+                if is_notice_entry(name):
                     try:
                         raw = zf.read(name).decode("utf-8", errors="replace")
                     except Exception:
@@ -118,8 +123,9 @@ def artifact_label(jar_path: Path) -> str:
         with zipfile.ZipFile(jar_path) as zf:
             fallback = None
             for entry in zf.namelist():
-                if not (entry.startswith("META-INF/maven/")
-                        and entry.endswith("/pom.properties")):
+                ep = PurePosixPath(entry)
+                if not (ep.name == "pom.properties"
+                        and ep.parts[:2] == ("META-INF", "maven")):
                     continue
                 props: dict[str, str] = {}
                 for line in zf.read(entry).decode("utf-8", "replace").splitlines():
