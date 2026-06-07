@@ -106,21 +106,27 @@ github:
               - context: Validate PR title
 
     - name: "Default Branch Protection"
-      type: branch
-      branches:
-        includes:
-          - "~DEFAULT_BRANCH"
-          - "release/*"
-          - "rel/*"
-        excludes: []
-      bypass_teams:
-        - "root"
-        # Individual user (xuang7, v1.2 release manager) — listed here per INFRA
-        # guidance even though the open-source asfyaml parser only documents team
-        # slugs.
-        - "xuang7"
-      restrict_deletion: true
-      restrict_force_push: true
+      target: branch
+      enforcement: active
+      conditions:
+        ref_name:
+          include:
+            - "~DEFAULT_BRANCH"
+            - "refs/heads/release/*"
+            - "refs/heads/rel/*"
+          exclude: []
+      bypass_actors:
+        # apache/root — ASF Infra team.
+        - actor_id: 118420
+          actor_type: Team
+          bypass_mode: always
+        # xuang7 — granted bypass as the v1.2 release manager.
+        - actor_id: 162244362
+          actor_type: User
+          bypass_mode: always
+      rules:
+        - type: deletion
+        - type: non_fast_forward
 notifications:
   commits: commits@texera.apache.org
   issues: notifications@texera.apache.org
