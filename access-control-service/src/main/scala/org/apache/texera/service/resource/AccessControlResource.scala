@@ -275,7 +275,7 @@ class LiteLLMProxyResource(
     if (!copilotEnabled) {
       return Response
         .status(Response.Status.FORBIDDEN)
-        .entity("""{"error": "Copilot feature is disabled"}""")
+        .entity(LiteLLMProxyResource.CopilotDisabledBody)
         .build()
     }
 
@@ -328,6 +328,10 @@ class LiteLLMProxyResource(
   }
 }
 
+object LiteLLMProxyResource {
+  val CopilotDisabledBody: String = """{"error": "Copilot feature is disabled"}"""
+}
+
 @Path("/models")
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -352,7 +356,7 @@ class LiteLLMModelsResource(
     if (!copilotEnabled) {
       return Response
         .status(Response.Status.FORBIDDEN)
-        .entity("""{"error": "Copilot feature is disabled"}""")
+        .entity(LiteLLMProxyResource.CopilotDisabledBody)
         .build()
     }
 

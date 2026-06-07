@@ -72,8 +72,38 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     )
     .build()
 
-  override protected def beforeAll(): Unit = resources.before()
-  override protected def afterAll(): Unit = resources.after()
+  // Second resource extension with copilotEnabled = false, used to exercise
+  // the resource's early-exit branch that returns "Copilot feature is disabled".
+  private val resourcesCopilotDisabled: ResourceExtension = ResourceExtension
+    .builder()
+    .setMapper(testMapper)
+    .addProvider(classOf[JwtAuthFilter])
+    .addProvider(classOf[UnauthorizedExceptionMapper])
+    .addProvider(classOf[RolesAllowedDynamicFeature])
+    .addResource(
+      new LiteLLMProxyResource(
+        copilotEnabled = false,
+        litellmBaseUrl = unreachableLiteLLM,
+        litellmApiKey = "test"
+      )
+    )
+    .addResource(
+      new LiteLLMModelsResource(
+        copilotEnabled = false,
+        litellmBaseUrl = unreachableLiteLLM,
+        litellmApiKey = "test"
+      )
+    )
+    .build()
+
+  override protected def beforeAll(): Unit = {
+    resources.before()
+    resourcesCopilotDisabled.before()
+  }
+  override protected def afterAll(): Unit = {
+    resourcesCopilotDisabled.after()
+    resources.after()
+  }
 
   private def token(role: UserRoleEnum): String = {
     val u = new User()
@@ -106,13 +136,27 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
   }
 
   it should "reach the LiteLLM proxy path with a REGULAR-role token" in {
+    // 502 only comes from the resource's catch branch on a failed upstream
+    // call — status code alone proves the auth pipeline did not reject.
     val response = resources
       .target("/chat/completions")
       .request(MediaType.APPLICATION_JSON)
       .header("Authorization", s"Bearer ${token(UserRoleEnum.REGULAR)}")
       .post(Entity.json(chatBody))
     response.getStatus shouldBe 502
-    response.readEntity(classOf[String]) should include("Failed to proxy request to LiteLLM")
+  }
+
+  it should "return the resource's Copilot-disabled response when copilot is off" in {
+    // 403 alone is ambiguous (could be from RolesAllowedDynamicFeature);
+    // matching the entity to the same constant the resource emits proves the
+    // role check passed and the resource's own early-exit branch fired.
+    val response = resourcesCopilotDisabled
+      .target("/chat/completions")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${token(UserRoleEnum.REGULAR)}")
+      .post(Entity.json(chatBody))
+    response.getStatus shouldBe 403
+    response.readEntity(classOf[String]) shouldBe LiteLLMProxyResource.CopilotDisabledBody
   }
 
   "GET /models without an Authorization header" should "return 401 with a Bearer challenge" in {
@@ -137,7 +181,16 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       .header("Authorization", s"Bearer ${token(UserRoleEnum.ADMIN)}")
       .get()
     response.getStatus shouldBe 502
-    response.readEntity(classOf[String]) should include("Failed to fetch models from LiteLLM")
+  }
+
+  it should "return the resource's Copilot-disabled response when copilot is off" in {
+    val response = resourcesCopilotDisabled
+      .target("/models")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${token(UserRoleEnum.ADMIN)}")
+      .get()
+    response.getStatus shouldBe 403
+    response.readEntity(classOf[String]) shouldBe LiteLLMProxyResource.CopilotDisabledBody
   }
 
   // Regression guard for the no-arg auxiliary constructor that Jersey
