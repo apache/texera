@@ -248,7 +248,7 @@ export class ExecuteWorkflowService {
 
     const workflowExecuteRequest = {
       executionName: executionName,
-      engineVersion: version.hash,
+      engineVersion: version.buildNumber,
       logicalPlan: logicalPlan,
       replayFromExecution: replayExecutionInfo,
       workflowSettings: workflowSettings,
