@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,12 +17,17 @@
  * under the License.
  */
 
-// Default import: Angular's webpack rejects named JSON imports.
-import packageJson from "../../package.json";
+package org.apache.texera.web.resource
 
-// Dev placeholder. Production builds replace this file with the generated
-// version.prod.ts (see angular.json fileReplacements + frontend/build-version.js).
-export const Version = {
-  buildNumber: "dev",
-  version: packageJson.version,
-};
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+class HealthCheckResourceSpec extends AnyFlatSpec with Matchers {
+
+  // The /healthcheck endpoint is what readiness probes hit. The contract is
+  // an exact `{"status": "ok"}` JSON body; any change here would also need
+  // a coordinated update in deployment manifests.
+  "HealthCheckResource.healthCheck" should "return the canonical status map" in {
+    new HealthCheckResource().healthCheck shouldBe Map("status" -> "ok")
+  }
+}
