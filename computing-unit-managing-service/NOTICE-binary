@@ -8,8 +8,6 @@ The Apache Software Foundation (http://www.apache.org/).
 software.amazon.awssdk
 --------------------------------------------------------------------------------
 
-Bundled jars (29): software.amazon.awssdk.annotations-2.29.51.jar, software.amazon.awssdk.apache-client-2.29.51.jar, software.amazon.awssdk.arns-2.29.51.jar, ... (+26 more)
-
 AWS SDK for Java 2.0
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
@@ -39,8 +37,6 @@ The licenses for these third party components are included in LICENSE.txt
 --------------------------------------------------------------------------------
 org.apache.hadoop
 --------------------------------------------------------------------------------
-
-Bundled jars (8): org.apache.hadoop.hadoop-annotations-3.3.1.jar, org.apache.hadoop.hadoop-auth-3.3.1.jar, org.apache.hadoop.hadoop-common-3.3.1.jar, ... (+5 more)
 
 Apache Hadoop
 Copyright 2006 and onwards The Apache Software Foundation.
@@ -80,8 +76,6 @@ cryptography APIs written by the Legion of the Bouncy Castle Inc.
 --------------------------------------------------------------------------------
 org.eclipse.jetty
 --------------------------------------------------------------------------------
-
-Bundled jars (7): org.eclipse.jetty.jetty-http-11.0.20.jar, org.eclipse.jetty.jetty-io-11.0.20.jar, org.eclipse.jetty.jetty-security-11.0.20.jar, ... (+4 more)
 
 Notices for Eclipse Jetty
 =========================
@@ -181,8 +175,6 @@ granted provided that the copyright notice appears in all copies.
 org.apache.iceberg
 --------------------------------------------------------------------------------
 
-Bundled jars (6): org.apache.iceberg.iceberg-api-1.7.1.jar, org.apache.iceberg.iceberg-aws-1.7.1.jar, org.apache.iceberg.iceberg-common-1.7.1.jar, ... (+3 more)
-
 Apache Iceberg
 Copyright 2017-2024 The Apache Software Foundation
 
@@ -211,8 +203,6 @@ the following copyright notice:
 --------------------------------------------------------------------------------
 org.glassfish.jersey
 --------------------------------------------------------------------------------
-
-Bundled jars (5): org.glassfish.jersey.containers.jersey-container-servlet-3.0.12.jar, org.glassfish.jersey.containers.jersey-container-servlet-core-3.0.12.jar, org.glassfish.jersey.core.jersey-client-3.0.12.jar, ... (+2 more)
 
 # Notice for Jersey 
 This content is produced and maintained by the Eclipse Jersey project.
@@ -329,10 +319,8 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-io.netty.netty-tcnative-boringssl-static-2.0.61
+io.netty.netty-tcnative-boringssl-static
 --------------------------------------------------------------------------------
-
-Bundled jars (5): io.netty.netty-tcnative-boringssl-static-2.0.61.Final-linux-aarch_64.jar, io.netty.netty-tcnative-boringssl-static-2.0.61.Final-linux-x86_64.jar, io.netty.netty-tcnative-boringssl-static-2.0.61.Final-osx-aarch_64.jar, ... (+2 more)
 
 The Netty Project
                             =================
@@ -389,8 +377,6 @@ This product contains code from boringssl.
 --------------------------------------------------------------------------------
 org.glassfish.hk2
 --------------------------------------------------------------------------------
-
-Bundled jars: org.glassfish.hk2.external.aopalliance-repackaged-3.0.6.jar, org.glassfish.hk2.hk2-api-3.0.6.jar, org.glassfish.hk2.hk2-locator-3.0.3.jar, org.glassfish.hk2.hk2-utils-3.0.6.jar
 
 # Notices for Eclipse GlassFish
 
@@ -451,8 +437,6 @@ permitted.
 --------------------------------------------------------------------------------
 org.eclipse.jetty.websocket
 --------------------------------------------------------------------------------
-
-Bundled jars: org.eclipse.jetty.websocket.websocket-api-9.4.40.v20210413.jar, org.eclipse.jetty.websocket.websocket-client-9.4.40.v20210413.jar, org.eclipse.jetty.websocket.websocket-common-9.4.40.v20210413.jar
 
 ==============================================================
  Jetty Web Container
@@ -577,8 +561,6 @@ granted provided that the copyright notice appears in all copies.
 com.fasterxml.jackson
 --------------------------------------------------------------------------------
 
-Bundled jars: com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.16.1.jar, com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.17.0.jar, com.fasterxml.jackson.module.jackson-module-parameter-names-2.16.1.jar
-
 # Jackson JSON processor
 
 Jackson is a high-performance, Free/Open Source JSON processing library.
@@ -598,10 +580,8 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-jakarta.el.jakarta.el-api-4.0.0.jar
+jakarta.el.jakarta.el-api
 --------------------------------------------------------------------------------
-
-Bundled jars: jakarta.el.jakarta.el-api-4.0.0.jar, org.glassfish.jakarta.el-4.0.2.jar
 
 # Notices for Jakarta Expression Language
 
@@ -650,10 +630,8 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-com.sun.activation.jakarta.activation-2.0.1.jar
+com.sun.activation.jakarta.activation
 --------------------------------------------------------------------------------
-
-Bundled jars: com.sun.activation.jakarta.activation-2.0.1.jar, jakarta.activation.jakarta.activation-api-2.1.0.jar
 
 # Notices for Jakarta Activation
 
@@ -685,8 +663,6 @@ The project maintains the following source code repositories:
 com.fasterxml.jackson
 --------------------------------------------------------------------------------
 
-Bundled jars: com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider-2.16.1.jar, com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider-2.10.5.jar
-
 # Jackson JSON processor
 
 Jackson is a high-performance, Free/Open Source JSON processing library.
@@ -711,8 +687,6 @@ from the source code management (SCM) system project uses.
 --------------------------------------------------------------------------------
 com.fasterxml.jackson.core
 --------------------------------------------------------------------------------
-
-Bundled jars: com.fasterxml.jackson.core.jackson-annotations-2.18.6.jar, com.fasterxml.jackson.core.jackson-databind-2.18.6.jar
 
 # Jackson JSON processor
 
@@ -740,8 +714,6 @@ from the source code management (SCM) system project uses.
 org.scala-lang
 --------------------------------------------------------------------------------
 
-Bundled jars: org.scala-lang.scala-library-2.13.18.jar, org.scala-lang.scala-reflect-2.13.18.jar
-
 Scala
 Copyright (c) 2002-2025 EPFL
 Copyright (c) 2011-2025 Lightbend, Inc. dba Akka
@@ -763,8 +735,6 @@ This software includes projects with other licenses -- see `doc/LICENSE.md`.
 org.apache.hadoop.thirdparty
 --------------------------------------------------------------------------------
 
-Bundled jars: org.apache.hadoop.thirdparty.hadoop-shaded-guava-1.1.1.jar, org.apache.hadoop.thirdparty.hadoop-shaded-protobuf_3_7-1.1.1.jar
-
 Apache Hadoop Third-party Libs
 Copyright 2020 and onwards The Apache Software Foundation.
 
@@ -778,10 +748,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.curator.curator-framework-4.2.0
+org.apache.curator.curator-framework
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.curator.curator-framework-4.2.0.jar
 
 Curator Framework
 Copyright 2011-2019 The Apache Software Foundation
@@ -790,10 +758,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-commons-beanutils.commons-beanutils-1.9.4
+commons-beanutils.commons-beanutils
 --------------------------------------------------------------------------------
-
-Bundled jars: commons-beanutils.commons-beanutils-1.9.4.jar
 
 Apache Commons BeanUtils
 Copyright 2000-2019 The Apache Software Foundation
@@ -802,10 +768,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-com.fasterxml.jackson.core.jackson-core-2.18.6
+com.fasterxml.jackson.core.jackson-core
 --------------------------------------------------------------------------------
-
-Bundled jars: com.fasterxml.jackson.core.jackson-core-2.18.6.jar
 
 # Jackson JSON processor
 
@@ -881,10 +845,8 @@ https://github.com/wrandelshofer/FastDoubleParser/blob/39e123b15b71f29a38a087d16
 - as is required by that license.)
 
 --------------------------------------------------------------------------------
-org.apache.zookeeper.zookeeper-3.5.6
+org.apache.zookeeper.zookeeper
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.zookeeper.zookeeper-3.5.6.jar
 
 Apache ZooKeeper - Server
 Copyright 2008-2019 The Apache Software Foundation
@@ -893,10 +855,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-util-1.0.1
+org.apache.kerby.kerb-util
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerb-util-1.0.1.jar
 
 Kerby-kerb Util
 Copyright 2014-2017 The Apache Software Foundation
@@ -905,10 +865,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-log4j.log4j-1.2.17
+log4j.log4j
 --------------------------------------------------------------------------------
-
-Bundled jars: log4j.log4j-1.2.17.jar
 
 Apache log4j
 Copyright 2007 The Apache Software Foundation
@@ -917,10 +875,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-commons-codec.commons-codec-1.17.1
+commons-codec.commons-codec
 --------------------------------------------------------------------------------
-
-Bundled jars: commons-codec.commons-codec-1.17.1.jar
 
 Apache Commons Codec
 Copyright 2002-2024 The Apache Software Foundation
@@ -929,10 +885,8 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-admin-1.0.1
+org.apache.kerby.kerb-admin
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerb-admin-1.0.1.jar
 
 Kerby-kerb Admin
 Copyright 2014-2017 The Apache Software Foundation
@@ -941,10 +895,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.commons.commons-lang3-3.14.0
+org.apache.commons.commons-lang3
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.commons.commons-lang3-3.14.0.jar
 
 Apache Commons Lang
 Copyright 2001-2023 The Apache Software Foundation
@@ -953,10 +905,8 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.commons.commons-math3-3.1.1
+org.apache.commons.commons-math3
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.commons.commons-math3-3.1.1.jar
 
 Apache Commons Math
 Copyright 2001-2012 The Apache Software Foundation
@@ -1033,10 +983,8 @@ sources enumerated above at the time of code translation are in the LICENSE.txt
 file.
 
 --------------------------------------------------------------------------------
-com.fasterxml.jackson.module.jackson-module-no-ctor-deser-2.18.6
+com.fasterxml.jackson.module.jackson-module-no-ctor-deser
 --------------------------------------------------------------------------------
-
-Bundled jars: com.fasterxml.jackson.module.jackson-module-no-ctor-deser-2.18.6.jar
 
 # Jackson JSON processor
 
@@ -1060,10 +1008,8 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerby-config-1.0.1
+org.apache.kerby.kerby-config
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerby-config-1.0.1.jar
 
 Kerby Config
 Copyright 2014-2017 The Apache Software Foundation
@@ -1072,10 +1018,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api-5.0.2
+org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api
 --------------------------------------------------------------------------------
-
-Bundled jars: org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api-5.0.2.jar
 
 # Notices for Eclipse Project for Servlet
 
@@ -1136,10 +1080,8 @@ https://glassfish.dev.java.net/nonav/public/CDDL+GPL.html
  * org.eclipse.jetty.toolchain:jetty-schemas
 
 --------------------------------------------------------------------------------
-org.apache.yetus.audience-annotations-0.13.0
+org.apache.yetus.audience-annotations
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.yetus.audience-annotations-0.13.0.jar
 
 Apache Yetus - Audience Annotations
 Copyright 2015-2020 The Apache Software Foundation
@@ -1148,10 +1090,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.glassfish.jersey.core.jersey-server-3.0.12
+org.glassfish.jersey.core.jersey-server
 --------------------------------------------------------------------------------
-
-Bundled jars: org.glassfish.jersey.core.jersey-server-3.0.12.jar
 
 # Notice for Jersey Core Server module 
 This content is produced and maintained by the Eclipse Jersey project.
@@ -1314,10 +1254,8 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-org.apache.parquet.parquet-avro-1.13.1
+org.apache.parquet.parquet-avro
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.parquet.parquet-avro-1.13.1.jar
 
 Apache Parquet MR (Incubating)
 Copyright 2014-2015 The Apache Software Foundation
@@ -1337,10 +1275,8 @@ its NOTICE file:
   The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.glassfish.jersey.ext.jersey-bean-validation-3.0.12
+org.glassfish.jersey.ext.jersey-bean-validation
 --------------------------------------------------------------------------------
-
-Bundled jars: org.glassfish.jersey.ext.jersey-bean-validation-3.0.12.jar
 
 # Notice for Jersey Bean Validation module 
 This content is produced and maintained by the Eclipse Jersey project.
@@ -1495,10 +1431,8 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-org.apache.arrow.arrow-format-15.0.2
+org.apache.arrow.arrow-format
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.arrow.arrow-format-15.0.2.jar
 
 Arrow Format
 Copyright 2024 The Apache Software Foundation
@@ -1507,10 +1441,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.commons.commons-vfs2-2.9.0
+org.apache.commons.commons-vfs2
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.commons.commons-vfs2-2.9.0.jar
 
 Apache Commons VFS Project
 Copyright 2002-2021 The Apache Software Foundation
@@ -1519,10 +1451,8 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.17.0
+com.fasterxml.jackson.dataformat.jackson-dataformat-yaml
 --------------------------------------------------------------------------------
-
-Bundled jars: com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.17.0.jar
 
 # Jackson JSON processor
 
@@ -1547,10 +1477,8 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-jakarta.inject.jakarta.inject-api-2.0.1
+jakarta.inject.jakarta.inject-api
 --------------------------------------------------------------------------------
-
-Bundled jars: jakarta.inject.jakarta.inject-api-2.0.1.jar
 
 # Notices for Eclipse Jakarta Dependency Injection
 
@@ -1595,10 +1523,8 @@ None
 None
 
 --------------------------------------------------------------------------------
-org.apache.arrow.flight-grpc-15.0.2
+org.apache.arrow.flight-grpc
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.arrow.flight-grpc-15.0.2.jar
 
 Arrow Flight GRPC
 Copyright 2024 The Apache Software Foundation
@@ -1607,10 +1533,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.arrow.arrow-vector-15.0.2
+org.apache.arrow.arrow-vector
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.arrow.arrow-vector-15.0.2.jar
 
 Arrow Vectors
 Copyright 2024 The Apache Software Foundation
@@ -1619,10 +1543,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.httpcomponents.client5.httpclient5-5.4
+org.apache.httpcomponents.client5.httpclient5
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.httpcomponents.client5.httpclient5-5.4.jar
 
 Apache HttpClient
 Copyright 1999-2021 The Apache Software Foundation
@@ -1631,10 +1553,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-crypto-1.0.1
+org.apache.kerby.kerb-crypto
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerb-crypto-1.0.1.jar
 
 Kerby-kerb Crypto
 Copyright 2014-2017 The Apache Software Foundation
@@ -1643,10 +1563,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-core-1.0.1
+org.apache.kerby.kerb-core
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerb-core-1.0.1.jar
 
 Kerby-kerb core
 Copyright 2014-2017 The Apache Software Foundation
@@ -1655,10 +1573,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.arrow.arrow-memory-core-15.0.2
+org.apache.arrow.arrow-memory-core
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.arrow.arrow-memory-core-15.0.2.jar
 
 Arrow Memory - Core
 Copyright 2024 The Apache Software Foundation
@@ -1667,10 +1583,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.commons.commons-collections4-4.4
+org.apache.commons.commons-collections4
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.commons.commons-collections4-4.4.jar
 
 Apache Commons Collections
 Copyright 2001-2019 The Apache Software Foundation
@@ -1679,10 +1593,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.token-provider-1.0.1
+org.apache.kerby.token-provider
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.token-provider-1.0.1.jar
 
 Token provider
 Copyright 2014-2017 The Apache Software Foundation
@@ -1691,10 +1603,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-jakarta.xml.bind.jakarta.xml.bind-api-3.0.1
+jakarta.xml.bind.jakarta.xml.bind-api
 --------------------------------------------------------------------------------
-
-Bundled jars: jakarta.xml.bind.jakarta.xml.bind-api-3.0.1.jar
 
 [//]: # " Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved. "
 [//]: # "  "
@@ -1775,10 +1685,8 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-simplekdc-1.0.1
+org.apache.kerby.kerb-simplekdc
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerb-simplekdc-1.0.1.jar
 
 Kerb Simple Kdc
 Copyright 2014-2017 The Apache Software Foundation
@@ -1787,10 +1695,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.httpcomponents.httpcore-4.4.16
+org.apache.httpcomponents.httpcore
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.httpcomponents.httpcore-4.4.16.jar
 
 Apache HttpCore
 Copyright 2005-2022 The Apache Software Foundation
@@ -1799,10 +1705,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-commons-logging.commons-logging-1.2
+commons-logging.commons-logging
 --------------------------------------------------------------------------------
-
-Bundled jars: commons-logging.commons-logging-1.2.jar
 
 Apache Commons Logging
 Copyright 2003-2014 The Apache Software Foundation
@@ -1811,10 +1715,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.curator.curator-recipes-4.2.0
+org.apache.curator.curator-recipes
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.curator.curator-recipes-4.2.0.jar
 
 Curator Recipes
 Copyright 2011-2019 The Apache Software Foundation
@@ -1823,10 +1725,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-commons-pool.commons-pool-1.6
+commons-pool.commons-pool
 --------------------------------------------------------------------------------
-
-Bundled jars: commons-pool.commons-pool-1.6.jar
 
 Apache Commons Pool
 Copyright 2001-2012 The Apache Software Foundation
@@ -1835,10 +1735,8 @@ This product includes software developed by
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-jakarta.ws.rs.jakarta.ws.rs-api-3.1.0
+jakarta.ws.rs.jakarta.ws.rs-api
 --------------------------------------------------------------------------------
-
-Bundled jars: jakarta.ws.rs.jakarta.ws.rs-api-3.1.0.jar
 
 # Notices for Jakarta RESTful Web Services
 
@@ -1902,10 +1800,8 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-org.apache.avro.avro-1.12.0
+org.apache.avro.avro
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.avro.avro-1.12.0.jar
 
 Apache Avro
 Copyright 2009-2024 The Apache Software Foundation
@@ -1915,10 +1811,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.arrow.arrow-memory-netty-15.0.2
+org.apache.arrow.arrow-memory-netty
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.arrow.arrow-memory-netty-15.0.2.jar
 
 Arrow Memory - Netty
 Copyright 2024 The Apache Software Foundation
@@ -1927,10 +1821,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.curator.curator-client-4.2.0
+org.apache.curator.curator-client
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.curator.curator-client-4.2.0.jar
 
 Curator Client
 Copyright 2011-2019 The Apache Software Foundation
@@ -1939,10 +1831,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-commons-collections.commons-collections-3.2.2
+commons-collections.commons-collections
 --------------------------------------------------------------------------------
-
-Bundled jars: commons-collections.commons-collections-3.2.2.jar
 
 Apache Commons Collections
 Copyright 2001-2015 The Apache Software Foundation
@@ -1951,10 +1841,8 @@ This product includes software developed by
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-io.r2dbc.r2dbc-spi-0.9.0.RELEASE
+io.r2dbc.r2dbc-spi
 --------------------------------------------------------------------------------
-
-Bundled jars: io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar
 
 Reactive Relational Database Connectivity
 
@@ -1973,10 +1861,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 --------------------------------------------------------------------------------
-commons-cli.commons-cli-1.2
+commons-cli.commons-cli
 --------------------------------------------------------------------------------
-
-Bundled jars: commons-cli.commons-cli-1.2.jar
 
 Apache Commons CLI
 Copyright 2001-2009 The Apache Software Foundation
@@ -1985,10 +1871,8 @@ This product includes software developed by
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.httpcomponents.core5.httpcore5-h2-5.3
+org.apache.httpcomponents.core5.httpcore5-h2
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.httpcomponents.core5.httpcore5-h2-5.3.jar
 
 Apache HttpComponents Core HTTP/2
 Copyright 2005-2021 The Apache Software Foundation
@@ -1997,10 +1881,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-server-1.0.1
+org.apache.kerby.kerb-server
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerb-server-1.0.1.jar
 
 Kerby-kerb Server
 Copyright 2014-2017 The Apache Software Foundation
@@ -2009,10 +1891,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.commons.commons-jcs3-core-3.2
+org.apache.commons.commons-jcs3-core
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.commons.commons-jcs3-core-3.2.jar
 
 Apache Commons JCS :: Core
 Copyright 2002-2023 The Apache Software Foundation
@@ -2021,10 +1901,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.htrace.htrace-core4-4.1.0-incubating
+org.apache.htrace.htrace-core4
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.htrace.htrace-core4-4.1.0-incubating.jar
 
 htrace-core4
 Copyright 2016 The Apache Software Foundation
@@ -2033,10 +1911,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-com.google.inject.extensions.guice-servlet-4.0
+com.google.inject.extensions.guice-servlet
 --------------------------------------------------------------------------------
-
-Bundled jars: com.google.inject.extensions.guice-servlet-4.0.jar
 
 Google Guice - Extensions - Servlet
 Copyright 2006-2015 Google, Inc.
@@ -2045,10 +1921,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-jakarta.annotation.jakarta.annotation-api-3.0.0
+jakarta.annotation.jakarta.annotation-api
 --------------------------------------------------------------------------------
-
-Bundled jars: jakarta.annotation.jakarta.annotation-api-3.0.0.jar
 
 # Notices for Jakarta Annotations
 
@@ -2094,10 +1968,8 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-org.apache.httpcomponents.core5.httpcore5-5.3
+org.apache.httpcomponents.core5.httpcore5
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.httpcomponents.core5.httpcore5-5.3.jar
 
 Apache HttpComponents Core HTTP/1.1
 Copyright 2005-2021 The Apache Software Foundation
@@ -2106,10 +1978,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.commons.commons-compress-1.26.2
+org.apache.commons.commons-compress
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.commons.commons-compress-1.26.2.jar
 
 Apache Commons Compress
 Copyright 2002-2024 The Apache Software Foundation
@@ -2118,10 +1988,8 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.httpcomponents.httpclient-4.5.13
+org.apache.httpcomponents.httpclient
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.httpcomponents.httpclient-4.5.13.jar
 
 Apache HttpClient
 Copyright 1999-2020 The Apache Software Foundation
@@ -2130,10 +1998,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.orc.orc-shims-1.9.4
+org.apache.orc.orc-shims
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.orc.orc-shims-1.9.4.jar
 
 ORC Shims
 Copyright 2013-2024 The Apache Software Foundation
@@ -2142,10 +2008,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.parquet.parquet-jackson-1.13.1
+org.apache.parquet.parquet-jackson
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.parquet.parquet-jackson-1.13.1.jar
 
 # Jackson JSON processor
 
@@ -2166,10 +2030,8 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-client-1.0.1
+org.apache.kerby.kerb-client
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerb-client-1.0.1.jar
 
 Kerby-kerb Client
 Copyright 2014-2017 The Apache Software Foundation
@@ -2178,10 +2040,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerby-xdr-1.0.1
+org.apache.kerby.kerby-xdr
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerby-xdr-1.0.1.jar
 
 Kerby XDR Project
 Copyright 2014-2017 The Apache Software Foundation
@@ -2190,10 +2050,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerby-asn1-1.0.1
+org.apache.kerby.kerby-asn1
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerby-asn1-1.0.1.jar
 
 Kerby ASN1 Project
 Copyright 2014-2017 The Apache Software Foundation
@@ -2202,10 +2060,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-commons-io.commons-io-2.16.1
+commons-io.commons-io
 --------------------------------------------------------------------------------
-
-Bundled jars: commons-io.commons-io-2.16.1.jar
 
 Apache Commons IO
 Copyright 2002-2024 The Apache Software Foundation
@@ -2214,10 +2070,8 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerby-pkix-1.0.1
+org.apache.kerby.kerby-pkix
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerby-pkix-1.0.1.jar
 
 Kerby PKIX Project
 Copyright 2014-2017 The Apache Software Foundation
@@ -2226,10 +2080,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-identity-1.0.1
+org.apache.kerby.kerb-identity
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerb-identity-1.0.1.jar
 
 Kerby-kerb Identity
 Copyright 2014-2017 The Apache Software Foundation
@@ -2238,10 +2090,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1
+com.fasterxml.jackson.module.jackson-module-blackbird
 --------------------------------------------------------------------------------
-
-Bundled jars: com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1.jar
 
 # Jackson JSON processor
 
@@ -2266,10 +2116,8 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-org.apache.zookeeper.zookeeper-jute-3.5.6
+org.apache.zookeeper.zookeeper-jute
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.zookeeper.zookeeper-jute-3.5.6.jar
 
 Apache ZooKeeper - Jute
 Copyright 2008-2019 The Apache Software Foundation
@@ -2278,10 +2126,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerby-util-1.0.1
+org.apache.kerby.kerby-util
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerby-util-1.0.1.jar
 
 Kerby Util
 Copyright 2014-2017 The Apache Software Foundation
@@ -2290,10 +2136,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.commons.commons-configuration2-2.1.1
+org.apache.commons.commons-configuration2
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.commons.commons-configuration2-2.1.1.jar
 
 Apache Commons Configuration
 Copyright 2001-2017 The Apache Software Foundation
@@ -2302,10 +2146,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-com.google.inject.guice-4.0
+com.google.inject.guice
 --------------------------------------------------------------------------------
-
-Bundled jars: com.google.inject.guice-4.0.jar
 
 Google Guice - Core Library
 Copyright 2006-2015 Google, Inc.
@@ -2317,10 +2159,8 @@ This product includes software developed by
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-software.amazon.awssdk.third-party-jackson-core-2.29.51
+software.amazon.awssdk.third-party-jackson-core
 --------------------------------------------------------------------------------
-
-Bundled jars: software.amazon.awssdk.third-party-jackson-core-2.29.51.jar
 
 AWS SDK for Java 2.0
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -2418,10 +2258,8 @@ https://github.com/wrandelshofer/FastDoubleParser/blob/39e123b15b71f29a38a087d16
 - as is required by that license.)
 
 --------------------------------------------------------------------------------
-com.fasterxml.classmate-1.7.0
+com.fasterxml.classmate
 --------------------------------------------------------------------------------
-
-Bundled jars: com.fasterxml.classmate-1.7.0.jar
 
 Java ClassMate library was originally written by Tatu Saloranta (tatu.saloranta@iki.fi)
 
@@ -2434,10 +2272,8 @@ Other developers who have contributed code are:
 Copyright 2007-, Tatu Saloranta (tatu.saloranta@iki.fi)
 
 --------------------------------------------------------------------------------
-org.glassfish.jersey.core.jersey-common-3.0.12
+org.glassfish.jersey.core.jersey-common
 --------------------------------------------------------------------------------
-
-Bundled jars: org.glassfish.jersey.core.jersey-common-3.0.12.jar
 
 # Notice for Jersey Core Common module 
 This content is produced and maintained by the Eclipse Jersey project.
@@ -2599,10 +2435,8 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-common-1.0.1
+org.apache.kerby.kerb-common
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.kerby.kerb-common-1.0.1.jar
 
 Kerby-kerb Common
 Copyright 2014-2017 The Apache Software Foundation
@@ -2611,10 +2445,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.arrow.flight-core-15.0.2
+org.apache.arrow.flight-core
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.arrow.flight-core-15.0.2.jar
 
 Arrow Flight Core
 Copyright 2024 The Apache Software Foundation
@@ -2623,10 +2455,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.iceberg.iceberg-bundled-guava-1.7.1
+com.google.guava.guava
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.iceberg.iceberg-bundled-guava-1.7.1.jar
 
 Apache Iceberg
 Copyright 2017-2024 The Apache Software Foundation
@@ -2635,10 +2465,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.commons.commons-text-1.11.0
+org.apache.commons.commons-text
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.commons.commons-text-1.11.0.jar
 
 Apache Commons Text
 Copyright 2014-2023 The Apache Software Foundation
@@ -2647,10 +2475,8 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-commons-net.commons-net-3.6
+commons-net.commons-net
 --------------------------------------------------------------------------------
-
-Bundled jars: commons-net.commons-net-3.6.jar
 
 Apache Commons Net
 Copyright 2001-2017 The Apache Software Foundation
@@ -2659,10 +2485,8 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-io.netty.netty-3.10.6.Final
+io.netty.netty
 --------------------------------------------------------------------------------
-
-Bundled jars: io.netty.netty-3.10.6.Final.jar
 
 The Netty Project
                             =================

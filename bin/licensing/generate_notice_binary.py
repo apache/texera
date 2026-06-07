@@ -21,12 +21,15 @@ files.
 
 The output starts with the project's own NOTICE (Texera ASF header), then
 emits one block per unique META-INF/NOTICE content (deduped by SHA-1 hash
-across the jars in the given lib dirs). Each block is headed by a synthesized
-project name derived from the longest common prefix of its members' Maven
-coordinates, plus the list of contributing jars.
+across the jars in the given lib dirs). Each block is headed by a synthesized,
+version-less project name derived from the contributing jars' Maven
+coordinates (groupId.artifactId, read from each jar's
+META-INF/.../pom.properties), followed by the upstream NOTICE verbatim.
+Versions are intentionally omitted so a routine dependency version bump that
+leaves the upstream NOTICE text unchanged produces no diff here.
 
-Blocks are sorted by jar count (largest cluster first), with hash as a stable
-tiebreaker.
+Blocks are sorted by contributing-jar count (largest cluster first), with hash
+as a stable tiebreaker.
 
 Optional `--extras <file>` appends a verbatim text file at the end. Use this
 for non-jar attributions (Apache-2.0 Python wheels like aiohttp, Matplotlib)
@@ -93,30 +96,75 @@ def short_hash(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8", errors="replace")).hexdigest()[:10]
 
 
-def project_name_for_cluster(jar_names: list[str]) -> str:
+_VERSION_SUFFIX_RE = re.compile(r"-\d[A-Za-z0-9.]*(?:-[A-Za-z0-9.]+)*\.jar$")
+
+
+def _strip_version_from_filename(filename: str) -> str:
+    """Fallback for jars that ship no Maven pom.properties: drop a trailing
+    `-<version>.jar` where the version starts with a digit and may carry a
+    dotted/hyphenated qualifier (e.g. 33.0.0-jre, 9.4.40.v20210413)."""
+    stripped = _VERSION_SUFFIX_RE.sub("", filename)
+    if stripped != filename:
+        return stripped
+    return filename[:-4] if filename.endswith(".jar") else filename
+
+
+def artifact_label(jar_path: Path) -> str:
+    """Version-less label for a jar: its Maven groupId.artifactId, read from
+    META-INF/maven/<g>/<a>/pom.properties. Falls back to stripping the version
+    off the filename for non-Maven jars. Omitting the version is what keeps the
+    NOTICE-binary stable across routine dependency version bumps."""
+    try:
+        with zipfile.ZipFile(jar_path) as zf:
+            fallback = None
+            for entry in zf.namelist():
+                if not (entry.startswith("META-INF/maven/")
+                        and entry.endswith("/pom.properties")):
+                    continue
+                props: dict[str, str] = {}
+                for line in zf.read(entry).decode("utf-8", "replace").splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, _, v = line.partition("=")
+                        props[k.strip()] = v.strip()
+                group, artifact = props.get("groupId"), props.get("artifactId")
+                if group and artifact:
+                    label = f"{group}.{artifact}"
+                    # Prefer the pom whose coordinates match this jar's filename
+                    # (guards against shaded jars that carry several poms).
+                    if jar_path.name.startswith(label + "-"):
+                        return label
+                    fallback = fallback or label
+            if fallback:
+                return fallback
+    except (zipfile.BadZipFile, OSError):
+        pass
+    return _strip_version_from_filename(jar_path.name)
+
+
+def project_name_for_cluster(labels: list[str]) -> str:
     """Return a heading for a cluster of jars sharing a NOTICE.
 
-    Uses the longest common dotted prefix of the jar filenames (e.g.
-    `org.apache.hadoop.hadoop-annotations-3.3.3.jar` and siblings yield
-    `org.apache.hadoop`). For single-jar clusters, returns the jar name
-    without `.jar`. The "Bundled jars: ..." line in each block lists
-    exact filenames, so the heading just needs to be a navigational
-    summary, not a polished project label.
+    `labels` are version-less Maven coordinates (groupId.artifactId). For a
+    single artifact, returns it directly; for several, the longest common
+    dotted prefix (e.g. the lucene-* artifacts collapse to `org.apache.lucene`).
     """
-    if not jar_names:
+    uniq = sorted(set(labels))
+    if not uniq:
         return "(unknown)"
-    if len(jar_names) == 1:
-        name = jar_names[0]
-        return name[:-4] if name.endswith(".jar") else name
-    common = os.path.commonprefix(jar_names)
+    if len(uniq) == 1:
+        return uniq[0]
+    common = os.path.commonprefix(uniq)
     if "." in common:
         common = common[: common.rfind(".")]
-    return common or jar_names[0]
+    return common or uniq[0]
 
 
 def collect_clusters(lib_dirs: list[Path]) -> dict[str, dict]:
     """Return {hash: {'content': str, 'jars': sorted list[str]}} for every
-    unique NOTICE blob found across the union of lib dirs."""
+    unique NOTICE blob found across the union of lib dirs. 'jars' holds the
+    version-less Maven coordinates (groupId.artifactId) of the contributing
+    jars, one entry per jar file."""
     seen_jars: dict[str, Path] = {}
     for d in lib_dirs:
         if not d.is_dir():
@@ -134,26 +182,17 @@ def collect_clusters(lib_dirs: list[Path]) -> dict[str, dict]:
             continue
         h = short_hash(blob)
         clusters[h]["content"] = blob
-        clusters[h]["jars"].append(name)
+        clusters[h]["jars"].append(artifact_label(path))
     for c in clusters.values():
         c["jars"].sort()
     return clusters
 
 
-def emit_block(heading: str, jars: list[str], content: str) -> str:
-    out: list[str] = []
-    out.append(SEP)
-    out.append(heading)
-    out.append(SEP)
-    out.append("")
-    if len(jars) <= 4:
-        out.append("Bundled jars: " + ", ".join(jars))
-    else:
-        out.append(f"Bundled jars ({len(jars)}): " + ", ".join(jars[:3]) + f", ... (+{len(jars) - 3} more)")
-    out.append("")
-    out.append(content)
-    out.append("")
-    return "\n".join(out)
+def emit_block(heading: str, content: str) -> str:
+    """One block: separator, version-less heading, separator, then the upstream
+    NOTICE verbatim. No per-jar enumeration — the heading identifies the
+    dependency and the verbatim content carries the required attribution."""
+    return "\n".join([SEP, heading, SEP, "", content, ""])
 
 
 def main() -> int:
@@ -192,7 +231,7 @@ def main() -> int:
     )
     for h, c in sorted_clusters:
         heading = project_name_for_cluster(c["jars"])
-        parts.append(emit_block(heading, c["jars"], c["content"]))
+        parts.append(emit_block(heading, c["content"]))
 
     if args.extras:
         extras = Path(args.extras)

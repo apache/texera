@@ -8,8 +8,6 @@ The Apache Software Foundation (http://www.apache.org/).
 org.eclipse.jetty
 --------------------------------------------------------------------------------
 
-Bundled jars (7): org.eclipse.jetty.jetty-http-11.0.20.jar, org.eclipse.jetty.jetty-io-11.0.20.jar, org.eclipse.jetty.jetty-security-11.0.20.jar, ... (+4 more)
-
 Notices for Eclipse Jetty
 =========================
 This content is produced and maintained by the Eclipse Jetty project.
@@ -107,8 +105,6 @@ granted provided that the copyright notice appears in all copies.
 --------------------------------------------------------------------------------
 org.glassfish.jersey
 --------------------------------------------------------------------------------
-
-Bundled jars (5): org.glassfish.jersey.containers.jersey-container-servlet-3.0.12.jar, org.glassfish.jersey.containers.jersey-container-servlet-core-3.0.12.jar, org.glassfish.jersey.core.jersey-client-3.0.12.jar, ... (+2 more)
 
 # Notice for Jersey 
 This content is produced and maintained by the Eclipse Jersey project.
@@ -228,8 +224,6 @@ W3.org documents
 org.glassfish.hk2
 --------------------------------------------------------------------------------
 
-Bundled jars: org.glassfish.hk2.external.aopalliance-repackaged-3.0.6.jar, org.glassfish.hk2.hk2-api-3.0.6.jar, org.glassfish.hk2.hk2-locator-3.0.3.jar, org.glassfish.hk2.hk2-utils-3.0.6.jar
-
 # Notices for Eclipse GlassFish
 
 This content is produced and maintained by the Eclipse GlassFish project.
@@ -290,8 +284,6 @@ permitted.
 com.fasterxml.jackson
 --------------------------------------------------------------------------------
 
-Bundled jars: com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.16.1.jar, com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.16.1.jar, com.fasterxml.jackson.module.jackson-module-parameter-names-2.16.1.jar
-
 # Jackson JSON processor
 
 Jackson is a high-performance, Free/Open Source JSON processing library.
@@ -311,10 +303,8 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-jakarta.el.jakarta.el-api-4.0.0.jar
+jakarta.el.jakarta.el-api
 --------------------------------------------------------------------------------
-
-Bundled jars: jakarta.el.jakarta.el-api-4.0.0.jar, org.glassfish.jakarta.el-4.0.2.jar
 
 # Notices for Jakarta Expression Language
 
@@ -363,10 +353,8 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-com.sun.activation.jakarta.activation-2.0.1.jar
+com.sun.activation.jakarta.activation
 --------------------------------------------------------------------------------
-
-Bundled jars: com.sun.activation.jakarta.activation-2.0.1.jar, jakarta.activation.jakarta.activation-api-2.1.0.jar
 
 # Notices for Jakarta Activation
 
@@ -398,8 +386,6 @@ The project maintains the following source code repositories:
 com.fasterxml.jackson.core
 --------------------------------------------------------------------------------
 
-Bundled jars: com.fasterxml.jackson.core.jackson-annotations-2.18.6.jar, com.fasterxml.jackson.core.jackson-databind-2.18.6.jar
-
 # Jackson JSON processor
 
 Jackson is a high-performance, Free/Open Source JSON processing library.
@@ -426,8 +412,6 @@ from the source code management (SCM) system project uses.
 org.scala-lang
 --------------------------------------------------------------------------------
 
-Bundled jars: org.scala-lang.scala-library-2.13.18.jar, org.scala-lang.scala-reflect-2.13.18.jar
-
 Scala
 Copyright (c) 2002-2025 EPFL
 Copyright (c) 2011-2025 Lightbend, Inc. dba Akka
@@ -446,10 +430,8 @@ limitations under the License.
 This software includes projects with other licenses -- see `doc/LICENSE.md`.
 
 --------------------------------------------------------------------------------
-com.fasterxml.jackson.core.jackson-core-2.18.6
+com.fasterxml.jackson.core.jackson-core
 --------------------------------------------------------------------------------
-
-Bundled jars: com.fasterxml.jackson.core.jackson-core-2.18.6.jar
 
 # Jackson JSON processor
 
@@ -525,10 +507,8 @@ https://github.com/wrandelshofer/FastDoubleParser/blob/39e123b15b71f29a38a087d16
 - as is required by that license.)
 
 --------------------------------------------------------------------------------
-org.apache.commons.commons-lang3-3.13.0
+org.apache.commons.commons-lang3
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.commons.commons-lang3-3.13.0.jar
 
 Apache Commons Lang
 Copyright 2001-2023 The Apache Software Foundation
@@ -537,10 +517,8 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api-5.0.2
+org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api
 --------------------------------------------------------------------------------
-
-Bundled jars: org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api-5.0.2.jar
 
 # Notices for Eclipse Project for Servlet
 
@@ -601,10 +579,8 @@ https://glassfish.dev.java.net/nonav/public/CDDL+GPL.html
  * org.eclipse.jetty.toolchain:jetty-schemas
 
 --------------------------------------------------------------------------------
-org.glassfish.jersey.core.jersey-server-3.0.12
+org.glassfish.jersey.core.jersey-server
 --------------------------------------------------------------------------------
-
-Bundled jars: org.glassfish.jersey.core.jersey-server-3.0.12.jar
 
 # Notice for Jersey Core Server module 
 This content is produced and maintained by the Eclipse Jersey project.
@@ -767,10 +743,8 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-org.glassfish.jersey.ext.jersey-bean-validation-3.0.12
+org.glassfish.jersey.ext.jersey-bean-validation
 --------------------------------------------------------------------------------
-
-Bundled jars: org.glassfish.jersey.ext.jersey-bean-validation-3.0.12.jar
 
 # Notice for Jersey Bean Validation module 
 This content is produced and maintained by the Eclipse Jersey project.
@@ -925,10 +899,8 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.16.1
+com.fasterxml.jackson.dataformat.jackson-dataformat-yaml
 --------------------------------------------------------------------------------
-
-Bundled jars: com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.16.1.jar
 
 # Jackson JSON processor
 
@@ -953,10 +925,8 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-jakarta.inject.jakarta.inject-api-2.0.1
+jakarta.inject.jakarta.inject-api
 --------------------------------------------------------------------------------
-
-Bundled jars: jakarta.inject.jakarta.inject-api-2.0.1.jar
 
 # Notices for Eclipse Jakarta Dependency Injection
 
@@ -1001,10 +971,8 @@ None
 None
 
 --------------------------------------------------------------------------------
-jakarta.xml.bind.jakarta.xml.bind-api-3.0.1
+jakarta.xml.bind.jakarta.xml.bind-api
 --------------------------------------------------------------------------------
-
-Bundled jars: jakarta.xml.bind.jakarta.xml.bind-api-3.0.1.jar
 
 [//]: # " Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved. "
 [//]: # "  "
@@ -1085,10 +1053,8 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-jakarta.ws.rs.jakarta.ws.rs-api-3.1.0
+jakarta.ws.rs.jakarta.ws.rs-api
 --------------------------------------------------------------------------------
-
-Bundled jars: jakarta.ws.rs.jakarta.ws.rs-api-3.1.0.jar
 
 # Notices for Jakarta RESTful Web Services
 
@@ -1152,10 +1118,8 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-io.r2dbc.r2dbc-spi-0.9.0.RELEASE
+io.r2dbc.r2dbc-spi
 --------------------------------------------------------------------------------
-
-Bundled jars: io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar
 
 Reactive Relational Database Connectivity
 
@@ -1174,10 +1138,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 --------------------------------------------------------------------------------
-com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider-2.16.1
+com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider
 --------------------------------------------------------------------------------
-
-Bundled jars: com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider-2.16.1.jar
 
 # Jackson JSON processor
 
@@ -1201,10 +1163,8 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1
+com.fasterxml.jackson.module.jackson-module-blackbird
 --------------------------------------------------------------------------------
-
-Bundled jars: com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1.jar
 
 # Jackson JSON processor
 
@@ -1229,10 +1189,8 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-com.fasterxml.classmate-1.7.0
+com.fasterxml.classmate
 --------------------------------------------------------------------------------
-
-Bundled jars: com.fasterxml.classmate-1.7.0.jar
 
 Java ClassMate library was originally written by Tatu Saloranta (tatu.saloranta@iki.fi)
 
@@ -1245,10 +1203,8 @@ Other developers who have contributed code are:
 Copyright 2007-, Tatu Saloranta (tatu.saloranta@iki.fi)
 
 --------------------------------------------------------------------------------
-org.glassfish.jersey.core.jersey-common-3.0.12
+org.glassfish.jersey.core.jersey-common
 --------------------------------------------------------------------------------
-
-Bundled jars: org.glassfish.jersey.core.jersey-common-3.0.12.jar
 
 # Notice for Jersey Core Common module 
 This content is produced and maintained by the Eclipse Jersey project.
@@ -1410,10 +1366,8 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-jakarta.annotation.jakarta.annotation-api-2.1.1
+jakarta.annotation.jakarta.annotation-api
 --------------------------------------------------------------------------------
-
-Bundled jars: jakarta.annotation.jakarta.annotation-api-2.1.1.jar
 
 # Notices for Jakarta Annotations
 
@@ -1455,10 +1409,8 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-org.apache.commons.commons-text-1.11.0
+org.apache.commons.commons-text
 --------------------------------------------------------------------------------
-
-Bundled jars: org.apache.commons.commons-text-1.11.0.jar
 
 Apache Commons Text
 Copyright 2014-2023 The Apache Software Foundation
