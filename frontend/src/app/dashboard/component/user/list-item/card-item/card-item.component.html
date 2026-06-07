@@ -36,16 +36,6 @@
         [(ngModel)]="entry.checked"
         (ngModelChange)="onCheckboxChange(entry)"></label>
     </div>
-    <!-- User Avatar Overlay -->
-    <div
-      class="card-user-avatar"
-      title="{{ entry.ownerName || 'User' }}">
-      <texera-user-avatar
-        [googleAvatar]="entry.ownerGoogleAvatar"
-        userColor="#1E90FF"
-        [userName]="entry.ownerName || 'User'"
-        [isOwner]="entry.ownerId === this.currentUid"></texera-user-avatar>
-    </div>
     <!-- Placeholder or Preview Image -->
     <img
       class="card-preview-image"
@@ -98,31 +88,21 @@
       </button>
     </div>
 
-    <!-- Description -->
-    <div
-      class="card-description"
-      [routerLink]="entryLink">
-      <div
-        class="resource-description"
-        *ngIf="!editingDescription"
-        (click)="onEditDescription(); $event.stopPropagation()"
-        title="{{ entry.description }}">
-        {{ entry.description ? entry.description : (hovering && editable ? 'Write a description...' : '') }}
-      </div>
-      <textarea
-        *ngIf="editingDescription"
-        #descriptionInput
-        class="resource-description-edit-textarea"
-        [(ngModel)]="entry.description"
-        (blur)="confirmUpdateCustomDescription(entry.description)"
-        (keydown.enter)="confirmUpdateCustomDescription(entry.description)"
-        (click)="$event.stopPropagation()"
-        autofocus></textarea>
-    </div>
-
     <!-- Meta Info: Owner, Dates, Size, Views -->
     <div class="card-meta">
       <div class="meta-details">
+        <div class="meta-row">
+          <span
+            class="owner-info"
+            title="{{ entry.ownerName || 'User' }}">
+            <texera-user-avatar
+              [googleAvatar]="entry.ownerGoogleAvatar"
+              userColor="#1E90FF"
+              [userName]="entry.ownerName || 'User'"
+              [isOwner]="entry.ownerId === this.currentUid"></texera-user-avatar>
+            <span class="owner-name truncate-single-line">{{ entry.ownerName || "User" }}</span>
+          </span>
+        </div>
         <div class="meta-row">
           <span title="Created"
             ><i
