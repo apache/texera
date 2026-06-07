@@ -21,6 +21,7 @@ package org.apache.texera.service.resource
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 import io.dropwizard.jackson.Jackson
 import io.dropwizard.testing.junit5.ResourceExtension
 import jakarta.ws.rs.client.Entity
@@ -32,6 +33,9 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.net.InetSocketAddress
+import java.nio.charset.StandardCharsets
 
 // Wires the LiteLLM proxy resources through the same Jersey auth pipeline
 // production uses and fires HTTP requests with no / wrong-role / right-role
@@ -96,13 +100,63 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     )
     .build()
 
+  // An in-process HTTP server stands in for LiteLLM so the resources' success
+  // path (header / body / status forwarding) is exercised end-to-end without
+  // a network dependency. Bound to port 0 to pick any free port.
+  private val mockChatBody = """{"id":"mock-chat","choices":[{"message":{"content":"hi"}}]}"""
+  private val mockModelsBody = """{"data":[{"id":"mock-gpt"}]}"""
+
+  private val mockLiteLLM: HttpServer = HttpServer.create(new InetSocketAddress(0), 0)
+  mockLiteLLM.createContext("/chat/completions", respondWith(200, mockChatBody))
+  mockLiteLLM.createContext("/models", respondWith(200, mockModelsBody))
+
+  private def respondWith(status: Int, body: String): HttpHandler =
+    (exchange: HttpExchange) => {
+      val bytes = body.getBytes(StandardCharsets.UTF_8)
+      exchange.getResponseHeaders.add("Content-Type", MediaType.APPLICATION_JSON)
+      exchange.sendResponseHeaders(status, bytes.length.toLong)
+      val os = exchange.getResponseBody
+      try os.write(bytes)
+      finally os.close()
+    }
+
+  private def mockBaseUrl: String = s"http://127.0.0.1:${mockLiteLLM.getAddress.getPort}"
+
+  // Third extension: copilot on, upstream reachable. Resource is built lazily
+  // because litellmBaseUrl depends on the mock server's bound port.
+  private lazy val resourcesMockLiteLLM: ResourceExtension = ResourceExtension
+    .builder()
+    .setMapper(testMapper)
+    .addProvider(classOf[JwtAuthFilter])
+    .addProvider(classOf[UnauthorizedExceptionMapper])
+    .addProvider(classOf[RolesAllowedDynamicFeature])
+    .addResource(
+      new LiteLLMProxyResource(
+        copilotEnabled = true,
+        litellmBaseUrl = mockBaseUrl,
+        litellmApiKey = "test"
+      )
+    )
+    .addResource(
+      new LiteLLMModelsResource(
+        copilotEnabled = true,
+        litellmBaseUrl = mockBaseUrl,
+        litellmApiKey = "test"
+      )
+    )
+    .build()
+
   override protected def beforeAll(): Unit = {
+    mockLiteLLM.start()
     resources.before()
     resourcesCopilotDisabled.before()
+    resourcesMockLiteLLM.before()
   }
   override protected def afterAll(): Unit = {
+    resourcesMockLiteLLM.after()
     resourcesCopilotDisabled.after()
     resources.after()
+    mockLiteLLM.stop(0)
   }
 
   private def token(role: UserRoleEnum): String = {
@@ -191,6 +245,26 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       .get()
     response.getStatus shouldBe 403
     response.readEntity(classOf[String]) shouldBe LiteLLMProxyResource.CopilotDisabledBody
+  }
+
+  "POST /chat/completions" should "forward the upstream response when copilot is on and upstream is reachable" in {
+    val response = resourcesMockLiteLLM
+      .target("/chat/completions")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${token(UserRoleEnum.REGULAR)}")
+      .post(Entity.json(chatBody))
+    response.getStatus shouldBe 200
+    response.readEntity(classOf[String]) shouldBe mockChatBody
+  }
+
+  "GET /models" should "forward the upstream response when copilot is on and upstream is reachable" in {
+    val response = resourcesMockLiteLLM
+      .target("/models")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${token(UserRoleEnum.ADMIN)}")
+      .get()
+    response.getStatus shouldBe 200
+    response.readEntity(classOf[String]) shouldBe mockModelsBody
   }
 
   // Regression guard for the no-arg auxiliary constructor that Jersey
