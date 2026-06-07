@@ -22,11 +22,10 @@ package org.apache.texera.amber.engine.architecture.controller
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.serialization.{Serialization, SerializationExtension}
 import org.apache.pekko.testkit.TestKit
-import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.common.AmberRuntime
-import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload
 import org.apache.texera.amber.engine.common.executionruntimestate.OperatorMetrics
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -71,31 +70,11 @@ class ClientEventSpec extends AnyFlatSpec with BeforeAndAfterAll {
       .get
   }
 
-  // ---------------------------------------------------------------------------
-  // Compile-time pin: every subtype extends ClientEvent + WorkflowFIFOMessagePayload
-  // ---------------------------------------------------------------------------
-  //
-  // The `: ClientEvent` ascriptions in the per-subtype tests would fail to
-  // compile if the subtype no longer extends the trait, so the membership
-  // contract is enforced at compile time. We additionally assert
-  // `isInstanceOf[WorkflowFIFOMessagePayload]` for the trait parent (which
-  // ClientEvent itself extends) — a regression that demoted ClientEvent off
-  // WorkflowFIFOMessagePayload would surface here.
-
-  "ClientEvent subtypes" should "all extend WorkflowFIFOMessagePayload (via the ClientEvent trait)" in {
-    val all: List[ClientEvent] = List(
-      ExecutionStateUpdate(WorkflowAggregatedState.READY),
-      ExecutionStatsUpdate(Map.empty),
-      RuntimeStatisticsPersist(Map.empty),
-      ReportCurrentProcessingTuple("op", Array.empty),
-      WorkerAssignmentUpdate(Map.empty),
-      FatalError(new RuntimeException("x")),
-      UpdateExecutorCompleted(ActorVirtualIdentity("w")),
-      ReplayStatusUpdate(ActorVirtualIdentity("w"), status = true),
-      WorkflowRecoveryStatus(isRecovering = false)
-    )
-    all.foreach(e => assert(e.isInstanceOf[WorkflowFIFOMessagePayload]))
-  }
+  // The `ClientEvent` ↔ `WorkflowFIFOMessagePayload` membership is enforced
+  // at compile time (`trait ClientEvent extends WorkflowFIFOMessagePayload`
+  // plus the `: ClientEvent` ascriptions used in the per-subtype tests
+  // below). A runtime `isInstanceOf` sweep would be tautological and would
+  // need to be edited every time a new subtype is added — skip it.
 
   // ---------------------------------------------------------------------------
   // Per-subtype data contract + Pekko Serialization round-trip
@@ -143,18 +122,39 @@ class ClientEventSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(restored == original)
   }
 
-  "ReportCurrentProcessingTuple" should "expose operatorID and the tuple array (round-trip)" in {
-    // ReportCurrentProcessingTuple's `tuple` field is Array[(Tuple, AVI)] —
-    // case-class equality on arrays is reference-based, so the round-trip
-    // produces a new value-equal but reference-distinct array. Verify the
-    // contents element-by-element rather than relying on `==`.
-    val arr: Array[(Tuple, ActorVirtualIdentity)] = Array.empty
+  // Build a tiny Tuple fixture for the ReportCurrentProcessingTuple
+  // round-trip — a real (Tuple, AVI) pair (not the empty-array degenerate
+  // case) so the serializer is actually exercised on the inner elements.
+  private val intAttr = new Attribute("v", AttributeType.INTEGER)
+  private val schema: Schema = Schema().add(intAttr)
+  private def intTuple(value: Int): Tuple =
+    Tuple.builder(schema).add(intAttr, Integer.valueOf(value)).build()
+
+  "ReportCurrentProcessingTuple" should "round-trip a single (Tuple, AVI) element through AmberRuntime.serde" in {
+    // Pin the actual element-survival contract: build a non-empty array,
+    // round-trip, and verify the recovered Tuple's schema + field values
+    // and the AVI both survive. (Case-class equality on Array is
+    // reference-based, so element-wise verification is the right pin.)
+    val sender = ActorVirtualIdentity("worker-1")
+    val arr: Array[(Tuple, ActorVirtualIdentity)] = Array((intTuple(42), sender))
     val original = ReportCurrentProcessingTuple("op-x", arr)
     assert(original.operatorID == "op-x")
-    assert(original.tuple.isEmpty)
+    assert(original.tuple.length == 1)
     val restored = roundTrip(original)
     assert(restored.operatorID == "op-x")
-    assert(restored.tuple.length == original.tuple.length)
+    assert(restored.tuple.length == 1)
+    val (restoredTuple, restoredAvi) = restored.tuple.head
+    assert(restoredTuple == intTuple(42))
+    assert(restoredAvi == sender)
+  }
+
+  it should "round-trip an empty tuple array" in {
+    // Empty-array edge case: pin that the serializer doesn't choke on
+    // an empty Array[(Tuple, AVI)] and that operatorID still survives.
+    val original = ReportCurrentProcessingTuple("op-empty", Array.empty)
+    val restored = roundTrip(original)
+    assert(restored.operatorID == "op-empty")
+    assert(restored.tuple.isEmpty)
   }
 
   "WorkerAssignmentUpdate" should "expose its workerMapping field and round-trip" in {
@@ -174,9 +174,16 @@ class ClientEventSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(restored.workerMapping.isEmpty)
   }
 
-  "FatalError" should "default fromActor to None" in {
+  "FatalError" should "default fromActor to None and round-trip the default through AmberRuntime.serde" in {
+    // Pin both the constructor default AND the wire-path preservation for
+    // the default-None case — a regression that mishandled the missing
+    // fromActor on the receive side would surface here.
     val original = FatalError(new RuntimeException("boom"))
     assert(original.fromActor.isEmpty)
+    val restored = roundTrip(original)
+    assert(restored.fromActor.isEmpty)
+    assert(restored.e.getMessage == "boom")
+    assert(restored.e.getClass == classOf[RuntimeException])
   }
 
   it should "accept an explicit fromActor and round-trip both fields" in {
