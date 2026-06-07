@@ -139,4 +139,35 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     response.getStatus shouldBe 502
     response.readEntity(classOf[String]) should include("Failed to fetch models from LiteLLM")
   }
+
+  // Regression guard for the no-arg auxiliary constructor that Jersey
+  // reflection picks at production startup. Jersey resolves constructors in
+  // descending parameter count and skips any whose parameters are not
+  // @Context / HK2 injectable; LiteLLMProxyResource's 3-arg ctor takes plain
+  // Boolean / String values, so the no-arg form must exist and be picked.
+  // addResource(classOf[...]) (vs. addResource(new ...)) exercises that path.
+  "Jersey reflection" should "instantiate both LiteLLM resources via their no-arg constructors" in {
+    val reflective = ResourceExtension
+      .builder()
+      .setMapper(testMapper)
+      .addProvider(classOf[JwtAuthFilter])
+      .addProvider(classOf[UnauthorizedExceptionMapper])
+      .addProvider(classOf[RolesAllowedDynamicFeature])
+      .addResource(classOf[LiteLLMProxyResource])
+      .addResource(classOf[LiteLLMModelsResource])
+      .build()
+    reflective.before()
+    try {
+      val chat = reflective.target("/chat/completions").request(MediaType.APPLICATION_JSON).get()
+      // Unauthenticated GET on the POST-only chat path: we just need any
+      // response that proves Jersey wired the resource (4xx is fine; an
+      // instantiation failure surfaces as 500 or a test setup error).
+      chat.getStatus should (be >= 400 and be < 500)
+
+      val models = reflective.target("/models").request(MediaType.APPLICATION_JSON).get()
+      models.getStatus shouldBe 401
+    } finally {
+      reflective.after()
+    }
+  }
 }
