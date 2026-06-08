@@ -34,25 +34,23 @@ import java.util.concurrent.atomic.AtomicReference
 /**
   * Concurrency regression test for `ControllerRpcProbe`.
   *
-  * In the real coordinator specs the probe's `calls` buffer is appended to on a Pekko
-  * scheduler/actor thread (via the output-gateway callback) while the test thread reads it through
-  * the helper methods. When those two collide, Scala 2.13's `MutationTracker` turns the unsynchronized
-  * read into a hard `ConcurrentModificationException`. This test forces that collision directly so the
-  * race is caught deterministically rather than as a non-deterministic CI flake.
+  * The probe's `calls` buffer is appended to on a scheduler thread while the test thread reads it.
+  * Before the fix, a read racing an append tripped Scala 2.13's `MutationTracker` and threw a
+  * `ConcurrentModificationException`. This test forces that race so it fails deterministically
+  * rather than as a CI flake.
   */
 class ControllerRpcProbeSpec extends AnyFlatSpec {
 
   "ControllerRpcProbe" should "tolerate reads racing with concurrent appends" in {
-    // Hold every endWorker pending so appends never trigger a fulfill side effect.
+    // Hold every endWorker pending so appends have no fulfill side effects.
     val probe = new ControllerRpcProbe(_ => None)
     val appends = 20000
     val failure = new AtomicReference[Throwable]()
-    // Release both threads together so the reader is guaranteed to be polling while the writer is
-    // still appending. Without this gate a writer that ran to completion before the reader thread
-    // was scheduled would leave the read-vs-append window untested.
+    // Release both threads at once so the reader polls while the writer is still appending;
+    // otherwise the writer could finish before the reader starts and miss the race entirely.
     val startGate = new CountDownLatch(1)
 
-    // Writer mimics the actor side: each sendTo drives handleOutput -> calls += call.
+    // Writer: the actor side. Each sendTo drives handleOutput -> calls += call.
     val writer = new Thread(() => {
       try {
         startGate.await()
@@ -74,7 +72,7 @@ class ControllerRpcProbeSpec extends AnyFlatSpec {
       }
     })
 
-    // Reader mimics the test side: iterate the buffer through every helper while appends are in flight.
+    // Reader: the test side. Read through every helper while appends are in flight.
     val reader = new Thread(() => {
       try {
         startGate.await()
