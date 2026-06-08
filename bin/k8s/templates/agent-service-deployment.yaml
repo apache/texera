@@ -61,6 +61,14 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-agent-service-secret
                   key: litellm-master-key
+            # Shared JWT secret used to verify Bearer tokens. Sourced from the
+            # same texeraEnvVars entry the Scala services use, so they agree.
+            {{- range .Values.texeraEnvVars }}
+            {{- if eq .name "AUTH_JWT_SECRET" }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+            {{- end }}
+            {{- end }}
           # The service loads operator metadata from the dashboard service on
           # startup, so gate readiness on its health endpoint before the gateway
           # routes traffic here. /api/healthcheck needs no auth.

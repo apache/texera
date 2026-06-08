@@ -18,8 +18,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { createHmac } from "node:crypto";
 import { buildApp, _resetAgentStoreForTests } from "./server";
 import { env } from "./config/env";
+import { JWT_SECRET } from "./config/jwt";
 
 const API = env.API_PREFIX;
 const app = buildApp();
@@ -28,11 +30,38 @@ function url(path: string): string {
   return `http://localhost${path}`;
 }
 
+// Mint a valid HS256 token (same shape JwtAuth issues) so requests pass the
+// agent-service auth guard; tests that probe the guard itself omit/forge it.
+function b64url(input: string | Buffer): string {
+  return Buffer.from(input).toString("base64url");
+}
+function signToken(claims: Record<string, unknown> = {}): string {
+  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = b64url(
+    JSON.stringify({
+      sub: "tester",
+      userId: 1,
+      email: "tester@example.com",
+      role: "REGULAR",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      ...claims,
+    })
+  );
+  const signature = b64url(
+    createHmac("sha256", new TextEncoder().encode(JWT_SECRET)).update(`${header}.${payload}`).digest()
+  );
+  return `${header}.${payload}.${signature}`;
+}
+const VALID_TOKEN = signToken();
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return { Authorization: `Bearer ${VALID_TOKEN}`, ...extra };
+}
+
 async function postJson(path: string, body: unknown): Promise<Response> {
   return app.handle(
     new Request(url(path), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     })
   );
@@ -42,18 +71,18 @@ async function patchJson(path: string, body: unknown): Promise<Response> {
   return app.handle(
     new Request(url(path), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     })
   );
 }
 
 async function getJson(path: string): Promise<Response> {
-  return app.handle(new Request(url(path)));
+  return app.handle(new Request(url(path), { headers: authHeaders() }));
 }
 
 async function del(path: string): Promise<Response> {
-  return app.handle(new Request(url(path), { method: "DELETE" }));
+  return app.handle(new Request(url(path), { method: "DELETE", headers: authHeaders() }));
 }
 
 async function readJson<T = unknown>(res: Response): Promise<T> {
@@ -71,6 +100,44 @@ describe(`GET ${API}/healthcheck`, () => {
     const body = await readJson<{ status: string; timestamp: string }>(res);
     expect(body.status).toBe("ok");
     expect(typeof body.timestamp).toBe("string");
+  });
+
+  test("does not require a token (readiness probe)", async () => {
+    const res = await app.handle(new Request(url(`${API}/healthcheck`)));
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("auth guard on agent routes", () => {
+  test("rejects a request with no Authorization header (401)", async () => {
+    const res = await app.handle(new Request(url(`${API}/agents`)));
+    expect(res.status).toBe(401);
+    expect(await readJson<{ error: string }>(res)).toEqual({ error: "Unauthorized" });
+  });
+
+  test("rejects an invalid / mis-signed token (401)", async () => {
+    const res = await app.handle(
+      new Request(url(`${API}/agents`), { headers: { Authorization: "Bearer not-a-valid-jwt" } })
+    );
+    expect(res.status).toBe(401);
+  });
+
+  test("rejects an expired token (401)", async () => {
+    const expired = signToken({ exp: Math.floor(Date.now() / 1000) - 3600 });
+    const res = await app.handle(
+      new Request(url(`${API}/agents`), { headers: { Authorization: `Bearer ${expired}` } })
+    );
+    expect(res.status).toBe(401);
+  });
+
+  test("accepts a valid token", async () => {
+    const res = await app.handle(new Request(url(`${API}/agents`), { headers: authHeaders() }));
+    expect(res.status).toBe(200);
+  });
+
+  test("guards the models endpoint too", async () => {
+    const res = await app.handle(new Request(url(`${API}/agents/models`)));
+    expect(res.status).toBe(401);
   });
 });
 

@@ -35,6 +35,10 @@ RUN bun install --frozen-lockfile --production
 COPY agent-service/src ./src
 COPY agent-service/tsconfig.json ./
 
+# Shared JWT secret default (HS256) used to verify Bearer tokens. The effective
+# secret is AUTH_JWT_SECRET when set; otherwise this file's default is used.
+COPY common/config/src/main/resources/auth.conf ./auth.conf
+
 COPY agent-service/LICENSE-binary ./LICENSE
 COPY NOTICE ./NOTICE
 COPY DISCLAIMER ./DISCLAIMER

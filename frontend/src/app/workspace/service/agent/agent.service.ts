@@ -240,6 +240,12 @@ export class AgentService {
    */
   private agentHeaders(agentId?: string): { headers: HttpHeaders } {
     let headers = new HttpHeaders();
+    // The access-control-service authorizes every agent request by JWT, so
+    // attach the Bearer token to all agent-service calls.
+    const token = AuthService.getAccessToken();
+    if (token) {
+      headers = headers.set("Authorization", `Bearer ${token}`);
+    }
     if (agentId) {
       const wid = this.agentStateTracking.get(agentId)?.workflowId;
       if (wid !== undefined) {
@@ -408,9 +414,12 @@ export class AgentService {
    * Start WebSocket connection for real-time ReActSteps updates
    */
   private startStatePolling(agentId: string, tracking: AgentStateTracking): void {
-    // Build WebSocket URL
+    // Build WebSocket URL. Browsers can't set headers on a WebSocket, so the
+    // JWT is passed as the access-token query param (same as the workflow WS).
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react`;
+    const token = AuthService.getAccessToken();
+    const tokenParam = token ? `?access-token=${encodeURIComponent(token)}` : "";
+    const wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react${tokenParam}`;
 
     const ws = new WebSocket(wsUrl);
     tracking.websocket = ws;
@@ -712,7 +721,7 @@ export class AgentService {
         }
       }
 
-      return this.http.post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body).pipe(
+      return this.http.post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body, this.agentHeaders()).pipe(
         map(response => {
           const agentInfo: AgentInfo = {
             id: response.id,
@@ -792,7 +801,7 @@ export class AgentService {
    * Also syncs local cache with backend - removes any stale agents that no longer exist on the backend.
    */
   public getAllAgents(): Observable<AgentInfo[]> {
-    return this.http.get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`).pipe(
+    return this.http.get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`, this.agentHeaders()).pipe(
       map(response => {
         const agents = response.agents.map(a => ({
           id: a.id,
@@ -864,21 +873,23 @@ export class AgentService {
    */
   public fetchModelTypes(): Observable<ModelType[]> {
     if (!this.modelTypes$) {
-      this.modelTypes$ = this.http.get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/agents/models`).pipe(
-        map(response =>
-          response.data.map((model: LiteLLMModel) => ({
-            id: model.id,
-            name: this.formatModelName(model.id),
-            description: `Model: ${model.id}`,
-            icon: "robot",
-          }))
-        ),
-        catchError((error: unknown) => {
-          console.error("Failed to fetch models from API:", error);
-          return of([]);
-        }),
-        shareReplay(1)
-      );
+      this.modelTypes$ = this.http
+        .get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/agents/models`, this.agentHeaders())
+        .pipe(
+          map(response =>
+            response.data.map((model: LiteLLMModel) => ({
+              id: model.id,
+              name: this.formatModelName(model.id),
+              description: `Model: ${model.id}`,
+              icon: "robot",
+            }))
+          ),
+          catchError((error: unknown) => {
+            console.error("Failed to fetch models from API:", error);
+            return of([]);
+          }),
+          shareReplay(1)
+        );
     }
     return this.modelTypes$;
   }
@@ -1036,7 +1047,7 @@ export class AgentService {
    * The backend broadcasts headChange + visible steps via WebSocket to all clients.
    */
   public checkoutStep(agentId: string, stepId: string): Observable<any> {
-    return this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/checkout`, { stepId });
+    return this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/checkout`, { stepId }, this.agentHeaders(agentId));
   }
 
   /**

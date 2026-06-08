@@ -36,6 +36,13 @@ const EnvSchema = z.object({
   WORKFLOW_COMPILING_SERVICE_ENDPOINT: z.string().url().default("http://localhost:9090"),
   WORKFLOW_EXECUTION_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8085"),
   EXECUTION_ENDPOINT_TEMPLATE: z.string().optional(),
+
+  // Shared JWT secret (HS256). Overrides the default in auth.conf, mirroring
+  // common/config AuthConfig. When unset, the secret is read from auth.conf.
+  AUTH_JWT_SECRET: z.string().optional(),
+  // Path to auth.conf; defaults are probed in config/jwt.ts (bundled in the
+  // image, or the repo path in local dev).
+  AUTH_CONF_PATH: z.string().optional(),
 });
 
 export const env = EnvSchema.parse(process.env);
