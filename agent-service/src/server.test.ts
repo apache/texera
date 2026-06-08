@@ -120,6 +120,81 @@ describe(`POST ${API}/agents`, () => {
   });
 });
 
+describe(`POST ${API}/agents (delegated)`, () => {
+  function signToken(payload: Record<string, unknown>): string {
+    const encode = (o: Record<string, unknown>) => Buffer.from(JSON.stringify(o)).toString("base64");
+    return `${encode({ alg: "none" })}.${encode(payload)}.sig`;
+  }
+
+  const CONTENT = {
+    operators: [],
+    operatorPositions: {},
+    links: [],
+    commentBoxes: [],
+    settings: { dataTransferBatchSize: 400, executionMode: "PIPELINED" },
+  };
+
+  test("loads the workflow, binds the delegation, and masks the token", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: any) => {
+      const u = String(input);
+      if (u.includes("operator-metadata"))
+        return new Response(JSON.stringify({ operators: [], groups: [] }), { status: 200 });
+      if (u.includes("/api/workflow/")) {
+        return new Response(JSON.stringify({ wid: 9, name: "My WF", content: JSON.stringify(CONTENT) }), {
+          status: 200,
+        });
+      }
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+
+    try {
+      const token = signToken({
+        userId: 3,
+        sub: "alice",
+        email: "a@x.com",
+        role: "REGULAR",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
+      const res = await postJson(`${API}/agents`, { modelType: "m", userToken: token, workflowId: 9 });
+      expect(res.status).toBe(200);
+
+      const agent = await readJson<{
+        delegate: { userToken: string; workflowId: number; workflowName: string; userInfo: { name: string } };
+      }>(res);
+      expect(agent.delegate.userToken).toBe("***");
+      expect(agent.delegate.workflowId).toBe(9);
+      expect(agent.delegate.workflowName).toBe("My WF");
+      expect(agent.delegate.userInfo.name).toBe("alice");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  test("still creates the agent (without binding) when the workflow load fails", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: any) => {
+      const u = String(input);
+      if (u.includes("operator-metadata"))
+        return new Response(JSON.stringify({ operators: [], groups: [] }), { status: 200 });
+      if (u.includes("/api/workflow/")) return new Response("nope", { status: 500, statusText: "Server Error" });
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+
+    try {
+      const token = signToken({ userId: 3, sub: "alice", exp: Math.floor(Date.now() / 1000) + 3600 });
+      const res = await postJson(`${API}/agents`, { modelType: "m", userToken: token, workflowId: 9 });
+      expect(res.status).toBe(200);
+
+      // Delegation is only bound on a successful load, so it stays undefined here.
+      const agent = await readJson<{ delegate: unknown }>(res);
+      expect(agent.delegate).toBeUndefined();
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
+
 describe(`GET ${API}/agents`, () => {
   test("empty store returns no agents", async () => {
     const res = await getJson(`${API}/agents`);
