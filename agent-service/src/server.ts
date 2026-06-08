@@ -568,7 +568,8 @@ export function _resetAgentStoreForTests(): void {
   agentCounter = 0;
 }
 
-function printStartupMessage(app: ReturnType<typeof buildApp>) {
+// Exported for tests; called at boot from start().
+export function printStartupMessage(app: ReturnType<typeof buildApp>) {
   const LINE = "=".repeat(60);
   console.log(LINE);
   console.log("Texera Agent Service (Elysia.js + RxJS)");

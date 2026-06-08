@@ -18,7 +18,7 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
-import { buildApp, _resetAgentStoreForTests } from "./server";
+import { buildApp, _resetAgentStoreForTests, printStartupMessage } from "./server";
 import { env } from "./config/env";
 
 const API = env.API_PREFIX;
@@ -294,5 +294,26 @@ describe(`PATCH ${API}/agents/:id/settings`, () => {
     );
     expect(reread.maxSteps).toBe(7);
     expect(reread.toolTimeoutSeconds).toBe(30);
+  });
+});
+
+describe("printStartupMessage", () => {
+  test("prints the banner including the configured service endpoints", () => {
+    const original = console.log;
+    const lines: string[] = [];
+    console.log = (...args: unknown[]) => {
+      lines.push(args.join(" "));
+    };
+    try {
+      printStartupMessage(app);
+    } finally {
+      console.log = original;
+    }
+
+    const out = lines.join("\n");
+    expect(out).toContain("Texera Agent Service");
+    expect(out).toContain("LLM_ENDPOINT:");
+    expect(out).toContain("WORKFLOW_COMPILING_SERVICE_ENDPOINT:");
+    expect(out).toContain("TEXERA_DASHBOARD_SERVICE_ENDPOINT:");
   });
 });
