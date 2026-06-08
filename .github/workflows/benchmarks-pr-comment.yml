@@ -127,7 +127,7 @@ jobs:
             //      visually while neutralizing fence termination.
             const MAX_CSV_BYTES = 32 * 1024;
             const csvPath = "bench-results/arrow-flight-e2e.csv";
-            let csv = "_(no arrow-flight-e2e.csv in artifact)_";
+            let csv = null;
             if (fs.existsSync(csvPath)) {
               let raw = fs.readFileSync(csvPath, "utf8");
               if (raw.length > MAX_CSV_BYTES) {
@@ -136,19 +136,97 @@ jobs:
               csv = raw.replace(/```+/g, "`​``").trim();
             }
 
+            // Per-cell sanitizer for the markdown table: strip newlines, escape
+            // pipes (would break columns), and cap length.
+            const escapeCell = (s) =>
+              s == null
+                ? ""
+                : String(s).replace(/[\r\n]+/g, " ").replace(/\|/g, "\\|").slice(0, 64);
+
+            // Render selected columns as a markdown table. Drops noise columns
+            // (config_idx, total_tuples, total_bytes, lat_p95_us) and converts
+            // microseconds to milliseconds for latency readability. Returns
+            // null on any parsing failure → fallback renders raw CSV instead.
+            const csvToTable = (text) => {
+              try {
+                const rows = text
+                  .trim()
+                  .split(/\r?\n/)
+                  .map((line) => line.split(","));
+                if (rows.length < 2) return null;
+                const header = rows[0].map((h) => h.trim());
+                const idx = (col) => header.indexOf(col);
+                const cols = [
+                  { col: "batch_size", label: "batch", fmt: (v) => v },
+                  { col: "schema_width", label: "schema_w", fmt: (v) => v },
+                  { col: "string_len", label: "str_len", fmt: (v) => v },
+                  { col: "num_batches", label: "n_batches", fmt: (v) => v },
+                  { col: "tuples_per_sec", label: "tuples/s", fmt: (v) => v },
+                  { col: "mb_per_sec", label: "MB/s", fmt: (v) => v },
+                  {
+                    col: "lat_p50_us",
+                    label: "p50 ms",
+                    fmt: (v) => (parseFloat(v) / 1000).toFixed(2),
+                  },
+                  {
+                    col: "lat_p99_us",
+                    label: "p99 ms",
+                    fmt: (v) => (parseFloat(v) / 1000).toFixed(2),
+                  },
+                  { col: "total_ms", label: "total ms", fmt: (v) => v },
+                ].filter((c) => idx(c.col) >= 0);
+                if (cols.length === 0) return null;
+                const lines = [];
+                lines.push("| " + cols.map((c) => escapeCell(c.label)).join(" | ") + " |");
+                lines.push("|" + cols.map(() => "---:").join("|") + "|");
+                for (const row of rows.slice(1)) {
+                  const cells = cols.map((c) => {
+                    const raw = row[idx(c.col)];
+                    try {
+                      return escapeCell(c.fmt(raw));
+                    } catch (e) {
+                      return escapeCell(raw);
+                    }
+                  });
+                  lines.push("| " + cells.join(" | ") + " |");
+                }
+                return lines.join("\n");
+              } catch (e) {
+                core.warning(`csvToTable failed: ${e.message}`);
+                return null;
+              }
+            };
+
             // workflow_run.html_url is GitHub-emitted (URL to apache/texera
             // run page); not attacker-influenceable.
             const upstreamUrl = context.payload.workflow_run.html_url;
-            const body = [
-              marker,
-              "## Arrow Flight E2E bench",
-              "",
-              "```csv",
-              csv,
-              "```",
-              "",
-              `[Full workflow run](${upstreamUrl})`,
-            ].join("\n");
+
+            // Primary view: rendered markdown table for skim-readability.
+            // Fallback view (collapsed <details>): raw sanitized CSV for full
+            // verifiability — readers click to expand if they need every column.
+            const tableMd = csv ? csvToTable(csv) : null;
+            const bodyParts = [marker, "## Arrow Flight E2E bench", ""];
+            if (tableMd) {
+              bodyParts.push(tableMd, "");
+            } else if (!csv) {
+              bodyParts.push("_(no arrow-flight-e2e.csv in artifact)_", "");
+            } else {
+              bodyParts.push("_(unable to parse CSV; raw below)_", "");
+            }
+            if (csv) {
+              bodyParts.push(
+                "<details><summary>Raw CSV</summary>",
+                "",
+                "```csv",
+                csv,
+                "```",
+                "",
+                "</details>",
+                ""
+              );
+            }
+            bodyParts.push(`[Full workflow run](${upstreamUrl})`);
+            const body = bodyParts.join("\n");
 
             // Find existing marker comment so subsequent runs upsert in place.
             const { data: comments } = await github.rest.issues.listComments({
