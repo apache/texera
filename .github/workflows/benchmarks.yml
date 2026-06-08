@@ -243,12 +243,25 @@ jobs:
           retention-days: 14
 
       # Publish to the gh-pages dashboard. auto-push + save-data-file are
-      # both gated on push-to-main: PR runs only emit the job summary and
-      # the uploaded artifact, never touching the tracked baseline. Adding
-      # a new benchmark = adding one publish block below matching the
-      # JSON filename convention in bin/run-benchmarks.sh.
+      # both gated on push-to-main / schedule: PR runs only emit the job
+      # summary and the uploaded artifact, never touching the tracked
+      # baseline. Adding a new benchmark = adding one publish block below
+      # matching the JSON filename convention in bin/run-benchmarks.sh.
+      #
+      # `skip-fetch-gh-pages: true` because gh-pages does not exist on
+      # apache/texera yet — without this the action fatals with
+      # `couldn't find remote ref gh-pages` even before the auto-push
+      # decision. auto-push: true on push/schedule still creates the
+      # branch on first write. Once the dashboard is seeded, flip this
+      # to false to re-enable baseline comparison + alert-threshold.
+      #
+      # `continue-on-error: true` keeps any other gh-pages-side surprise
+      # (permission glitches, transient git failures) from failing the
+      # bench job overall — the bench data itself is already in the
+      # uploaded artifact above.
       - name: Publish throughput
         if: ${{ !cancelled() }}
+        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
         with:
           name: Arrow Flight E2E Throughput
@@ -257,6 +270,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
           save-data-file: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
+          skip-fetch-gh-pages: true
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
           alert-threshold: "150%"
@@ -266,6 +280,7 @@ jobs:
           summary-always: true
       - name: Publish latency
         if: ${{ !cancelled() }}
+        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
         with:
           name: Arrow Flight E2E Latency
@@ -274,6 +289,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
           save-data-file: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
+          skip-fetch-gh-pages: true
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
           alert-threshold: "150%"
