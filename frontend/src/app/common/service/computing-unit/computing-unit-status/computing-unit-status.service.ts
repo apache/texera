@@ -47,9 +47,8 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   private readonly refreshComputingUnitListSignal = new Subject<void>();
 
-  // Emits when an active websocket connection is torn down to switch to a
-  // different computing unit, so session-scoped consumers (execution status,
-  // console, results) can clear their websocket-derived state. See issue #3120.
+  // Emits when the active connection is torn down to switch computing units, so
+  // session consumers can clear their websocket-derived state (#3120).
   private readonly connectionResetSubject = new Subject<void>();
 
   // Refresh interval in milliseconds
@@ -166,9 +165,7 @@ export class ComputingUnitStatusService implements OnDestroy {
         if (this.workflowWebsocketService.isConnected) {
           this.workflowWebsocketService.closeWebsocket();
           this.workflowStatusService.clearStatus();
-          // We are tearing down an active connection to switch to a different
-          // unit; tell session consumers to clear their stale execution,
-          // console, and result state so the new unit starts fresh (#3120).
+          // switching units: signal consumers to clear their stale state (#3120)
           this.connectionResetSubject.next();
         }
 
@@ -235,21 +232,17 @@ export class ComputingUnitStatusService implements OnDestroy {
   }
 
   /**
-   * Emits whenever an active connection is reset to switch to a different
-   * computing unit. Consumers that hold websocket-derived session state (e.g.
-   * execution status, console output, results) subscribe to this to clear that
-   * state so the new unit starts fresh. See issue #3120.
+   * Emits when the connection is reset to switch computing units. Consumers
+   * subscribe to clear their websocket-derived session state (#3120).
    */
   public getConnectionResetStream(): Observable<void> {
     return this.connectionResetSubject.asObservable();
   }
 
   /**
-   * Tear down all websocket-related connection state. Called when the user
-   * leaves the workspace (e.g. returns to the dashboard) so that re-entering a
-   * workflow — even the same wid, which arrives as a `wid -> null -> wid`
-   * sequence — starts from a clean connection instead of reusing the previous
-   * one. See issue #3120.
+   * Tear down all websocket connection state when leaving the workspace, so
+   * re-entering a workflow starts from a clean connection instead of reusing
+   * the previous one (#3120).
    */
   public disconnect(): void {
     this.workflowWebsocketService.closeWebsocket();

@@ -96,10 +96,9 @@ export class WorkflowResultService {
   }
 
   /**
-   * Drop all cached operator results and reset table stats. Called when leaving
-   * the workspace so a re-entered workflow does not show the previous session's
-   * results (issue #3120). resultTableStats is a ReplaySubject, so it is reset
-   * to an empty snapshot to avoid replaying stale stats to new subscribers.
+   * Drop cached operator results and reset table stats so a re-entered workflow
+   * doesn't show stale results (#3120). resultTableStats is a ReplaySubject, so
+   * reset it to an empty snapshot to avoid replaying stale stats to subscribers.
    */
   public clearResults(): void {
     this.operatorResultServices.clear();

@@ -150,9 +150,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      */
     this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
     this.workflowActionService.setHighlightingEnabled(true);
-    // When the user switches computing units without leaving the workspace, the
-    // socket reconnects to the new unit; clear the previous unit's session state
-    // (execution status, console, results) so it does not linger (issue #3120).
+    // Clear session state when the user switches computing units in-canvas, so
+    // the previous unit's status/console/results don't linger (#3120).
     this.computingUnitStatusService
       .getConnectionResetStream()
       .pipe(untilDestroyed(this))
@@ -197,19 +196,15 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
     this.codeEditorViewRef.clear();
     this.workflowActionService.clearWorkflow();
-    // Tear down every piece of websocket-derived state so that re-entering a
-    // workflow starts from a clean session instead of reusing the previous one
-    // (issue #3120): the connection itself, plus the session state that is
-    // populated from websocket events.
+    // Tear down the connection and all websocket-derived session state so a
+    // re-entered workflow starts clean instead of reusing the previous one (#3120).
     this.computingUnitStatusService.disconnect();
     this.resetWorkflowSessionState();
   }
 
   /**
-   * Clear the websocket-derived session state (execution status, console
-   * output, result caches) so a fresh workflow session does not inherit the
-   * previous one. Shared by workspace teardown (returning to the dashboard) and
-   * in-canvas computing-unit switches (issue #3120).
+   * Clear websocket-derived session state (execution status, console, results).
+   * Shared by workspace teardown and in-canvas unit switches (#3120).
    */
   private resetWorkflowSessionState(): void {
     this.executeWorkflowService.resetExecutionAndWorkers();

@@ -78,9 +78,8 @@ describe("ComputingUnitStatusService", () => {
     service.disconnect();
     expect(closeSpy).toHaveBeenCalled();
 
-    // Re-enter the SAME workflow (the `wid -> null -> wid` pattern). Without
-    // cleanup the retained currentConnectedWid/Cuid would suppress the reconnect
-    // and the stale socket would be reused; after disconnect it must reconnect.
+    // Re-enter the SAME workflow (the `wid -> null -> wid` pattern): without the
+    // cleanup, the retained currentConnectedWid/Cuid would suppress the reconnect.
     service.selectComputingUnit(5, 7);
     expect(openSpy).toHaveBeenCalledTimes(2);
   });
