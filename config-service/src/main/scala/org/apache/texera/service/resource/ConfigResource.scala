@@ -76,7 +76,7 @@ class ConfigResource {
     )
 
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @PermitAll
   @Path("/user-system")
   def getUserSystemConfig: Map[String, Any] =
     Map(
