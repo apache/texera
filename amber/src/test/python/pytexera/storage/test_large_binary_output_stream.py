@@ -24,7 +24,10 @@ from pytexera.storage.large_binary_output_stream import (
     LargeBinaryOutputStream,
     _QueueReader,
 )
-from pytexera.storage import large_binary_manager
+from pytexera.storage.large_binary_manager import LargeBinaryManager
+
+# The manager is a singleton; bind the shared instance for the tests.
+large_binary_manager = LargeBinaryManager()
 
 
 class TestLargeBinaryOutputStream:
