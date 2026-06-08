@@ -27,7 +27,6 @@ import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import software.amazon.awssdk.core.sync.RequestBody
 
 import java.io.InputStream
-import java.security.MessageDigest
 import scala.jdk.CollectionConverters._
 
 /**
@@ -40,6 +39,9 @@ object S3StorageClient {
   val MAXIMUM_NUM_OF_MULTIPART_S3_PARTS = 10_000
   //Keep on sync with LakeFS https://github.com/treeverse/lakeFS/pull/10180
   val PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS = 24
+  // AWS S3 DeleteObjects accepts at most 1000 keys per request (listObjectsV2 also
+  // returns at most 1000 keys per page).
+  val MAX_KEYS_PER_DELETE_REQUEST = 1000
 
   // Initialize MinIO-compatible S3 Client
   private lazy val s3Client: S3Client = {
@@ -106,41 +108,42 @@ object S3StorageClient {
     // Ensure the directory prefix ends with `/` to avoid accidental deletions
     val prefix = if (directoryPrefix.endsWith("/")) directoryPrefix else directoryPrefix + "/"
 
-    // List objects under the given prefix
-    val listRequest = ListObjectsV2Request
-      .builder()
-      .bucket(bucketName)
-      .prefix(prefix)
-      .build()
+    val listRequest = ListObjectsV2Request.builder().bucket(bucketName).prefix(prefix).build()
 
-    val listResponse = s3Client.listObjectsV2(listRequest)
+    // listObjectsV2Paginator transparently follows the continuation token across all
+    // pages (listObjectsV2 returns at most 1000 keys per page). Keys are grouped into
+    // batches of at most MAX_KEYS_PER_DELETE_REQUEST, the DeleteObjects per-request limit.
+    s3Client
+      .listObjectsV2Paginator(listRequest)
+      .contents()
+      .asScala
+      .iterator
+      .map(obj => ObjectIdentifier.builder().key(obj.key()).build())
+      .grouped(MAX_KEYS_PER_DELETE_REQUEST)
+      .foreach { batch =>
+        val response = s3Client.deleteObjects(
+          DeleteObjectsRequest
+            .builder()
+            .bucket(bucketName)
+            .delete(Delete.builder().objects(batch.asJava).build())
+            .build()
+        )
+        throwOnDeleteErrors(prefix, response)
+      }
+  }
 
-    // Extract object keys
-    val objectKeys = listResponse.contents().asScala.map(_.key())
-
-    if (objectKeys.nonEmpty) {
-      val objectsToDelete =
-        objectKeys.map(key => ObjectIdentifier.builder().key(key).build()).asJava
-
-      val deleteRequest = Delete
-        .builder()
-        .objects(objectsToDelete)
-        .build()
-
-      // Compute MD5 checksum for MinIO if required
-      val md5Hash = MessageDigest
-        .getInstance("MD5")
-        .digest(deleteRequest.toString.getBytes("UTF-8"))
-
-      // Convert object keys to S3 DeleteObjectsRequest format
-      val deleteObjectsRequest = DeleteObjectsRequest
-        .builder()
-        .bucket(bucketName)
-        .delete(deleteRequest)
-        .build()
-
-      // Perform batch deletion
-      s3Client.deleteObjects(deleteObjectsRequest)
+  /**
+    * The DeleteObjects API reports per-key failures in its response instead of throwing,
+    * so an unchecked response can silently leave objects behind. Raise if any key in the
+    * batch failed to delete.
+    */
+  private[util] def throwOnDeleteErrors(prefix: String, response: DeleteObjectsResponse): Unit = {
+    val failed = response.errors().asScala
+    if (failed.nonEmpty) {
+      throw new RuntimeException(
+        s"Failed to delete ${failed.size} object(s) under prefix '$prefix': " +
+          failed.map(error => s"${error.key()} (${error.code()})").mkString(", ")
+      )
     }
   }
 

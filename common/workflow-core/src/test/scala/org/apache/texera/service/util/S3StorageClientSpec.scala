@@ -21,8 +21,12 @@ package org.apache.texera.service.util
 
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
+import software.amazon.awssdk.services.s3.model.{DeleteObjectsResponse, S3Error}
 
 import java.io.ByteArrayInputStream
+import java.util.concurrent.Executors
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Random
 
 class S3StorageClientSpec
@@ -333,5 +337,81 @@ class S3StorageClientSpec
     assert(downloadedData == testData)
 
     S3StorageClient.deleteObject(testBucketName, objectKey)
+  }
+
+  // ========================================
+  // deleteDirectory Tests
+  // ========================================
+
+  test("deleteDirectory should delete all objects under a prefix") {
+    val prefix = "delete-dir/small"
+    val keys = (0 until 5).map(i => s"$prefix/object-$i.txt")
+    keys.foreach(key =>
+      S3StorageClient.uploadObject(testBucketName, key, createInputStream("data"))
+    )
+
+    assert(S3StorageClient.directoryExists(testBucketName, prefix))
+
+    S3StorageClient.deleteDirectory(testBucketName, prefix)
+
+    assert(!S3StorageClient.directoryExists(testBucketName, prefix))
+  }
+
+  test("deleteDirectory should delete more than 1000 objects under a prefix") {
+    // listObjectsV2 returns at most 1000 keys per page and DeleteObjects accepts at
+    // most 1000 keys per request. Exceeding 1000 objects exercises both the
+    // continuation-token pagination loop and the batching of deletions; without them
+    // only the first 1000 objects are removed and the rest are silently orphaned.
+    val prefix = "delete-dir/large"
+    val objectCount = 1001
+
+    // Upload concurrently to keep the test reasonably fast.
+    val pool = Executors.newFixedThreadPool(16)
+    implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(pool)
+    try {
+      val uploads = (0 until objectCount).map { i =>
+        Future {
+          S3StorageClient.uploadObject(
+            testBucketName,
+            f"$prefix/object-$i%05d.txt",
+            createInputStream("")
+          )
+        }
+      }
+      Await.result(Future.sequence(uploads), 5.minutes)
+    } finally {
+      pool.shutdown()
+    }
+
+    assert(S3StorageClient.directoryExists(testBucketName, prefix))
+
+    S3StorageClient.deleteDirectory(testBucketName, prefix)
+
+    assert(!S3StorageClient.directoryExists(testBucketName, prefix))
+  }
+
+  test("deleteDirectory should not throw for a prefix with no objects") {
+    // Nothing to delete: the listing is empty, so no DeleteObjects request is issued.
+    S3StorageClient.deleteDirectory(testBucketName, "delete-dir/non-existent")
+  }
+
+  test("deleteDirectory should surface per-key delete failures rather than swallow them") {
+    // DeleteObjects returns failed keys in its response instead of throwing, so the
+    // client must inspect them; otherwise partial deletions become silent storage leaks.
+    // (Provoking a real per-key failure needs object-lock/retention setup, so the
+    // response-handling is verified directly here.)
+    val responseWithError = DeleteObjectsResponse
+      .builder()
+      .errors(S3Error.builder().key("delete-dir/locked.txt").code("AccessDenied").build())
+      .build()
+
+    val thrown = intercept[RuntimeException] {
+      S3StorageClient.throwOnDeleteErrors("delete-dir/", responseWithError)
+    }
+    assert(thrown.getMessage.contains("delete-dir/locked.txt"))
+    assert(thrown.getMessage.contains("AccessDenied"))
+
+    // A response with no errors must not throw.
+    S3StorageClient.throwOnDeleteErrors("delete-dir/", DeleteObjectsResponse.builder().build())
   }
 }
