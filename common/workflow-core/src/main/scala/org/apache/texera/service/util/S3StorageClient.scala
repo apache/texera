@@ -42,6 +42,10 @@ object S3StorageClient {
   // AWS S3 DeleteObjects accepts at most 1000 keys per request (listObjectsV2 also
   // returns at most 1000 keys per page).
   val MAX_KEYS_PER_DELETE_REQUEST = 1000
+  // A failed DeleteObjects batch can report up to MAX_KEYS_PER_DELETE_REQUEST per-key
+  // errors; only enumerate this many in the exception message and summarize the rest so
+  // the message stays bounded.
+  private[util] val MAX_LISTED_DELETE_ERRORS = 10
 
   // Initialize MinIO-compatible S3 Client
   private lazy val s3Client: S3Client = {
@@ -140,9 +144,14 @@ object S3StorageClient {
   private[util] def throwOnDeleteErrors(prefix: String, response: DeleteObjectsResponse): Unit = {
     val failed = response.errors().asScala
     if (failed.nonEmpty) {
+      val listed = failed.take(MAX_LISTED_DELETE_ERRORS).map(e => s"${e.key()} (${e.code()})")
+      val summary =
+        if (failed.size > MAX_LISTED_DELETE_ERRORS)
+          s" (and ${failed.size - MAX_LISTED_DELETE_ERRORS} more)"
+        else ""
       throw new RuntimeException(
         s"Failed to delete ${failed.size} object(s) under prefix '$prefix': " +
-          failed.map(error => s"${error.key()} (${error.code()})").mkString(", ")
+          listed.mkString(", ") + summary
       )
     }
   }

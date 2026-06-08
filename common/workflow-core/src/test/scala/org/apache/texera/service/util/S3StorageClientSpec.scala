@@ -413,5 +413,23 @@ class S3StorageClientSpec
 
     // A response with no errors must not throw.
     S3StorageClient.throwOnDeleteErrors("delete-dir/", DeleteObjectsResponse.builder().build())
+
+    // When many keys fail, the message reports the true total but only enumerates the first
+    // MAX_LISTED_DELETE_ERRORS keys and summarizes the rest, so it stays bounded.
+    val cap = S3StorageClient.MAX_LISTED_DELETE_ERRORS
+    val errorCount = cap + 5
+    val manyErrors = (0 until errorCount).map(i =>
+      S3Error.builder().key(f"delete-dir/locked-$i%02d.txt").code("AccessDenied").build()
+    )
+    val thrownMany = intercept[RuntimeException] {
+      S3StorageClient.throwOnDeleteErrors(
+        "delete-dir/",
+        DeleteObjectsResponse.builder().errors(manyErrors: _*).build()
+      )
+    }
+    assert(thrownMany.getMessage.contains(s"$errorCount object(s)"))
+    assert(thrownMany.getMessage.contains(f"delete-dir/locked-00.txt")) // first key is listed
+    assert(!thrownMany.getMessage.contains(f"delete-dir/locked-$cap%02d.txt")) // capped key is not
+    assert(thrownMany.getMessage.contains(s"and ${errorCount - cap} more"))
   }
 }
