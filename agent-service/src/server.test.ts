@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { buildApp, _resetAgentStoreForTests } from "./server";
 import { env } from "./config/env";
 
@@ -197,6 +197,73 @@ describe("Agent control routes", () => {
     const res = await getJson(`${API}/agents/${created.id}/operator-results`);
     expect(res.status).toBe(200);
     expect(await readJson<unknown>(res)).toEqual({ results: {} });
+  });
+});
+
+describe(`GET ${API}/agents/models`, () => {
+  // The endpoint fetches the model list from LiteLLM directly (the agent
+  // service holds the master key). Stub global fetch so no real LiteLLM is
+  // needed, and capture the outgoing request to assert URL + auth header.
+  const realFetch = globalThis.fetch;
+  let calls: Array<{ url: string; authorization: string | null }>;
+
+  function mockLiteLLM(responder: (reqUrl: string) => Response | Promise<Response>): void {
+    globalThis.fetch = (async (
+      input: Parameters<typeof fetch>[0],
+      init?: Parameters<typeof fetch>[1]
+    ): Promise<Response> => {
+      const reqUrl = String(input);
+      const authorization = new Headers(init?.headers).get("Authorization");
+      calls.push({ url: reqUrl, authorization });
+      return responder(reqUrl);
+    }) as typeof globalThis.fetch;
+  }
+
+  beforeEach(() => {
+    calls = [];
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  test("forwards the LiteLLM model list and calls it directly with the master key", async () => {
+    const upstream = {
+      data: [{ id: "gpt-5-mini", object: "model", created: 0, owned_by: "openai" }],
+      object: "list",
+    };
+    mockLiteLLM(
+      () => new Response(JSON.stringify(upstream), { status: 200, headers: { "Content-Type": "application/json" } })
+    );
+
+    const res = await getJson(`${API}/agents/models`);
+    expect(res.status).toBe(200);
+    expect(await readJson<typeof upstream>(res)).toEqual(upstream);
+
+    // One call, straight to <litellm-base>/models, carrying the master key.
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe(`${env.LITELLM_BASE_URL}/models`);
+    expect(calls[0].authorization).toBe(`Bearer ${env.LITELLM_MASTER_KEY}`);
+  });
+
+  test("returns 502 when LiteLLM responds with a non-OK status", async () => {
+    mockLiteLLM(() => new Response("unauthorized", { status: 401 }));
+
+    const res = await getJson(`${API}/agents/models`);
+    expect(res.status).toBe(502);
+    const body = await readJson<{ error: string }>(res);
+    expect(body.error).toContain("Failed to fetch models from LiteLLM");
+  });
+
+  test("returns 502 when LiteLLM is unreachable", async () => {
+    mockLiteLLM(() => {
+      throw new Error("connect ECONNREFUSED 127.0.0.1:4000");
+    });
+
+    const res = await getJson(`${API}/agents/models`);
+    expect(res.status).toBe(502);
+    const body = await readJson<{ error: string }>(res);
+    expect(body.error).toContain("Failed to fetch models from LiteLLM");
   });
 });
 
