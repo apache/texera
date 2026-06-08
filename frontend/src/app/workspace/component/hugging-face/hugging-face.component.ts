@@ -28,7 +28,8 @@ import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { AppSettings } from "../../../common/app-setting";
-import { Subscription } from "rxjs";
+import { Subject, Subscription } from "rxjs";
+import { takeUntil } from "rxjs/operators";
 
 export interface HuggingFaceModelOption {
   id: string;
@@ -151,6 +152,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   searchText = "";
   private filteredModels: HuggingFaceModelOption[] | null = null;
 
+  private readonly destroy$ = new Subject<void>();
   private subscription: Subscription | null = null;
 
   constructor(
@@ -172,6 +174,8 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.subscription?.unsubscribe();
   }
 
@@ -217,6 +221,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
 
     tasksFetchSubscription = this.http
       .get<HuggingFaceTaskOption[]>(`${AppSettings.getApiEndpoint()}/huggingface/tasks`)
+      .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: tasks => {
           tasksFetchSubscription = null;
@@ -298,9 +303,10 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.cdr.detectChanges();
 
     this.subscription = this.http
-      .get<
-        HuggingFaceModelOption[]
-      >(`${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`)
+      .get<HuggingFaceModelOption[]>(
+        `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`
+      )
+      .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: models => {
           allModelsByTag.set(tag, models);
