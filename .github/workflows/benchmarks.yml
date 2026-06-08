@@ -1,0 +1,239 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Texera benchmarks — bench-agnostic umbrella workflow.
+#
+# This file is the single CI entry for ALL Texera performance benchmarks
+# (currently Arrow Flight E2E; JMH and others land here as well). The
+# workflow knows nothing about specific benches — bin/run-benchmarks.sh
+# is the opaque entry point that owns which benches run and where their
+# outputs land under bench-results/. Adding a new bench is:
+#   1. Append the run command to bin/run-benchmarks.sh.
+#   2. Add a `Publish <chart-name>` step block below pointing at the
+#      bench's JSON output file with the right `tool:` setting.
+# This workflow file otherwise stays unchanged.
+#
+# Triggering — mirrors amber-integration's label gate (NOT file paths):
+#   - PR: runs only when one of the labels mapped to the amber-integration
+#     stack in required-checks.yml's LABEL_STACKS is present on the PR.
+#     Labels are applied by the .github/labeler.yml workflow on opened /
+#     synchronize, so we wait for that workflow to complete before
+#     deciding (same pattern required-checks.yml uses).
+#   - push to main: always runs and publishes the baseline to gh-pages.
+#   - workflow_dispatch: manual smoke trigger.
+#
+# Non-blocking: this workflow is NOT included in required-checks.yml's
+# `required-checks` aggregator, so its result doesn't gate merges even
+# when it fails. Adding it to branch protection later is a deliberate
+# .asf.yaml change.
+#
+# Permissions:
+#   contents: write — needed by benchmark-action's auto-push to gh-pages.
+#   For PR runs (which GitHub auto-downgrades to read-only on forks)
+#   auto-push is gated off via the `github.ref == 'refs/heads/main'`
+#   check, so the missing write is never exercised.
+
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: benchmarks-${{ github.ref }}
+  # On main: never cancel an in-flight baseline run; on PRs: supersede.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  precheck:
+    # Decide whether to run based on PR labels (push / dispatch always
+    # run). Lifted from required-checks.yml's precheck so the trigger
+    # surface matches amber-integration exactly.
+    name: Precheck
+    runs-on: ubuntu-latest
+    outputs:
+      run_bench: ${{ steps.decide.outputs.run_bench }}
+    steps:
+      - name: Wait for Pull Request Labeler
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const ref = context.payload.pull_request.head.sha;
+            const maxAttempts = 30;
+            for (let i = 0; i < maxAttempts; i++) {
+              const { data } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref,
+                check_name: "labeler",
+              });
+              const check = data.check_runs[0];
+              if (check && check.status === "completed") {
+                core.info(`labeler ${check.conclusion}`);
+                return;
+              }
+              core.info(`labeler not ready (attempt ${i + 1}/${maxAttempts})`);
+              await new Promise((r) => setTimeout(r, 10000));
+            }
+            core.warning("labeler did not complete within 5 minutes; proceeding with current labels.");
+
+      - name: Decide whether to run bench
+        id: decide
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const eventName = context.eventName;
+            if (eventName !== "pull_request") {
+              // push to main / workflow_dispatch always run.
+              core.info(`event=${eventName} — running unconditionally`);
+              core.setOutput("run_bench", "true");
+              return;
+            }
+            // Re-fetch labels: the labeler may have just added some.
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+            const labels = pr.labels.map((l) => l.name);
+            core.info(`PR labels: ${labels.join(", ") || "(none)"}`);
+            // Mirrors LABEL_STACKS in required-checks.yml: every label
+            // whose stack list contains "amber-integration" triggers this
+            // bench. Keep in sync if LABEL_STACKS there changes.
+            const TRIGGER_LABELS = new Set([
+              "python",
+              "engine",
+              "amber-integration",
+              "common",
+              "ddl-change",
+              "ci",
+            ]);
+            const matched = labels.filter((l) => TRIGGER_LABELS.has(l));
+            const shouldRun = matched.length > 0;
+            core.info(
+              shouldRun
+                ? `Triggering on labels: ${matched.join(", ")}`
+                : "No trigger label present; skipping bench."
+            );
+            core.setOutput("run_bench", shouldRun ? "true" : "false");
+
+  bench:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.run_bench == 'true' }}
+    runs-on: ubuntu-22.04
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      # PR runs are smaller (faster signal); main builds the baseline at
+      # the full sweep so the gh-pages chart is stable.
+      BENCH_NUM_BATCHES: ${{ github.event_name == 'push' && '200' || '50' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 17
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install Python dependencies
+        # Mirrors amber-integration's installer in build.yml so the bench
+        # subprocess imports resolve identically (pytorch CPU index +
+        # betterproto plugin via dev-requirements).
+        run: |
+          python -m pip install uv
+          if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
+          if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt; fi
+      - name: Install protoc
+        run: |
+          PROTOC_VERSION=$(cat bin/protoc-version.txt)
+          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          sudo unzip -o /tmp/protoc.zip -d /usr/local
+          sudo chmod +x /usr/local/bin/protoc
+          sudo chmod -R a+rX /usr/local/include/google
+      - name: Generate Python proto bindings
+        run: bash bin/python-proto-gen.sh
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+
+      - name: Run benchmarks
+        # Single opaque entry point — this workflow doesn't know which
+        # benches exist. Adding a JMH suite later = appending one line
+        # inside bin/run-benchmarks.sh and adding a publish step below.
+        run: bash bin/run-benchmarks.sh
+
+      - name: Upload bench artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results-${{ github.run_id }}
+          path: bench-results/
+          retention-days: 14
+
+      # Publish to the gh-pages dashboard. auto-push + save-data-file are
+      # both gated on push-to-main: PR runs only emit the job summary and
+      # the uploaded artifact, never touching the tracked baseline. Adding
+      # a new benchmark = adding one publish block below matching the
+      # JSON filename convention in bin/run-benchmarks.sh.
+      - name: Publish throughput
+        if: ${{ !cancelled() }}
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
+        with:
+          name: Arrow Flight E2E Throughput
+          tool: customBiggerIsBetter
+          output-file-path: bench-results/arrow-flight-e2e-throughput.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          save-data-file: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+          alert-threshold: "150%"
+          # comment-on-alert needs pull-requests:write; skip and let
+          # results show up via summary-always instead.
+          comment-on-alert: false
+          summary-always: true
+      - name: Publish latency
+        if: ${{ !cancelled() }}
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
+        with:
+          name: Arrow Flight E2E Latency
+          tool: customSmallerIsBetter
+          output-file-path: bench-results/arrow-flight-e2e-latency.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          save-data-file: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+          alert-threshold: "150%"
+          comment-on-alert: false
+          summary-always: true
