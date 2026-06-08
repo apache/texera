@@ -19,28 +19,21 @@
 
 import { z } from "zod";
 import { tool } from "ai";
-import { createErrorResult, formatExecuteOperatorResult, getVisibleResultHeaders } from "./tools-utility";
+import {
+  createErrorResult,
+  formatExecuteOperatorResult,
+  getVisibleResultHeaders,
+  formatOperatorIoShape,
+  formatRecordsAsTable,
+} from "./tools-utility";
 import type { WorkflowState } from "../workflow-state";
-import { getBackendConfig } from "../../api/backend-api";
-import { env } from "../../config/env";
-import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
+import { executeWorkflowHttp } from "../../api/execution-client";
+import type { LogicalPlan, LogicalLink } from "../../types/workflow";
 import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
-import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
-import { createLogger } from "../../logger";
-
-const log = createLogger("ExecutionTools");
+import { DEFAULT_AGENT_SETTINGS, type ExecutionRequestParams } from "../../types/agent";
 
 export const TOOL_NAME_EXECUTE_OPERATOR = "executeOperator";
-
-export interface ExecutionConfig {
-  userToken: string;
-  workflowId: number;
-  computingUnitId?: number;
-  maxOperatorResultCharLimit?: number;
-  maxOperatorResultCellCharLimit?: number;
-  executionTimeoutMs?: number;
-}
 
 /**
  * FIFO async lock used to serialize workflow executions per workflow id.
@@ -251,117 +244,6 @@ function buildLogicalPlan(workflowState: WorkflowState, opsToViewResult?: string
   };
 }
 
-async function executeWorkflowHttp(
-  config: ExecutionConfig,
-  logicalPlan: LogicalPlan,
-  options: { abortSignal?: AbortSignal } = {}
-): Promise<SyncExecutionResult> {
-  const backendConfig = getBackendConfig();
-
-  const workflowId = config.workflowId;
-  const computingUnitId = config.computingUnitId ?? 0;
-
-  // In k8s each computing unit is a separate pod, so the endpoint varies per cuid.
-  const executionEndpoint = env.EXECUTION_ENDPOINT_TEMPLATE
-    ? env.EXECUTION_ENDPOINT_TEMPLATE.replace("{cuid}", String(computingUnitId))
-    : backendConfig.executionEndpoint;
-
-  const url = `${executionEndpoint}/api/execution/${workflowId}/${computingUnitId}/run`;
-
-  const timeoutSeconds = config.executionTimeoutMs
-    ? Math.ceil(config.executionTimeoutMs / 1000)
-    : Math.ceil(DEFAULT_AGENT_SETTINGS.executionTimeoutMs / 1000);
-
-  const request = {
-    executionName: "agent-execution",
-    logicalPlan: {
-      operators: logicalPlan.operators,
-      links: logicalPlan.links,
-      opsToViewResult: logicalPlan.opsToViewResult || [],
-      opsToReuseResult: [],
-    },
-    targetOperatorIds: logicalPlan.opsToViewResult || [],
-    timeoutSeconds,
-    maxOperatorResultCharLimit: config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit,
-    maxOperatorResultCellCharLimit:
-      config.maxOperatorResultCellCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCellCharLimit,
-  };
-
-  log.debug(
-    {
-      url,
-      maxOperatorResultCharLimit: request.maxOperatorResultCharLimit,
-      maxOperatorResultCellCharLimit: request.maxOperatorResultCellCharLimit,
-    },
-    "executing workflow"
-  );
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.userToken}`,
-      },
-      body: JSON.stringify(request),
-      signal: options.abortSignal,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Execution request failed: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-
-    return (await response.json()) as SyncExecutionResult;
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw error;
-    }
-    log.error({ err: error }, "execution failed");
-    return {
-      success: false,
-      state: "Error",
-      operators: {},
-      errors: [error instanceof Error ? error.message : "Unknown error"],
-    };
-  }
-}
-
-function formatInputOutput(
-  workflowState: WorkflowState,
-  operatorId: string,
-  opInfo: OperatorInfo,
-  outputColumns: number
-): string {
-  const outputRows = opInfo.totalRowCount ?? opInfo.outputTuples;
-  const outputLine = `Output table shape: (${outputRows}, ${outputColumns})`;
-
-  const inputShapes = opInfo.inputPortShapes;
-  if (!inputShapes || inputShapes.length === 0) {
-    return outputLine;
-  }
-
-  const inputLinks = workflowState.getAllLinks().filter(l => l.target.operatorID === operatorId);
-  const portIndexToUpstream = new Map<number, string>();
-  const op = workflowState.getOperator(operatorId);
-  for (const link of inputLinks) {
-    const portIdx = op?.inputPorts.findIndex(p => p.portID === link.target.portID) ?? -1;
-    if (portIdx >= 0) {
-      portIndexToUpstream.set(portIdx, link.source.operatorID);
-    }
-  }
-
-  const inputPart = inputShapes
-    .sort((a, b) => a.portIndex - b.portIndex)
-    .map(p => {
-      const name = portIndexToUpstream.get(p.portIndex) ?? `input${p.portIndex}`;
-      return `${name}(${p.rows}, ${p.columns})`;
-    })
-    .join(", ");
-
-  return `Input operator(table shape): ${inputPart}\n${outputLine}`;
-}
-
 function formatExecutionError(
   compilationErrors?: Record<string, string>,
   operatorErrors?: Array<{ operatorId: string; error: string }>,
@@ -393,48 +275,9 @@ function formatExecutionError(
   return lines.join("\n");
 }
 
-function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
-  if (!jsonResult || jsonResult.length === 0) return "";
-
-  const hasRowIndex = jsonResult.length > 0 && "__row_index__" in jsonResult[0];
-  const headers = getVisibleResultHeaders(jsonResult[0]);
-  if (headers.length === 0) return "";
-  // Leading tab aligns headers with the index column (pandas __repr__ style).
-  const headerLine = "\t" + headers.join("\t");
-
-  const formattedRows: string[] = [];
-  let prevIndex = -1;
-
-  for (let i = 0; i < jsonResult.length; i++) {
-    const row = jsonResult[i];
-    const rowIndex = hasRowIndex ? (row["__row_index__"] as number) : i;
-
-    if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
-      const dots = headers.map(() => "...").join("\t");
-      formattedRows.push(`...\t${dots}`);
-    }
-    prevIndex = rowIndex;
-
-    const cells = headers.map(h => {
-      const val = row[h];
-      if (val === null) return "NaN";
-      if (val === undefined) return "";
-      if (typeof val === "number" || typeof val === "boolean") return String(val);
-      if (typeof val === "string") {
-        if (val === "NULL") return "NaN";
-        return val.replace(/\t/g, "\\t").replace(/\n/g, "\\n");
-      }
-      return JSON.stringify(val);
-    });
-    formattedRows.push(`${rowIndex}\t${cells.join("\t")}`);
-  }
-
-  return [headerLine, ...formattedRows].join("\n");
-}
-
 export async function executeOperatorAndFormat(
   workflowState: WorkflowState,
-  config: ExecutionConfig,
+  config: ExecutionRequestParams,
   operatorId: string,
   options: {
     abortSignal?: AbortSignal;
@@ -532,7 +375,7 @@ export async function executeOperatorAndFormat(
       }
     }
 
-    let dataString = jsonToTableFormat(jsonArray);
+    let dataString = formatRecordsAsTable(jsonArray);
 
     // Safety-net: TSV serialization may add padding beyond backend's raw-record budget.
     const charLimit = config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
@@ -568,7 +411,7 @@ export async function executeOperatorAndFormat(
       dataString = [headerLine, ...keptRows].join("\n");
     }
 
-    const shapeLine = formatInputOutput(workflowState, operatorId, opInfo, columns);
+    const shapeLine = formatOperatorIoShape(workflowState, operatorId, opInfo, columns);
 
     const warningLines = opInfo.warnings?.map(w => w) ?? [];
 
@@ -588,7 +431,7 @@ export async function executeOperatorAndFormat(
 
 export function createExecuteOperatorTool(
   workflowState: WorkflowState,
-  getConfig: () => ExecutionConfig,
+  getConfig: () => ExecutionRequestParams,
   onResult?: (operatorId: string, operatorInfo: OperatorInfo) => void
 ) {
   return tool({

@@ -17,27 +17,10 @@
  * under the License.
  */
 
-import { getBackendConfig } from "./backend-api";
-import { createAuthHeaders } from "./auth-api";
+import { getServiceEndpoints } from "../config/endpoints";
+import { createAuthHeaders } from "../auth/jwt";
 import type { WorkflowContent } from "../types/workflow";
-
-export interface Workflow {
-  wid: number;
-  name: string;
-  description?: string;
-  content: WorkflowContent;
-  creationTime?: number;
-  lastModifiedTime?: number;
-  isPublished?: boolean;
-}
-
-interface WorkflowPersistRequest {
-  wid?: number;
-  name: string;
-  description?: string;
-  content: string;
-  isPublic?: boolean;
-}
+import type { Workflow, WorkflowPersistRequest } from "../types/api";
 
 const WORKFLOW_BASE_URL = "workflow";
 
@@ -48,7 +31,7 @@ export async function persistWorkflow(
   content: WorkflowContent,
   description?: string
 ): Promise<Workflow> {
-  const config = getBackendConfig();
+  const config = getServiceEndpoints();
   const url = `${config.apiEndpoint}/api/${WORKFLOW_BASE_URL}/persist`;
 
   const response = await fetch(url, {
@@ -76,7 +59,7 @@ export async function persistWorkflow(
 }
 
 export async function retrieveWorkflow(token: string, wid: number): Promise<Workflow> {
-  const config = getBackendConfig();
+  const config = getServiceEndpoints();
   const url = `${config.apiEndpoint}/api/${WORKFLOW_BASE_URL}/${wid}`;
 
   const response = await fetch(url, {

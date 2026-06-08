@@ -17,22 +17,23 @@
  * under the License.
  */
 
-export interface LogicalLink {
-  fromOpId: string;
-  fromPortId: { id: number; internal: boolean };
-  toOpId: string;
-  toPortId: { id: number; internal: boolean };
+import { env } from "./env";
+
+/** Base URLs of the backend services this agent service talks to. */
+export interface ServiceEndpoints {
+  apiEndpoint: string;
+  modelsEndpoint: string;
+  compileEndpoint: string;
+  executionEndpoint: string;
 }
 
-interface LogicalOperator {
-  operatorID: string;
-  operatorType: string;
-  [key: string]: any;
-}
+const endpoints: ServiceEndpoints = {
+  apiEndpoint: env.TEXERA_DASHBOARD_SERVICE_ENDPOINT,
+  modelsEndpoint: env.LLM_ENDPOINT,
+  compileEndpoint: env.WORKFLOW_COMPILING_SERVICE_ENDPOINT,
+  executionEndpoint: env.WORKFLOW_EXECUTION_SERVICE_ENDPOINT,
+};
 
-export interface LogicalPlan {
-  operators: LogicalOperator[];
-  links: LogicalLink[];
-  opsToViewResult?: string[];
-  opsToReuseResult?: string[];
+export function getServiceEndpoints(): ServiceEndpoints {
+  return { ...endpoints };
 }

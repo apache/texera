@@ -261,7 +261,7 @@ describe("formatOperatorResult - visualization rows", () => {
   });
 });
 
-describe("jsonToTableFormat - cell coercion via formatOperatorResult", () => {
+describe("formatRecordsAsTable - cell coercion via formatOperatorResult", () => {
   function tableLines(opInfo: Partial<OperatorInfo>): string[] {
     const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 1, ...opInfo }), EMPTY_STATE);
     // Skip brief summary + shape line.
@@ -295,7 +295,7 @@ describe("jsonToTableFormat - cell coercion via formatOperatorResult", () => {
   });
 });
 
-describe("jsonToTableFormat - row index gaps", () => {
+describe("formatRecordsAsTable - row index gaps", () => {
   test("inserts ... separator when __row_index__ skips ahead", () => {
     const out = formatOperatorResult(
       "op1",

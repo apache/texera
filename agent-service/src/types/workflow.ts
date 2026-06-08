@@ -95,17 +95,27 @@ export interface Point {
   readonly y: number;
 }
 
+export interface Comment {
+  readonly content: string;
+  readonly creationTime: string;
+  readonly creatorName: string;
+  readonly creatorID: number;
+}
+
 export interface CommentBox {
-  readonly commentBoxID: string;
-  readonly comments: string;
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
+  commentBoxID: string;
+  comments: Comment[];
+  commentBoxPosition: Point;
+}
+
+export enum ExecutionMode {
+  PIPELINED = "PIPELINED",
+  MATERIALIZED = "MATERIALIZED",
 }
 
 export interface WorkflowSettings {
   readonly dataTransferBatchSize: number;
+  readonly executionMode: ExecutionMode;
 }
 
 export interface WorkflowContent {

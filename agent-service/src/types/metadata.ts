@@ -17,25 +17,9 @@
  * under the License.
  */
 
-import { env } from "../config/env";
-
-interface BackendConfig {
-  apiEndpoint: string;
-  modelsEndpoint: string;
-  compileEndpoint: string;
-  executionEndpoint: string;
-}
-
-const currentConfig: BackendConfig = {
-  apiEndpoint: env.TEXERA_DASHBOARD_SERVICE_ENDPOINT,
-  modelsEndpoint: env.LLM_ENDPOINT,
-  compileEndpoint: env.WORKFLOW_COMPILING_SERVICE_ENDPOINT,
-  executionEndpoint: env.WORKFLOW_EXECUTION_SERVICE_ENDPOINT,
-};
-
-export function getBackendConfig(): BackendConfig {
-  return { ...currentConfig };
-}
+// Operator metadata shapes served by the Dashboard Service
+// (`/api/resources/operator-metadata`) and the compact variants the agent
+// derives from them for prompts and validation.
 
 export interface InputPortInfo {
   displayName?: string;
@@ -47,7 +31,7 @@ export interface OutputPortInfo {
   displayName?: string;
 }
 
-interface OperatorAdditionalMetadata {
+export interface OperatorAdditionalMetadata {
   userFriendlyName: string;
   operatorGroupName: string;
   operatorDescription?: string;
@@ -66,7 +50,7 @@ export interface OperatorSchema {
   operatorVersion: string;
 }
 
-interface GroupInfo {
+export interface GroupInfo {
   groupName: string;
   children?: GroupInfo[] | null;
 }
@@ -76,13 +60,15 @@ export interface OperatorMetadata {
   groups: GroupInfo[];
 }
 
-export async function fetchOperatorMetadata(): Promise<OperatorMetadata> {
-  const url = `${currentConfig.apiEndpoint}/api/resources/operator-metadata`;
-  const response = await fetch(url);
+/** Full per-operator schema slice surfaced to debugging/inspection callers. */
+export interface OperatorSchemaInfo {
+  properties: any;
+  required: any;
+  definitions: any;
+}
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch operator metadata: ${response.status} ${response.statusText}`);
-  }
-
-  return (await response.json()) as OperatorMetadata;
+/** Reduced operator schema (refs inlined, noise stripped) used in prompts and errors. */
+export interface CompactOperatorSchema {
+  properties: Record<string, any>;
+  required: string[];
 }

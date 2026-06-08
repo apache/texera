@@ -27,6 +27,7 @@ import type {
 } from "../../types/workflow";
 import type { WorkflowSystemMetadata } from "./workflow-system-metadata";
 import type { WorkflowState } from "../workflow-state";
+import type { InputPortInfo, OutputPortInfo } from "../../types/metadata";
 
 // Format "{id}_{internal}" must align with the backend port-identity serializer.
 function serializePortIdentity(id: number, internal: boolean = false): string {
@@ -95,16 +96,6 @@ export function extractOperatorInputPortSchemaMap(
 
   const hasAnySchema = Object.values(inputPortSchemaMap).some(s => s !== undefined);
   return hasAnySchema ? inputPortSchemaMap : undefined;
-}
-
-interface InputPortInfo {
-  displayName?: string;
-  disallowMultiLinks?: boolean;
-  dependencies?: { id: number; internal: boolean }[];
-}
-
-interface OutputPortInfo {
-  displayName?: string;
 }
 
 function inputPortToPortDescription(portID: string, inputPortInfo: InputPortInfo): PortDescription {

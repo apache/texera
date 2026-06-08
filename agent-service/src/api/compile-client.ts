@@ -17,34 +17,15 @@
  * under the License.
  */
 
-import { getBackendConfig } from "./backend-api";
-import type { LogicalPlan, OperatorPortSchemaMap } from "../types/workflow";
+import { getServiceEndpoints } from "../config/endpoints";
+import type { LogicalPlan } from "../types/workflow";
+import type { WorkflowCompilationResponse } from "../types/api";
 import { createLogger } from "../logger";
 
-const log = createLogger("CompileAPI");
-
-export interface SchemaAttribute {
-  attributeName: string;
-  attributeType: "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";
-}
-
-export type PortSchema = ReadonlyArray<SchemaAttribute>;
-
-export interface WorkflowFatalError {
-  type: string;
-  message: string;
-  operatorId?: string;
-}
-
-export interface WorkflowCompilationResponse {
-  physicalPlan?: any;
-  operatorOutputSchemas: Record<string, OperatorPortSchemaMap>;
-  operatorErrors: Record<string, WorkflowFatalError>;
-}
+const log = createLogger("CompileClient");
 
 export async function compileWorkflowAsync(logicalPlan: LogicalPlan): Promise<WorkflowCompilationResponse | null> {
-  const config = getBackendConfig();
-  const url = `${config.compileEndpoint}/api/compile`;
+  const url = `${getServiceEndpoints().compileEndpoint}/api/compile`;
 
   const body = {
     operators: logicalPlan.operators,
