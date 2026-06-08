@@ -183,7 +183,9 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       return await response.json();
     } catch (error) {
       set.status = 502;
-      return { error: `Failed to fetch models from LiteLLM: ${error instanceof Error ? error.message : String(error)}` };
+      return {
+        error: `Failed to fetch models from LiteLLM: ${error instanceof Error ? error.message : String(error)}`,
+      };
     }
   })
 
