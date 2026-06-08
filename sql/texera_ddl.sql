@@ -76,6 +76,7 @@ DROP TABLE IF EXISTS site_settings CASCADE;
 DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
 DROP TABLE IF EXISTS notebook CASCADE;
 DROP TABLE IF EXISTS workflow_notebook_mapping CASCADE;
+DROP TABLE IF EXISTS python_virtual_environments CASCADE;
 
 -- ============================================
 -- 4. Create PostgreSQL enum types
@@ -210,6 +211,16 @@ CREATE TABLE IF NOT EXISTS workflow_computing_unit
     type               workflow_computing_unit_type_enum,
     uri                TEXT NOT NULL DEFAULT '',
     resource           TEXT DEFAULT '',
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
+
+-- python_virtual_environments table
+CREATE TABLE IF NOT EXISTS python_virtual_environments
+(
+    pveid    SERIAL PRIMARY KEY,
+    uid      INT           NOT NULL,
+    name     VARCHAR(128)  NOT NULL,
+    packages JSONB         NOT NULL DEFAULT '{}'::jsonb,
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
 
