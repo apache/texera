@@ -148,6 +148,25 @@ jobs:
       # PR runs are smaller (faster signal); main builds the baseline at
       # the full sweep so the gh-pages chart is stable.
       BENCH_NUM_BATCHES: ${{ github.event_name == 'push' && '200' || '50' }}
+    services:
+      # The bench itself doesn't touch the DB, but sbt's transitive compile
+      # chain reaches `common/auth` which imports JOOQ-generated classes
+      # from `org.apache.texera.dao.jooq.generated.*`. JOOQ codegen at
+      # sbt compile time requires a live Postgres to introspect against;
+      # without it the auth module's `User` / `UserRoleEnum` symbols fail
+      # to resolve and the whole bench compile aborts. Mirrors the same
+      # service block from amber-integration in build.yml.
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -178,6 +197,13 @@ jobs:
           sudo unzip -o /tmp/protoc.zip -d /usr/local
           sudo chmod +x /usr/local/bin/protoc
           sudo chmod -R a+rX /usr/local/include/google
+      - name: Create Database for JOOQ codegen
+        # Minimal subset of amber-integration's "Create Databases" step —
+        # JOOQ only introspects against texera_db, not iceberg/lakefs/
+        # lakekeeper schemas which the bench never touches.
+        run: psql -h localhost -U postgres -f sql/texera_ddl.sql
+        env:
+          PGPASSWORD: postgres
       - name: Generate Python proto bindings
         run: bash bin/python-proto-gen.sh
       - name: Setup sbt launcher
