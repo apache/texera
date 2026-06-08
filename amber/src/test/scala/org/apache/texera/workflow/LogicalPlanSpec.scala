@@ -22,8 +22,16 @@ package org.apache.texera.workflow
 import org.apache.commons.vfs2.FileNotFoundException
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
+import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
+import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
+import org.apache.texera.amber.operator.split.SplitOpDesc
+import org.apache.texera.amber.operator.udf.python.DualInputPortsPythonUDFOpDescV2
+import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
+import org.apache.texera.amber.operator.union.UnionOpDesc
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -33,12 +41,19 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 class LogicalPlanSpec extends AnyFlatSpec {
 
   // ---------------------------------------------------------------------------
-  // Fixture: a small operator chain `csv → keyword` (and richer variants below)
+  // Fixtures
   // ---------------------------------------------------------------------------
 
   private def csv(): CSVScanSourceOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-  private def keyword(): org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc =
-    TestOperators.keywordSearchOpDesc("column-1", "Asia")
+  private def keyword(): KeywordSearchOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+
+  /** Give an operator a readable, stable id so failure messages and graph
+    * assertions read in terms of the operator's role rather than a UUID.
+    */
+  private def named[T <: LogicalOp](op: T, id: String): T = {
+    op.setOperatorId(id)
+    op
+  }
 
   private def link(
       from: OperatorIdentity,
@@ -47,6 +62,74 @@ class LogicalPlanSpec extends AnyFlatSpec {
       toPort: Int = 0
   ): LogicalLink =
     LogicalLink(from, PortIdentity(fromPort), to, PortIdentity(toPort))
+
+  // ---------------------------------------------------------------------------
+  // A realistic, non-trivial workflow used by the graph-query tests below.
+  //
+  //   Sources (three different operator types):
+  //     csv : CSV scan      json : JSONL scan      pySrc : Python UDF source
+  //
+  //   Edges (target port in parentheses):
+  //     csv   ─▶ join  (0, "left")        join  ─▶ udf2  (0, "model")
+  //     json  ─▶ join  (1, "right")       pySrc ─▶ udf2  (1, "tuples")
+  //     udf2  ─▶ union (0)                json  ─▶ union (0)   ← fan-out: 2nd link into the SAME port
+  //     union ─▶ split (0)
+  //     split ─▶ aggA  (from out 0)       split ─▶ aggB  (from out 1)   ← two distinct OUTPUT ports
+  //
+  //   Shapes exercised: a join (two distinct input ports), a dual-input UDF
+  //   (two distinct input ports), a union (two links merged into ONE input
+  //   port), a split (two distinct output ports), and a fan-out source
+  //   (json feeds both the join and the union).
+  //   Sources (in-degree 0): csv, json, pySrc.   Terminals (out-degree 0): aggA, aggB.
+  // ---------------------------------------------------------------------------
+
+  private case class Rich(
+      plan: LogicalPlan,
+      csv: CSVScanSourceOpDesc,
+      json: JSONLScanSourceOpDesc,
+      pySrc: PythonUDFSourceOpDescV2,
+      join: HashJoinOpDesc[String],
+      udf2: DualInputPortsPythonUDFOpDescV2,
+      union: UnionOpDesc,
+      split: SplitOpDesc,
+      aggA: AggregateOpDesc,
+      aggB: AggregateOpDesc
+  )
+
+  private def richPlan(): Rich = {
+    val csv = named(TestOperators.headerlessSmallCsvScanOpDesc(), "csv-source")
+    val json = named(TestOperators.smallJSONLScanOpDesc(), "jsonl-source")
+    val pySrc = named(TestOperators.pythonSourceOpDesc(5), "python-source")
+    val join = named(TestOperators.joinOpDesc("country", "country"), "hash-join")
+    val udf2 = named(new DualInputPortsPythonUDFOpDescV2(), "dual-input-udf")
+    val union = named(new UnionOpDesc(), "union")
+    val split = named(new SplitOpDesc(), "split")
+    val aggA = named(new AggregateOpDesc(), "aggregate-a")
+    val aggB = named(new AggregateOpDesc(), "aggregate-b")
+
+    // Order matters for getUpstreamLinks: links are returned in construction order.
+    val links = List(
+      link(csv.operatorIdentifier, join.operatorIdentifier, toPort = 0), // join: left
+      link(json.operatorIdentifier, join.operatorIdentifier, toPort = 1), // join: right
+      link(join.operatorIdentifier, udf2.operatorIdentifier, toPort = 0), // udf2: model
+      link(pySrc.operatorIdentifier, udf2.operatorIdentifier, toPort = 1), // udf2: tuples
+      link(udf2.operatorIdentifier, union.operatorIdentifier, toPort = 0), // union <- udf2
+      link(
+        json.operatorIdentifier,
+        union.operatorIdentifier,
+        toPort = 0
+      ), // union <- json (2nd into port 0)
+      link(union.operatorIdentifier, split.operatorIdentifier, toPort = 0),
+      link(split.operatorIdentifier, aggA.operatorIdentifier, fromPort = 0), // split: output 0
+      link(split.operatorIdentifier, aggB.operatorIdentifier, fromPort = 1) // split: output 1
+    )
+
+    // Deliberately pass the operators in a NON-topological order so the
+    // topological-sort test proves real reordering, not input identity.
+    val operators = List[LogicalOp](aggB, split, union, udf2, join, csv, pySrc, json, aggA)
+
+    Rich(LogicalPlan(operators, links), csv, json, pySrc, join, udf2, union, split, aggA, aggB)
+  }
 
   // ---------------------------------------------------------------------------
   // Construction
@@ -90,20 +173,23 @@ class LogicalPlanSpec extends AnyFlatSpec {
     assert(order == List(a.operatorIdentifier, b.operatorIdentifier))
   }
 
-  it should "respect edge directionality across a fan-out shape (a → b, a → c)" in {
-    val a = csv()
-    val b = keyword()
-    val c = TestOperators.keywordSearchOpDesc("column-1", "Africa")
-    val plan = LogicalPlan(
-      List(a, b, c),
-      List(
-        link(a.operatorIdentifier, b.operatorIdentifier),
-        link(a.operatorIdentifier, c.operatorIdentifier)
+  it should "honor every edge on a realistic plan (join, union, dual-input UDF, split fan-out)" in {
+    val r = richPlan()
+    val order = r.plan.getTopologicalOpIds.asScala.toList
+
+    // Every operator appears exactly once.
+    assert(order.size == r.plan.operators.size)
+    assert(order.toSet == r.plan.operators.map(_.operatorIdentifier).toSet)
+
+    // The defining property of a topological order: each edge points "forward".
+    val positionOf = order.zipWithIndex.toMap
+    r.plan.links.foreach { l =>
+      assert(
+        positionOf(l.fromOpId) < positionOf(l.toOpId),
+        s"topological order violates edge ${l.fromOpId.id} -> ${l.toOpId.id}; " +
+          s"order = ${order.map(_.id)}"
       )
-    )
-    val order = plan.getTopologicalOpIds.asScala.toList
-    assert(order.head == a.operatorIdentifier, s"expected a first, got $order")
-    assert(order.tail.toSet == Set(b.operatorIdentifier, c.operatorIdentifier))
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -111,11 +197,10 @@ class LogicalPlanSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   "LogicalPlan.getOperator" should "return the operator with the requested identifier" in {
-    val a = csv()
-    val b = keyword()
-    val plan = LogicalPlan(List(a, b), List.empty)
-    assert(plan.getOperator(a.operatorIdentifier) eq a)
-    assert(plan.getOperator(b.operatorIdentifier) eq b)
+    val r = richPlan()
+    assert(r.plan.getOperator(r.join.operatorIdentifier) eq r.join)
+    assert(r.plan.getOperator(r.split.operatorIdentifier) eq r.split)
+    assert(r.plan.getOperator(r.pySrc.operatorIdentifier) eq r.pySrc)
   }
 
   it should "throw NoSuchElementException for an unknown operator id" in {
@@ -130,26 +215,20 @@ class LogicalPlanSpec extends AnyFlatSpec {
   // getTerminalOperatorIds
   // ---------------------------------------------------------------------------
 
-  "LogicalPlan.getTerminalOperatorIds" should "return the single sink in a linear chain" in {
+  "LogicalPlan.getTerminalOperatorIds" should
+    "return every out-degree-0 operator on a realistic plan (the two split sinks)" in {
+    val r = richPlan()
+    assert(
+      r.plan.getTerminalOperatorIds.toSet ==
+        Set(r.aggA.operatorIdentifier, r.aggB.operatorIdentifier)
+    )
+  }
+
+  it should "return the single sink in a linear chain" in {
     val a = csv()
     val b = keyword()
     val plan = LogicalPlan(List(a, b), List(link(a.operatorIdentifier, b.operatorIdentifier)))
-    val sinks = plan.getTerminalOperatorIds
-    assert(sinks == List(b.operatorIdentifier))
-  }
-
-  it should "return every operator with out-degree 0 in a fan-out plan" in {
-    val a = csv()
-    val b = keyword()
-    val c = TestOperators.keywordSearchOpDesc("column-1", "Africa")
-    val plan = LogicalPlan(
-      List(a, b, c),
-      List(
-        link(a.operatorIdentifier, b.operatorIdentifier),
-        link(a.operatorIdentifier, c.operatorIdentifier)
-      )
-    )
-    assert(plan.getTerminalOperatorIds.toSet == Set(b.operatorIdentifier, c.operatorIdentifier))
+    assert(plan.getTerminalOperatorIds == List(b.operatorIdentifier))
   }
 
   it should "return every operator when there are no links" in {
@@ -170,32 +249,33 @@ class LogicalPlanSpec extends AnyFlatSpec {
   // getUpstreamLinks
   // ---------------------------------------------------------------------------
 
-  "LogicalPlan.getUpstreamLinks" should "return every link whose toOpId matches" in {
-    val a = csv()
-    val b = keyword()
-    val c = TestOperators.keywordSearchOpDesc("column-1", "Africa")
-    val ab = link(a.operatorIdentifier, b.operatorIdentifier)
-    val cb = link(c.operatorIdentifier, b.operatorIdentifier, fromPort = 0, toPort = 1)
-    val plan = LogicalPlan(List(a, b, c), List(ab, cb))
-    val upstreams = plan.getUpstreamLinks(b.operatorIdentifier)
-    assert(upstreams.size == 2)
-    assert(upstreams.toSet == Set(ab, cb))
+  "LogicalPlan.getUpstreamLinks" should
+    "return both inbound links on their distinct ports for a join" in {
+    val r = richPlan()
+    val up = r.plan.getUpstreamLinks(r.join.operatorIdentifier)
+    // Construction order: csv (left, port 0) then json (right, port 1).
+    assert(up.map(_.fromOpId) == List(r.csv.operatorIdentifier, r.json.operatorIdentifier))
+    assert(up.map(_.toPortId) == List(PortIdentity(0), PortIdentity(1)))
   }
 
-  it should "preserve construction order when multiple links flow into the same target" in {
-    val a = csv()
-    val b = keyword()
-    val c = TestOperators.keywordSearchOpDesc("column-1", "Africa")
-    val ab = link(a.operatorIdentifier, b.operatorIdentifier)
-    val cb = link(c.operatorIdentifier, b.operatorIdentifier, fromPort = 0, toPort = 1)
-    val plan = LogicalPlan(List(a, b, c), List(ab, cb))
-    assert(plan.getUpstreamLinks(b.operatorIdentifier) == List(ab, cb))
+  it should "return both inbound links on their distinct ports for a dual-input UDF" in {
+    val r = richPlan()
+    val up = r.plan.getUpstreamLinks(r.udf2.operatorIdentifier)
+    assert(up.map(_.fromOpId) == List(r.join.operatorIdentifier, r.pySrc.operatorIdentifier))
+    assert(up.map(_.toPortId) == List(PortIdentity(0), PortIdentity(1)))
   }
 
-  it should "return an empty list when nothing flows into the requested target" in {
-    val a = csv()
-    val plan = LogicalPlan(List(a), List.empty)
-    assert(plan.getUpstreamLinks(a.operatorIdentifier).isEmpty)
+  it should "return every inbound link merged into a union's single input port, in order" in {
+    val r = richPlan()
+    val up = r.plan.getUpstreamLinks(r.union.operatorIdentifier)
+    // udf2 and json both feed union's port 0; the result preserves construction order.
+    assert(up.map(_.fromOpId) == List(r.udf2.operatorIdentifier, r.json.operatorIdentifier))
+    assert(up.map(_.toPortId).toSet == Set(PortIdentity(0)))
+  }
+
+  it should "return an empty list for a source operator with no inbound links" in {
+    val r = richPlan()
+    assert(r.plan.getUpstreamLinks(r.csv.operatorIdentifier).isEmpty)
   }
 
   // ---------------------------------------------------------------------------
@@ -204,13 +284,16 @@ class LogicalPlanSpec extends AnyFlatSpec {
   //
   // A successful resolution of a real file path is environment-dependent
   // (resolved through FileResolver, which can reach LakeFS / dataset
-  // service), so we exclusively pin the FAILURE behavior here — that
-  // matches the production contract worth pinning:
-  //   1. Some(errorList) — failures are appended to errorList by opId
-  //   2. None — the first failure rethrows
-  // To force a failure deterministically, we set a non-existent input
-  // path on the ScanSource fixture and assert the error surfaces both
-  // ways.
+  // service), so we pin the FAILURE behavior here. The method has two modes,
+  // both used in production:
+  //   1. Some(errorList) — every failing operator is appended to errorList by
+  //      opId and resolution CONTINUES (collect-all). Used by the editing-path
+  //      compiler in workflow-compiling-service so the UI can surface every
+  //      bad operator at once.
+  //   2. None — the first failure rethrows (fail-fast). Used by the amber
+  //      WorkflowCompiler on the execution path, right before a run.
+  // To force a failure deterministically, we point a ScanSource fixture at a
+  // non-existent file and assert the error surfaces both ways.
 
   private def csvWithMissingFile(): CSVScanSourceOpDesc = {
     val op = TestOperators.headerlessSmallCsvScanOpDesc()
@@ -223,14 +306,19 @@ class LogicalPlanSpec extends AnyFlatSpec {
   }
 
   "LogicalPlan.resolveScanSourceOpFileName" should
-    "append per-operator errors to the provided errorList instead of throwing" in {
-    val brokenOp = csvWithMissingFile()
-    val plan = LogicalPlan(List(brokenOp), List.empty)
+    "append a per-operator error for every failing scan source instead of throwing" in {
+    // Two independent broken scans: Some(errorList) must collect BOTH (it does
+    // not stop at the first failure), keyed by their distinct operator ids.
+    val brokenA = csvWithMissingFile()
+    val brokenB = csvWithMissingFile()
+    val plan = LogicalPlan(List(brokenA, brokenB), List.empty)
     val errors = ArrayBuffer.empty[(OperatorIdentity, Throwable)]
     plan.resolveScanSourceOpFileName(Some(errors))
-    assert(errors.size == 1, s"expected one captured error, got: $errors")
-    val (opId, _) = errors.head
-    assert(opId == brokenOp.operatorIdentifier)
+    assert(errors.size == 2, s"expected both failures captured, got: $errors")
+    assert(
+      errors.map(_._1).toSet ==
+        Set(brokenA.operatorIdentifier, brokenB.operatorIdentifier)
+    )
   }
 
   it should "rethrow FileNotFoundException when no errorList is provided" in {
