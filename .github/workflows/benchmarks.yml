@@ -153,6 +153,7 @@ jobs:
             core.setOutput("run_bench", shouldRun ? "true" : "false");
 
   bench:
+    name: Bench
     needs: precheck
     if: ${{ needs.precheck.outputs.run_bench == 'true' }}
     runs-on: ubuntu-22.04
@@ -196,7 +197,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Install Python dependencies
         # Mirrors amber-integration's installer in build.yml so the bench
         # subprocess imports resolve identically (pytorch CPU index +
@@ -233,6 +234,35 @@ jobs:
         # benches exist. Adding a JMH suite later = appending one line
         # inside bin/run-benchmarks.sh and adding a publish step below.
         run: bash bin/run-benchmarks.sh
+
+      - name: Stash PR number for downstream comment workflow
+        # PR fork workflows can't comment (GitHub forces read-only token);
+        # benchmarks-pr-comment.yml runs separately via workflow_run with
+        # proper write access, and needs the PR number to find the target.
+        # github.event.workflow_run.pull_requests is empty for fork PRs,
+        # so we ferry the number via artifact.
+        if: ${{ github.event_name == 'pull_request' && !cancelled() }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: echo "$PR_NUMBER" > bench-results/pr-number.txt
+
+      - name: Render bench summary
+        # Render the bench CSV into a markdown table on the workflow run
+        # page. Visible without further clicks — and doesn't need any
+        # extra permissions (writes to $GITHUB_STEP_SUMMARY only).
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "## Bench results (\`$BENCH_MODE\` mode)"
+            echo
+            if [ -f bench-results/arrow-flight-e2e.csv ]; then
+              echo '```csv'
+              cat bench-results/arrow-flight-e2e.csv
+              echo '```'
+            else
+              echo "_(no bench-results/arrow-flight-e2e.csv produced)_"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload bench artifacts
         if: ${{ !cancelled() }}
