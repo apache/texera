@@ -87,12 +87,19 @@ class AccessControlResourceSpec
 
   private var token: String = _
 
-  // Default SecurityContext used by tests that don't exercise the
-  // filter-populated reuse path; getUserPrincipal returns null so the
-  // resource falls back to extracting the token from request data.
+  // SecurityContext with no principal — simulates a request that did not
+  // pass the JwtAuthFilter, exercising the query/body token fallback.
   private def emptySecurityContext: SecurityContext = {
     val sc = mock(classOf[SecurityContext])
     when(sc.getUserPrincipal).thenReturn(null)
+    sc
+  }
+
+  // SecurityContext already populated by the filter from a valid
+  // Authorization header — the production path for Bearer-token requests.
+  private def securityContextOf(user: User): SecurityContext = {
+    val sc = mock(classOf[SecurityContext])
+    when(sc.getUserPrincipal).thenReturn(new SessionUser(user))
     sc
   }
 
@@ -207,7 +214,11 @@ class AccessControlResourceSpec
     // Instantiate the resource and call the method under test
     val accessControlResource = new AccessControlResource()
     val response =
-      accessControlResource.authorizeGet(mockUriInfo, mockHttpHeaders, emptySecurityContext)
+      accessControlResource.authorizeGet(
+        mockUriInfo,
+        mockHttpHeaders,
+        securityContextOf(testUser1)
+      )
 
     // Assert that the response status is FORBIDDEN
     response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
@@ -237,7 +248,11 @@ class AccessControlResourceSpec
     // Instantiate the resource and call the method under test
     val accessControlResource = new AccessControlResource()
     val response =
-      accessControlResource.authorizeGet(mockUriInfo, mockHttpHeaders, emptySecurityContext)
+      accessControlResource.authorizeGet(
+        mockUriInfo,
+        mockHttpHeaders,
+        securityContextOf(testUser1)
+      )
 
     // Assert that the response status is OK and headers are correct
     response.getStatus shouldBe Response.Status.OK.getStatusCode
@@ -274,35 +289,40 @@ class AccessControlResourceSpec
 
   it should "return OK for /pve/system with cuid as query parameter" in {
     val (uri, headers) = mockRequest("/pve/system", Some(testCU.getCuid.toString))
-    val response = new AccessControlResource().authorizeGet(uri, headers, emptySecurityContext)
+    val response =
+      new AccessControlResource().authorizeGet(uri, headers, securityContextOf(testUser1))
 
     response.getStatus shouldBe Response.Status.OK.getStatusCode
   }
 
   it should "return OK for /pve/pves/{cuid} (cuid extracted from path)" in {
     val (uri, headers) = mockRequest(s"/pve/pves/${testCU.getCuid}", None)
-    val response = new AccessControlResource().authorizeDelete(uri, headers, emptySecurityContext)
+    val response =
+      new AccessControlResource().authorizeDelete(uri, headers, securityContextOf(testUser1))
 
     response.getStatus shouldBe Response.Status.OK.getStatusCode
   }
 
   it should "return OK for /pve/{cuid}/{pveName}/packages/{packageName} (cuid extracted from path)" in {
     val (uri, headers) = mockRequest(s"/pve/${testCU.getCuid}/myenv/packages/numpy", None)
-    val response = new AccessControlResource().authorizeDelete(uri, headers, emptySecurityContext)
+    val response =
+      new AccessControlResource().authorizeDelete(uri, headers, securityContextOf(testUser1))
 
     response.getStatus shouldBe Response.Status.OK.getStatusCode
   }
 
   it should "return FORBIDDEN for a PVE path with no cuid in query or path" in {
     val (uri, headers) = mockRequest("/pve/no-cuid-anywhere", None)
-    val response = new AccessControlResource().authorizeGet(uri, headers, emptySecurityContext)
+    val response =
+      new AccessControlResource().authorizeGet(uri, headers, securityContextOf(testUser1))
 
     response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
   }
 
   it should "return FORBIDDEN for a non-PVE / non-whitelisted path" in {
     val (uri, headers) = mockRequest("/random/garbage", Some(testCU.getCuid.toString))
-    val response = new AccessControlResource().authorizeGet(uri, headers, emptySecurityContext)
+    val response =
+      new AccessControlResource().authorizeGet(uri, headers, securityContextOf(testUser1))
 
     response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
   }

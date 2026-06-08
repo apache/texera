@@ -93,18 +93,6 @@ object AccessControlResource extends LazyLogging {
       s"Request URI: ${uriInfo.getRequestUri} and headers: ${headers.getRequestHeaders.asScala} and queryParams: $queryParams"
     )
 
-    val token: String = {
-      val qToken = queryParams.get("access-token").filter(_.nonEmpty)
-      val hToken = Option(headers.getRequestHeader("Authorization"))
-        .flatMap(_.asScala.headOption)
-        .map(_.replaceFirst("(?i)^Bearer\\s+", "")) // case-insensitive "Bearer "
-        .map(_.trim)
-        .filter(_.nonEmpty)
-      val bToken = bodyOpt.flatMap(extractTokenFromBody)
-      qToken.orElse(hToken).orElse(bToken).getOrElse("")
-    }
-    logger.info(s"token extracted from request $token")
-
     val cuid = queryParams.get("cuid").filter(_.nonEmpty).getOrElse {
       uriInfo.getPath match {
         case pvePvesCuidPath(c)     => c
@@ -123,13 +111,20 @@ object AccessControlResource extends LazyLogging {
     var cuAccess: PrivilegeEnum = PrivilegeEnum.NONE
     var userSession: Optional[SessionUser] = Optional.empty()
     try {
-      // Reuse the SessionUser that JwtAuthFilter already produced from a
-      // valid Authorization header; only parse the query/body token (which
-      // the filter does not see) when no principal is available.
-      userSession = Option(securityContext)
+      // The Authorization header is parsed once by JwtAuthFilter, which
+      // installs a SessionUser into the SecurityContext. Reuse it when
+      // present, and only fall back to parsing the query / body token
+      // (which the filter does not see) when no principal is available.
+      val principal = Option(securityContext)
         .flatMap(sc => Option(sc.getUserPrincipal))
         .collect { case u: SessionUser => u }
-        .fold(parseToken(token))(Optional.of(_))
+      userSession = principal match {
+        case Some(user) => Optional.of(user)
+        case None =>
+          val qToken = queryParams.get("access-token").filter(_.nonEmpty)
+          val bToken = bodyOpt.flatMap(extractTokenFromBody)
+          parseToken(qToken.orElse(bToken).getOrElse(""))
+      }
       if (userSession.isEmpty)
         return Response.status(Response.Status.FORBIDDEN).build()
 
