@@ -28,6 +28,7 @@ import org.apache.texera.amber.engine.architecture.scheduling.RegionCoordinatorT
 import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -46,15 +47,25 @@ class ControllerRpcProbeSpec extends AnyFlatSpec {
     val probe = new ControllerRpcProbe(_ => None)
     val appends = 20000
     val failure = new AtomicReference[Throwable]()
+    // Release both threads together so the reader is guaranteed to be polling while the writer is
+    // still appending. Without this gate a writer that ran to completion before the reader thread
+    // was scheduled would leave the read-vs-append window untested.
+    val startGate = new CountDownLatch(1)
 
     // Writer mimics the actor side: each sendTo drives handleOutput -> calls += call.
     val writer = new Thread(() => {
       try {
+        startGate.await()
         var i = 0
         while (i < appends) {
           probe.outputGateway.sendTo(
             CONTROLLER,
-            ControlInvocation(EndWorker, EmptyRequest(), AsyncRPCContext(CONTROLLER, CONTROLLER), i.toLong)
+            ControlInvocation(
+              EndWorker,
+              EmptyRequest(),
+              AsyncRPCContext(CONTROLLER, CONTROLLER),
+              i.toLong
+            )
           )
           i += 1
         }
@@ -66,6 +77,7 @@ class ControllerRpcProbeSpec extends AnyFlatSpec {
     // Reader mimics the test side: iterate the buffer through every helper while appends are in flight.
     val reader = new Thread(() => {
       try {
+        startGate.await()
         while (writer.isAlive) {
           probe.endWorkerCalls
           probe.methodTrace
@@ -79,6 +91,7 @@ class ControllerRpcProbeSpec extends AnyFlatSpec {
 
     writer.start()
     reader.start()
+    startGate.countDown()
     writer.join(testTimeout.inMilliseconds)
     reader.join(testTimeout.inMilliseconds)
 
