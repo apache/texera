@@ -56,9 +56,12 @@ import scala.concurrent.duration._
   * transport), wires up an identity Python UDF, and times the round-trip of
   * `numBatches` DataFrames send→echo through the actor mailbox.
   *
-  * Output:
+  * Output (rewritten incrementally after every config so a killed sweep
+  * still preserves usable data):
   *   - stdout summary per config
-  *   - benchmark-results.csv (one row per config) — overwritten each run
+  *   - bench-results/arrow-flight-e2e.csv               (one row per config)
+  *   - bench-results/arrow-flight-e2e-throughput.json   (github-action-benchmark customBiggerIsBetter)
+  *   - bench-results/arrow-flight-e2e-latency.json      (github-action-benchmark customSmallerIsBetter)
   *
   * Run with:
   *   sbt "WorkflowExecutionService/Test/runMain \
@@ -450,12 +453,17 @@ object ArrowFlightActorBench {
   }
 
   private def awaitOneDataFrameEcho(probe: TestProbe, timeout: FiniteDuration): Boolean = {
-    val deadline = System.currentTimeMillis() + timeout.toMillis
-    while (System.currentTimeMillis() < deadline) {
-      probe.receiveOne(timeout) match {
+    // Each iteration uses the *remaining* time, not the full timeout — so a
+    // flood of ACK / ECM messages can't extend the overall wait beyond the
+    // caller's deadline by `timeout` × N.
+    val deadline = System.nanoTime() + timeout.toNanos
+    while (true) {
+      val remainingNs = deadline - System.nanoTime()
+      if (remainingNs <= 0) return false
+      probe.receiveOne(remainingNs.nanos) match {
         case NetworkMessage(_, WorkflowFIFOMessage(_, _, _: DataFrame)) => return true
         case null                                                       => return false
-        case _                                                          => // ignore acks, ECM forwards
+        case _                                                          => // ignore acks, ECM forwards; loop
       }
     }
     false

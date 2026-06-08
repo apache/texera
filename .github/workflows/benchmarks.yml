@@ -136,7 +136,7 @@ jobs:
             // whose stack list contains "amber-integration" triggers this
             // bench. Keep in sync if LABEL_STACKS there changes.
             const TRIGGER_LABELS = new Set([
-              "python",
+              "pyamber",
               "engine",
               "amber-integration",
               "common",
