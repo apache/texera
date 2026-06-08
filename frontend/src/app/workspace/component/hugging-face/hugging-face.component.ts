@@ -103,7 +103,16 @@ export function invalidateHuggingFaceModelCache(): void {
   selector: "texera-hugging-face-model-select",
   templateUrl: "./hugging-face.component.html",
   styleUrls: ["hugging-face.component.scss"],
-  imports: [CommonModule, FormsModule, NzSelectModule, NzInputModule, NzSpinModule, NzButtonModule, NzIconModule, FormlyModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    NzSelectModule,
+    NzInputModule,
+    NzSpinModule,
+    NzButtonModule,
+    NzIconModule,
+    FormlyModule,
+  ],
 })
 export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements OnInit, OnDestroy {
   private readonly taskScopedKeys = [
@@ -144,7 +153,10 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
 
   private subscription: Subscription | null = null;
 
-  constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {
+  constructor(
+    private http: HttpClient,
+    private cdr: ChangeDetectorRef
+  ) {
     super();
   }
 
@@ -286,9 +298,9 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.cdr.detectChanges();
 
     this.subscription = this.http
-      .get<HuggingFaceModelOption[]>(
-        `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`
-      )
+      .get<
+        HuggingFaceModelOption[]
+      >(`${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`)
       .subscribe({
         next: models => {
           allModelsByTag.set(tag, models);
