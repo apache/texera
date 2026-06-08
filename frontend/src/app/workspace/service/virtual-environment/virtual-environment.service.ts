@@ -31,9 +31,35 @@ export interface PvePackageResponse {
   userPackages: string[];
 }
 
+export interface UserPveRecord {
+  pveid: number;
+  name: string;
+  packages: Record<string, string>;
+}
+
 @Injectable({ providedIn: "root" })
 export class WorkflowPveService {
   constructor(private http: HttpClient) {}
+
+  // Persists a PVE spec (name + packages map) for the current user.
+  savePve(name: string, packages: Record<string, string>): Observable<{ pveid: number }> {
+    return this.http.post<{ pveid: number }>("/pve/db", { name, packages });
+  }
+
+  // Updates an existing PVE row owned by the current user.
+  updateUserPve(pveid: number, name: string, packages: Record<string, string>): Observable<{ pveid: number }> {
+    return this.http.put<{ pveid: number }>(`/pve/db/${pveid}`, { name, packages });
+  }
+
+  // Returns every PVE row owned by the current user.
+  listUserPves(): Observable<UserPveRecord[]> {
+    return this.http.get<UserPveRecord[]>("/pve/db");
+  }
+
+  // Deletes one of the current user's PVEs by its pveid.
+  deleteUserPve(pveid: number): Observable<void> {
+    return this.http.delete<void>(`/pve/db/${pveid}`);
+  }
 
   getAccessToken(): string | null {
     const token = AuthService.getAccessToken();
