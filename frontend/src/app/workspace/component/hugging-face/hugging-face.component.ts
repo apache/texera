@@ -213,7 +213,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           this.tasksLoading = false;
           this.cdr.detectChanges();
         },
-        error: err => {
+        error: (err: unknown) => {
           console.error("Failed to load HuggingFace tasks:", err);
           tasksFetchSubscription = null;
           tasksFetchError = "Could not load tasks from Hugging Face. Using default list.";
@@ -297,7 +297,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           this.allModels = models;
           this.goToPage(0);
         },
-        error: err => {
+        error: (err: unknown) => {
           console.error(`Failed to load HuggingFace models for task '${tag}':`, err);
           const msg = "Failed to load models. Click retry to try again.";
           errorByTag.set(tag, msg);
