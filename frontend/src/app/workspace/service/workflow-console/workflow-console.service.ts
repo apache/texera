@@ -73,4 +73,14 @@ export class WorkflowConsoleService {
   getConsoleMessageUpdateStream(): Observable<void> {
     return this.consoleMessagesUpdateStream.asObservable();
   }
+
+  /**
+   * Clear all console messages. Called when leaving the workspace so a
+   * re-entered workflow does not show the previous session's console output
+   * (issue #3120).
+   */
+  public clearConsoleMessages(): void {
+    this.consoleMessages.clear();
+    this.consoleMessagesUpdateStream.next();
+  }
 }

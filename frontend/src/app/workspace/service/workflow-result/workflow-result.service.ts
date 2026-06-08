@@ -95,6 +95,18 @@ export class WorkflowResultService {
     return this.operatorResultServices.get(operatorID);
   }
 
+  /**
+   * Drop all cached operator results and reset table stats. Called when leaving
+   * the workspace so a re-entered workflow does not show the previous session's
+   * results (issue #3120). resultTableStats is a ReplaySubject, so it is reset
+   * to an empty snapshot to avoid replaying stale stats to new subscribers.
+   */
+  public clearResults(): void {
+    this.operatorResultServices.clear();
+    this.paginatedResultServices.clear();
+    this.resultTableStats.next({});
+  }
+
   private handleCleanResultCache(event: WorkflowAvailableResultEvent): void {
     const removedOrInvalidatedOperators = new Set<string>();
     // remove operators that no longer have results

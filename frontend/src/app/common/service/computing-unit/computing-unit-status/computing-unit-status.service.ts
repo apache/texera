@@ -225,6 +225,22 @@ export class ComputingUnitStatusService implements OnDestroy {
     );
   }
 
+  /**
+   * Tear down all websocket-related connection state. Called when the user
+   * leaves the workspace (e.g. returns to the dashboard) so that re-entering a
+   * workflow — even the same wid, which arrives as a `wid -> null -> wid`
+   * sequence — starts from a clean connection instead of reusing the previous
+   * one. See issue #3120.
+   */
+  public disconnect(): void {
+    this.workflowWebsocketService.closeWebsocket();
+    this.workflowStatusService.clearStatus();
+    this.stopPollingSelectedUnit();
+    this.currentConnectedCuid = undefined;
+    this.currentConnectedWid = undefined;
+    this.selectedUnitSubject.next(null);
+  }
+
   // Clean up on service destroy
   ngOnDestroy(): void {
     this.refreshSubscription?.unsubscribe();

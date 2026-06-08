@@ -354,6 +354,16 @@ export class ExecuteWorkflowService {
     };
   }
 
+  /**
+   * Reset all websocket-derived execution state. Called when leaving the
+   * workspace so a re-entered workflow does not inherit the previous
+   * execution's status or worker assignments (issue #3120).
+   */
+  public resetState(): void {
+    this.resetExecutionState();
+    this.assignedWorkerIds.clear();
+  }
+
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {
     if (isEqual(this.currentState, stateInfo)) {
       return;

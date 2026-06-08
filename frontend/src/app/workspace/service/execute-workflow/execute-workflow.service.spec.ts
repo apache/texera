@@ -86,6 +86,16 @@ describe("ExecuteWorkflowService", () => {
     expect(injectedService).toBeTruthy();
   }));
 
+  it("resetState() clears the execution state and worker assignments", () => {
+    (service as any).currentState = { state: ExecutionState.Running };
+    (service as any).assignedWorkerIds.set("op1", ["w1", "w2"]);
+
+    service.resetState();
+
+    expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+    expect(service.getWorkerIds("op1")).toEqual([]);
+  });
+
   it("should generate a logical plan request based on the workflow graph that is passed to the function", () => {
     const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
     expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);

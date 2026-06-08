@@ -40,8 +40,11 @@ import { WorkflowCompilingService } from "../service/compile-workflow/workflow-c
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
+import { ExecuteWorkflowService } from "../service/execute-workflow/execute-workflow.service";
+import { WorkflowResultService } from "../service/workflow-result/workflow-result.service";
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
+import { ComputingUnitStatusService } from "../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { EntityType, HubService } from "../../hub/service/hub.service";
 import { commonTestProviders } from "../../common/testing/test-utils";
 import { WorkspaceComponent } from "./workspace.component";
@@ -62,6 +65,10 @@ describe("WorkspaceComponent", () => {
   let messageService: any;
   let routerMock: any;
   let locationMock: any;
+  let computingUnitStatusService: any;
+  let executeWorkflowService: any;
+  let workflowConsoleService: any;
+  let workflowResultService: any;
   let metadataChangedSubject: Subject<void>;
   let stubGraph: { triggerCenterEvent: ReturnType<typeof vi.fn>; hasElementWithID: ReturnType<typeof vi.fn> };
 
@@ -136,6 +143,10 @@ describe("WorkspaceComponent", () => {
 
     routerMock = { navigate: vi.fn() };
     locationMock = { go: vi.fn() };
+    computingUnitStatusService = { disconnect: vi.fn() };
+    executeWorkflowService = { resetState: vi.fn() };
+    workflowConsoleService = { clearConsoleMessages: vi.fn() };
+    workflowResultService = { clearResults: vi.fn() };
 
     // Drop the standalone component's child imports and allow unknown elements via
     // CUSTOM_ELEMENTS_SCHEMA. The template still renders, so `<ng-template #codeEditor>`
@@ -167,8 +178,11 @@ describe("WorkspaceComponent", () => {
         // The three services listed in the constructor only to force their
         // initialization aren't exercised by any test here; provide stubs.
         { provide: WorkflowCompilingService, useValue: {} },
-        { provide: WorkflowConsoleService, useValue: {} },
+        { provide: WorkflowConsoleService, useValue: workflowConsoleService },
         { provide: OperatorReuseCacheStatusService, useValue: {} },
+        { provide: ComputingUnitStatusService, useValue: computingUnitStatusService },
+        { provide: ExecuteWorkflowService, useValue: executeWorkflowService },
+        { provide: WorkflowResultService, useValue: workflowResultService },
         ...commonTestProviders,
       ],
       schemas: [NO_ERRORS_SCHEMA],
@@ -414,6 +428,16 @@ describe("WorkspaceComponent", () => {
       expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
       // Cleanup of the workflow state still happens regardless.
       expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
+    });
+
+    it("tears down every piece of websocket-derived state when leaving the workspace (issue #3120)", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      component.ngOnDestroy();
+      expect(computingUnitStatusService.disconnect).toHaveBeenCalled();
+      expect(executeWorkflowService.resetState).toHaveBeenCalled();
+      expect(workflowConsoleService.clearConsoleMessages).toHaveBeenCalled();
+      expect(workflowResultService.clearResults).toHaveBeenCalled();
     });
   });
 
