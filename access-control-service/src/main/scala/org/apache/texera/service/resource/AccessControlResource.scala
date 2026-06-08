@@ -60,6 +60,7 @@ object AccessControlResource extends LazyLogging {
   def authorize(
       uriInfo: UriInfo,
       headers: HttpHeaders,
+      securityContext: SecurityContext,
       bodyOpt: Option[String] = None
   ): Response = {
     val path = uriInfo.getPath
@@ -68,7 +69,7 @@ object AccessControlResource extends LazyLogging {
     path match {
       case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() |
           pveRoute() =>
-        checkComputingUnitAccess(uriInfo, headers, bodyOpt)
+        checkComputingUnitAccess(uriInfo, headers, securityContext, bodyOpt)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
         Response.status(Response.Status.FORBIDDEN).build()
@@ -78,6 +79,7 @@ object AccessControlResource extends LazyLogging {
   private def checkComputingUnitAccess(
       uriInfo: UriInfo,
       headers: HttpHeaders,
+      securityContext: SecurityContext,
       bodyOpt: Option[String]
   ): Response = {
     val queryParams: Map[String, String] = uriInfo
@@ -121,7 +123,13 @@ object AccessControlResource extends LazyLogging {
     var cuAccess: PrivilegeEnum = PrivilegeEnum.NONE
     var userSession: Optional[SessionUser] = Optional.empty()
     try {
-      userSession = parseToken(token)
+      // Reuse the SessionUser that JwtAuthFilter already produced from a
+      // valid Authorization header; only parse the query/body token (which
+      // the filter does not see) when no principal is available.
+      userSession = Option(securityContext)
+        .flatMap(sc => Option(sc.getUserPrincipal))
+        .collect { case u: SessionUser => u }
+        .fold(parseToken(token))(Optional.of(_))
       if (userSession.isEmpty)
         return Response.status(Response.Status.FORBIDDEN).build()
 
@@ -217,9 +225,10 @@ class AccessControlResource extends LazyLogging {
   @Path("/{path:.*}")
   def authorizeGet(
       @Context uriInfo: UriInfo,
-      @Context headers: HttpHeaders
+      @Context headers: HttpHeaders,
+      @Context securityContext: SecurityContext
   ): Response = {
-    AccessControlResource.authorize(uriInfo, headers)
+    AccessControlResource.authorize(uriInfo, headers, securityContext)
   }
 
   @POST
@@ -227,19 +236,26 @@ class AccessControlResource extends LazyLogging {
   def authorizePost(
       @Context uriInfo: UriInfo,
       @Context headers: HttpHeaders,
+      @Context securityContext: SecurityContext,
       body: String
   ): Response = {
     logger.info("Request body: " + body)
-    AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
+    AccessControlResource.authorize(
+      uriInfo,
+      headers,
+      securityContext,
+      Option(body).map(_.trim).filter(_.nonEmpty)
+    )
   }
 
   @DELETE
   @Path("/{path:.*}")
   def authorizeDelete(
       @Context uriInfo: UriInfo,
-      @Context headers: HttpHeaders
+      @Context headers: HttpHeaders,
+      @Context securityContext: SecurityContext
   ): Response = {
-    AccessControlResource.authorize(uriInfo, headers)
+    AccessControlResource.authorize(uriInfo, headers, securityContext)
   }
 }
 
