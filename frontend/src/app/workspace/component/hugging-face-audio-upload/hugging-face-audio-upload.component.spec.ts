@@ -25,10 +25,7 @@ describe("HuggingFaceAudioUploadComponent (unit)", () => {
   });
 
   it("should have the correct selector", () => {
-    const metadata = Reflect.getOwnPropertyDescriptor(
-      HuggingFaceAudioUploadComponent,
-      "__annotations"
-    );
+    const metadata = Reflect.getOwnPropertyDescriptor(HuggingFaceAudioUploadComponent, "__annotations");
     // Component decorator metadata is available via the Angular compiler;
     // at minimum verify the class is importable and constructable metadata exists.
     expect(HuggingFaceAudioUploadComponent.prototype).toBeDefined();
