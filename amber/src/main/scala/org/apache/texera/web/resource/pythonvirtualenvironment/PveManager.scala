@@ -26,6 +26,10 @@ import scala.jdk.CollectionConverters._
 import scala.sys.process._
 import java.util.Comparator
 import org.apache.texera.amber.config.PythonUtils
+import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.tables.daos.PythonVirtualEnvironmentsDao
+import org.apache.texera.dao.jooq.generated.tables.pojos.PythonVirtualEnvironments
+import org.jooq.JSONB
 
 /**
   * PveManager is responsible for managing Python Virtual Environments (PVEs)
@@ -46,6 +50,10 @@ object PveManager {
       pveName: String,
       userPackages: Seq[String]
   )
+
+  // Row read from the python_virtual_environments table; packages is kept as the
+  // raw JSON string so PveResource can parse it with its own ObjectMapper.
+  case class StoredPve(pveid: Int, name: String, packagesJson: String)
 
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
 
@@ -211,6 +219,72 @@ object PveManager {
     }
 
     queue.put(s"[PVE] Created new environment for cuid = $cuid")
+  }
+
+  // Returns every PVE row belonging to the given user.
+  def listPvesForUser(uid: Int): List[StoredPve] = {
+    import org.apache.texera.dao.jooq.generated.Tables.PYTHON_VIRTUAL_ENVIRONMENTS
+    SqlServer
+      .getInstance()
+      .createDSLContext()
+      .selectFrom(PYTHON_VIRTUAL_ENVIRONMENTS)
+      .where(PYTHON_VIRTUAL_ENVIRONMENTS.UID.eq(uid))
+      .fetchInto(classOf[PythonVirtualEnvironments])
+      .asScala
+      .map { row =>
+        val pkgsJson = Option(row.getPackages).map(_.data).getOrElse("{}")
+        StoredPve(row.getPveid, row.getName, pkgsJson)
+      }
+      .toList
+  }
+
+  // Deletes a PVE row owned by `uid`. Returns true if a row was deleted, false if no
+  // matching row was found (either the pveid doesn't exist or it belongs to another user).
+  def deletePveFromDb(pveid: Int, uid: Int): Boolean = {
+    import org.apache.texera.dao.jooq.generated.Tables.PYTHON_VIRTUAL_ENVIRONMENTS
+    val rows = SqlServer
+      .getInstance()
+      .createDSLContext()
+      .deleteFrom(PYTHON_VIRTUAL_ENVIRONMENTS)
+      .where(
+        PYTHON_VIRTUAL_ENVIRONMENTS.PVEID
+          .eq(pveid)
+          .and(PYTHON_VIRTUAL_ENVIRONMENTS.UID.eq(uid))
+      )
+      .execute()
+    rows > 0
+  }
+
+  // Updates an existing PVE row owned by `uid`. Returns true if a row was
+  // updated, false if no matching row was found.
+  def updatePve(pveid: Int, uid: Int, name: String, packagesJson: String): Boolean = {
+    import org.apache.texera.dao.jooq.generated.Tables.PYTHON_VIRTUAL_ENVIRONMENTS
+    val rows = SqlServer
+      .getInstance()
+      .createDSLContext()
+      .update(PYTHON_VIRTUAL_ENVIRONMENTS)
+      .set(PYTHON_VIRTUAL_ENVIRONMENTS.NAME, name)
+      .set(PYTHON_VIRTUAL_ENVIRONMENTS.PACKAGES, JSONB.valueOf(packagesJson))
+      .where(
+        PYTHON_VIRTUAL_ENVIRONMENTS.PVEID
+          .eq(pveid)
+          .and(PYTHON_VIRTUAL_ENVIRONMENTS.UID.eq(uid))
+      )
+      .execute()
+    rows > 0
+  }
+
+  // Persists a PVE spec (name + packages JSON) for the given user. Returns the new pveid.
+  def savePve(uid: Int, name: String, packagesJson: String): Int = {
+    val row = new PythonVirtualEnvironments()
+    row.setUid(uid)
+    row.setName(name)
+    row.setPackages(JSONB.valueOf(packagesJson))
+    val dao = new PythonVirtualEnvironmentsDao(
+      SqlServer.getInstance().createDSLContext().configuration
+    )
+    dao.insert(row)
+    row.getPveid
   }
 
   // returns list of PVE names and corresponding user packages for a given CU

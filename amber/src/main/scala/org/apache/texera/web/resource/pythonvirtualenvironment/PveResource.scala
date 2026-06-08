@@ -19,6 +19,11 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
+import com.fasterxml.jackson.core.`type`.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import io.dropwizard.auth.Auth
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.config.KubernetesConfig
 
 import javax.ws.rs._
@@ -29,9 +34,18 @@ import javax.ws.rs.DELETE
 import javax.ws.rs.PathParam
 import javax.ws.rs.core.Response
 
+object PveResource {
+  case class SavePvePayload(name: String, packages: Map[String, String])
+  case class PveListItem(pveid: Int, name: String, packages: Map[String, String])
+}
+
 @Path("/pve")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class PveResource {
+  import PveResource._
+
+  private val mapper: ObjectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
+  private val packagesType = new TypeReference[java.util.Map[String, String]] {}
   // --------------------------------------------------
   // Get system packages
   // --------------------------------------------------
@@ -51,6 +65,90 @@ class PveResource {
         throw new InternalServerErrorException(
           "Failed to get system packages."
         )
+    }
+  }
+
+  // --------------------------------------------------
+  // List all PVEs for the current user from the database
+  // --------------------------------------------------
+  @GET
+  @Path("/db")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def listPves(@Auth sessionUser: SessionUser): java.util.List[PveListItem] = {
+    PveManager
+      .listPvesForUser(sessionUser.getUid.intValue())
+      .map { stored =>
+        val packages: Map[String, String] =
+          try mapper.readValue(stored.packagesJson, packagesType).asScala.toMap
+          catch { case _: Throwable => Map.empty[String, String] }
+        PveListItem(stored.pveid, stored.name, packages)
+      }
+      .asJava
+  }
+
+  // --------------------------------------------------
+  // Update a PVE row owned by the current user
+  // --------------------------------------------------
+  @PUT
+  @Path("/db/{pveid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def updatePve(
+      @PathParam("pveid") pveid: Int,
+      payload: SavePvePayload,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    val name = Option(payload.name).map(_.trim).getOrElse("")
+    if (name.isEmpty) {
+      return Response
+        .status(Response.Status.BAD_REQUEST)
+        .entity("name is required")
+        .build()
+    }
+    try {
+      val packagesJson = mapper.writeValueAsString(payload.packages)
+      val updated = PveManager.updatePve(pveid, sessionUser.getUid.intValue(), name, packagesJson)
+      if (updated) Response.ok(Map("pveid" -> pveid).asJava).build()
+      else Response.status(Response.Status.NOT_FOUND).build()
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        throw new InternalServerErrorException(s"Failed to update PVE: ${e.getMessage}")
+    }
+  }
+
+  // --------------------------------------------------
+  // Delete a PVE row owned by the current user
+  // --------------------------------------------------
+  @DELETE
+  @Path("/db/{pveid}")
+  def deletePveFromDb(@PathParam("pveid") pveid: Int, @Auth sessionUser: SessionUser): Response = {
+    val deleted = PveManager.deletePveFromDb(pveid, sessionUser.getUid.intValue())
+    if (deleted) Response.noContent().build()
+    else Response.status(Response.Status.NOT_FOUND).build()
+  }
+
+  // --------------------------------------------------
+  // Save a PVE (name + packages) to the database for the current user
+  // --------------------------------------------------
+  @POST
+  @Path("/db")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def savePve(payload: SavePvePayload, @Auth sessionUser: SessionUser): Response = {
+    val name = Option(payload.name).map(_.trim).getOrElse("")
+    if (name.isEmpty) {
+      return Response
+        .status(Response.Status.BAD_REQUEST)
+        .entity("name is required")
+        .build()
+    }
+    try {
+      val packagesJson = mapper.writeValueAsString(payload.packages)
+      val pveid = PveManager.savePve(sessionUser.getUid.intValue(), name, packagesJson)
+      Response.ok(Map("pveid" -> pveid).asJava).build()
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        throw new InternalServerErrorException(s"Failed to save PVE: ${e.getMessage}")
     }
   }
 
