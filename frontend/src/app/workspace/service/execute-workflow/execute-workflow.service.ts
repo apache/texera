@@ -356,7 +356,7 @@ export class ExecuteWorkflowService {
 
   /**
    * Reset execution status and worker assignments. Unlike resetExecutionState(),
-   * which resets only the status, this also clears the worker assignments (#3120).
+   * which resets only the status, this also clears the worker assignments.
    */
   public resetExecutionAndWorkers(): void {
     this.resetExecutionState();

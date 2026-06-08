@@ -76,7 +76,7 @@ export class WorkflowConsoleService {
 
   /**
    * Clear all console messages so a re-entered workflow doesn't show the
-   * previous session's output (#3120).
+   * previous session's output.
    */
   public clearConsoleMessages(): void {
     this.consoleMessages.clear();

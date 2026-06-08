@@ -97,7 +97,7 @@ export class WorkflowResultService {
 
   /**
    * Drop cached operator results and reset table stats so a re-entered workflow
-   * doesn't show stale results (#3120). resultTableStats is a ReplaySubject, so
+   * doesn't show stale results. resultTableStats is a ReplaySubject, so
    * reset it to an empty snapshot to avoid replaying stale stats to subscribers.
    */
   public clearResults(): void {

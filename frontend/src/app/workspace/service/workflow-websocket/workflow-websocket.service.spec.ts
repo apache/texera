@@ -97,7 +97,7 @@ describe("WorkflowWebsocketService", () => {
 
   it("should reset the cached worker count when the websocket is closed", () => {
     // numWorkers is populated from ClusterStatusUpdateEvent on the live connection;
-    // once the socket is closed the count is stale and must reset (see issue #3120).
+    // once the socket is closed the count is stale and must reset.
     service.numWorkers = 5;
     service.closeWebsocket();
     expect(service.numWorkers).toBe(-1);

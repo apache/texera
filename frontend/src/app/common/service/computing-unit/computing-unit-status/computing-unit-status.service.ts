@@ -48,7 +48,7 @@ export class ComputingUnitStatusService implements OnDestroy {
   private readonly refreshComputingUnitListSignal = new Subject<void>();
 
   // Emits when the active connection is torn down to switch computing units, so
-  // session consumers can clear their websocket-derived state (#3120).
+  // session consumers can clear their websocket-derived state.
   private readonly connectionResetSubject = new Subject<void>();
 
   // Refresh interval in milliseconds
@@ -165,7 +165,7 @@ export class ComputingUnitStatusService implements OnDestroy {
         if (this.workflowWebsocketService.isConnected) {
           this.workflowWebsocketService.closeWebsocket();
           this.workflowStatusService.clearStatus();
-          // switching units: signal consumers to clear their stale state (#3120)
+          // switching units: signal consumers to clear their stale state
           this.connectionResetSubject.next();
         }
 
@@ -233,7 +233,7 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   /**
    * Emits when the connection is reset to switch computing units. Consumers
-   * subscribe to clear their websocket-derived session state (#3120).
+   * subscribe to clear their websocket-derived session state.
    */
   public getConnectionResetStream(): Observable<void> {
     return this.connectionResetSubject.asObservable();
@@ -242,7 +242,7 @@ export class ComputingUnitStatusService implements OnDestroy {
   /**
    * Tear down all websocket connection state when leaving the workspace, so
    * re-entering a workflow starts from a clean connection instead of reusing
-   * the previous one (#3120).
+   * the previous one.
    */
   public disconnect(): void {
     this.workflowWebsocketService.closeWebsocket();
