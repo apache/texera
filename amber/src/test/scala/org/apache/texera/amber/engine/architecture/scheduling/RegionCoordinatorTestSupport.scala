@@ -91,25 +91,34 @@ object RegionCoordinatorTestSupport {
     * hold termination pending, fail an attempt, or allow it to succeed.
     */
   class ControllerRpcProbe(endWorkerResponse: WorkerRpcCall => Option[ControlReturn]) {
-    val calls: mutable.ArrayBuffer[WorkerRpcCall] = mutable.ArrayBuffer()
+    // `calls` is appended to on the actor/scheduler thread (via the output-gateway callback) while
+    // test assertions read it from the test thread. Guard every access with `callsLock`, and hand
+    // readers an immutable snapshot so iteration never races a concurrent append — which Scala
+    // 2.13's MutationTracker would otherwise surface as a ConcurrentModificationException.
+    private val callsLock = new Object
+    private val calls: mutable.ArrayBuffer[WorkerRpcCall] = mutable.ArrayBuffer()
+
     val inputGateway = new NetworkInputGateway(CONTROLLER)
     val outputGateway = new NetworkOutputGateway(CONTROLLER, handleOutput)
     val asyncRPCClient = new AsyncRPCClient(inputGateway, outputGateway, CONTROLLER)
 
-    def methodTrace: Seq[String] = calls.map(_.methodName).toSeq
+    private def callsSnapshot: Seq[WorkerRpcCall] = callsLock.synchronized(calls.toSeq)
+
+    def methodTrace: Seq[String] = callsSnapshot.map(_.methodName)
 
     def initializedWorkers: Seq[ActorVirtualIdentity] =
-      calls.filter(_.methodName == InitializeExecutor).map(_.receiver).toSeq
+      callsSnapshot.filter(_.methodName == InitializeExecutor).map(_.receiver)
 
     def startedWorkers: Seq[ActorVirtualIdentity] =
-      calls.filter(_.methodName == StartWorker).map(_.receiver).toSeq
+      callsSnapshot.filter(_.methodName == StartWorker).map(_.receiver)
 
     def endWorkerCalls: Seq[WorkerRpcCall] =
-      calls.filter(_.methodName == EndWorker).toSeq
+      callsSnapshot.filter(_.methodName == EndWorker)
 
     def onlyEndWorkerCall: WorkerRpcCall = {
-      assert(endWorkerCalls.size == 1)
-      endWorkerCalls.head
+      val ends = endWorkerCalls
+      assert(ends.size == 1)
+      ends.head
     }
 
     def fulfill(call: WorkerRpcCall, returnValue: ControlReturn): Unit = {
@@ -131,7 +140,7 @@ object RegionCoordinatorTestSupport {
         receiver = invocation.context.receiver,
         commandId = invocation.commandId
       )
-      calls += call
+      callsLock.synchronized(calls += call)
       immediateReturn(call).foreach(fulfill(call, _))
     }
 
