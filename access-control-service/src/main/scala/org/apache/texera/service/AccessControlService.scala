@@ -32,14 +32,8 @@ import org.apache.texera.auth.{
 }
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.activity.UserActivityEventListener
-import org.apache.texera.service.resource.{
-  AccessControlResource,
-  HealthCheckResource,
-  LiteLLMModelsResource,
-  LiteLLMProxyResource
-}
+import org.apache.texera.service.resource.{AccessControlResource, HealthCheckResource}
 import org.eclipse.jetty.server.session.SessionHandler
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
 
 class AccessControlService extends Application[AccessControlServiceConfiguration] with LazyLogging {
@@ -73,8 +67,6 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
 
     environment.jersey.register(classOf[HealthCheckResource])
     environment.jersey.register(classOf[AccessControlResource])
-    environment.jersey.register(classOf[LiteLLMProxyResource])
-    environment.jersey.register(classOf[LiteLLMModelsResource])
 
     // Register JWT authentication filter
     environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
@@ -84,9 +76,6 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
     environment.jersey.register(
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
-
-    // Required for @RolesAllowed on resources to be enforced.
-    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
 
     // Record USER_LAST_ACTIVE_TIME on every matched, completed request.
     // Lives only in this service because authenticated client sessions

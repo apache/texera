@@ -52,9 +52,11 @@ async function createAgentInstance(
   const agentId = `agent-${++agentCounter}`;
   const config = getBackendConfig();
 
+  // The agent service is a trusted backend, so it calls the LiteLLM gateway
+  // directly with the master key (no access-control proxy hop).
   const openai = createOpenAI({
-    baseURL: `${config.modelsEndpoint}/api`,
-    apiKey: env.LLM_API_KEY,
+    baseURL: config.litellmBaseUrl,
+    apiKey: env.LITELLM_MASTER_KEY,
   });
 
   // Reasoning effort variants are configured as separate model entries in litellm-config.yaml
@@ -163,6 +165,26 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   .get("/", () => {
     const agentList = Array.from(agentStore.entries()).map(([id, agent]) => getAgentInfo(id, agent));
     return { agents: agentList };
+  })
+
+  // Lists the models available on the LiteLLM gateway. Previously the frontend
+  // hit a LiteLLM proxy on the access-control-service; the agent service now
+  // owns this since it already holds the master key and talks to LiteLLM.
+  .get("/models", async ({ set }) => {
+    const { litellmBaseUrl } = getBackendConfig();
+    try {
+      const response = await fetch(`${litellmBaseUrl}/models`, {
+        headers: { Authorization: `Bearer ${env.LITELLM_MASTER_KEY}` },
+      });
+      if (!response.ok) {
+        set.status = 502;
+        return { error: `Failed to fetch models from LiteLLM: ${response.status} ${response.statusText}` };
+      }
+      return await response.json();
+    } catch (error) {
+      set.status = 502;
+      return { error: `Failed to fetch models from LiteLLM: ${error instanceof Error ? error.message : String(error)}` };
+    }
   })
 
   .post(
@@ -630,8 +652,8 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
 
   console.log("");
   console.log("Environment:");
-  console.log(`  LLM_API_KEY: ${env.LLM_API_KEY === "dummy" ? "dummy (default)" : "set"}`);
-  console.log(`  LLM_ENDPOINT: ${getBackendConfig().modelsEndpoint}`);
+  console.log(`  LITELLM_MASTER_KEY: ${env.LITELLM_MASTER_KEY === "dummy" ? "dummy (default)" : "set"}`);
+  console.log(`  LITELLM_BASE_URL: ${getBackendConfig().litellmBaseUrl}`);
   console.log(`  WORKFLOW_COMPILING_SERVICE_ENDPOINT: ${getBackendConfig().compileEndpoint}`);
   console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${getBackendConfig().apiEndpoint}`);
   console.log("");

@@ -864,7 +864,7 @@ export class AgentService {
    */
   public fetchModelTypes(): Observable<ModelType[]> {
     if (!this.modelTypes$) {
-      this.modelTypes$ = this.http.get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/models`).pipe(
+      this.modelTypes$ = this.http.get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/agents/models`).pipe(
         map(response =>
           response.data.map((model: LiteLLMModel) => ({
             id: model.id,

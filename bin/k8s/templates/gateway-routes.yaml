@@ -69,16 +69,6 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api/models
-        - path:
-            type: PathPrefix
-            value: /api/chat
-      backendRefs:
-        - name: access-control-service-svc
-          port: 9096
-    - matches:
-        - path:
-            type: PathPrefix
             value: /rtc
       backendRefs:
         - name: y-websocket-server-svc
