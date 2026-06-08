@@ -372,20 +372,9 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.cdr.detectChanges();
 
     this.subscription = this.http
-      .get<HuggingFaceModelOption[]>(
-        `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`,
-        { observe: "response" }
-      )
-      .pipe(
-        takeUntil(this.destroy$),
-        finalize(() => {
-          // If takeUntil cancels before next/error fires, clear the in-flight
-          // guard so a later instance re-fetches instead of polling forever.
-          if (!allModelsByTag.has(tag) && !errorByTag.has(tag)) {
-            inFlightByTag.delete(tag);
-          }
-        })
-      )
+      .get<
+        HuggingFaceModelOption[]
+      >(`${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`)
       .subscribe({
         next: resp => {
           const models = resp.body ?? [];
