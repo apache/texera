@@ -39,12 +39,9 @@ object S3StorageClient {
   val MAXIMUM_NUM_OF_MULTIPART_S3_PARTS = 10_000
   //Keep on sync with LakeFS https://github.com/treeverse/lakeFS/pull/10180
   val PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS = 24
-  // AWS S3 DeleteObjects accepts at most 1000 keys per request (listObjectsV2 also
-  // returns at most 1000 keys per page).
+  // S3 DeleteObjects accepts at most 1000 keys per request.
   val MAX_KEYS_PER_DELETE_REQUEST = 1000
-  // A failed DeleteObjects batch can report up to MAX_KEYS_PER_DELETE_REQUEST per-key
-  // errors; only enumerate this many in the exception message and summarize the rest so
-  // the message stays bounded.
+  // Cap how many failed keys are listed in the error message.
   private[util] val MAX_LISTED_DELETE_ERRORS = 10
 
   // Initialize MinIO-compatible S3 Client
@@ -114,9 +111,7 @@ object S3StorageClient {
 
     val listRequest = ListObjectsV2Request.builder().bucket(bucketName).prefix(prefix).build()
 
-    // listObjectsV2Paginator transparently follows the continuation token across all
-    // pages (listObjectsV2 returns at most 1000 keys per page). Keys are grouped into
-    // batches of at most MAX_KEYS_PER_DELETE_REQUEST, the DeleteObjects per-request limit.
+    // Paginate across all pages, then delete in batches within the per-request key limit.
     s3Client
       .listObjectsV2Paginator(listRequest)
       .contents()
@@ -137,9 +132,8 @@ object S3StorageClient {
   }
 
   /**
-    * The DeleteObjects API reports per-key failures in its response instead of throwing,
-    * so an unchecked response can silently leave objects behind. Raise if any key in the
-    * batch failed to delete.
+    * DeleteObjects reports per-key failures in its response instead of throwing;
+    * raise if any key failed.
     */
   private[util] def throwOnDeleteErrors(prefix: String, response: DeleteObjectsResponse): Unit = {
     val failed = response.errors().asScala

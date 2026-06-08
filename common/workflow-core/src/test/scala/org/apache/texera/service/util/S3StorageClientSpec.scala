@@ -358,10 +358,7 @@ class S3StorageClientSpec
   }
 
   test("deleteDirectory should delete more than 1000 objects under a prefix") {
-    // listObjectsV2 returns at most 1000 keys per page and DeleteObjects accepts at
-    // most 1000 keys per request. Exceeding 1000 objects exercises both the
-    // continuation-token pagination loop and the batching of deletions; without them
-    // only the first 1000 objects are removed and the rest are silently orphaned.
+    // >1000 objects exercises pagination and delete batching; without them the tail is orphaned.
     val prefix = "delete-dir/large"
     val objectCount = 1001
 
@@ -391,15 +388,12 @@ class S3StorageClientSpec
   }
 
   test("deleteDirectory should not throw for a prefix with no objects") {
-    // Nothing to delete: the listing is empty, so no DeleteObjects request is issued.
+    // Empty listing: no DeleteObjects request is issued.
     S3StorageClient.deleteDirectory(testBucketName, "delete-dir/non-existent")
   }
 
   test("deleteDirectory should surface per-key delete failures rather than swallow them") {
-    // DeleteObjects returns failed keys in its response instead of throwing, so the
-    // client must inspect them; otherwise partial deletions become silent storage leaks.
-    // (Provoking a real per-key failure needs object-lock/retention setup, so the
-    // response-handling is verified directly here.)
+    // A real per-key failure needs object-lock setup, so verify response handling directly.
     val responseWithError = DeleteObjectsResponse
       .builder()
       .errors(S3Error.builder().key("delete-dir/locked.txt").code("AccessDenied").build())
@@ -414,8 +408,7 @@ class S3StorageClientSpec
     // A response with no errors must not throw.
     S3StorageClient.throwOnDeleteErrors("delete-dir/", DeleteObjectsResponse.builder().build())
 
-    // When many keys fail, the message reports the true total but only enumerates the first
-    // MAX_LISTED_DELETE_ERRORS keys and summarizes the rest, so it stays bounded.
+    // Many failures: message reports the true total but only lists up to the cap.
     val cap = S3StorageClient.MAX_LISTED_DELETE_ERRORS
     val errorCount = cap + 5
     val manyErrors = (0 until errorCount).map(i =>
