@@ -86,11 +86,11 @@ describe("ExecuteWorkflowService", () => {
     expect(injectedService).toBeTruthy();
   }));
 
-  it("resetState() clears the execution state and worker assignments", () => {
+  it("resetExecutionAndWorkers() clears the execution state and worker assignments", () => {
     (service as any).currentState = { state: ExecutionState.Running };
     (service as any).assignedWorkerIds.set("op1", ["w1", "w2"]);
 
-    service.resetState();
+    service.resetExecutionAndWorkers();
 
     expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
     expect(service.getWorkerIds("op1")).toEqual([]);

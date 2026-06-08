@@ -47,6 +47,11 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   private readonly refreshComputingUnitListSignal = new Subject<void>();
 
+  // Emits when an active websocket connection is torn down to switch to a
+  // different computing unit, so session-scoped consumers (execution status,
+  // console, results) can clear their websocket-derived state. See issue #3120.
+  private readonly connectionResetSubject = new Subject<void>();
+
   // Refresh interval in milliseconds
   private readonly REFRESH_INTERVAL_MS = 2000;
   private refreshSubscription: Subscription | null = null;
@@ -161,6 +166,10 @@ export class ComputingUnitStatusService implements OnDestroy {
         if (this.workflowWebsocketService.isConnected) {
           this.workflowWebsocketService.closeWebsocket();
           this.workflowStatusService.clearStatus();
+          // We are tearing down an active connection to switch to a different
+          // unit; tell session consumers to clear their stale execution,
+          // console, and result state so the new unit starts fresh (#3120).
+          this.connectionResetSubject.next();
         }
 
         this.workflowWebsocketService.openWebsocket(wid, this.userService.getCurrentUser()?.uid, cuid);
@@ -226,6 +235,16 @@ export class ComputingUnitStatusService implements OnDestroy {
   }
 
   /**
+   * Emits whenever an active connection is reset to switch to a different
+   * computing unit. Consumers that hold websocket-derived session state (e.g.
+   * execution status, console output, results) subscribe to this to clear that
+   * state so the new unit starts fresh. See issue #3120.
+   */
+  public getConnectionResetStream(): Observable<void> {
+    return this.connectionResetSubject.asObservable();
+  }
+
+  /**
    * Tear down all websocket-related connection state. Called when the user
    * leaves the workspace (e.g. returns to the dashboard) so that re-entering a
    * workflow — even the same wid, which arrives as a `wid -> null -> wid`
@@ -248,6 +267,7 @@ export class ComputingUnitStatusService implements OnDestroy {
 
     this.selectedUnitSubject.complete();
     this.allComputingUnitsSubject.complete();
+    this.connectionResetSubject.complete();
   }
 
   /**

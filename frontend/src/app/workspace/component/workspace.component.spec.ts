@@ -69,6 +69,7 @@ describe("WorkspaceComponent", () => {
   let executeWorkflowService: any;
   let workflowConsoleService: any;
   let workflowResultService: any;
+  let connectionResetSubject: Subject<void>;
   let metadataChangedSubject: Subject<void>;
   let stubGraph: { triggerCenterEvent: ReturnType<typeof vi.fn>; hasElementWithID: ReturnType<typeof vi.fn> };
 
@@ -143,8 +144,12 @@ describe("WorkspaceComponent", () => {
 
     routerMock = { navigate: vi.fn() };
     locationMock = { go: vi.fn() };
-    computingUnitStatusService = { disconnect: vi.fn() };
-    executeWorkflowService = { resetState: vi.fn() };
+    connectionResetSubject = new Subject<void>();
+    computingUnitStatusService = {
+      disconnect: vi.fn(),
+      getConnectionResetStream: () => connectionResetSubject.asObservable(),
+    };
+    executeWorkflowService = { resetExecutionAndWorkers: vi.fn() };
     workflowConsoleService = { clearConsoleMessages: vi.fn() };
     workflowResultService = { clearResults: vi.fn() };
 
@@ -435,7 +440,17 @@ describe("WorkspaceComponent", () => {
       fixture.detectChanges();
       component.ngOnDestroy();
       expect(computingUnitStatusService.disconnect).toHaveBeenCalled();
-      expect(executeWorkflowService.resetState).toHaveBeenCalled();
+      expect(executeWorkflowService.resetExecutionAndWorkers).toHaveBeenCalled();
+      expect(workflowConsoleService.clearConsoleMessages).toHaveBeenCalled();
+      expect(workflowResultService.clearResults).toHaveBeenCalled();
+    });
+
+    it("clears the workflow session state when the computing unit is switched in-canvas (issue #3120)", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      // Switching to a different unit emits on the connection-reset stream.
+      connectionResetSubject.next();
+      expect(executeWorkflowService.resetExecutionAndWorkers).toHaveBeenCalled();
       expect(workflowConsoleService.clearConsoleMessages).toHaveBeenCalled();
       expect(workflowResultService.clearResults).toHaveBeenCalled();
     });

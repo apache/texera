@@ -97,4 +97,27 @@ describe("ComputingUnitStatusService", () => {
     service.disconnect();
     expect(latest).toBeNull();
   });
+
+  it("emits a connection-reset signal when switching to a different computing unit (issue #3120)", () => {
+    let connected = false;
+    vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {
+      connected = true;
+    });
+    vi.spyOn(websocketService, "closeWebsocket").mockImplementation(() => {
+      connected = false;
+    });
+    vi.spyOn(websocketService, "isConnected", "get").mockImplementation(() => connected);
+    (service as any).allComputingUnitsSubject.next([mockUnit(7), mockUnit(8)]);
+
+    let resetCount = 0;
+    service.getConnectionResetStream().subscribe(() => resetCount++);
+
+    // First connection on unit 7: nothing to tear down yet → no signal.
+    service.selectComputingUnit(5, 7);
+    expect(resetCount).toBe(0);
+
+    // Switch to a different unit while connected → tear-down signal fires once.
+    service.selectComputingUnit(5, 8);
+    expect(resetCount).toBe(1);
+  });
 });
