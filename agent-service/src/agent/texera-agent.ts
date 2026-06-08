@@ -18,13 +18,18 @@
  */
 
 import { generateText, type ModelMessage, type LanguageModel, stepCountIs } from "ai";
-import { Subscription } from "rxjs";
-import { debounceTime } from "rxjs/operators";
 import { WorkflowState } from "./workflow-state";
 import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
 import { WorkflowResultState } from "./workflow-result-state";
 import { formatOperatorResult } from "./tools/result-formatting";
-import type { AgentSettings, ReActStep, TokenUsage, UserInfo } from "../types/agent";
+import type {
+  AgentPersistedConfig,
+  AgentSettings,
+  AgentSettingsApi,
+  AgentTaskContext,
+  ReActStep,
+  TokenUsage,
+} from "../types/agent";
 import {
   AgentState as AgentStateEnum,
   DEFAULT_AGENT_SETTINGS,
@@ -49,10 +54,9 @@ import {
 } from "./tools/workflow-execution-tools";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
+import { persistWorkflow, retrieveWorkflow } from "../api/workflow-api";
 import { createLogger } from "../logger";
 import type { Logger } from "pino";
-
-const PERSIST_DEBOUNCE_MS = 500;
 
 export interface TexeraAgentConfig {
   model: LanguageModel;
@@ -60,6 +64,9 @@ export interface TexeraAgentConfig {
   agentId: string;
   agentName?: string;
   systemPrompt?: string;
+  createdAt?: Date;
+  persistedConfig?: AgentPersistedConfig;
+  reactSteps?: ReActStep[];
 }
 
 export interface AgentMessageResult {
@@ -104,14 +111,7 @@ export class TexeraAgent {
   private reActStepsByMessageId: Map<string, ReActStep[]> = new Map();
 
   private currentMessageId: string | undefined = undefined;
-
-  private delegateConfig?: {
-    userToken: string;
-    userInfo?: UserInfo;
-    workflowId: number;
-    workflowName?: string;
-    computingUnitId?: number;
-  };
+  private currentTaskContext?: AgentTaskContext;
 
   private stepCallback: ReActStepCallback | null = null;
 
@@ -121,17 +121,15 @@ export class TexeraAgent {
 
   private abortController: AbortController | null = null;
 
-  private workflowChangeSubscription: Subscription | null = null;
-
   private log: Logger;
 
   constructor(config: TexeraAgentConfig) {
     this.agentId = config.agentId;
     this.agentName = config.agentName || `Agent-${config.agentId}`;
     this.modelType = config.modelType;
-    this.createdAt = new Date();
+    this.createdAt = config.createdAt ?? new Date();
     this.model = config.model;
-    this.systemPrompt = config.systemPrompt || "";
+    this.systemPrompt = config.persistedConfig?.systemPrompt || config.systemPrompt || "";
     this.log = createLogger("TexeraAgent", { agentId: this.agentId });
 
     this.workflowState = new WorkflowState();
@@ -155,8 +153,14 @@ export class TexeraAgent {
       ...DEFAULT_AGENT_SETTINGS,
       systemPrompt: this.systemPrompt,
     };
+    if (config.persistedConfig?.settings) {
+      this.applySettingsApi(config.persistedConfig.settings);
+    }
 
     this.tools = this.createTools();
+    if (config.reactSteps && config.reactSteps.length > 0) {
+      this.restoreReActSteps(config.reactSteps);
+    }
   }
 
   async initialize(): Promise<void> {
@@ -179,12 +183,82 @@ export class TexeraAgent {
     this.settings.systemPrompt = this.systemPrompt;
   }
 
+  private applySettingsApi(settings: AgentSettingsApi): void {
+    if (settings.maxOperatorResultCharLimit !== undefined) {
+      this.settings.maxOperatorResultCharLimit = settings.maxOperatorResultCharLimit;
+    }
+    if (settings.maxOperatorResultCellCharLimit !== undefined) {
+      this.settings.maxOperatorResultCellCharLimit = settings.maxOperatorResultCellCharLimit;
+    }
+    if (settings.operatorResultSerializationMode !== undefined) {
+      this.settings.operatorResultSerializationMode =
+        settings.operatorResultSerializationMode as OperatorResultSerializationMode;
+    }
+    if (settings.toolTimeoutSeconds !== undefined) {
+      this.settings.toolTimeoutMs = settings.toolTimeoutSeconds * 1000;
+    }
+    if (settings.executionTimeoutMinutes !== undefined) {
+      this.settings.executionTimeoutMs = settings.executionTimeoutMinutes * 60000;
+    }
+    if (settings.disabledTools !== undefined) {
+      this.settings.disabledTools = new Set(settings.disabledTools);
+    }
+    if (settings.maxSteps !== undefined) {
+      this.settings.maxSteps = settings.maxSteps;
+    }
+    if (settings.allowedOperatorTypes !== undefined) {
+      this.settings.allowedOperatorTypes = settings.allowedOperatorTypes;
+    }
+  }
+
+  private restoreReActSteps(steps: ReActStep[]): void {
+    this.reActStepsByMessageId.clear();
+    this.stepsById.clear();
+
+    const initialStep: ReActStep = {
+      id: INITIAL_STEP_ID,
+      messageId: "initial",
+      stepId: -1,
+      timestamp: Date.now(),
+      role: "user",
+      content: "",
+      isBegin: true,
+      isEnd: true,
+      parentId: undefined,
+    };
+    this.stepsById.set(INITIAL_STEP_ID, initialStep);
+
+    for (const step of steps) {
+      this.addRestoredStep(step);
+    }
+
+    this.stepCounter = steps.length;
+    this.messageCounter = new Set(steps.map(step => step.messageId)).size;
+    const lastStep = steps[steps.length - 1];
+    if (lastStep) {
+      this.head = lastStep.id;
+      if (lastStep.afterWorkflowContent) {
+        this.workflowState.setWorkflowContent(lastStep.afterWorkflowContent);
+      }
+    }
+  }
+
+  private addRestoredStep(step: ReActStep): void {
+    let steps = this.reActStepsByMessageId.get(step.messageId);
+    if (!steps) {
+      steps = [];
+      this.reActStepsByMessageId.set(step.messageId, steps);
+    }
+    steps.push(step);
+    this.stepsById.set(step.id, step);
+  }
+
   private buildExecutionConfig(): ExecutionConfig | undefined {
-    if (!this.delegateConfig) return undefined;
+    if (!this.currentTaskContext) return undefined;
     return {
-      userToken: this.delegateConfig.userToken,
-      workflowId: this.delegateConfig.workflowId,
-      computingUnitId: this.delegateConfig.computingUnitId,
+      userToken: this.currentTaskContext.userToken,
+      workflowId: this.currentTaskContext.workflowId,
+      computingUnitId: this.currentTaskContext.computingUnitId,
       maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
       maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
       executionTimeoutMs: this.settings.executionTimeoutMs,
@@ -201,7 +275,13 @@ export class TexeraAgent {
       }
     }
 
-    const getExecutionConfig = this.delegateConfig ? () => this.buildExecutionConfig()! : undefined;
+    const getExecutionConfig = (): ExecutionConfig => {
+      const config = this.buildExecutionConfig();
+      if (!config) {
+        throw new Error("Workflow execution requires an active task context.");
+      }
+      return config;
+    };
 
     const context: ToolContext = {
       metadataStore: this.metadataStore,
@@ -218,15 +298,13 @@ export class TexeraAgent {
       [TOOL_NAME_MODIFY_OPERATOR]: createModifyOperatorTool(this.workflowState, context),
     };
 
-    if (getExecutionConfig) {
-      tools[TOOL_NAME_EXECUTE_OPERATOR] = createExecuteOperatorTool(
-        this.workflowState,
-        getExecutionConfig,
-        (opId, operatorInfo) => {
-          this.workflowResultState.set(opId, this.head, operatorInfo);
-        }
-      );
-    }
+    tools[TOOL_NAME_EXECUTE_OPERATOR] = createExecuteOperatorTool(
+      this.workflowState,
+      getExecutionConfig,
+      (opId, operatorInfo) => {
+        this.workflowResultState.set(opId, this.head, operatorInfo);
+      }
+    );
 
     return tools;
   }
@@ -356,6 +434,27 @@ export class TexeraAgent {
     return { ...this.settings };
   }
 
+  getSettingsApi(): AgentSettingsApi {
+    return {
+      maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
+      maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
+      operatorResultSerializationMode: this.settings.operatorResultSerializationMode,
+      toolTimeoutSeconds: Math.round(this.settings.toolTimeoutMs / 1000),
+      executionTimeoutMinutes: Math.round(this.settings.executionTimeoutMs / 60000),
+      disabledTools: Array.from(this.settings.disabledTools),
+      maxSteps: this.settings.maxSteps,
+      allowedOperatorTypes: this.settings.allowedOperatorTypes,
+    };
+  }
+
+  getPersistedConfig(): AgentPersistedConfig {
+    return {
+      systemPrompt: this.systemPrompt,
+      tools: this.getSystemInfo().tools,
+      settings: this.getSettingsApi(),
+    };
+  }
+
   updateSettings(updates: {
     maxOperatorResultCharLimit?: number;
     maxOperatorResultCellCharLimit?: number;
@@ -408,96 +507,44 @@ export class TexeraAgent {
     );
   }
 
-  async refreshWorkflowFromBackend(): Promise<void> {
-    // HEAD at a real step means the workflow is determined by that step's snapshot;
-    // only reload from backend when HEAD is the initial sentinel.
-    if (this.head !== INITIAL_STEP_ID) {
-      return;
-    }
+  private async loadWorkflowForTask(taskContext: AgentTaskContext): Promise<string> {
+    const workflow = await retrieveWorkflow(taskContext.userToken, taskContext.workflowId);
+    this.workflowState.setWorkflowContent(workflow.content);
+    this.log.debug({ workflowId: taskContext.workflowId }, "loaded workflow for agent task");
+    return workflow.name || taskContext.workflowName || "Agent Workflow";
+  }
 
-    if (!this.delegateConfig?.workflowId || !this.delegateConfig?.userToken) {
-      return;
-    }
-
+  private async persistWorkflowForTask(taskContext: AgentTaskContext, workflowName: string): Promise<void> {
     try {
-      const { retrieveWorkflow } = await import("../api/workflow-api");
-      const workflow = await retrieveWorkflow(this.delegateConfig.userToken, this.delegateConfig.workflowId);
-      this.workflowState.setWorkflowContent(workflow.content);
-      this.log.debug({ workflowId: this.delegateConfig.workflowId }, "refreshed workflow from backend");
+      const workflowContent = this.workflowState.getWorkflowContent();
+      await persistWorkflow(taskContext.userToken, taskContext.workflowId, workflowName, workflowContent);
+      this.log.debug({ workflowId: taskContext.workflowId }, "persisted workflow after agent task");
     } catch (error) {
-      this.log.warn({ err: error }, "failed to refresh workflow from backend");
+      this.log.error({ workflowId: taskContext.workflowId, err: error }, "failed to persist workflow after agent task");
     }
   }
 
-  setDelegateConfig(config: {
-    userToken: string;
-    userInfo?: UserInfo;
-    workflowId: number;
-    workflowName?: string;
-    computingUnitId?: number;
-  }): void {
-    this.delegateConfig = config;
-
-    this.tools = this.createTools();
-
-    this.setupWorkflowChangeHandlers();
-  }
-
-  getDelegateConfig():
-    | { userToken: string; userInfo?: UserInfo; workflowId: number; workflowName?: string; computingUnitId?: number }
-    | undefined {
-    return this.delegateConfig;
-  }
-
-  private setupWorkflowChangeHandlers(): void {
-    if (this.workflowChangeSubscription) {
-      this.workflowChangeSubscription.unsubscribe();
-    }
-
-    const subscription = new Subscription();
-    const workflowChanged$ = this.workflowState.getWorkflowChangedStream();
-
-    if (this.delegateConfig?.workflowId && this.delegateConfig.userToken) {
-      const persistSubscription = workflowChanged$.pipe(debounceTime(PERSIST_DEBOUNCE_MS)).subscribe(async () => {
-        if (!this.delegateConfig?.workflowId || !this.delegateConfig.userToken) {
-          return;
-        }
-
-        try {
-          const { persistWorkflow } = await import("../api/workflow-api");
-          const workflowContent = this.workflowState.getWorkflowContent();
-          await persistWorkflow(
-            this.delegateConfig.userToken,
-            this.delegateConfig.workflowId,
-            this.delegateConfig.workflowName || "Agent Workflow",
-            workflowContent
-          );
-          this.log.debug({ workflowId: this.delegateConfig.workflowId }, "auto-persisted workflow");
-        } catch (error) {
-          this.log.error({ err: error }, "failed to auto-persist workflow");
-        }
-      });
-
-      subscription.add(persistSubscription);
-    }
-
-    this.workflowChangeSubscription = subscription;
-    this.workflowState.addSubscription(subscription);
-  }
-
-  async sendMessage(userMessage: string, messageSource?: "chat" | "feedback"): Promise<AgentMessageResult> {
+  async sendMessage(
+    userMessage: string,
+    taskContext: AgentTaskContext,
+    messageSource?: "chat" | "feedback"
+  ): Promise<AgentMessageResult> {
     const messageId = `msg-${this.agentId}-${++this.messageCounter}-${Date.now()}`;
     let stepIndex = 0;
-
-    await this.refreshWorkflowFromBackend();
+    let workflowLoaded = false;
+    let workflowName = taskContext.workflowName || "Agent Workflow";
 
     this.abortController = new AbortController();
 
     this.state = AgentStateEnum.GENERATING;
 
     this.currentMessageId = messageId;
+    this.currentTaskContext = taskContext;
 
     try {
+      workflowName = await this.loadWorkflowForTask(taskContext);
+      workflowLoaded = true;
+
       let beforeStepContent = this.workflowState.getWorkflowContent();
 
       const estimatedInputTokens = Math.ceil(userMessage.length / 4);
@@ -718,8 +765,12 @@ export class TexeraAgent {
         error: error.message || String(error),
       };
     } finally {
+      if (workflowLoaded) {
+        await this.persistWorkflowForTask(taskContext, workflowName);
+      }
       this.abortController = null;
       this.currentMessageId = undefined;
+      this.currentTaskContext = undefined;
       this.state = AgentStateEnum.AVAILABLE;
     }
   }
@@ -824,11 +875,6 @@ export class TexeraAgent {
   }
 
   destroy(): void {
-    if (this.workflowChangeSubscription) {
-      this.workflowChangeSubscription.unsubscribe();
-      this.workflowChangeSubscription = null;
-    }
-
     this.workflowState.destroy();
 
     this.websockets.clear();
@@ -836,5 +882,6 @@ export class TexeraAgent {
     this.reActStepsByMessageId.clear();
     this.stepsById.clear();
     this.currentMessageId = undefined;
+    this.currentTaskContext = undefined;
   }
 }

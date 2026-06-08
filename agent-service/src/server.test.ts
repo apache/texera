@@ -17,50 +17,87 @@
  * under the License.
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
-import { buildApp, _resetAgentStoreForTests } from "./server";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { createHmac } from "crypto";
+import { InMemoryAgentMetadataStore } from "./api/agent-metadata-store";
+import { buildApp, _resetAgentStoreForTests, _setAgentMetadataStoreForTests } from "./server";
 import { env } from "./config/env";
 
 const API = env.API_PREFIX;
+const SECRET = "test-secret-key-for-agent-service-access-control";
+const prevSecret = process.env.AUTH_JWT_SECRET;
+const metadataStore = new InMemoryAgentMetadataStore();
 const app = buildApp();
 
 function url(path: string): string {
   return `http://localhost${path}`;
 }
 
-async function postJson(path: string, body: unknown): Promise<Response> {
+function b64url(input: string | Buffer): string {
+  return Buffer.from(input).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function signJwt(payload: Record<string, unknown>, secret = SECRET): string {
+  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = b64url(JSON.stringify(payload));
+  const sig = b64url(createHmac("sha256", secret).update(`${header}.${body}`).digest());
+  return `${header}.${body}.${sig}`;
+}
+
+function tokenFor(uid: number, secret = SECRET): string {
+  return signJwt({ sub: `user-${uid}`, userId: uid, exp: Math.floor(Date.now() / 1000) + 3600 }, secret);
+}
+
+function authHeaders(token: string | null, extra: Record<string, string> = {}): Record<string, string> {
+  const headers = { ...extra };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+async function postJson(path: string, body: unknown, token: string | null = tokenFor(1)): Promise<Response> {
   return app.handle(
     new Request(url(path), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(token, { "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     })
   );
 }
 
-async function patchJson(path: string, body: unknown): Promise<Response> {
+async function patchJson(path: string, body: unknown, token: string | null = tokenFor(1)): Promise<Response> {
   return app.handle(
     new Request(url(path), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(token, { "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     })
   );
 }
 
-async function getJson(path: string): Promise<Response> {
-  return app.handle(new Request(url(path)));
+async function getJson(path: string, token: string | null = tokenFor(1)): Promise<Response> {
+  return app.handle(new Request(url(path), { headers: authHeaders(token) }));
 }
 
-async function del(path: string): Promise<Response> {
-  return app.handle(new Request(url(path), { method: "DELETE" }));
+async function del(path: string, token: string | null = tokenFor(1)): Promise<Response> {
+  return app.handle(new Request(url(path), { method: "DELETE", headers: authHeaders(token) }));
 }
 
 async function readJson<T = unknown>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
 
+beforeAll(() => {
+  process.env.AUTH_JWT_SECRET = SECRET;
+});
+
+afterAll(() => {
+  if (prevSecret === undefined) delete process.env.AUTH_JWT_SECRET;
+  else process.env.AUTH_JWT_SECRET = prevSecret;
+});
+
 beforeEach(() => {
+  metadataStore.clear();
+  _setAgentMetadataStoreForTests(metadataStore);
   _resetAgentStoreForTests();
 });
 
@@ -75,7 +112,7 @@ describe(`GET ${API}/healthcheck`, () => {
 });
 
 describe(`POST ${API}/agents`, () => {
-  test("creates an agent with no delegate", async () => {
+  test("creates an agent without workflow binding", async () => {
     const res = await postJson(`${API}/agents`, { modelType: "test-model", name: "Tester" });
     expect(res.status).toBe(200);
 
@@ -84,29 +121,52 @@ describe(`POST ${API}/agents`, () => {
       name: string;
       modelType: string;
       state: string;
-      delegate: unknown;
+      delegate?: unknown;
     }>(res);
-    expect(agent.id).toMatch(/^agent-\d+$/);
+    expect(agent.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     expect(agent.name).toBe("Tester");
     expect(agent.modelType).toBe("test-model");
     expect(agent.state).toBe("AVAILABLE");
     expect(agent.delegate).toBeUndefined();
   });
 
-  test("auto-numbers agent ids monotonically", async () => {
+  test("assigns a unique, non-guessable id to each agent", async () => {
     const a = await readJson<{ id: string }>(await postJson(`${API}/agents`, { modelType: "m" }));
     const b = await readJson<{ id: string }>(await postJson(`${API}/agents`, { modelType: "m" }));
 
-    const aNum = Number(a.id.split("-")[1]);
-    const bNum = Number(b.id.split("-")[1]);
-    expect(bNum).toBe(aNum + 1);
+    expect(a.id).not.toBe(b.id);
+    // UUID-based ids are not enumerable, unlike the previous sequential counter.
+    expect(a.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  });
+
+  test("persists ownership metadata for the creating user", async () => {
+    const agent = await readJson<{ id: string }>(
+      await postJson(`${API}/agents`, { modelType: "m", name: "owned" }, tokenFor(7))
+    );
+
+    expect(await metadataStore.getAgent(agent.id)).toMatchObject({
+      id: agent.id,
+      ownerUid: 7,
+      name: "owned",
+      modelType: "m",
+      config: {
+        settings: expect.objectContaining({
+          maxSteps: 100,
+        }),
+        tools: expect.any(Array),
+      },
+      reactSteps: [],
+    });
   });
 
   test("rejects invalid token", async () => {
-    const res = await postJson(`${API}/agents`, {
-      modelType: "m",
-      userToken: "obviously-not-a-jwt",
-    });
+    const res = await postJson(
+      `${API}/agents`,
+      {
+        modelType: "m",
+      },
+      "obviously-not-a-jwt"
+    );
     expect(res.status).toBe(401);
     const body = await readJson<{ error: string }>(res);
     expect(body.error).toBe("Invalid or expired token");
@@ -136,6 +196,20 @@ describe(`GET ${API}/agents`, () => {
     const body = await readJson<{ agents: { name: string }[] }>(res);
     expect(body.agents).toHaveLength(2);
     expect(body.agents.map(a => a.name).sort()).toEqual(["one", "two"]);
+  });
+
+  test("lists persisted agents after the runtime cache is cleared", async () => {
+    const created = await readJson<{ id: string }>(
+      await postJson(`${API}/agents`, { modelType: "m", name: "persisted" })
+    );
+
+    _resetAgentStoreForTests();
+
+    const res = await getJson(`${API}/agents`);
+    expect(res.status).toBe(200);
+    const body = await readJson<{ agents: { id: string; name: string }[] }>(res);
+    expect(body.agents).toHaveLength(1);
+    expect(body.agents[0]).toMatchObject({ id: created.id, name: "persisted" });
   });
 });
 
@@ -198,6 +272,29 @@ describe("Agent control routes", () => {
     expect(res.status).toBe(200);
     expect(await readJson<unknown>(res)).toEqual({ results: {} });
   });
+
+  test("GET /:id/react-steps restores persisted ReAct state", async () => {
+    const created = await readJson<{ id: string }>(await postJson(`${API}/agents`, { modelType: "m" }));
+    await metadataStore.updateAgentReActSteps(created.id, [
+      {
+        id: "step-persisted",
+        messageId: "msg-persisted",
+        stepId: 0,
+        timestamp: Date.now(),
+        role: "user",
+        content: "persisted step",
+        isBegin: true,
+        isEnd: true,
+      },
+    ]);
+
+    _resetAgentStoreForTests();
+
+    const res = await getJson(`${API}/agents/${created.id}/react-steps`);
+    expect(res.status).toBe(200);
+    const body = await readJson<{ steps: { content: string }[] }>(res);
+    expect(body.steps.map(step => step.content)).toEqual(["persisted step"]);
+  });
 });
 
 describe(`PATCH ${API}/agents/:id/settings`, () => {
@@ -219,5 +316,81 @@ describe(`PATCH ${API}/agents/:id/settings`, () => {
     );
     expect(reread.maxSteps).toBe(7);
     expect(reread.toolTimeoutSeconds).toBe(30);
+
+    const persisted = await metadataStore.getAgent(created.id);
+    expect(persisted?.config.settings).toMatchObject({
+      maxSteps: 7,
+      toolTimeoutSeconds: 30,
+    });
+  });
+});
+
+describe("access control", () => {
+  async function createOwnedAgent(uid: number): Promise<string> {
+    const res = await postJson(`${API}/agents`, { modelType: "m" }, tokenFor(uid));
+    expect(res.status).toBe(200);
+    return (await readJson<{ id: string }>(res)).id;
+  }
+
+  test("rejects agent creation without a token", async () => {
+    const res = await postJson(`${API}/agents`, { modelType: "m" }, null);
+    expect(res.status).toBe(401);
+  });
+
+  test("rejects a forged token (bad signature) at creation", async () => {
+    const forged = tokenFor(1, "the-wrong-secret");
+    const res = await postJson(`${API}/agents`, { modelType: "m" }, forged);
+    expect(res.status).toBe(401);
+  });
+
+  test("rejects an expired token at creation", async () => {
+    const expired = signJwt({ sub: "user-1", userId: 1, exp: Math.floor(Date.now() / 1000) - 3600 });
+    const res = await postJson(`${API}/agents`, { modelType: "m" }, expired);
+    expect(res.status).toBe(401);
+  });
+
+  test("an owner can read its own agent", async () => {
+    const id = await createOwnedAgent(1);
+    const res = await getJson(`${API}/agents/${id}`, tokenFor(1));
+    expect(res.status).toBe(200);
+  });
+
+  test("a different user cannot read someone else's agent (403)", async () => {
+    const id = await createOwnedAgent(1);
+    const res = await getJson(`${API}/agents/${id}`, tokenFor(2));
+    expect(res.status).toBe(403);
+  });
+
+  test("a request without a token is rejected (401)", async () => {
+    const id = await createOwnedAgent(1);
+    const res = await getJson(`${API}/agents/${id}`, null);
+    expect(res.status).toBe(401);
+  });
+
+  test("a control route is also guarded (stop -> 403 for non-owner)", async () => {
+    const id = await createOwnedAgent(1);
+    const res = await app.handle(
+      new Request(url(`${API}/agents/${id}/stop`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenFor(2)}` },
+        body: "{}",
+      })
+    );
+    expect(res.status).toBe(403);
+  });
+
+  test("listing is scoped to the caller's own agents", async () => {
+    const mine = await createOwnedAgent(1);
+    await createOwnedAgent(2);
+
+    const res = await getJson(`${API}/agents`, tokenFor(1));
+    expect(res.status).toBe(200);
+    const body = await readJson<{ agents: { id: string }[] }>(res);
+    expect(body.agents.map(a => a.id)).toEqual([mine]);
+  });
+
+  test("listing without a token is rejected (401)", async () => {
+    const res = await getJson(`${API}/agents`, null);
+    expect(res.status).toBe(401);
   });
 });
