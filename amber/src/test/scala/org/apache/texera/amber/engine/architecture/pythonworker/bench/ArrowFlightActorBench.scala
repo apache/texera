@@ -87,17 +87,47 @@ object ArrowFlightActorBench {
   private val InputPortId = PortIdentity(id = 0, internal = false)
   private val OutputPortId = PortIdentity(id = 0, internal = false)
 
-  private val WarmupBatches = 20
+  // Sweep grid + iteration counts switch on BENCH_MODE so PR / post-merge
+  // checks stay around 5 min while scheduled / manual runs do the full
+  // 36-config grid that the gh-pages dashboard tracks long-term.
+  //   pr   — 3 configs × 20 batches, warmup 5  (~4-5 min in CI)
+  //   full — 36 configs × 200 batches, warmup 20  (~50-60 min in CI)
+  // BENCH_NUM_BATCHES, if set, overrides numBatches for the current mode
+  // (useful for local smoke).
+  private val BenchMode: String = sys.env.getOrElse("BENCH_MODE", "full").toLowerCase
 
-  // Full sweep grid (4 × 3 × 3 = 36 configs). Per-config `numBatches` is
-  // tunable via the BENCH_NUM_BATCHES env var so local smoke can use a
-  // small value (10-20) without recompile while CI uses 50-200 for stable
-  // percentiles.
-  private val DefaultBatchSizes: Seq[Int] = Seq(10, 100, 1000, 10000)
-  private val DefaultSchemaWidths: Seq[Int] = Seq(1, 10, 50)
-  private val DefaultStringLens: Seq[Int] = Seq(8, 64, 512)
-  private val DefaultNumBatches: Int =
-    sys.env.get("BENCH_NUM_BATCHES").map(_.toInt).getOrElse(100)
+  private case class GridSpec(
+      batchSizes: Seq[Int],
+      schemaWidths: Seq[Int],
+      stringLens: Seq[Int],
+      numBatches: Int,
+      warmupBatches: Int
+  )
+
+  private val grid: GridSpec = BenchMode match {
+    case "pr" =>
+      GridSpec(
+        batchSizes = Seq(10, 100, 1000),
+        schemaWidths = Seq(10),
+        stringLens = Seq(64),
+        numBatches = sys.env.get("BENCH_NUM_BATCHES").map(_.toInt).getOrElse(20),
+        warmupBatches = 5
+      )
+    case _ =>
+      GridSpec(
+        batchSizes = Seq(10, 100, 1000, 10000),
+        schemaWidths = Seq(1, 10, 50),
+        stringLens = Seq(8, 64, 512),
+        numBatches = sys.env.get("BENCH_NUM_BATCHES").map(_.toInt).getOrElse(200),
+        warmupBatches = 20
+      )
+  }
+
+  private val DefaultBatchSizes: Seq[Int] = grid.batchSizes
+  private val DefaultSchemaWidths: Seq[Int] = grid.schemaWidths
+  private val DefaultStringLens: Seq[Int] = grid.stringLens
+  private val DefaultNumBatches: Int = grid.numBatches
+  private val WarmupBatches: Int = grid.warmupBatches
 
   // All artifacts land under bench-results/ so CI can artifact-upload the
   // whole directory uniformly without knowing individual filenames beyond
