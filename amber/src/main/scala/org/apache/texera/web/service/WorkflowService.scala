@@ -318,7 +318,7 @@ class WorkflowService(
     *  2. Clears URI references from the execution registry
     *  3. Safely clears all result and console message documents
     *  4. Expires Iceberg snapshots for runtime statistics
-    *  5. Deletes large binaries from MinIO
+    *  5. Deletes this execution's large binaries from MinIO
     *
     * @param eid The execution identity to clean up resources for
     */
@@ -355,7 +355,7 @@ class WorkflowService(
           logger.debug(s"Error processing document at $uri: ${error.getMessage}")
       }
     }
-    // Delete large binaries
-    LargeBinaryManager.deleteAllObjects()
+    // Delete this execution's large binaries
+    LargeBinaryManager.deleteByExecution(eid.id)
   }
 }

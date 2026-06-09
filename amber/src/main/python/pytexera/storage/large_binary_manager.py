@@ -22,57 +22,83 @@ Users should not interact with this module directly. Use largebinary() construct
 and LargeBinaryInputStream/LargeBinaryOutputStream instead.
 """
 
-import time
+import threading
 import uuid
 from loguru import logger
 from core.storage.storage_config import StorageConfig
 
-# Module-level state
-_s3_client = None
-DEFAULT_BUCKET = "texera-large-binaries"
 
+class LargeBinaryManager:
+    """Manages large binaries in S3 for a worker process.
 
-def _get_s3_client():
-    """Get or initialize S3 client (lazy initialization, cached)."""
-    global _s3_client
-    if _s3_client is None:
+    A singleton, so the cached S3 client is shared process-wide. create() appends a
+    unique suffix to an execution-scoped base URI handed down by the controller as
+    process config (``StorageConfig.S3_LARGE_BINARIES_BASE_URI``); the worker never
+    holds an execution id. This is the Python counterpart of the JVM
+    ``LargeBinaryManager``, which uses a thread-local instead because one JVM process
+    runs many workers across executions (a Python worker is one process per execution).
+    """
+
+    _instance = None
+    # Guards singleton creation and S3-client init; reached from the operator and upload
+    # threads.
+    _lock = threading.Lock()
+
+    def __new__(cls):
+        # Double-checked locking: skip the lock once the instance exists.
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    instance = super().__new__(cls)
+                    instance._s3_client = None
+                    cls._instance = instance
+        return cls._instance
+
+    def _get_s3_client(self):
+        """Get or initialize the S3 client (lazy initialization, cached)."""
+        if self._s3_client is None:
+            with self._lock:
+                if self._s3_client is None:
+                    try:
+                        import boto3
+                        from botocore.config import Config
+                    except ImportError as e:
+                        raise RuntimeError(
+                            "boto3 required. Install with: pip install boto3"
+                        ) from e
+
+                    self._s3_client = boto3.client(
+                        "s3",
+                        endpoint_url=StorageConfig.S3_ENDPOINT,
+                        aws_access_key_id=StorageConfig.S3_AUTH_USERNAME,
+                        aws_secret_access_key=StorageConfig.S3_AUTH_PASSWORD,
+                        region_name=StorageConfig.S3_REGION,
+                        config=Config(
+                            signature_version="s3v4", s3={"addressing_style": "path"}
+                        ),
+                    )
+        return self._s3_client
+
+    def _ensure_bucket_exists(self, bucket: str):
+        """Ensure the S3 bucket exists, creating it if necessary."""
+        s3 = self._get_s3_client()
         try:
-            import boto3
-            from botocore.config import Config
-        except ImportError as e:
-            raise RuntimeError("boto3 required. Install with: pip install boto3") from e
+            s3.head_bucket(Bucket=bucket)
+        except s3.exceptions.NoSuchBucket:
+            logger.debug(f"Bucket {bucket} not found, creating it")
+            s3.create_bucket(Bucket=bucket)
+            logger.info(f"Created bucket: {bucket}")
 
-        _s3_client = boto3.client(
-            "s3",
-            endpoint_url=StorageConfig.S3_ENDPOINT,
-            aws_access_key_id=StorageConfig.S3_AUTH_USERNAME,
-            aws_secret_access_key=StorageConfig.S3_AUTH_PASSWORD,
-            region_name=StorageConfig.S3_REGION,
-            config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
-        )
-    return _s3_client
+    def create(self) -> str:
+        """Append a unique suffix to the controller-provided base URI.
 
-
-def _ensure_bucket_exists(bucket: str):
-    """Ensure S3 bucket exists, creating it if necessary."""
-    s3 = _get_s3_client()
-    try:
-        s3.head_bucket(Bucket=bucket)
-    except s3.exceptions.NoSuchBucket:
-        logger.debug(f"Bucket {bucket} not found, creating it")
-        s3.create_bucket(Bucket=bucket)
-        logger.info(f"Created bucket: {bucket}")
-
-
-def create() -> str:
-    """
-    Creates a new largebinary reference with a unique S3 URI.
-
-    Returns:
-        S3 URI string (format: s3://bucket/key)
-    """
-    _ensure_bucket_exists(DEFAULT_BUCKET)
-    timestamp_ms = int(time.time() * 1000)
-    unique_id = uuid.uuid4()
-    object_key = f"objects/{timestamp_ms}/{unique_id}"
-    return f"s3://{DEFAULT_BUCKET}/{object_key}"
+        Pure string construction (no S3 round-trip); the bucket is created on demand at
+        upload time. Returns e.g. ``s3://bucket/objects/{execution_id}/{uuid}``.
+        """
+        base_uri = StorageConfig.S3_LARGE_BINARIES_BASE_URI
+        if not base_uri:
+            raise RuntimeError(
+                "largebinary() requires a large-binaries base URI, but none is "
+                "configured (StorageConfig.S3_LARGE_BINARIES_BASE_URI is unset)."
+            )
+        return f"{base_uri}{uuid.uuid4()}"
