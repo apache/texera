@@ -19,25 +19,58 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-import org.scalatest.BeforeAndAfterEach
+import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.jooq.generated.Tables.PYTHON_VIRTUAL_ENVIRONMENTS
+import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.{Files, Path, Paths}
+import java.util.UUID
 import java.util.concurrent.LinkedBlockingQueue
 import scala.jdk.CollectionConverters._
 
-class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
+class PveResourceSpec
+    extends AnyFlatSpec
+    with Matchers
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach
+    with MockTexeraDB {
 
   private val testCuid = 256
+  // Randomised to avoid colliding with unrelated specs that may seed uids in the
+  // same embedded postgres if they run in parallel.
+  private val testUid = 8000 + scala.util.Random.nextInt(1000)
   private var testPveName: String = _
   private var testRoot: Path = _
   private var queue: LinkedBlockingQueue[String] = _
+
+  override protected def beforeAll(): Unit = {
+    initializeDBAndReplaceDSLContext()
+    // python_virtual_environments.uid has an FK to user(uid); seed one user
+    // for the DB-backed tests below to attach their rows to.
+    val userDao = new UserDao(getDSLContext.configuration())
+    val user = new User
+    user.setUid(testUid)
+    user.setName("pve_resource_spec_user")
+    user.setEmail(s"user_${UUID.randomUUID()}@example.com")
+    user.setPassword("password")
+    userDao.insert(user)
+  }
+
+  override protected def afterAll(): Unit = shutdownDB()
 
   override protected def beforeEach(): Unit = {
     testPveName = s"testenv${System.currentTimeMillis()}"
     testRoot = Paths.get("/tmp/texera-pve/venvs").resolve(testCuid.toString)
     queue = new LinkedBlockingQueue[String]()
+    // Clean any PVE rows left over from a prior test in this class.
+    getDSLContext
+      .deleteFrom(PYTHON_VIRTUAL_ENVIRONMENTS)
+      .where(PYTHON_VIRTUAL_ENVIRONMENTS.UID.eq(testUid))
+      .execute()
   }
 
   override protected def afterEach(): Unit = {
@@ -172,5 +205,45 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
     PveManager.getPythonBin(testCuid, "") shouldBe None
     PveManager.getPythonBin(testCuid, "name with spaces") shouldBe None
     PveManager.getPythonBin(testCuid, "name;rm") shouldBe None
+  }
+
+  "PveManager.savePve + listPvesForUser" should "round-trip a row for the owning user" in {
+    val pveid = PveManager.savePve(testUid, "env-a", """{"numpy":"==1.26.0"}""")
+    pveid should be > 0
+
+    val rows = PveManager.listPvesForUser(testUid)
+    rows.map(_.name) should contain("env-a")
+    val row = rows.find(_.pveid == pveid).get
+    row.name shouldBe "env-a"
+    // Postgres JSONB normalises whitespace on read-back, so assert key/value separately
+    // rather than matching a literal JSON string.
+    row.packagesJson should include(""""numpy"""")
+    row.packagesJson should include(""""==1.26.0"""")
+  }
+
+  "PveManager.updatePve" should "mutate an owned row and refuse rows owned by someone else" in {
+    val pveid = PveManager.savePve(testUid, "env-b", "{}")
+
+    PveManager.updatePve(pveid, testUid, "env-b-renamed", """{"pandas":""}""") shouldBe true
+
+    val updated = PveManager.listPvesForUser(testUid).find(_.pveid == pveid).get
+    updated.name shouldBe "env-b-renamed"
+    updated.packagesJson should include(""""pandas"""")
+
+    // A different uid claiming the same pveid must not be able to update it.
+    val otherUid = testUid + 1
+    PveManager.updatePve(pveid, otherUid, "hijacked", "{}") shouldBe false
+    PveManager.listPvesForUser(testUid).find(_.pveid == pveid).get.name shouldBe "env-b-renamed"
+  }
+
+  "PveManager.deletePveFromDb" should "remove an owned row and return false for missing pveids" in {
+    val pveid = PveManager.savePve(testUid, "env-c", "{}")
+
+    PveManager.deletePveFromDb(pveid, testUid) shouldBe true
+    PveManager.listPvesForUser(testUid).map(_.pveid) should not contain pveid
+
+    // Already-deleted (or never-existed) pveid: deleter reports false, doesn't throw.
+    PveManager.deletePveFromDb(pveid, testUid) shouldBe false
+    PveManager.deletePveFromDb(-1, testUid) shouldBe false
   }
 }
