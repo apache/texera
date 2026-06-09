@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { SortButtonComponent } from "./sort-button.component";
 import { SortMethod } from "../../../type/sort-method";
-import { describe, beforeEach, it, expect, vi } from "vitest";
 
 describe("SortButtonComponent", () => {
   let component: SortButtonComponent;
