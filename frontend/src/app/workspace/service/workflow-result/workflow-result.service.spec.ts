@@ -37,6 +37,33 @@ describe("WorkflowResultService", () => {
   it("should be created", () => {
     expect(service).toBeTruthy();
   });
+
+  it("clearResults() drops cached operator results", () => {
+    (service as any).operatorResultServices.set("op1", {});
+    (service as any).paginatedResultServices.set("op2", {});
+    expect(service.hasAnyResult("op1")).toBe(true);
+    expect(service.hasAnyResult("op2")).toBe(true);
+
+    service.clearResults();
+
+    expect(service.hasAnyResult("op1")).toBe(false);
+    expect(service.hasAnyResult("op2")).toBe(false);
+  });
+
+  it("clearResults() resets table stats to empty for subscribers", () => {
+    const pairs: [unknown, unknown][] = [];
+    service.getResultTableStats().subscribe(p => pairs.push(p));
+    (service as any).resultTableStats.next({ op1: {} });
+    service.clearResults();
+    expect(pairs[pairs.length - 1][1]).toEqual({});
+  });
+
+  it("clearResults() emits on the cleared stream so the UI tears down stale frames", () => {
+    let clearedCount = 0;
+    service.getResultClearedStream().subscribe(() => clearedCount++);
+    service.clearResults();
+    expect(clearedCount).toBe(1);
+  });
 });
 
 describe("OperatorPaginationResultService", () => {
