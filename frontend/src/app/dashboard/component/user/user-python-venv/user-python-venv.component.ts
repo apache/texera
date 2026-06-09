@@ -190,9 +190,7 @@ export class UserPythonVenvComponent implements OnInit {
     // Block duplicate names. When editing an existing draft (one with a pveid),
     // a same-named row referring to itself is fine — that's just the current
     // record. Anything else with the same name is a conflict.
-    const conflict = this.pves.find(
-      p => p.name.trim() === trimmedName && p.pveid !== draft.pveid
-    );
+    const conflict = this.pves.find(p => p.name.trim() === trimmedName && p.pveid !== draft.pveid);
     if (conflict) {
       this.notificationService.error(`An environment named "${trimmedName}" already exists.`);
       return;
