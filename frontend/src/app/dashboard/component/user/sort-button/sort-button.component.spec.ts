@@ -17,10 +17,10 @@
  * under the License.
  */
 
-import {ComponentFixture, TestBed} from "@angular/core/testing";
-import {SortButtonComponent} from "./sort-button.component";
-import {SortMethod} from "../../../type/sort-method";
-import {describe, beforeEach, it, expect, vi} from "vitest";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { SortButtonComponent } from "./sort-button.component";
+import { SortMethod } from "../../../type/sort-method";
+import { describe, beforeEach, it, expect, vi } from "vitest";
 
 describe("SortButtonComponent", () => {
   let component: SortButtonComponent;
@@ -28,7 +28,7 @@ describe("SortButtonComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [SortButtonComponent]
+      imports: [SortButtonComponent],
     }).compileComponents();
   });
 
