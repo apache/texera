@@ -61,6 +61,12 @@ describe("ComputingUnitStatusService", () => {
     websocketService = TestBed.inject(WorkflowWebsocketService);
   });
 
+  afterEach(() => {
+    // selectComputingUnit() starts an RxJS interval poll; tear the service down so
+    // the timer doesn't outlive the test and make the suite hang/flap.
+    service.ngOnDestroy();
+  });
+
   it("should be created", () => {
     expect(service).toBeTruthy();
   });
@@ -116,6 +122,26 @@ describe("ComputingUnitStatusService", () => {
     expect(resetCount).toBe(0);
 
     // Switch to a different unit while connected → tear-down signal fires once.
+    service.selectComputingUnit(5, 8);
+    expect(resetCount).toBe(1);
+  });
+
+  it("emits a connection-reset signal when switching units even if the socket already dropped (issue #3120)", () => {
+    vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
+    vi.spyOn(websocketService, "closeWebsocket").mockImplementation(() => {});
+    // socket reports disconnected throughout, e.g. the previous unit was terminated
+    vi.spyOn(websocketService, "isConnected", "get").mockReturnValue(false);
+    (service as any).allComputingUnitsSubject.next([mockUnit(7), mockUnit(8)]);
+
+    let resetCount = 0;
+    service.getConnectionResetStream().subscribe(() => resetCount++);
+
+    // First connection on unit 7: nothing to tear down yet → no signal.
+    service.selectComputingUnit(5, 7);
+    expect(resetCount).toBe(0);
+
+    // Switch units while the socket is already disconnected: stale state from
+    // unit 7 must still be cleared, so the signal fires regardless of isConnected.
     service.selectComputingUnit(5, 8);
     expect(resetCount).toBe(1);
   });

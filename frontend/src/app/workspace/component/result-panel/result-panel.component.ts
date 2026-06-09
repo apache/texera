@@ -136,6 +136,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.updateReturnPosition(DEFAULT_HEIGHT, this.height);
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
+    this.registerResultClearedHandler();
     this.handleResultPanelForVersionPreview();
     this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
     this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
@@ -215,6 +216,24 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
             }
           }
         }
+      });
+  }
+
+  /**
+   * When all session results are dropped (e.g. switching computing units or
+   * leaving the workspace), wipe the panel. Clearing the result caches alone does
+   * not re-render an operator that stays highlighted, so the previous unit's
+   * result/console frames would otherwise linger on screen.
+   */
+  registerResultClearedHandler() {
+    this.workflowResultService
+      .getResultClearedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.clearResultPanel();
+        this.currentOperatorId = undefined;
+        this.operatorTitle = "";
+        this.changeDetectorRef.detectChanges();
       });
   }
 

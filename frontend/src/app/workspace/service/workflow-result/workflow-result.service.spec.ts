@@ -57,6 +57,13 @@ describe("WorkflowResultService", () => {
     service.clearResults();
     expect(pairs[pairs.length - 1][1]).toEqual({});
   });
+
+  it("clearResults() emits on the cleared stream so the UI tears down stale frames", () => {
+    let clearedCount = 0;
+    service.getResultClearedStream().subscribe(() => clearedCount++);
+    service.clearResults();
+    expect(clearedCount).toBe(1);
+  });
 });
 
 describe("OperatorPaginationResultService", () => {
