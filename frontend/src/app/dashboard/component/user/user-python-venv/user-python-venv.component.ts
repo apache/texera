@@ -46,9 +46,7 @@ type PveUserPackageRow = {
 type PveDraft = {
   pveid?: number;
   name: string;
-  userPackages: PveUserPackageRow[];
   newPackages: PveUserPackageRow[];
-  expanded: boolean;
 };
 
 @UntilDestroy()
@@ -131,18 +129,14 @@ export class UserPythonVenvComponent implements OnInit {
     return {
       pveid: record.pveid,
       name: record.name,
-      userPackages: [],
       newPackages,
-      expanded: false,
     };
   }
 
   showPveModal(): void {
     this.currentDraft = {
       name: "",
-      userPackages: [],
       newPackages: [],
-      expanded: true,
     };
     this.pveModalVisible = true;
   }
@@ -153,9 +147,7 @@ export class UserPythonVenvComponent implements OnInit {
     this.currentDraft = {
       pveid: source.pveid,
       name: source.name,
-      userPackages: source.userPackages.map(p => ({ ...p })),
       newPackages: source.newPackages.map(p => ({ ...p })),
-      expanded: true,
     };
     this.pveModalVisible = true;
   }

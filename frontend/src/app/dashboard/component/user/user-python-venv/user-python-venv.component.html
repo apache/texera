@@ -108,44 +108,6 @@
           [(ngModel)]="pve.name" />
       </div>
 
-      <!-- USER PACKAGES (existing) -->
-      <div
-        *ngFor="let pkg of pve.userPackages; let i = index"
-        class="package-row">
-        <div class="user-package-inputs">
-          <div class="field">
-            <input
-              nz-input
-              [ngModel]="pkg.name"
-              [disabled]="true" />
-          </div>
-          <div class="field">
-            <input
-              nz-input
-              [ngModel]="pkg.versionOp"
-              [disabled]="true" />
-          </div>
-          <div class="field">
-            <input
-              nz-input
-              [ngModel]="pkg.version"
-              [disabled]="true" />
-          </div>
-          <button
-            nz-button
-            nzType="default"
-            nzShape="circle"
-            nzDanger
-            [class.highlighted-btn]="pkg.deleteToggle"
-            (click)="togglePackageDelete(pkg)">
-            <i
-              nz-icon
-              nzType="delete"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- NEW PACKAGES -->
       <div class="new-packages-section">
         <div
           class="package-row user-package-header-row"
