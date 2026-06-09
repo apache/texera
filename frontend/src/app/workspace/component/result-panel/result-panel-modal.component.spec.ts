@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,6 @@ import { PanelResizeService } from "../../service/workflow-result/panel-resize/p
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { of } from "rxjs";
-import { describe, beforeEach, it, expect, vi } from "vitest";
 
 describe("RowModalComponent", () => {
   let component: RowModalComponent;
