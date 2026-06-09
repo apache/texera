@@ -32,12 +32,12 @@ describe("RowModalComponent", () => {
   const mockTupleResult = { tuple: { id: "123", value: "test_data" } };
   const workflowResultServiceSpy = {
     getPaginatedResultService: vi.fn().mockReturnValue({
-      selectTuple: vi.fn().mockReturnValue(of(mockTupleResult))
-    })
+      selectTuple: vi.fn().mockReturnValue(of(mockTupleResult)),
+    }),
   };
 
   const resizeServiceSpy = {
-    pageSize: 10
+    pageSize: 10,
   };
 
   beforeEach(async () => {
@@ -48,7 +48,7 @@ describe("RowModalComponent", () => {
         { provide: NzModalRef, useValue: { getConfig: () => ({}), close: vi.fn() } },
         { provide: WorkflowResultService, useValue: workflowResultServiceSpy },
         { provide: PanelResizeService, useValue: resizeServiceSpy },
-      ]
+      ],
     }).compileComponents();
   });
 
