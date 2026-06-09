@@ -356,12 +356,8 @@ export class ExecuteWorkflowService {
 
   /**
    * Reset execution status and worker assignments. Unlike resetExecutionState(),
-   * which resets only the status, this also clears the worker assignments.
-   *
-   * Goes through updateExecutionState() (rather than resetExecutionState()) so the
-   * change is broadcast on executionStateStream; otherwise subscribers such as
-   * MenuComponent and ResultPanelComponent would keep showing the previous unit's
-   * execution status after a computing-unit switch.
+   * this also clears worker assignments and broadcasts the reset on
+   * executionStateStream so subscribers drop the previous unit's status.
    */
   public resetExecutionAndWorkers(): void {
     this.updateExecutionState({ state: ExecutionState.Uninitialized });

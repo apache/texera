@@ -220,10 +220,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * When all session results are dropped (e.g. switching computing units or
-   * leaving the workspace), wipe the panel. Clearing the result caches alone does
-   * not re-render an operator that stays highlighted, so the previous unit's
-   * result/console frames would otherwise linger on screen.
+   * Wipe the panel when results are dropped (e.g. switching computing units): a
+   * still-highlighted operator isn't re-rendered, so its stale frames would linger.
    */
   registerResultClearedHandler() {
     this.workflowResultService

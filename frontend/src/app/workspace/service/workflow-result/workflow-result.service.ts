@@ -49,7 +49,7 @@ export class WorkflowResultService {
   private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
   private resultTableStats = new ReplaySubject<Record<string, Record<string, Record<string, number>>>>(1);
   private resultInitiateStream = new Subject<string>();
-  // emits when all cached results are dropped, so the UI can tear down stale result frames
+  // emits when clearResults() drops cached results, so the UI can drop stale frames
   private resultClearedStream = new Subject<void>();
 
   constructor(private wsService: WorkflowWebsocketService) {
@@ -90,9 +90,8 @@ export class WorkflowResultService {
   }
 
   /**
-   * Emits when clearResults() drops all cached results. Consumers (e.g.
-   * ResultPanelComponent) subscribe to tear down stale result frames, since
-   * clearing the caches alone does not re-render an already-displayed operator.
+   * Emits when clearResults() drops cached results, so consumers can tear down
+   * stale frames (clearing the caches alone won't re-render a displayed operator).
    */
   public getResultClearedStream(): Observable<void> {
     return this.resultClearedStream.asObservable();
@@ -107,11 +106,9 @@ export class WorkflowResultService {
   }
 
   /**
-   * Drop cached operator results and reset table stats so a re-entered workflow
-   * doesn't show stale results. resultTableStats is a ReplaySubject, so
-   * reset it to an empty snapshot to avoid replaying stale stats to subscribers.
-   * Emits on resultClearedStream so subscribers tear down already-displayed
-   * result frames instead of leaving them on screen.
+   * Drop cached results and reset table stats so a re-entered workflow doesn't show
+   * stale results (resultTableStats is a ReplaySubject, so push an empty snapshot).
+   * Emits resultClearedStream so subscribers tear down already-displayed frames.
    */
   public clearResults(): void {
     this.operatorResultServices.clear();

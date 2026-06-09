@@ -162,9 +162,8 @@ export class ComputingUnitStatusService implements OnDestroy {
       // open websocket if needed
       const shouldReconnect = this.currentConnectedCuid !== cuid || this.currentConnectedWid !== wid;
       if (isDefined(wid) && shouldReconnect) {
-        // A previous connection attempt means websocket-derived state may be
-        // lingering even if the socket has since dropped (e.g. the prior unit was
-        // terminated), so tear it down regardless of the current isConnected flag.
+        // Tear down stale state on switch even if the socket already dropped
+        // (e.g. the prior unit was terminated), not just while still connected.
         const hadPreviousConnection = isDefined(this.currentConnectedWid) || isDefined(this.currentConnectedCuid);
         if (this.workflowWebsocketService.isConnected) {
           this.workflowWebsocketService.closeWebsocket();

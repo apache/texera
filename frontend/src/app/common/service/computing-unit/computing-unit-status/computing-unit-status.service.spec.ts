@@ -62,8 +62,7 @@ describe("ComputingUnitStatusService", () => {
   });
 
   afterEach(() => {
-    // selectComputingUnit() starts an RxJS interval poll; tear the service down so
-    // the timer doesn't outlive the test and make the suite hang/flap.
+    // tear down the interval poll started by selectComputingUnit() so it can't outlive the test
     service.ngOnDestroy();
   });
 
@@ -140,8 +139,7 @@ describe("ComputingUnitStatusService", () => {
     service.selectComputingUnit(5, 7);
     expect(resetCount).toBe(0);
 
-    // Switch units while the socket is already disconnected: stale state from
-    // unit 7 must still be cleared, so the signal fires regardless of isConnected.
+    // Switch units while disconnected: unit 7's stale state must still be cleared.
     service.selectComputingUnit(5, 8);
     expect(resetCount).toBe(1);
   });
