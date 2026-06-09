@@ -20,7 +20,7 @@ package org.apache.texera.service.resource
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import jakarta.annotation.security.PermitAll
+import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
 import jakarta.ws.rs.core._
 import jakarta.ws.rs.{Consumes, DELETE, GET, POST, Path, Produces}
@@ -243,20 +243,27 @@ class AccessControlResource extends LazyLogging {
   }
 }
 
-// LiteLLM proxy: gates on `guiWorkflowWorkspaceCopilotEnabled`, not on
-// JWT. Preserve pre-eager-filter behavior (anonymous access permitted when
-// the feature flag is on) by opting out of the filter's eager 401. Whether
-// /chat/* should require an authenticated user is a separate hardening
-// decision tracked outside this PR.
+// Forwards chat completions to LiteLLM with the server's master key, so
+// only authenticated users may call it.
 @Path("/chat")
-@PermitAll
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
-class LiteLLMProxyResource extends LazyLogging {
+class LiteLLMProxyResource(
+    copilotEnabled: Boolean,
+    litellmBaseUrl: String,
+    litellmApiKey: String
+) extends LazyLogging {
+
+  // No-arg constructor for Jersey reflection. Tests use the param-ful form.
+  def this() =
+    this(
+      GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
+      LLMConfig.baseUrl,
+      LLMConfig.masterKey
+    )
 
   private val client: Client = ClientBuilder.newClient()
-  private val litellmBaseUrl: String = LLMConfig.baseUrl
-  private val litellmApiKey: String = LLMConfig.masterKey
 
   @POST
   @Path("/{path:.*}")
@@ -265,10 +272,10 @@ class LiteLLMProxyResource extends LazyLogging {
       @Context headers: HttpHeaders,
       body: String
   ): Response = {
-    if (!GuiConfig.guiWorkflowWorkspaceCopilotEnabled) {
+    if (!copilotEnabled) {
       return Response
         .status(Response.Status.FORBIDDEN)
-        .entity("""{"error": "Copilot feature is disabled"}""")
+        .entity(LiteLLMProxyResource.CopilotDisabledBody)
         .build()
     }
 
@@ -321,21 +328,35 @@ class LiteLLMProxyResource extends LazyLogging {
   }
 }
 
+object LiteLLMProxyResource {
+  val CopilotDisabledBody: String = """{"error": "Copilot feature is disabled"}"""
+}
+
 @Path("/models")
-@PermitAll
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
-class LiteLLMModelsResource extends LazyLogging {
+class LiteLLMModelsResource(
+    copilotEnabled: Boolean,
+    litellmBaseUrl: String,
+    litellmApiKey: String
+) extends LazyLogging {
+
+  // No-arg constructor for Jersey reflection. Tests use the param-ful form.
+  def this() =
+    this(
+      GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
+      LLMConfig.baseUrl,
+      LLMConfig.masterKey
+    )
 
   private val client: Client = ClientBuilder.newClient()
-  private val litellmBaseUrl: String = LLMConfig.baseUrl
-  private val litellmApiKey: String = LLMConfig.masterKey
 
   @GET
   def getModels: Response = {
-    if (!GuiConfig.guiWorkflowWorkspaceCopilotEnabled) {
+    if (!copilotEnabled) {
       return Response
         .status(Response.Status.FORBIDDEN)
-        .entity("""{"error": "Copilot feature is disabled"}""")
+        .entity(LiteLLMProxyResource.CopilotDisabledBody)
         .build()
     }
 
