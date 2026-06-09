@@ -51,8 +51,6 @@ object PveManager {
       userPackages: Seq[String]
   )
 
-  // Row read from the python_virtual_environments table; packages is kept as the
-  // raw JSON string so PveResource can parse it with its own ObjectMapper.
   case class StoredPve(pveid: Int, name: String, packagesJson: String)
 
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")

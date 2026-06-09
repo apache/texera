@@ -91,8 +91,6 @@ export class UserPythonVenvComponent implements OnInit {
     this.refreshPves();
   }
 
-  // Pops a confirmation dialog before actually deleting. Wired into the trash
-  // icons so a single misclick doesn't drop a row.
   confirmDeletePve(index: number): void {
     const target = this.pves[index];
     if (!target) return;
@@ -139,7 +137,6 @@ export class UserPythonVenvComponent implements OnInit {
     };
   }
 
-  // "Create Python Venv" entry-point: open the modal with a fresh empty draft.
   showPveModal(): void {
     this.currentDraft = {
       name: "",
@@ -150,7 +147,6 @@ export class UserPythonVenvComponent implements OnInit {
     this.pveModalVisible = true;
   }
 
-  // Clicking an existing PVE row: open the modal pre-filled.
   openExistingPve(index: number): void {
     const source = this.pves[index];
     if (!source) return;
@@ -187,9 +183,6 @@ export class UserPythonVenvComponent implements OnInit {
       return;
     }
 
-    // Block duplicate names. When editing an existing draft (one with a pveid),
-    // a same-named row referring to itself is fine — that's just the current
-    // record. Anything else with the same name is a conflict.
     const conflict = this.pves.find(p => p.name.trim() === trimmedName && p.pveid !== draft.pveid);
     if (conflict) {
       this.notificationService.error(`An environment named "${trimmedName}" already exists.`);
@@ -198,8 +191,6 @@ export class UserPythonVenvComponent implements OnInit {
 
     const packages: Record<string, string> = {};
     for (const row of draft.newPackages) {
-      // Rows highlighted via the trash icon are dropped from the persisted set,
-      // so saving with one selected effectively deletes that package.
       if (row.deleteToggle) continue;
       const pkgName = row.name.trim();
       if (!pkgName) continue;
@@ -236,8 +227,6 @@ export class UserPythonVenvComponent implements OnInit {
     return index;
   }
 
-  // Deletes the PVE at `index` from the DB and refreshes the list. Invoked from
-  // the confirmation modal opened by confirmDeletePve(index).
   deletePve(index: number): void {
     const target = this.pves[index];
     if (!target || target.pveid === undefined) return;
