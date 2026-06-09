@@ -78,11 +78,13 @@ public class GitVersionControlLocalFileStorage {
    * @throws IOException If an I/O error occurs.
    */
   public static void deleteRepo(Path directoryPath) throws IOException {
-    Files.walk(directoryPath)
-        .sorted(Comparator.reverseOrder())
-        .map(Path::toFile)
-        .forEach(File::delete);
-  }
+    try (var stream = Files.walk(directoryPath)) {
+        stream
+            .sorted(Comparator.reverseOrder())
+            .map(Path::toFile)
+            .forEach(File::delete);
+    }
+}
 
   /**
    * Initializes a new repository for version control at the specified path.
