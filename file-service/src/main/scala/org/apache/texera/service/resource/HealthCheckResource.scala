@@ -19,10 +19,12 @@
 
 package org.apache.texera.service.resource
 
+import jakarta.annotation.security.PermitAll
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
 
 @Path("/healthcheck")
+@PermitAll
 @Produces(Array(MediaType.APPLICATION_JSON))
 class HealthCheckResource {
   @GET

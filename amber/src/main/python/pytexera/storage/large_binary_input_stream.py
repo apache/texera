@@ -60,9 +60,9 @@ class LargeBinaryInputStream(IOBase):
 
     def _lazy_init(self):
         """Download from S3 on first read operation."""
-        from pytexera.storage import large_binary_manager
+        from pytexera.storage.large_binary_manager import LargeBinaryManager
 
-        s3 = large_binary_manager._get_s3_client()
+        s3 = LargeBinaryManager()._get_s3_client()
         response = s3.get_object(
             Bucket=self._large_binary.get_bucket_name(),
             Key=self._large_binary.get_object_key(),
