@@ -22,6 +22,7 @@ package org.apache.texera.service.resource
 import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
+// ApplicationConfig lives in common/config, not the amber module.
 import org.apache.texera.amber.config.ApplicationConfig
 import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, UserSystemConfig}
 
@@ -62,7 +63,6 @@ class ConfigResource {
       "asyncRenderingEnabled" -> GuiConfig.guiWorkflowWorkspaceAsyncRenderingEnabled,
       "timetravelEnabled" -> GuiConfig.guiWorkflowWorkspaceTimetravelEnabled,
       "productionSharedEditingServer" -> GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer,
-      "defaultDataTransferBatchSize" -> ApplicationConfig.defaultDataTransferBatchSize,
       "defaultExecutionMode" -> GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
       "sharingComputingUnitEnabled" -> ComputingUnitConfig.sharingComputingUnitEnabled,
@@ -74,6 +74,15 @@ class ConfigResource {
       "pythonNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled,
       // flags from the auth.conf if needed
       "expirationTimeInMinutes" -> AuthConfig.jwtExpirationMinutes
+    )
+
+  // Engine configs.
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/amber")
+  def getAmberConfig: Map[String, Any] =
+    Map(
+      "defaultDataTransferBatchSize" -> ApplicationConfig.defaultDataTransferBatchSize
     )
 
   @GET
