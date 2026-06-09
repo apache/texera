@@ -46,15 +46,18 @@ let agentCounter = 0;
 
 async function createAgentInstance(
   modelType: string,
-  customName?: string,
-  delegateConfig?: AgentDelegateConfig
+  delegateConfig: AgentDelegateConfig,
+  customName?: string
 ): Promise<{ agentId: string; agent: TexeraAgent }> {
   const agentId = `agent-${++agentCounter}`;
   const config = getBackendConfig();
 
   const openai = createOpenAI({
     baseURL: `${config.modelsEndpoint}/api`,
-    apiKey: env.LLM_API_KEY,
+    // The LLM gateway (access-control-service) enforces a REGULAR/ADMIN-role
+    // JWT (apache/texera#5421) and injects the LiteLLM master key downstream,
+    // so the delegating user's JWT is the only credential this service sends.
+    apiKey: delegateConfig.userToken,
   });
 
   // Reasoning effort variants are configured as separate model entries in litellm-config.yaml
@@ -68,7 +71,7 @@ async function createAgentInstance(
 
   await agent.initialize();
 
-  if (delegateConfig?.workflowId && delegateConfig.userToken) {
+  if (delegateConfig.workflowId) {
     try {
       const workflow = await retrieveWorkflow(delegateConfig.userToken, delegateConfig.workflowId);
       delegateConfig.workflowName = workflow.name;
@@ -91,7 +94,7 @@ async function createAgentInstance(
   }
 
   agentStore.set(agentId, agent);
-  log.info({ agentId, delegate: !!delegateConfig }, "created agent");
+  log.info({ agentId, userId: delegateConfig.userInfo?.uid }, "created agent");
 
   return { agentId, agent };
 }
@@ -153,6 +156,10 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       set.status = 401;
       return { error: "Invalid or expired token" };
     }
+    if (errorMessage === "userToken is required") {
+      set.status = 401;
+      return { error: "userToken is required" };
+    }
     if (errorMessage === "modelType is required") {
       set.status = 400;
       return { error: "modelType is required" };
@@ -174,22 +181,24 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         throw new Error("modelType is required");
       }
 
-      let delegateConfig: AgentDelegateConfig | undefined;
-      if (userToken) {
-        if (!validateToken(userToken)) {
-          throw new Error("Invalid or expired token");
-        }
-
-        const userInfo = extractUserFromToken(userToken);
-        delegateConfig = {
-          userToken,
-          userInfo,
-          workflowId,
-          computingUnitId,
-        };
+      // The agent always calls the LLM gateway as the delegating user, so an
+      // agent without a user token would be unable to generate anything.
+      if (!userToken) {
+        throw new Error("userToken is required");
+      }
+      if (!validateToken(userToken)) {
+        throw new Error("Invalid or expired token");
       }
 
-      const { agentId, agent } = await createAgentInstance(modelType, name, delegateConfig);
+      const userInfo = extractUserFromToken(userToken);
+      const delegateConfig: AgentDelegateConfig = {
+        userToken,
+        userInfo,
+        workflowId,
+        computingUnitId,
+      };
+
+      const { agentId, agent } = await createAgentInstance(modelType, delegateConfig, name);
 
       if (settings) {
         log.info(
@@ -220,7 +229,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       body: t.Object({
         modelType: t.String(),
         name: t.Optional(t.String()),
-        userToken: t.Optional(t.String()),
+        userToken: t.String(),
         workflowId: t.Optional(t.Number()),
         computingUnitId: t.Optional(t.Number()),
         settings: t.Optional(
@@ -630,7 +639,6 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
 
   console.log("");
   console.log("Environment:");
-  console.log(`  LLM_API_KEY: ${env.LLM_API_KEY === "dummy" ? "dummy (default)" : "set"}`);
   console.log(`  LLM_ENDPOINT: ${getBackendConfig().modelsEndpoint}`);
   console.log(`  WORKFLOW_COMPILING_SERVICE_ENDPOINT: ${getBackendConfig().compileEndpoint}`);
   console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${getBackendConfig().apiEndpoint}`);

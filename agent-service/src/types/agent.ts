@@ -147,7 +147,7 @@ export interface AgentInfo {
 export interface CreateAgentRequest {
   modelType: string;
   name?: string;
-  userToken?: string;
+  userToken: string;
   workflowId?: number;
   computingUnitId?: number;
   settings?: AgentSettingsApi;
