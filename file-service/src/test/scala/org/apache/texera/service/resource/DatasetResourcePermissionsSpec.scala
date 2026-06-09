@@ -42,7 +42,8 @@ class DatasetResourcePermissionsSpec extends AnyFlatSpec with Matchers {
       .filter(_.getAnnotations.exists(_.annotationType.isAnnotationPresent(classOf[HttpMethod])))
 
   private def isPermitAll(m: Method): Boolean = m.getAnnotation(classOf[PermitAll]) != null
-  private def rolesOf(m: Method): Option[RolesAllowed] = Option(m.getAnnotation(classOf[RolesAllowed]))
+  private def rolesOf(m: Method): Option[RolesAllowed] =
+    Option(m.getAnnotation(classOf[RolesAllowed]))
 
   // Public read endpoints for anonymous hub visitors browsing public datasets.
   // These MUST stay @PermitAll or the public hub breaks for logged-out users.
@@ -64,9 +65,10 @@ class DatasetResourcePermissionsSpec extends AnyFlatSpec with Matchers {
     endpointMethods.foreach { m =>
       withClue(s"${m.getName}: ") {
         (isPermitAll(m), rolesOf(m).isDefined) match {
-          case (true, true)   => fail("carries both @PermitAll and @RolesAllowed")
-          case (false, false) => fail("carries neither @PermitAll nor @RolesAllowed (would default to open)")
-          case _              => succeed
+          case (true, true) => fail("carries both @PermitAll and @RolesAllowed")
+          case (false, false) =>
+            fail("carries neither @PermitAll nor @RolesAllowed (would default to open)")
+          case _ => succeed
         }
       }
     }
