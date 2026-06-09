@@ -80,6 +80,7 @@ object StorageConfig {
   val s3Region: String = conf.getString("storage.s3.region")
   val s3Username: String = conf.getString("storage.s3.auth.username")
   val s3Password: String = conf.getString("storage.s3.auth.password")
+  val s3LargeBinariesBucket: String = conf.getString("storage.s3.large-binaries-bucket")
   val s3MultipartUploadPartSize: Long = parseSizeStringToBytes(
     conf.getString("storage.s3.multipart.part-size")
   )
