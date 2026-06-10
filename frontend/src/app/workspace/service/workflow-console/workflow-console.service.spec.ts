@@ -34,4 +34,17 @@ describe("WorkflowConsoleService", () => {
   it("should be created", () => {
     expect(service).toBeTruthy();
   });
+
+  it("clearConsoleMessages() removes all messages and notifies subscribers", () => {
+    (service as any).consoleMessages.set("op1", []);
+    expect(service.hasConsoleMessages("op1")).toBe(true);
+
+    let notified = false;
+    service.getConsoleMessageUpdateStream().subscribe(() => (notified = true));
+
+    service.clearConsoleMessages();
+
+    expect(service.hasConsoleMessages("op1")).toBe(false);
+    expect(notified).toBe(true);
+  });
 });

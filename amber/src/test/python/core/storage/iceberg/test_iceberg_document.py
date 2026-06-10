@@ -57,6 +57,7 @@ StorageConfig.initialize(
     s3_region="us-east-1",
     s3_auth_username="minioadmin",
     s3_auth_password="minioadmin",
+    s3_large_binaries_base_uri="s3://texera-large-binaries/objects/0/",
 )
 
 
