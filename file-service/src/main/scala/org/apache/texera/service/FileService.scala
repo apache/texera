@@ -45,6 +45,7 @@ import org.apache.texera.service.resource.{
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LargeBinaryManager
 import org.eclipse.jetty.server.session.SessionHandler
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
 
 class FileService extends Application[FileServiceConfiguration] with LazyLogging {
@@ -94,6 +95,9 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
     environment.jersey.register(
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
+
+    // Enforce @RolesAllowed annotations on resource methods
+    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
 
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
