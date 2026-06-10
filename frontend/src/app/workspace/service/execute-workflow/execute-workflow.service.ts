@@ -354,6 +354,16 @@ export class ExecuteWorkflowService {
     };
   }
 
+  /**
+   * Reset execution status and worker assignments. Unlike resetExecutionState(),
+   * this also clears worker assignments and broadcasts the reset on
+   * executionStateStream so subscribers drop the previous unit's status.
+   */
+  public resetExecutionAndWorkers(): void {
+    this.updateExecutionState({ state: ExecutionState.Uninitialized });
+    this.assignedWorkerIds.clear();
+  }
+
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {
     if (isEqual(this.currentState, stateInfo)) {
       return;
