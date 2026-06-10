@@ -36,16 +36,16 @@ import javax.ws.rs.core.Response
 
 object PveResource {
   case class SavePvePayload(name: String, packages: Map[String, String])
-  case class PveListItem(pveid: Int, name: String, packages: Map[String, String])
+  case class PveListItem(veid: Int, name: String, packages: Map[String, String])
+
+  private val mapper: ObjectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
+  private val packagesType = new TypeReference[java.util.Map[String, String]] {}
 }
 
 @Path("/pve")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class PveResource {
   import PveResource._
-
-  private val mapper: ObjectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
-  private val packagesType = new TypeReference[java.util.Map[String, String]] {}
   // --------------------------------------------------
   // Get system packages
   // --------------------------------------------------
@@ -81,7 +81,7 @@ class PveResource {
         val packages: Map[String, String] =
           try mapper.readValue(stored.packagesJson, packagesType).asScala.toMap
           catch { case _: Throwable => Map.empty[String, String] }
-        PveListItem(stored.pveid, stored.name, packages)
+        PveListItem(stored.veid, stored.name, packages)
       }
       .asJava
   }
@@ -90,10 +90,10 @@ class PveResource {
   // Update a PVE row owned by the current user
   // --------------------------------------------------
   @PUT
-  @Path("/db/{pveid}")
+  @Path("/db/{veid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def updatePve(
-      @PathParam("pveid") pveid: Int,
+      @PathParam("veid") veid: Int,
       payload: SavePvePayload,
       @Auth sessionUser: SessionUser
   ): Response = {
@@ -106,8 +106,8 @@ class PveResource {
     }
     try {
       val packagesJson = mapper.writeValueAsString(payload.packages)
-      val updated = PveManager.updatePve(pveid, sessionUser.getUid.intValue(), name, packagesJson)
-      if (updated) Response.ok(Map("pveid" -> pveid).asJava).build()
+      val updated = PveManager.updatePve(veid, sessionUser.getUid.intValue(), name, packagesJson)
+      if (updated) Response.ok(Map("veid" -> veid).asJava).build()
       else Response.status(Response.Status.NOT_FOUND).build()
     } catch {
       case e: Exception =>
@@ -120,9 +120,9 @@ class PveResource {
   // Delete a PVE row owned by the current user
   // --------------------------------------------------
   @DELETE
-  @Path("/db/{pveid}")
-  def deletePveFromDb(@PathParam("pveid") pveid: Int, @Auth sessionUser: SessionUser): Response = {
-    val deleted = PveManager.deletePveFromDb(pveid, sessionUser.getUid.intValue())
+  @Path("/db/{veid}")
+  def deletePveFromDb(@PathParam("veid") veid: Int, @Auth sessionUser: SessionUser): Response = {
+    val deleted = PveManager.deletePveFromDb(veid, sessionUser.getUid.intValue())
     if (deleted) Response.noContent().build()
     else Response.status(Response.Status.NOT_FOUND).build()
   }
@@ -143,8 +143,8 @@ class PveResource {
     }
     try {
       val packagesJson = mapper.writeValueAsString(payload.packages)
-      val pveid = PveManager.savePve(sessionUser.getUid.intValue(), name, packagesJson)
-      Response.ok(Map("pveid" -> pveid).asJava).build()
+      val veid = PveManager.savePve(sessionUser.getUid.intValue(), name, packagesJson)
+      Response.ok(Map("veid" -> veid).asJava).build()
     } catch {
       case e: Exception =>
         e.printStackTrace()

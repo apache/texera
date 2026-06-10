@@ -23,12 +23,12 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- Adds the python_virtual_environments table, used to persist user-owned PVE
--- metadata (name + installed package versions) instead of relying on the
--- filesystem layout under /tmp/texera-pve/venvs.
-CREATE TABLE IF NOT EXISTS python_virtual_environments
+-- Adds the virtual_environments table, used to persist user-owned virtual
+-- environment metadata (name + installed package versions) instead of
+-- relying on the filesystem layout under /tmp/texera-pve/venvs.
+CREATE TABLE IF NOT EXISTS virtual_environments
 (
-    pveid    SERIAL PRIMARY KEY,
+    veid     SERIAL PRIMARY KEY,
     uid      INT           NOT NULL,
     name     VARCHAR(128)  NOT NULL,
     packages JSONB         NOT NULL DEFAULT '{}'::jsonb,

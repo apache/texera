@@ -32,7 +32,7 @@ export interface PvePackageResponse {
 }
 
 export interface UserPveRecord {
-  pveid: number;
+  veid: number;
   name: string;
   packages: Record<string, string>;
 }
@@ -41,20 +41,20 @@ export interface UserPveRecord {
 export class WorkflowPveService {
   constructor(private http: HttpClient) {}
 
-  savePve(name: string, packages: Record<string, string>): Observable<{ pveid: number }> {
-    return this.http.post<{ pveid: number }>("/pve/db", { name, packages });
+  savePve(name: string, packages: Record<string, string>): Observable<{ veid: number }> {
+    return this.http.post<{ veid: number }>("/pve/db", { name, packages });
   }
 
-  updateUserPve(pveid: number, name: string, packages: Record<string, string>): Observable<{ pveid: number }> {
-    return this.http.put<{ pveid: number }>(`/pve/db/${pveid}`, { name, packages });
+  updateUserPve(veid: number, name: string, packages: Record<string, string>): Observable<{ veid: number }> {
+    return this.http.put<{ veid: number }>(`/pve/db/${veid}`, { name, packages });
   }
 
   listUserPves(): Observable<UserPveRecord[]> {
     return this.http.get<UserPveRecord[]>("/pve/db");
   }
 
-  deleteUserPve(pveid: number): Observable<void> {
-    return this.http.delete<void>(`/pve/db/${pveid}`);
+  deleteUserPve(veid: number): Observable<void> {
+    return this.http.delete<void>(`/pve/db/${veid}`);
   }
 
   getAccessToken(): string | null {

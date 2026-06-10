@@ -44,7 +44,7 @@ type PveUserPackageRow = {
 };
 
 type PveDraft = {
-  pveid?: number;
+  veid?: number;
   name: string;
   newPackages: PveUserPackageRow[];
 };
@@ -127,7 +127,7 @@ export class UserPythonVenvComponent implements OnInit {
       };
     });
     return {
-      pveid: record.pveid,
+      veid: record.veid,
       name: record.name,
       newPackages,
     };
@@ -145,7 +145,7 @@ export class UserPythonVenvComponent implements OnInit {
     const source = this.pves[index];
     if (!source) return;
     this.currentDraft = {
-      pveid: source.pveid,
+      veid: source.veid,
       name: source.name,
       newPackages: source.newPackages.map(p => ({ ...p })),
     };
@@ -175,7 +175,7 @@ export class UserPythonVenvComponent implements OnInit {
       return;
     }
 
-    const conflict = this.pves.find(p => p.name.trim() === trimmedName && p.pveid !== draft.pveid);
+    const conflict = this.pves.find(p => p.name.trim() === trimmedName && p.veid !== draft.veid);
     if (conflict) {
       this.notificationService.error(`An environment named "${trimmedName}" already exists.`);
       return;
@@ -196,9 +196,9 @@ export class UserPythonVenvComponent implements OnInit {
 
     this.saving = true;
     const request$ =
-      draft.pveid === undefined
+      draft.veid === undefined
         ? this.workflowPveService.savePve(trimmedName, packages)
-        : this.workflowPveService.updateUserPve(draft.pveid, trimmedName, packages);
+        : this.workflowPveService.updateUserPve(draft.veid, trimmedName, packages);
 
     request$.pipe(untilDestroyed(this)).subscribe({
       next: () => {
@@ -221,13 +221,13 @@ export class UserPythonVenvComponent implements OnInit {
 
   deletePve(index: number): void {
     const target = this.pves[index];
-    if (!target || target.pveid === undefined) return;
+    if (!target || target.veid === undefined) return;
 
-    const pveid = target.pveid;
+    const veid = target.veid;
     const name = target.name || "(unnamed)";
 
     this.workflowPveService
-      .deleteUserPve(pveid)
+      .deleteUserPve(veid)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
