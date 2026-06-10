@@ -40,8 +40,6 @@ class PveResourceSpec
     with MockTexeraDB {
 
   private val testCuid = 256
-  // Randomised to avoid colliding with unrelated specs that may seed uids in the
-  // same embedded postgres if they run in parallel.
   private val testUid = 8000 + scala.util.Random.nextInt(1000)
   private var testPveName: String = _
   private var testRoot: Path = _
@@ -49,8 +47,6 @@ class PveResourceSpec
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
-    // virtual_environments.uid has an FK to user(uid); seed one user
-    // for the DB-backed tests below to attach their rows to.
     val userDao = new UserDao(getDSLContext.configuration())
     val user = new User
     user.setUid(testUid)
@@ -66,7 +62,6 @@ class PveResourceSpec
     testPveName = s"testenv${System.currentTimeMillis()}"
     testRoot = Paths.get("/tmp/texera-pve/venvs").resolve(testCuid.toString)
     queue = new LinkedBlockingQueue[String]()
-    // Clean any PVE rows left over from a prior test in this class.
     getDSLContext
       .deleteFrom(VIRTUAL_ENVIRONMENTS)
       .where(VIRTUAL_ENVIRONMENTS.UID.eq(testUid))
@@ -215,8 +210,6 @@ class PveResourceSpec
     rows.map(_.name) should contain("env-a")
     val row = rows.find(_.veid == veid).get
     row.name shouldBe "env-a"
-    // Postgres JSONB normalises whitespace on read-back, so assert key/value separately
-    // rather than matching a literal JSON string.
     row.packagesJson should include(""""numpy"""")
     row.packagesJson should include(""""==1.26.0"""")
   }
@@ -230,7 +223,6 @@ class PveResourceSpec
     updated.name shouldBe "env-b-renamed"
     updated.packagesJson should include(""""pandas"""")
 
-    // A different uid claiming the same veid must not be able to update it.
     val otherUid = testUid + 1
     PveManager.updatePve(veid, otherUid, "hijacked", "{}") shouldBe false
     PveManager.listPvesForUser(testUid).find(_.veid == veid).get.name shouldBe "env-b-renamed"
@@ -242,7 +234,6 @@ class PveResourceSpec
     PveManager.deletePveFromDb(veid, testUid) shouldBe true
     PveManager.listPvesForUser(testUid).map(_.veid) should not contain veid
 
-    // Already-deleted (or never-existed) veid: deleter reports false, doesn't throw.
     PveManager.deletePveFromDb(veid, testUid) shouldBe false
     PveManager.deletePveFromDb(-1, testUid) shouldBe false
   }
