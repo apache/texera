@@ -51,9 +51,9 @@ type PveDraft = {
 
 @UntilDestroy()
 @Component({
-  selector: "texera-user-python-venv",
-  templateUrl: "./user-python-venv.component.html",
-  styleUrls: ["./user-python-venv.component.scss"],
+  selector: "texera-user-venv",
+  templateUrl: "./user-venv.component.html",
+  styleUrls: ["./user-venv.component.scss"],
   imports: [
     NgIf,
     NgFor,
@@ -69,7 +69,7 @@ type PveDraft = {
     NzTooltipDirective,
   ],
 })
-export class UserPythonVenvComponent implements OnInit {
+export class UserVenvComponent implements OnInit {
   // The user's PVEs (fetched from the DB), rendered as the page list.
   pves: PveDraft[] = [];
 
