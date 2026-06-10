@@ -163,3 +163,46 @@ export interface UpdateAgentSettingsRequest {
   maxSteps?: number;
   allowedOperatorTypes?: string[];
 }
+
+// JSON-serializable form of AgentSettings (Set -> array; systemPrompt is
+// derived from metadata at restore time and therefore not persisted).
+export interface SerializedAgentSettings {
+  disabledTools: string[];
+  maxOperatorResultCharLimit: number;
+  maxOperatorResultCellCharLimit: number;
+  operatorResultSerializationMode: OperatorResultSerializationMode;
+  toolTimeoutMs: number;
+  executionTimeoutMs: number;
+  maxSteps: number;
+  allowedOperatorTypes: string[];
+}
+
+/**
+ * Durable, JSON-serializable snapshot of a TexeraAgent.
+ *
+ * Captures the conversation (ReAct step tree + HEAD), the workflow being
+ * edited, settings, and delegate metadata so an agent can be reconstructed
+ * after a process restart. The user token is deliberately omitted (it is
+ * short-lived and security-sensitive); execution-result caches are also
+ * omitted as they can be recomputed.
+ */
+export interface AgentSnapshot {
+  version: 1;
+  agentId: string;
+  agentName: string;
+  modelType: string;
+  createdAt: string;
+  head: string;
+  stepCounter: number;
+  messageCounter: number;
+  settings: SerializedAgentSettings;
+  delegate?: {
+    userInfo?: UserInfo;
+    workflowId: number;
+    workflowName?: string;
+    computingUnitId?: number;
+  };
+  steps: ReActStep[];
+  messageGroups: Record<string, string[]>;
+  workflowContent: WorkflowContent;
+}
