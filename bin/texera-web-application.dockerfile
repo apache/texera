@@ -70,7 +70,12 @@ RUN apt-get update && apt-get install -y \
 COPY bin/protoc-version.txt bin/protoc-version.txt
 COPY bin/python-proto-gen.sh bin/python-proto-gen.sh
 RUN PROTOC_VERSION=$(cat bin/protoc-version.txt) \
-    && curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip" \
+    && case "$(uname -m)" in \
+         x86_64 | amd64) PROTOC_ARCH=x86_64 ;; \
+         aarch64 | arm64) PROTOC_ARCH=aarch_64 ;; \
+         *) echo "Unsupported architecture: $(uname -m)" >&2 && exit 1 ;; \
+       esac \
+    && curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
     && unzip -o /tmp/protoc.zip -d /usr/local \
     && chmod +x /usr/local/bin/protoc \
     && rm /tmp/protoc.zip \
