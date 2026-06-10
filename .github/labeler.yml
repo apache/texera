@@ -106,7 +106,8 @@ ci:
       - any-glob-to-any-file:
           - '.github/**'
           - '.asf.yaml'
-          - 'codecov.yml'
+      - all-globs-to-all-files:
+          - '!.github/welcome-first-time-contributor.txt'
 
 dev:
   - changed-files:

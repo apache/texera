@@ -44,6 +44,16 @@ jobs:
     if: github.event.sender.type != 'Bot'
     runs-on: ubuntu-latest
     steps:
+      # Check out the base ref (pull_request_target / issues both resolve to
+      # the trusted base branch, never the fork head) so we can read the
+      # welcome message template below. The template lives in its own .txt
+      # file so editing the wording does not trigger a full CI run; see the
+      # `ci` label exclusion in .github/labeler.yml.
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/welcome-first-time-contributor.txt
+          sparse-checkout-cone-mode: false
       - uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -104,20 +114,17 @@ jobs:
               return;
             }
 
-            const body = [
-              MARKER,
-              `👋 Thanks for your first contribution to Texera, @${author}!`,
-              ``,
-              `If you're looking for a good place to start, browse issues labeled [\`starter-task\`](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aopen+label%3Astarter-task); they're scoped to be approachable for newcomers.`,
-              ``,
-              `You can drive common housekeeping yourself by commenting one of these commands on its own line:`,
-              ``,
-              `- **Issues.** Comment \`/take\` to assign an open issue to yourself, or \`/untake\` to release it. You can find unclaimed work with the search filter \`is:issue is:open no:assignee\`.`,
-              `- **Sub-issues.** To link issues into a parent/child hierarchy, comment \`/sub-issue #5166 #5222\` on the parent to attach those children (or \`/unsub-issue #5166 #5222\` to detach them). From a child issue, comment \`/parent-issue #5166\` to set its parent, or \`/unparent-issue\` to clear it (the current parent is detected automatically). References may be written as \`#5166\` or as a bare \`5166\`; cross-repository references are not supported.`,
-              `- **Pull requests (author only).** Comment \`/request-review @user\` to request a review from someone, or \`/unrequest-review @user\` to withdraw that request.`,
-              ``,
-              `Each command must match exactly: \`/take this\` will not work, only \`/take\` does. For the full contribution flow, see [CONTRIBUTING.md](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md).`,
-            ].join('\n');
+            // Message body lives in .github/welcome-first-time-contributor.txt
+            // so wording edits skip CI. Substitute the runtime placeholders
+            // and prepend the idempotency marker.
+            const fs = require('fs');
+            const template = fs.readFileSync(
+              '.github/welcome-first-time-contributor.txt', 'utf8',
+            );
+            const body = MARKER + '\n' + template
+              .replaceAll('{{author}}', author)
+              .replaceAll('{{owner}}', owner)
+              .replaceAll('{{repo}}', repo);
 
             try {
               await github.rest.issues.createComment({
