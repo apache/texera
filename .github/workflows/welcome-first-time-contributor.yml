@@ -108,13 +108,15 @@ jobs:
               MARKER,
               `👋 Thanks for your first contribution to Texera, @${author}!`,
               ``,
-              `Drive common housekeeping by commenting a command on its own line:`,
+              `If you're looking for a good place to start, browse issues labeled [\`starter-task\`](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aopen+label%3Astarter-task); they're scoped to be approachable for newcomers.`,
               ``,
-              `- **Issues:** \`/take\` (self-assign), \`/untake\`. Find unclaimed work via \`is:issue is:open no:assignee\`.`,
-              `- **Sub-issues:** on the parent, \`/sub-issue #5166 #5222\` / \`/unsub-issue #5166 #5222\`; on the child, \`/parent-issue #5166\` / \`/unparent-issue\` (parent auto-detected). Refs can be \`#5166\` or bare \`5166\`; cross-repo refs aren't supported.`,
-              `- **PRs (author only):** \`/request-review @user\` / \`/unrequest-review @user\`.`,
+              `You can drive common housekeeping yourself by commenting one of these commands on its own line:`,
               ``,
-              `Commands must match exactly — \`/take this\` won't work, only \`/take\`. For the full flow, see [CONTRIBUTING.md](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md).`,
+              `- **Issues.** Comment \`/take\` to assign an open issue to yourself, or \`/untake\` to release it. You can find unclaimed work with the search filter \`is:issue is:open no:assignee\`.`,
+              `- **Sub-issues.** To link issues into a parent/child hierarchy, comment \`/sub-issue #5166 #5222\` on the parent to attach those children (or \`/unsub-issue #5166 #5222\` to detach them). From a child issue, comment \`/parent-issue #5166\` to set its parent, or \`/unparent-issue\` to clear it (the current parent is detected automatically). References may be written as \`#5166\` or as a bare \`5166\`; cross-repository references are not supported.`,
+              `- **Pull requests (author only).** Comment \`/request-review @user\` to request a review from someone, or \`/unrequest-review @user\` to withdraw that request.`,
+              ``,
+              `Each command must match exactly: \`/take this\` will not work, only \`/take\` does. For the full contribution flow, see [CONTRIBUTING.md](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md).`,
             ].join('\n');
 
             try {
