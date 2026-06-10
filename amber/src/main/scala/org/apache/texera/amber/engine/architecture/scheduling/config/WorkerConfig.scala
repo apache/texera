@@ -23,6 +23,7 @@ import org.apache.texera.amber.config.ApplicationConfig
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.PhysicalOp
 import org.apache.texera.amber.util.VirtualIdentityUtils
+import org.apache.texera.service.util.LargeBinaryManager
 
 case object WorkerConfig {
   def generateWorkerConfigs(
@@ -45,7 +46,8 @@ case object WorkerConfig {
       WorkerConfig(
         VirtualIdentityUtils.createWorkerIdentity(physicalOp.workflowId, physicalOp.id, idx),
         pveName = physicalOp.pveName,
-        cuid = cuid
+        cuid = cuid,
+        largeBinaryBaseUri = LargeBinaryManager.baseUriForExecution(physicalOp.executionId.id)
       )
     )
   }
@@ -54,5 +56,8 @@ case object WorkerConfig {
 case class WorkerConfig(
     workerId: ActorVirtualIdentity,
     pveName: String = "",
-    cuid: Option[Int] = None
+    cuid: Option[Int] = None,
+    // Controller-named, execution-scoped base URI under which this worker's large binaries
+    // live; create() appends a unique suffix. Empty when large binaries are unconfigured.
+    largeBinaryBaseUri: String = ""
 )
