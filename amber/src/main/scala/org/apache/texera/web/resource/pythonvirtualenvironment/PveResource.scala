@@ -98,11 +98,8 @@ class PveResource {
       @Auth sessionUser: SessionUser
   ): Response = {
     val name = Option(payload.name).map(_.trim).getOrElse("")
-    if (name.isEmpty) {
-      return Response
-        .status(Response.Status.BAD_REQUEST)
-        .entity("name is required")
-        .build()
+    if (!PveManager.isValidPveName(name)) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("invalid name").build()
     }
     try {
       val packagesJson = mapper.writeValueAsString(payload.packages)
@@ -135,11 +132,8 @@ class PveResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def savePve(payload: SavePvePayload, @Auth sessionUser: SessionUser): Response = {
     val name = Option(payload.name).map(_.trim).getOrElse("")
-    if (name.isEmpty) {
-      return Response
-        .status(Response.Status.BAD_REQUEST)
-        .entity("name is required")
-        .build()
+    if (!PveManager.isValidPveName(name)) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("invalid name").build()
     }
     try {
       val packagesJson = mapper.writeValueAsString(payload.packages)
