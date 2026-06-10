@@ -43,7 +43,8 @@ class ConfigResource {
         "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
       ),
-      "attributionEnabled" -> GuiConfig.guiAttributionEnabled
+      "attributionEnabled" -> GuiConfig.guiAttributionEnabled,
+      "inviteOnly" -> UserSystemConfig.inviteOnly
     )
 
   @GET
@@ -76,7 +77,7 @@ class ConfigResource {
     )
 
   @GET
-  @PermitAll
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/user-system")
   def getUserSystemConfig: Map[String, Any] =
     Map(

@@ -36,15 +36,13 @@ import org.scalatest.matchers.should.Matchers
 
 // Wires ConfigResource through the same Jersey auth pipeline production uses
 // (JwtAuthFilter + RolesAllowedDynamicFeature) and fires HTTP requests with and
-// without an Authorization header. /config/pre-login and /config/user-system are
-// @PermitAll and must answer unauthenticated callers (bootstrap regression guard,
+// without an Authorization header. /config/pre-login is the only @PermitAll
+// endpoint and must answer unauthenticated callers (bootstrap regression guard,
 // same shape as the break that caused PR #5049 to be reverted in #5173).
-// /config/user-system stays anonymous because a freshly-registered user is INACTIVE
-// (so cannot reach @RolesAllowed endpoints) yet the frontend needs its inviteOnly
-// flag to decide whether to show the registration-request form.
-// /config/gui is @RolesAllowed; it must reject anonymous traffic with a 401 (now
-// from JwtAuthFilter's eager check, not from a downstream RolesAllowedRequestFilter
-// 403) and accept callers with a valid Bearer token.
+// /config/gui and /config/user-system are @RolesAllowed; they must reject
+// anonymous traffic with a 401 (now from JwtAuthFilter's eager check, not
+// from a downstream RolesAllowedRequestFilter 403) and accept callers with a
+// valid Bearer token.
 class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
   // Mirror production's mapper: ConfigService bootstraps Dropwizard's default mapper
@@ -102,7 +100,8 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
       "localLogin",
       "googleLogin",
       "defaultLocalUser",
-      "attributionEnabled"
+      "attributionEnabled",
+      "inviteOnly"
     )
   }
 
@@ -138,24 +137,14 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     )
   }
 
-  "GET /config/user-system" should "return 200 without an Authorization header" in {
-    // @PermitAll: a freshly-registered user is INACTIVE and cannot reach the
-    // @RolesAllowed endpoints, yet the frontend needs inviteOnly at exactly that
-    // point to decide whether to show the registration-request form.
+  "GET /config/user-system" should "return 401 with a Bearer challenge without an Authorization header" in {
     val response =
       resources.target("/config/user-system").request(MediaType.APPLICATION_JSON).get()
-    response.getStatus shouldBe 200
+    response.getStatus shouldBe 401
+    response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
   }
 
-  it should "expose exactly the inviteOnly flag and nothing else" in {
-    val payload = resources
-      .target("/config/user-system")
-      .request(MediaType.APPLICATION_JSON)
-      .get(classOf[Map[String, Any]])
-    payload.keySet shouldBe Set("inviteOnly")
-  }
-
-  it should "also return 200 with a valid Bearer token" in {
+  it should "return 200 with a valid Bearer token whose role matches @RolesAllowed" in {
     val response = resources
       .target("/config/user-system")
       .request(MediaType.APPLICATION_JSON)
