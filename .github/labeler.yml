@@ -107,12 +107,6 @@ ci:
           - '.github/**'
           - '.asf.yaml'
           - 'codecov.yml'
-      # The first-time-contributor welcome message is plain prose read at
-      # runtime, not workflow logic, so a wording-only edit should not pay
-      # for a full CI run. Excluding it means a PR that touches only this
-      # file gets no `ci` label and skips every build stack.
-      - all-globs-to-all-files:
-          - '!.github/welcome-first-time-contributor.txt'
 
 dev:
   - changed-files:
