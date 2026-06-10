@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS virtual_environments
     uid      INT           NOT NULL,
     name     VARCHAR(128)  NOT NULL,
     packages JSONB         NOT NULL DEFAULT '{}'::jsonb,
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    UNIQUE (uid, name)
 );
 
 COMMIT;
