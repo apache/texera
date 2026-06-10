@@ -6397,7 +6397,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/semver@npm:^7.3.12, @types/semver@npm:^7.3.8":
+"@types/semver@npm:^7.3.12":
   version: 7.7.1
   resolution: "@types/semver@npm:7.7.1"
   checksum: 10c0/c938aef3bf79a73f0f3f6037c16e2e759ff40c54122ddf0b2583703393d8d3127130823facb880e694caa324eb6845628186aac1997ee8b31dc2d18fafe26268
@@ -8132,6 +8132,15 @@ __metadata:
   version: 0.1.1
   resolution: "buffers@npm:0.1.1"
   checksum: 10c0/c7a3284ddb4f5c65431508be65535e3739215f7996aa03e5d3a3fcf03144d35ffca7d9825572e6c6c6007f5308b8553c7b2941fcf5e56fac20dedea7178f5f71
+  languageName: node
+  linkType: hard
+
+"build-number-generator@npm:3.1.0":
+  version: 3.1.0
+  resolution: "build-number-generator@npm:3.1.0"
+  bin:
+    buildnumgen: bin/buildnumgen.js
+  checksum: 10c0/10d2366b74493a12aa7390e08dc5cd27f77ba600234c757e59ae9436eb7b7dde837322d34f0e177de5e5da3f4e5cabb089a03f9fcb32195ceaecd3ebab0b3c5b
   languageName: node
   linkType: hard
 
@@ -10869,20 +10878,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"git-describe@npm:4.1.0":
-  version: 4.1.0
-  resolution: "git-describe@npm:4.1.0"
-  dependencies:
-    "@types/semver": "npm:^7.3.8"
-    lodash: "npm:^4.17.21"
-    semver: "npm:^5.6.0"
-  dependenciesMeta:
-    semver:
-      optional: true
-  checksum: 10c0/2e5cbb0f5aa4a6f4dc9135276a85a29ec627a88dd0d73b63d1a3cd2ec2477a8d1d5fc83ae480a00c587c0ea8a193c6a9696a5b549dc6af02db0be74cdfac0eb5
-  languageName: node
-  linkType: hard
-
 "glob-parent@npm:^5.1.2, glob-parent@npm:~5.1.2":
   version: 5.1.2
   resolution: "glob-parent@npm:5.1.2"
@@ -11095,6 +11090,7 @@ __metadata:
     ai: "npm:5.0.93"
     ajv: "npm:8.10.0"
     buffer: "npm:5.7.1"
+    build-number-generator: "npm:3.1.0"
     concaveman: "npm:2.0.0"
     concurrently: "npm:7.4.0"
     d3-shape: "npm:2.1.0"
@@ -11105,7 +11101,6 @@ __metadata:
     file-saver: "npm:2.0.5"
     fs-extra: "npm:10.0.1"
     fuse.js: "npm:6.5.3"
-    git-describe: "npm:4.1.0"
     html2canvas: "npm:1.4.1"
     jointjs: "npm:3.5.4"
     jsdom: "npm:25.0.1"

@@ -26,7 +26,7 @@ import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.amber.config.StorageConfig
 import org.apache.texera.amber.util.ObjectMapperUtils
-import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
+import org.apache.texera.auth.{JwtAuthFilter, SessionUser, UnauthorizedExceptionMapper}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
 import org.eclipse.jetty.servlet.FilterHolder
@@ -99,6 +99,7 @@ object WorkflowCompilingService {
   def registerAuthFeatures(environment: Environment): Unit = {
     // Register JWT authentication filter
     environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
+    environment.jersey.register(classOf[UnauthorizedExceptionMapper])
 
     // Enable @Auth annotation for injecting SessionUser
     environment.jersey.register(
