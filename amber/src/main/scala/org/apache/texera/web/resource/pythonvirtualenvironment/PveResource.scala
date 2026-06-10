@@ -22,6 +22,7 @@ package org.apache.texera.web.resource.pythonvirtualenvironment
 import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.config.KubernetesConfig
@@ -44,7 +45,7 @@ object PveResource {
 
 @Path("/pve")
 @Consumes(Array(MediaType.APPLICATION_JSON))
-class PveResource {
+class PveResource extends LazyLogging {
   import PveResource._
   // --------------------------------------------------
   // Get system packages
@@ -61,7 +62,7 @@ class PveResource {
       Map("system" -> systemPkgs).asJava
     } catch {
       case e: Exception =>
-        e.printStackTrace()
+        logger.error("Failed to get system packages", e)
         throw new InternalServerErrorException(
           "Failed to get system packages."
         )
@@ -108,7 +109,7 @@ class PveResource {
       else Response.status(Response.Status.NOT_FOUND).build()
     } catch {
       case e: Exception =>
-        e.printStackTrace()
+        logger.error("Failed to update PVE", e)
         throw new InternalServerErrorException(s"Failed to update PVE: ${e.getMessage}")
     }
   }
@@ -141,7 +142,7 @@ class PveResource {
       Response.ok(Map("veid" -> veid).asJava).build()
     } catch {
       case e: Exception =>
-        e.printStackTrace()
+        logger.error("Failed to save PVE", e)
         throw new InternalServerErrorException(s"Failed to save PVE: ${e.getMessage}")
     }
   }
@@ -172,7 +173,7 @@ class PveResource {
       Response.ok(pves).build()
     } catch {
       case e: Exception =>
-        e.printStackTrace()
+        logger.error("Failed to get PVEs", e)
         throw new InternalServerErrorException(s"Failed to get PVEs: ${e.getMessage}")
     }
   }
