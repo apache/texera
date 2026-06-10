@@ -214,6 +214,78 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include(""""question": prompt_value""")
   }
 
+  it should
+    "convert Replicate terminal failed/canceled status into a synthetic 502 with surfaced error detail" in {
+    // Regression for Ma77Ball: Replicate's polling endpoint returns HTTP 200
+    // even when the prediction itself terminally failed. Without this fix,
+    // _post_with_fallback sees status 200 and process_table parses the
+    // success-shape, silently emitting json.dumps(body) (raw error JSON)
+    // into the result column instead of a readable error. We synthesize a
+    // 502 with a top-level `error` field so the upstream non-200 path
+    // surfaces the actual reason via _format_error.
+    val code = makeDesc(task = "image-to-image").generatePythonCode()
+    code should include("""if status == "succeeded":""")
+    code should include("""if status in ("failed", "canceled"):""")
+    code should include("Replicate prediction")
+    code should include("poll_resp.status_code = 502")
+    code should include("""body_json.get("error")""")
+  }
+
+  it should
+    "convert Wavespeed terminal failed status into a synthetic 502 with surfaced error detail" in {
+    // Same fix as Replicate, applied to Wavespeed's poll loop where the
+    // pattern was `status in ("completed", "failed")` collapsing both
+    // terminal states into a single `return poll_resp`. We now route
+    // "failed" through the synthetic-502 path so the error reaches the
+    // user instead of being parsed as a successful body.
+    val code = makeDesc(task = "image-to-image").generatePythonCode()
+    code should include("""if status == "completed":""")
+    code should include("""if status == "failed":""")
+    code should include("Wavespeed job failed")
+  }
+
+  it should
+    "fail fast at runtime when zero-shot-image-classification has fewer than 2 candidate labels" in {
+    // Regression for Ma77Ball's comment: without a dedicated candidateLabels
+    // field (lands in PR 5), zero-shot reuses prompt_value as a comma-
+    // separated list. Two failure modes the bare list comprehension hides
+    // are both caught by the >= 2 check:
+    //  1. Empty prompt column → labels = [] → HF API rejects
+    //     candidate_labels: [] with an opaque 400.
+    //  2. Missing prompt column → upstream falls back to "What is shown in
+    //     this image?" (no comma) → labels = ["What is shown in this image?"],
+    //     a single nonsense label that returns a useless 1.0 score.
+    // Zero-shot classification needs >= 2 candidate labels to be meaningful,
+    // so the fix raises ValueError before the request goes out and the user
+    // sees a clear configuration error instead of a generic HTTP failure or
+    // misleading 100%-confidence garbage.
+    val code = makeDesc(task = "zero-shot-image-classification").generatePythonCode()
+    code should include("if len(labels) < 2:")
+    code should include("raise ValueError(")
+    code should include("at least 2 candidate")
+  }
+
+  it should
+    "extract base64 image from image+prompt dict payloads in _call_provider so third-party providers receive it" in {
+    // Regression for the issue Ma77Ball flagged: visual-question-answering,
+    // document-question-answering, and zero-shot-image-classification build
+    // dict payloads with use_raw_binary_body=False. Before the fix, when
+    // those tasks routed off hf-inference to a third-party provider, the
+    // top-of-_call_provider img_b64 stayed "" and the image was silently
+    // dropped. The fix reads the base64 out of payload["inputs"]["image"]
+    // (for VQA / doc-QA) or payload["inputs"] (for zero-shot-image-
+    // classification) so every provider branch below sees a populated img_b64.
+    val code = makeDesc(task = "visual-question-answering").generatePythonCode()
+    // VQA / doc-QA: image at payload["inputs"]["image"].
+    code should include("""isinstance(inputs, dict) and isinstance(inputs.get("image"), str)""")
+    code should include("""img_b64 = inputs["image"]""")
+    // Zero-shot-image-classification: image at payload["inputs"] directly.
+    code should include(
+      """elif task == "zero-shot-image-classification" and isinstance(inputs, str):"""
+    )
+    code should include("img_b64 = inputs")
+  }
+
   it should "route image-text-to-text through chat completions with embedded base64 image" in {
     val code = makeDesc(task = "image-text-to-text").generatePythonCode()
     code should include("""elif task == "image-text-to-text":""")

@@ -95,7 +95,22 @@ object ImageTaskCodegen extends TaskCodegen {
       |                # the task is shippable without a dedicated operator field.
       |                # TODO: replace with a first-class `candidateLabels` field once
       |                # the property panel supports task-specific inputs.
+      |                #
+      |                # Fail fast if usable labels can't be derived. Both modes lead to
+      |                # a meaningless inference call:
+      |                #   1. Empty prompt column          -> labels = []
+      |                #      The HF API rejects candidate_labels: [] with an opaque 400.
+      |                #   2. Missing prompt column        -> upstream sets prompt_value
+      |                #      to the fallback "What is shown in this image?", which has
+      |                #      no comma, so labels collapses to a single nonsense entry.
+      |                # Zero-shot classification needs >= 2 candidate labels to be
+      |                # meaningful — surface a configuration error in both cases.
       |                labels = [s.strip() for s in prompt_value.split(",") if s.strip()]
+      |                if len(labels) < 2:
+      |                    raise ValueError(
+      |                        "zero-shot-image-classification requires at least 2 candidate "
+      |                        "labels: provide a comma-separated list in the prompt column."
+      |                    )
       |                payload = {
       |                    "inputs": self._image_input_as_base64(current_image_bytes),
       |                    "parameters": {"candidate_labels": labels},

@@ -247,6 +247,22 @@ object PythonCodegenBase {
        |        img_b64 = ""
        |        if use_raw_binary_body and isinstance(pipeline_payload, bytes):
        |            img_b64 = base64.b64encode(pipeline_payload).decode("utf-8")
+       |        elif isinstance(pipeline_payload, dict):
+       |            # Image+prompt tasks (visual-question-answering, document-question-
+       |            # answering, zero-shot-image-classification) build dict payloads
+       |            # with use_raw_binary_body=False, so the raw-bytes extraction above
+       |            # doesn't fire. Without this branch, when one of those tasks routes
+       |            # to a third-party provider (replicate / fal-ai / wavespeed /
+       |            # OpenAI-compatible / unknown-fallback) the image is silently
+       |            # dropped and only prompt_value is sent — they happen to work only
+       |            # on hf-inference, where the dict goes through as JSON. Surfacing
+       |            # img_b64 here keeps the provider-specific branches below image-
+       |            # aware without each branch needing to know the dict shape.
+       |            inputs = pipeline_payload.get("inputs")
+       |            if isinstance(inputs, dict) and isinstance(inputs.get("image"), str):
+       |                img_b64 = inputs["image"]
+       |            elif task == "zero-shot-image-classification" and isinstance(inputs, str):
+       |                img_b64 = inputs
        |
        |        # zai-org: custom /api/paas/v4/ surface.
        |        if provider_name == "zai-org":
@@ -296,7 +312,23 @@ object PythonCodegenBase {
        |                    if poll_resp.status_code != 200:
        |                        continue
        |                    status = poll_resp.json().get("status", "")
-       |                    if status in ("succeeded", "failed", "canceled"):
+       |                    if status == "succeeded":
+       |                        return poll_resp
+       |                    if status in ("failed", "canceled"):
+       |                        # The polling HTTP request itself returned 200, but the
+       |                        # Replicate prediction terminally failed. Without this
+       |                        # branch, process_table would treat the 200 as success
+       |                        # and emit json.dumps(body) (raw error JSON) into the
+       |                        # output cell. Convert to a synthetic 502 so
+       |                        # _post_with_fallback's non-200 handler surfaces the
+       |                        # actual failure detail via _format_error.
+       |                        body_json = poll_resp.json() if poll_resp.text else {}
+       |                        detail = (body_json.get("error") or body_json.get("logs") or status) \
+       |                            if isinstance(body_json, dict) else status
+       |                        poll_resp.status_code = 502
+       |                        poll_resp._content = json.dumps({
+       |                            "error": f"Replicate prediction {status}: {detail}"
+       |                        }).encode("utf-8")
        |                        return poll_resp
        |                    if (poll_idx + 1) % 30 == 0:
        |                        print(f"[hf] Replicate still running for model '{self.MODEL_ID}' after {(poll_idx + 1) * 2}s; will wait up to 600s.")
@@ -338,8 +370,26 @@ object PythonCodegenBase {
        |                poll_resp = requests.get(result_url, headers=json_headers, timeout=30)
        |                if poll_resp.status_code != 200:
        |                    continue
-       |                status = poll_resp.json().get("data", {}).get("status", "")
-       |                if status in ("completed", "failed"):
+       |                body_json = poll_resp.json() if poll_resp.text else {}
+       |                data_obj = body_json.get("data", {}) if isinstance(body_json, dict) else {}
+       |                status = data_obj.get("status", "") if isinstance(data_obj, dict) else ""
+       |                if status == "completed":
+       |                    return poll_resp
+       |                if status == "failed":
+       |                    # Same shape as Replicate: HTTP 200 + body says "failed".
+       |                    # Synthesize a 502 so _post_with_fallback's non-200 handler
+       |                    # reports the actual reason instead of process_table
+       |                    # parsing the success-shaped body and writing raw error
+       |                    # JSON into the result cell.
+       |                    detail = (
+       |                        (data_obj.get("error") if isinstance(data_obj, dict) else None)
+       |                        or (body_json.get("error") if isinstance(body_json, dict) else None)
+       |                        or "failed"
+       |                    )
+       |                    poll_resp.status_code = 502
+       |                    poll_resp._content = json.dumps({
+       |                        "error": f"Wavespeed job failed: {detail}"
+       |                    }).encode("utf-8")
        |                    return poll_resp
        |                if (poll_idx + 1) % 30 == 0:
        |                    print(f"[hf] Wavespeed still running for model '{self.MODEL_ID}' after {poll_idx + 1}s; will wait up to 120s.")
