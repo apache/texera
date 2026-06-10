@@ -49,7 +49,7 @@
         *ngIf="pves.length > 0"
         class="python-env-page-list">
         <li
-          *ngFor="let pve of pves; let i = index; trackBy: trackByIndex"
+          *ngFor="let pve of pves; let i = index; trackBy: trackByVeid"
           class="python-env-page-item"
           (click)="openExistingPve(i)">
           <span class="python-env-name">{{ pve.name || "(unnamed)" }}</span>

@@ -215,8 +215,8 @@ export class UserPythonVenvComponent implements OnInit {
     });
   }
 
-  trackByIndex(index: number): number {
-    return index;
+  trackByVeid(_: number, pve: PveDraft): number | undefined {
+    return pve.veid;
   }
 
   deletePve(index: number): void {
