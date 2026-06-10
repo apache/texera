@@ -39,6 +39,7 @@ import org.apache.texera.amber.engine.common.actormessage.{Backpressure, CreditU
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.{CheckpointState, Utils}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.nio.file.Path
 import org.apache.texera.web.resource.pythonvirtualenvironment.PveManager
@@ -187,30 +188,43 @@ class PythonWorkflowWorker(
     // Set the Iceberg related arguments based on the catalog type.
     val isPostgres = StorageConfig.icebergCatalogType == "postgres"
     val isRest = StorageConfig.icebergCatalogType == "rest"
+
+    // Pass startup configuration to the Python worker by name, as a single JSON
+    // object, rather than by argv position. This way the two sides agree by key,
+    // so adding/removing/reordering a field can no longer silently misassign
+    // values; a missing or renamed key fails loudly on the Python side instead.
+    val startupConfig: Map[String, String] = Map(
+      "workerId" -> workerConfig.workerId.name,
+      "outputPort" -> Integer.toString(pythonProxyServer.getPortNumber.get()),
+      "loggerLevel" -> UdfConfig.pythonLogStreamHandlerLevel,
+      "rPath" -> RENVPath,
+      "icebergCatalogType" -> StorageConfig.icebergCatalogType,
+      "icebergPostgresCatalogUriWithoutScheme" ->
+        (if (isPostgres) StorageConfig.icebergPostgresCatalogUriWithoutScheme else ""),
+      "icebergPostgresCatalogUsername" ->
+        (if (isPostgres) StorageConfig.icebergPostgresCatalogUsername else ""),
+      "icebergPostgresCatalogPassword" ->
+        (if (isPostgres) StorageConfig.icebergPostgresCatalogPassword else ""),
+      "icebergRestCatalogUri" -> (if (isRest) StorageConfig.icebergRESTCatalogUri else ""),
+      "icebergRestCatalogWarehouseName" ->
+        (if (isRest) StorageConfig.icebergRESTCatalogWarehouseName else ""),
+      "icebergTableNamespace" -> StorageConfig.icebergTableResultNamespace,
+      "icebergTableStateNamespace" -> StorageConfig.icebergTableStateNamespace,
+      "icebergFileStorageDirectoryPath" -> StorageConfig.fileStorageDirectoryPath.toString,
+      "icebergTableCommitBatchSize" -> StorageConfig.icebergTableCommitBatchSize.toString,
+      "s3Endpoint" -> StorageConfig.s3Endpoint,
+      "s3Region" -> StorageConfig.s3Region,
+      "s3AuthUsername" -> StorageConfig.s3Username,
+      "s3AuthPassword" -> StorageConfig.s3Password,
+      "s3LargeBinariesBaseUri" -> workerConfig.largeBinaryBaseUri
+    )
+
     pythonServerProcess = Process(
       Seq(
         pythonBin,
         "-u",
         udfEntryScriptPath,
-        workerConfig.workerId.name,
-        Integer.toString(pythonProxyServer.getPortNumber.get()),
-        UdfConfig.pythonLogStreamHandlerLevel,
-        RENVPath,
-        StorageConfig.icebergCatalogType,
-        if (isPostgres) StorageConfig.icebergPostgresCatalogUriWithoutScheme else "",
-        if (isPostgres) StorageConfig.icebergPostgresCatalogUsername else "",
-        if (isPostgres) StorageConfig.icebergPostgresCatalogPassword else "",
-        if (isRest) StorageConfig.icebergRESTCatalogUri else "",
-        if (isRest) StorageConfig.icebergRESTCatalogWarehouseName else "",
-        StorageConfig.icebergTableResultNamespace,
-        StorageConfig.icebergTableStateNamespace,
-        StorageConfig.fileStorageDirectoryPath.toString,
-        StorageConfig.icebergTableCommitBatchSize.toString,
-        StorageConfig.s3Endpoint,
-        StorageConfig.s3Region,
-        StorageConfig.s3Username,
-        StorageConfig.s3Password,
-        workerConfig.largeBinaryBaseUri
+        objectMapper.writeValueAsString(startupConfig)
       )
     ).run(BasicIO.standard(false))
   }
