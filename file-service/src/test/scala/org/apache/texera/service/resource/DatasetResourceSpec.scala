@@ -380,6 +380,23 @@ class DatasetResourceSpec
     datasetDao.fetchOneByDid(dataset.getDid) should not be null
   }
 
+  it should "surface a LakeFS 404 as NotFoundException when deleting a dataset whose repo is missing" in {
+    val dataset = new Dataset
+    dataset.setName("delete-ds-no-repo")
+    dataset.setRepositoryName("delete-ds-no-repo")
+    dataset.setDescription("for lakefs 404 mapping test")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    // intentionally no LakeFSStorageClient.initRepo: the repository does not exist in LakeFS
+
+    val ex = intercept[NotFoundException] {
+      datasetResource.deleteDataset(dataset.getDid, sessionUser)
+    }
+    assertStatus(ex, 404)
+  }
+
   "listDatasets" should "include a dataset whose LakeFS repo exists" in {
     val repoName = s"list-ok-${System.nanoTime()}"
     val dataset = new Dataset
