@@ -50,15 +50,70 @@ def init_loguru_logger(stream_log_level) -> None:
     logger.add(sys.stderr, level=stream_log_level)
 
 
-def main(raw_config: str) -> None:
-    """Start a Python worker from its JSON startup configuration.
+# Keys the JVM side (PythonWorkflowWorker) sends in the startup-config JSON.
+# Declared here so any drift between the two sides fails loudly instead of being
+# silently misassigned, as could happen with the previous positional unpacking.
+EXPECTED_CONFIG_KEYS = frozenset(
+    {
+        "workerId",
+        "outputPort",
+        "loggerLevel",
+        "rPath",
+        "icebergCatalogType",
+        "icebergPostgresCatalogUriWithoutScheme",
+        "icebergPostgresCatalogUsername",
+        "icebergPostgresCatalogPassword",
+        "icebergRestCatalogUri",
+        "icebergRestCatalogWarehouseName",
+        "icebergTableNamespace",
+        "icebergTableStateNamespace",
+        "icebergFileStorageDirectoryPath",
+        "icebergTableCommitBatchSize",
+        "s3Endpoint",
+        "s3Region",
+        "s3AuthUsername",
+        "s3AuthPassword",
+        "s3LargeBinariesBaseUri",
+    }
+)
 
-    Startup configuration is passed by name as a single JSON object (see
-    PythonWorkflowWorker on the JVM side). Reading by key means a missing or
-    renamed field raises a clear KeyError instead of silently misaligning, as
-    could happen with the previous positional sys.argv unpacking.
+
+def parse_startup_config(raw_config: str) -> dict:
+    """Parse and validate the JSON startup configuration.
+
+    The configuration is passed by name (see PythonWorkflowWorker on the JVM
+    side), so the two sides must agree on an exact key set. Key order is
+    irrelevant since it is a JSON object. Any drift fails loudly:
+      - a missing or unexpected key raises ValueError;
+      - a non-string value raises TypeError.
     """
     config = json.loads(raw_config)
+    if not isinstance(config, dict):
+        raise TypeError(
+            f"startup config must be a JSON object, got {type(config).__name__}"
+        )
+
+    actual_keys = set(config)
+    missing = EXPECTED_CONFIG_KEYS - actual_keys
+    unexpected = actual_keys - EXPECTED_CONFIG_KEYS
+    if missing or unexpected:
+        raise ValueError(
+            f"startup config key mismatch: missing={sorted(missing)}, "
+            f"unexpected={sorted(unexpected)}"
+        )
+
+    non_string_keys = sorted(k for k, v in config.items() if not isinstance(v, str))
+    if non_string_keys:
+        raise TypeError(
+            f"startup config values must be strings; non-string keys: {non_string_keys}"
+        )
+
+    return config
+
+
+def main(raw_config: str) -> None:
+    """Start a Python worker from its validated JSON startup configuration."""
+    config = parse_startup_config(raw_config)
 
     init_loguru_logger(config["loggerLevel"])
     StorageConfig.initialize(

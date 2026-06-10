@@ -48,16 +48,27 @@ def _full_config() -> dict:
     }
 
 
+def _patched_collaborators():
+    """Patch the heavy collaborators so main() exercises only the config wiring."""
+    return (
+        mock.patch.object(entry, "StorageConfig"),
+        mock.patch.object(entry, "PythonWorker"),
+        mock.patch.object(entry, "init_loguru_logger"),
+    )
+
+
+def test_full_config_keys_match_the_expected_set():
+    # Guards against the sample config in this test drifting from the contract.
+    assert set(_full_config()) == set(entry.EXPECTED_CONFIG_KEYS)
+
+
 def test_main_maps_named_config_to_storage_and_worker():
     """Each named field reaches the correct StorageConfig.initialize argument and
     worker parameter — guarding against the silent misalignment that positional
     argv passing allowed."""
     config = _full_config()
-    with (
-        mock.patch.object(entry, "StorageConfig") as storage_config,
-        mock.patch.object(entry, "PythonWorker") as python_worker,
-        mock.patch.object(entry, "init_loguru_logger"),
-    ):
+    storage_patch, worker_patch, _logger_patch = _patched_collaborators()
+    with storage_patch as storage_config, worker_patch as python_worker, _logger_patch:
         entry.main(json.dumps(config))
 
     storage_config.initialize.assert_called_once_with(
@@ -83,15 +94,41 @@ def test_main_maps_named_config_to_storage_and_worker():
     python_worker.return_value.run.assert_called_once()
 
 
-def test_main_sets_r_home_only_when_r_path_is_present(monkeypatch):
+def test_main_mapping_is_independent_of_key_order():
+    """Reordering the JSON keys must not change where values land (it is a dict)."""
+    reordered = dict(reversed(list(_full_config().items())))
+    storage_patch, worker_patch, _logger_patch = _patched_collaborators()
+    with storage_patch as storage_config, worker_patch as python_worker, _logger_patch:
+        entry.main(json.dumps(reordered))
+
+    storage_config.initialize.assert_called_once_with(
+        "postgres",
+        "host:5432/db",
+        "pg-user",
+        "pg-pass",
+        "",
+        "",
+        "result_ns",
+        "state_ns",
+        "/tmp/files",
+        "100",
+        "http://s3:9000",
+        "us-west-2",
+        "s3-user",
+        "s3-pass",
+        "s3://bucket/base",
+    )
+    python_worker.assert_called_once_with(
+        worker_id="worker-1", host="localhost", output_port=5005
+    )
+
+
+def test_main_sets_r_home_when_r_path_present(monkeypatch):
     monkeypatch.delenv("R_HOME", raising=False)
     config = _full_config()
     config["rPath"] = "/opt/R"
-    with (
-        mock.patch.object(entry, "StorageConfig"),
-        mock.patch.object(entry, "PythonWorker"),
-        mock.patch.object(entry, "init_loguru_logger"),
-    ):
+    storage_patch, worker_patch, _logger_patch = _patched_collaborators()
+    with storage_patch, worker_patch, _logger_patch:
         import os
 
         entry.main(json.dumps(config))
@@ -99,14 +136,30 @@ def test_main_sets_r_home_only_when_r_path_is_present(monkeypatch):
 
 
 @pytest.mark.parametrize("missing_key", sorted(_full_config().keys()))
-def test_main_raises_keyerror_when_a_field_is_missing(missing_key):
-    """A missing/renamed key fails loudly rather than being silently misassigned."""
+def test_parse_rejects_a_missing_key(missing_key):
+    """A missing key fails loudly rather than being silently misassigned."""
     config = _full_config()
     del config[missing_key]
-    with (
-        mock.patch.object(entry, "StorageConfig"),
-        mock.patch.object(entry, "PythonWorker"),
-        mock.patch.object(entry, "init_loguru_logger"),
-    ):
-        with pytest.raises(KeyError):
-            entry.main(json.dumps(config))
+    with pytest.raises(ValueError, match="key mismatch"):
+        entry.parse_startup_config(json.dumps(config))
+
+
+def test_parse_rejects_an_unexpected_key():
+    """An extra key (e.g. the JVM side added a field) fails instead of being ignored."""
+    config = _full_config()
+    config["someNewField"] = "value"
+    with pytest.raises(ValueError, match="key mismatch"):
+        entry.parse_startup_config(json.dumps(config))
+
+
+def test_parse_rejects_a_non_string_value():
+    """A wrongly-typed value (e.g. a number instead of a string) fails."""
+    config = _full_config()
+    config["outputPort"] = 5005  # number instead of the expected string
+    with pytest.raises(TypeError, match="must be strings"):
+        entry.parse_startup_config(json.dumps(config))
+
+
+def test_parse_rejects_a_non_object_payload():
+    with pytest.raises(TypeError, match="must be a JSON object"):
+        entry.parse_startup_config(json.dumps(["not", "an", "object"]))

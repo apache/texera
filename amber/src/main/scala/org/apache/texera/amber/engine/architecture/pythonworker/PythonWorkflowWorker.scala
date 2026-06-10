@@ -48,6 +48,20 @@ import scala.sys.process.{BasicIO, Process}
 
 object PythonWorkflowWorker {
   def props(workerConfig: WorkerConfig): Props = Props(new PythonWorkflowWorker(workerConfig))
+
+  /**
+    * Serialize the Python worker startup configuration to a JSON object, keyed by
+    * name. Built from a sequence of (key, value) pairs so a duplicate key fails
+    * loudly here instead of being silently dropped by Map construction.
+    */
+  def encodeStartupConfig(entries: Seq[(String, String)]): String = {
+    val duplicateKeys = entries.groupBy(_._1).collect { case (key, group) if group.size > 1 => key }
+    require(
+      duplicateKeys.isEmpty,
+      s"duplicate Python worker startup config keys: ${duplicateKeys.mkString(", ")}"
+    )
+    objectMapper.writeValueAsString(entries.toMap)
+  }
 }
 
 class PythonWorkflowWorker(
@@ -193,7 +207,9 @@ class PythonWorkflowWorker(
     // object, rather than by argv position. This way the two sides agree by key,
     // so adding/removing/reordering a field can no longer silently misassign
     // values; a missing or renamed key fails loudly on the Python side instead.
-    val startupConfig: Map[String, String] = Map(
+    // Built as a sequence so a duplicate key fails loudly (see encodeStartupConfig)
+    // rather than being silently dropped.
+    val startupConfig: Seq[(String, String)] = Seq(
       "workerId" -> workerConfig.workerId.name,
       "outputPort" -> Integer.toString(pythonProxyServer.getPortNumber.get()),
       "loggerLevel" -> UdfConfig.pythonLogStreamHandlerLevel,
@@ -224,7 +240,7 @@ class PythonWorkflowWorker(
         pythonBin,
         "-u",
         udfEntryScriptPath,
-        objectMapper.writeValueAsString(startupConfig)
+        PythonWorkflowWorker.encodeStartupConfig(startupConfig)
       )
     ).run(BasicIO.standard(false))
   }
