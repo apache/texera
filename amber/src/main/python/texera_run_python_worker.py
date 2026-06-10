@@ -50,12 +50,15 @@ def init_loguru_logger(stream_log_level) -> None:
     logger.add(sys.stderr, level=stream_log_level)
 
 
-if __name__ == "__main__":
-    # Startup configuration is passed by name as a single JSON object (see
-    # PythonWorkflowWorker on the JVM side). Reading by key means a missing or
-    # renamed field raises a clear KeyError instead of silently misaligning, as
-    # could happen with the previous positional sys.argv unpacking.
-    config = json.loads(sys.argv[1])
+def main(raw_config: str) -> None:
+    """Start a Python worker from its JSON startup configuration.
+
+    Startup configuration is passed by name as a single JSON object (see
+    PythonWorkflowWorker on the JVM side). Reading by key means a missing or
+    renamed field raises a clear KeyError instead of silently misaligning, as
+    could happen with the previous positional sys.argv unpacking.
+    """
+    config = json.loads(raw_config)
 
     init_loguru_logger(config["loggerLevel"])
     StorageConfig.initialize(
@@ -88,3 +91,7 @@ if __name__ == "__main__":
         host="localhost",
         output_port=int(config["outputPort"]),
     ).run()
+
+
+if __name__ == "__main__":
+    main(sys.argv[1])
