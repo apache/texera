@@ -145,9 +145,14 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   // Error handler must live on the same Elysia instance whose routes throw, or
   // its scope will not see the errors. Elysia 1.x defaults to local scoping for
   // .onError, so attach here rather than on the outer app.
-  .onError(({ error, set }) => {
+  .onError(({ code, error, set }) => {
     log.error({ err: error }, "request error");
     const errorMessage = error instanceof Error ? error.message : String(error);
+    // Body schema violations and malformed JSON are client errors, not 500s.
+    if (code === "VALIDATION" || code === "PARSE") {
+      set.status = 400;
+      return { error: errorMessage || "Invalid request body" };
+    }
     if (errorMessage === "Agent not found") {
       set.status = 404;
       return { error: "Agent not found" };

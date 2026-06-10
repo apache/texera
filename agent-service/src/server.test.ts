@@ -131,9 +131,7 @@ describe(`POST ${API}/agents`, () => {
 
   test("rejects missing userToken", async () => {
     const res = await postJson(`${API}/agents`, { modelType: "m" });
-    // Body schema violation; the exact status depends on the Elysia version but
-    // it is always a 4xx or 5xx, never a successful 2xx.
-    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBe(400);
   });
 
   test("rejects empty userToken", async () => {
@@ -145,9 +143,7 @@ describe(`POST ${API}/agents`, () => {
 
   test("rejects missing modelType", async () => {
     const res = await postJson(`${API}/agents`, { name: "no-model", userToken: TOKEN });
-    // Body schema violation; the exact status depends on the Elysia version but
-    // it is always a 4xx or 5xx, never a successful 2xx.
-    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBe(400);
   });
 });
 
