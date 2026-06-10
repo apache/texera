@@ -128,6 +128,21 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   private def codegenForTask(t: String): TaskCodegen =
     registeredCodegens.getOrElse(t, TextGenCodegen)
 
+  /**
+    * The output column name to use in generated Python and in the output
+    * schema. Falls back to the `"hf_response"` sentinel when the user
+    * leaves the field null or blank.
+    *
+    * Shared between [[generatePythonCode]] and [[getOutputSchemas]] so the
+    * two never drift apart (a divergence would cause the Python operator
+    * to write to a column the schema didn't declare). Returns
+    * [[EncodableString]] rather than `String` so the value flows into the
+    * `pyb` template with the encoding annotation intact.
+    */
+  private def resolvedResultColumn: EncodableString =
+    if (resultColumn == null || resultColumn.trim.isEmpty) "hf_response"
+    else resultColumn
+
   override def generatePythonCode(): String = {
     val safeTask: EncodableString =
       if (task == null || task.trim.isEmpty) "text-generation" else task
@@ -135,8 +150,7 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
       if (modelId == null) "" else modelId.trim
     val safePromptCol: EncodableString =
       if (promptColumn == null) "" else promptColumn
-    val safeResultCol: EncodableString =
-      if (resultColumn == null || resultColumn.trim.isEmpty) "hf_response" else resultColumn
+    val safeResultCol: EncodableString = resolvedResultColumn
     val safeSystemPrompt: EncodableString =
       if (systemPrompt == null) "" else systemPrompt
     val safeToken: EncodableString =
@@ -172,13 +186,9 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val resCol =
-      if (resultColumn == null || resultColumn.trim.isEmpty) "hf_response"
-      else resultColumn
+  ): Map[PortIdentity, Schema] =
     Map(
       operatorInfo.outputPorts.head.id -> inputSchemas.values.head
-        .add(resCol, AttributeType.STRING)
+        .add(resolvedResultColumn, AttributeType.STRING)
     )
-  }
 }
