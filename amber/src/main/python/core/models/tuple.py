@@ -22,7 +22,6 @@ import pyarrow
 import struct
 import typing
 from collections import OrderedDict
-from copy import deepcopy
 from loguru import logger
 from pandas._libs.missing import checknull
 from pympler import asizeof
@@ -234,14 +233,23 @@ class Tuple:
 
     def as_dict(self) -> "OrderedDict[str, Field]":
         """
-        Return a dictionary copy of this tuple.
+        Return a shallow copy of this tuple's field data.
         Fields will be fetched from accessor if absent.
+
+        A shallow copy (not a deepcopy) is returned: the dict itself is
+        independent, so callers may freely add/remove/reassign keys without
+        affecting the tuple, but field values are shared by reference. This is
+        safe because the tuple only ever reassigns field slots (see
+        ``__setitem__`` / ``cast_to_schema``) and never mutates a value in
+        place. Avoiding the per-read deepcopy keeps reads cheap even for tuples
+        carrying large (e.g. binary) field values.
+
         :return: dict with all the fields
         """
         # evaluate all the fields now
         for i in self.get_field_names():
             self.__getitem__(i)
-        return deepcopy(self._field_data)
+        return self._field_data.copy()
 
     def as_key_value_pairs(self) -> List[typing.Tuple[str, Field]]:
         return [(k, v) for k, v in self.as_dict().items()]
