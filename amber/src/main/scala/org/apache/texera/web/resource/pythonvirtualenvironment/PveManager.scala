@@ -153,7 +153,11 @@ object PveManager extends LazyLogging {
     } finally {
       try {
         val stream = Files.walk(tempVenv)
-        try stream.sorted(Comparator.reverseOrder()).iterator().asScala.foreach(Files.deleteIfExists)
+        try stream
+          .sorted(Comparator.reverseOrder())
+          .iterator()
+          .asScala
+          .foreach(Files.deleteIfExists)
         finally stream.close()
       } catch {
         case _: Throwable => () // best-effort cleanup
