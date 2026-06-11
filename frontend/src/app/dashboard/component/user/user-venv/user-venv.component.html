@@ -61,7 +61,7 @@
             nzTooltipTitle="Delete environment"
             (click)="confirmDeletePve(i); $event.stopPropagation()"
             role="button"
-            aria-label="Delete Python environment">
+            aria-label="Delete environment">
           </i>
         </li>
       </ul>
@@ -73,7 +73,7 @@
   nzWrapClassName="pve-modal"
   nzClassName="pve-modal"
   [nzVisible]="pveModalVisible"
-  nzTitle="Python Environments"
+  nzTitle="Python Environment"
   (nzOnCancel)="closePveModal()"
   [nzFooter]="customFooter">
   <ng-template #customFooter>
