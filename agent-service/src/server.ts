@@ -23,7 +23,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
 import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
 import { getBackendConfig } from "./api/backend-api";
-import { extractUserFromToken, validateToken } from "./api/auth-api";
+import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
@@ -161,9 +161,9 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       set.status = 401;
       return { error: "Invalid or expired token" };
     }
-    if (errorMessage === "userToken is required") {
+    if (errorMessage === "Authorization header with a Bearer token is required") {
       set.status = 401;
-      return { error: "userToken is required" };
+      return { error: "Authorization header with a Bearer token is required" };
     }
     if (errorMessage === "modelType is required") {
       set.status = 400;
@@ -179,17 +179,19 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
 
   .post(
     "/",
-    async ({ body }) => {
-      const { modelType, name, userToken, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
+    async ({ body, headers }) => {
+      const { modelType, name, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
 
       if (!modelType) {
         throw new Error("modelType is required");
       }
 
       // The agent always calls the LLM gateway as the delegating user, so an
-      // agent without a user token would be unable to generate anything.
+      // agent without a user token would be unable to generate anything. The
+      // token travels in the Authorization header, never in the payload.
+      const userToken = extractBearerToken(headers.authorization);
       if (!userToken) {
-        throw new Error("userToken is required");
+        throw new Error("Authorization header with a Bearer token is required");
       }
       if (!validateToken(userToken)) {
         throw new Error("Invalid or expired token");
@@ -234,7 +236,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       body: t.Object({
         modelType: t.String(),
         name: t.Optional(t.String()),
-        userToken: t.String(),
         workflowId: t.Optional(t.Number()),
         computingUnitId: t.Optional(t.Number()),
         settings: t.Optional(

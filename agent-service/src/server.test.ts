@@ -46,14 +46,19 @@ function url(path: string): string {
   return `http://localhost${path}`;
 }
 
-async function postJson(path: string, body: unknown): Promise<Response> {
+async function postJson(path: string, body: unknown, headers: Record<string, string> = {}): Promise<Response> {
   return app.handle(
     new Request(url(path), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify(body),
     })
   );
+}
+
+// Create an agent the way the frontend does: JWT in the Authorization header.
+async function createAgent(body: Record<string, unknown> = {}, token: string | null = TOKEN): Promise<Response> {
+  return postJson(`${API}/agents`, { modelType: "m", ...body }, token ? { Authorization: `Bearer ${token}` } : {});
 }
 
 async function patchJson(path: string, body: unknown): Promise<Response> {
@@ -94,7 +99,7 @@ describe(`GET ${API}/healthcheck`, () => {
 
 describe(`POST ${API}/agents`, () => {
   test("creates an agent for the delegating user", async () => {
-    const res = await postJson(`${API}/agents`, { modelType: "test-model", name: "Tester", userToken: TOKEN });
+    const res = await createAgent({ modelType: "test-model", name: "Tester" });
     expect(res.status).toBe(200);
 
     const agent = await readJson<{
@@ -111,8 +116,8 @@ describe(`POST ${API}/agents`, () => {
   });
 
   test("auto-numbers agent ids monotonically", async () => {
-    const a = await readJson<{ id: string }>(await postJson(`${API}/agents`, { modelType: "m", userToken: TOKEN }));
-    const b = await readJson<{ id: string }>(await postJson(`${API}/agents`, { modelType: "m", userToken: TOKEN }));
+    const a = await readJson<{ id: string }>(await createAgent());
+    const b = await readJson<{ id: string }>(await createAgent());
 
     const aNum = Number(a.id.split("-")[1]);
     const bNum = Number(b.id.split("-")[1]);
@@ -120,29 +125,28 @@ describe(`POST ${API}/agents`, () => {
   });
 
   test("rejects invalid token", async () => {
-    const res = await postJson(`${API}/agents`, {
-      modelType: "m",
-      userToken: "obviously-not-a-jwt",
-    });
+    const res = await createAgent({}, "obviously-not-a-jwt");
     expect(res.status).toBe(401);
     const body = await readJson<{ error: string }>(res);
     expect(body.error).toBe("Invalid or expired token");
   });
 
-  test("rejects missing userToken", async () => {
-    const res = await postJson(`${API}/agents`, { modelType: "m" });
-    expect(res.status).toBe(400);
-  });
-
-  test("rejects empty userToken", async () => {
-    const res = await postJson(`${API}/agents`, { modelType: "m", userToken: "" });
+  test("rejects missing Authorization header", async () => {
+    const res = await createAgent({}, null);
     expect(res.status).toBe(401);
     const body = await readJson<{ error: string }>(res);
-    expect(body.error).toBe("userToken is required");
+    expect(body.error).toBe("Authorization header with a Bearer token is required");
+  });
+
+  test("rejects non-Bearer Authorization header", async () => {
+    const res = await postJson(`${API}/agents`, { modelType: "m" }, { Authorization: `Basic ${TOKEN}` });
+    expect(res.status).toBe(401);
+    const body = await readJson<{ error: string }>(res);
+    expect(body.error).toBe("Authorization header with a Bearer token is required");
   });
 
   test("rejects missing modelType", async () => {
-    const res = await postJson(`${API}/agents`, { name: "no-model", userToken: TOKEN });
+    const res = await createAgent({ modelType: undefined, name: "no-model" });
     expect(res.status).toBe(400);
   });
 });
@@ -156,8 +160,8 @@ describe(`GET ${API}/agents`, () => {
   });
 
   test("lists every created agent", async () => {
-    await postJson(`${API}/agents`, { modelType: "m", name: "one", userToken: TOKEN });
-    await postJson(`${API}/agents`, { modelType: "m", name: "two", userToken: TOKEN });
+    await createAgent({ name: "one" });
+    await createAgent({ name: "two" });
 
     const res = await getJson(`${API}/agents`);
     const body = await readJson<{ agents: { name: string }[] }>(res);
@@ -168,9 +172,7 @@ describe(`GET ${API}/agents`, () => {
 
 describe(`GET ${API}/agents/:id`, () => {
   test("returns the agent plus its workflow snapshot", async () => {
-    const created = await readJson<{ id: string }>(
-      await postJson(`${API}/agents`, { modelType: "m", userToken: TOKEN })
-    );
+    const created = await readJson<{ id: string }>(await createAgent());
 
     const res = await getJson(`${API}/agents/${created.id}`);
     expect(res.status).toBe(200);
@@ -190,9 +192,7 @@ describe(`GET ${API}/agents/:id`, () => {
 
 describe(`DELETE ${API}/agents/:id`, () => {
   test("destroys the agent and a follow-up GET returns 404", async () => {
-    const created = await readJson<{ id: string }>(
-      await postJson(`${API}/agents`, { modelType: "m", userToken: TOKEN })
-    );
+    const created = await readJson<{ id: string }>(await createAgent());
 
     const delRes = await del(`${API}/agents/${created.id}`);
     expect(delRes.status).toBe(200);
@@ -210,27 +210,21 @@ describe(`DELETE ${API}/agents/:id`, () => {
 
 describe("Agent control routes", () => {
   test("POST /:id/stop returns stopping", async () => {
-    const created = await readJson<{ id: string }>(
-      await postJson(`${API}/agents`, { modelType: "m", userToken: TOKEN })
-    );
+    const created = await readJson<{ id: string }>(await createAgent());
     const res = await postJson(`${API}/agents/${created.id}/stop`, {});
     expect(res.status).toBe(200);
     expect(await readJson<unknown>(res)).toEqual({ status: "stopping" });
   });
 
   test("POST /:id/clear resets history", async () => {
-    const created = await readJson<{ id: string }>(
-      await postJson(`${API}/agents`, { modelType: "m", userToken: TOKEN })
-    );
+    const created = await readJson<{ id: string }>(await createAgent());
     const res = await postJson(`${API}/agents/${created.id}/clear`, {});
     expect(res.status).toBe(200);
     expect(await readJson<unknown>(res)).toEqual({ status: "cleared" });
   });
 
   test("GET /:id/operator-results returns an empty map on the framework build", async () => {
-    const created = await readJson<{ id: string }>(
-      await postJson(`${API}/agents`, { modelType: "m", userToken: TOKEN })
-    );
+    const created = await readJson<{ id: string }>(await createAgent());
     const res = await getJson(`${API}/agents/${created.id}/operator-results`);
     expect(res.status).toBe(200);
     expect(await readJson<unknown>(res)).toEqual({ results: {} });
@@ -239,9 +233,7 @@ describe("Agent control routes", () => {
 
 describe(`PATCH ${API}/agents/:id/settings`, () => {
   test("updates settings and returns the new values", async () => {
-    const created = await readJson<{ id: string }>(
-      await postJson(`${API}/agents`, { modelType: "m", userToken: TOKEN })
-    );
+    const created = await readJson<{ id: string }>(await createAgent());
 
     const res = await patchJson(`${API}/agents/${created.id}/settings`, {
       maxSteps: 7,

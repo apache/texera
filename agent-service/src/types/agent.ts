@@ -144,10 +144,10 @@ export interface AgentInfo {
   settings?: AgentSettingsApi;
 }
 
+// The delegating user's JWT arrives in the Authorization header, not the body.
 export interface CreateAgentRequest {
   modelType: string;
   name?: string;
-  userToken: string;
   workflowId?: number;
   computingUnitId?: number;
   settings?: AgentSettingsApi;
