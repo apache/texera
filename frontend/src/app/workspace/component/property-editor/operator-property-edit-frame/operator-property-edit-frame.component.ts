@@ -350,7 +350,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       body: "We need to accelerate onboarding for enterprise customers.",
       pills: ["business", "operations", "support"],
     },
-    "translation": {
+    translation: {
       kind: "text",
       inputLabel: "Source text",
       outputLabel: "Translated text",
@@ -358,7 +358,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       body: "Good morning, thanks for joining the call.",
       outputBody: "Buenos dias, gracias por unirte a la llamada.",
     },
-    "summarization": {
+    summarization: {
       kind: "text",
       inputLabel: "Long text",
       outputLabel: "Summary",
@@ -400,18 +400,16 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     },
   };
 
-  get huggingFaceTaskPreview():
-    | {
-        kind: "image" | "video" | "audio" | "text";
-        inputLabel?: string;
-        outputLabel?: string;
-        title?: string;
-        body?: string;
-        outputBody?: string;
-        pills?: string[];
-        assetSrc?: string;
-      }
-    | null {
+  get huggingFaceTaskPreview(): {
+    kind: "image" | "video" | "audio" | "text";
+    inputLabel?: string;
+    outputLabel?: string;
+    title?: string;
+    body?: string;
+    outputBody?: string;
+    pills?: string[];
+    assetSrc?: string;
+  } | null {
     if (!this.isHuggingFaceOperator()) {
       return null;
     }
@@ -419,13 +417,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (typeof task !== "string" || task.trim().length === 0) {
       return null;
     }
-    return this.huggingFaceTaskPreviewSamples[task] ?? {
-      kind: "text",
-      inputLabel: "Task input",
-      outputLabel: "Task output",
-      title: this.formatTaskTitle(task),
-      body: "This task transforms the provided input into a model response.",
-    };
+    return (
+      this.huggingFaceTaskPreviewSamples[task] ?? {
+        kind: "text",
+        inputLabel: "Task input",
+        outputLabel: "Task output",
+        title: this.formatTaskTitle(task),
+        body: "This task transforms the provided input into a model response.",
+      }
+    );
   }
 
   constructor(
@@ -819,17 +819,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.type = "huggingface";
       }
 
-      if (
-        mappedField.key === "modelId" &&
-        this.currentOperatorSchema?.operatorType === "HuggingFace"
-      ) {
+      if (mappedField.key === "modelId" && this.currentOperatorSchema?.operatorType === "HuggingFace") {
         mappedField.type = "huggingface";
       }
 
-      if (
-        mappedField.key === "task" &&
-        this.currentOperatorSchema?.operatorType === "HuggingFace"
-      ) {
+      if (mappedField.key === "task" && this.currentOperatorSchema?.operatorType === "HuggingFace") {
         mappedField.hide = true;
       }
 
@@ -864,9 +858,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           "zero-shot-image-classification",
         ];
         const getSelectedTask = (field: FormlyFieldConfig): string | undefined => {
-          const fromForm =
-            field.form?.get("task")?.value ??
-            field.formControl?.parent?.get("task")?.value;
+          const fromForm = field.form?.get("task")?.value ?? field.formControl?.parent?.get("task")?.value;
           if (typeof fromForm === "string" && fromForm.trim().length > 0) {
             return fromForm;
           }
