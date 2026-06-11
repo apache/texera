@@ -69,8 +69,13 @@
       (ngModelChange)="onSearchInput($event)" />
   </nz-input-group>
   <ng-template #searchClearTpl>
+    <nz-spin
+      *ngIf="searchLoading"
+      nzSimple
+      nzSize="small"
+      style="display: inline-block; margin-right: 4px"></nz-spin>
     <i
-      *ngIf="searchText"
+      *ngIf="searchText && !searchLoading"
       nz-icon
       nzType="close-circle"
       nzTheme="fill"
@@ -103,6 +108,13 @@
         nzType="reload"></i>
       Retry
     </button>
+  </div>
+
+  <!-- Truncation notice -->
+  <div
+    *ngIf="truncated && !loading && !errorMessage"
+    class="hf-truncation-notice">
+    Results may be incomplete. Use the search bar to find models not shown here.
   </div>
 
   <!-- Model list -->
