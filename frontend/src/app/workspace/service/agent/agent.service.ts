@@ -37,7 +37,6 @@ import {
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { AppSettings } from "../../../common/app-setting";
-import { AuthService } from "../../../common/service/user/auth.service";
 import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
@@ -685,31 +684,26 @@ export class AgentService {
 
   /**
    * Create a new agent with the specified model type.
-   * Uses the user's current auth token for delegate mode.
+   * The user's JWT travels in the Authorization header (added by the JWT
+   * interceptor), which the agent service requires for delegate mode.
    * @param modelType - The LLM model type to use
    * @param customName - Optional custom name for the agent
    * @param workflowId - Optional workflow ID for delegate mode
    */
   public createAgent(modelType: string, customName?: string, workflowId?: number): Observable<AgentInfo> {
     return defer(() => {
-      const userToken = AuthService.getAccessToken();
-
       const body: any = {
         modelType,
         name: customName,
       };
 
-      // Include user token and workflowId for delegate mode if available
-      if (userToken) {
-        body.userToken = userToken;
-        if (workflowId !== undefined) {
-          body.workflowId = workflowId;
-        }
-        // Include computing unit ID for workflow execution
-        const selectedUnit = this.computingUnitStatusService.getSelectedComputingUnitValue();
-        if (selectedUnit) {
-          body.computingUnitId = selectedUnit.computingUnit.cuid;
-        }
+      if (workflowId !== undefined) {
+        body.workflowId = workflowId;
+      }
+      // Include computing unit ID for workflow execution
+      const selectedUnit = this.computingUnitStatusService.getSelectedComputingUnitValue();
+      if (selectedUnit) {
+        body.computingUnitId = selectedUnit.computingUnit.cuid;
       }
 
       return this.http.post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body).pipe(
