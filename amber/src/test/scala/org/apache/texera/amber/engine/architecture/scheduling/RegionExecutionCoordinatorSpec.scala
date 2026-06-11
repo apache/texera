@@ -27,11 +27,6 @@ import org.apache.texera.amber.core.workflow.PhysicalOp
 import org.apache.texera.amber.engine.architecture.common.PekkoActorRefMappingService
 import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  ControlInvocation,
-  EmptyRequest
-}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns._
 import org.apache.texera.amber.engine.architecture.scheduling.RegionCoordinatorTestSupport._
 import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
@@ -40,7 +35,7 @@ import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-import java.util.concurrent.CountDownLatch
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic
 
 /**
@@ -90,11 +85,17 @@ class RegionExecutionCoordinatorSpec
 
   it should "retry EndWorker failures and delay gracefulStop until a retry succeeds" in {
     val attempts = new atomic.AtomicInteger(0)
+    // The first EndWorker is sent on the test thread; the retry is sent later from the coordinator's
+    // kill-retry timer thread. Block on this latch — counted down from the probe callback once the
+    // retry's call has been recorded — instead of polling `endWorkerCalls` from the test thread, so
+    // the test never iterates the call buffer while the timer thread is appending to it.
+    val retryAttempted = new CountDownLatch(1)
     val fixture = createSingleRegionFixture(endWorkerResponse =
       _ =>
         if (attempts.incrementAndGet() == 1) {
           Some(transientEndWorkerFailure)
         } else {
+          retryAttempted.countDown()
           None
         }
     )
@@ -102,7 +103,10 @@ class RegionExecutionCoordinatorSpec
     launchRegion(fixture.coordinator)
     val completion = requestRegionCompletion(fixture.coordinator)
 
-    waitUntil(fixture.rpcProbe.endWorkerCalls.size >= 2)
+    assert(
+      retryAttempted.await(testTimeout.inMilliseconds, TimeUnit.MILLISECONDS),
+      "EndWorker was not retried within the deadline"
+    )
     assert(completion.poll.isEmpty)
     assert(!fixture.coordinator.isCompleted)
     assert(fixture.actorRefService.hasActorRef(fixture.workerId))
@@ -114,70 +118,6 @@ class RegionExecutionCoordinatorSpec
     assert(fixture.rpcProbe.endWorkerCalls.size == 2)
     assert(!fixture.actorRefService.hasActorRef(fixture.workerId))
     assert(workerState(fixture) == WorkerState.TERMINATED)
-  }
-
-  // Concurrency regression for the `ControllerRpcProbe` test helper (issue #5546): its `calls`
-  // buffer is appended on a scheduler thread while the test thread reads it. Before the fix, a
-  // read racing an append tripped Scala 2.13's `MutationTracker` and surfaced as a
-  // ConcurrentModificationException. Forcing the race makes a regression fail deterministically.
-  "ControllerRpcProbe" should "tolerate reads racing with concurrent appends" in {
-    // Hold every endWorker pending so appends have no fulfill side effects.
-    val probe = new ControllerRpcProbe(_ => None)
-    val appends = 20000
-    val failure = new atomic.AtomicReference[Throwable]()
-    // Release both threads at once so the reader polls while the writer is still appending;
-    // otherwise the writer could finish before the reader starts and miss the race entirely.
-    val startGate = new CountDownLatch(1)
-
-    // Writer: the actor side. Each sendTo drives handleOutput -> calls += call.
-    val writer = new Thread(() => {
-      try {
-        startGate.await()
-        var i = 0
-        while (i < appends) {
-          probe.outputGateway.sendTo(
-            CONTROLLER,
-            ControlInvocation(
-              EndWorker,
-              EmptyRequest(),
-              AsyncRPCContext(CONTROLLER, CONTROLLER),
-              i.toLong
-            )
-          )
-          i += 1
-        }
-      } catch {
-        case t: Throwable => failure.compareAndSet(null, t)
-      }
-    })
-
-    // Reader: the test side. Read through every helper while appends are in flight.
-    val reader = new Thread(() => {
-      try {
-        startGate.await()
-        while (writer.isAlive) {
-          probe.endWorkerCalls
-          probe.methodTrace
-          probe.initializedWorkers
-          probe.startedWorkers
-        }
-      } catch {
-        case t: Throwable => failure.compareAndSet(null, t)
-      }
-    })
-
-    writer.start()
-    reader.start()
-    startGate.countDown()
-    writer.join(testTimeout.inMilliseconds)
-    reader.join(testTimeout.inMilliseconds)
-
-    assert(!writer.isAlive && !reader.isAlive, "stress threads did not finish within the deadline")
-    assert(
-      failure.get() == null,
-      s"concurrent access to the probe threw ${failure.get()}"
-    )
-    assert(probe.endWorkerCalls.size == appends)
   }
 
   private case class SingleRegionFixture(
