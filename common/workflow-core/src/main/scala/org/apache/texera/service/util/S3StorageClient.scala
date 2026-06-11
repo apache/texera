@@ -100,15 +100,14 @@ object S3StorageClient {
   }
 
   /**
-    * Deletes a "directory" from a bucket — every object whose key begins with the given prefix.
+    * Deletes every object whose key begins with `directoryPrefix`. S3 keys are a flat namespace
+    * with no real directories, so a "directory" is just a shared key prefix.
     *
-    * S3 keys are a flat namespace with no real directories; a "directory" is just a shared key
-    * prefix. A trailing `/` is appended when missing so the prefix only matches on a path
-    * boundary: prefix `a/b` deletes `a/b/file` but not the unrelated `a/bc/file`.
+    * A trailing `/` is added when missing so the prefix matches on a path boundary (`a/b` deletes
+    * `a/b/file` but not `a/bc/file`). An empty prefix would match the whole bucket and is rejected.
     *
     * @param bucketName Target S3/MinIO bucket.
-    * @param directoryPrefix The directory (key prefix) to delete. Must be non-empty: an empty
-    *                        prefix matches the whole bucket, so it is rejected as a safeguard.
+    * @param directoryPrefix Non-empty key prefix to delete.
     */
   def deleteDirectory(bucketName: String, directoryPrefix: String): Unit = {
     require(directoryPrefix.nonEmpty, "directoryPrefix must not be empty")
@@ -116,11 +115,9 @@ object S3StorageClient {
 
     val listRequest = ListObjectsV2Request.builder().bucket(bucketName).prefix(prefix).build()
 
-    // Paginate across all listing pages and delete in batches within the per-request key limit.
-    // Every batch is attempted before raising, so one undeletable key doesn't strand the keys
-    // behind it — DatasetResource can't retry (its LakeFS repo is already gone), so each attempt
-    // must make as much progress as possible. `quiet(true)` trims each response down to just the
-    // failures, which is all we inspect.
+    // Delete in batches capped at the per-request key limit. Attempt every batch before raising,
+    // so one undeletable key can't strand the rest; `quiet(true)` keeps each response to just the
+    // failures.
     val errors = s3Client
       .listObjectsV2Paginator(listRequest)
       .contents()
@@ -145,10 +142,7 @@ object S3StorageClient {
     throwOnDeleteErrors(prefix, errors)
   }
 
-  /**
-    * DeleteObjects reports per-key failures in its response instead of throwing. Raise if any key
-    * failed across the batches, listing up to `MAX_LISTED_DELETE_ERRORS` of them.
-    */
+  /** Raise if any object failed to delete, listing up to `MAX_LISTED_DELETE_ERRORS` keys. */
   private[util] def throwOnDeleteErrors(prefix: String, errors: Seq[S3Error]): Unit = {
     if (errors.nonEmpty) {
       val listed = errors.take(MAX_LISTED_DELETE_ERRORS).map(e => s"${e.key()} (${e.code()})")

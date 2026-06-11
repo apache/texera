@@ -43,8 +43,7 @@ class S3StorageClientSpec
   }
 
   override def afterAll(): Unit = {
-    // Best-effort cleanup of the prefixes these tests write under. (deleteDirectory rejects an
-    // empty prefix, so a whole-bucket sweep isn't available — and isn't needed here.)
+    // Best-effort cleanup of the prefixes these tests use (deleteDirectory rejects an empty prefix).
     try {
       Seq("test", "delete-dir").foreach(S3StorageClient.deleteDirectory(testBucketName, _))
     } catch {
@@ -359,8 +358,8 @@ class S3StorageClientSpec
   }
 
   test("deleteDirectory should not delete siblings that merely share the prefix string") {
-    // Deleting "delete-dir/small" must not touch "delete-dir/small-sibling.txt": the trailing-slash
-    // normalization makes the prefix "delete-dir/small/", which is not a prefix of the sibling key.
+    // The trailing-slash guard: deleting "delete-dir/small" (→ "delete-dir/small/") must leave the
+    // sibling "delete-dir/small-sibling.txt" untouched.
     val prefix = "delete-dir/small"
     S3StorageClient.uploadObject(testBucketName, s"$prefix/object.txt", createInputStream("data"))
     val sibling = "delete-dir/small-sibling.txt"
@@ -410,8 +409,7 @@ class S3StorageClientSpec
     S3StorageClient.deleteDirectory(testBucketName, "delete-dir/non-existent")
   }
 
-  // A real per-key delete failure needs object-lock setup, so exercise throwOnDeleteErrors
-  // directly — it's the helper that decides whether deleteDirectory raises.
+  // A real per-key failure needs object-lock setup, so test throwOnDeleteErrors directly.
 
   test("throwOnDeleteErrors should raise on a per-key delete failure") {
     val errors = Seq(S3Error.builder().key("delete-dir/locked.txt").code("AccessDenied").build())
