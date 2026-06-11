@@ -24,11 +24,11 @@ import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowEditorComponent } from "./workflow-editor.component";
-import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
+import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../../service/joint-ui/joint-ui.service";
-import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
+import { NzModalModule } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as joint from "jointjs";
 import { marbles } from "rxjs-marbles";
@@ -45,10 +45,7 @@ import { OperatorState } from "../../types/execute-workflow.interface";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
-import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { tap } from "rxjs/operators";
-import { UserService } from "src/app/common/service/user/user.service";
-import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
@@ -234,38 +231,8 @@ describe("WorkflowEditorComponent", () => {
 
     beforeEach(async () => {
       await TestBed.configureTestingModule({
-        imports: [
-          RouterTestingModule,
-          HttpClientTestingModule,
-          NzModalModule,
-          NzDropDownModule,
-          NoopAnimationsModule,
-          WorkflowEditorComponent,
-          NzModalCommentBoxComponent,
-        ],
-        providers: [
-          JointUIService,
-          WorkflowUtilService,
-          WorkflowActionService,
-          UndoRedoService,
-          ValidationWorkflowService,
-          DragDropService,
-          NzModalService,
-          NzContextMenuService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          {
-            provide: UserService,
-            useClass: StubUserService,
-          },
-          WorkflowStatusService,
-          ExecuteWorkflowService,
-          UndoRedoService,
-          WorkflowVersionService,
-          ...commonTestProviders,
-        ],
+        imports: workflowEditorTestImports,
+        providers: workflowEditorTestProviders,
       }).compileComponents();
     });
 
