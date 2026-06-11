@@ -24,8 +24,6 @@ import { env } from "./config/env";
 const API = env.API_PREFIX;
 const app = buildApp();
 
-// The service only decodes the JWT and checks expiry (signature verification
-// happens at the LLM gateway), so a well-formed unsigned token is enough.
 function mintTestToken(): string {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(
@@ -56,7 +54,6 @@ async function postJson(path: string, body: unknown, headers: Record<string, str
   );
 }
 
-// Create an agent the way the frontend does: JWT in the Authorization header.
 async function createAgent(body: Record<string, unknown> = {}, token: string | null = TOKEN): Promise<Response> {
   return postJson(`${API}/agents`, { modelType: "m", ...body }, token ? { Authorization: `Bearer ${token}` } : {});
 }
