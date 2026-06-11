@@ -28,8 +28,7 @@ import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { AppSettings } from "../../../common/app-setting";
-import { Subject, Subscription } from "rxjs";
-import { takeUntil } from "rxjs/operators";
+import { Subscription } from "rxjs";
 
 export interface HuggingFaceModelOption {
   id: string;
@@ -69,13 +68,6 @@ export const STATIC_TASK_OPTIONS: HuggingFaceTaskOption[] = [
   { tag: "document-question-answering", label: "Document Question Answering" },
   { tag: "zero-shot-image-classification", label: "Zero-Shot Image Classification" },
 ];
-
-// Keep legacy export for any other code that imports it
-export const TASK_TAG_MAP: Record<string, string> = {};
-for (const { tag, label } of STATIC_TASK_OPTIONS) {
-  TASK_TAG_MAP[label] = tag;
-}
-export const TASK_NAMES = STATIC_TASK_OPTIONS.map(t => t.label);
 
 const PAGE_SIZE = 50;
 
@@ -152,8 +144,9 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   searchText = "";
   private filteredModels: HuggingFaceModelOption[] | null = null;
 
-  private readonly destroy$ = new Subject<void>();
   private subscription: Subscription | null = null;
+  private taskPollInterval: ReturnType<typeof setInterval> | null = null;
+  private initTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private http: HttpClient,
@@ -170,13 +163,17 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.loadAllModels();
     // Formly can attach sibling controls after this field initializes.
     // Re-sync once the control tree settles so a fresh operator starts in a valid task state.
-    setTimeout(() => this.syncTaskSelection(this.getCurrentTaskTag() ?? this.selectedTaskTag, false), 0);
+    this.initTimeout = setTimeout(() => this.syncTaskSelection(this.getCurrentTaskTag() ?? this.selectedTaskTag, false), 0);
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
     this.subscription?.unsubscribe();
+    if (this.taskPollInterval !== null) {
+      clearInterval(this.taskPollInterval);
+    }
+    if (this.initTimeout !== null) {
+      clearTimeout(this.initTimeout);
+    }
   }
 
   // ── Task loading ──
@@ -203,9 +200,10 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     if (tasksFetchSubscription !== null) {
       this.tasksLoading = true;
       // Poll for completion (the module-level cache will be set when done)
-      const poll = setInterval(() => {
+      this.taskPollInterval = setInterval(() => {
         if (cachedTaskOptions !== null || tasksFetchError !== null) {
-          clearInterval(poll);
+          clearInterval(this.taskPollInterval!);
+          this.taskPollInterval = null;
           this.tasksLoading = false;
           this.taskOptions = cachedTaskOptions ?? STATIC_TASK_OPTIONS;
           if (tasksFetchError) this.tasksError = tasksFetchError;
@@ -221,7 +219,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
 
     tasksFetchSubscription = this.http
       .get<HuggingFaceTaskOption[]>(`${AppSettings.getApiEndpoint()}/huggingface/tasks`)
-      .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: tasks => {
           tasksFetchSubscription = null;
@@ -306,7 +303,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
       .get<HuggingFaceModelOption[]>(
         `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`
       )
-      .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: models => {
           allModelsByTag.set(tag, models);
