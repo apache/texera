@@ -28,7 +28,9 @@ import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
 import org.apache.texera.config.{GuiConfig, KubernetesConfig, LLMConfig}
+import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -136,12 +138,27 @@ object AccessControlResource extends LazyLogging {
     }
 
     // Dynamic Routing Logic
-    val workflowComputingUnitPoolName = KubernetesConfig.computeUnitPoolName
-    val workflowComputingUnitPoolNamespace = KubernetesConfig.computeUnitPoolNamespace
-    val workflowComputingUnitPoolPort = KubernetesConfig.computeUnitPortNumber
+    // Use the URI persisted for the computing unit (written by the managing
+    // service when the pod is created) as the routing target, so the address is
+    // resolved from a single source of truth instead of being reconstructed
+    // here. Fall back to the conventional in-cluster address if no URI has been
+    // recorded for the unit yet.
+    val cuDao = new WorkflowComputingUnitDao(
+      SqlServer.getInstance().createDSLContext().configuration()
+    )
+    val unit = cuDao.fetchOneByCuid(cuidInt)
+    val recordedUri = Option(unit).flatMap(u => Option(u.getUri)).map(_.trim).filter(_.nonEmpty)
 
-    val targetHost =
-      s"computing-unit-$cuidInt.$workflowComputingUnitPoolName-svc.$workflowComputingUnitPoolNamespace.svc.cluster.local:$workflowComputingUnitPoolPort"
+    val targetHost = recordedUri match {
+      case Some(uri) =>
+        logger.info(s"Routing CU $cuidInt to recorded host: $uri")
+        uri
+      case None =>
+        val workflowComputingUnitPoolName = KubernetesConfig.computeUnitPoolName
+        val workflowComputingUnitPoolNamespace = KubernetesConfig.computeUnitPoolNamespace
+        val workflowComputingUnitPoolPort = KubernetesConfig.computeUnitPortNumber
+        s"computing-unit-$cuidInt.$workflowComputingUnitPoolName-svc.$workflowComputingUnitPoolNamespace.svc.cluster.local:$workflowComputingUnitPoolPort"
+    }
 
     Response
       .ok()
