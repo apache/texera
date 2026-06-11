@@ -19,8 +19,6 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-import org.apache.texera.config.KubernetesConfig
-
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters._
@@ -39,10 +37,9 @@ class PveResource {
   @Path("/system")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getSystemPackages: util.Map[String, util.List[String]] = {
-    val isLocal = !KubernetesConfig.kubernetesComputingUnitEnabled
     try {
       val systemPkgs =
-        PveManager.getSystemPackages(isLocal).toList.asJava
+        PveManager.getSystemPackages.toList.asJava
 
       Map("system" -> systemPkgs).asJava
     } catch {
@@ -104,12 +101,10 @@ class PveResource {
       @PathParam("pveName") pveName: String,
       @PathParam("packageName") packageName: String
   ): Response = {
-    val isLocal = !KubernetesConfig.kubernetesComputingUnitEnabled
     val messages = PveManager.deletePackages(
       cuid,
       packageName,
-      pveName,
-      isLocal
+      pveName
     )
 
     if (messages.exists(_.contains("[PVE][ERR]"))) {

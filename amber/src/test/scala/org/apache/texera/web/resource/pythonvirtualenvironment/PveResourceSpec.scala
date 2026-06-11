@@ -49,7 +49,7 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
   }
 
   "PveManager" should "create a new PVE and list it" in {
-    PveManager.createNewPve(testCuid, queue, testPveName, isLocal = true)
+    PveManager.createNewPve(testCuid, queue, testPveName)
 
     val logs = queueText()
 
@@ -68,7 +68,7 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
   }
 
   "PveManager" should "install a user package and list it for the PVE" in {
-    PveManager.createNewPve(testCuid, queue, testPveName, isLocal = true)
+    PveManager.createNewPve(testCuid, queue, testPveName)
 
     val packageName = "colorama"
     val packageVersion = "0.4.6"
@@ -80,8 +80,7 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
       List(packageSpec),
       testCuid,
       queue,
-      testPveName,
-      isLocal = true
+      testPveName
     )
 
     val logs = queueText()
@@ -99,7 +98,7 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
   }
 
   "PveManager" should "delete a user package and remove it from the PVE package list" in {
-    PveManager.createNewPve(testCuid, queue, testPveName, isLocal = true)
+    PveManager.createNewPve(testCuid, queue, testPveName)
 
     val packageName = "colorama"
     val packageVersion = "0.4.6"
@@ -111,8 +110,7 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
       List(packageSpec),
       testCuid,
       queue,
-      testPveName,
-      isLocal = true
+      testPveName
     )
 
     PveManager
@@ -124,8 +122,7 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
     val deleteLogs = PveManager.deletePackages(
       testCuid,
       packageName,
-      testPveName,
-      isLocal = true
+      testPveName
     )
 
     deleteLogs.mkString("\n") should not include "[PVE][ERR]"
@@ -140,7 +137,7 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
   }
 
   "PveManager" should "delete all PVEs for a computing unit" in {
-    PveManager.createNewPve(testCuid, queue, testPveName, isLocal = true)
+    PveManager.createNewPve(testCuid, queue, testPveName)
 
     Files.exists(testRoot.resolve(testPveName)) shouldBe true
 
@@ -151,7 +148,7 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
   }
 
   "PveManager.getPythonBin" should "return Some for an existing venv" in {
-    PveManager.createNewPve(testCuid, queue, testPveName, isLocal = true)
+    PveManager.createNewPve(testCuid, queue, testPveName)
 
     val result = PveManager.getPythonBin(testCuid, testPveName)
     result shouldBe defined
