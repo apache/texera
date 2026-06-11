@@ -50,14 +50,37 @@ COPY project/ project/
 COPY build.sbt build.sbt
 COPY .jvmopts .jvmopts
 
-# Update system and install dependencies. python3-minimal is needed by
-# bin/licensing/concat_license_binary.py below.
+# python3-minimal is needed by bin/licensing/concat_license_binary.py;
+# python3-pip installs the betterproto plugin; unzip + curl fetch protoc.
 RUN apt-get update && apt-get install -y \
     netcat \
     unzip \
+    curl \
     libpq-dev \
     python3-minimal \
+    python3-pip \
     && apt-get clean
+
+# Install protoc (version pinned in bin/protoc-version.txt) and the
+# betterproto plugin (version pinned via amber/requirements.txt as a
+# pip constraint, so the runtime base `betterproto` and the build-time
+# `betterproto[compiler]` stay in lockstep), then regenerate
+# amber/src/main/python/proto/ before the WorkflowExecutionService dist
+# is packaged.
+COPY bin/protoc-version.txt bin/protoc-version.txt
+COPY bin/python-proto-gen.sh bin/python-proto-gen.sh
+RUN PROTOC_VERSION=$(cat bin/protoc-version.txt) \
+    && case "$(uname -m)" in \
+         x86_64 | amd64) PROTOC_ARCH=x86_64 ;; \
+         aarch64 | arm64) PROTOC_ARCH=aarch_64 ;; \
+         *) echo "Unsupported architecture: $(uname -m)" >&2 && exit 1 ;; \
+       esac \
+    && curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
+    && unzip -o /tmp/protoc.zip -d /usr/local \
+    && chmod +x /usr/local/bin/protoc \
+    && rm /tmp/protoc.zip \
+    && pip3 install --no-cache-dir -c amber/requirements.txt 'betterproto[compiler]' \
+    && bash bin/python-proto-gen.sh
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git

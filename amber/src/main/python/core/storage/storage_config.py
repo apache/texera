@@ -32,6 +32,7 @@ class StorageConfig:
     ICEBERG_REST_CATALOG_URI = None
     ICEBERG_REST_CATALOG_WAREHOUSE_NAME = None
     ICEBERG_TABLE_RESULT_NAMESPACE = None
+    ICEBERG_TABLE_STATE_NAMESPACE = None
     ICEBERG_FILE_STORAGE_DIRECTORY_PATH = None
     ICEBERG_TABLE_COMMIT_BATCH_SIZE = None
 
@@ -40,6 +41,9 @@ class StorageConfig:
     S3_REGION = None
     S3_AUTH_USERNAME = None
     S3_AUTH_PASSWORD = None
+    # Execution-scoped base URI (s3://bucket/objects/{eid}/) for this worker's large
+    # binaries; fixed at process init, which assumes one process per execution.
+    S3_LARGE_BINARIES_BASE_URI = None
 
     @classmethod
     def initialize(
@@ -51,12 +55,14 @@ class StorageConfig:
         rest_catalog_uri,
         rest_catalog_warehouse_name,
         table_result_namespace,
+        table_state_namespace,
         directory_path,
         commit_batch_size,
         s3_endpoint,
         s3_region,
         s3_auth_username,
         s3_auth_password,
+        s3_large_binaries_base_uri,
     ):
         if cls._initialized:
             raise RuntimeError(
@@ -71,6 +77,7 @@ class StorageConfig:
         cls.ICEBERG_REST_CATALOG_WAREHOUSE_NAME = rest_catalog_warehouse_name
 
         cls.ICEBERG_TABLE_RESULT_NAMESPACE = table_result_namespace
+        cls.ICEBERG_TABLE_STATE_NAMESPACE = table_state_namespace
         cls.ICEBERG_FILE_STORAGE_DIRECTORY_PATH = directory_path
         cls.ICEBERG_TABLE_COMMIT_BATCH_SIZE = int(commit_batch_size)
 
@@ -79,6 +86,7 @@ class StorageConfig:
         cls.S3_REGION = s3_region
         cls.S3_AUTH_USERNAME = s3_auth_username
         cls.S3_AUTH_PASSWORD = s3_auth_password
+        cls.S3_LARGE_BINARIES_BASE_URI = s3_large_binaries_base_uri
 
         cls._initialized = True
 

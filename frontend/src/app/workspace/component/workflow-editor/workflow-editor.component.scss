@@ -25,10 +25,6 @@
   height: 100%;
 }
 
-::ng-deep .hide-region .region {
-  display: none;
-}
-
 ::ng-deep .agent-action {
   // Agent action highlights - temporary 5-second visual indicators
   // Styles are defined inline in JointJS element, but this provides a hook for customization
@@ -36,6 +32,10 @@
 }
 
 ::ng-deep .hide-worker-count .operator-worker-count {
+  display: none;
+}
+
+::ng-deep .hide-operator-status .texera-operator-state {
   display: none;
 }
 

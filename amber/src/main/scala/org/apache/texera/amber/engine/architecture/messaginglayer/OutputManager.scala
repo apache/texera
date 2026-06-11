@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.messaginglayer
 
 import org.apache.texera.amber.core.state.State
-import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
@@ -33,7 +33,7 @@ import org.apache.texera.amber.engine.architecture.messaginglayer.OutputManager.
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitioners._
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings._
 import org.apache.texera.amber.engine.architecture.worker.managers.{
-  OutputPortResultWriterThread,
+  OutputPortStorageWriterThread,
   PortStorageWriterTerminateSignal
 }
 import org.apache.texera.amber.engine.common.AmberLogging
@@ -121,7 +121,10 @@ class OutputManager(
     mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
 
   private val outputPortResultWriterThreads
-      : mutable.HashMap[PortIdentity, OutputPortResultWriterThread] =
+      : mutable.HashMap[PortIdentity, OutputPortStorageWriterThread] =
+    mutable.HashMap()
+
+  private val stateWriterThreads: mutable.HashMap[PortIdentity, OutputPortStorageWriterThread] =
     mutable.HashMap()
 
   /**
@@ -191,19 +194,20 @@ class OutputManager(
 
   def emitState(state: State): Unit = {
     networkOutputBuffers.foreach(kv => kv._2.sendState(state))
+    saveStateToStorageIfNeeded(state)
   }
 
-  def addPort(portId: PortIdentity, schema: Schema, storageURIOption: Option[URI]): Unit = {
+  def addPort(portId: PortIdentity, schema: Schema, storageURIBaseOption: Option[URI]): Unit = {
     // each port can only be added and initialized once.
     if (this.ports.contains(portId)) {
       return
     }
     this.ports(portId) = WorkerPort(schema)
 
-    // if a storage URI is provided, set up a storage writer thread
-    storageURIOption match {
-      case Some(storageUri) => setupOutputStorageWriterThread(portId, storageUri)
-      case None             => // No need to add a writer
+    // if a storage URI base is provided, set up storage writer threads
+    storageURIBaseOption match {
+      case Some(portBaseURI) => setupOutputStorageWriterThread(portId, portBaseURI)
+      case None              => // No need to add a writer
     }
   }
 
@@ -232,6 +236,15 @@ class OutputManager(
     })
   }
 
+  private def saveStateToStorageIfNeeded(state: State): Unit = {
+    // The same state row is fanned out to every output port's state
+    // table. This mirrors the broadcast-to-all-workers behavior on the
+    // emit side: state is shared context, not per-key data, so every
+    // downstream operator (and every worker reading the materialization)
+    // needs the full set.
+    stateWriterThreads.values.foreach(_.queue.put(Left(state.toTuple)))
+  }
+
   /**
     * Singal the port storage writer to flush the remaining buffer and wait for commits to finish so that
     * the output port is properly completed. If the output port does not need storage, no action will be done.
@@ -251,7 +264,11 @@ class OutputManager(
         writerThread.getFailure.foreach(throw _)
       case None =>
     }
-
+    this.stateWriterThreads.remove(outputPortId).foreach { writerThread =>
+      writerThread.queue.put(Right(PortStorageWriterTerminateSignal))
+      writerThread.join()
+      writerThread.getFailure.foreach(throw _)
+    }
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
@@ -285,9 +302,9 @@ class OutputManager(
     ports.head._1
   }
 
-  private def setupOutputStorageWriterThread(portId: PortIdentity, storageUri: URI): Unit = {
+  private def setupOutputStorageWriterThread(portId: PortIdentity, portBaseURI: URI): Unit = {
     val bufferedItemWriter = DocumentFactory
-      .openDocument(storageUri)
+      .openDocument(VFSURIFactory.resultURI(portBaseURI))
       ._1
       .writer(
         VirtualIdentityUtils
@@ -300,9 +317,20 @@ class OutputManager(
           .toString
       )
       .asInstanceOf[BufferedItemWriter[Tuple]]
-    val writerThread = new OutputPortResultWriterThread(bufferedItemWriter)
+    val writerThread = new OutputPortStorageWriterThread(bufferedItemWriter)
     this.outputPortResultWriterThreads(portId) = writerThread
     writerThread.start()
+
+    // The state document is provisioned alongside the result document
+    // by RegionExecutionCoordinator, so it is always present.
+    val stateWriter = DocumentFactory
+      .openDocument(VFSURIFactory.stateURI(portBaseURI))
+      ._1
+      .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
+      .asInstanceOf[BufferedItemWriter[Tuple]]
+    val stateWriterThread = new OutputPortStorageWriterThread(stateWriter)
+    this.stateWriterThreads(portId) = stateWriterThread
+    stateWriterThread.start()
   }
 
 }

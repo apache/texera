@@ -16,13 +16,25 @@
 // under the License.
 
 ThisBuild / organization := "org.apache.texera"
-ThisBuild / version      := "1.1.0-incubating"
+ThisBuild / version      := "1.3.0-incubating-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.18"
 
 // Pull JDK 17+ JVM flags from .jvmopts so every JVM the build launches sees the same list.
 import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport.Universal
 ThisBuild / Test / javaOptions ++=
   JdkOptions.jvmFlags((ThisBuild / baseDirectory).value)
+
+// Fail Java compilation on deprecation warnings so PRs can't reintroduce
+// deprecated-API patterns (e.g. scala.collection.JavaConverters in Java
+// callers — the modern Java entry point is scala.jdk.javaapi.CollectionConverters).
+// -Xlint:deprecation surfaces the per-call-site location, -Werror turns it fatal.
+ThisBuild / Compile / javacOptions ++= Seq("-Xlint:deprecation", "-Werror")
+// Emit one JUnit-XML file per spec under each module's target/test-reports/.
+// Codecov Test Analytics ingests these via `report_type: test_results` to
+// surface failing-test stack traces in PR comments and flag tests that have
+// gone flaky on main. ScalaTest's `-u` argument is additive — module-level
+// testOptions (e.g. amber/build.sbt's filter args) continue to apply.
+ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test-reports")
 
 // sbt-jacoco emits only HTML by default; add XML so Codecov can consume
 // per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
@@ -113,7 +125,7 @@ lazy val FileService = (project in file("file-service"))
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Config)
+  .dependsOn(WorkflowOperator, Auth, Config)
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(

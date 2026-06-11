@@ -275,6 +275,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       height: this.editor.offsetHeight,
     });
     this.editor.classList.add("hide-worker-count");
+    this.editor.classList.add("hide-operator-status");
   }
 
   private handleDisableJointPaperInteractiveness(): void {
@@ -358,10 +359,60 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             });
         }
       });
+
+    // When operators are (re)added to the graph — e.g. after navigating back to
+    // the workflow page, where WorkspaceComponent calls reloadWorkflow and
+    // operators are recreated from the workflow JSON — restore their visual
+    // state from the cached status so completed runs don't appear to reset.
+    // Restores port labels / worker count via changeOperatorStatistics, then
+    // delegates the final border color to applyOperatorBorder so the same
+    // priority rules apply as for the validation pass.
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorAddStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(operator => {
+        const statistics = this.workflowStatusService.getCurrentStatus()[operator.operatorID];
+        if (statistics) {
+          this.jointUIService.changeOperatorStatistics(
+            this.paper,
+            operator.operatorID,
+            statistics,
+            this.isSource(operator.operatorID),
+            this.isSink(operator.operatorID)
+          );
+        }
+        this.applyOperatorBorder(operator.operatorID);
+      });
+  }
+
+  /**
+   * Single source of truth for the operator's border color. Both the
+   * validation stream and the operator-add stream route through here so
+   * the priority order is consistent regardless of which event fires last:
+   *   1. Invalid operator → red (validation takes priority).
+   *   2. Valid operator with a cached execution status → execution-state color.
+   *   3. Valid operator with no cached status → default valid (gray).
+   *
+   * Centralizing this here avoids the race where the validation pass
+   * overwrites a state-derived stroke (or vice versa) for an operator that
+   * is both invalid and has a cached execution status.
+   */
+  private applyOperatorBorder(operatorID: string): void {
+    const validation = this.validationWorkflowService.validateOperator(operatorID);
+    if (!validation.isValid) {
+      this.jointUIService.changeOperatorColor(this.paper, operatorID, false);
+      return;
+    }
+    const statistics = this.workflowStatusService.getCurrentStatus()[operatorID];
+    if (statistics) {
+      this.jointUIService.changeOperatorState(this.paper, operatorID, statistics.operatorState);
+    } else {
+      this.jointUIService.changeOperatorColor(this.paper, operatorID, true);
+    }
   }
 
   private handleRegionEvents(): void {
-    this.editor.classList.add("hide-region");
     const Region = joint.dia.Element.define(
       "region",
       {
@@ -369,7 +420,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           body: {
             fill: "rgba(158,158,158,0.2)",
             pointerEvents: "none",
-            class: "region",
+            // Regions start hidden and are revealed via the View > Regions toggle. Driving visibility
+            // through this model attribute keeps the main canvas and the mini-map in sync (see #4027).
+            visibility: "hidden",
           },
         },
       },
@@ -396,7 +449,15 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           this.updateRegionElement(element, ops);
           return { regionElement: element, operators: ops };
         });
+        // regions are recreated on every update, so reapply the current toggle state to the new elements
+        this.setRegionsVisibility(this.wrapper.getRegionsDisplayed());
       });
+
+    // apply the View > Regions toggle to all existing region elements (canvas and mini-map share the model)
+    this.wrapper
+      .getRegionsDisplayedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(displayed => this.setRegionsVisibility(displayed));
 
     this.paper.model.on("change:position", operator => {
       regionMap
@@ -416,6 +477,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         };
         this.paper.getModelById("region-" + region.id).attr("body/fill", colorMap[region.state]);
       });
+  }
+
+  private setRegionsVisibility(displayed: boolean): void {
+    this.paper.model
+      .getElements()
+      .filter(element => element.get("type") === "region")
+      .forEach(element => element.attr("body/visibility", displayed ? "visible" : "hidden"));
   }
 
   private updateRegionElement(regionElement: joint.dia.Element, operators: joint.dia.Cell[]) {
@@ -949,15 +1017,15 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * if the operator is valid , the border of the box will be default
+   * Applies the validation result to the operator's border. Delegates to
+   * applyOperatorBorder so validation, cached-execution-status, and the
+   * default-valid case are decided in one place.
    */
   private handleOperatorValidation(): void {
     this.validationWorkflowService
       .getOperatorValidationStream()
       .pipe(untilDestroyed(this))
-      .subscribe(value =>
-        this.jointUIService.changeOperatorColor(this.paper, value.operatorID, value.validation.isValid)
-      );
+      .subscribe(value => this.applyOperatorBorder(value.operatorID));
   }
 
   /**

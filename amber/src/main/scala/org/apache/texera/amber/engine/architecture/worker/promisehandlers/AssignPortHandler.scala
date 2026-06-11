@@ -58,11 +58,11 @@ trait AssignPortHandler {
         dp.stateManager.assertState(READY, RUNNING, PAUSED)
       }
     } else {
-      val storageURIOption: Option[URI] = msg.storageUris.head match {
+      val storageURIBaseOption: Option[URI] = msg.storageUris.head match {
         case ""        => None
         case uriString => Some(URI.create(uriString))
       }
-      dp.outputManager.addPort(msg.portId, schema, storageURIOption)
+      dp.outputManager.addPort(msg.portId, schema, storageURIBaseOption)
     }
     EmptyReturn()
   }

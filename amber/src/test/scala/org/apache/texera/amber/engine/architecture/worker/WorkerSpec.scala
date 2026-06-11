@@ -98,9 +98,9 @@ class WorkerSpec
   private val mockPortId = PortIdentity()
   private val mockLink =
     PhysicalLink(
-      PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
+      PhysicalOpIdentity(operatorIdentity, "firstPhysicalOp"),
       mockPortId,
-      PhysicalOpIdentity(operatorIdentity, "2nd-physical-op"),
+      PhysicalOpIdentity(operatorIdentity, "secondPhysicalOp"),
       mockPortId
     )
 

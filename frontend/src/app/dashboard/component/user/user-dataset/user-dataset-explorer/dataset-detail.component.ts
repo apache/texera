@@ -41,7 +41,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
 import { Subscription } from "rxjs";
-import { formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { formatCount, formatSpeed, formatTime } from "src/app/common/util/format.util";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
 import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
@@ -119,6 +119,7 @@ export class DatasetDetailComponent implements OnInit {
   public datasetCreationTime: string = "";
   public datasetCreationTimeTooltip: string = "";
   public datasetIsPublic: boolean = false;
+  public coverImageUrl: string | null = null;
   public datasetIsDownloadable: boolean = true;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
   public ownerEmail: string = "";
@@ -329,8 +330,9 @@ export class DatasetDetailComponent implements OnInit {
 
   retrieveDatasetInfo() {
     if (this.did) {
+      const did = this.did;
       this.datasetService
-        .getDataset(this.did, this.isLogin)
+        .getDataset(did, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(dashboardDataset => {
           const dataset = dashboardDataset.dataset;
@@ -341,6 +343,17 @@ export class DatasetDetailComponent implements OnInit {
           this.datasetIsDownloadable = dataset.isDownloadable;
           this.ownerEmail = dashboardDataset.ownerEmail;
           this.isOwner = dashboardDataset.isOwner;
+          if (dataset.coverImage) {
+            this.datasetService
+              .getDatasetCoverUrl(did)
+              .pipe(untilDestroyed(this))
+              .subscribe({
+                next: ({ url }) => (this.coverImageUrl = url),
+                error: () => (this.coverImageUrl = null),
+              });
+          } else {
+            this.coverImageUrl = null;
+          }
           if (typeof dataset.creationTime === "number") {
             const date = new Date(dataset.creationTime);
             this.datasetCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
@@ -719,12 +732,7 @@ export class DatasetDetailComponent implements OnInit {
   // alias for formatSize
   formatSize = formatSize;
 
-  formatCount(count: number): string {
-    if (count >= 1000) {
-      return (count / 1000).toFixed(1) + "k";
-    }
-    return count.toString();
-  }
+  formatCount = formatCount;
   formatTime = formatTime;
   formatSpeed = formatSpeed;
 
@@ -775,13 +783,22 @@ export class DatasetDetailComponent implements OnInit {
     if (!this.did || !this.selectedVersion) {
       return;
     }
+    const did = this.did;
 
+    const newCoverPath = `${this.selectedVersion.name}/${filePath}`;
     this.datasetService
-      .updateDatasetCoverImage(this.did, `${this.selectedVersion.name}/${filePath}`)
+      .updateDatasetCoverImage(did, newCoverPath)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          this.notificationService.success("Cover image set successfully");
+          this.datasetService
+            .getDatasetCoverUrl(did)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: ({ url }) => (this.coverImageUrl = url),
+              error: () => (this.coverImageUrl = null),
+            });
+          this.notificationService.success("Cover image updated.");
         },
         error: (err: unknown) => {
           this.notificationService.error(

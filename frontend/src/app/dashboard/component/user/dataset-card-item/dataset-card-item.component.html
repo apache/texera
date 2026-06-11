@@ -1,0 +1,101 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<nz-card
+  nzHoverable
+  class="dataset-card"
+  [nzCover]="coverTpl"
+  [routerLink]="entryLink">
+  <div class="dataset-card-body-link">
+    <span
+      class="card-title"
+      [title]="entry.name">
+      {{ entry.name }}
+    </span>
+
+    <div class="card-meta">
+      <div class="meta-line meta-line--owner">
+        <span
+          class="meta-owner"
+          [title]="entry.ownerName || entry.ownerEmail || 'Unknown'">
+          <texera-user-avatar
+            class="meta-avatar"
+            [googleAvatar]="entry.ownerGoogleAvatar"
+            userColor="#1E90FF"
+            [userName]="entry.ownerName || entry.ownerEmail || 'Unknown'"
+            [isOwner]="entry.ownerId === currentUid">
+          </texera-user-avatar>
+          <span class="meta-owner-name truncate-single-line">
+            {{ entry.ownerName || entry.ownerEmail || 'Unknown' }}
+          </span>
+        </span>
+        <span
+          class="meta-dot"
+          aria-hidden="true"
+          >·</span
+        >
+        <span class="meta-updated">Created {{ formatRelativeTime(entry.lastModifiedTime) }}</span>
+      </div>
+      <div class="meta-hr"></div>
+      <div class="meta-line meta-line--stats">
+        <div class="meta-stats-left">
+          <span class="meta-stat">
+            <i
+              nz-icon
+              nzType="database"
+              nzTheme="outline"></i>
+            {{ entry.size ? formatSize(entry.size) : '-' }}
+          </span>
+          <span class="meta-stat">
+            <i
+              nz-icon
+              nzType="eye"
+              nzTheme="outline"></i>
+            {{ formatCount(viewCount) }}
+          </span>
+        </div>
+        <button
+          type="button"
+          class="meta-stat meta-stat--like"
+          [class.liked]="isLiked"
+          [class.disabled]="!currentUid"
+          (click)="$event.stopPropagation(); $event.preventDefault(); currentUid && toggleLike()">
+          <i
+            nz-icon
+            nzType="like"
+            [nzTheme]="isLiked ? 'fill' : 'outline'"></i>
+          {{ formatCount(likeCount) }}
+        </button>
+      </div>
+    </div>
+  </div>
+</nz-card>
+
+<ng-template #coverTpl>
+  <div class="cover-container">
+    <img
+      class="cover-image"
+      [src]="coverImageSrc"
+      (error)="onCoverError($event)"
+      loading="lazy"
+      decoding="async"
+      alt="dataset cover" />
+    <span class="cover-id-badge">#{{ entry.id }}</span>
+  </div>
+</ng-template>

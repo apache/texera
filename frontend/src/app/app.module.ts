@@ -78,6 +78,7 @@ import { NzCardModule } from "ng-zorro-antd/card";
 import { NzTagModule } from "ng-zorro-antd/tag";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { BlobErrorHttpInterceptor } from "./common/service/blob-error-http-interceptor.service";
+import { UnauthorizedHttpInterceptor } from "./common/service/unauthorized-http-interceptor.service";
 import { ConsoleFrameComponent } from "./workspace/component/result-panel/console-frame/console-frame.component";
 import { ResultTableFrameComponent } from "./workspace/component/result-panel/result-table-frame/result-table-frame.component";
 import { RowModalComponent } from "./workspace/component/result-panel/result-panel-modal.component";
@@ -156,6 +157,7 @@ import { NzTreeModule } from "ng-zorro-antd/tree";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
 import { NzNoAnimationModule } from "ng-zorro-antd/core/animation";
 import { TreeModule } from "@ali-hm/angular-tree-component";
+import { UiUdfParametersComponent } from "./workspace/component/ui-udf-parameters/ui-udf-parameters.component";
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
@@ -202,9 +204,9 @@ registerLocaleData(en);
     JwtModule.forRoot({
       config: {
         tokenGetter: AuthService.getAccessToken,
-        skipWhenExpired: false,
+        skipWhenExpired: true,
         throwNoTokenError: false,
-        disallowedRoutes: ["forum/api/users"],
+        disallowedRoutes: ["forum/api/users", "api/config/pre-login"],
       },
     }),
     BrowserAnimationsModule,
@@ -265,6 +267,7 @@ registerLocaleData(en);
     NzGridModule,
     ScrollingModule,
     FormlyRepeatDndComponent,
+    UiUdfParametersComponent,
     AdminGmailComponent,
     PublicProjectComponent,
     WorkspaceComponent,
@@ -371,6 +374,11 @@ registerLocaleData(en);
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
+      multi: true,
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: UnauthorizedHttpInterceptor,
       multi: true,
     },
     {

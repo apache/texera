@@ -19,6 +19,8 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
+import org.apache.texera.config.KubernetesConfig
+
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters._
@@ -37,11 +39,8 @@ class PveResource {
   @Path("/system")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getSystemPackages: util.Map[String, util.List[String]] = {
+    val isLocal = !KubernetesConfig.kubernetesComputingUnitEnabled
     try {
-
-      // TODO: Support Kubernetes environment handling
-      val isLocal = true
-
       val systemPkgs =
         PveManager.getSystemPackages(isLocal).toList.asJava
 
@@ -61,9 +60,15 @@ class PveResource {
   @GET
   @Path("/pves")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def fetchPVEs(@QueryParam("cuid") cuid: Int): util.List[util.Map[String, Object]] = {
+  def fetchPVEs(@QueryParam("cuid") cuid: java.lang.Integer): Response = {
+    if (cuid == null) {
+      return Response
+        .status(Response.Status.BAD_REQUEST) // safeguard against cuid = 0
+        .entity("cuid query parameter is required")
+        .build()
+    }
     try {
-      PveManager
+      val pves = PveManager
         .getEnvironments(cuid)
         .map { pve =>
           Map(
@@ -72,7 +77,7 @@ class PveResource {
           ).asJava
         }
         .asJava
-
+      Response.ok(pves).build()
     } catch {
       case e: Exception =>
         e.printStackTrace()
@@ -97,9 +102,9 @@ class PveResource {
   def deletePackage(
       @PathParam("cuid") cuid: Int,
       @PathParam("pveName") pveName: String,
-      @PathParam("packageName") packageName: String,
-      @QueryParam("isLocal") isLocal: Boolean
+      @PathParam("packageName") packageName: String
   ): Response = {
+    val isLocal = !KubernetesConfig.kubernetesComputingUnitEnabled
     val messages = PveManager.deletePackages(
       cuid,
       packageName,
@@ -113,4 +118,5 @@ class PveResource {
       Response.ok(messages.asJava).build()
     }
   }
+
 }

@@ -90,6 +90,20 @@ describe("autoLayoutWorkflow", () => {
     expect(b.x).toBeLessThan(c.x);
   });
 
+  test("matches the frontend rank separation for linked operators", () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("a"), SENTINEL_POS);
+    state.addOperator(makeOperator("b"), SENTINEL_POS);
+    state.addLink(makeLink("l1", "a", "b"));
+
+    autoLayoutWorkflow(state);
+
+    const a = state.getOperatorPosition("a")!;
+    const b = state.getOperatorPosition("b")!;
+    // dagre stores node centers, so the gap is node width (200) + ranksep (80).
+    expect(b.x - a.x).toBe(280);
+  });
+
   test("assigns positions to disconnected operators as well", () => {
     const state = new WorkflowState();
     // Seeding each disconnected node with the same sentinel forces the

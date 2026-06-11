@@ -44,10 +44,10 @@ class AssignPortHandler(ControlHandler):
                     channel_id=channel_id, port_id=req.port_id
                 )
         else:
-            storage_uri = None
+            storage_uri_base = None
             if len(req.storage_uris) > 0 and req.storage_uris[0]:
-                storage_uri = req.storage_uris[0]
+                storage_uri_base = req.storage_uris[0]
             self.context.output_manager.add_output_port(
-                req.port_id, Schema(raw_schema=req.schema), storage_uri
+                req.port_id, Schema(raw_schema=req.schema), storage_uri_base
             )
         return EmptyReturn()

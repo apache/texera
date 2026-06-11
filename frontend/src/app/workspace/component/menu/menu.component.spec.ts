@@ -18,14 +18,15 @@
  */
 
 import { DatePipe, Location } from "@angular/common";
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
-import { BehaviorSubject, of, throwError } from "rxjs";
+import { BehaviorSubject, of, Subject, throwError } from "rxjs";
 
 import { MenuComponent } from "./menu.component";
+import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
+import type { ExecutionDurationUpdateEvent } from "../../types/workflow-websocket.interface";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
@@ -44,8 +45,10 @@ import { ComputingUnitState } from "../../../common/type/computing-unit-connecti
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { saveAs } from "file-saver";
 import type { ModalOptions } from "ng-zorro-antd/modal";
-import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
+import type { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { WorkflowContent } from "../../../common/type/workflow";
+import { Router } from "@angular/router";
+import { USER_WORKFLOW } from "../../../app-routing.constant";
 import type { Mocked } from "vitest";
 
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
@@ -65,10 +68,6 @@ describe("MenuComponent", () => {
   let validationStream$: BehaviorSubject<ValidationOutput>;
 
   beforeEach(async () => {
-    TestBed.overrideComponent(MenuComponent, {
-      set: { template: "" },
-    });
-
     await TestBed.configureTestingModule({
       imports: [MenuComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([]), NzModalModule],
       providers: [
@@ -79,12 +78,14 @@ describe("MenuComponent", () => {
           useValue: {
             getSelectedComputingUnit: () => of(null),
             getStatus: () => of(ComputingUnitState.NoComputingUnit),
+            // Read by ComputingUnitSelectionComponent.ngOnInit when the menu
+            // template renders the <texera-computing-unit-selection> child.
+            getAllComputingUnits: () => of([]),
           },
         },
         { provide: UserService, useClass: StubUserService },
         ...commonTestProviders,
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     workflowActionService = TestBed.inject(WorkflowActionService);
@@ -469,6 +470,31 @@ describe("MenuComponent", () => {
         })
       );
     });
+
+    it("navigates to /user/workflow (no /dashboard prefix) when the modal reports the owner revoked their own access", async () => {
+      vi.spyOn(workflowPersistService, "retrieveOwners").mockReturnValue(of([]));
+      const fakeModalRef = { afterClose: of({ userRevokedOwnAccess: true }) } as unknown as NzModalRef;
+      vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+
+      await component.onClickOpenShareAccess();
+
+      expect(navigateSpy).toHaveBeenCalledWith([USER_WORKFLOW]);
+      expect(USER_WORKFLOW).toBe("/user/workflow");
+    });
+
+    it("does not navigate when the share-access modal closes without revoking own access", async () => {
+      vi.spyOn(workflowPersistService, "retrieveOwners").mockReturnValue(of([]));
+      const fakeModalRef = { afterClose: of(undefined) } as unknown as NzModalRef;
+      vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+
+      await component.onClickOpenShareAccess();
+
+      expect(navigateSpy).not.toHaveBeenCalled();
+    });
   });
 
   it("onClickCreateNewWorkflow resets the graph and navigates back to root", () => {
@@ -528,5 +554,234 @@ describe("MenuComponent", () => {
     const config = createSpy.mock.calls[0][0] as ModalOptions;
     expect(config.nzTitle).toBe("Export All Operators Result");
     expect(config.nzData).toEqual(expect.objectContaining({ workflowName: "report-wf", sourceTriggered: "menu" }));
+  });
+
+  describe("canvas display toggles", () => {
+    // A fake JointJS element that records `attr(path, value)` calls and answers `get("type")`.
+    function fakeElement(type: string) {
+      return {
+        type,
+        attrs: {} as Record<string, unknown>,
+        get(key: string) {
+          return key === "type" ? this.type : undefined;
+        },
+        attr: vi.fn(function (this: { attrs: Record<string, unknown> }, path: string, value: unknown) {
+          this.attrs[path] = value;
+        }),
+      };
+    }
+
+    // Stubs getJointGraphWrapper() with a paper element + model/graph backed by the given elements.
+    function stubWrapper(elements: ReturnType<typeof fakeElement>[]) {
+      const el = document.createElement("div");
+      const wrapper = {
+        mainPaper: { el, model: { getElements: () => elements } },
+        jointGraph: { getElements: () => elements },
+      };
+      vi.spyOn(workflowActionService, "getJointGraphWrapper").mockReturnValue(wrapper as any);
+      return el;
+    }
+
+    describe("toggleRegion", () => {
+      it("publishes the displayed flag to the joint graph wrapper when enabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setRegionsDisplayed");
+
+        component.showRegion = true;
+        component.toggleRegion();
+
+        expect(setSpy).toHaveBeenCalledWith(true);
+      });
+
+      it("publishes the displayed flag to the joint graph wrapper when disabled", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setRegionsDisplayed");
+
+        component.showRegion = false;
+        component.toggleRegion();
+
+        expect(setSpy).toHaveBeenCalledWith(false);
+      });
+    });
+
+    describe("toggleStatus", () => {
+      it("removes hide-operator-status when enabled and repositions the status label", () => {
+        const operator = fakeElement("operator");
+        const el = stubWrapper([operator]);
+        el.classList.add("hide-operator-status");
+
+        component.showStatus = true;
+        component.showNumWorkers = false;
+        component.toggleStatus();
+
+        expect(el.classList.contains("hide-operator-status")).toBe(false);
+        expect(operator.attr).toHaveBeenCalledWith(".texera-operator-state/ref-x", -10);
+        expect(operator.attr).toHaveBeenCalledWith(".texera-operator-state/ref-y", -35);
+      });
+
+      it("adds hide-operator-status when disabled", () => {
+        const operator = fakeElement("operator");
+        const el = stubWrapper([operator]);
+
+        component.showStatus = false;
+        component.toggleStatus();
+
+        expect(el.classList.contains("hide-operator-status")).toBe(true);
+      });
+
+      it("offsets the status label higher when worker counts are shown", () => {
+        const operator = fakeElement("operator");
+        stubWrapper([operator]);
+
+        component.showNumWorkers = true;
+        component.toggleStatus();
+
+        expect(operator.attr).toHaveBeenCalledWith(".texera-operator-state/ref-y", -55);
+      });
+    });
+  });
+
+  // Regression coverage for #5323: the elapsed-time timer was refactored from a
+  // manually managed `durationUpdateSubscription` into a declarative `switchMap`
+  // pipe terminated by `untilDestroyed`. These tests pin the resulting behavior
+  // (base-duration updates, 1s cadence, restart-on-event, stop-when-idle) and,
+  // crucially, that the timer is torn down with the component so it cannot keep
+  // firing or leak after destroy.
+  describe("execution duration timer", () => {
+    let durationEvents$: Subject<{ type: "ExecutionDurationUpdateEvent" } & ExecutionDurationUpdateEvent>;
+    let timerFixture: ComponentFixture<MenuComponent>;
+    let timerComponent: MenuComponent;
+
+    function emitDuration(duration: number, isRunning: boolean): void {
+      durationEvents$.next({ type: "ExecutionDurationUpdateEvent", duration, isRunning });
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      durationEvents$ = new Subject();
+      const websocket = TestBed.inject(WorkflowWebsocketService);
+      const original = websocket.subscribeToEvent.bind(websocket);
+      // Only intercept the duration event; defer every other event type to the
+      // real implementation so unrelated subscriptions keep working.
+      vi.spyOn(websocket, "subscribeToEvent").mockImplementation((type: any) =>
+        type === "ExecutionDurationUpdateEvent" ? (durationEvents$.asObservable() as any) : original(type)
+      );
+
+      timerFixture = TestBed.createComponent(MenuComponent);
+      timerComponent = timerFixture.componentInstance;
+      timerFixture.detectChanges();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("sets executionDuration to the event's base duration on each event", () => {
+      emitDuration(5000, false);
+      expect(timerComponent.executionDuration).toBe(5000);
+
+      emitDuration(8000, false);
+      expect(timerComponent.executionDuration).toBe(8000);
+    });
+
+    it("advances the duration by 1s every second while running", () => {
+      emitDuration(0, true);
+      expect(timerComponent.executionDuration).toBe(0);
+
+      vi.advanceTimersByTime(1000);
+      expect(timerComponent.executionDuration).toBe(1000);
+
+      vi.advanceTimersByTime(2000);
+      expect(timerComponent.executionDuration).toBe(3000);
+    });
+
+    it("does not start a timer when the execution is not running", () => {
+      emitDuration(7000, false);
+
+      vi.advanceTimersByTime(5000);
+
+      expect(timerComponent.executionDuration).toBe(7000);
+    });
+
+    it("restarts the 1s timer on each new running event, cancelling the previous one", () => {
+      emitDuration(0, true);
+      vi.advanceTimersByTime(1000);
+      expect(timerComponent.executionDuration).toBe(1000);
+
+      // A new event resets the base duration and restarts the cadence; the
+      // previous timer must be cancelled (switchMap) so it cannot double-count.
+      emitDuration(10000, true);
+      expect(timerComponent.executionDuration).toBe(10000);
+
+      vi.advanceTimersByTime(500);
+      expect(timerComponent.executionDuration).toBe(10000);
+
+      vi.advanceTimersByTime(500);
+      expect(timerComponent.executionDuration).toBe(11000);
+    });
+
+    it("stops the timer when a running execution transitions to not running", () => {
+      emitDuration(0, true);
+      vi.advanceTimersByTime(1000);
+      expect(timerComponent.executionDuration).toBe(1000);
+
+      emitDuration(2000, false);
+      vi.advanceTimersByTime(5000);
+      expect(timerComponent.executionDuration).toBe(2000);
+    });
+
+    it("tears down the timer on destroy so the duration stops advancing", () => {
+      emitDuration(0, true);
+      vi.advanceTimersByTime(1000);
+      expect(timerComponent.executionDuration).toBe(1000);
+
+      timerFixture.destroy();
+
+      // The previously running timer must not keep firing after destroy...
+      vi.advanceTimersByTime(5000);
+      expect(timerComponent.executionDuration).toBe(1000);
+
+      // ...nor should late events revive it (the source subscription is closed).
+      emitDuration(9999, true);
+      vi.advanceTimersByTime(5000);
+      expect(timerComponent.executionDuration).toBe(1000);
+    });
+  });
+
+  // Regression coverage for #5323: the computing-unit status subscription lost
+  // its manual `computingUnitStatusSubscription` aggregator and its
+  // `ngOnDestroy` unsubscribe, relying on `untilDestroyed` instead. These tests
+  // pin both that status updates still propagate and that they stop on destroy.
+  describe("computing unit status subscription", () => {
+    let status$: Subject<ComputingUnitState>;
+    let cuFixture: ComponentFixture<MenuComponent>;
+    let cuComponent: MenuComponent;
+
+    beforeEach(() => {
+      status$ = new Subject<ComputingUnitState>();
+      const cuService = TestBed.inject(ComputingUnitStatusService);
+      vi.spyOn(cuService, "getStatus").mockReturnValue(status$.asObservable());
+
+      cuFixture = TestBed.createComponent(MenuComponent);
+      cuComponent = cuFixture.componentInstance;
+      cuFixture.detectChanges();
+    });
+
+    it("updates computingUnitStatus and re-applies the run button behavior on each status emission", () => {
+      const applySpy = vi.spyOn(cuComponent, "applyRunButtonBehavior");
+
+      status$.next(ComputingUnitState.Running);
+
+      expect(cuComponent.computingUnitStatus).toBe(ComputingUnitState.Running);
+      expect(applySpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops updating computingUnitStatus once the component is destroyed", () => {
+      status$.next(ComputingUnitState.Running);
+      expect(cuComponent.computingUnitStatus).toBe(ComputingUnitState.Running);
+
+      cuFixture.destroy();
+
+      status$.next(ComputingUnitState.NoComputingUnit);
+      expect(cuComponent.computingUnitStatus).toBe(ComputingUnitState.Running);
+    });
   });
 });

@@ -174,17 +174,3 @@ Texera contains more than 110 built-in operators that cover data loading, cleani
 - **Identify the data dependencies in the Python code in order to connect operators**
 
 In Texera, data flows along links. Before wiring operators, review the notebook to understand which variables feed which; then reproduce those dependencies via links so the executions matches the original notebook.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
