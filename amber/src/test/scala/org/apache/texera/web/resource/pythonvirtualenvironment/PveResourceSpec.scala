@@ -19,10 +19,12 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.VIRTUAL_ENVIRONMENTS
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.web.resource.pythonvirtualenvironment.PveResource.SavePvePayload
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -30,6 +32,7 @@ import org.scalatest.matchers.should.Matchers
 import java.nio.file.{Files, Path, Paths}
 import java.util.UUID
 import java.util.concurrent.LinkedBlockingQueue
+import javax.ws.rs.core.Response
 import scala.jdk.CollectionConverters._
 
 class PveResourceSpec
@@ -236,5 +239,71 @@ class PveResourceSpec
 
     PveManager.deletePveFromDb(veid, testUid) shouldBe false
     PveManager.deletePveFromDb(-1, testUid) shouldBe false
+  }
+
+  // Builds a SessionUser carrying testUid so resource-layer methods can read
+  // the owning user without going through real JWT auth.
+  private def sessionUser: SessionUser = {
+    val user = new User
+    user.setUid(testUid)
+    new SessionUser(user)
+  }
+
+  "PveResource.listPves" should "return every row owned by the current user" in {
+    PveManager.savePve(testUid, "env-1", """{"numpy":"==1.26.0"}""")
+    PveManager.savePve(testUid, "env-2", "{}")
+
+    val items = new PveResource().listPves(sessionUser).asScala
+    items.map(_.name).toSet shouldBe Set("env-1", "env-2")
+  }
+
+  "PveResource.savePve" should "create a new row and return 201" in {
+    val resp = new PveResource().savePve(SavePvePayload("env-new", Map("numpy" -> "==1.26.0")), sessionUser)
+    resp.getStatus shouldBe Response.Status.CREATED.getStatusCode
+  }
+
+  it should "return 400 for an invalid name" in {
+    val resp = new PveResource().savePve(SavePvePayload("bad name with spaces", Map.empty), sessionUser)
+    resp.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+  }
+
+  it should "return 409 when the user already has an env with that name" in {
+    PveManager.savePve(testUid, "env-dup", "{}")
+    val resp = new PveResource().savePve(SavePvePayload("env-dup", Map.empty), sessionUser)
+    resp.getStatus shouldBe Response.Status.CONFLICT.getStatusCode
+  }
+
+  "PveResource.updatePve" should "rename an owned row and return 200" in {
+    val veid = PveManager.savePve(testUid, "env-original", "{}")
+    val resp = new PveResource().updatePve(veid, SavePvePayload("env-renamed", Map.empty), sessionUser)
+    resp.getStatus shouldBe Response.Status.OK.getStatusCode
+  }
+
+  it should "return 400 for an invalid name" in {
+    val resp = new PveResource().updatePve(1, SavePvePayload("bad name", Map.empty), sessionUser)
+    resp.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+  }
+
+  it should "return 404 for a veid the user doesn't own" in {
+    val resp = new PveResource().updatePve(-1, SavePvePayload("env-x", Map.empty), sessionUser)
+    resp.getStatus shouldBe Response.Status.NOT_FOUND.getStatusCode
+  }
+
+  it should "return 409 when renaming onto a name the user already uses" in {
+    PveManager.savePve(testUid, "env-existing", "{}")
+    val target = PveManager.savePve(testUid, "env-other", "{}")
+    val resp = new PveResource().updatePve(target, SavePvePayload("env-existing", Map.empty), sessionUser)
+    resp.getStatus shouldBe Response.Status.CONFLICT.getStatusCode
+  }
+
+  "PveResource.deletePveFromDb" should "delete an owned row and return 204" in {
+    val veid = PveManager.savePve(testUid, "env-todelete", "{}")
+    val resp = new PveResource().deletePveFromDb(veid, sessionUser)
+    resp.getStatus shouldBe Response.Status.NO_CONTENT.getStatusCode
+  }
+
+  it should "return 404 for a veid the user doesn't own" in {
+    val resp = new PveResource().deletePveFromDb(-1, sessionUser)
+    resp.getStatus shouldBe Response.Status.NOT_FOUND.getStatusCode
   }
 }
