@@ -100,51 +100,64 @@ object S3StorageClient {
   }
 
   /**
-    * Deletes a directory (all objects under a given prefix) from a bucket.
+    * Deletes a "directory" from a bucket — every object whose key begins with the given prefix.
+    *
+    * S3 keys are a flat namespace with no real directories; a "directory" is just a shared key
+    * prefix. A trailing `/` is appended when missing so the prefix only matches on a path
+    * boundary: prefix `a/b` deletes `a/b/file` but not the unrelated `a/bc/file`.
     *
     * @param bucketName Target S3/MinIO bucket.
-    * @param directoryPrefix The directory to delete (must end with `/`).
+    * @param directoryPrefix The directory (key prefix) to delete. Must be non-empty: an empty
+    *                        prefix matches the whole bucket, so it is rejected as a safeguard.
     */
   def deleteDirectory(bucketName: String, directoryPrefix: String): Unit = {
-    // Ensure the directory prefix ends with `/` to avoid accidental deletions
+    require(directoryPrefix.nonEmpty, "directoryPrefix must not be empty")
     val prefix = if (directoryPrefix.endsWith("/")) directoryPrefix else directoryPrefix + "/"
 
     val listRequest = ListObjectsV2Request.builder().bucket(bucketName).prefix(prefix).build()
 
-    // Paginate across all pages, then delete in batches within the per-request key limit.
-    s3Client
+    // Paginate across all listing pages and delete in batches within the per-request key limit.
+    // Every batch is attempted before raising, so one undeletable key doesn't strand the keys
+    // behind it — DatasetResource can't retry (its LakeFS repo is already gone), so each attempt
+    // must make as much progress as possible. `quiet(true)` trims each response down to just the
+    // failures, which is all we inspect.
+    val errors = s3Client
       .listObjectsV2Paginator(listRequest)
       .contents()
       .asScala
       .iterator
       .map(obj => ObjectIdentifier.builder().key(obj.key()).build())
       .grouped(MAX_KEYS_PER_DELETE_REQUEST)
-      .foreach { batch =>
-        val response = s3Client.deleteObjects(
-          DeleteObjectsRequest
-            .builder()
-            .bucket(bucketName)
-            .delete(Delete.builder().objects(batch.asJava).build())
-            .build()
-        )
-        throwOnDeleteErrors(prefix, response)
+      .flatMap { batch =>
+        s3Client
+          .deleteObjects(
+            DeleteObjectsRequest
+              .builder()
+              .bucket(bucketName)
+              .delete(Delete.builder().objects(batch.asJava).quiet(true).build())
+              .build()
+          )
+          .errors()
+          .asScala
       }
+      .toList
+
+    throwOnDeleteErrors(prefix, errors)
   }
 
   /**
-    * DeleteObjects reports per-key failures in its response instead of throwing;
-    * raise if any key failed.
+    * DeleteObjects reports per-key failures in its response instead of throwing. Raise if any key
+    * failed across the batches, listing up to `MAX_LISTED_DELETE_ERRORS` of them.
     */
-  private[util] def throwOnDeleteErrors(prefix: String, response: DeleteObjectsResponse): Unit = {
-    val failed = response.errors().asScala
-    if (failed.nonEmpty) {
-      val listed = failed.take(MAX_LISTED_DELETE_ERRORS).map(e => s"${e.key()} (${e.code()})")
+  private[util] def throwOnDeleteErrors(prefix: String, errors: Seq[S3Error]): Unit = {
+    if (errors.nonEmpty) {
+      val listed = errors.take(MAX_LISTED_DELETE_ERRORS).map(e => s"${e.key()} (${e.code()})")
       val summary =
-        if (failed.size > MAX_LISTED_DELETE_ERRORS)
-          s" (and ${failed.size - MAX_LISTED_DELETE_ERRORS} more)"
+        if (errors.size > MAX_LISTED_DELETE_ERRORS)
+          s" (and ${errors.size - MAX_LISTED_DELETE_ERRORS} more)"
         else ""
       throw new RuntimeException(
-        s"Failed to delete ${failed.size} object(s) under prefix '$prefix': " +
+        s"Failed to delete ${errors.size} object(s) under prefix '$prefix': " +
           listed.mkString(", ") + summary
       )
     }
