@@ -26,6 +26,7 @@ import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.config.KubernetesConfig
+import org.jooq.exception.DataAccessException
 
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -108,6 +109,10 @@ class PveResource extends LazyLogging {
       if (updated) Response.ok(Map("veid" -> veid).asJava).build()
       else Response.status(Response.Status.NOT_FOUND).build()
     } catch {
+      case e: DataAccessException if e.sqlState() == "23505" =>
+        Response.status(Response.Status.CONFLICT)
+          .entity(s"""An environment named "$name" already exists.""")
+          .build()
       case e: Exception =>
         logger.error("Failed to update PVE", e)
         throw new InternalServerErrorException(s"Failed to update PVE: ${e.getMessage}")
@@ -139,8 +144,12 @@ class PveResource extends LazyLogging {
     try {
       val packagesJson = mapper.writeValueAsString(payload.packages)
       val veid = PveManager.savePve(sessionUser.getUid.intValue(), name, packagesJson)
-      Response.ok(Map("veid" -> veid).asJava).build()
+      Response.status(Response.Status.CREATED).entity(Map("veid" -> veid).asJava).build()
     } catch {
+      case e: DataAccessException if e.sqlState() == "23505" =>
+        Response.status(Response.Status.CONFLICT)
+          .entity(s"""An environment named "$name" already exists.""")
+          .build()
       case e: Exception =>
         logger.error("Failed to save PVE", e)
         throw new InternalServerErrorException(s"Failed to save PVE: ${e.getMessage}")
