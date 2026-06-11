@@ -29,7 +29,7 @@ import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { AppSettings } from "../../../common/app-setting";
 import { Subject, Subscription } from "rxjs";
-import { debounceTime, switchMap } from "rxjs/operators";
+import { debounceTime, finalize, switchMap, takeUntil } from "rxjs/operators";
 
 export interface HuggingFaceModelOption {
   id: string;
@@ -155,6 +155,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   private readonly searchSubject$ = new Subject<string>();
   private searchSubscription: Subscription | null = null;
 
+  private readonly destroy$ = new Subject<void>();
   private subscription: Subscription | null = null;
   private taskPollInterval: ReturnType<typeof setInterval> | null = null;
   private modelPollInterval: ReturnType<typeof setInterval> | null = null;
@@ -183,6 +184,8 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.subscription?.unsubscribe();
     this.searchSubscription?.unsubscribe();
     this.searchSubject$.complete();
@@ -240,6 +243,16 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
 
     tasksFetchSubscription = this.http
       .get<HuggingFaceTaskOption[]>(`${AppSettings.getApiEndpoint()}/huggingface/tasks`)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          // If takeUntil fires before next/error, reset the module-level guard
+          // so the next component instance can start a fresh fetch.
+          if (cachedTaskOptions === null && tasksFetchError === null) {
+            tasksFetchSubscription = null;
+          }
+        })
+      )
       .subscribe({
         next: tasks => {
           tasksFetchSubscription = null;
@@ -343,9 +356,11 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.cdr.detectChanges();
 
     this.subscription = this.http
-      .get<
-        HuggingFaceModelOption[]
-      >(`${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`, { observe: "response" })
+      .get<HuggingFaceModelOption[]>(
+        `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`,
+        { observe: "response" }
+      )
+      .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: resp => {
           const models = resp.body ?? [];
@@ -423,7 +438,8 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           return this.http.get<HuggingFaceModelOption[]>(
             `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}&search=${encodeURIComponent(query)}`
           );
-        })
+        }),
+        takeUntil(this.destroy$)
       )
       .subscribe({
         next: models => {
