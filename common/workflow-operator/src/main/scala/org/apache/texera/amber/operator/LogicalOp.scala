@@ -65,6 +65,7 @@ import org.apache.texera.amber.operator.projection.ProjectionOpDesc
 import org.apache.texera.amber.operator.randomksampling.RandomKSamplingOpDesc
 import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
+import org.apache.texera.amber.operator.statistics.columnsummary.ColumnSummaryStatisticsOpDesc
 import org.apache.texera.amber.operator.sklearn._
 import org.apache.texera.amber.operator.sklearn.training._
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
@@ -196,6 +197,7 @@ trait StateTransferFunc
     new Type(value = classOf[KeywordSearchOpDesc], name = "KeywordSearch"),
     new Type(value = classOf[SubstringSearchOpDesc], name = "SubstringSearch"),
     new Type(value = classOf[AggregateOpDesc], name = "Aggregate"),
+    new Type(value = classOf[ColumnSummaryStatisticsOpDesc], name = "ColumnSummaryStatistics"),
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[WaterfallChartOpDesc], name = "WaterfallChart"),
     new Type(value = classOf[WindRoseChartOpDesc], name = "WindRoseChart"),
