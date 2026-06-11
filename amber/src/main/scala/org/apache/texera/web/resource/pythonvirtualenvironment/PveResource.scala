@@ -110,7 +110,8 @@ class PveResource extends LazyLogging {
       else Response.status(Response.Status.NOT_FOUND).build()
     } catch {
       case e: DataAccessException if e.sqlState() == "23505" =>
-        Response.status(Response.Status.CONFLICT)
+        Response
+          .status(Response.Status.CONFLICT)
           .entity(s"""An environment named "$name" already exists.""")
           .build()
       case e: Exception =>
@@ -147,7 +148,8 @@ class PveResource extends LazyLogging {
       Response.status(Response.Status.CREATED).entity(Map("veid" -> veid).asJava).build()
     } catch {
       case e: DataAccessException if e.sqlState() == "23505" =>
-        Response.status(Response.Status.CONFLICT)
+        Response
+          .status(Response.Status.CONFLICT)
           .entity(s"""An environment named "$name" already exists.""")
           .build()
       case e: Exception =>

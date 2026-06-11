@@ -258,12 +258,14 @@ class PveResourceSpec
   }
 
   "PveResource.savePve" should "create a new row and return 201" in {
-    val resp = new PveResource().savePve(SavePvePayload("env-new", Map("numpy" -> "==1.26.0")), sessionUser)
+    val resp =
+      new PveResource().savePve(SavePvePayload("env-new", Map("numpy" -> "==1.26.0")), sessionUser)
     resp.getStatus shouldBe Response.Status.CREATED.getStatusCode
   }
 
   it should "return 400 for an invalid name" in {
-    val resp = new PveResource().savePve(SavePvePayload("bad name with spaces", Map.empty), sessionUser)
+    val resp =
+      new PveResource().savePve(SavePvePayload("bad name with spaces", Map.empty), sessionUser)
     resp.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
   }
 
@@ -275,7 +277,8 @@ class PveResourceSpec
 
   "PveResource.updatePve" should "rename an owned row and return 200" in {
     val veid = PveManager.savePve(testUid, "env-original", "{}")
-    val resp = new PveResource().updatePve(veid, SavePvePayload("env-renamed", Map.empty), sessionUser)
+    val resp =
+      new PveResource().updatePve(veid, SavePvePayload("env-renamed", Map.empty), sessionUser)
     resp.getStatus shouldBe Response.Status.OK.getStatusCode
   }
 
@@ -292,7 +295,8 @@ class PveResourceSpec
   it should "return 409 when renaming onto a name the user already uses" in {
     PveManager.savePve(testUid, "env-existing", "{}")
     val target = PveManager.savePve(testUid, "env-other", "{}")
-    val resp = new PveResource().updatePve(target, SavePvePayload("env-existing", Map.empty), sessionUser)
+    val resp =
+      new PveResource().updatePve(target, SavePvePayload("env-existing", Map.empty), sessionUser)
     resp.getStatus shouldBe Response.Status.CONFLICT.getStatusCode
   }
 
