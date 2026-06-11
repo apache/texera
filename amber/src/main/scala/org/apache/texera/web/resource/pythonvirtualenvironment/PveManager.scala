@@ -58,7 +58,7 @@ object PveManager {
   private val SafePveName = "^[A-Za-z0-9._-]+$".r
 
   def isValidPveName(name: String): Boolean =
-    name != null && SafePveName.pattern.matcher(name).matches()
+    name != null && name.length <= 128 && SafePveName.pattern.matcher(name).matches()
 
   private def cuidDir(cuid: Int, pveName: String): Path = {
     VenvRoot.resolve(cuid.toString).resolve(pveName)
