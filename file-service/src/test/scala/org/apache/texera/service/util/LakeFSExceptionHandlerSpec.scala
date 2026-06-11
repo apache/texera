@@ -100,4 +100,16 @@ class LakeFSExceptionHandlerSpec extends AnyFlatSpec with Matchers {
     }
     thrown should be theSameInstanceAs original
   }
+
+  it should "still map the status code when LakeFS provides a response body" in {
+    val withBody = new ApiException(
+      404,
+      java.util.Collections.emptyMap[String, java.util.List[String]](),
+      """{"message":"object not found"}"""
+    )
+    val thrown = intercept[NotFoundException] {
+      withLakeFSErrorHandling("reading file 'a.csv'")(throw withBody)
+    }
+    entityMessage(thrown) should include("LakeFS resource not found")
+  }
 }
