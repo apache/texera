@@ -23,7 +23,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
 import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
 import { getBackendConfig } from "./api/backend-api";
-import { extractUserFromToken, validateToken } from "./api/auth-api";
+import { extractUserFromToken, validateToken, verifyToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
@@ -52,9 +52,11 @@ async function createAgentInstance(
   const agentId = `agent-${++agentCounter}`;
   const config = getBackendConfig();
 
+  // The agent service is a trusted backend, so it calls the LiteLLM gateway
+  // directly with the master key (no access-control proxy hop).
   const openai = createOpenAI({
-    baseURL: `${config.modelsEndpoint}/api`,
-    apiKey: env.LLM_API_KEY,
+    baseURL: config.litellmBaseUrl,
+    apiKey: env.LITELLM_MASTER_KEY,
   });
 
   // Reasoning effort variants are configured as separate model entries in litellm-config.yaml
@@ -160,9 +162,42 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     set.status = 500;
     return { error: errorMessage || "Internal server error" };
   })
+  // Authenticate every agent request by verifying the Bearer JWT ourselves
+  // (defense in depth — the gateway ext_authz also checks it, but this also
+  // covers direct access, e.g. bare-metal dev). The WebSocket route is guarded
+  // separately in its open() handler via the access-token query param.
+  .onBeforeHandle(({ request, set }) => {
+    const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+    if (!verifyToken(token)) {
+      set.status = 401;
+      return { error: "Unauthorized" };
+    }
+  })
   .get("/", () => {
     const agentList = Array.from(agentStore.entries()).map(([id, agent]) => getAgentInfo(id, agent));
     return { agents: agentList };
+  })
+
+  // Lists the models available on the LiteLLM gateway. Previously the frontend
+  // hit a LiteLLM proxy on the access-control-service; the agent service now
+  // owns this since it already holds the master key and talks to LiteLLM.
+  .get("/models", async ({ set }) => {
+    const { litellmBaseUrl } = getBackendConfig();
+    try {
+      const response = await fetch(`${litellmBaseUrl}/models`, {
+        headers: { Authorization: `Bearer ${env.LITELLM_MASTER_KEY}` },
+      });
+      if (!response.ok) {
+        set.status = 502;
+        return { error: `Failed to fetch models from LiteLLM: ${response.status} ${response.statusText}` };
+      }
+      return await response.json();
+    } catch (error) {
+      set.status = 502;
+      return {
+        error: `Failed to fetch models from LiteLLM: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
   })
 
   .post(
@@ -485,6 +520,15 @@ export function buildApp() {
     )
     .ws(`${env.API_PREFIX}/agents/:id/react`, {
       open(ws) {
+        // Browsers can't set headers on a WebSocket, so the JWT arrives as the
+        // access-token query param (same convention as the workflow WS).
+        const token = (ws.data as any).query?.["access-token"];
+        if (!verifyToken(token)) {
+          ws.send(JSON.stringify({ type: "error", error: "Unauthorized" }));
+          ws.close();
+          return;
+        }
+
         const agentId = (ws.data as any).params?.id;
         wsLog.info({ agentId }, "client connected");
 
@@ -630,8 +674,8 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
 
   console.log("");
   console.log("Environment:");
-  console.log(`  LLM_API_KEY: ${env.LLM_API_KEY === "dummy" ? "dummy (default)" : "set"}`);
-  console.log(`  LLM_ENDPOINT: ${getBackendConfig().modelsEndpoint}`);
+  console.log(`  LITELLM_MASTER_KEY: ${env.LITELLM_MASTER_KEY === "dummy" ? "dummy (default)" : "set"}`);
+  console.log(`  LITELLM_BASE_URL: ${getBackendConfig().litellmBaseUrl}`);
   console.log(`  WORKFLOW_COMPILING_SERVICE_ENDPOINT: ${getBackendConfig().compileEndpoint}`);
   console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${getBackendConfig().apiEndpoint}`);
   console.log("");

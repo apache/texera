@@ -63,21 +63,10 @@ Modify `common/config/src/main/resources/gui.conf` to enable the agent feature:
 
 ## Step 5: Configure LiteLLM Connection (Optional)
 
-The `AccessControlService` acts as a gateway between the frontend and LiteLLM. If LiteLLM is running on a different host or port, modify `common/config/src/main/resources/llm.conf`:
-
-```diff
- llm {
-   # Base URL for LiteLLM service
--  base-url = "http://0.0.0.0:4000"
-+  base-url = "http://your-litellm-host:4000"
-
-   # Master key for LiteLLM authentication
--  master-key = ""
-+  master-key = "your-master-key"
- }
-```
-
-Alternatively, set environment variables:
+The `AgentService` is a trusted backend that calls LiteLLM directly — for both
+chat completions and the model list shown in the agent panel — using LiteLLM's
+master key. If LiteLLM is running on a different host or port, or is protected
+by a master key, configure the agent service via environment variables:
 
 ```bash
 export LITELLM_BASE_URL=http://your-litellm-host:4000
@@ -86,7 +75,7 @@ export LITELLM_MASTER_KEY=your-master-key
 
 ## Step 6: Start Texera Services
 
-Start the **all** Texera micro services, including the `AccessControlService`.
+Start **all** the Texera micro services, including the `AgentService`.
 
 ## Done!
 

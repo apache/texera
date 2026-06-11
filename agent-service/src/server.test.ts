@@ -17,9 +17,11 @@
  * under the License.
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { createHmac } from "node:crypto";
 import { buildApp, _resetAgentStoreForTests } from "./server";
 import { env } from "./config/env";
+import { JWT_SECRET } from "./config/jwt";
 
 const API = env.API_PREFIX;
 const app = buildApp();
@@ -28,11 +30,38 @@ function url(path: string): string {
   return `http://localhost${path}`;
 }
 
+// Mint a valid HS256 token (same shape JwtAuth issues) so requests pass the
+// agent-service auth guard; tests that probe the guard itself omit/forge it.
+function b64url(input: string | Buffer): string {
+  return Buffer.from(input).toString("base64url");
+}
+function signToken(claims: Record<string, unknown> = {}): string {
+  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = b64url(
+    JSON.stringify({
+      sub: "tester",
+      userId: 1,
+      email: "tester@example.com",
+      role: "REGULAR",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      ...claims,
+    })
+  );
+  const signature = b64url(
+    createHmac("sha256", new TextEncoder().encode(JWT_SECRET)).update(`${header}.${payload}`).digest()
+  );
+  return `${header}.${payload}.${signature}`;
+}
+const VALID_TOKEN = signToken();
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return { Authorization: `Bearer ${VALID_TOKEN}`, ...extra };
+}
+
 async function postJson(path: string, body: unknown): Promise<Response> {
   return app.handle(
     new Request(url(path), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     })
   );
@@ -42,18 +71,18 @@ async function patchJson(path: string, body: unknown): Promise<Response> {
   return app.handle(
     new Request(url(path), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     })
   );
 }
 
 async function getJson(path: string): Promise<Response> {
-  return app.handle(new Request(url(path)));
+  return app.handle(new Request(url(path), { headers: authHeaders() }));
 }
 
 async function del(path: string): Promise<Response> {
-  return app.handle(new Request(url(path), { method: "DELETE" }));
+  return app.handle(new Request(url(path), { method: "DELETE", headers: authHeaders() }));
 }
 
 async function readJson<T = unknown>(res: Response): Promise<T> {
@@ -71,6 +100,44 @@ describe(`GET ${API}/healthcheck`, () => {
     const body = await readJson<{ status: string; timestamp: string }>(res);
     expect(body.status).toBe("ok");
     expect(typeof body.timestamp).toBe("string");
+  });
+
+  test("does not require a token (readiness probe)", async () => {
+    const res = await app.handle(new Request(url(`${API}/healthcheck`)));
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("auth guard on agent routes", () => {
+  test("rejects a request with no Authorization header (401)", async () => {
+    const res = await app.handle(new Request(url(`${API}/agents`)));
+    expect(res.status).toBe(401);
+    expect(await readJson<{ error: string }>(res)).toEqual({ error: "Unauthorized" });
+  });
+
+  test("rejects an invalid / mis-signed token (401)", async () => {
+    const res = await app.handle(
+      new Request(url(`${API}/agents`), { headers: { Authorization: "Bearer not-a-valid-jwt" } })
+    );
+    expect(res.status).toBe(401);
+  });
+
+  test("rejects an expired token (401)", async () => {
+    const expired = signToken({ exp: Math.floor(Date.now() / 1000) - 3600 });
+    const res = await app.handle(
+      new Request(url(`${API}/agents`), { headers: { Authorization: `Bearer ${expired}` } })
+    );
+    expect(res.status).toBe(401);
+  });
+
+  test("accepts a valid token", async () => {
+    const res = await app.handle(new Request(url(`${API}/agents`), { headers: authHeaders() }));
+    expect(res.status).toBe(200);
+  });
+
+  test("guards the models endpoint too", async () => {
+    const res = await app.handle(new Request(url(`${API}/agents/models`)));
+    expect(res.status).toBe(401);
   });
 });
 
@@ -197,6 +264,73 @@ describe("Agent control routes", () => {
     const res = await getJson(`${API}/agents/${created.id}/operator-results`);
     expect(res.status).toBe(200);
     expect(await readJson<unknown>(res)).toEqual({ results: {} });
+  });
+});
+
+describe(`GET ${API}/agents/models`, () => {
+  // The endpoint fetches the model list from LiteLLM directly (the agent
+  // service holds the master key). Stub global fetch so no real LiteLLM is
+  // needed, and capture the outgoing request to assert URL + auth header.
+  const realFetch = globalThis.fetch;
+  let calls: Array<{ url: string; authorization: string | null }>;
+
+  function mockLiteLLM(responder: (reqUrl: string) => Response | Promise<Response>): void {
+    globalThis.fetch = (async (
+      input: Parameters<typeof fetch>[0],
+      init?: Parameters<typeof fetch>[1]
+    ): Promise<Response> => {
+      const reqUrl = String(input);
+      const authorization = new Headers(init?.headers).get("Authorization");
+      calls.push({ url: reqUrl, authorization });
+      return responder(reqUrl);
+    }) as typeof globalThis.fetch;
+  }
+
+  beforeEach(() => {
+    calls = [];
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  test("forwards the LiteLLM model list and calls it directly with the master key", async () => {
+    const upstream = {
+      data: [{ id: "gpt-5-mini", object: "model", created: 0, owned_by: "openai" }],
+      object: "list",
+    };
+    mockLiteLLM(
+      () => new Response(JSON.stringify(upstream), { status: 200, headers: { "Content-Type": "application/json" } })
+    );
+
+    const res = await getJson(`${API}/agents/models`);
+    expect(res.status).toBe(200);
+    expect(await readJson<typeof upstream>(res)).toEqual(upstream);
+
+    // One call, straight to <litellm-base>/models, carrying the master key.
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe(`${env.LITELLM_BASE_URL}/models`);
+    expect(calls[0].authorization).toBe(`Bearer ${env.LITELLM_MASTER_KEY}`);
+  });
+
+  test("returns 502 when LiteLLM responds with a non-OK status", async () => {
+    mockLiteLLM(() => new Response("unauthorized", { status: 401 }));
+
+    const res = await getJson(`${API}/agents/models`);
+    expect(res.status).toBe(502);
+    const body = await readJson<{ error: string }>(res);
+    expect(body.error).toContain("Failed to fetch models from LiteLLM");
+  });
+
+  test("returns 502 when LiteLLM is unreachable", async () => {
+    mockLiteLLM(() => {
+      throw new Error("connect ECONNREFUSED 127.0.0.1:4000");
+    });
+
+    const res = await getJson(`${API}/agents/models`);
+    expect(res.status).toBe(502);
+    const body = await readJson<{ error: string }>(res);
+    expect(body.error).toContain("Failed to fetch models from LiteLLM");
   });
 });
 

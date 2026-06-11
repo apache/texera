@@ -43,8 +43,8 @@ import org.glassfish.jersey.server.monitoring.{
   * Lives in access-control-service because USER_LAST_ACTIVE_TIME is a
   * user-management concern; the assumption is that any authenticated
   * client session contacts this service often enough (UI navigation,
-  * permission checks, LiteLLM proxy) to capture activity with high
-  * recall, so other services do not need to mirror this listener.
+  * permission checks) to capture activity with high recall, so other
+  * services do not need to mirror this listener.
   */
 @Provider
 class UserActivityEventListener(track: Integer => Unit = UserActivityTracker.markActive)

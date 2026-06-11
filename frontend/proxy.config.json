@@ -10,16 +10,6 @@
     "secure": false,
     "changeOrigin": true
   },
-"/api/models": {
-    "target": "http://localhost:9096",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/api/chat/completion": {
-    "target": "http://localhost:9096",
-    "secure": false,
-    "changeOrigin": true
-  },
   "/api/compile": {
     "target": "http://localhost:9090",
     "secure": false,

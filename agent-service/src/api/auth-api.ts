@@ -18,43 +18,29 @@
  */
 
 import type { UserInfo } from "../types/agent";
+import { verifyToken } from "../config/jwt";
 
 export type { UserInfo } from "../types/agent";
+export { verifyToken } from "../config/jwt";
 
-function decodeJWT(token: string): any {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) {
-      throw new Error("Invalid JWT format");
-    }
-    return JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"));
-  } catch (error) {
-    throw new Error(`Failed to decode JWT: ${error}`);
-  }
-}
-
+/** Verify the token's signature + expiry and return its user claims. Throws on
+ *  an invalid/expired/mis-signed token. */
 export function extractUserFromToken(token: string): UserInfo {
-  const payload = decodeJWT(token);
+  const user = verifyToken(token);
+  if (!user) {
+    throw new Error("Invalid or expired token");
+  }
   return {
-    uid: payload.userId,
-    name: payload.sub,
-    email: payload.email || "",
-    role: payload.role || "REGULAR",
+    uid: user.uid,
+    name: user.name,
+    email: user.email,
+    role: user.role,
   };
 }
 
-function isTokenExpired(token: string): boolean {
-  try {
-    const payload = decodeJWT(token);
-    if (!payload.exp) return false;
-    return Date.now() >= payload.exp * 1000;
-  } catch {
-    return true;
-  }
-}
-
+/** True only when the token is genuinely valid (signature + expiry verified). */
 export function validateToken(token: string): boolean {
-  return !isTokenExpired(token);
+  return verifyToken(token) !== null;
 }
 
 export function createAuthHeaders(token: string): Record<string, string> {

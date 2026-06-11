@@ -21,14 +21,14 @@ import { env } from "../config/env";
 
 interface BackendConfig {
   apiEndpoint: string;
-  modelsEndpoint: string;
+  litellmBaseUrl: string;
   compileEndpoint: string;
   executionEndpoint: string;
 }
 
 const currentConfig: BackendConfig = {
   apiEndpoint: env.TEXERA_DASHBOARD_SERVICE_ENDPOINT,
-  modelsEndpoint: env.LLM_ENDPOINT,
+  litellmBaseUrl: env.LITELLM_BASE_URL,
   compileEndpoint: env.WORKFLOW_COMPILING_SERVICE_ENDPOINT,
   executionEndpoint: env.WORKFLOW_EXECUTION_SERVICE_ENDPOINT,
 };

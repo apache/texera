@@ -46,21 +46,29 @@ spec:
             # Dashboard service: workflow CRUD + operator metadata.
             - name: TEXERA_DASHBOARD_SERVICE_ENDPOINT
               value: http://{{ .Values.webserver.name }}-svc:{{ .Values.webserver.service.port }}
-            # LLM gateway: access-control-service serves /api/chat and /api/models,
-            # forwarding to LiteLLM (mirrors the single-node nginx routing).
-            - name: LLM_ENDPOINT
-              value: http://{{ .Values.accessControlService.name }}-svc:{{ .Values.accessControlService.service.port }}
+            # The agent service is a trusted backend, so it calls LiteLLM
+            # directly with the master key (no access-control proxy hop).
+            - name: LITELLM_BASE_URL
+              value: http://{{ .Values.litellm.name }}-svc:{{ .Values.litellm.service.port }}
             - name: WORKFLOW_COMPILING_SERVICE_ENDPOINT
               value: http://{{ .Values.workflowCompilingService.name }}-svc:{{ .Values.workflowCompilingService.service.port }}
             # Per-computing-unit execution endpoint; "{cuid}" is substituted with the
             # computing unit id at request time.
             - name: EXECUTION_ENDPOINT_TEMPLATE
               value: http://computing-unit-{cuid}.{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:{{ .Values.workflowComputingUnitPool.service.port }}
-            - name: LLM_API_KEY
+            - name: LITELLM_MASTER_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}-agent-service-secret
-                  key: llm-api-key
+                  key: litellm-master-key
+            # Shared JWT secret used to verify Bearer tokens. Sourced from the
+            # same texeraEnvVars entry the Scala services use, so they agree.
+            {{- range .Values.texeraEnvVars }}
+            {{- if eq .name "AUTH_JWT_SECRET" }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+            {{- end }}
+            {{- end }}
           # The service loads operator metadata from the dashboard service on
           # startup, so gate readiness on its health endpoint before the gateway
           # routes traffic here. /api/healthcheck needs no auth.

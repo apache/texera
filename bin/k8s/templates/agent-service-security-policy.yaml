@@ -15,20 +15,29 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Shared secret for the agent service and LiteLLM. Holds LiteLLM's master key
-# (used by both the agent service and LiteLLM) and the upstream provider API
-# keys. Provide real values via `--set` or a values override file; do not
-# commit them.
-{{- if or .Values.agentService.enabled .Values.litellm.enabled }}
-apiVersion: v1
-kind: Secret
+# Authenticates every /api/agents request through the access-control-service
+# before it reaches the agent service (mirrors the dynamic-routes ext-auth).
+# The access-control-service verifies the JWT and requires a REGULAR/ADMIN
+# role, then injects the trusted x-user-* identity headers.
+{{- if .Values.agentService.enabled }}
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
 metadata:
-  name: {{ .Release.Name }}-agent-service-secret
+  name: {{ .Release.Name }}-agent-ext-auth
   namespace: {{ .Release.Namespace }}
-type: Opaque
-stringData:
-  litellm-master-key: "{{ .Values.litellm.masterKey }}"
-  {{- range $key, $value := .Values.litellm.providerApiKeys }}
-  {{ $key }}: "{{ $value }}"
-  {{- end }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: {{ .Release.Name }}-agent-service-route
+  extAuth:
+    http:
+      backendRefs:
+        - name: {{ .Values.accessControlService.name }}-svc
+          port: {{ .Values.accessControlService.service.port }}
+      path: /api/auth
+      headersToBackend:
+        - x-user-id
+        - x-user-name
+        - x-user-email
 {{- end }}

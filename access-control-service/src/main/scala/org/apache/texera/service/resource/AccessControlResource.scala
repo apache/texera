@@ -20,15 +20,14 @@ package org.apache.texera.service.resource
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import jakarta.annotation.security.{PermitAll, RolesAllowed}
-import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
+import jakarta.annotation.security.PermitAll
 import jakarta.ws.rs.core._
-import jakarta.ws.rs.{Consumes, DELETE, GET, POST, Path, Produces}
+import jakarta.ws.rs.{DELETE, GET, POST, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
-import org.apache.texera.config.{GuiConfig, KubernetesConfig, LLMConfig}
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.config.KubernetesConfig
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -45,6 +44,8 @@ object AccessControlResource extends LazyLogging {
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
   private val pveRoute: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve(?:/.*)?$""".r
+  // Agent service: authenticate any /api/agents request (Phase 1 — see #5561).
+  private val apiAgents: Regex = """.*/api/agents.*""".r
   // Path patterns whose cuid lives in the URL path rather than the query string.
   private val pvePvesCuidPath: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve/pves/([0-9]+)$""".r
   private val pvePackagesCuidPath: Regex =
@@ -69,10 +70,66 @@ object AccessControlResource extends LazyLogging {
       case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() |
           pveRoute() =>
         checkComputingUnitAccess(uriInfo, headers, bodyOpt)
+      case apiAgents() =>
+        checkAgentAccess(uriInfo, headers, bodyOpt)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
         Response.status(Response.Status.FORBIDDEN).build()
     }
+  }
+
+  // Extract the bearer token from the access-token query param, the
+  // Authorization header, or a "token" field in the body (in that order).
+  private def extractBearerToken(
+      uriInfo: UriInfo,
+      headers: HttpHeaders,
+      bodyOpt: Option[String]
+  ): String = {
+    val qToken = Option(uriInfo.getQueryParameters().getFirst("access-token"))
+      .map(_.trim)
+      .filter(_.nonEmpty)
+    val hToken = Option(headers.getRequestHeader("Authorization"))
+      .flatMap(_.asScala.headOption)
+      .map(_.replaceFirst("(?i)^Bearer\\s+", "")) // case-insensitive "Bearer "
+      .map(_.trim)
+      .filter(_.nonEmpty)
+    val bToken = bodyOpt.flatMap(extractTokenFromBody)
+    qToken.orElse(hToken).orElse(bToken).getOrElse("")
+  }
+
+  // Phase 1 agent authorization: authenticate the JWT and require a
+  // REGULAR/ADMIN role. Any such user may reach any agent for now; per-agent
+  // ownership is deferred (see #5302 / #5561). On success, forward the user
+  // identity headers so the agent service can trust them.
+  private def checkAgentAccess(
+      uriInfo: UriInfo,
+      headers: HttpHeaders,
+      bodyOpt: Option[String]
+  ): Response = {
+    val token = extractBearerToken(uriInfo, headers, bodyOpt)
+    val userSession: Optional[SessionUser] =
+      try parseToken(token)
+      catch {
+        case e: Exception =>
+          logger.error(s"Failed parsing token for agent request: $e")
+          Optional.empty()
+      }
+
+    if (userSession.isEmpty) {
+      return Response.status(Response.Status.UNAUTHORIZED).build()
+    }
+
+    val user = userSession.get()
+    if (!(user.isRoleOf(UserRoleEnum.REGULAR) || user.isRoleOf(UserRoleEnum.ADMIN))) {
+      return Response.status(Response.Status.FORBIDDEN).build()
+    }
+
+    Response
+      .ok()
+      .header(HeaderField.UserId, user.getUid.toString)
+      .header(HeaderField.UserName, user.getName)
+      .header(HeaderField.UserEmail, user.getEmail)
+      .build()
   }
 
   private def checkComputingUnitAccess(
@@ -240,157 +297,5 @@ class AccessControlResource extends LazyLogging {
       @Context headers: HttpHeaders
   ): Response = {
     AccessControlResource.authorize(uriInfo, headers)
-  }
-}
-
-// Forwards chat completions to LiteLLM with the server's master key, so
-// only authenticated users may call it.
-@Path("/chat")
-@RolesAllowed(Array("REGULAR", "ADMIN"))
-@Produces(Array(MediaType.APPLICATION_JSON))
-@Consumes(Array(MediaType.APPLICATION_JSON))
-class LiteLLMProxyResource(
-    copilotEnabled: Boolean,
-    litellmBaseUrl: String,
-    litellmApiKey: String
-) extends LazyLogging {
-
-  // No-arg constructor for Jersey reflection. Tests use the param-ful form.
-  def this() =
-    this(
-      GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
-      LLMConfig.baseUrl,
-      LLMConfig.masterKey
-    )
-
-  private val client: Client = ClientBuilder.newClient()
-
-  @POST
-  @Path("/{path:.*}")
-  def proxyPost(
-      @Context uriInfo: UriInfo,
-      @Context headers: HttpHeaders,
-      body: String
-  ): Response = {
-    if (!copilotEnabled) {
-      return Response
-        .status(Response.Status.FORBIDDEN)
-        .entity(LiteLLMProxyResource.CopilotDisabledBody)
-        .build()
-    }
-
-    // uriInfo.getPath returns "chat/completions" for /api/chat/completions
-    // We want to forward as "/chat/completions" to LiteLLM
-    val fullPath = uriInfo.getPath
-    val targetUrl = s"$litellmBaseUrl/$fullPath"
-
-    logger.info(s"Proxying POST request to LiteLLM: $targetUrl")
-
-    try {
-      val requestBuilder = client
-        .target(targetUrl)
-        .request(MediaType.APPLICATION_JSON)
-        .header("Authorization", s"Bearer $litellmApiKey")
-
-      // Forward other relevant headers from the original request
-      headers.getRequestHeaders.asScala.foreach {
-        case (key, values)
-            if !key.equalsIgnoreCase("Authorization") &&
-              !key.equalsIgnoreCase("Host") &&
-              !key.equalsIgnoreCase("Content-Length") =>
-          values.asScala.foreach(value => requestBuilder.header(key, value))
-        case _ => // Skip Authorization, Host, and Content-Length headers
-      }
-
-      val response = requestBuilder.post(Entity.json(body))
-
-      // Build response with same status and body from LiteLLM
-      val responseBody = response.readEntity(classOf[String])
-      val responseBuilder = Response
-        .status(response.getStatus)
-        .entity(responseBody)
-
-      // Forward response headers
-      response.getHeaders.asScala.foreach {
-        case (key, values) =>
-          values.asScala.foreach(value => responseBuilder.header(key, value))
-      }
-
-      responseBuilder.build()
-    } catch {
-      case e: Exception =>
-        logger.error(s"Error proxying request to LiteLLM: ${e.getMessage}", e)
-        Response
-          .status(Response.Status.BAD_GATEWAY)
-          .entity(s"""{"error": "Failed to proxy request to LiteLLM: ${e.getMessage}"}""")
-          .build()
-    }
-  }
-}
-
-object LiteLLMProxyResource {
-  val CopilotDisabledBody: String = """{"error": "Copilot feature is disabled"}"""
-}
-
-@Path("/models")
-@RolesAllowed(Array("REGULAR", "ADMIN"))
-@Produces(Array(MediaType.APPLICATION_JSON))
-class LiteLLMModelsResource(
-    copilotEnabled: Boolean,
-    litellmBaseUrl: String,
-    litellmApiKey: String
-) extends LazyLogging {
-
-  // No-arg constructor for Jersey reflection. Tests use the param-ful form.
-  def this() =
-    this(
-      GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
-      LLMConfig.baseUrl,
-      LLMConfig.masterKey
-    )
-
-  private val client: Client = ClientBuilder.newClient()
-
-  @GET
-  def getModels: Response = {
-    if (!copilotEnabled) {
-      return Response
-        .status(Response.Status.FORBIDDEN)
-        .entity(LiteLLMProxyResource.CopilotDisabledBody)
-        .build()
-    }
-
-    val targetUrl = s"$litellmBaseUrl/models"
-
-    logger.info(s"Fetching models from LiteLLM: $targetUrl")
-
-    try {
-      val response = client
-        .target(targetUrl)
-        .request(MediaType.APPLICATION_JSON)
-        .header("Authorization", s"Bearer $litellmApiKey")
-        .get()
-
-      // Build response with same status and body from LiteLLM
-      val responseBody = response.readEntity(classOf[String])
-      val responseBuilder = Response
-        .status(response.getStatus)
-        .entity(responseBody)
-
-      // Forward response headers
-      response.getHeaders.asScala.foreach {
-        case (key, values) =>
-          values.asScala.foreach(value => responseBuilder.header(key, value))
-      }
-
-      responseBuilder.build()
-    } catch {
-      case e: Exception =>
-        logger.error(s"Error fetching models from LiteLLM: ${e.getMessage}", e)
-        Response
-          .status(Response.Status.BAD_GATEWAY)
-          .entity(s"""{"error": "Failed to fetch models from LiteLLM: ${e.getMessage}"}""")
-          .build()
-    }
   }
 }

@@ -299,7 +299,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # AccessControlService handles user permissions and proxies LLM API traffic
+  # AccessControlService handles user permissions and access control
   access-control-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-access-control-service:${IMAGE_TAG:-latest}
     container_name: access-control-service
