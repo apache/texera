@@ -35,7 +35,7 @@ export interface InputPort
   extends Readonly<{
     id: PortIdentity;
     displayName: string;
-    allowMultiLinks: boolean;
+    disallowMultiLinks: boolean;
     dependencies: ReadonlyArray<PortIdentity>;
   }> {}
 

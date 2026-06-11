@@ -25,6 +25,7 @@ import org.apache.texera.amber.core.workflow.OutputPort
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 
+@deprecated("Twitter source operator is no longer executable.", "1.1.0-incubating")
 abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
 
   @JsonIgnore

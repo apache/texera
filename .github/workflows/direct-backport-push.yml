@@ -1,0 +1,619 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Direct Backport Push
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+  statuses: write
+
+jobs:
+  discover:
+    name: Discover direct backport targets
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.discover.outputs.pr_number }}
+      targets: ${{ steps.discover.outputs.targets }}
+      has_targets: ${{ steps.discover.outputs.has_targets }}
+    steps:
+      - name: Resolve merged PR and green targets
+        id: discover
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const sha = context.sha;
+            const { owner, repo } = context.repo;
+
+            // Strategy 1 (preferred): parse the squash-merge commit message.
+            // ASF .asf.yaml forces squash merges with PR_TITLE_AND_DESC, so the
+            // first line ends with "(#NNNN)". This is deterministic and avoids
+            // the commit↔PR association index, which can lag for tens of seconds
+            // after a merge.
+            async function resolvePrFromMessage() {
+              const message = context.payload?.head_commit?.message ?? "";
+              const firstLine = message.split("\n", 1)[0];
+              const match = firstLine.match(/\(#(\d+)\)\s*$/);
+              if (!match) {
+                core.info('Commit message does not end with "(#N)"; falling back to API.');
+                return null;
+              }
+              const prNumber = Number(match[1]);
+              try {
+                const { data: pr } = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: prNumber,
+                });
+                if (!pr.merged) {
+                  core.warning(`PR #${prNumber} extracted from commit message is not merged; falling back to API.`);
+                  return null;
+                }
+                core.info(`Resolved PR #${prNumber} from commit message.`);
+                return pr;
+              } catch (e) {
+                core.warning(`Failed to fetch PR #${prNumber}: ${e.message}. Falling back to API.`);
+                return null;
+              }
+            }
+
+            // Strategy 2 (fallback): GET /commits/{sha}/pulls with exponential
+            // backoff. 5 attempts at 0/2/4/8/16s — total worst case ~30s.
+            async function resolvePrFromApi() {
+              const backoffsMs = [0, 2000, 4000, 8000, 16000];
+              for (let i = 0; i < backoffsMs.length; i++) {
+                if (backoffsMs[i] > 0) {
+                  core.info(`Retrying commit→PR lookup in ${backoffsMs[i] / 1000}s (attempt ${i + 1}/${backoffsMs.length}).`);
+                  await new Promise((resolve) => setTimeout(resolve, backoffsMs[i]));
+                }
+                const response = await github.request(
+                  "GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls",
+                  {
+                    owner,
+                    repo,
+                    commit_sha: sha,
+                  }
+                );
+                const pr = response.data.find((p) => p.merge_commit_sha === sha) ?? response.data[0];
+                if (pr) {
+                  core.info(`Resolved PR #${pr.number} from commits/${sha}/pulls on attempt ${i + 1}.`);
+                  return pr;
+                }
+              }
+              return null;
+            }
+
+            const pullRequest = (await resolvePrFromMessage()) ?? (await resolvePrFromApi());
+            if (!pullRequest) {
+              core.info(`No merged pull request is associated with ${sha}.`);
+              core.setOutput("pr_number", "");
+              core.setOutput("targets", "[]");
+              core.setOutput("has_targets", "false");
+              return;
+            }
+
+            const requestedTargets = [...new Set(
+              pullRequest.labels
+                .map((label) => label.name)
+                .filter((name) => /^release\/.+$/.test(name))
+            )].sort();
+
+            if (requestedTargets.length === 0) {
+              core.info(`PR #${pullRequest.number} does not request any backports.`);
+              core.setOutput("pr_number", String(pullRequest.number));
+              core.setOutput("targets", "[]");
+              core.setOutput("has_targets", "false");
+              return;
+            }
+
+            const buildRuns = await github.paginate(
+              github.rest.actions.listWorkflowRuns,
+              {
+                owner,
+                repo,
+                workflow_id: "required-checks.yml",
+                head_sha: pullRequest.head.sha,
+                per_page: 100,
+              }
+            );
+
+            let greenTargets = [];
+            if (buildRuns.length === 0) {
+              core.warning(`No Build workflow runs found for ${pullRequest.head.sha}.`);
+            } else {
+              const allJobs = [];
+              for (const run of buildRuns) {
+                const jobs = await github.paginate(
+                  github.rest.actions.listJobsForWorkflowRun,
+                  {
+                    owner,
+                    repo,
+                    run_id: run.id,
+                    per_page: 100,
+                  }
+                );
+                allJobs.push(...jobs);
+              }
+
+              greenTargets = requestedTargets.filter((target) => {
+                const prefix = `backport (${target}) / `;
+                const targetJobs = allJobs.filter((job) => job.name.startsWith(prefix));
+                // Treat skipped as green: precheck legitimately skips stacks
+                // based on PR labels, matching the Required Checks aggregator.
+                return (
+                  targetJobs.length > 0 &&
+                  targetJobs.every(
+                    (job) => job.conclusion === "success" || job.conclusion === "skipped"
+                  )
+                );
+              });
+            }
+
+            const skippedTargets = requestedTargets.filter((target) => !greenTargets.includes(target));
+            if (skippedTargets.length > 0) {
+              core.warning(`Skipping targets without a successful Backport run: ${skippedTargets.join(", ")}`);
+            }
+
+            core.setOutput("pr_number", String(pullRequest.number));
+            core.setOutput("targets", JSON.stringify(greenTargets));
+            core.setOutput("has_targets", greenTargets.length > 0 ? "true" : "false");
+
+  push-backports:
+    needs: discover
+    if: ${{ needs.discover.outputs.has_targets == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.discover.outputs.targets) }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          # Use AUTO_MERGE_TOKEN (fine-grained PAT) so the push to the release
+          # branch retriggers workflows on that branch. GITHUB_TOKEN-authored
+          # pushes are excluded from triggering downstream workflows, which
+          # silences post-merge CI on backport commits.
+          token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Cherry-pick merge commit onto target branch
+        id: cherry_pick
+        env:
+          MERGE_SHA: ${{ github.sha }}
+          TARGET_BRANCH: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+
+          log() { printf '[backport %s] %s\n' "${TARGET_BRANCH}" "$*"; }
+          group() { printf '::group::%s\n' "$*"; }
+          endgroup() { printf '::endgroup::\n'; }
+
+          group "Validate merge commit ${MERGE_SHA}"
+          parent_count=$(git rev-list --parents -n 1 "${MERGE_SHA}" | awk '{print NF-1}')
+          log "parent_count=${parent_count}"
+          if [[ "${parent_count}" -ne 1 ]]; then
+            echo "::error::Direct backport expects a squash-merged commit on main. ${MERGE_SHA} has ${parent_count} parents."
+            exit 1
+          fi
+          endgroup
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Reuse the squash commit's full message so the PR title, description,
+          # and any Co-Authored-By trailers GitHub injected stay attached to
+          # the backport commit. The author is the squash commit's author
+          # (the original PR author for squash merges).
+          original_author=$(git log -1 --format='%an <%ae>' "${MERGE_SHA}")
+          merge_message=$(git log -1 --format=%B "${MERGE_SHA}")
+          log "original_author=${original_author}"
+
+          group "Cherry-pick onto ${TARGET_BRANCH}"
+          git fetch --no-tags origin "${TARGET_BRANCH}"
+          git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
+          base_sha=$(git rev-parse HEAD)
+          log "base_sha=${base_sha}"
+          if ! git cherry-pick --no-commit "${MERGE_SHA}"; then
+            endgroup
+            group "Conflict diagnosis"
+            conflicts=$(git diff --name-only --diff-filter=U)
+            log "Conflicted files:"
+            printf '  %s\n' ${conflicts}
+
+            # merge-base of the source commit and the target branch — the
+            # most recent point where main and the release branch shared
+            # history. Anything on main between the merge-base and the
+            # source commit that touches a conflicting file is a candidate
+            # "missing prerequisite" the backport probably needs first.
+            merge_base=$(git merge-base "${MERGE_SHA}^" "origin/${TARGET_BRANCH}" || echo "")
+            log ""
+            log "merge_base(${MERGE_SHA:0:8}^, origin/${TARGET_BRANCH})=${merge_base:-<none>}"
+
+            for f in ${conflicts}; do
+              log ""
+              log "── ${f} ──"
+              log "Conflict markers (line numbers in the working tree):"
+              grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- "${f}" | head -40 || true
+
+              if [[ -n "${merge_base}" ]]; then
+                log ""
+                log "Commits on main that modified ${f} between ${merge_base:0:8}..${MERGE_SHA:0:8}^ (likely-missing prerequisites — consider backporting these first):"
+                git log --oneline --no-merges "${merge_base}..${MERGE_SHA}^" -- "${f}" | head -20 || true
+
+                log ""
+                log "Commits on ${TARGET_BRANCH} that modified ${f} since ${merge_base:0:8} (changes already on the release branch that diverged from main):"
+                git log --oneline --no-merges "${merge_base}..origin/${TARGET_BRANCH}" -- "${f}" | head -20 || true
+              fi
+
+              log ""
+              log "Last 3 commits anywhere that touched ${f}:"
+              git log --oneline --all -3 -- "${f}" || true
+            done
+            endgroup
+
+            # Write a condensed markdown summary for the failure PR comment.
+            # Caps: 5 files, 10 prerequisite commits total — keep PR
+            # comments scannable; the full detail is in the job log above.
+            diagnosis_file="${RUNNER_TEMP:-/tmp}/backport-diagnosis.md"
+            {
+              echo "**Conflicts in:**"
+              num=0
+              for f in ${conflicts}; do
+                if [[ ${num} -lt 5 ]]; then
+                  printf -- '- `%s`\n' "${f}"
+                fi
+                num=$((num + 1))
+              done
+              if [[ ${num} -gt 5 ]]; then
+                printf -- '- _(+%d more)_\n' "$((num - 5))"
+              fi
+              if [[ -n "${merge_base}" ]]; then
+                echo
+                echo "**Likely-missing prerequisites on main** (commits that touched these files between merge-base \`${merge_base:0:8}\` and \`${MERGE_SHA:0:8}^\` — consider backporting these first):"
+                {
+                  for f in ${conflicts}; do
+                    git log --oneline --no-merges "${merge_base}..${MERGE_SHA}^" -- "${f}" || true
+                  done
+                } | sort -u | head -10 | while IFS= read -r line; do
+                  [[ -n "${line}" ]] && printf -- '- `%s`\n' "${line}"
+                done
+              fi
+            } > "${diagnosis_file}"
+            log "Wrote diagnosis summary to ${diagnosis_file}"
+
+            echo "::error::Cherry-pick of ${MERGE_SHA} onto ${TARGET_BRANCH} hit conflicts. See 'Conflict diagnosis' group above for likely-missing prerequisite commits and per-file conflict markers."
+            exit 1
+          fi
+          endgroup
+
+          group "Compose backport commit message"
+          new_message=$(
+            printf '%s' "${merge_message}" \
+              | python3 .github/scripts/compose-backport-message.py "${MERGE_SHA}"
+          )
+          printf '%s\n' "${new_message}" | git commit -F - --author="${original_author}"
+          log "local_sha=$(git rev-parse HEAD)"
+          endgroup
+
+          # Push with retry. Transient failures (network, GitHub 5xx) are pure
+          # backoff. Non-fast-forward (race with another push to the same
+          # release branch) refreshes origin/<target> and rebases this single
+          # cherry-pick on top before retrying.
+          push_attempts=5
+          push_backoffs=(0 5 15 30 60)
+          push_success=0
+          for i in $(seq 0 $((push_attempts - 1))); do
+            if [[ "${push_backoffs[i]}" -gt 0 ]]; then
+              log "Push attempt $((i + 1))/${push_attempts}: sleeping ${push_backoffs[i]}s"
+              sleep "${push_backoffs[i]}"
+            fi
+            group "Push attempt $((i + 1))/${push_attempts}"
+            if git push origin "HEAD:${TARGET_BRANCH}" 2>&1; then
+              push_success=1
+              endgroup
+              break
+            fi
+            push_rc=$?
+            log "git push exit code=${push_rc}"
+            endgroup
+
+            # Refresh origin and rebase before retrying. If the remote did not
+            # advance, this is a no-op rebase and the next push will likely
+            # hit the same transient error — backoff handles that.
+            log "Refreshing origin/${TARGET_BRANCH} before retry"
+            git fetch --no-tags origin "${TARGET_BRANCH}"
+            old_remote_head="${remote_head:-${base_sha}}"
+            remote_head=$(git rev-parse "origin/${TARGET_BRANCH}")
+            log "origin/${TARGET_BRANCH}=${remote_head}"
+            if ! git rebase "origin/${TARGET_BRANCH}"; then
+              conflicts=$(git diff --name-only --diff-filter=U)
+              group "Rebase conflict diagnosis"
+              log "Conflicted files during rebase:"
+              printf '  %s\n' ${conflicts}
+              log ""
+              log "Commits on ${TARGET_BRANCH} that landed since this run started (${old_remote_head:0:8}..${remote_head:0:8}):"
+              git log --oneline --no-merges "${old_remote_head}..${remote_head}" | head -20 || true
+              for f in ${conflicts}; do
+                log ""
+                log "── ${f} ──"
+                log "Commits in ${old_remote_head:0:8}..${remote_head:0:8} that touched ${f}:"
+                git log --oneline --no-merges "${old_remote_head}..${remote_head}" -- "${f}" | head -20 || true
+              done
+              endgroup
+
+              diagnosis_file="${RUNNER_TEMP:-/tmp}/backport-diagnosis.md"
+              {
+                printf -- '**Rebase conflict during push** — another commit landed on `%s` between the start of this run and the push attempt.\n\n' "${TARGET_BRANCH}"
+                echo "**Conflicts in:**"
+                num=0
+                for f in ${conflicts}; do
+                  if [[ ${num} -lt 5 ]]; then
+                    printf -- '- `%s`\n' "${f}"
+                  fi
+                  num=$((num + 1))
+                done
+                if [[ ${num} -gt 5 ]]; then
+                  printf -- '- _(+%d more)_\n' "$((num - 5))"
+                fi
+                echo
+                printf -- '**Racing commits on `%s`** (`%s..%s`):\n' \
+                  "${TARGET_BRANCH}" "${old_remote_head:0:8}" "${remote_head:0:8}"
+                git log --oneline --no-merges "${old_remote_head}..${remote_head}" | head -10 | while IFS= read -r line; do
+                  [[ -n "${line}" ]] && printf -- '- `%s`\n' "${line}"
+                done
+              } > "${diagnosis_file}"
+              log "Wrote diagnosis summary to ${diagnosis_file}"
+
+              git rebase --abort || true
+              echo "::error::Rebase onto refreshed origin/${TARGET_BRANCH} hit a conflict; another commit changed the same lines. See 'Rebase conflict diagnosis' group for the racing commits."
+              exit 1
+            fi
+          done
+
+          if [[ "${push_success}" -ne 1 ]]; then
+            echo "::error::git push to ${TARGET_BRANCH} failed after ${push_attempts} attempts"
+            exit 1
+          fi
+
+          new_sha=$(git rev-parse HEAD)
+          log "new_sha=${new_sha}"
+          echo "new_sha=${new_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Annotate original PR and commit on success
+        if: success()
+        uses: actions/github-script@v8
+        env:
+          MERGE_SHA: ${{ github.sha }}
+          TARGET_BRANCH: ${{ matrix.target }}
+          NEW_SHA: ${{ steps.cherry_pick.outputs.new_sha }}
+          PR_NUMBER: ${{ needs.discover.outputs.pr_number }}
+        with:
+          script: |
+            const { MERGE_SHA, TARGET_BRANCH, NEW_SHA, PR_NUMBER } = process.env;
+            const { owner, repo } = context.repo;
+            const runUrl =
+              `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const newCommitUrl =
+              `${context.serverUrl}/${owner}/${repo}/commit/${NEW_SHA}`;
+            const branchUrl =
+              `${context.serverUrl}/${owner}/${repo}/tree/${TARGET_BRANCH}`;
+
+            core.info(
+              `Annotating: merge_sha=${MERGE_SHA} new_sha=${NEW_SHA} ` +
+              `target=${TARGET_BRANCH} pr=${PR_NUMBER || '<unknown>'}`,
+            );
+
+            // Annotation API calls are best-effort: a transient 5xx shouldn't
+            // demote the whole job to failure when the cherry-pick itself
+            // succeeded. Each call gets a small bounded retry; if it still
+            // fails we log a warning and move on so the other annotations
+            // still get a chance to land.
+            const backoffsMs = [0, 2000, 5000, 15000];
+            async function withRetry(name, fn) {
+              for (let i = 0; i < backoffsMs.length; i++) {
+                if (backoffsMs[i] > 0) {
+                  core.info(
+                    `Retrying ${name} in ${backoffsMs[i] / 1000}s ` +
+                    `(attempt ${i + 1}/${backoffsMs.length}).`,
+                  );
+                  await new Promise((r) => setTimeout(r, backoffsMs[i]));
+                }
+                try {
+                  const out = await fn();
+                  core.info(`${name} ok.`);
+                  return out;
+                } catch (e) {
+                  const msg = `${name} failed (status ${e.status ?? '?'}): ${e.message}`;
+                  if (i === backoffsMs.length - 1) {
+                    core.warning(`${msg} — giving up.`);
+                    return null;
+                  }
+                  core.warning(`${msg} — will retry.`);
+                }
+              }
+            }
+
+            // GitHub auto-derives the branch badges shown next to a commit
+            // title from "branches that contain this commit". A cherry-pick
+            // produces a different SHA than the main commit, so the release
+            // branch will never naturally appear on the main commit's page.
+            // Two surfacing channels instead:
+            //   1. A commit status — appears as a green check badge in the
+            //      same row as CI statuses on the commit and any PRs that
+            //      reference it. target_url drops the user on the new commit.
+            //   2. A commit comment with the same info, for richer detail.
+            await withRetry("createCommitStatus", () =>
+              github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha: MERGE_SHA,
+                state: "success",
+                context: `backport/${TARGET_BRANCH}`,
+                description: `Backported as ${NEW_SHA.slice(0, 7)}`,
+                target_url: newCommitUrl,
+              }),
+            );
+
+            await withRetry("createCommitComment", () =>
+              github.rest.repos.createCommitComment({
+                owner,
+                repo,
+                commit_sha: MERGE_SHA,
+                body:
+                  `Backported to [\`${TARGET_BRANCH}\`](${branchUrl}) as ` +
+                  `[\`${NEW_SHA.slice(0, 7)}\`](${newCommitUrl}). ` +
+                  `[Run](${runUrl})`,
+              }),
+            );
+
+            if (PR_NUMBER) {
+              await withRetry("createPRComment", () =>
+                github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: Number(PR_NUMBER),
+                  body:
+                    `Backport to [\`${TARGET_BRANCH}\`](${branchUrl}) succeeded ` +
+                    `as [\`${NEW_SHA.slice(0, 7)}\`](${newCommitUrl}). ` +
+                    `[Run](${runUrl})`,
+                }),
+              );
+            } else {
+              core.info("No PR number resolved — skipping PR comment.");
+            }
+
+      - name: Annotate original PR and commit on failure
+        if: failure()
+        uses: actions/github-script@v8
+        env:
+          MERGE_SHA: ${{ github.sha }}
+          TARGET_BRANCH: ${{ matrix.target }}
+          PR_NUMBER: ${{ needs.discover.outputs.pr_number }}
+        with:
+          script: |
+            const { MERGE_SHA, TARGET_BRANCH, PR_NUMBER } = process.env;
+            const { owner, repo } = context.repo;
+            const runUrl =
+              `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            core.info(
+              `Annotating failure: merge_sha=${MERGE_SHA} ` +
+              `target=${TARGET_BRANCH} pr=${PR_NUMBER || '<unknown>'}`,
+            );
+
+            const backoffsMs = [0, 2000, 5000, 15000];
+            async function withRetry(name, fn) {
+              for (let i = 0; i < backoffsMs.length; i++) {
+                if (backoffsMs[i] > 0) {
+                  core.info(
+                    `Retrying ${name} in ${backoffsMs[i] / 1000}s ` +
+                    `(attempt ${i + 1}/${backoffsMs.length}).`,
+                  );
+                  await new Promise((r) => setTimeout(r, backoffsMs[i]));
+                }
+                try {
+                  const out = await fn();
+                  core.info(`${name} ok.`);
+                  return out;
+                } catch (e) {
+                  const msg = `${name} failed (status ${e.status ?? '?'}): ${e.message}`;
+                  if (i === backoffsMs.length - 1) {
+                    core.warning(`${msg} — giving up.`);
+                    return null;
+                  }
+                  core.warning(`${msg} — will retry.`);
+                }
+              }
+            }
+
+            // Find this matrix leg's job so the link drops the user directly
+            // onto the failing log instead of the run summary.
+            let jobUrl = runUrl;
+            const jobs = await withRetry("listJobsForWorkflowRun", () =>
+              github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                owner,
+                repo,
+                run_id: context.runId,
+                per_page: 100,
+              }),
+            );
+            if (jobs) {
+              const me = jobs.find((j) => j.name.includes(`(${TARGET_BRANCH})`));
+              if (me?.html_url) {
+                jobUrl = me.html_url;
+                core.info(`Resolved job URL for matrix leg: ${jobUrl}`);
+              } else {
+                core.info(
+                  `No job matched name including "(${TARGET_BRANCH})"; ` +
+                  "falling back to run URL.",
+                );
+              }
+            }
+
+            await withRetry("createCommitStatus", () =>
+              github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha: MERGE_SHA,
+                state: "failure",
+                context: `backport/${TARGET_BRANCH}`,
+                description: "Backport failed",
+                target_url: jobUrl,
+              }),
+            );
+
+            // Pick up the markdown diagnosis the bash step wrote on
+            // conflict (cherry-pick or rebase). Missing file just means
+            // the failure happened elsewhere (e.g. push 5xx after retries,
+            // permissions) — we still post the basic comment.
+            const fs = require("fs");
+            const diagPath =
+              `${process.env.RUNNER_TEMP || "/tmp"}/backport-diagnosis.md`;
+            let diagnosis = "";
+            try {
+              diagnosis = fs.readFileSync(diagPath, "utf8").trim();
+              if (diagnosis) {
+                core.info(`Found diagnosis at ${diagPath} (${diagnosis.length} chars)`);
+              }
+            } catch (e) {
+              core.info(
+                `No diagnosis file at ${diagPath} (${e.code}) — failure likely not a conflict.`,
+              );
+            }
+
+            if (PR_NUMBER) {
+              const head =
+                `Backport to \`${TARGET_BRANCH}\` failed. ` +
+                `See [job log](${jobUrl}).`;
+              const body = diagnosis ? `${head}\n\n${diagnosis}` : head;
+              await withRetry("createPRComment", () =>
+                github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: Number(PR_NUMBER),
+                  body,
+                }),
+              );
+            } else {
+              core.info("No PR number resolved — skipping PR comment.");
+            }

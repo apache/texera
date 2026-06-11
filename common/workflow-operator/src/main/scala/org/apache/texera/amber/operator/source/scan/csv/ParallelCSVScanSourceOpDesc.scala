@@ -56,7 +56,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     // fill in default values
-    if (customDelimiter.get.isEmpty) {
+    if (customDelimiter.forall(_.isEmpty)) {
       customDelimiter = Option(",")
     }
 
@@ -104,10 +104,13 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     reader.close()
 
-    // build schema based on inferred AttributeTypes
+    // build schema based on inferred AttributeTypes.
+    // Auto-rename blank header positions to `column-N` so empty CSV headers
+    // (e.g. a trailing comma) do not propagate empty attribute names to
+    // downstream Iceberg/Parquet writers, which reject them.
     Schema().add(firstRow.indices.map { i =>
       new Attribute(
-        if (hasHeader) firstRow(i) else s"column-${i + 1}",
+        if (hasHeader && firstRow(i).nonEmpty) firstRow(i) else s"column-${i + 1}",
         attributeTypeList(i)
       )
     })

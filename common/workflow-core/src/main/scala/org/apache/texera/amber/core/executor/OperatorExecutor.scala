@@ -29,13 +29,7 @@ trait OperatorExecutor {
 
   def produceStateOnStart(port: Int): Option[State] = None
 
-  def processState(state: State, port: Int): Option[State] = {
-    if (state.isPassToAllDownstream) {
-      Some(state)
-    } else {
-      None
-    }
-  }
+  def processState(state: State, port: Int): Option[State] = Some(state)
 
   def processTupleMultiPort(
       tuple: Tuple,

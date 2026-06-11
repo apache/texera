@@ -56,8 +56,8 @@ describe("DynamicSchemaService", () => {
   }));
 
   it("should update dynamic schema map when operator is added/deleted", () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-    const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+    const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     expect(dynamicSchemaService.getDynamicSchemaMap().size === 1);
@@ -67,16 +67,16 @@ describe("DynamicSchemaService", () => {
   });
 
   it("should call all initial schema transformers when creating a new dynamic schema", () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-    const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+    const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
 
     const testTransformers = {
       transformer1: (op: OperatorPredicate, schema: OperatorSchema) => schema,
       transformer2: (op: OperatorPredicate, schema: OperatorSchema) => schema,
     };
 
-    const transformer1Spy = spyOn(testTransformers, "transformer1").and.callThrough();
-    const transformer2Spy = spyOn(testTransformers, "transformer2").and.callThrough();
+    const transformer1Spy = vi.spyOn(testTransformers, "transformer1");
+    const transformer2Spy = vi.spyOn(testTransformers, "transformer2");
 
     dynamicSchemaService.registerInitialSchemaTransformer(testTransformers.transformer1);
     dynamicSchemaService.registerInitialSchemaTransformer(testTransformers.transformer2);
@@ -90,8 +90,8 @@ describe("DynamicSchemaService", () => {
   it(
     "should emit event when dynamic schema is changed",
     marbles(m => {
-      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-      const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+      const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
 
       const newSchema: OperatorSchema = {
         ...mockScanSourceSchema,
@@ -124,8 +124,8 @@ describe("DynamicSchemaService", () => {
   it(
     "should not emit event if the updated dynamic schema is same",
     marbles(m => {
-      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-      const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+      const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
 
       const trigger = m.hot("-a-c-", {
         a: () => workflowActionService.addOperator(mockScanPredicate, mockPoint),

@@ -19,7 +19,21 @@
 
 package org.apache.texera.web.service
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+
+import java.sql.Timestamp
+
+import scala.jdk.CollectionConverters._
+import org.apache.texera.web.service.ExecutionResultService.{
+  PaginationMode,
+  SetDeltaMode,
+  SetSnapshotMode,
+  WebDataUpdate,
+  WebPaginationUpdate
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -83,17 +97,17 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
     // Check short binary representation
     val shortBinaryString = jsonNode.get("shortBinaryCol").asText()
     shortBinaryString should (
-      startWith("bytes'") and
-        include("01 02 03 04 05") and
-        include("(length: 5)")
+      startWith("<binary") and
+        include("...") and
+        include("size = 5 bytes")
     )
 
     // Check long binary representation
     val longBinaryString = jsonNode.get("longBinaryCol").asText()
     longBinaryString should (
-      startWith("bytes'") and
+      startWith("<binary") and
         include("...") and
-        include("(length: 100)")
+        include("size = 100 bytes")
     )
   }
 
@@ -178,7 +192,7 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
     val jsonNode = result.head
 
     val emptyBinaryString = jsonNode.get("emptyBinary").asText()
-    emptyBinaryString should include("(length: 0)")
+    emptyBinaryString should include("size = 0 bytes")
   }
 
   it should "handle binary data with single ByteBuffer" in {
@@ -202,8 +216,8 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
 
     val binaryString = jsonNode.get("singleBufferBinary").asText()
     binaryString should (
-      startWith("bytes'") and
-        include("(length: 13)") // "Hello, world!" is 13 bytes
+      startWith("<binary") and
+        include("size = 13 bytes") // "Hello, world!" is 13 bytes
     )
   }
 
@@ -255,14 +269,14 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
 
     val binaryString1 = jsonNode.get("binaryField1").asText()
     binaryString1 should (
-      include("0A 14 1E") and // Hex representation of 10, 20, 30
-        include("(length: 3)")
+      startWith("<binary") and
+        include("size = 3 bytes")
     )
 
     val binaryString2 = jsonNode.get("binaryField2").asText()
     binaryString2 should (
-      include("28 32 3C") and // Hex representation of 40, 50, 60
-        include("(length: 3)")
+      startWith("<binary") and
+        include("size = 3 bytes")
     )
   }
 
@@ -474,5 +488,78 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
     resultsDefault(1).get("value").asText() should endWith("...")
     resultsDefault(2).get("value").asText() shouldBe "medium length"
     resultsDefault(3).get("value").asText() should endWith("...")
+  }
+
+  // The existing binary cases assert only the byte size and the presence of an
+  // ellipsis. They never pin the actual preview bits, and they never exercise
+  // the "<= 13 bits" branch with a non-empty array (only the empty-array edge
+  // hits it). The next two cases pin both branches exactly.
+
+  it should "render the full bit string for a binary field of 13 bits or fewer" in {
+    val schema = new Schema(List(new Attribute("b", AttributeType.BINARY)))
+    // 1 byte = 8 bits <= 10 (leading) + 3 (trailing), so no truncation/ellipsis.
+    val tuple = Tuple.builder(schema).add("b", AttributeType.BINARY, Array[Byte](5)).build()
+
+    val text = ExecutionResultService.convertTuplesToJson(List(tuple)).head.get("b").asText()
+    text shouldBe "<binary 00000101, size = 1 bytes>"
+  }
+
+  it should "render leading-10 and trailing-3 preview bits with an ellipsis for larger binary fields" in {
+    val schema = new Schema(List(new Attribute("b", AttributeType.BINARY)))
+    // 3 bytes = 24 bits > 13: preview = first 10 bits + "..." + last 3 bits.
+    // bytes 0xFF,0x00,0xAA -> "11111111 00000000 10101010"
+    //   leading 10 bits  = "1111111100"
+    //   trailing 3 bits  = "010"
+    val bytes = Array[Byte](0xff.toByte, 0x00.toByte, 0xaa.toByte)
+    val tuple = Tuple.builder(schema).add("b", AttributeType.BINARY, bytes).build()
+
+    val text = ExecutionResultService.convertTuplesToJson(List(tuple)).head.get("b").asText()
+    text shouldBe "<binary 1111111100...010, size = 3 bytes>"
+  }
+
+  // TIMESTAMP passes through to the shared objectMapper unchanged.
+  it should "pass timestamp fields through unchanged to the shared serializer" in {
+    val schema = new Schema(List(new Attribute("ts", AttributeType.TIMESTAMP)))
+    val ts = Timestamp.valueOf("2023-01-15 08:30:45.123")
+    val tuple = Tuple.builder(schema).add("ts", AttributeType.TIMESTAMP, ts).build()
+
+    val node = ExecutionResultService.convertTuplesToJson(List(tuple)).head.get("ts")
+    node shouldBe objectMapper.valueToTree[JsonNode](ts)
+  }
+
+  // The WebOutputMode / WebResultUpdate ADTs are serialized to the frontend over
+  // the websocket; the "type" discriminator is the contract the UI dispatches on.
+
+  "WebOutputMode serialization" should "tag each mode with its discriminator" in {
+    objectMapper
+      .valueToTree[ObjectNode](PaginationMode())
+      .get("type")
+      .asText() shouldBe "PaginationMode"
+    objectMapper
+      .valueToTree[ObjectNode](SetSnapshotMode())
+      .get("type")
+      .asText() shouldBe "SetSnapshotMode"
+    objectMapper
+      .valueToTree[ObjectNode](SetDeltaMode())
+      .get("type")
+      .asText() shouldBe "SetDeltaMode"
+  }
+
+  "WebPaginationUpdate serialization" should "carry the total count, dirty pages, and mode discriminator" in {
+    val json =
+      objectMapper.valueToTree[ObjectNode](WebPaginationUpdate(PaginationMode(), 7L, List(1, 3)))
+    json.get("mode").get("type").asText() shouldBe "PaginationMode"
+    json.get("totalNumTuples").asLong() shouldBe 7L
+    json.get("dirtyPageIndices").elements().asScala.map(_.asInt()).toList shouldBe List(1, 3)
+  }
+
+  "WebDataUpdate serialization" should "carry the mode discriminator and the table rows" in {
+    val row = objectMapper.createObjectNode()
+    row.put("k", "v")
+    val json = objectMapper.valueToTree[ObjectNode](WebDataUpdate(SetSnapshotMode(), List(row)))
+    json.get("mode").get("type").asText() shouldBe "SetSnapshotMode"
+    val table = json.get("table")
+    table.size() shouldBe 1
+    table.get(0).get("k").asText() shouldBe "v"
   }
 }

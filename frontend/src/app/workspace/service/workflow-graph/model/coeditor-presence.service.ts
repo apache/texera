@@ -51,7 +51,7 @@ export class CoeditorPresenceService {
   private coeditorOperatorPropertyChanged = new Map<string, string | undefined>();
   private coeditorEditingCode = new Map<string, boolean>();
   private coeditorStates = new Map<string, CoeditorState>();
-  private currentlyEditingTimers = new Map<string, NodeJS.Timer>();
+  private currentlyEditingTimers = new Map<string, ReturnType<typeof setInterval>>();
 
   constructor(private workflowActionService: WorkflowActionService) {
     this.texeraGraph = workflowActionService.getTexeraGraph() as WorkflowGraph;

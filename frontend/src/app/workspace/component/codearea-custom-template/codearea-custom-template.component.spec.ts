@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { CodeareaCustomTemplateComponent } from "./codearea-custom-template.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -30,10 +30,9 @@ describe("CodeareaCustomTemplateComponent", () => {
   let component: CodeareaCustomTemplateComponent;
   let fixture: ComponentFixture<CodeareaCustomTemplateComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [CodeareaCustomTemplateComponent],
-      imports: [HttpClientTestingModule],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [CodeareaCustomTemplateComponent, HttpClientTestingModule],
       providers: [
         WorkflowActionService,
         {
@@ -43,9 +42,7 @@ describe("CodeareaCustomTemplateComponent", () => {
         ...commonTestProviders,
       ],
     }).compileComponents();
-  }));
 
-  beforeEach(() => {
     fixture = TestBed.createComponent(CodeareaCustomTemplateComponent);
     component = fixture.componentInstance;
     component.field = { props: {}, formControl: new FormControl() };

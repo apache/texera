@@ -17,10 +17,11 @@
  * under the License.
  */
 
-import { async, ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { ResultPanelComponent } from "./result-panel.component";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
+import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
@@ -29,8 +30,8 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { mockPoint, mockResultPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
-import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
-import { MockComputingUnitStatusService } from "../../service/computing-unit-status/mock-computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("ResultPanelComponent", () => {
@@ -38,11 +39,11 @@ describe("ResultPanelComponent", () => {
   let fixture: ComponentFixture<ResultPanelComponent>;
   let executeWorkflowService: ExecuteWorkflowService;
   let workflowActionService: WorkflowActionService;
+  let workflowResultService: WorkflowResultService;
 
-  beforeEach(async(() => {
-    TestBed.configureTestingModule({
-      declarations: [ResultPanelComponent],
-      imports: [HttpClientTestingModule, NzModalModule],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ResultPanelComponent, HttpClientTestingModule, NzModalModule],
       providers: [
         WorkflowActionService,
         ExecuteWorkflowService,
@@ -54,13 +55,14 @@ describe("ResultPanelComponent", () => {
         ...commonTestProviders,
       ],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ResultPanelComponent);
     component = fixture.componentInstance;
     executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
     workflowActionService = TestBed.inject(WorkflowActionService);
+    workflowResultService = TestBed.inject(WorkflowResultService);
     fixture.detectChanges();
   });
 
@@ -82,5 +84,23 @@ describe("ResultPanelComponent", () => {
     const resultPanelDiv = fixture.debugElement.query(By.css("#result-container"));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
     expect(resultPanelHtmlElement).toBeTruthy();
+  });
+
+  it("wipes the panel and operator selection when results are cleared, e.g. on a computing-unit switch (#3120)", () => {
+    // Simulate a result frame on screen for a currently-highlighted operator.
+    // ResultPanelComponent stands in as a throwaway frame component; it's cleared before it renders.
+    component.currentOperatorId = "op1";
+    component.operatorTitle = "Operator 1";
+    component.frameComponentConfigs.set("Result", { component: ResultPanelComponent, componentInputs: {} });
+    expect(component.frameComponentConfigs.size).toBe(1);
+
+    // A unit switch drops the cached results and emits on the cleared stream. The operator
+    // stays highlighted, so the normal rerender path won't tear the frame down — only this
+    // handler does, which is the part that actually fixes the lingering-stale-frame bug.
+    workflowResultService.clearResults();
+
+    expect(component.frameComponentConfigs.size).toBe(0);
+    expect(component.currentOperatorId).toBeUndefined();
+    expect(component.operatorTitle).toBe("");
   });
 });

@@ -21,22 +21,71 @@ package org.apache.texera.amber.pybuilder
 
 import scala.reflect.macros.blackbox
 
+object BoundaryValidator {
+
+  // These are internal data carriers for the macro pipeline:
+  //   - constructed by PythonTemplateBuilder's macro,
+  //   - passed straight into validator methods that read fields,
+  //   - never pattern-matched, never copied, never compared for equality.
+  // Plain classes (with companion `apply` factories) keep the same call-site
+  // syntax (`BoundaryValidator.CompileTimeContext(...)`) without dragging in
+  // the auto-generated case-class equals/hashCode/copy/Product/unapply
+  // bytecode that runs only at compile time and so can never be covered by
+  // runtime tests.
+  final class CompileTimeContext[Pos](
+      val leftPart: String,
+      val rightPart: String,
+      val prefixSource: String,
+      val argIndex: Int,
+      val errorPos: Pos
+  )
+
+  object CompileTimeContext {
+    def apply[Pos](
+        leftPart: String,
+        rightPart: String,
+        prefixSource: String,
+        argIndex: Int,
+        errorPos: Pos
+    ): CompileTimeContext[Pos] =
+      new CompileTimeContext[Pos](leftPart, rightPart, prefixSource, argIndex, errorPos)
+  }
+
+  final class RuntimeContext(
+      val leftPart: String,
+      val rightPart: String,
+      val prefixSource: String,
+      val argIndex: Int
+  )
+
+  object RuntimeContext {
+    def apply(
+        leftPart: String,
+        rightPart: String,
+        prefixSource: String,
+        argIndex: Int
+    ): RuntimeContext =
+      new RuntimeContext(leftPart, rightPart, prefixSource, argIndex)
+  }
+}
+
 /**
- * Macro-only helper: validates boundaries for Encodable insertions.
- *
- * Compile-time: abort with good messages for direct Encodable args.
- * Runtime: for nested builders (unknown content at compile time), generate a check that throws if the builder contains Encodable chunks.
- */
+  * Macro-only helper: validates boundaries for Encodable insertions.
+  *
+  * Compile-time: abort with good messages for direct Encodable args.
+  * Runtime: for nested builders (unknown content at compile time), generate a check that throws if the builder contains Encodable chunks.
+  */
 final class BoundaryValidator[C <: blackbox.Context](val c: C) {
   import PythonLexerUtils._
   import c.universe._
+  import BoundaryValidator.{CompileTimeContext, RuntimeContext}
 
   /**
-   * Centralized, templatized error messages (Option A).
-   *
-   * NOTE: This object lives inside the class so it can freely use string templates
-   * without any macro-context type gymnastics.
-   */
+    * Centralized, templatized error messages (Option A).
+    *
+    * NOTE: This object lives inside the class so it can freely use string templates
+    * without any macro-context type gymnastics.
+    */
   private object BoundaryErrors {
 
     // Provide a hint that can differ between compile-time and runtime wording.
@@ -75,22 +124,7 @@ final class BoundaryValidator[C <: blackbox.Context](val c: C) {
         "Add whitespace or punctuation to separate tokens."
   }
 
-  final case class CompileTimeContext(
-                                       leftPart: String,
-                                       rightPart: String,
-                                       prefixSource: String,
-                                       argIndex: Int,
-                                       errorPos: Position
-                                     )
-
-  final case class RuntimeContext(
-                                   leftPart: String,
-                                   rightPart: String,
-                                   prefixSource: String,
-                                   argIndex: Int
-                                 )
-
-  def validateCompileTime(ctx: CompileTimeContext): Unit = {
+  def validateCompileTime(ctx: CompileTimeContext[Position]): Unit = {
     val prefixLine = lineTail(ctx.prefixSource)
     val argNum = ctx.argIndex + 1
 
@@ -130,11 +164,11 @@ final class BoundaryValidator[C <: blackbox.Context](val c: C) {
   }
 
   /**
-   * Generate runtime checks for nested PythonTemplateBuilder args.
-   *
-   * This is only emitted when the boundary context is unsafe. The runtime guard is:
-   *   if (arg.containsEncodableString) throw ...
-   */
+    * Generate runtime checks for nested PythonTemplateBuilder args.
+    *
+    * This is only emitted when the boundary context is unsafe. The runtime guard is:
+    *   if (arg.containsEncodableString) throw ...
+    */
   def runtimeChecksForNestedBuilder(ctx: RuntimeContext, argIdent: Tree): List[Tree] = {
     val prefixLine = lineTail(ctx.prefixSource)
     val argNum = ctx.argIndex + 1

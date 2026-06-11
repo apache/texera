@@ -27,9 +27,6 @@
     "build": {
       "inputs": ["production", "^production"],
       "cache": true
-    },
-    "lint": {
-      "cache": true
     }
   },
   "parallel": 1,

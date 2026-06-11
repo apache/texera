@@ -22,11 +22,12 @@ package org.apache.texera.amber.util
 import org.apache.texera.amber.config.StorageConfig
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.hadoop.conf.Configuration
-import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
+import org.apache.iceberg.catalog.{Catalog, SupportsNamespaces, TableIdentifier}
 import org.apache.iceberg.data.parquet.GenericParquetReaders
 import org.apache.iceberg.data.{GenericRecord, Record}
+import org.apache.iceberg.aws.s3.S3FileIO
 import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
-import org.apache.iceberg.io.{CloseableIterable, InputFile}
+import org.apache.iceberg.io.{CloseableIterator, InputFile}
 import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
 import org.apache.iceberg.rest.RESTCatalog
@@ -40,6 +41,8 @@ import org.apache.iceberg.{
   TableProperties,
   Schema => IcebergSchema
 }
+import org.apache.iceberg.catalog.Namespace
+import org.apache.iceberg.exceptions.AlreadyExistsException
 
 import java.nio.ByteBuffer
 import java.nio.file.Path
@@ -101,17 +104,19 @@ object IcebergUtil {
     */
   def createRestCatalog(
       catalogName: String,
-      warehouse: Path
+      warehouse: String
   ): RESTCatalog = {
     val catalog = new RESTCatalog()
-    catalog.initialize(
-      catalogName,
-      Map(
-        "warehouse" -> warehouse.toString,
-        CatalogProperties.URI -> StorageConfig.icebergRESTCatalogUri,
-        CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName
-      ).asJava
+
+    // S3 settings (endpoint, region, credentials) are supplied by the REST
+    // catalog server at runtime.
+    val properties = Map(
+      "warehouse" -> warehouse,
+      CatalogProperties.URI -> StorageConfig.icebergRESTCatalogUri,
+      CatalogProperties.FILE_IO_IMPL -> classOf[S3FileIO].getName
     )
+
+    catalog.initialize(catalogName, properties.asJava)
     catalog
   }
 
@@ -164,6 +169,20 @@ object IcebergUtil {
       TableProperties.COMMIT_MAX_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMaxRetryWaitMs.toString,
       TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
     )
+
+    val namespace = Namespace.of(tableNamespace)
+
+    catalog match {
+      case nsCatalog: SupportsNamespaces =>
+        try nsCatalog.createNamespace(namespace, Map.empty[String, String].asJava)
+        catch {
+          case _: AlreadyExistsException => ()
+        }
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Catalog ${catalog.getClass.getName} does not support namespaces"
+        )
+    }
 
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (catalog.tableExists(identifier) && overrideIfExists) {
@@ -385,17 +404,23 @@ object IcebergUtil {
   }
 
   /**
-    * Util function to create a Record iterator over the given DataFile in Iceberg
+    * Returns a Record iterator over the given Iceberg DataFile.
+    *
+    * The returned `CloseableIterator` (Iceberg's iterator type) owns the
+    * underlying Parquet reader / S3InputStream / AWS HTTP-pool slot. The
+    * caller MUST close it once iteration is finished, otherwise those
+    * resources are leaked.
+    *
     * @param dataFile the data file
     * @param schema the schema of the table
     * @param table the iceberg table
-    * @return an iterator over the records in the data file
+    * @return a closeable iterator over the records in the data file
     */
   def readDataFileAsIterator(
       dataFile: DataFile,
       schema: IcebergSchema,
       table: Table
-  ): Iterator[Record] = {
+  ): CloseableIterator[Record] = {
     val inputFile: InputFile = table.io().newInputFile(dataFile)
     val readerFunc
         : java.util.function.Function[org.apache.parquet.schema.MessageType, ParquetValueReader[
@@ -403,13 +428,12 @@ object IcebergUtil {
         ]] =
       (messageType: org.apache.parquet.schema.MessageType) =>
         GenericParquetReaders.buildReader(schema, messageType)
-    val closeableIterable: CloseableIterable[Record] =
-      Parquet
-        .read(inputFile)
-        .project(schema)
-        .createReaderFunc(readerFunc)
-        .build()
-    closeableIterable.iterator().asScala
+    Parquet
+      .read(inputFile)
+      .project(schema)
+      .createReaderFunc(readerFunc)
+      .build()
+      .iterator()
   }
 
 }

@@ -69,6 +69,41 @@ class AggregateOpSpec extends AnyFunSuite {
     assert(attr.getType == AttributeType.STRING)
   }
 
+  test("getAggregationAttribute maps AVERAGE result type to DOUBLE regardless of input") {
+    val operation = makeAggregationOp(AggregationFunction.AVERAGE, "price", "avg_price")
+    val attr = operation.getAggregationAttribute(AttributeType.LONG)
+
+    assert(attr.getName == "avg_price")
+    assert(attr.getType == AttributeType.DOUBLE)
+  }
+
+  test("getAggregationAttribute keeps original type for MIN") {
+    val operation = makeAggregationOp(AggregationFunction.MIN, "ts", "min_ts")
+    val attr = operation.getAggregationAttribute(AttributeType.TIMESTAMP)
+
+    assert(attr.getName == "min_ts")
+    assert(attr.getType == AttributeType.TIMESTAMP)
+  }
+
+  test("getAggregationAttribute keeps original type for MAX") {
+    val operation = makeAggregationOp(AggregationFunction.MAX, "score", "max_score")
+    val attr = operation.getAggregationAttribute(AttributeType.DOUBLE)
+
+    assert(attr.getName == "max_score")
+    assert(attr.getType == AttributeType.DOUBLE)
+  }
+
+  test("getAggregationAttribute throws RuntimeException when aggFunction is null") {
+    val operation = new AggregationOperation()
+    operation.attribute = "src"
+    operation.resultAttribute = "out"
+    // aggFunction left null on purpose
+
+    assertThrows[RuntimeException] {
+      operation.getAggregationAttribute(AttributeType.INTEGER)
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Basic DistributedAggregation behaviour via AggregationOperation.getAggFunc
   // ---------------------------------------------------------------------------

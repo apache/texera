@@ -18,6 +18,8 @@
 from collections import defaultdict
 from typing import DefaultDict
 
+from loguru import logger
+
 from proto.org.apache.texera.amber.core import PortIdentity
 from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerStatistics,
@@ -53,9 +55,12 @@ class StatisticsManager:
             ],
             self._data_processing_time,
             self._control_processing_time,
-            self._total_execution_time
-            - self._data_processing_time
-            - self._control_processing_time,
+            max(
+                0,
+                self._total_execution_time
+                - self._data_processing_time
+                - self._control_processing_time,
+            ),
         )
 
     def increase_input_statistics(self, port_id: PortIdentity, size: int) -> None:
@@ -85,7 +90,23 @@ class StatisticsManager:
             raise ValueError(
                 "Current time must be greater than or equal to worker start time"
             )
-        self._total_execution_time = time - self._worker_start_time
+        new_total = time - self._worker_start_time
+        if new_total < self._total_execution_time:
+            logger.warning(
+                f"update_total_execution_time called with non-monotonic time: "
+                f"new total {new_total}ns < current total {self._total_execution_time}ns. "
+                "Clock skew or out-of-order call detected."
+            )
+        processing_total = self._data_processing_time + self._control_processing_time
+        if new_total < processing_total:
+            logger.warning(
+                f"idle_time drift: total_execution_time ({new_total}ns) < "
+                f"data ({self._data_processing_time}ns) + control "
+                f"({self._control_processing_time}ns). "
+                "update_total_execution_time should be called after increase_*_processing_time "
+                "with the same end timestamp. idle_time will be clamped to 0."
+            )
+        self._total_execution_time = new_total
 
     def initialize_worker_start_time(self, time: int) -> None:
         # Set the worker start time

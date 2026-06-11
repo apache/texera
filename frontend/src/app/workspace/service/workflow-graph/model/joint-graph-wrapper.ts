@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { fromEvent, Observable, ReplaySubject, Subject } from "rxjs";
+import { BehaviorSubject, fromEvent, Observable, ReplaySubject, Subject } from "rxjs";
 import { filter, map } from "rxjs/operators";
 import { LogicalPort, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
@@ -102,6 +102,11 @@ export class JointGraphWrapper {
   public mainPaper!: joint.dia.Paper;
 
   private mainJointPaperAttachedStream: Subject<joint.dia.Paper> = new ReplaySubject(1);
+
+  // Whether region hulls are shown on the canvas (View > Regions toggle). Kept here so that it
+  // survives the region elements being recreated on every execution update, and so the editor can
+  // reapply it to the shared model (covering both the main canvas and the mini-map).
+  private regionsDisplayedStream = new BehaviorSubject<boolean>(false);
 
   private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
   private listenPositionChange: boolean = true;
@@ -207,6 +212,21 @@ export class JointGraphWrapper {
 
   public getMainJointPaperAttachedStream(): Observable<joint.dia.Paper> {
     return this.mainJointPaperAttachedStream;
+  }
+
+  /**
+   * Sets whether region hulls should be displayed on the canvas (and mini-map).
+   */
+  public setRegionsDisplayed(displayed: boolean): void {
+    this.regionsDisplayedStream.next(displayed);
+  }
+
+  public getRegionsDisplayed(): boolean {
+    return this.regionsDisplayedStream.value;
+  }
+
+  public getRegionsDisplayedStream(): Observable<boolean> {
+    return this.regionsDisplayedStream.asObservable();
   }
 
   /**
@@ -935,7 +955,7 @@ export class JointGraphWrapper {
     }
   }
 
-  public setCurrentEditing(coeditor: Coeditor, currentEditing: string): NodeJS.Timer {
+  public setCurrentEditing(coeditor: Coeditor, currentEditing: string): ReturnType<typeof setInterval> {
     // Calculate location
     const statusText = coeditor.name + " is viewing/editing...";
     const color = coeditor.color;
@@ -976,7 +996,7 @@ export class JointGraphWrapper {
     }, 300);
   }
 
-  public removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: NodeJS.Timer) {
+  public removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: ReturnType<typeof setInterval>) {
     clearInterval(intervalId);
     this.getMainJointPaper()
       ?.getModelById(previousEditing)

@@ -33,7 +33,7 @@
       <div class="dataset-item-meta-title">
         <a
           *ngIf="!editingName; else customDatasetTitle "
-          [routerLink]="DASHBOARD_USER_DATASET + '/' + dataset.did"
+          [routerLink]="USER_DATASET + '/' + dataset.did"
           class="dataset-name"
           >{{ dataset.name }}</a
         >
@@ -98,7 +98,7 @@
       <div class="dataset-item-meta-description">
         <label
           *ngIf="!editingDescription; else customDatasetDescription "
-          (click)="editingDescription = editable && entry.accessPrivilege == 'WRITE'"
+          (click)="editingDescription = editable && entry.accessPrivilege === 'WRITE'"
           class="dataset-description-label">
           {{ dataset.description }}
         </label>

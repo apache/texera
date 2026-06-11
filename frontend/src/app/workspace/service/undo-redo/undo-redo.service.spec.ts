@@ -45,8 +45,8 @@ describe("UndoRedoService", () => {
         ...commonTestProviders,
       ],
     });
-    service = TestBed.get(UndoRedoService);
-    workflowActionService = TestBed.get(WorkflowActionService);
+    service = TestBed.inject(UndoRedoService);
+    workflowActionService = TestBed.inject(WorkflowActionService);
   });
 
   it("should be created", inject([UndoRedoService], (injectedService: UndoRedoService) => {

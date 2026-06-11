@@ -107,7 +107,7 @@ class WorkflowEmailNotifier(
   private def createDashboardUrl(): String = {
     val host = sessionUri.getHost
     val port = sessionUri.getPort
-    val path = s"/dashboard/user/workspace/$workflowId"
+    val path = s"/user/workspace/$workflowId"
     if (port == -1 || port == 80 || port == 443) {
       s"http://$host$path"
     } else {

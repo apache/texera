@@ -59,11 +59,11 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   )
 
   override def beforeAll(): Unit = {
-    system = ActorSystem("CheckpointSpec", AmberRuntime.akkaConfig)
+    system = ActorSystem("CheckpointSpec", AmberRuntime.pekkoConfig)
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
 
-  "Default controller state" should "be serializable" in {
+  "Default controller state" should "round-trip through CheckpointState" in {
     val cp =
       new ControllerProcessor(
         workflow.context,
@@ -73,9 +73,11 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       )
     val chkpt = new CheckpointState()
     chkpt.save(CP_STATE_KEY, cp)
+    val restored: ControllerProcessor = chkpt.load(CP_STATE_KEY)
+    assert(restored.actorId == cp.actorId)
   }
 
-  "Default worker state" should "be serializable" in {
+  "Default worker state" should "round-trip through CheckpointState" in {
     val dp = new DataProcessor(
       SELF,
       msg => {},
@@ -83,6 +85,21 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     )
     val chkpt = new CheckpointState()
     chkpt.save(DP_STATE_KEY, dp)
+    val restored: DataProcessor = chkpt.load(DP_STATE_KEY)
+    assert(restored.actorId == dp.actorId)
+  }
+
+  "CheckpointState" should "fail loudly on an unknown key" in {
+    // Pin the documented contract precisely: load throws
+    // RuntimeException("no state saved for key = $key"). A bare
+    // `contains("unknown")` would still pass if the message ever drifts to
+    // something like "unknown checkpoint", silently weakening the assertion.
+    val chkpt = new CheckpointState()
+    assert(!chkpt.has("unknown"))
+    val ex = intercept[RuntimeException] {
+      chkpt.load[Any]("unknown")
+    }
+    assert(ex.getMessage == "no state saved for key = unknown")
   }
 
 //  "CSVScanOperator" should "be serializable" in {

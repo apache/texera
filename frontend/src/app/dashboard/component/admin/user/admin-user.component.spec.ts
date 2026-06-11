@@ -17,12 +17,13 @@
  * under the License.
  */
 
-import { ComponentFixture, inject, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, inject, TestBed } from "@angular/core/testing";
 import { AdminUserComponent } from "./admin-user.component";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { AdminUserService } from "../../../service/admin/user/admin-user.service";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { FormsModule } from "@angular/forms";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -31,13 +32,12 @@ describe("AdminUserComponent", () => {
   let component: AdminUserComponent;
   let fixture: ComponentFixture<AdminUserComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [AdminUserComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       providers: [{ provide: UserService, useClass: StubUserService }, AdminUserService, ...commonTestProviders],
-      imports: [HttpClientTestingModule, NzDropDownModule, NzModalModule],
+      imports: [AdminUserComponent, FormsModule, HttpClientTestingModule, NzDropDownModule, NzModalModule],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(AdminUserComponent);

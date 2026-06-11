@@ -33,6 +33,25 @@ spec:
         app: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
     spec:
       serviceAccountName: {{ .Values.workflowComputingUnitManager.serviceAccountName }}
+      initContainers:
+        - name: wait-lakekeeper
+          image: curlimages/curl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              LAKEKEEPER_BASE_URI="http://{{ .Release.Name }}-lakekeeper:{{ .Values.lakekeeper.catalog.service.externalPort }}"
+              WAREHOUSE_NAME="{{ .Values.lakekeeperInit.warehouse.name }}"
+              echo "Waiting for Lakekeeper to become healthy..."
+              until curl -s -f "${LAKEKEEPER_BASE_URI}/health" > /dev/null 2>&1; do
+                sleep 1
+              done
+              echo "Waiting for warehouse '${WAREHOUSE_NAME}' to exist..."
+              until curl -s "${LAKEKEEPER_BASE_URI}/management/v1/warehouse" | grep -q "\"name\"[[:space:]]*:[[:space:]]*\"${WAREHOUSE_NAME}\""; do
+                sleep 1
+              done
+              echo "Lakekeeper warehouse is ready."
       containers:
         - name: {{ .Values.workflowComputingUnitManager.name }}
           image: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowComputingUnitManager.imageName }}:{{ .Values.texera.imageTag }}
@@ -88,16 +107,15 @@ spec:
                   key: secret_key
             # Workflow Result
             - name: STORAGE_ICEBERG_CATALOG_TYPE
-              value: postgres
-            - name: STORAGE_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME
-              value: {{ .Release.Name }}-postgresql:5432/texera_iceberg_catalog
-            - name: STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME
-              value: postgres
-            - name: STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Release.Name }}-postgresql
-                  key: postgres-password
+              value: rest
+            - name: STORAGE_ICEBERG_CATALOG_REST_URI
+              value: http://{{ .Release.Name }}-lakekeeper:{{ .Values.lakekeeper.catalog.service.externalPort }}/catalog
+            - name: STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME
+              value: {{ .Values.lakekeeperInit.warehouse.name | quote }}
+            - name: STORAGE_ICEBERG_CATALOG_REST_REGION
+              value: {{ .Values.lakekeeperInit.warehouse.region | quote }}
+            - name: STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET
+              value: {{ .Values.lakekeeperInit.warehouse.s3Bucket | quote }}
             {{- range .Values.texeraEnvVars }}
             - name: {{ .name }}
               value: "{{ .value }}"

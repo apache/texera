@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
@@ -28,16 +28,16 @@ import { VersionsListComponent } from "./versions-list.component";
 import { RouterTestingModule } from "@angular/router/testing";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
-describe("VersionsListDisplayComponent", () => {
+describe("VersionsListComponent", () => {
   let component: VersionsListComponent;
   let fixture: ComponentFixture<VersionsListComponent>;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [VersionsListComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       providers: [WorkflowActionService, ...commonTestProviders],
       imports: [
+        VersionsListComponent,
         BrowserAnimationsModule,
         FormsModule,
         FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
@@ -46,9 +46,7 @@ describe("VersionsListDisplayComponent", () => {
         RouterTestingModule.withRoutes([]),
       ],
     }).compileComponents();
-  }));
 
-  beforeEach(() => {
     fixture = TestBed.createComponent(VersionsListComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);

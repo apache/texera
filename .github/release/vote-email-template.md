@@ -11,7 +11,6 @@ https://dist.apache.org/repos/dist/dev/incubator/texera/${VERSION}-RC${RC_NUM}/
 The directory contains:
 - Source tarball (.tar.gz) with GPG signature (.asc) and SHA512 checksum (.sha512)
 - Docker Compose deployment bundle with GPG signature and SHA512 checksum
-- Helm chart package with GPG signature and SHA512 checksum
 
 == Container Images ==
 
@@ -54,7 +53,6 @@ The vote will be open for at least 72 hours.
 [ ] Source tarball matches the Git tag
 [ ] Can compile from source successfully
 [ ] Docker Compose bundle deploys successfully with the published images
-[ ] Helm chart deploys successfully (if applicable)
 
 Thanks,
 [Your Name]

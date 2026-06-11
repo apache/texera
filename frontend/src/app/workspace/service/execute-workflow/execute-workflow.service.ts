@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Inject, Injectable } from "@angular/core";
+import { Inject, Injectable, DOCUMENT } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
@@ -46,8 +46,8 @@ import { exhaustiveGuard } from "../../../common/util/switch";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
-import { DOCUMENT } from "@angular/common";
-import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -248,7 +248,7 @@ export class ExecuteWorkflowService {
 
     const workflowExecuteRequest = {
       executionName: executionName,
-      engineVersion: version.hash,
+      engineVersion: version.buildNumber,
       logicalPlan: logicalPlan,
       replayFromExecution: replayExecutionInfo,
       workflowSettings: workflowSettings,
@@ -352,6 +352,16 @@ export class ExecuteWorkflowService {
     this.currentState = {
       state: ExecutionState.Uninitialized,
     };
+  }
+
+  /**
+   * Reset execution status and worker assignments. Unlike resetExecutionState(),
+   * this also clears worker assignments and broadcasts the reset on
+   * executionStateStream so subscribers drop the previous unit's status.
+   */
+  public resetExecutionAndWorkers(): void {
+    this.updateExecutionState({ state: ExecutionState.Uninitialized });
+    this.assignedWorkerIds.clear();
   }
 
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {

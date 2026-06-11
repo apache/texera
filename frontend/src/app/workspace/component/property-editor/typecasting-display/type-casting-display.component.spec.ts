@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 
@@ -34,9 +34,9 @@ describe("TypecastingDisplayComponent", () => {
   let component: TypeCastingDisplayComponent;
   let fixture: ComponentFixture<TypeCastingDisplayComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [TypeCastingDisplayComponent, HttpClientTestingModule],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -49,9 +49,8 @@ describe("TypecastingDisplayComponent", () => {
         WorkflowCompilingService,
         ...commonTestProviders,
       ],
-      declarations: [TypeCastingDisplayComponent],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(TypeCastingDisplayComponent);

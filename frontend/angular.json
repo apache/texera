@@ -31,13 +31,11 @@
               "node_modules/ng-zorro-antd/resizable/style/index.min.css",
               "src/styles.scss"
             ],
-            "scripts": [
-              "./node_modules/marked/marked.min.js"
-            ],
+            "scripts": ["./node_modules/marked/lib/marked.umd.js"],
             "customWebpackConfig": {
               "path": "./custom-webpack.config.js"
             },
-            "allowedCommonJsDependencies": ["deep-map", "js-abbreviation-number", "dagre", "graphlib"],
+            "allowedCommonJsDependencies": ["dagre", "graphlib"],
             "vendorChunk": true,
             "extractLicenses": false,
             "buildOptimizer": false,
@@ -64,8 +62,16 @@
                 {
                   "replace": "src/environments/environment.ts",
                   "with": "src/environments/environment.prod.ts"
+                },
+                {
+                  "replace": "src/environments/version.ts",
+                  "with": "src/environments/version.prod.ts"
                 }
               ]
+            },
+            "test": {
+              "tsConfig": "src/tsconfig.test.json",
+              "main": "src/main.test.ts"
             }
           },
           "defaultConfiguration": ""
@@ -73,44 +79,40 @@
         "serve": {
           "builder": "@angular-builders/custom-webpack:dev-server",
           "options": {
-            "browserTarget": "gui:build",
+            "buildTarget": "gui:build",
             "proxyConfig": "proxy.config.json"
           },
           "configurations": {
             "production": {
-              "browserTarget": "gui:build:production"
+              "buildTarget": "gui:build:production"
             }
           }
         },
         "test": {
-          "builder": "@angular-builders/custom-webpack:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "assets": ["src/assets"],
-            "fileReplacements": [
-              {
-                "replace": "src/environments/environment.ts",
-                "with": "src/environments/environment.test.ts"
-              }
-            ],
-            "karmaConfig": "./karma.conf.js",
-            "main": "src/test.ts",
-            "polyfills": ["zone.js", "zone.js/testing"],
-            "styles": [
-              "node_modules/jointjs/css/layout.css",
-              "node_modules/jointjs/css/themes/material.css",
-              "node_modules/jointjs/css/themes/default.css",
-              "src/styles.scss"
-            ],
-            "customWebpackConfig": {
-              "path": "./custom-webpack.config.js"
-            },
-            "tsConfig": "src/tsconfig.spec.json"
+            "buildTarget": "gui:build:test",
+            "runner": "vitest",
+            "runnerConfig": "vitest.config.ts",
+            "tsConfig": "src/tsconfig.spec.json",
+            "include": ["**/*.spec.ts"],
+            "setupFiles": ["src/jsdom-svg-polyfill.ts"],
+            "exclude": [
+              "**/*.browser.spec.ts"
+            ]
           }
         },
-        "lint": {
-          "builder": "@angular-eslint/builder:lint",
+        "test-browser": {
+          "builder": "@angular/build:unit-test",
           "options": {
-            "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
+            "buildTarget": "gui:build:test",
+            "runner": "vitest",
+            "runnerConfig": "vitest.browser.config.ts",
+            "tsConfig": "src/tsconfig.spec.json",
+            "include": [
+              "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts",
+              "**/*.browser.spec.ts"
+            ]
           }
         }
       }
@@ -118,5 +120,31 @@
   },
   "cli": {
     "analytics": false
+  },
+  "schematics": {
+    "@schematics/angular:component": {
+      "type": "component"
+    },
+    "@schematics/angular:directive": {
+      "type": "directive"
+    },
+    "@schematics/angular:service": {
+      "type": "service"
+    },
+    "@schematics/angular:guard": {
+      "typeSeparator": "."
+    },
+    "@schematics/angular:interceptor": {
+      "typeSeparator": "."
+    },
+    "@schematics/angular:module": {
+      "typeSeparator": "."
+    },
+    "@schematics/angular:pipe": {
+      "typeSeparator": "."
+    },
+    "@schematics/angular:resolver": {
+      "typeSeparator": "."
+    }
   }
 }

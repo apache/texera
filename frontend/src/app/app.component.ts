@@ -35,6 +35,7 @@ import { UntilDestroy } from "@ngneat/until-destroy";
     </div>
     <router-outlet *ngIf="configLoaded"></router-outlet>
   `,
+  standalone: false,
 })
 export class AppComponent {
   configLoaded = false;

@@ -19,8 +19,16 @@
 
 import { AfterViewInit, Component, Input, OnInit, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
-import { SearchResultsComponent } from "../../../dashboard/component/user/search-results/search-results.component";
+import { NgIf } from "@angular/common";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTooltipModule } from "ng-zorro-antd/tooltip";
+import {
+  SearchResultsComponent,
+  SearchResultsViewMode,
+} from "../../../dashboard/component/user/search-results/search-results.component";
 import { FiltersComponent } from "../../../dashboard/component/user/filters/filters.component";
+import { DatasetCardItemComponent } from "../../../dashboard/component/user/dataset-card-item/dataset-card-item.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SortMethod } from "../../../dashboard/type/sort-method";
 import { UserService } from "../../../common/service/user/user.service";
@@ -28,35 +36,51 @@ import { SearchService } from "../../../dashboard/service/user/search.service";
 import { isDefined } from "../../../common/util/predicate";
 import { firstValueFrom } from "rxjs";
 import { map } from "rxjs/operators";
+import { SortButtonComponent } from "../../../dashboard/component/user/sort-button/sort-button.component";
+
+const HUB_DATASET_VIEW_MODE_STORAGE_KEY = "texera.hub.dataset.viewMode";
 
 @UntilDestroy()
 @Component({
   selector: "texera-hub-search",
   templateUrl: "./hub-search-result.component.html",
   styleUrls: ["./hub-search-result.component.scss"],
+  imports: [
+    NgIf,
+    NzButtonComponent,
+    NzIconDirective,
+    NzTooltipModule,
+    SortButtonComponent,
+    FiltersComponent,
+    SearchResultsComponent,
+    DatasetCardItemComponent,
+  ],
 })
 export class HubSearchResultComponent implements OnInit, AfterViewInit {
   public searchType: "dataset" | "workflow" = "workflow";
+  public searchKeywords: string[] = [];
   currentUid = this.userService.getCurrentUser()?.uid;
+  public viewMode: SearchResultsViewMode =
+    localStorage.getItem(HUB_DATASET_VIEW_MODE_STORAGE_KEY) === "card" ? "card" : "list";
+
+  setViewMode(mode: SearchResultsViewMode): void {
+    if (this.viewMode === mode) return;
+    this.viewMode = mode;
+    localStorage.setItem(HUB_DATASET_VIEW_MODE_STORAGE_KEY, mode);
+  }
 
   private isLogin = false;
   private includePublic = true;
   private _searchResultsComponent?: SearchResultsComponent;
-  @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
-    if (this._searchResultsComponent) {
-      return this._searchResultsComponent;
-    }
-    throw new Error("Property cannot be accessed before it is initialized.");
+  @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent | undefined {
+    return this._searchResultsComponent;
   }
   set searchResultsComponent(value: SearchResultsComponent) {
     this._searchResultsComponent = value;
   }
   private _filters?: FiltersComponent;
-  @ViewChild(FiltersComponent) get filters(): FiltersComponent {
-    if (this._filters) {
-      return this._filters;
-    }
-    throw new Error("Property cannot be accessed before it is initialized.");
+  @ViewChild(FiltersComponent) get filters(): FiltersComponent | undefined {
+    return this._filters;
   }
   set filters(value: FiltersComponent) {
     value.masterFilterListChange.pipe(untilDestroyed(this)).subscribe({ next: () => this.search() });
@@ -105,6 +129,9 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
    * todo: Integrate the search functions from different interfaces into a single method.
    */
   async search(forced: boolean = false): Promise<void> {
+    if (!this.filters || !this.searchResultsComponent) {
+      return;
+    }
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
@@ -115,6 +142,7 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
     }
     this.lastSortMethod = this.sortMethod;
     this.masterFilterList = this.filters.masterFilterList;
+    this.searchKeywords = this.filters.getSearchKeywords();
     let filterParams = this.filters.getSearchFilterParameters();
     if (isDefined(this.pid)) {
       // force the project id in the search query to be the current pid.

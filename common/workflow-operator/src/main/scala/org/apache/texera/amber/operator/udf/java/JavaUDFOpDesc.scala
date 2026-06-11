@@ -56,7 +56,7 @@ class JavaUDFOpDesc extends LogicalOp {
 
   @JsonProperty(required = true, defaultValue = "1")
   @JsonSchemaTitle("Worker count")
-  @JsonPropertyDescription("Specify how many parallel workers to lunch")
+  @JsonPropertyDescription("Specify how many parallel workers to launch")
   var workers: Int = Int.box(1)
 
   @JsonProperty(required = true, defaultValue = "true")
@@ -143,12 +143,12 @@ class JavaUDFOpDesc extends LogicalOp {
           InputPort(
             PortIdentity(idx),
             displayName = portDesc.displayName,
-            allowMultiLinks = portDesc.allowMultiInputs,
+            disallowMultiLinks = portDesc.disallowMultiInputs,
             dependencies = portDesc.dependencies.map(idx => PortIdentity(idx))
           )
       }
     } else {
-      List(InputPort(PortIdentity(), allowMultiLinks = true))
+      List(InputPort())
     }
     val outputPortInfo = if (outputPorts != null) {
       outputPorts.zipWithIndex.map {

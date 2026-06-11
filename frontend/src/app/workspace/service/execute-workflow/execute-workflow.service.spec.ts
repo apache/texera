@@ -17,6 +17,9 @@
  * under the License.
  */
 
+import "zone.js/testing";
+
+import { DOCUMENT } from "@angular/core";
 import { ExecutionState, LogicalPlan } from "../../types/execute-workflow.interface";
 import { fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
 
@@ -27,27 +30,21 @@ import { UndoRedoService } from "../undo-redo/undo-redo.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
-import { Observable, of } from "rxjs";
+import { of } from "rxjs";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
-import { HttpClient } from "@angular/common/http";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
-import { DOCUMENT } from "@angular/common";
+
 import { WorkflowSettings } from "src/app/common/type/workflow";
-import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { AuthService } from "src/app/common/service/user/auth.service";
 import { StubAuthService } from "src/app/common/service/user/stub-auth.service";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
-import { MockComputingUnitStatusService } from "../computing-unit-status/mock-computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
-
-class StubHttpClient {
-  public post(): Observable<string> {
-    return of("a");
-  }
-}
 
 describe("ExecuteWorkflowService", () => {
   let service: ExecuteWorkflowService;
@@ -62,6 +59,7 @@ describe("ExecuteWorkflowService", () => {
     } as Document;
 
     TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
       providers: [
         ExecuteWorkflowService,
         WorkflowActionService,
@@ -73,7 +71,6 @@ describe("ExecuteWorkflowService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
-        { provide: HttpClient, useClass: StubHttpClient },
         { provide: DOCUMENT, useValue: mockDocument },
         { provide: AuthService, useClass: StubAuthService },
         { provide: UserService, useClass: StubUserService },
@@ -89,6 +86,21 @@ describe("ExecuteWorkflowService", () => {
     expect(injectedService).toBeTruthy();
   }));
 
+  it("resetExecutionAndWorkers() clears the execution state and worker assignments", () => {
+    (service as any).currentState = { state: ExecutionState.Running };
+    (service as any).assignedWorkerIds.set("op1", ["w1", "w2"]);
+
+    const emittedStates: ExecutionState[] = [];
+    service.getExecutionStateStream().subscribe(event => emittedStates.push(event.current.state));
+
+    service.resetExecutionAndWorkers();
+
+    expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+    expect(service.getWorkerIds("op1")).toEqual([]);
+    // must broadcast on the stream so subscribers (menu, result panel) drop stale status
+    expect(emittedStates).toContain(ExecutionState.Uninitialized);
+  });
+
   it("should generate a logical plan request based on the workflow graph that is passed to the function", () => {
     const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
     expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);
@@ -96,7 +108,7 @@ describe("ExecuteWorkflowService", () => {
 
   it("should msg backend when executing workflow", fakeAsync(() => {
     const logicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
-    const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
+    const wsSendSpy = vi.spyOn((service as any).workflowWebsocketService, "send");
     const settings = service["workflowActionService"].getWorkflowSettings();
     service.sendExecutionRequest("", logicalPlan, settings, false, undefined);
     tick(FORM_DEBOUNCE_TIME_MS + 1);
@@ -127,13 +139,13 @@ describe("ExecuteWorkflowService", () => {
     const emailNotificationEnabled = true;
     const targetOperatorId = "test-operator-id";
 
-    const logicalPlanSpy = spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").and.returnValue({} as LogicalPlan);
-    const settingsSpy = spyOn(service["workflowActionService"], "getWorkflowSettings").and.returnValue(
-      {} as WorkflowSettings
-    );
-    const resetExecutionStateSpy = spyOn(service, "resetExecutionState");
-    const resetStatusSpy = spyOn(service["workflowStatusService"], "resetStatus");
-    const sendExecutionRequestSpy = spyOn(service, "sendExecutionRequest");
+    const logicalPlanSpy = vi.spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").mockReturnValue({} as LogicalPlan);
+    const settingsSpy = vi
+      .spyOn(service["workflowActionService"], "getWorkflowSettings")
+      .mockReturnValue({} as WorkflowSettings);
+    const resetExecutionStateSpy = vi.spyOn(service, "resetExecutionState");
+    const resetStatusSpy = vi.spyOn(service["workflowStatusService"], "resetStatus");
+    const sendExecutionRequestSpy = vi.spyOn(service, "sendExecutionRequest");
 
     service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);
 
@@ -143,8 +155,8 @@ describe("ExecuteWorkflowService", () => {
     expect(resetStatusSpy).toHaveBeenCalled();
     expect(sendExecutionRequestSpy).toHaveBeenCalledWith(
       executionName,
-      jasmine.any(Object),
-      jasmine.any(Object),
+      expect.any(Object),
+      expect.any(Object),
       emailNotificationEnabled
     );
   });
@@ -154,10 +166,12 @@ describe("ExecuteWorkflowService", () => {
     const emailNotificationEnabled = true;
     const targetOperatorId = "test-operator-id";
 
-    const logicalPlanSpy = spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").and.throwError("Logical plan error");
-    const resetExecutionStateSpy = spyOn(service, "resetExecutionState");
-    const resetStatusSpy = spyOn(service["workflowStatusService"], "resetStatus");
-    const sendExecutionRequestSpy = spyOn(service, "sendExecutionRequest");
+    const logicalPlanSpy = vi.spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").mockImplementation(() => {
+      throw "Logical plan error";
+    });
+    const resetExecutionStateSpy = vi.spyOn(service, "resetExecutionState");
+    const resetStatusSpy = vi.spyOn(service["workflowStatusService"], "resetStatus");
+    const sendExecutionRequestSpy = vi.spyOn(service, "sendExecutionRequest");
 
     expect(() => {
       service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);

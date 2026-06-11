@@ -18,9 +18,14 @@
  */
 
 import { Component, EventEmitter, HostListener, Input, OnChanges, Output, SimpleChanges } from "@angular/core";
+import { editor } from "monaco-editor";
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
 import { isDefined } from "../../../../common/util/predicate";
-import { MonacoEditor } from "monaco-breakpoints/dist/types";
+import { NgIf, NgStyle } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/repeat-dnd.component";
+
+type MonacoEditor = editor.IStandaloneCodeEditor;
 
 /**
  * This component is a dialog that allows users to input a condition for a breakpoint.
@@ -29,6 +34,7 @@ import { MonacoEditor } from "monaco-breakpoints/dist/types";
   selector: "texera-breakpoint-condition-input",
   templateUrl: "./breakpoint-condition-input.component.html",
   styleUrls: ["./breakpoint-condition-input.component.scss"],
+  imports: [NgIf, NgStyle, FormsModule, FormlyRepeatDndComponent],
 })
 export class BreakpointConditionInputComponent implements OnChanges {
   constructor(private udfDebugService: UdfDebugService) {}

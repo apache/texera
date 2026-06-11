@@ -21,48 +21,25 @@ package org.apache.texera.web.auth
 
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Authenticator
-import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.auth.{JwtParser, SessionUser}
 import org.jose4j.jwt.consumer.JwtContext
 
-import java.time.OffsetDateTime
 import java.util.Optional
 
+/** Adapter for the toastshaman Dropwizard JWT filter. The filter has already
+  * verified the signature by the time this is invoked, so the work here is
+  * pure claim extraction — delegated to [[JwtParser.claimsToSessionUser]]
+  * so amber and the microservices produce identical [[SessionUser]] objects
+  * from the same token.
+  */
 object UserAuthenticator extends Authenticator[JwtContext, SessionUser] with LazyLogging {
   override def authenticate(context: JwtContext): Optional[SessionUser] = {
-    // This method will be called once the token's signature has been verified,
-    // including the token secret and the expiration time
     try {
-      val userName = context.getJwtClaims.getSubject
-      val email = context.getJwtClaims.getClaimValue("email").asInstanceOf[String]
-      val userId = context.getJwtClaims.getClaimValue("userId").asInstanceOf[Long].toInt
-      val role =
-        UserRoleEnum.valueOf(context.getJwtClaims.getClaimValue("role").asInstanceOf[String])
-      val googleId = context.getJwtClaims.getClaimValue("googleId").asInstanceOf[String]
-      val comment = context.getJwtClaims.getClaimValue("comment").asInstanceOf[String]
-      val accountCreation =
-        context.getJwtClaims.getClaimValue("accountCreation").asInstanceOf[OffsetDateTime]
-      val user =
-        new User(
-          userId,
-          userName,
-          email,
-          null,
-          googleId,
-          null,
-          role,
-          comment,
-          accountCreation,
-          null,
-          null
-        )
-      Optional.of(new SessionUser(user))
+      Optional.of(JwtParser.claimsToSessionUser(context.getJwtClaims))
     } catch {
       case e: Exception =>
         logger.error("Failed to authenticate the JwtContext", e)
         Optional.empty()
     }
-
   }
 }

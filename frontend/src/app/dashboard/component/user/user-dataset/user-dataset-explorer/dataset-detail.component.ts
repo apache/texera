@@ -21,7 +21,7 @@ import { Component, EventEmitter, OnInit, Output } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
-import { NzResizeEvent } from "ng-zorro-antd/resizable";
+import { NzResizeEvent, NzResizableDirective, NzResizeHandleComponent } from "ng-zorro-antd/resizable";
 import {
   DatasetFileNode,
   getFullPathFromDatasetFileNode,
@@ -41,8 +41,32 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
 import { Subscription } from "rxjs";
-import { formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { formatCount, formatSpeed, formatTime } from "src/app/common/util/format.util";
 import { format } from "date-fns";
+import { NgIf, NgClass, NgFor } from "@angular/common";
+import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzTagComponent } from "ng-zorro-antd/tag";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzSwitchComponent } from "ng-zorro-antd/switch";
+import { FormsModule } from "@angular/forms";
+import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
+import { NzLayoutComponent, NzContentComponent, NzSiderComponent } from "ng-zorro-antd/layout";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzEmptyComponent } from "ng-zorro-antd/empty";
+import { UserDatasetFileRendererComponent } from "./user-dataset-file-renderer/user-dataset-file-renderer.component";
+import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
+import { UserDatasetVersionFiletreeComponent } from "./user-dataset-version-filetree/user-dataset-version-filetree.component";
+import { NzDividerComponent } from "ng-zorro-antd/divider";
+import { FilesUploaderComponent } from "../../files-uploader/files-uploader.component";
+import { NzProgressComponent } from "ng-zorro-antd/progress";
+import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
+import { NzInputDirective } from "ng-zorro-antd/input";
 
 export const THROTTLE_TIME_MS = 1000;
 export const ABORT_RETRY_MAX_ATTEMPTS = 10;
@@ -52,6 +76,41 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
 @Component({
   templateUrl: "./dataset-detail.component.html",
   styleUrls: ["./dataset-detail.component.scss"],
+  imports: [
+    NgIf,
+    NzCardComponent,
+    NzCardMetaComponent,
+    NzTooltipDirective,
+    NzTagComponent,
+    NgClass,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzPopoverDirective,
+    NzSwitchComponent,
+    FormsModule,
+    MarkdownDescriptionComponent,
+    NzLayoutComponent,
+    NzContentComponent,
+    NzWaveDirective,
+    NzEmptyComponent,
+    UserDatasetFileRendererComponent,
+    NzSiderComponent,
+    NzResizableDirective,
+    NzResizeHandleComponent,
+    NzCollapseComponent,
+    NzCollapsePanelComponent,
+    NzSelectComponent,
+    NgFor,
+    NzOptionComponent,
+    UserDatasetVersionFiletreeComponent,
+    NzDividerComponent,
+    FilesUploaderComponent,
+    NzProgressComponent,
+    UserDatasetStagedObjectsListComponent,
+    NzInputDirective,
+  ],
 })
 export class DatasetDetailComponent implements OnInit {
   public did: number | undefined;
@@ -60,6 +119,7 @@ export class DatasetDetailComponent implements OnInit {
   public datasetCreationTime: string = "";
   public datasetCreationTimeTooltip: string = "";
   public datasetIsPublic: boolean = false;
+  public coverImageUrl: string | null = null;
   public datasetIsDownloadable: boolean = true;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
   public ownerEmail: string = "";
@@ -270,8 +330,9 @@ export class DatasetDetailComponent implements OnInit {
 
   retrieveDatasetInfo() {
     if (this.did) {
+      const did = this.did;
       this.datasetService
-        .getDataset(this.did, this.isLogin)
+        .getDataset(did, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(dashboardDataset => {
           const dataset = dashboardDataset.dataset;
@@ -282,6 +343,17 @@ export class DatasetDetailComponent implements OnInit {
           this.datasetIsDownloadable = dataset.isDownloadable;
           this.ownerEmail = dashboardDataset.ownerEmail;
           this.isOwner = dashboardDataset.isOwner;
+          if (dataset.coverImage) {
+            this.datasetService
+              .getDatasetCoverUrl(did)
+              .pipe(untilDestroyed(this))
+              .subscribe({
+                next: ({ url }) => (this.coverImageUrl = url),
+                error: () => (this.coverImageUrl = null),
+              });
+          } else {
+            this.coverImageUrl = null;
+          }
           if (typeof dataset.creationTime === "number") {
             const date = new Date(dataset.creationTime);
             this.datasetCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
@@ -660,12 +732,7 @@ export class DatasetDetailComponent implements OnInit {
   // alias for formatSize
   formatSize = formatSize;
 
-  formatCount(count: number): string {
-    if (count >= 1000) {
-      return (count / 1000).toFixed(1) + "k";
-    }
-    return count.toString();
-  }
+  formatCount = formatCount;
   formatTime = formatTime;
   formatSpeed = formatSpeed;
 
@@ -716,13 +783,22 @@ export class DatasetDetailComponent implements OnInit {
     if (!this.did || !this.selectedVersion) {
       return;
     }
+    const did = this.did;
 
+    const newCoverPath = `${this.selectedVersion.name}/${filePath}`;
     this.datasetService
-      .updateDatasetCoverImage(this.did, `${this.selectedVersion.name}/${filePath}`)
+      .updateDatasetCoverImage(did, newCoverPath)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          this.notificationService.success("Cover image set successfully");
+          this.datasetService
+            .getDatasetCoverUrl(did)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: ({ url }) => (this.coverImageUrl = url),
+              error: () => (this.coverImageUrl = null),
+            });
+          this.notificationService.success("Cover image updated.");
         },
         error: (err: unknown) => {
           this.notificationService.error(
@@ -753,5 +829,18 @@ export class DatasetDetailComponent implements OnInit {
           this.notificationService.error("Failed to update dataset description");
         },
       });
+  }
+
+  async copyCurrentFilePath(): Promise<void> {
+    if (!this.currentDisplayedFileName) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(this.currentDisplayedFileName);
+      this.notificationService.success("File path copied to clipboard");
+    } catch (error) {
+      this.notificationService.error("Failed to copy file path");
+    }
   }
 }

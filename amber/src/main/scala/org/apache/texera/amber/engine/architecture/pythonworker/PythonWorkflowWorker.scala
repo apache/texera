@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.architecture.pythonworker
 
 import org.apache.pekko.actor.Props
 import com.twitter.util.Promise
-import org.apache.texera.amber.config.{StorageConfig, UdfConfig}
+import org.apache.texera.amber.config.{PythonUtils, StorageConfig, UdfConfig}
 import org.apache.texera.amber.core.virtualidentity.ChannelIdentity
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkAck
@@ -41,6 +41,7 @@ import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.{CheckpointState, Utils}
 
 import java.nio.file.Path
+import org.apache.texera.web.resource.pythonvirtualenvironment.PveManager
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.sys.process.{BasicIO, Process}
 
@@ -65,7 +66,6 @@ class PythonWorkflowWorker(
     .resolve("src")
     .resolve("main")
     .resolve("python")
-  val pythonENVPath: String = UdfConfig.pythonPath.trim
   val RENVPath: String = UdfConfig.rPath.trim
 
   // Python process
@@ -165,29 +165,52 @@ class PythonWorkflowWorker(
     clientThreadExecutor.submit(pythonProxyClient)
   }
 
+  // Returns the Python executable path for the selected PVE,
+  // or falls back to the default Python binary.
+  private def choosePythonBin(): String = {
+    val fallback = PythonUtils.getPythonExecutable
+    val pveName = workerConfig.pveName.trim
+
+    workerConfig.cuid
+      .filter(_ => pveName.nonEmpty)
+      .flatMap(cuid => PveManager.getPythonBin(cuid, pveName))
+      .map(_.toString)
+      .getOrElse(fallback)
+  }
+
   private def startPythonProcess(): Unit = {
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
+
+    val pythonBin: String = choosePythonBin()
+
+    // Set the Iceberg related arguments based on the catalog type.
+    val isPostgres = StorageConfig.icebergCatalogType == "postgres"
+    val isRest = StorageConfig.icebergCatalogType == "rest"
     pythonServerProcess = Process(
       Seq(
-        if (pythonENVPath.isEmpty) "python3"
-        else pythonENVPath, // add fall back in case of empty
+        pythonBin,
         "-u",
         udfEntryScriptPath,
         workerConfig.workerId.name,
         Integer.toString(pythonProxyServer.getPortNumber.get()),
         UdfConfig.pythonLogStreamHandlerLevel,
         RENVPath,
-        StorageConfig.icebergPostgresCatalogUriWithoutScheme,
-        StorageConfig.icebergPostgresCatalogUsername,
-        StorageConfig.icebergPostgresCatalogPassword,
+        StorageConfig.icebergCatalogType,
+        if (isPostgres) StorageConfig.icebergPostgresCatalogUriWithoutScheme else "",
+        if (isPostgres) StorageConfig.icebergPostgresCatalogUsername else "",
+        if (isPostgres) StorageConfig.icebergPostgresCatalogPassword else "",
+        if (isRest) StorageConfig.icebergRESTCatalogUri else "",
+        if (isRest) StorageConfig.icebergRESTCatalogWarehouseName else "",
         StorageConfig.icebergTableResultNamespace,
+        StorageConfig.icebergTableStateNamespace,
         StorageConfig.fileStorageDirectoryPath.toString,
         StorageConfig.icebergTableCommitBatchSize.toString,
         StorageConfig.s3Endpoint,
         StorageConfig.s3Region,
         StorageConfig.s3Username,
-        StorageConfig.s3Password
+        StorageConfig.s3Password,
+        workerConfig.largeBinaryBaseUri
       )
     ).run(BasicIO.standard(false))
   }

@@ -18,15 +18,29 @@
 import scala.collection.Seq
 
 name := "computing-unit-managing-service"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
 
+// Ship LICENSE-binary, NOTICE-binary, DISCLAIMER, and the licenses/
+// directory at the top of the Universal dist zip.
+// See project/AddMetaInfLicenseFiles.scala.
+Universal / mappings := AddMetaInfLicenseFiles.distMappings(
+  (Universal / mappings).value,
+  (ThisBuild / baseDirectory).value,
+  baseDirectory.value / "LICENSE-binary",
+  baseDirectory.value / "NOTICE-binary"
+)
+
 // Dependency Versions
 val dropwizardVersion = "4.0.7"
+val mockitoVersion = "5.4.0"
+
+// Test Dependencies
+libraryDependencies ++= Seq(
+  "org.scalatest" %% "scalatest" % "3.2.17" % Test,
+  "org.mockito" % "mockito-core" % mockitoVersion % Test
+)
 
 // Dependencies
 libraryDependencies ++= Seq(
@@ -34,10 +48,8 @@ libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
   "io.kubernetes" % "client-java" % "21.0.0",
   "org.jooq" % "jooq" % "3.14.16",
-  "com.typesafe" % "config" % "1.4.1",
-  "mysql" % "mysql-connector-java" % "8.0.33",
+  "com.typesafe" % "config" % "1.4.6",
   "com.softwaremill.sttp.client4" %% "core" % "4.0.0-M6",
-  "com.typesafe" % "config" % "1.4.2",
   "com.typesafe.play" %% "play-json" % "2.10.6",
   "io.fabric8" % "kubernetes-client" % "6.12.1"
 )

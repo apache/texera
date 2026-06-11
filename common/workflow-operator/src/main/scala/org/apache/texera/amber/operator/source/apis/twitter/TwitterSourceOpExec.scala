@@ -19,41 +19,16 @@
 
 package org.apache.texera.amber.operator.source.apis.twitter
 
-import io.github.redouane59.twitter.TwitterClient
-import io.github.redouane59.twitter.signature.TwitterCredentials
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 
+@deprecated("Twitter source operator is no longer executable.", "1.1.0-incubating")
 abstract class TwitterSourceOpExec(
     descString: String
 ) extends SourceOperatorExecutor {
-  private val desc: TwitterSourceOpDesc =
-    objectMapper.readValue(descString, classOf[TwitterSourceOpDesc])
-  // batch size for each API request defined by Twitter
-  //  500 is the maximum tweets for each request
-  val TWITTER_API_BATCH_SIZE_MAX = 500
-
-  //  10 is the minimal tweets for each request
-  // val TWITTER_API_BATCH_SIZE_MIN = 10
-
-  //  however, when using batch size < 100, could cause using different
-  //  twitter endpoints which has different rate limit.
-  //  (related to redouane59/twitteredV2.5)
-  //  thus, in practice, we use 100 as the min batch size.
-  val TWITTER_API_BATCH_SIZE_MIN = 100
-
-  var twitterClient: TwitterClient = _
-
-  override def open(): Unit = {
-    twitterClient = new TwitterClient(
-      TwitterCredentials
-        .builder()
-        .apiKey(desc.apiKey)
-        .apiSecretKey(desc.apiSecretKey)
-        .build()
+  override def open(): Unit =
+    throw new UnsupportedOperationException(
+      "Twitter source operator is no longer executable in Apache Texera."
     )
-    twitterClient.setAutomaticRetry(!desc.stopWhenRateLimited)
-  }
 
   override def close(): Unit = {}
 }

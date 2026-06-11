@@ -17,42 +17,46 @@
  * under the License.
  */
 
+import { CommonModule } from "@angular/common";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { FormsModule } from "@angular/forms";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input.component";
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
 import { SimpleChanges } from "@angular/core";
-import * as monaco from "monaco-editor";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-
+import type { Mocked } from "vitest";
+import type { editor } from "monaco-editor";
 describe("BreakpointConditionInputComponent", () => {
   let component: BreakpointConditionInputComponent;
   let fixture: ComponentFixture<BreakpointConditionInputComponent>;
-  let mockUdfDebugService: jasmine.SpyObj<UdfDebugService>;
-  let editorElement: HTMLElement;
+  let mockUdfDebugService: Mocked<UdfDebugService>;
 
   beforeEach(async () => {
     // Create a mock UdfDebugService
-    mockUdfDebugService = jasmine.createSpyObj("UdfDebugService", ["getCondition", "doUpdateBreakpointCondition"]);
+    mockUdfDebugService = {
+      getCondition: vi.fn(),
+      doUpdateBreakpointCondition: vi.fn(),
+    } as unknown as Mocked<UdfDebugService>;
 
     await TestBed.configureTestingModule({
-      declarations: [BreakpointConditionInputComponent],
+      imports: [BreakpointConditionInputComponent, CommonModule, FormsModule],
       providers: [{ provide: UdfDebugService, useValue: mockUdfDebugService }, ...commonTestProviders],
     }).compileComponents();
 
     fixture = TestBed.createComponent(BreakpointConditionInputComponent);
     component = fixture.componentInstance;
 
-    // Create and attach a <div> to host the Monaco editor
-    editorElement = document.createElement("div");
-    editorElement.style.width = "800px";
-    editorElement.style.height = "600px";
-    document.body.appendChild(editorElement); // Attach to the DOM
-
-    // Initialize the Monaco editor
-    component.monacoEditor = monaco.editor.create(editorElement, {
-      value: "function hello() {\n\tconsole.log(\"Hello, world!\");\n}",
-      language: "javascript",
-    });
+    component.monacoEditor = {
+      getLayoutInfo: () => ({ glyphMarginLeft: 10 }),
+      getDomNode: () =>
+        ({
+          getBoundingClientRect: () => ({ top: 20, left: 30 }),
+        }) as HTMLDivElement,
+      getBottomForLineNumber: () => 40,
+      getScrollTop: () => 5,
+      getScrollLeft: () => 0,
+      dispose: vi.fn(),
+    } as unknown as editor.IStandaloneCodeEditor;
 
     // Set required inputs
     component.operatorId = "test-operator";
@@ -64,7 +68,6 @@ describe("BreakpointConditionInputComponent", () => {
   afterEach(() => {
     // Clean up the editor and DOM element after each test
     component.monacoEditor.dispose();
-    editorElement.remove();
     component.closeEmitter.emit();
   });
 
@@ -73,7 +76,7 @@ describe("BreakpointConditionInputComponent", () => {
   });
 
   it("should update the condition when lineNum changes", () => {
-    mockUdfDebugService.getCondition.and.returnValue("existing condition");
+    mockUdfDebugService.getCondition.mockReturnValue("existing condition");
 
     const changes: SimpleChanges = {
       lineNum: {
@@ -90,7 +93,7 @@ describe("BreakpointConditionInputComponent", () => {
   });
 
   it("should handle Enter key event and save the condition", () => {
-    const emitSpy = spyOn(component.closeEmitter, "emit");
+    const emitSpy = vi.spyOn(component.closeEmitter, "emit");
     const event = new KeyboardEvent("keydown", { key: "Enter" });
 
     component.condition = " new condition ";
@@ -101,7 +104,7 @@ describe("BreakpointConditionInputComponent", () => {
   });
 
   it("should not handle Enter key event if shift key is pressed", () => {
-    const emitSpy = spyOn(component.closeEmitter, "emit");
+    const emitSpy = vi.spyOn(component.closeEmitter, "emit");
     const event = new KeyboardEvent("keydown", { key: "Enter", shiftKey: true });
 
     component.handleEvent(event);
@@ -111,7 +114,7 @@ describe("BreakpointConditionInputComponent", () => {
   });
 
   it("should emit close event on focusout", () => {
-    const emitSpy = spyOn(component.closeEmitter, "emit");
+    const emitSpy = vi.spyOn(component.closeEmitter, "emit");
 
     component.handleEvent(); // Simulate focusout
 

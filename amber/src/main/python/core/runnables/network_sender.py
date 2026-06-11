@@ -20,7 +20,7 @@ from loguru import logger
 from overrides import overrides
 from typing import Optional
 
-from core.models import DataPayload, InternalQueue, DataFrame, StateFrame, State
+from core.models import DataPayload, InternalQueue, DataFrame, State, StateFrame
 from core.models.internal_queue import (
     InternalQueueElement,
     DataElement,
@@ -98,13 +98,10 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             data_header = PythonDataHeader(tag=to, payload_type="Data")
             self._proxy_client.send_data(bytes(data_header), data_payload.frame)
         elif isinstance(data_payload, StateFrame):
-            data_header = PythonDataHeader(
-                tag=to, payload_type=data_payload.frame.__class__.__name__
-            )
-            table = (
-                data_payload.frame.to_table()
-                if isinstance(data_payload.frame, State)
-                else None
+            data_header = PythonDataHeader(tag=to, payload_type="State")
+            table = pa.Table.from_pydict(
+                {State.CONTENT: [data_payload.frame.to_json()]},
+                schema=State.SCHEMA.as_arrow_schema(),
             )
             self._proxy_client.send_data(bytes(data_header), table)
         else:

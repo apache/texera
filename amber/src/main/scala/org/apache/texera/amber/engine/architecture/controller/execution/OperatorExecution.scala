@@ -48,7 +48,7 @@ case class OperatorExecution() {
     *
     * @param workerId The `ActorVirtualIdentity` representing the unique identity of the worker.
     * @return The `WorkerExecution` instance associated with the specified workerId.
-    * @throws AssertionError if a `WorkerExecution` already exists for the given workerId.
+    * @throws java.lang.AssertionError if a `WorkerExecution` already exists for the given workerId.
     */
   def initWorkerExecution(workerId: ActorVirtualIdentity): WorkerExecution = {
     assert(

@@ -573,7 +573,7 @@ describe("JointGraphWrapperService", () => {
 
     beforeEach(() => {
       // Get the mock service and enable linkBreakpoint for each test in this describe block
-      mockConfigService = TestBed.inject(GuiConfigService) as any as MockGuiConfigService;
+      mockConfigService = TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService;
       mockConfigService.setConfig({ linkBreakpointEnabled: true });
     });
 
@@ -792,5 +792,30 @@ describe("JointGraphWrapperService", () => {
         });
       })
     );
+  });
+
+  describe("regions displayed flag", () => {
+    it("defaults to not displayed", () => {
+      expect(jointGraphWrapper.getRegionsDisplayed()).toBe(false);
+    });
+
+    it("updates the value when set", () => {
+      jointGraphWrapper.setRegionsDisplayed(true);
+      expect(jointGraphWrapper.getRegionsDisplayed()).toBe(true);
+
+      jointGraphWrapper.setRegionsDisplayed(false);
+      expect(jointGraphWrapper.getRegionsDisplayed()).toBe(false);
+    });
+
+    it("emits the current value to new subscribers and on every change", () => {
+      const emitted: boolean[] = [];
+      jointGraphWrapper.getRegionsDisplayedStream().subscribe(displayed => emitted.push(displayed));
+
+      jointGraphWrapper.setRegionsDisplayed(true);
+      jointGraphWrapper.setRegionsDisplayed(false);
+
+      // BehaviorSubject replays the initial false, then each subsequent change
+      expect(emitted).toEqual([false, true, false]);
+    });
   });
 });

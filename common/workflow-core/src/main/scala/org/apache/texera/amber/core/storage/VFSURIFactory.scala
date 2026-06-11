@@ -34,6 +34,7 @@ object VFSResourceType extends Enumeration {
   val RESULT: Value = Value("result")
   val RUNTIME_STATISTICS: Value = Value("runtimeStatistics")
   val CONSOLE_MESSAGES: Value = Value("consoleMessages")
+  val STATE: Value = Value("state")
 }
 
 object VFSURIFactory {
@@ -44,7 +45,7 @@ object VFSURIFactory {
     *
     * @param uri The VFS URI to parse.
     * @return A `VFSUriComponents` object with the extracted data.
-    * @throws IllegalArgumentException if the URI is malformed.
+    * @throws java.lang.IllegalArgumentException if the URI is malformed.
     */
   def decodeURI(uri: URI): (
       WorkflowIdentity,
@@ -83,18 +84,25 @@ object VFSURIFactory {
   }
 
   /**
-    * Create a URI pointing to a result storage
+    * Create the base URI for a port. Result and state URIs are derived
+    * from this base via `resultURI` / `stateURI`.
     */
-  def createResultURI(
+  def createPortBaseURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       globalPortId: GlobalPortIdentity
-  ): URI = {
-    val baseUri =
-      s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/globalportid/${globalPortId.serializeAsString}"
+  ): URI =
+    new URI(
+      s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}" +
+        s"/globalportid/${globalPortId.serializeAsString}"
+    )
 
-    new URI(s"$baseUri/${VFSResourceType.RESULT.toString.toLowerCase}")
-  }
+  def resultURI(baseURI: URI): URI = appendResource(baseURI, VFSResourceType.RESULT)
+
+  def stateURI(baseURI: URI): URI = appendResource(baseURI, VFSResourceType.STATE)
+
+  private def appendResource(baseURI: URI, resourceType: VFSResourceType.Value): URI =
+    new URI(s"$baseURI/${resourceType.toString.toLowerCase}")
 
   /**
     * Create a URI pointing to runtime statistics
@@ -135,7 +143,7 @@ object VFSURIFactory {
     * @param executionId    Execution identifier.
     * @param operatorId     Operator identifier.
     * @return A VFS URI
-    * @throws IllegalArgumentException if `resourceType` is `RESULT`, if `operatorId` is provided for
+    * @throws java.lang.IllegalArgumentException if `resourceType` is `RESULT`, if `operatorId` is provided for
     *                                  `RUNTIME_STATISTICS`, or if `operatorId` is not provided for `CONSOLE_MESSAGES`.
     */
   private def createNonResultVFSURI(

@@ -68,7 +68,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
         * - If resultSet is exhausted, send the next query until no more queries are available.
         * - If no more queries, return null.
         *
-        * @throws SQLException all possible exceptions from JDBC
+        * @throws java.sql.SQLException all possible exceptions from JDBC
         * @return Tuple
         */
       @throws[SQLException]
@@ -143,7 +143,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     * - tableNames, to check if the input tableName exists on the database server, to prevent SQL injection.
     * - batchColumnBoundaries, to be used to split mini queries, if progressive mode is enabled.
     *
-    * @throws SQLException all possible exceptions from JDBC
+    * @throws java.sql.SQLException all possible exceptions from JDBC
     */
   @throws[SQLException]
   override def open(): Unit = {
@@ -164,7 +164,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
   /**
     * close resultSet, preparedStatement and connection
     *
-    * @throws SQLException all possible exceptions from JDBC
+    * @throws java.sql.SQLException all possible exceptions from JDBC
     */
   @throws[SQLException]
   override def close(): Unit = {
@@ -180,7 +180,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     * Build a Tuple from a row of curResultSet
     *
     * @return the new Tuple
-    * @throws SQLException all possible exceptions from JDBC
+    * @throws java.sql.SQLException all possible exceptions from JDBC
     */
   @throws[SQLException]
   protected def buildTupleFromRow: Tuple = {
@@ -214,7 +214,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     * - If it is not progressive mode, this method will return false when
     * invoked the second time. Which means there is only one query.
     *
-    * @throws IllegalArgumentException if the given batchByAttribute's type is
+    * @throws java.lang.IllegalArgumentException if the given batchByAttribute's type is
     *                                  not supported to be incremental.
     * @return A boolean value whether there exists the next query or not.
     */
@@ -266,7 +266,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     * be [lower, nextLower)
     *
     * @param queryBuilder the target query builder
-    * @throws IllegalArgumentException if the given batchByAttribute's type is
+    * @throws java.lang.IllegalArgumentException if the given batchByAttribute's type is
     *                                  not supported to be incremental.
     */
   @throws[IllegalArgumentException]
@@ -305,7 +305,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     * Convert the Number value to a String to be concatenate to SQL.
     *
     * @param value a Number, contains the value to be converted.
-    * @throws IllegalArgumentException when the batchByAttribute is missing or the type is unexpected
+    * @throws java.lang.IllegalArgumentException when the batchByAttribute is missing or the type is unexpected
     * @return a String of that value
     */
   @throws[IllegalArgumentException]
@@ -332,7 +332,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     * Fetch for a numeric value of the boundary of the batchByColumn.
     *
     * @param side either "MAX" or "MIN" for boundary
-    * @throws IllegalArgumentException if the batchByAttribute type is unexpected
+    * @throws java.lang.IllegalArgumentException if the batchByAttribute type is unexpected
     * @return a numeric value, could be Int, Long or Double
     */
   @throws[IllegalArgumentException]
@@ -368,7 +368,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
   /**
     * Establishes the connection to database.
     *
-    * @throws SQLException all possible exceptions from JDBC
+    * @throws java.sql.SQLException all possible exceptions from JDBC
     * @return a SQL connection over JDBC
     */
   @throws[SQLException]
@@ -378,7 +378,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     * Fetch all table names from the given database. This is used to
     * check the input table name to prevent from SQL injection.
     *
-    * @throws SQLException all possible exceptions from JDBC
+    * @throws java.sql.SQLException all possible exceptions from JDBC
     */
   @throws[SQLException]
   protected def loadTableNames(): Unit
@@ -397,7 +397,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     *
     * Or a fixed offset [OFFSET ?] to be added if not progressive.
     *
-    * @throws IllegalArgumentException if the given batchByAttribute's type is
+    * @throws java.lang.IllegalArgumentException if the given batchByAttribute's type is
     *                                  not supported to be incremental.
     * @return string of sql query
     */
@@ -443,7 +443,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     * - If progressive mode is not enabled, this method will be invoked
     * only once, returning the one giant query.
     *
-    * @throws SQLException all possible exceptions from JDBC
+    * @throws java.sql.SQLException all possible exceptions from JDBC
     * @return a PreparedStatement to be filled with values.
     */
   @throws[SQLException]
@@ -492,8 +492,8 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     * Load the lower bound and upper bound of the batchByColumn. Those
     * bounds will be used in progressive mode to determine mini-queries.
     *
-    * @throws SQLException             all possible exceptions from JDBC
-    * @throws IllegalArgumentException if the batchByAttribute is missing or the type is unexpected
+    * @throws java.sql.SQLException             all possible exceptions from JDBC
+    * @throws java.lang.IllegalArgumentException if the batchByAttribute is missing or the type is unexpected
     */
   @throws[SQLException]
   @throws[IllegalArgumentException]

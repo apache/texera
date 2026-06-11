@@ -68,7 +68,7 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
        |    client_secret = $clientSecretReal
        |    limit = $limit
        |    query = $queryReal
-       |    sorting = ${sorting.getName}
+       |    sorting = '${sorting.getName}'
        |
        |    @overrides
        |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:

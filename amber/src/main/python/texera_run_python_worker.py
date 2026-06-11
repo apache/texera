@@ -18,8 +18,19 @@
 import sys
 from loguru import logger
 
-from core.python_worker import PythonWorker
-from core.storage.storage_config import StorageConfig
+try:
+    from core.python_worker import PythonWorker
+    from core.storage.storage_config import StorageConfig
+except ModuleNotFoundError as e:
+    if e.name == "proto" or (e.name or "").startswith("proto."):
+        sys.exit(
+            "Python proto bindings are missing (amber/src/main/python/proto/). "
+            "They are generated, not checked in. Generate them by running "
+            "`bash bin/python-proto-gen.sh` from the repo root (requires protoc and "
+            '`pip install "betterproto[compiler]"`), or build the engine with sbt, '
+            "which regenerates them on compile."
+        )
+    raise
 
 
 def init_loguru_logger(stream_log_level) -> None:
@@ -45,29 +56,39 @@ if __name__ == "__main__":
         output_port,
         logger_level,
         r_path,
+        iceberg_catalog_type,
         iceberg_postgres_catalog_uri_without_scheme,
         iceberg_postgres_catalog_username,
         iceberg_postgres_catalog_password,
+        iceberg_rest_catalog_uri,
+        iceberg_rest_catalog_warehouse_name,
         iceberg_table_namespace,
+        iceberg_table_state_namespace,
         iceberg_file_storage_directory_path,
         iceberg_table_commit_batch_size,
         s3_endpoint,
         s3_region,
         s3_auth_username,
         s3_auth_password,
+        s3_large_binaries_base_uri,
     ) = sys.argv
     init_loguru_logger(logger_level)
     StorageConfig.initialize(
+        iceberg_catalog_type,
         iceberg_postgres_catalog_uri_without_scheme,
         iceberg_postgres_catalog_username,
         iceberg_postgres_catalog_password,
+        iceberg_rest_catalog_uri,
+        iceberg_rest_catalog_warehouse_name,
         iceberg_table_namespace,
+        iceberg_table_state_namespace,
         iceberg_file_storage_directory_path,
         iceberg_table_commit_batch_size,
         s3_endpoint,
         s3_region,
         s3_auth_username,
         s3_auth_password,
+        s3_large_binaries_base_uri,
     )
 
     # Setting R_HOME environment variable for R-UDF usage

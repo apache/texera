@@ -34,6 +34,9 @@ class RoundRobinDeployment extends DeployStrategy {
   }
 
   override def next(): Address = {
+    if (available.isEmpty) {
+      throw new NoSuchElementException("no available addresses")
+    }
     val i = index
     index = (index + 1) % available.length
     available(i)

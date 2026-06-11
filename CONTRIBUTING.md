@@ -84,6 +84,7 @@ yarn format:fix
 ### 4. PR Review
 - [ ] Ask a Texera Committer (by commenting on the PR) to triage your PR, i.e., request a reviewer, and assign the PR to you.
 - [ ] Add appropriate labels such as `fix`, `enhancement`, `docs`, etc.
+- [ ] If the change should also land in a release branch, add the matching `release/<branch>` label (e.g. `release/v1.1.0-incubating`); the change will be backported to that branch automatically.
 - [ ] Ensure that all CI checks pass (see [GitHub Actions](https://github.com/Texera/texera/actions)).
 - [ ] Fully test your changes locally.
 
@@ -92,6 +93,46 @@ yarn format:fix
 ### 5. After PR Approval
 - [ ] Wait for a Texera Committer, usually the reviewer, to merge the PR once it is approved.
 - [ ] Close the related issue once the PR is merged (if it is not automatically closed).
+
+---
+
+## 👋 Comment commands
+
+You can drive common housekeeping tasks just by leaving a comment on an issue or pull request. Type the command on its own line.
+
+### On issues
+
+| Command | What it does |
+|---|---|
+| `/take` | Assign the issue to yourself (self-claim it) |
+| `/untake` | Remove yourself as assignee |
+
+To find unclaimed work, search `is:issue is:open no:assignee` — there's no "triage" label; the search filter *is* the triage state.
+
+### Linking sub-issues
+
+You can link from either end of the parent/child relationship:
+
+| Command | Where to run it | What it does |
+|---|---|---|
+| `/sub-issue #12 #13` | On the **parent** | Links #12 and #13 as children of this issue |
+| `/unsub-issue #12 #13` | On the **parent** | Unlinks those children |
+| `/parent-issue #5` | On the **child** | Sets #5 as this issue's parent |
+| `/unparent-issue` | On the **child** | Removes this issue's parent (auto-detected) |
+| `/unparent-issue #5` | On the **child** | Removes parent #5 explicitly |
+
+You can write references as `#12` or bare `12`. Cross-repo references like `owner/repo#12` aren't supported and are ignored.
+
+### On pull requests (author only)
+
+| Command | What it does |
+|---|---|
+| `/request-review @user [@user ...]` | Request reviews from those users |
+| `/unrequest-review @user [@user ...]` | Cancel those review requests |
+
+You can mention teams as `@org/team`, and `@copilot` works too. Only the PR **author** can use these commands.
+
+> **Note:** Commands must match exactly — `/take this` won't work, only `/take`. Bots are ignored, and you can't self-link an issue or set an issue as its own parent.
 
 ---
 

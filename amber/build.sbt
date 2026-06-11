@@ -16,12 +16,21 @@
 // under the License.
 
 name := "amber"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
+
+// Ship LICENSE-binary, NOTICE-binary, DISCLAIMER, and the licenses/
+// directory at the top of the Universal dist zip.
+// See project/AddMetaInfLicenseFiles.scala. The Universal zip is jar-only,
+// so we ship LICENSE-binary-java; the dockerfile merges in
+// LICENSE-binary-python at image build time for coordinator/runner.
+Universal / mappings := AddMetaInfLicenseFiles.distMappings(
+  (Universal / mappings).value,
+  (ThisBuild / baseDirectory).value,
+  baseDirectory.value / "LICENSE-binary-java",
+  baseDirectory.value / "NOTICE-binary"
+)
 
 semanticdbEnabled := true
 semanticdbVersion := scalafixSemanticdb.revision
@@ -44,6 +53,28 @@ concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
 // add python as an additional source
 Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "python"
+
+// `amber/src/test/integration` holds Scala specs that exercise both
+// Scala and Python end-to-end (tagged @org.apache.texera.amber.tags.IntegrationTest).
+// Sits next to `src/test/scala`, `src/test/java`, and `src/test/python`.
+// Adding it to Test/unmanagedSourceDirectories means scalafmtCheckAll /
+// scalafixAll --check naturally cover these sources, and the
+// AMBER_TEST_FILTER env var below routes which tagged subset runs.
+Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "test" / "integration"
+
+// Test-filter switch driven by the AMBER_TEST_FILTER env var so the
+// amber and amber-integration CI jobs select disjoint subsets without
+// each invocation having to embed a `set Tests.Argument(...)` prefix.
+//   skip-integration : exclude @IntegrationTest-tagged specs (amber job)
+//   integration-only : include only @IntegrationTest-tagged specs (amber-integration job)
+//   (unset)          : run everything (default for local sbt)
+Test / testOptions ++= (sys.env.get("AMBER_TEST_FILTER") match {
+  case Some("skip-integration") =>
+    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", "org.apache.texera.amber.tags.IntegrationTest"))
+  case Some("integration-only") =>
+    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", "org.apache.texera.amber.tags.IntegrationTest"))
+  case _ => Nil
+})
 
 // Excluding some proto files:
 PB.generate / excludeFilter := "scalapb.proto"
@@ -89,7 +120,7 @@ val dropwizardDependencies = Seq(
 )
 
 
-val jacksonVersion = "2.15.1"
+val jacksonVersion = "2.18.6"
 val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "javax.validation" % "validation-api" % "2.0.1.Final",
@@ -148,7 +179,7 @@ libraryDependencies ++= hadoopDependencies
 // protobuf related
 // run the following with sbt to have protobuf codegen
 
-PB.protocVersion := "3.19.4"
+PB.protocVersion := IO.read((ThisBuild / baseDirectory).value / "bin" / "protoc-version.txt").trim
 
 enablePlugins(Fs2Grpc)
 
@@ -168,6 +199,27 @@ libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"
 
 // enable protobuf compilation in Test
 Test / PB.protoSources += PB.externalSourcePath.value
+
+// Regenerate Python betterproto bindings on compile; skipped if protoc is absent.
+val genPythonProto = taskKey[Unit]("Generate Python betterproto bindings from .proto sources.")
+genPythonProto := {
+  val log = streams.value.log
+  val repoRoot = (ThisBuild / baseDirectory).value
+  val script = repoRoot / "bin" / "python-proto-gen.sh"
+  def onPath(bin: String): Boolean =
+    scala.sys.process.Process(Seq("bash", "-c", s"command -v $bin >/dev/null 2>&1")).! == 0
+  if (!onPath("protoc") || !onPath("protoc-gen-python_betterproto")) {
+    log.warn(
+      "protoc or protoc-gen-python_betterproto not found on PATH; skipping Python proto generation. " +
+        "Install protoc and `pip install betterproto[compiler]` before launching a Python worker or running pytest."
+    )
+  } else {
+    val procLogger = scala.sys.process.ProcessLogger(line => log.info(line), line => log.error(line))
+    val exit = scala.sys.process.Process(Seq("bash", script.getAbsolutePath), repoRoot).!(procLogger)
+    if (exit != 0) sys.error(s"python-proto-gen.sh failed with exit code $exit")
+  }
+}
+Compile / compile := (Compile / compile).dependsOn(genPythonProto).value
 
 /////////////////////////////////////////////////////////////////////////////
 // Test related
@@ -193,7 +245,7 @@ libraryDependencies += "com.flipkart.zjsonpatch" % "zjsonpatch" % "0.4.13"
 libraryDependencies += "io.reactivex.rxjava3" % "rxjava" % "3.1.6"
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
-libraryDependencies += "org.postgresql" % "postgresql" % "42.5.4"
+libraryDependencies += "org.postgresql" % "postgresql" % "42.7.10"
 
 // https://mvnrepository.com/artifact/com.typesafe.scala-logging/scala-logging
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5"
@@ -212,9 +264,6 @@ libraryDependencies += "com.konghq" % "unirest-java" % "3.14.2"
 
 // https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
 libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
-
-// https://mvnrepository.com/artifact/io.github.redouane59.twitter/twittered
-libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.21"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.16"

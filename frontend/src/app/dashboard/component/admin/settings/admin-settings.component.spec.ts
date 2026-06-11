@@ -20,7 +20,6 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { AdminSettingsComponent } from "./admin-settings.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzCardModule } from "ng-zorro-antd/card";
 
 describe("AdminSettingsComponent", () => {
@@ -29,8 +28,7 @@ describe("AdminSettingsComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [AdminSettingsComponent],
-      imports: [HttpClientTestingModule, NzMessageModule, NzCardModule],
+      imports: [AdminSettingsComponent, HttpClientTestingModule, NzCardModule],
     }).compileComponents();
   });
 
@@ -42,5 +40,13 @@ describe("AdminSettingsComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  it("renders MiB unit beside both size-based inputs", () => {
+    const units = fixture.nativeElement.querySelectorAll(".input-with-unit .unit");
+    expect(units.length).toBe(2);
+    units.forEach((el: HTMLElement) => {
+      expect(el.textContent?.trim()).toBe("MiB");
+    });
   });
 });

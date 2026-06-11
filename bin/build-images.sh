@@ -20,7 +20,6 @@ set -e
 # Default values
 DEFAULT_TAG="latest"
 DEFAULT_SERVICES="*"
-WITH_R_SUPPORT="false"
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
@@ -33,21 +32,16 @@ while [[ $# -gt 0 ]]; do
       SERVICES_INPUT="$2"
       shift 2
       ;;
-    --with-r-support)
-      WITH_R_SUPPORT="true"
-      shift
-      ;;
     --help|-h)
       echo "Usage: $0 [OPTIONS]"
       echo ""
       echo "Options:"
       echo "  -t, --tag TAG              Base tag for the images (default: latest)"
       echo "  -s, --services SERVICES    Services to build, comma-separated or '*' for all (default: *)"
-      echo "  --with-r-support           Enable R support for computing-unit-master (sets WITH_R_SUPPORT=true)"
       echo "  -h, --help                 Show this help message"
       echo ""
       echo "Examples:"
-      echo "  $0 --tag v1.0.0 --services '*' --with-r-support"
+      echo "  $0 --tag v1.0.0 --services '*'"
       echo "  $0 -t latest -s 'gui,computing-unit-master'"
       echo "  $0  # Interactive mode"
       exit 0
@@ -107,9 +101,6 @@ fi
 
 FULL_TAG="${BASE_TAG}-${TAG_SUFFIX}"
 echo "🔍 Detected architecture: $ARCH -> Building for $PLATFORM with tag :$FULL_TAG"
-if [[ "$WITH_R_SUPPORT" == "true" ]]; then
-  echo "🔍 R support enabled for computing-unit-master"
-fi
 
 # Ensure Buildx is ready
 docker buildx create --name texera-builder --use --bootstrap > /dev/null 2>&1 || docker buildx use texera-builder
@@ -137,23 +128,12 @@ for dockerfile in "${dockerfiles[@]}"; do
   image="texera/$service_name:$FULL_TAG"
   echo "👉 Building $image from $dockerfile"
 
-  # Add WITH_R_SUPPORT build arg for computing-unit-master
-  if [[ "$service_name" == "computing-unit-master" && "$WITH_R_SUPPORT" == "true" ]]; then
-    docker buildx build \
-      --platform "$PLATFORM" \
-      -f "$dockerfile" \
-      -t "$image" \
-      --build-arg WITH_R_SUPPORT=true \
-      --push \
-      ..
-  else
-    docker buildx build \
-      --platform "$PLATFORM" \
-      -f "$dockerfile" \
-      -t "$image" \
-      --push \
-      ..
-  fi
+  docker buildx build \
+    --platform "$PLATFORM" \
+    -f "$dockerfile" \
+    -t "$image" \
+    --push \
+    ..
 done
 
 # Build pylsp service (directory: pylsp)

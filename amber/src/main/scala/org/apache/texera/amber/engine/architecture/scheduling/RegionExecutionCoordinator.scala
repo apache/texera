@@ -20,14 +20,15 @@
 package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.pekko.pattern.gracefulStop
-import com.twitter.util.{Future, Return, Throw}
-import org.apache.texera.amber.core.storage.DocumentFactory
+import com.twitter.util.{Duration => TwitterDuration, Future, JavaTimer, Return, Throw, Timer}
+import org.apache.texera.amber.core.state.State
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.VFSURIFactory.decodeURI
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
-  AkkaActorRefMappingService,
-  AkkaActorService,
+  PekkoActorRefMappingService,
+  PekkoActorService,
   ExecutorDeployment
 }
 import org.apache.texera.amber.engine.architecture.controller.execution.{
@@ -61,7 +62,7 @@ import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutions
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration => ScalaDuration}
 
 /**
   * The executor of a region.
@@ -91,11 +92,12 @@ import scala.concurrent.duration.Duration
   */
 class RegionExecutionCoordinator(
     region: Region,
+    isRestart: Boolean,
     workflowExecution: WorkflowExecution,
     asyncRPCClient: AsyncRPCClient,
     controllerConfig: ControllerConfig,
-    actorService: AkkaActorService,
-    actorRefService: AkkaActorRefMappingService
+    actorService: PekkoActorService,
+    actorRefService: PekkoActorRefMappingService
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -109,10 +111,14 @@ class RegionExecutionCoordinator(
   private val currentPhaseRef: AtomicReference[RegionExecutionPhase] = new AtomicReference(
     Unexecuted
   )
+  private val terminationFutureRef: AtomicReference[Future[Unit]] = new AtomicReference(null)
+  private val killRetryTimer: Timer = new JavaTimer(true)
+  private val killRetryDelay: TwitterDuration = TwitterDuration.fromMilliseconds(200)
 
   /**
     * Sync the status of `RegionExecution` and transition this coordinator's phase to `Completed` only when the
-    * coordinator is currently in `ExecutingNonDependeePortsPhase` and all the ports of this region are completed.
+    * coordinator is currently in `ExecutingNonDependeePortsPhase`, all the ports of this region are completed, and
+    * all workers in this region are terminated.
     *
     * Additionally, this method will also terminate all the workers of this region:
     *
@@ -135,12 +141,22 @@ class RegionExecutionCoordinator(
       return Future.Unit
     }
 
-    // Set this coordinator's status to be completed so that subsequent regions can be started by
-    // WorkflowExecutionCoordinator.
-    setPhase(Completed)
-
-    // Terminate all the workers in this region.
-    terminateWorkers(regionExecution)
+    val existingTerminationFuture = terminationFutureRef.get
+    if (existingTerminationFuture != null) {
+      existingTerminationFuture
+    } else {
+      val terminationFuture = terminateWorkersWithRetry(regionExecution).flatMap { _ =>
+        // Set this coordinator's status to be completed so that subsequent regions can be started by
+        // WorkflowExecutionCoordinator.
+        setPhase(Completed)
+        Future.Unit
+      }
+      if (terminationFutureRef.compareAndSet(null, terminationFuture)) {
+        terminationFuture
+      } else {
+        terminationFutureRef.get
+      }
+    }
   }
 
   private def terminateWorkers(regionExecution: RegionExecution) = {
@@ -167,7 +183,11 @@ class RegionExecutionCoordinator(
                 val actorRef = actorRefService.getActorRef(workerId)
                 // Remove the actorRef so that no other actors can find the worker and send messages.
                 actorRefService.removeActorRef(workerId)
-                gracefulStop(actorRef, Duration(5, TimeUnit.SECONDS)).asTwitter()
+                // Restarted regions reuse actorId. Remove stale control channels so the
+                // controller does not reuse old control-message sequence numbers for new workers.
+                asyncRPCClient.inputGateway.removeControlChannel(workerId)
+                asyncRPCClient.outputGateway.removeControlChannel(workerId)
+                gracefulStop(actorRef, ScalaDuration(5, TimeUnit.SECONDS)).asTwitter()
               }
           }.toSeq
 
@@ -191,7 +211,29 @@ class RegionExecutionCoordinator(
     }
   }
 
+  private def terminateWorkersWithRetry(
+      regionExecution: RegionExecution,
+      attempt: Int = 1
+  ): Future[Unit] = {
+    terminateWorkers(regionExecution).rescue {
+      case err =>
+        logger.warn(
+          s"Failed to terminate region ${region.id.id} on attempt $attempt. Retrying in ${killRetryDelay.inMilliseconds} ms.",
+          err
+        )
+        Future
+          .sleep(killRetryDelay)(killRetryTimer)
+          .flatMap(_ => terminateWorkersWithRetry(regionExecution, attempt + 1))
+    }
+  }
+
   def isCompleted: Boolean = currentPhaseRef.get == Completed
+
+  /**
+    * Returns the region termination future if termination has been initiated.
+    * This is only set by `tryCompleteRegionExecution()`.
+    */
+  def getTerminationFutureOpt: Option[Future[Unit]] = Option(terminationFutureRef.get)
 
   /**
     * This will sync and transition the region execution phase from one to another depending on its current phase:
@@ -333,7 +375,7 @@ class RegionExecutionCoordinator(
   }
 
   private def buildOperator(
-      actorService: AkkaActorService,
+      actorService: PekkoActorService,
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
       operatorExecution: OperatorExecution
@@ -424,7 +466,7 @@ class RegionExecutionCoordinator(
                               opId = physicalOp.id,
                               portId = outputPortId
                             ) =>
-                          cfg.storageURI.toString
+                          cfg.storageURIBase.toString
                       }
                       .getOrElse("")
                     Some(
@@ -527,18 +569,23 @@ class RegionExecutionCoordinator(
   ): Unit = {
     portConfigs.foreach {
       case (outputPortId, portConfig) =>
-        val storageUriToAdd = portConfig.storageURI
-        val (_, eid, _, _) = decodeURI(storageUriToAdd)
+        val portBaseURI = portConfig.storageURIBase
+        val resultURI = VFSURIFactory.resultURI(portBaseURI)
+        val stateURI = VFSURIFactory.stateURI(portBaseURI)
         val schemaOptional =
           region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
         val schema =
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
-        DocumentFactory.createDocument(storageUriToAdd, schema)
-        WorkflowExecutionsResource.insertOperatorPortResultUri(
-          eid = eid,
-          globalPortId = outputPortId,
-          uri = storageUriToAdd
-        )
+        DocumentFactory.createDocument(resultURI, schema)
+        DocumentFactory.createDocument(stateURI, State.schema)
+        if (!isRestart) {
+          val (_, eid, _, _) = decodeURI(resultURI)
+          WorkflowExecutionsResource.insertOperatorPortResultUri(
+            eid = eid,
+            globalPortId = outputPortId,
+            uri = resultURI
+          )
+        }
     }
   }
 

@@ -20,7 +20,7 @@
 import { WorkflowUtilService } from "../../../../service/workflow-graph/util/workflow-util.service";
 import { JointUIService } from "../../../../service/joint-ui/joint-ui.service";
 import { DragDropService } from "../../../../service/drag-drop/drag-drop.service";
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { OperatorLabelComponent } from "./operator-label.component";
 import { OperatorMetadataService } from "../../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../../service/operator-metadata/stub-operator-metadata.service";
@@ -36,10 +36,9 @@ describe("OperatorLabelComponent", () => {
   let component: OperatorLabelComponent;
   let fixture: ComponentFixture<OperatorLabelComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [OperatorLabelComponent],
-      imports: [RouterTestingModule.withRoutes([])],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [OperatorLabelComponent, RouterTestingModule.withRoutes([])],
       providers: [
         DragDropService,
         JointUIService,
@@ -53,7 +52,7 @@ describe("OperatorLabelComponent", () => {
         ...commonTestProviders,
       ],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(OperatorLabelComponent);

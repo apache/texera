@@ -17,38 +17,65 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, NgZone, OnInit, ViewChild } from "@angular/core";
+import { Component, NgZone, OnInit, ViewChild } from "@angular/core";
 import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
-import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
+import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
-import { SocialAuthService } from "@abacritt/angularx-social-login";
+import { SocialAuthService, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 
 import {
-  DASHBOARD_ABOUT,
-  DASHBOARD_ADMIN_EXECUTION,
-  DASHBOARD_ADMIN_GMAIL,
-  DASHBOARD_ADMIN_SETTINGS,
-  DASHBOARD_ADMIN_USER,
-  DASHBOARD_USER_DATASET,
-  DASHBOARD_USER_DISCUSSION,
-  DASHBOARD_USER_PROJECT,
-  DASHBOARD_USER_QUOTA,
-  DASHBOARD_USER_WORKFLOW,
+  ABOUT,
+  ADMIN_EXECUTION,
+  ADMIN_GMAIL,
+  ADMIN_SETTINGS,
+  ADMIN_USER,
+  USER_COMPUTING_UNIT,
+  USER_DATASET,
+  USER_DISCUSSION,
+  USER_PROJECT,
+  USER_QUOTA,
+  USER_WORKFLOW,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
 import { User } from "../../common/type/user";
 import { Role } from "../../common/type/user";
+import { NzLayoutComponent, NzSiderComponent, NzContentComponent } from "ng-zorro-antd/layout";
+import { NzMenuDirective, NzSubMenuComponent, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NgIf } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { SearchBarComponent } from "./user/search-bar/search-bar.component";
+import { UserIconComponent } from "./user/user-icon/user-icon.component";
 
 @Component({
   selector: "texera-dashboard",
   templateUrl: "dashboard.component.html",
   styleUrls: ["dashboard.component.scss"],
+  imports: [
+    NzLayoutComponent,
+    NzSiderComponent,
+    NzMenuDirective,
+    NgIf,
+    NzSubMenuComponent,
+    ɵNzTransitionPatchDirective,
+    HubComponent,
+    NzMenuItemComponent,
+    NzTooltipDirective,
+    RouterLink,
+    NzIconDirective,
+    SearchBarComponent,
+    UserIconComponent,
+    GoogleSigninButtonModule,
+    NzContentComponent,
+    RouterOutlet,
+  ],
 })
 @UntilDestroy()
 export class DashboardComponent implements OnInit {
@@ -56,7 +83,7 @@ export class DashboardComponent implements OnInit {
 
   isAdmin: boolean = this.userService.isAdmin();
   isLogin = this.userService.isLogin();
-  public gitCommitHash: string = Version.raw;
+  public buildNumber: string = Version.buildNumber;
   displayForum: boolean = true;
   displayNavbar: boolean = true;
   isCollapsed: boolean = false;
@@ -72,26 +99,29 @@ export class DashboardComponent implements OnInit {
     projects_enabled: false,
     workflows_enabled: false,
     datasets_enabled: false,
+    compute_enabled: false,
     quota_enabled: false,
     forum_enabled: false,
     about_enabled: false,
   };
 
-  protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
-  protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
-  protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
-  protected readonly DASHBOARD_USER_QUOTA = DASHBOARD_USER_QUOTA;
-  protected readonly DASHBOARD_USER_DISCUSSION = DASHBOARD_USER_DISCUSSION;
-  protected readonly DASHBOARD_ADMIN_USER = DASHBOARD_ADMIN_USER;
-  protected readonly DASHBOARD_ADMIN_GMAIL = DASHBOARD_ADMIN_GMAIL;
-  protected readonly DASHBOARD_ADMIN_EXECUTION = DASHBOARD_ADMIN_EXECUTION;
-  protected readonly DASHBOARD_ADMIN_SETTINGS = DASHBOARD_ADMIN_SETTINGS;
+  protected readonly USER_PROJECT = USER_PROJECT;
+  protected readonly USER_WORKFLOW = USER_WORKFLOW;
+  protected readonly USER_DATASET = USER_DATASET;
+  protected readonly USER_COMPUTING_UNIT = USER_COMPUTING_UNIT;
+  protected readonly USER_QUOTA = USER_QUOTA;
+  protected readonly USER_DISCUSSION = USER_DISCUSSION;
+  protected readonly ADMIN_USER = ADMIN_USER;
+  protected readonly ADMIN_GMAIL = ADMIN_GMAIL;
+  protected readonly ADMIN_EXECUTION = ADMIN_EXECUTION;
+  protected readonly ADMIN_SETTINGS = ADMIN_SETTINGS;
+  protected readonly ABOUT = ABOUT;
+  protected readonly String = String;
 
   constructor(
     private userService: UserService,
     private router: Router,
     private flarumService: FlarumService,
-    private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
     private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
@@ -121,7 +151,6 @@ export class DashboardComponent implements OnInit {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
           this.forumLogin();
-          this.cdr.detectChanges();
         });
       });
 
@@ -131,7 +160,7 @@ export class DashboardComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe(() => {
           this.ngZone.run(() => {
-            this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW);
+            this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || USER_WORKFLOW);
           });
         });
     });
@@ -169,11 +198,13 @@ export class DashboardComponent implements OnInit {
       this.adminSettingsService
         .getSetting(tab)
         .pipe(untilDestroyed(this))
-        .subscribe(value => (this.sidebarTabs[tab] = value === "true"));
+        .subscribe(value => {
+          this.sidebarTabs[tab] = value === "true";
+        });
     });
   }
 
-  forumLogin() {
+  forumLogin(attemptRegister: boolean = true) {
     if (!document.cookie.includes("flarum_remember") && this.isLogin) {
       this.flarumService
         .auth()
@@ -183,13 +214,19 @@ export class DashboardComponent implements OnInit {
             document.cookie = `flarum_remember=${response.token};path=/`;
           },
           error: (err: unknown) => {
-            if ([404, 500].includes((err as HttpErrorResponse).status)) {
+            // Stop retrying on a missing/broken forum service, or once we have
+            // already attempted a registration, to avoid an infinite
+            // auth -> register -> auth loop when auth keeps failing.
+            if ([404, 500].includes((err as HttpErrorResponse).status) || !attemptRegister) {
               this.displayForum = false;
             } else {
               this.flarumService
                 .register()
                 .pipe(untilDestroyed(this))
-                .subscribe(() => this.forumLogin());
+                .subscribe({
+                  next: () => this.forumLogin(false),
+                  error: () => (this.displayForum = false),
+                });
             }
           },
         });
@@ -203,7 +240,7 @@ export class DashboardComponent implements OnInit {
 
   isNavbarEnabled(currentRoute: string) {
     // Hide navbar for workflow workspace pages (with numeric ID)
-    if (currentRoute.match(/\/dashboard\/user\/workflow\/\d+/)) {
+    if (currentRoute.match(/\/user\/workflow\/\d+/)) {
       return false;
     }
     return true;
@@ -219,7 +256,4 @@ export class DashboardComponent implements OnInit {
       }, 175);
     }
   }
-
-  protected readonly DASHBOARD_ABOUT = DASHBOARD_ABOUT;
-  protected readonly String = String;
 }

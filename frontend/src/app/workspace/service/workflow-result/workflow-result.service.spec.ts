@@ -20,10 +20,10 @@
 import { TestBed } from "@angular/core/testing";
 import { OperatorPaginationResultService, WorkflowResultService } from "./workflow-result.service";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
-import { of, Subject } from "rxjs";
+import { firstValueFrom, of, Subject } from "rxjs";
 import { SchemaAttribute } from "../../types/workflow-compiling.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
-
+import type { Mocked } from "vitest";
 describe("WorkflowResultService", () => {
   let service: WorkflowResultService;
 
@@ -37,15 +37,45 @@ describe("WorkflowResultService", () => {
   it("should be created", () => {
     expect(service).toBeTruthy();
   });
+
+  it("clearResults() drops cached operator results", () => {
+    (service as any).operatorResultServices.set("op1", {});
+    (service as any).paginatedResultServices.set("op2", {});
+    expect(service.hasAnyResult("op1")).toBe(true);
+    expect(service.hasAnyResult("op2")).toBe(true);
+
+    service.clearResults();
+
+    expect(service.hasAnyResult("op1")).toBe(false);
+    expect(service.hasAnyResult("op2")).toBe(false);
+  });
+
+  it("clearResults() resets table stats to empty for subscribers", () => {
+    const pairs: [unknown, unknown][] = [];
+    service.getResultTableStats().subscribe(p => pairs.push(p));
+    (service as any).resultTableStats.next({ op1: {} });
+    service.clearResults();
+    expect(pairs[pairs.length - 1][1]).toEqual({});
+  });
+
+  it("clearResults() emits on the cleared stream so the UI tears down stale frames", () => {
+    let clearedCount = 0;
+    service.getResultClearedStream().subscribe(() => clearedCount++);
+    service.clearResults();
+    expect(clearedCount).toBe(1);
+  });
 });
 
 describe("OperatorPaginationResultService", () => {
   let service: OperatorPaginationResultService;
-  let mockWorkflowWebsocketService: jasmine.SpyObj<WorkflowWebsocketService>;
+  let mockWorkflowWebsocketService: Mocked<WorkflowWebsocketService>;
 
   beforeEach(() => {
-    mockWorkflowWebsocketService = jasmine.createSpyObj("WorkflowWebsocketService", ["subscribeToEvent", "send"]);
-    mockWorkflowWebsocketService.subscribeToEvent.and.returnValue(new Subject());
+    mockWorkflowWebsocketService = {
+      subscribeToEvent: vi.fn(),
+      send: vi.fn(),
+    } as unknown as Mocked<WorkflowWebsocketService>;
+    mockWorkflowWebsocketService.subscribeToEvent.mockReturnValue(new Subject());
 
     service = new OperatorPaginationResultService("testOperator", mockWorkflowWebsocketService);
   });
@@ -63,7 +93,7 @@ describe("OperatorPaginationResultService", () => {
   });
 
   describe("selectTuple", () => {
-    it("should return the correct tuple and schema", done => {
+    it("should return the correct tuple and schema", async () => {
       const testSchema: SchemaAttribute[] = [
         { attributeName: "id", attributeType: "integer" },
         { attributeName: "name", attributeType: "string" },
@@ -76,7 +106,7 @@ describe("OperatorPaginationResultService", () => {
         { id: 3, name: "Charlie" },
       ];
 
-      spyOn(service, "selectPage").and.returnValue(
+      vi.spyOn(service, "selectPage").mockReturnValue(
         of({
           requestID: "test",
           operatorID: "testOperator",
@@ -86,14 +116,12 @@ describe("OperatorPaginationResultService", () => {
         })
       );
 
-      service.selectTuple(1, 3).subscribe(result => {
-        expect(result.tuple).toEqual({ id: 2, name: "Bob" });
-        expect(result.schema).toEqual(testSchema);
-        done();
-      });
+      const result = await firstValueFrom(service.selectTuple(1, 3));
+      expect(result.tuple).toEqual({ id: 2, name: "Bob" });
+      expect(result.schema).toEqual(testSchema);
     });
 
-    it("should handle out-of-bounds tuple index", done => {
+    it("should handle out-of-bounds tuple index", async () => {
       const testSchema: SchemaAttribute[] = [
         { attributeName: "id", attributeType: "integer" },
         { attributeName: "name", attributeType: "string" },
@@ -105,7 +133,7 @@ describe("OperatorPaginationResultService", () => {
         { id: 2, name: "Bob" },
       ];
 
-      spyOn(service, "selectPage").and.returnValue(
+      vi.spyOn(service, "selectPage").mockReturnValue(
         of({
           requestID: "test",
           operatorID: "testOperator",
@@ -115,11 +143,9 @@ describe("OperatorPaginationResultService", () => {
         })
       );
 
-      service.selectTuple(2, 3).subscribe(result => {
-        expect(result.tuple).toBeUndefined();
-        expect(result.schema).toEqual(testSchema);
-        done();
-      });
+      const result = await firstValueFrom(service.selectTuple(2, 3));
+      expect(result.tuple).toBeUndefined();
+      expect(result.schema).toEqual(testSchema);
     });
   });
 });

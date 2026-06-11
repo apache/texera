@@ -21,7 +21,6 @@ package org.apache.texera.amber.engine.architecture.common
 
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.engine.architecture.messaginglayer.{
-  InputGateway,
   NetworkInputGateway,
   NetworkOutputGateway
 }
@@ -43,7 +42,7 @@ abstract class AmberProcessor(
     with Serializable {
 
   /** FIFO & exactly once */
-  val inputGateway: InputGateway = new NetworkInputGateway(this.actorId)
+  val inputGateway: NetworkInputGateway = new NetworkInputGateway(this.actorId)
 
   // 1. Unified Output
   val outputGateway: NetworkOutputGateway =
@@ -55,7 +54,7 @@ abstract class AmberProcessor(
       }
     )
   // 2. RPC Layer
-  val asyncRPCClient = new AsyncRPCClient(outputGateway, actorId)
+  val asyncRPCClient = new AsyncRPCClient(inputGateway, outputGateway, actorId)
   val asyncRPCServer: AsyncRPCServer =
     new AsyncRPCServer(outputGateway, actorId)
 

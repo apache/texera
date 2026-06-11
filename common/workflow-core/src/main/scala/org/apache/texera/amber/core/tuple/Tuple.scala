@@ -40,7 +40,7 @@ class TupleBuildingException(errorMessage: String) extends RuntimeException(erro
   * @param fieldVals A list of values corresponding to the fields defined in the schema. Each value in this list
   *                  is mapped to a field in the schema, in the same order as the fields are defined.
   *
-  * @throws IllegalArgumentException if either schema or fieldVals is null, ensuring that every Tuple has a well-defined structure.
+  * @throws java.lang.IllegalArgumentException if either schema or fieldVals is null, ensuring that every Tuple has a well-defined structure.
   */
 case class Tuple @JsonCreator() (
     @JsonProperty(value = "schema", required = true) schema: Schema,

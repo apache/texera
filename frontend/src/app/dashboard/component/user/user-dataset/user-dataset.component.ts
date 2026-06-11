@@ -28,18 +28,40 @@ import { DashboardEntry } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { FiltersComponent } from "../filters/filters.component";
 import { firstValueFrom } from "rxjs";
-import { DASHBOARD_USER_DATASET } from "../../../../app-routing.constant";
+import { USER_DATASET } from "../../../../app-routing.constant";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { map, tap } from "rxjs/operators";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { FiltersInstructionsComponent } from "../filters-instructions/filters-instructions.component";
+import { NzSelectComponent } from "ng-zorro-antd/select";
+import { FormsModule } from "@angular/forms";
 
 @UntilDestroy()
 @Component({
   selector: "texera-dataset-section",
   templateUrl: "user-dataset.component.html",
   styleUrls: ["user-dataset.component.scss"],
+  imports: [
+    NzCardComponent,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    FiltersComponent,
+    FiltersInstructionsComponent,
+    NzSelectComponent,
+    FormsModule,
+    SearchResultsComponent,
+  ],
 })
 export class UserDatasetComponent implements AfterViewInit {
   public sortMethod = SortMethod.EditTimeDesc;
@@ -180,7 +202,7 @@ export class UserDatasetComponent implements AfterViewInit {
     modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
       if (result != null) {
         const dashboardDataset: DashboardDataset = result as DashboardDataset;
-        this.router.navigate([`${DASHBOARD_USER_DATASET}/${dashboardDataset.dataset.did}`]);
+        this.router.navigate([`${USER_DATASET}/${dashboardDataset.dataset.did}`]);
       }
     });
   }

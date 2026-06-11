@@ -52,7 +52,7 @@ object IcebergCatalogInstance {
           case "rest" =>
             IcebergUtil.createRestCatalog(
               "texera_iceberg",
-              StorageConfig.fileStorageDirectoryPath
+              StorageConfig.icebergRESTCatalogWarehouseName
             )
           case "postgres" =>
             IcebergUtil.createPostgresCatalog(

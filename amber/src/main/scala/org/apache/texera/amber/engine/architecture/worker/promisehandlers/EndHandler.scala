@@ -48,8 +48,8 @@ trait EndHandler {
         s"Received EndHandler before all messages are processed. Unprocessed messages: " +
           s"${dp.inputManager.inputMessageQueue.peek()}"
       )
+      return Future.exception(new IllegalStateException("worker still has unprocessed messages"))
     }
-    assert(dp.inputManager.inputMessageQueue.isEmpty)
     // Now we can safely acknowledge that this worker can be terminated.
     EmptyReturn()
   }
