@@ -163,7 +163,10 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.loadAllModels();
     // Formly can attach sibling controls after this field initializes.
     // Re-sync once the control tree settles so a fresh operator starts in a valid task state.
-    this.initTimeout = setTimeout(() => this.syncTaskSelection(this.getCurrentTaskTag() ?? this.selectedTaskTag, false), 0);
+    this.initTimeout = setTimeout(
+      () => this.syncTaskSelection(this.getCurrentTaskTag() ?? this.selectedTaskTag, false),
+      0
+    );
   }
 
   ngOnDestroy(): void {
@@ -300,9 +303,9 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.cdr.detectChanges();
 
     this.subscription = this.http
-      .get<HuggingFaceModelOption[]>(
-        `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`
-      )
+      .get<
+        HuggingFaceModelOption[]
+      >(`${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`)
       .subscribe({
         next: models => {
           allModelsByTag.set(tag, models);
