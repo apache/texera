@@ -23,7 +23,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
 import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
 import { getBackendConfig } from "./api/backend-api";
-import { extractUserFromToken, validateToken } from "./api/auth-api";
+import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
@@ -46,15 +46,18 @@ let agentCounter = 0;
 
 async function createAgentInstance(
   modelType: string,
-  customName?: string,
-  delegateConfig?: AgentDelegateConfig
+  delegateConfig: AgentDelegateConfig,
+  customName?: string
 ): Promise<{ agentId: string; agent: TexeraAgent }> {
   const agentId = `agent-${++agentCounter}`;
   const config = getBackendConfig();
 
   const openai = createOpenAI({
     baseURL: `${config.modelsEndpoint}/api`,
-    apiKey: env.LLM_API_KEY,
+    // The LLM gateway (access-control-service) enforces a REGULAR/ADMIN-role
+    // JWT (apache/texera#5421) and injects the LiteLLM master key downstream,
+    // so the delegating user's JWT is the only credential this service sends.
+    apiKey: delegateConfig.userToken,
   });
 
   // Reasoning effort variants are configured as separate model entries in litellm-config.yaml
@@ -68,7 +71,7 @@ async function createAgentInstance(
 
   await agent.initialize();
 
-  if (delegateConfig?.workflowId && delegateConfig.userToken) {
+  if (delegateConfig.workflowId) {
     try {
       const workflow = await retrieveWorkflow(delegateConfig.userToken, delegateConfig.workflowId);
       delegateConfig.workflowName = workflow.name;
@@ -91,7 +94,7 @@ async function createAgentInstance(
   }
 
   agentStore.set(agentId, agent);
-  log.info({ agentId, delegate: !!delegateConfig }, "created agent");
+  log.info({ agentId, userId: delegateConfig.userInfo?.uid }, "created agent");
 
   return { agentId, agent };
 }
@@ -138,26 +141,27 @@ function getAgent(agentId: string): TexeraAgent {
   return agent;
 }
 
+// Status codes for handler-thrown errors; anything unlisted is a 500.
+const ERROR_STATUS: Record<string, number> = {
+  "Agent not found": 404,
+  "Invalid or expired token": 401,
+  "Authorization header with a Bearer token is required": 401,
+  "modelType is required": 400,
+};
+
 const agentsRouter = new Elysia({ prefix: "/agents" })
   // Error handler must live on the same Elysia instance whose routes throw, or
   // its scope will not see the errors. Elysia 1.x defaults to local scoping for
   // .onError, so attach here rather than on the outer app.
-  .onError(({ error, set }) => {
+  .onError(({ code, error, set }) => {
     log.error({ err: error }, "request error");
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage === "Agent not found") {
-      set.status = 404;
-      return { error: "Agent not found" };
-    }
-    if (errorMessage === "Invalid or expired token") {
-      set.status = 401;
-      return { error: "Invalid or expired token" };
-    }
-    if (errorMessage === "modelType is required") {
+    // Body schema violations and malformed JSON are client errors, not 500s.
+    if (code === "VALIDATION" || code === "PARSE") {
       set.status = 400;
-      return { error: "modelType is required" };
+      return { error: errorMessage || "Invalid request body" };
     }
-    set.status = 500;
+    set.status = ERROR_STATUS[errorMessage] ?? 500;
     return { error: errorMessage || "Internal server error" };
   })
   .get("/", () => {
@@ -167,29 +171,33 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
 
   .post(
     "/",
-    async ({ body }) => {
-      const { modelType, name, userToken, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
+    async ({ body, headers }) => {
+      const { modelType, name, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
 
       if (!modelType) {
         throw new Error("modelType is required");
       }
 
-      let delegateConfig: AgentDelegateConfig | undefined;
-      if (userToken) {
-        if (!validateToken(userToken)) {
-          throw new Error("Invalid or expired token");
-        }
-
-        const userInfo = extractUserFromToken(userToken);
-        delegateConfig = {
-          userToken,
-          userInfo,
-          workflowId,
-          computingUnitId,
-        };
+      // The agent always calls the LLM gateway as the delegating user, so an
+      // agent without a user token would be unable to generate anything. The
+      // token travels in the Authorization header, never in the payload.
+      const userToken = extractBearerToken(headers.authorization);
+      if (!userToken) {
+        throw new Error("Authorization header with a Bearer token is required");
+      }
+      if (!validateToken(userToken)) {
+        throw new Error("Invalid or expired token");
       }
 
-      const { agentId, agent } = await createAgentInstance(modelType, name, delegateConfig);
+      const userInfo = extractUserFromToken(userToken);
+      const delegateConfig: AgentDelegateConfig = {
+        userToken,
+        userInfo,
+        workflowId,
+        computingUnitId,
+      };
+
+      const { agentId, agent } = await createAgentInstance(modelType, delegateConfig, name);
 
       if (settings) {
         log.info(
@@ -220,7 +228,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       body: t.Object({
         modelType: t.String(),
         name: t.Optional(t.String()),
-        userToken: t.Optional(t.String()),
         workflowId: t.Optional(t.Number()),
         computingUnitId: t.Optional(t.Number()),
         settings: t.Optional(
@@ -630,7 +637,6 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
 
   console.log("");
   console.log("Environment:");
-  console.log(`  LLM_API_KEY: ${env.LLM_API_KEY === "dummy" ? "dummy (default)" : "set"}`);
   console.log(`  LLM_ENDPOINT: ${getBackendConfig().modelsEndpoint}`);
   console.log(`  WORKFLOW_COMPILING_SERVICE_ENDPOINT: ${getBackendConfig().compileEndpoint}`);
   console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${getBackendConfig().apiEndpoint}`);
