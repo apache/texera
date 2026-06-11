@@ -103,7 +103,9 @@
   *ngIf="formlyFields && formlyFormGroup"
   [formGroup]="formlyFormGroup"
   class="property-editor-form">
-  <div *ngIf="huggingFaceTaskPreview as preview" class="hf-task-preview">
+  <div
+    *ngIf="huggingFaceTaskPreview as preview"
+    class="hf-task-preview">
     <p class="hf-task-preview-label">Task Preview:</p>
     <div class="hf-task-preview-card">
       <ng-container [ngSwitch]="preview.kind">
@@ -115,8 +117,7 @@
           playsinline
           controls
           class="hf-task-preview-media"
-          [src]="preview.assetSrc">
-        </video>
+          [src]="preview.assetSrc"></video>
         <img
           *ngSwitchCase="'image'"
           class="hf-task-preview-media"
@@ -127,30 +128,59 @@
           controls
           preload="metadata"
           class="hf-task-preview-audio"
-          [src]="preview.assetSrc">
-        </audio>
-        <div *ngSwitchCase="'text'" class="hf-task-preview-text-surface">
+          [src]="preview.assetSrc"></audio>
+        <div
+          *ngSwitchCase="'text'"
+          class="hf-task-preview-text-surface">
           <div class="hf-task-preview-text-title">{{ preview.title }}</div>
           <div class="hf-task-preview-text-body">{{ preview.body }}</div>
-          <div *ngIf="preview.outputBody" class="hf-task-preview-text-output">{{ preview.outputBody }}</div>
+          <div
+            *ngIf="preview.outputBody"
+            class="hf-task-preview-text-output">
+            {{ preview.outputBody }}
+          </div>
         </div>
       </ng-container>
 
       <div class="hf-task-preview-meta">
         <div class="hf-task-preview-title">{{ preview.title }}</div>
-        <div *ngIf="preview.inputLabel || preview.outputLabel" class="hf-task-preview-flow">
-          <span *ngIf="preview.inputLabel" class="hf-task-preview-chip">{{ preview.inputLabel }}</span>
-          <span *ngIf="preview.outputLabel" class="hf-task-preview-arrow">→</span>
-          <span *ngIf="preview.outputLabel" class="hf-task-preview-chip">{{ preview.outputLabel }}</span>
+        <div
+          *ngIf="preview.inputLabel || preview.outputLabel"
+          class="hf-task-preview-flow">
+          <span
+            *ngIf="preview.inputLabel"
+            class="hf-task-preview-chip"
+            >{{ preview.inputLabel }}</span
+          >
+          <span
+            *ngIf="preview.outputLabel"
+            class="hf-task-preview-arrow"
+            >→</span
+          >
+          <span
+            *ngIf="preview.outputLabel"
+            class="hf-task-preview-chip"
+            >{{ preview.outputLabel }}</span
+          >
         </div>
-        <div *ngIf="preview.body && preview.kind !== 'text'" class="hf-task-preview-description">
+        <div
+          *ngIf="preview.body && preview.kind !== 'text'"
+          class="hf-task-preview-description">
           {{ preview.body }}
         </div>
-        <div *ngIf="preview.outputBody && preview.kind !== 'text'" class="hf-task-preview-output">
+        <div
+          *ngIf="preview.outputBody && preview.kind !== 'text'"
+          class="hf-task-preview-output">
           {{ preview.outputBody }}
         </div>
-        <div *ngIf="preview.pills?.length" class="hf-task-preview-pills">
-          <span *ngFor="let pill of preview.pills" class="hf-task-preview-pill">{{ pill }}</span>
+        <div
+          *ngIf="preview.pills?.length"
+          class="hf-task-preview-pills">
+          <span
+            *ngFor="let pill of preview.pills"
+            class="hf-task-preview-pill"
+            >{{ pill }}</span
+          >
         </div>
       </div>
     </div>
