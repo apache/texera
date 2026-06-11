@@ -46,7 +46,7 @@ mkdir -p bench-results
 
 echo "=== run-benchmarks: arrow-flight-e2e ==="
 sbt --error \
-  "WorkflowExecutionService/Test/runMain org.apache.texera.amber.engine.architecture.pythonworker.bench.ArrowFlightActorBench"
+  "WorkflowExecutionService/Test/runMain org.apache.texera.amber.bench.ArrowFlightActorBench"
 
 # Future benchmarks: add new blocks below. Each block should self-contain
 # the run command and ensure its outputs land in bench-results/. Example

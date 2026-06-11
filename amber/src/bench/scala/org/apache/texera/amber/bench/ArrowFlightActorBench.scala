@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.amber.engine.architecture.pythonworker.bench
+package org.apache.texera.amber.bench
 
 import org.apache.pekko.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import org.apache.pekko.testkit.TestProbe
@@ -65,7 +65,7 @@ import scala.concurrent.duration._
   *
   * Run with:
   *   sbt "WorkflowExecutionService/Test/runMain \
-  *     org.apache.texera.amber.engine.architecture.pythonworker.bench.ArrowFlightActorBench"
+  *     org.apache.texera.amber.bench.ArrowFlightActorBench"
   *
   * Caveat: `Utils.amberHomePath` does a `Files.walk(cwd, 2).findAny` for any
   * dir ending in `amber`. If `.claude/amber/` exists locally, the Python
