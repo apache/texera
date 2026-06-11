@@ -71,6 +71,9 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
   }
 
   async onFileSelected(event: Event): Promise<void> {
+    if (this.isUploading) {
+      return;
+    }
     this.errorMessage = "";
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
