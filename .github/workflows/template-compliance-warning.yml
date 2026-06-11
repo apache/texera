@@ -29,11 +29,11 @@
 #     UPDATED in place while the template is incomplete and DELETED once
 #     it is followed, so it never piles up duplicate comments.
 #
-# Issue templates here are GitHub form (`.yaml`) templates whose
-# required fields are already enforced at submission time, so for issues
-# this only catches a fully blank body (e.g. a blank issue). PR
-# templates cannot be enforced by GitHub, which is the main case this
-# covers.
+# Issues are matched to their template by GitHub issue type
+# (Bug/Feature/Task) and checked against that template's `required: true`
+# fields. Because every template sets a type, an issue with no recognized
+# type is flagged outright as not using a template. PR templates cannot
+# be enforced by GitHub, which is the main case this covers.
 #
 # Uses `pull_request_target` so PRs from forks are still checked.
 # A `pull_request` run from a fork gets a read-only token and could not
@@ -88,26 +88,55 @@ jobs:
             // before judging whether a section actually has content.
             const stripped = body.replace(/<!--[\s\S]*?-->/g, '');
 
+            // Pick the required sections for whichever template applies.
+            // PRs use the single PR template. Issues are matched by their
+            // GitHub issue type (set by the form template the author
+            // chose), so each issue is checked against the right
+            // template's fields. Only fields marked `required: true` in
+            // the templates are listed here.
+            const PR_SECTIONS = [
+              'What changes were proposed in this PR?',
+              'How was this PR tested?',
+              'Was this PR authored or co-authored using generative AI tooling?',
+            ];
+            const ISSUE_SECTIONS = {
+              Bug: ['What happened?', 'How to reproduce?', 'Version/Branch'],
+              Feature: ['Feature Summary', 'Proposed Solution or Design'],
+              Task: ['Task Summary'],
+            };
+            let requiredSections = null;
+            if (isPR) {
+              requiredSections = PR_SECTIONS;
+            } else {
+              const typeName = subject.type && subject.type.name;
+              requiredSections = ISSUE_SECTIONS[typeName] || null;
+            }
+
             // Build the list of problems with the description. Each entry
             // is a user-facing bullet. An empty list means "compliant".
             const problems = [];
 
-            if (stripped.trim().length === 0) {
+            if (!isPR && !requiredSections) {
+              // All our issue templates set an issue type, so a missing or
+              // unrecognized type means no template was used (e.g. a blank
+              // issue). Flag it outright.
+              problems.push(
+                `This ${kind} doesn't appear to use one of our templates ` +
+                  `(Bug, Feature, or Task). Please open it using a template ` +
+                  `so the required details are captured.`,
+              );
+            } else if (stripped.trim().length === 0) {
               problems.push(
                 `The description is empty. Please open the ${kind} using ` +
                   `the provided template and fill it out.`,
               );
-            } else if (isPR) {
-              // PR template required sections (headings copied verbatim
-              // from .github/PULL_REQUEST_TEMPLATE). For each, capture the
-              // text from its heading to the next "### " heading (or end)
-              // and treat whitespace-only as not filled in.
-              const REQUIRED_SECTIONS = [
-                'What changes were proposed in this PR?',
-                'How was this PR tested?',
-                'Was this PR authored or co-authored using generative AI tooling?',
-              ];
-              for (const heading of REQUIRED_SECTIONS) {
+            } else {
+              // PR, or an issue with a recognized type: check each required
+              // section. Capture the text from its heading to the next
+              // heading (or end of body), treating a blank value or
+              // GitHub's "_No response_" placeholder (shown for an empty
+              // field) as not filled in.
+              for (const heading of requiredSections) {
                 // Escape regex metacharacters in the heading text.
                 const esc = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 // The trailing `(?![\s\S])` is the end-of-string case (JS
@@ -123,10 +152,13 @@ jobs:
                     `The **${heading}** section is missing; please keep ` +
                       `the template's headings.`,
                   );
-                } else if (m[1].trim().length === 0) {
-                  problems.push(
-                    `The **${heading}** section is empty; please fill it in.`,
-                  );
+                } else {
+                  const content = m[1].trim();
+                  if (content.length === 0 || content === '_No response_') {
+                    problems.push(
+                      `The **${heading}** section is empty; please fill it in.`,
+                    );
+                  }
                 }
               }
             }
