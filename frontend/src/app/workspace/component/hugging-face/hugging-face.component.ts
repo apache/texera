@@ -146,6 +146,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
 
   private subscription: Subscription | null = null;
   private taskPollInterval: ReturnType<typeof setInterval> | null = null;
+  private modelPollInterval: ReturnType<typeof setInterval> | null = null;
   private initTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -173,6 +174,9 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.subscription?.unsubscribe();
     if (this.taskPollInterval !== null) {
       clearInterval(this.taskPollInterval);
+    }
+    if (this.modelPollInterval !== null) {
+      clearInterval(this.modelPollInterval);
     }
     if (this.initTimeout !== null) {
       clearTimeout(this.initTimeout);
@@ -286,6 +290,26 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
       this.allModels = [];
       this.pagedModels = [];
       this.totalPages = 0;
+      return;
+    }
+
+    // Another instance is already fetching this task — wait for it
+    if (inFlightByTag.has(tag)) {
+      this.loading = true;
+      this.modelPollInterval = setInterval(() => {
+        if (allModelsByTag.has(tag) || errorByTag.has(tag)) {
+          clearInterval(this.modelPollInterval!);
+          this.modelPollInterval = null;
+          this.loading = false;
+          if (allModelsByTag.has(tag)) {
+            this.allModels = allModelsByTag.get(tag)!;
+            this.goToPage(0);
+          } else {
+            this.errorMessage = errorByTag.get(tag)!;
+            this.cdr.detectChanges();
+          }
+        }
+      }, 200);
       return;
     }
 
