@@ -14,34 +14,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Post a non-blocking warning when a pull request (or issue) is opened
-# without following our template, and clear it automatically once the
-# author fixes the description.
+# Two contributor-facing checks that share one runner. They fire on the
+# same events and both only post a comment, so running them as two steps
+# of a single job avoids spinning up a second runner.
 #
-# Designed to be cheap on CI:
-#   * Single `github-script` job, no build, no full checkout (only a
-#     sparse-checkout of the one message .txt file), so a run is a few
-#     seconds of an ubuntu-latest runner.
-#   * Triggers only on `opened` / `edited`, never on `synchronize`, so
-#     it does NOT run on every push to a PR branch.
-#   * Skips drafts and bots, so WIP and automation don't get nagged.
-#   * Posts a single sticky comment (idempotency marker) that is
-#     UPDATED in place while the template is incomplete and DELETED once
-#     it is followed, so it never piles up duplicate comments.
+# 1. Welcome first-time contributors when they open an issue or pull
+#    request, pointing them at the comment-driven commands defined in
+#    `comment-commands.yml` (/take, /request-review, /sub-issue, etc.).
+#    Detection uses the search API rather than `author_association`,
+#    which is FIRST_TIME_CONTRIBUTOR only on the first commit/PR and so
+#    misses someone opening their first issue. Searching
+#    `repo:<repo> is:issue author:<login>` with `total_count <= 1` covers
+#    both issues and PRs, tolerating the brief indexing delay where the
+#    just-opened item may not be in results yet. Runs on `opened` only.
 #
-# Issues are matched to their template by GitHub issue type
-# (Bug/Feature/Task) and checked against that template's `required: true`
-# fields. Because every template sets a type, an issue with no recognized
-# type is flagged outright as not using a template. PR templates cannot
-# be enforced by GitHub, which is the main case this covers.
+# 2. Warn when an issue or PR does not follow our template, clearing the
+#    warning automatically once it is fixed. Issues are matched to their
+#    template by GitHub issue type (Bug/Feature/Task); a typeless issue
+#    is flagged as not using a template. PRs are checked against the PR
+#    template's required sections. Runs on opens and edits (and issue
+#    type changes) so the warning can resolve itself, and skips draft PRs.
 #
-# Uses `pull_request_target` so PRs from forks are still checked.
-# A `pull_request` run from a fork gets a read-only token and could not
+# Uses `pull_request_target` so PRs from forks are handled; a
+# `pull_request` run from a fork gets a read-only token and could not
 # comment.
-name: Template compliance warning
+name: Contributor welcome and template check
 on:
   issues:
-    types: [opened, edited]
+    types: [opened, edited, typed, untyped]
   pull_request_target:
     types: [opened, edited]
 
@@ -50,20 +50,113 @@ permissions:
   pull-requests: write
 
 jobs:
-  check-template:
+  contributor-checks:
     if: github.event.sender.type != 'Bot'
     runs-on: ubuntu-latest
     steps:
-      # Check out only the warning message template. `pull_request_target`
-      # and `issues` both resolve to the trusted base branch (never the
-      # fork head), so reading this file is safe. Keeping the wording in a
-      # .txt file means editing the message does not touch workflow logic.
+      # pull_request_target and issues both resolve to the trusted base
+      # branch (never the fork head), so checking out the message
+      # templates below is safe. They live in .txt files so editing the
+      # wording does not touch workflow logic.
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
-          sparse-checkout: .github/template-compliance-warning.txt
+          sparse-checkout: |
+            .github/welcome-first-time-contributor.txt
+            .github/template-compliance-warning.txt
           sparse-checkout-cone-mode: false
-      - uses: actions/github-script@v8
+      # Step 1: welcome first-time contributors. Only on `opened`; the
+      # other triggers exist for the template check (step 2).
+      - name: Welcome first-time contributors
+        if: github.event.action == 'opened'
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const isPR = context.eventName === 'pull_request_target';
+            const subject = isPR
+              ? context.payload.pull_request
+              : context.payload.issue;
+            const author = subject.user.login;
+            const issue_number = subject.number;
+            const { owner, repo } = context.repo;
+
+            // Hidden marker for idempotency: if a previous run already
+            // welcomed this issue/PR, the marker will be in an existing
+            // comment and we skip. Lets us survive workflow re-runs,
+            // reopen races, and future manual triggers.
+            const MARKER = '<!-- texera:welcome-first-time-contributor -->';
+            try {
+              const existing = await github.paginate(
+                github.rest.issues.listComments,
+                { owner, repo, issue_number, per_page: 100 },
+              );
+              if (existing.some((c) => (c.body || '').includes(MARKER))) {
+                core.info(`Already welcomed on #${issue_number}; skipping.`);
+                return;
+              }
+            } catch (e) {
+              core.warning(
+                `listComments on #${issue_number} failed: ${e.message}`,
+              );
+              // Fall through — better to risk a duplicate welcome than
+              // skip a genuine first-timer over a transient API error.
+            }
+
+            // Count prior items of the same kind by this author. The
+            // just-opened item may or may not be indexed yet, so we
+            // treat <=1 as "first time" (covers both 0 — not yet
+            // indexed — and 1 — only the new item).
+            const q = `repo:${owner}/${repo} is:${isPR ? 'pr' : 'issue'} author:${author}`;
+            let total = 0;
+            try {
+              const { data } = await github.rest.search.issuesAndPullRequests({
+                q, per_page: 1,
+              });
+              total = data.total_count;
+            } catch (e) {
+              core.warning(
+                `Search for prior items by ${author} failed: ${e.message}`,
+              );
+              return;
+            }
+            core.info(
+              `Author ${author} has ${total} ${isPR ? 'PR' : 'issue'}(s) ` +
+                `in ${owner}/${repo} (including this one if indexed).`,
+            );
+            if (total > 1) {
+              core.info(`${author} is not a first-time contributor; skipping.`);
+              return;
+            }
+
+            // Message body lives in .github/welcome-first-time-contributor.txt
+            // so wording edits skip CI. Substitute the runtime placeholders
+            // and prepend the idempotency marker.
+            const fs = require('fs');
+            const template = fs.readFileSync(
+              '.github/welcome-first-time-contributor.txt', 'utf8',
+            );
+            const body = MARKER + '\n' + template
+              .replaceAll('{{author}}', author)
+              .replaceAll('{{owner}}', owner)
+              .replaceAll('{{repo}}', repo);
+
+            try {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number, body,
+              });
+              core.info(`Posted welcome comment on #${issue_number}`);
+            } catch (e) {
+              core.warning(
+                `Failed to post welcome on #${issue_number}: ${e.message}`,
+              );
+            }
+
+      # Step 2: warn when the template is not followed, and clear the
+      # warning once it is. Runs on every trigger (open, edit, and issue
+      # type changes) so it can resolve itself.
+      - name: Warn when the template is not followed
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
