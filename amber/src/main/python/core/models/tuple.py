@@ -22,6 +22,7 @@ import pyarrow
 import struct
 import typing
 from collections import OrderedDict
+from copy import deepcopy
 from loguru import logger
 from pandas._libs.missing import checknull
 from pympler import asizeof
@@ -229,30 +230,43 @@ class Tuple:
 
     def as_series(self) -> pandas.Series:
         """Convert the tuple to Pandas series format"""
-        return pandas.Series(self.as_dict())
+        return pandas.Series(self.copy())
 
-    def as_dict(self) -> "OrderedDict[str, Field]":
+    def _evaluate_all_fields(self) -> None:
+        # resolve any lazy field accessors in place
+        for i in self.get_field_names():
+            self.__getitem__(i)
+
+    def copy(self) -> "OrderedDict[str, Field]":
         """
         Return a shallow copy of this tuple's field data.
         Fields will be fetched from accessor if absent.
 
-        A shallow copy (not a deepcopy) is returned: the dict itself is
-        independent, so callers may freely add/remove/reassign keys without
-        affecting the tuple, but field values are shared by reference. This is
-        safe because the tuple only ever reassigns field slots (see
-        ``__setitem__`` / ``cast_to_schema``) and never mutates a value in
-        place. Avoiding the per-read deepcopy keeps reads cheap even for tuples
-        carrying large (e.g. binary) field values.
+        The dict is independent (keys may be added/removed/reassigned) but field
+        values are shared by reference. Safe because the tuple only reassigns
+        field slots, never mutates a value in place; avoids per-read deepcopy
+        cost for tuples carrying large field values. Use ``as_dict`` when value
+        isolation is required.
 
         :return: dict with all the fields
         """
-        # evaluate all the fields now
-        for i in self.get_field_names():
-            self.__getitem__(i)
+        self._evaluate_all_fields()
         return self._field_data.copy()
 
+    def as_dict(self) -> "OrderedDict[str, Field]":
+        """
+        Return a deep copy of this tuple's field data.
+        Fields will be fetched from accessor if absent.
+
+        Use ``copy`` instead on hot paths where field values are not mutated.
+
+        :return: dict with all the fields
+        """
+        self._evaluate_all_fields()
+        return deepcopy(self._field_data)
+
     def as_key_value_pairs(self) -> List[typing.Tuple[str, Field]]:
-        return [(k, v) for k, v in self.as_dict().items()]
+        return [(k, v) for k, v in self.copy().items()]
 
     def get_serialized_field(self, field_name: str) -> Field:
         """
