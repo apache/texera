@@ -28,7 +28,8 @@ import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { AppSettings } from "../../../common/app-setting";
-import { Subscription } from "rxjs";
+import { Subject, Subscription } from "rxjs";
+import { debounceTime, switchMap } from "rxjs/operators";
 
 export interface HuggingFaceModelOption {
   id: string;
@@ -71,8 +72,11 @@ export const STATIC_TASK_OPTIONS: HuggingFaceTaskOption[] = [
 
 const PAGE_SIZE = 50;
 
+const TRUNCATED_HEADER = "X-Texera-Truncated";
+
 // ── Module-level caches (reused across component instances) ──
 const allModelsByTag: Map<string, HuggingFaceModelOption[]> = new Map();
+const truncatedByTag: Set<string> = new Set();
 const inFlightByTag: Map<string, Subscription> = new Map();
 const errorByTag: Map<string, string> = new Map();
 
@@ -83,6 +87,7 @@ let tasksFetchError: string | null = null;
 /** Clear all cached data (useful for tests or manual invalidation). */
 export function invalidateHuggingFaceModelCache(): void {
   allModelsByTag.clear();
+  truncatedByTag.clear();
   errorByTag.clear();
   inFlightByTag.forEach(sub => sub.unsubscribe());
   inFlightByTag.clear();
@@ -140,9 +145,15 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   loading = false;
   errorMessage: string | null = null;
 
-  // ── Search state (client-side filtering over ALL models) ──
+  // ── Truncation notice ──
+  truncated = false;
+
+  // ── Search state ──
   searchText = "";
+  searchLoading = false;
   private filteredModels: HuggingFaceModelOption[] | null = null;
+  private readonly searchSubject$ = new Subject<string>();
+  private searchSubscription: Subscription | null = null;
 
   private subscription: Subscription | null = null;
   private taskPollInterval: ReturnType<typeof setInterval> | null = null;
@@ -162,6 +173,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.syncTaskSelection(this.selectedTaskTag, false);
     this.loadTasks();
     this.loadAllModels();
+    this.setupServerSearch();
     // Formly can attach sibling controls after this field initializes.
     // Re-sync once the control tree settles so a fresh operator starts in a valid task state.
     this.initTimeout = setTimeout(
@@ -172,6 +184,8 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
 
   ngOnDestroy(): void {
     this.subscription?.unsubscribe();
+    this.searchSubscription?.unsubscribe();
+    this.searchSubject$.complete();
     if (this.taskPollInterval !== null) {
       clearInterval(this.taskPollInterval);
     }
@@ -280,6 +294,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     // Fast path: cached on the frontend
     if (allModelsByTag.has(tag)) {
       this.allModels = allModelsByTag.get(tag)!;
+      this.truncated = truncatedByTag.has(tag);
       this.goToPage(0);
       return;
     }
@@ -303,6 +318,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           this.loading = false;
           if (allModelsByTag.has(tag)) {
             this.allModels = allModelsByTag.get(tag)!;
+            this.truncated = truncatedByTag.has(tag);
             this.goToPage(0);
           } else {
             this.errorMessage = errorByTag.get(tag)!;
@@ -329,12 +345,17 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.subscription = this.http
       .get<
         HuggingFaceModelOption[]
-      >(`${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`)
+      >(`${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`, { observe: "response" })
       .subscribe({
-        next: models => {
+        next: resp => {
+          const models = resp.body ?? [];
+          if (resp.headers.get(TRUNCATED_HEADER) === "true") {
+            truncatedByTag.add(tag);
+          }
           allModelsByTag.set(tag, models);
           inFlightByTag.delete(tag);
           this.loading = false;
+          this.truncated = truncatedByTag.has(tag);
           this.allModels = models;
           this.goToPage(0);
         },
@@ -389,27 +410,63 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.loadAllModels();
   }
 
-  // ── Search (client-side filter over ALL cached models) ──
+  // ── Search ──
+
+  private setupServerSearch(): void {
+    this.searchSubscription = this.searchSubject$
+      .pipe(
+        debounceTime(300),
+        switchMap(query => {
+          const tag = this.selectedTaskTag || "text-generation";
+          this.searchLoading = true;
+          this.cdr.detectChanges();
+          return this.http.get<HuggingFaceModelOption[]>(
+            `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}&search=${encodeURIComponent(query)}`
+          );
+        })
+      )
+      .subscribe({
+        next: models => {
+          this.searchLoading = false;
+          this.filteredModels = models;
+          this.goToPage(0);
+        },
+        error: (err: unknown) => {
+          console.error("Server-side search failed:", err);
+          this.searchLoading = false;
+          this.cdr.detectChanges();
+        },
+      });
+  }
 
   onSearchInput(query: string): void {
     this.searchText = query;
     if (!query.trim()) {
       this.filteredModels = null;
+      this.searchLoading = false;
+      this.goToPage(0);
+      return;
+    }
+    if (this.truncated) {
+      // Server-side search — needed because local list is incomplete
+      this.searchSubject$.next(query);
     } else {
+      // Local filter — full list is available
       const lower = query.toLowerCase();
       this.filteredModels = this.allModels.filter(m => m.id.toLowerCase().includes(lower));
+      this.goToPage(0);
     }
-    this.goToPage(0);
   }
 
   clearSearch(): void {
     this.searchText = "";
     this.filteredModels = null;
+    this.searchLoading = false;
     this.goToPage(0);
   }
 
   get isSearching(): boolean {
-    return this.filteredModels !== null;
+    return this.filteredModels !== null || this.searchLoading;
   }
 
   // ── Model selection ──
