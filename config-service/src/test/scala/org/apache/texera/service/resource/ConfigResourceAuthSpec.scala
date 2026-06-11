@@ -100,7 +100,8 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
       "localLogin",
       "googleLogin",
       "defaultLocalUser",
-      "attributionEnabled"
+      "attributionEnabled",
+      "inviteOnly"
     )
   }
 
