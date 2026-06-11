@@ -141,6 +141,14 @@ function getAgent(agentId: string): TexeraAgent {
   return agent;
 }
 
+// Status codes for handler-thrown errors; anything unlisted is a 500.
+const ERROR_STATUS: Record<string, number> = {
+  "Agent not found": 404,
+  "Invalid or expired token": 401,
+  "Authorization header with a Bearer token is required": 401,
+  "modelType is required": 400,
+};
+
 const agentsRouter = new Elysia({ prefix: "/agents" })
   // Error handler must live on the same Elysia instance whose routes throw, or
   // its scope will not see the errors. Elysia 1.x defaults to local scoping for
@@ -153,23 +161,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       set.status = 400;
       return { error: errorMessage || "Invalid request body" };
     }
-    if (errorMessage === "Agent not found") {
-      set.status = 404;
-      return { error: "Agent not found" };
-    }
-    if (errorMessage === "Invalid or expired token") {
-      set.status = 401;
-      return { error: "Invalid or expired token" };
-    }
-    if (errorMessage === "Authorization header with a Bearer token is required") {
-      set.status = 401;
-      return { error: "Authorization header with a Bearer token is required" };
-    }
-    if (errorMessage === "modelType is required") {
-      set.status = 400;
-      return { error: "modelType is required" };
-    }
-    set.status = 500;
+    set.status = ERROR_STATUS[errorMessage] ?? 500;
     return { error: errorMessage || "Internal server error" };
   })
   .get("/", () => {
