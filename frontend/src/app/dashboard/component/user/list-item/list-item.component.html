@@ -121,7 +121,8 @@
       <texera-user-avatar
         [googleAvatar]="entry.ownerGoogleAvatar"
         userColor="#1E90FF"
-        [userName]="entry.ownerName || 'User'">
+        [userName]="entry.ownerName || 'User'"
+        [isOwner]="entry.ownerId === this.currentUid">
       </texera-user-avatar>
     </div>
 

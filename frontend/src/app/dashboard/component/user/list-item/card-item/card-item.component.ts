@@ -55,7 +55,6 @@ import { formatSize } from "src/app/common/util/size-formatter.util";
 import { formatRelativeTime, formatCount } from "src/app/common/util/format.util";
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
-import { CardBackgroundService } from "../../../../service/user/card-background/card-background.service";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
@@ -107,8 +106,6 @@ export class CardItemComponent implements OnChanges {
   /** The default top image, used when the user has not uploaded a custom one. */
   static readonly DEFAULT_PREVIEW_IMAGE = "assets/card_background.jpg";
 
-  @ViewChild("backgroundInput") backgroundInput!: ElementRef<HTMLInputElement>;
-
   @Input()
   get entry(): DashboardEntry {
     if (!this._entry) {
@@ -134,53 +131,12 @@ export class CardItemComponent implements OnChanges {
     private hubService: HubService,
     private downloadService: DownloadService,
     private cdr: ChangeDetectorRef,
-    private notificationService: NotificationService,
-    private cardBackgroundService: CardBackgroundService
+    private notificationService: NotificationService
   ) {}
 
-  /** The top image src: the user's custom upload if present, otherwise the default. */
+  /** The top image src for the card preview. */
   get previewImage(): string {
-    return (
-      this.cardBackgroundService.getBackground(this.entry.type, this.entry.id) ??
-      CardItemComponent.DEFAULT_PREVIEW_IMAGE
-    );
-  }
-
-  get hasCustomImage(): boolean {
-    return this.cardBackgroundService.getBackground(this.entry.type, this.entry.id) !== undefined;
-  }
-
-  openImagePicker(): void {
-    this.backgroundInput?.nativeElement.click();
-  }
-
-  async onImageSelected(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = ""; // allow re-selecting the same file later
-    if (!file) {
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      this.notificationService.error("Please choose an image file.");
-      return;
-    }
-    try {
-      await this.cardBackgroundService.setBackgroundFromFile(this.entry.type, this.entry.id, file);
-      this.cdr.markForCheck();
-    } catch (e) {
-      const isQuotaError = e instanceof DOMException && e.name === "QuotaExceededError";
-      this.notificationService.error(
-        isQuotaError
-          ? "Not enough local storage to save this image. Try a smaller one or remove other custom images."
-          : "Failed to set the card image."
-      );
-    }
-  }
-
-  resetImage(): void {
-    this.cardBackgroundService.clearBackground(this.entry.type, this.entry.id);
-    this.cdr.markForCheck();
+    return CardItemComponent.DEFAULT_PREVIEW_IMAGE;
   }
 
   initializeEntry() {
