@@ -21,10 +21,8 @@ package org.apache.texera.web.resource.pythonvirtualenvironment
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.SystemUtils
-import org.apache.texera.amber.config.PythonUtils
 
 import java.nio.file.{Files, Path, Paths}
-import java.util.Comparator
 import java.util.concurrent.BlockingQueue
 import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters._
