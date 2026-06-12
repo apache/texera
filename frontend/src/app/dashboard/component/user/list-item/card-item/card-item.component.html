@@ -1,0 +1,224 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<nz-card
+  class="card-item"
+  [class.selected]="entry.checked"
+  [nzBodyStyle]="{ padding: '0' }"
+  (mouseenter)="hovering = true"
+  (mouseleave)="hovering = false">
+  <!-- Preview Section (Blank Space) -->
+  <div
+    class="card-preview"
+    [routerLink]="entryLink">
+    <!-- Checkbox overlay -->
+    <div
+      class="card-checkbox"
+      *ngIf="isPrivateSearch && entry.type === 'workflow'"
+      (click)="$event.stopPropagation()">
+      <label
+        nz-checkbox
+        [(ngModel)]="entry.checked"
+        (ngModelChange)="onCheckboxChange(entry)"></label>
+    </div>
+    <!-- Placeholder or Preview Image -->
+    <img
+      class="card-preview-image"
+      [src]="previewImage"
+      alt="Workflow Preview" />
+  </div>
+
+  <!-- Content Section -->
+  <div class="card-content">
+    <!-- Header: Icon, Name, ID -->
+    <div
+      class="card-header"
+      [routerLink]="entryLink">
+      <div class="title-container">
+        <i
+          nz-icon
+          [nzType]="iconType"
+          class="type-icon"></i>
+
+        <div class="name-container">
+          <div
+            class="resource-name truncate-single-line"
+            *ngIf="!editingName"
+            title="{{ entry.name }}">
+            {{ entry.name }}
+          </div>
+          <input
+            *ngIf="editingName"
+            #nameInput
+            class="resource-name-edit-input"
+            [(ngModel)]="entry.name"
+            (blur)="confirmUpdateCustomName(entry.name)"
+            (keydown.enter)="confirmUpdateCustomName(entry.name)"
+            (click)="$event.stopPropagation()"
+            autofocus />
+        </div>
+      </div>
+
+      <!-- Edit Name Button -->
+      <button
+        *ngIf="isPrivateSearch"
+        nz-button
+        nzType="text"
+        size="small"
+        class="edit-btn"
+        (click)="onEditName(); $event.stopPropagation()">
+        <i
+          nz-icon
+          nzType="edit"></i>
+      </button>
+    </div>
+
+    <!-- Meta Info: Owner, Dates, Size, Views -->
+    <div class="card-meta">
+      <div class="meta-details">
+        <div class="meta-row">
+          <span
+            class="owner-info"
+            title="{{ entry.ownerName || 'User' }}">
+            <texera-user-avatar
+              [googleAvatar]="entry.ownerGoogleAvatar"
+              userColor="#1E90FF"
+              [userName]="entry.ownerName || 'User'"></texera-user-avatar>
+            <span class="owner-name truncate-single-line">{{ entry.ownerName || "User" }}</span>
+          </span>
+        </div>
+        <div class="meta-row">
+          <span title="Created"
+            ><i
+              nz-icon
+              nzType="calendar"
+              nzTheme="outline"></i>
+            {{ formatTime(entry.creationTime) }}</span
+          >
+          <span
+            *ngIf="size"
+            title="Size"
+            ><i
+              nz-icon
+              nzType="file"
+              nzTheme="outline"></i>
+            {{ formatSize(size) }}</span
+          >
+        </div>
+        <div class="meta-row">
+          <span title="Edited"
+            ><i
+              nz-icon
+              nzType="edit"
+              nzTheme="outline"></i>
+            {{ formatTime(entry.lastModifiedTime) }}</span
+          >
+          <span title="Views"
+            ><i
+              nz-icon
+              nzType="eye"
+              nzTheme="outline"></i>
+            {{ formatCount(viewCount) }}</span
+          >
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions Footer -->
+    <div class="card-actions">
+      <!-- Like Button -->
+      <button
+        *ngIf="!isPrivateSearch"
+        nz-button
+        nzType="text"
+        class="action-btn like-btn"
+        [class.liked]="isLiked"
+        [disabled]="!currentUid"
+        (click)="toggleLike(); $event.stopPropagation()">
+        <i
+          nz-icon
+          nzType="heart"
+          [nzTheme]="isLiked ? 'fill' : 'outline'"></i>
+        <span>{{ formatCount(this.likeCount) }}</span>
+      </button>
+
+      <!-- Private Search Actions -->
+      <div
+        class="private-actions"
+        *ngIf="isPrivateSearch">
+        <button
+          nz-button
+          nzType="text"
+          class="action-btn"
+          title="Detail"
+          *ngIf="entry.type==='workflow'"
+          (click)="openDetailModal(this.entry.id); $event.stopPropagation()">
+          <i
+            nz-icon
+            nzType="eye"></i>
+        </button>
+        <button
+          nz-button
+          nzType="text"
+          class="action-btn"
+          title="Share"
+          (click)="onClickOpenShareAccess(); $event.stopPropagation()">
+          <i
+            nz-icon
+            nzType="share-alt"></i>
+        </button>
+        <button
+          nz-button
+          nzType="text"
+          class="action-btn"
+          title="Copy"
+          *ngIf="entry.type==='workflow'"
+          (click)="duplicated.emit(); $event.stopPropagation()">
+          <i
+            nz-icon
+            nzType="copy"></i>
+        </button>
+        <button
+          nz-button
+          nzType="text"
+          class="action-btn"
+          title="Download"
+          *ngIf="entry.type === 'workflow' || entry.type === 'dataset'"
+          (click)="onClickDownload(); $event.stopPropagation()">
+          <i
+            nz-icon
+            nzType="cloud-download"></i>
+        </button>
+        <button
+          nz-button
+          nzType="text"
+          class="action-btn delete-btn"
+          title="Delete"
+          [disabled]="disableDelete"
+          nz-popconfirm
+          nzPopconfirmTitle="Confirm to delete this item."
+          (nzOnConfirm)="deleted.emit()"
+          (click)="$event.stopPropagation()">
+          <i
+            nz-icon
+            nzType="delete"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</nz-card>

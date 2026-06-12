@@ -1,0 +1,320 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Two contributor-facing checks that share one runner. They fire on the
+# same events and both only post a comment, so running them as two steps
+# of a single job avoids spinning up a second runner.
+#
+# 1. Welcome first-time contributors when they open an issue or pull
+#    request, pointing them at the comment-driven commands defined in
+#    `comment-commands.yml` (/take, /request-review, /sub-issue, etc.).
+#    Detection uses the search API rather than `author_association`,
+#    which is FIRST_TIME_CONTRIBUTOR only on the first commit/PR and so
+#    misses someone opening their first issue. Searching
+#    `repo:<repo> is:issue author:<login>` with `total_count <= 1` covers
+#    both issues and PRs, tolerating the brief indexing delay where the
+#    just-opened item may not be in results yet. Runs on `opened` only.
+#
+# 2. Warn when an issue or PR does not follow our template, clearing the
+#    warning automatically once it is fixed. Issues are matched to their
+#    template by GitHub issue type (Bug/Feature/Task); a typeless issue
+#    is flagged as not using a template. PRs are checked against the PR
+#    template's required sections. Runs on opens and edits (and issue
+#    type changes) so the warning can resolve itself, and skips draft PRs.
+#
+# Uses `pull_request_target` so PRs from forks are handled; a
+# `pull_request` run from a fork gets a read-only token and could not
+# comment.
+name: Contributor welcome and template check
+on:
+  issues:
+    types: [opened, edited, typed, untyped]
+  pull_request_target:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  contributor-checks:
+    if: github.event.sender.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      # pull_request_target and issues both resolve to the trusted base
+      # branch (never the fork head), so checking out the message
+      # templates below is safe. They live in .txt files so editing the
+      # wording does not touch workflow logic.
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/welcome-first-time-contributor.txt
+            .github/template-compliance-warning.txt
+          sparse-checkout-cone-mode: false
+      # Step 1: welcome first-time contributors. Only on `opened`; the
+      # other triggers exist for the template check (step 2).
+      - name: Welcome first-time contributors
+        if: github.event.action == 'opened'
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const isPR = context.eventName === 'pull_request_target';
+            const subject = isPR
+              ? context.payload.pull_request
+              : context.payload.issue;
+            const author = subject.user.login;
+            const issue_number = subject.number;
+            const { owner, repo } = context.repo;
+
+            // Hidden marker for idempotency: if a previous run already
+            // welcomed this issue/PR, the marker will be in an existing
+            // comment and we skip. Lets us survive workflow re-runs,
+            // reopen races, and future manual triggers.
+            const MARKER = '<!-- texera:welcome-first-time-contributor -->';
+            try {
+              const existing = await github.paginate(
+                github.rest.issues.listComments,
+                { owner, repo, issue_number, per_page: 100 },
+              );
+              if (existing.some((c) => (c.body || '').includes(MARKER))) {
+                core.info(`Already welcomed on #${issue_number}; skipping.`);
+                return;
+              }
+            } catch (e) {
+              core.warning(
+                `listComments on #${issue_number} failed: ${e.message}`,
+              );
+              // Fall through — better to risk a duplicate welcome than
+              // skip a genuine first-timer over a transient API error.
+            }
+
+            // Count prior items of the same kind by this author. The
+            // just-opened item may or may not be indexed yet, so we
+            // treat <=1 as "first time" (covers both 0 — not yet
+            // indexed — and 1 — only the new item).
+            const q = `repo:${owner}/${repo} is:${isPR ? 'pr' : 'issue'} author:${author}`;
+            let total = 0;
+            try {
+              const { data } = await github.rest.search.issuesAndPullRequests({
+                q, per_page: 1,
+              });
+              total = data.total_count;
+            } catch (e) {
+              core.warning(
+                `Search for prior items by ${author} failed: ${e.message}`,
+              );
+              return;
+            }
+            core.info(
+              `Author ${author} has ${total} ${isPR ? 'PR' : 'issue'}(s) ` +
+                `in ${owner}/${repo} (including this one if indexed).`,
+            );
+            if (total > 1) {
+              core.info(`${author} is not a first-time contributor; skipping.`);
+              return;
+            }
+
+            // Message body lives in .github/welcome-first-time-contributor.txt
+            // so wording edits skip CI. Substitute the runtime placeholders
+            // and prepend the idempotency marker.
+            const fs = require('fs');
+            const template = fs.readFileSync(
+              '.github/welcome-first-time-contributor.txt', 'utf8',
+            );
+            const body = MARKER + '\n' + template
+              .replaceAll('{{author}}', author)
+              .replaceAll('{{owner}}', owner)
+              .replaceAll('{{repo}}', repo);
+
+            try {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number, body,
+              });
+              core.info(`Posted welcome comment on #${issue_number}`);
+            } catch (e) {
+              core.warning(
+                `Failed to post welcome on #${issue_number}: ${e.message}`,
+              );
+            }
+
+      # Step 2: warn when the template is not followed, and clear the
+      # warning once it is. Runs on every trigger (open, edit, and issue
+      # type changes) so it can resolve itself.
+      - name: Warn when the template is not followed
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const isPR = context.eventName === 'pull_request_target';
+            const subject = isPR
+              ? context.payload.pull_request
+              : context.payload.issue;
+
+            // Drafts are work-in-progress; don't nag until they're ready.
+            if (isPR && subject.draft) {
+              core.info(`#${subject.number} is a draft; skipping.`);
+              return;
+            }
+
+            const author = subject.user.login;
+            const issue_number = subject.number;
+            const kind = isPR ? 'pull request' : 'issue';
+            const { owner, repo } = context.repo;
+            const body = subject.body || '';
+
+            // Strip HTML comments (the template's <!-- ... --> guidance)
+            // before judging whether a section actually has content.
+            const stripped = body.replace(/<!--[\s\S]*?-->/g, '');
+
+            // Pick the required sections for whichever template applies.
+            // PRs use the single PR template. Issues are matched by their
+            // GitHub issue type (set by the form template the author
+            // chose), so each issue is checked against the right
+            // template's fields. Only fields marked `required: true` in
+            // the templates are listed here.
+            const PR_SECTIONS = [
+              'What changes were proposed in this PR?',
+              'How was this PR tested?',
+              'Was this PR authored or co-authored using generative AI tooling?',
+            ];
+            const ISSUE_SECTIONS = {
+              Bug: ['What happened?', 'How to reproduce?', 'Version/Branch'],
+              Feature: ['Feature Summary', 'Proposed Solution or Design'],
+              Task: ['Task Summary'],
+            };
+            let requiredSections = null;
+            if (isPR) {
+              requiredSections = PR_SECTIONS;
+            } else {
+              const typeName = subject.type && subject.type.name;
+              requiredSections = ISSUE_SECTIONS[typeName] || null;
+            }
+
+            // Build the list of problems with the description. Each entry
+            // is a user-facing bullet. An empty list means "compliant".
+            const problems = [];
+
+            if (!isPR && !requiredSections) {
+              // All our issue templates set an issue type, so a missing or
+              // unrecognized type means no template was used (e.g. a blank
+              // issue). Flag it outright.
+              problems.push(
+                `This ${kind} doesn't appear to use one of our templates ` +
+                  `(Bug, Feature, or Task). Please open it using a template ` +
+                  `so the required details are captured.`,
+              );
+            } else if (stripped.trim().length === 0) {
+              problems.push(
+                `The description is empty. Please open the ${kind} using ` +
+                  `the provided template and fill it out.`,
+              );
+            } else {
+              // PR, or an issue with a recognized type: check each required
+              // section. Capture the text from its heading to the next
+              // heading (or end of body), treating a blank value or
+              // GitHub's "_No response_" placeholder (shown for an empty
+              // field) as not filled in.
+              for (const heading of requiredSections) {
+                // Escape regex metacharacters in the heading text.
+                const esc = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                // The trailing `(?![\s\S])` is the end-of-string case (JS
+                // regex has no `\Z`); with the `m` flag a bare `$` would
+                // match every line end, not just the end of the body.
+                const re = new RegExp(
+                  `^#{1,6}\\s*${esc}\\s*$([\\s\\S]*?)(?=^#{1,6}\\s|(?![\\s\\S]))`,
+                  'm',
+                );
+                const m = stripped.match(re);
+                if (!m) {
+                  problems.push(
+                    `The **${heading}** section is missing; please keep ` +
+                      `the template's headings.`,
+                  );
+                } else {
+                  const content = m[1].trim();
+                  if (content.length === 0 || content === '_No response_') {
+                    problems.push(
+                      `The **${heading}** section is empty; please fill it in.`,
+                    );
+                  }
+                }
+              }
+            }
+
+            const MARKER = '<!-- texera:template-compliance -->';
+
+            // Find a previous warning comment from this workflow.
+            let existing = null;
+            try {
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                { owner, repo, issue_number, per_page: 100 },
+              );
+              existing = comments.find((c) => (c.body || '').includes(MARKER));
+            } catch (e) {
+              core.warning(`listComments on #${issue_number} failed: ${e.message}`);
+              // Without the comment list we can't safely de-dupe; bail to
+              // avoid posting a duplicate warning.
+              return;
+            }
+
+            // Compliant now: remove any stale warning and stop.
+            if (problems.length === 0) {
+              core.info(`#${issue_number} follows the template.`);
+              if (existing) {
+                try {
+                  await github.rest.issues.deleteComment({
+                    owner, repo, comment_id: existing.id,
+                  });
+                  core.info(`Cleared resolved warning on #${issue_number}.`);
+                } catch (e) {
+                  core.warning(`Failed to delete warning: ${e.message}`);
+                }
+              }
+              return;
+            }
+
+            // Not compliant: render the message and post/update the sticky
+            // comment.
+            const fs = require('fs');
+            const template = fs.readFileSync(
+              '.github/template-compliance-warning.txt', 'utf8',
+            );
+            const details = problems.map((p) => `- ${p}`).join('\n');
+            const message = MARKER + '\n' + template
+              .replaceAll('{{author}}', author)
+              .replaceAll('{{owner}}', owner)
+              .replaceAll('{{repo}}', repo)
+              .replaceAll('{{kind}}', kind)
+              .replaceAll('{{details}}', details);
+
+            try {
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner, repo, comment_id: existing.id, body: message,
+                });
+                core.info(`Updated template warning on #${issue_number}.`);
+              } else {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number, body: message,
+                });
+                core.info(`Posted template warning on #${issue_number}.`);
+              }
+            } catch (e) {
+              core.warning(`Failed to post warning on #${issue_number}: ${e.message}`);
+            }
