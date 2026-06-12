@@ -283,7 +283,7 @@ describe("DashboardComponent", () => {
     };
     fixture.detectChanges();
 
-    // 6 "Your Work" links + 4 admin links + 1 about link = 11
-    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(11);
+    // 7 "Your Work" links (incl. Python Venvs) + 4 admin links + 1 about link = 12
+    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(12);
   });
 });
