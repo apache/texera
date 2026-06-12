@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781297587331,
+  "lastUpdate": 1781303755920,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -660,6 +660,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=10 sl=64",
             "value": 958.8160854848804,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "162244362+xuang7@users.noreply.github.com",
+            "name": "Xuan Gu",
+            "username": "xuang7"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "73c76f51920b0900de67bbc0baa1ee5be5b87bf0",
+          "message": "chore(licensing): refresh transitive versions in LICENSE-binary-python (#5650)\n\n### What changes were proposed in this PR?\n\nRefresh three transitive Python dependency versions in\n`amber/LICENSE-binary-python` to match the bundled wheels, as reported\nby the License Binary Checker ([release\nrun](https://github.com/apache/texera/actions/runs/27444261750) and this\nPR's CI):\n\n- filelock 3.29.1 → 3.29.3\n- huggingface-hub 1.18.0 → 1.19.0\n- matplotlib 3.10.9 → 3.11.0\n\nVersion-only refresh; license groupings unchanged. The file is identical\non `main` and `release/v1.2`, so this PR fixes both via the\n`release/v1.2` backport label.\n\n### Any related issues, documentation, discussions?\n\nResolves #5649\n\n### How was this PR tested?\n\nLicense Binary Checker CI on this PR.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Fable 5)",
+          "timestamp": "2026-06-12T22:19:18Z",
+          "tree_id": "2891f97620ae3450ebfd91d239d9f383db28c3aa",
+          "url": "https://github.com/apache/texera/commit/73c76f51920b0900de67bbc0baa1ee5be5b87bf0"
+        },
+        "date": 1781303755644,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 420.7679054668489,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 839.888855172904,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 948.0957509664834,
             "unit": "tuples/sec"
           }
         ]
