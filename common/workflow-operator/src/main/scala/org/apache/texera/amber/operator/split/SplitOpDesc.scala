@@ -29,12 +29,12 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class SplitOpDesc extends LogicalOp {
+class SplitOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   @JsonSchemaTitle("Split Percentage")
   @JsonProperty(defaultValue = "80")
@@ -99,4 +99,17 @@ class SplitOpDesc extends LogicalOp {
     )
   }
 
+  override def generateStandaloneCode(): String = {
+    // JVM SplitOpExec uses a Bernoulli per-tuple draw with a single PRNG
+    // (auto seed when `random`, fixed seed otherwise). Pandas equivalent:
+    // draw a uniform vector of len(in1df), threshold at k/100. The same
+    // mask drives both output ports — `out1df` takes the upper k%, `out2df`
+    // the remainder, so the two outputs partition the input.
+    val seedExpr = if (random) "None" else seed.toString
+    val frac = k.toDouble / 100.0
+    s"""import numpy as np
+       |_split_mask = np.random.RandomState($seedExpr).rand(len(in1df)) < $frac
+       |out1df = in1df[_split_mask].reset_index(drop=True)
+       |out2df = in1df[~_split_mask].reset_index(drop=True)""".stripMargin
+  }
 }

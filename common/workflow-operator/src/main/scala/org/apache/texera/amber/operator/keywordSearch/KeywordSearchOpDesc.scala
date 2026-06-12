@@ -24,12 +24,13 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.filter.FilterOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class KeywordSearchOpDesc extends FilterOpDesc {
+class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("attribute")
@@ -70,4 +71,21 @@ class KeywordSearchOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
+
+  override def generateStandaloneCode(): String = {
+    // JVM uses Lucene MemoryIndex + StandardAnalyzer + QueryParser per row.
+    // Best-effort approximation: split keyword on whitespace, treat as
+    // OR-of-terms with word boundaries, case-insensitive. This does NOT honor
+    // Lucene query syntax (phrases "a b", booleans +/-, wildcards *, fuzzy ~).
+    val raw = Option(keyword).getOrElse("")
+    val terms = raw.trim.split("\\s+").filter(_.nonEmpty).toList
+    if (terms.isEmpty) return "out1df = in1df"
+
+    val regexSpecials = Set('.', '^', '$', '*', '+', '?', '(', ')', '[', ']', '{', '}', '|', '\\')
+    val escaped = terms.map(_.flatMap(c => if (regexSpecials.contains(c)) s"\\$c" else c.toString))
+    val pattern = escaped.mkString("\\b(?:", "|", ")\\b")
+    val pyLiteral = "\"" + pattern.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+    s"""out1df = in1df[in1df["$attribute"].astype(str).str.contains($pyLiteral, regex=True, case=False, na=False)].reset_index(drop=True)"""
+  }
 }
