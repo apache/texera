@@ -25,14 +25,14 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
-class DotPlotOpDesc extends PythonOperatorDescriptor {
+class DotPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "Count Attribute", required = true)
   @JsonSchemaTitle("Count Attribute")
@@ -98,6 +98,23 @@ class DotPlotOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  // Output is an HTML chart, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    s"""if in1df.empty:
+       |    print("Dot plot error: Input table is empty.")
+       |else:
+       |    df = in1df.groupby(["$countAttribute"])["$countAttribute"].count().reset_index(name='counts')
+       |    fig = px.strip(df, x='counts', y="$countAttribute", orientation='h', color="$countAttribute",
+       |                   color_discrete_sequence=px.colors.qualitative.Dark2)
+       |    fig.update_traces(marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')))
+       |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |    fig.write_html("output.html")
+       |    print("Dot plot saved to output.html")""".stripMargin
   }
 
 }
