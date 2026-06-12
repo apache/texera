@@ -63,4 +63,31 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
       Comparator.assertEqual(a, b)
     }
   }
+
+  it should "treat row-reordered files as unequal under positional comparison" in {
+    val dir = Files.createTempDirectory("comparator-spec-reorder-strict-")
+    val a = writeJsonl(dir, "a.jsonl", Seq(row(1, "alice"), row(2, "bob")))
+    val b = writeJsonl(dir, "b.jsonl", Seq(row(2, "bob"), row(1, "alice")))
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(a, b)
+    }
+  }
+
+  it should "treat row-reordered files as equal under orderSensitive=false" in {
+    val dir = Files.createTempDirectory("comparator-spec-reorder-loose-")
+    val a = writeJsonl(dir, "a.jsonl", Seq(row(1, "alice"), row(2, "bob")))
+    val b = writeJsonl(dir, "b.jsonl", Seq(row(2, "bob"), row(1, "alice")))
+    noException should be thrownBy Comparator.assertEqual(a, b, orderSensitive = false)
+  }
+
+  it should "still report value mismatches under orderSensitive=false" in {
+    // orderSensitive=false relaxes row ORDER, not row CONTENT — a genuinely
+    // different cell must still fail.
+    val dir = Files.createTempDirectory("comparator-spec-reorder-content-diff-")
+    val a = writeJsonl(dir, "a.jsonl", Seq(row(1, "alice"), row(2, "bob")))
+    val b = writeJsonl(dir, "b.jsonl", Seq(row(2, "bob"), row(1, "carol")))
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(a, b, orderSensitive = false)
+    }
+  }
 }

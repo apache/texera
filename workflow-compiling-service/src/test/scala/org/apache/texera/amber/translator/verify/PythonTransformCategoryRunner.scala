@@ -84,7 +84,7 @@ object PythonTransformCategoryRunner {
 
     val actual = pathA.outputs(PortIdentity(0))
     val expected = pathB.outputs(1)
-    Comparator.assertEqual(actual, expected)
+    Comparator.assertEqual(actual, expected, orderSensitive = handler.orderSensitive)
   }
 }
 
@@ -101,6 +101,21 @@ trait TransformHandler {
     * OpDesc paired with a map from external input port → fixture path.
     */
   def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path])
+
+  /**
+    * `true` (default) → comparator matches rows positionally after
+    * `reset_index(drop=True)`. Use this for ops whose JVM exec preserves the
+    * same row order pandas produces (per-row filters, sorts, etc.).
+    *
+    * `false` → comparator lex-sorts both DataFrames by all columns before
+    * comparing. Required for set-semantics ops (Intersect, Difference,
+    * SymmetricDifference) and joins where JVM `HashSet` / `HashMap` iteration
+    * order doesn't match the pandas `concat + drop_duplicates` / `pd.merge`
+    * row sequence. Trade-off: weakens the parity check to set-equality, so
+    * the per-row sequence semantics aren't tested anymore — only choose
+    * `false` when sequence equality is genuinely unachievable.
+    */
+  def orderSensitive: Boolean = true
 }
 
 /**
