@@ -18,6 +18,10 @@
 import pytest
 from unittest.mock import patch
 from core.models.type.large_binary import largebinary
+from pytexera.storage.large_binary_manager import LargeBinaryManager
+
+# The manager is a singleton; bind the shared instance for the tests.
+large_binary_manager = LargeBinaryManager()
 
 
 class TestLargeBinary:
@@ -31,7 +35,7 @@ class TestLargeBinary:
 
     def test_create_without_uri(self):
         """Test creating largebinary without URI (calls large_binary_manager.create)."""
-        with patch("pytexera.storage.large_binary_manager.create") as mock_create:
+        with patch.object(large_binary_manager, "create") as mock_create:
             mock_create.return_value = "s3://bucket/objects/123/uuid"
             large_binary = largebinary()
             assert large_binary.uri == "s3://bucket/objects/123/uuid"

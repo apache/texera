@@ -56,11 +56,6 @@ spec:
             # computing unit id at request time.
             - name: EXECUTION_ENDPOINT_TEMPLATE
               value: http://computing-unit-{cuid}.{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:{{ .Values.workflowComputingUnitPool.service.port }}
-            - name: LLM_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Release.Name }}-agent-service-secret
-                  key: llm-api-key
           # The service loads operator metadata from the dashboard service on
           # startup, so gate readiness on its health endpoint before the gateway
           # routes traffic here. /api/healthcheck needs no auth.
