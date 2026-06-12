@@ -78,6 +78,7 @@ import { NzCardModule } from "ng-zorro-antd/card";
 import { NzTagModule } from "ng-zorro-antd/tag";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { BlobErrorHttpInterceptor } from "./common/service/blob-error-http-interceptor.service";
+import { UnauthorizedHttpInterceptor } from "./common/service/unauthorized-http-interceptor.service";
 import { ConsoleFrameComponent } from "./workspace/component/result-panel/console-frame/console-frame.component";
 import { ResultTableFrameComponent } from "./workspace/component/result-panel/result-table-frame/result-table-frame.component";
 import { RowModalComponent } from "./workspace/component/result-panel/result-panel-modal.component";
@@ -161,6 +162,7 @@ import { ResultExportationComponent } from "./workspace/component/result-exporta
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
+import { CardItemComponent } from "./dashboard/component/user/list-item/card-item/card-item.component";
 import { HubComponent } from "./hub/component/hub.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
@@ -203,9 +205,9 @@ registerLocaleData(en);
     JwtModule.forRoot({
       config: {
         tokenGetter: AuthService.getAccessToken,
-        skipWhenExpired: false,
+        skipWhenExpired: true,
         throwNoTokenError: false,
-        disallowedRoutes: ["forum/api/users"],
+        disallowedRoutes: ["forum/api/users", "api/config/pre-login"],
       },
     }),
     BrowserAnimationsModule,
@@ -346,6 +348,7 @@ registerLocaleData(en);
     HighlightSearchTermsPipe,
     SearchBarComponent,
     ListItemComponent,
+    CardItemComponent,
     SearchResultsComponent,
     HubComponent,
     HubWorkflowDetailComponent,
@@ -373,6 +376,11 @@ registerLocaleData(en);
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
+      multi: true,
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: UnauthorizedHttpInterceptor,
       multi: true,
     },
     {

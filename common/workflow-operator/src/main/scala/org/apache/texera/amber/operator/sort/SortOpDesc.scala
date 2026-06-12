@@ -28,9 +28,14 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 class SortOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonPropertyDescription("column to perform sorting on")
-  var attributes: List[SortCriteriaUnit] = _
+  var attributes: List[SortCriteriaUnit] = List.empty
 
   override def generatePythonCode(): String = {
+    require(attributes.nonEmpty, "Sort operator requires at least one sort key.")
+    require(
+      attributes.forall(c => c.attributeName != null && c.attributeName.trim.nonEmpty),
+      "Each sort key must have an attribute selected."
+    )
     val attributeName = "[" + attributes
       .map { criteria =>
         pyb"""${criteria.attributeName}"""

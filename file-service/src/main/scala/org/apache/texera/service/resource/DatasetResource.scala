@@ -21,7 +21,7 @@ package org.apache.texera.service.resource
 
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
-import jakarta.annotation.security.RolesAllowed
+import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.amber.config.StorageConfig
@@ -251,7 +251,9 @@ class DatasetResource extends LazyLogging {
       getOwner(ctx, did).getEmail,
       userAccessPrivilege,
       isOwner,
-      LakeFSStorageClient.retrieveRepositorySize(targetDataset.getRepositoryName)
+      withLakeFSErrorHandling(s"retrieving the size of dataset '${targetDataset.getName}'") {
+        LakeFSStorageClient.retrieveRepositorySize(targetDataset.getRepositoryName)
+      }
     )
   }
 
@@ -309,16 +311,23 @@ class DatasetResource extends LazyLogging {
       // Initialize the repository in LakeFS
       val repositoryName = s"dataset-${createdDataset.getDid}"
       try {
-        LakeFSStorageClient.initRepo(repositoryName)
+        withLakeFSErrorHandling(s"creating the repository of dataset '${dataset.getName}'") {
+          LakeFSStorageClient.initRepo(repositoryName)
+        }
       } catch {
         case e: Exception =>
+          // roll back the dataset record so a failed LakeFS init leaves no orphan row
           ctx
             .deleteFrom(DATASET)
             .where(DATASET.DID.eq(createdDataset.getDid))
             .execute()
-          throw new WebApplicationException(
-            s"Failed to create the dataset: ${e.getMessage}"
-          )
+          e match {
+            case web: WebApplicationException => throw web
+            case other =>
+              throw new WebApplicationException(
+                s"Failed to create the dataset: ${other.getMessage}"
+              )
+          }
       }
 
       // update repository name of the created dataset
@@ -444,14 +453,8 @@ class DatasetResource extends LazyLogging {
         // throw the exception that user has no access to certain dataset
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
-      try {
+      withLakeFSErrorHandling(s"deleting the repository of dataset '${dataset.getName}'") {
         LakeFSStorageClient.deleteRepo(dataset.getRepositoryName)
-      } catch {
-        case e: Exception =>
-          throw new WebApplicationException(
-            s"Failed to delete a repository in LakeFS: ${e.getMessage}",
-            e
-          )
       }
       // delete the directory on S3
       if (
@@ -600,30 +603,39 @@ class DatasetResource extends LazyLogging {
         flush()
 
         // ---------- complete upload ----------
-        LakeFSStorageClient.completePresignedMultipartUploads(
-          repoName,
-          filePath,
-          uploadId,
-          completedParts.toList,
-          physicalAddress
-        )
+        withLakeFSErrorHandling(s"completing the multipart upload of file '$filePath'") {
+          LakeFSStorageClient.completePresignedMultipartUploads(
+            repoName,
+            filePath,
+            uploadId,
+            completedParts.toList,
+            physicalAddress
+          )
+        }
 
         Response.ok(Map("message" -> s"Uploaded $filePath in ${completedParts.size} parts")).build()
       }
     } catch {
       case e: Exception =>
         if (repoName != null && filePath != null && uploadId != null && physicalAddress != null) {
-          LakeFSStorageClient.abortPresignedMultipartUploads(
-            repoName,
-            filePath,
-            uploadId,
-            physicalAddress
-          )
+          // best-effort cleanup; never let an abort failure mask the original error
+          try {
+            LakeFSStorageClient.abortPresignedMultipartUploads(
+              repoName,
+              filePath,
+              uploadId,
+              physicalAddress
+            )
+          } catch { case _: Throwable => () }
         }
-        throw new WebApplicationException(
-          s"Failed to upload file to dataset: ${e.getMessage}",
-          e
-        )
+        e match {
+          case web: WebApplicationException => throw web
+          case other =>
+            throw new WebApplicationException(
+              s"Failed to upload file to dataset: ${other.getMessage}",
+              other
+            )
+        }
     }
   }
 
@@ -654,6 +666,7 @@ class DatasetResource extends LazyLogging {
   }
 
   @GET
+  @PermitAll
   @Path("/public-presign-download")
   def getPublicPresignedUrl(
       @QueryParam("filePath") encodedUrl: String,
@@ -664,6 +677,7 @@ class DatasetResource extends LazyLogging {
   }
 
   @GET
+  @PermitAll
   @Path("/public-presign-download-s3")
   def getPublicPresignedUrlWithS3(
       @QueryParam("filePath") encodedUrl: String,
@@ -691,14 +705,8 @@ class DatasetResource extends LazyLogging {
 
       // Decode the file path
       val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
-      // Try to initialize the repository in LakeFS
-      try {
+      withLakeFSErrorHandling(s"deleting file '$filePath' from the dataset repository") {
         LakeFSStorageClient.deleteObject(repositoryName, filePath)
-      } catch {
-        case e: Exception =>
-          throw new WebApplicationException(
-            s"Failed to delete the file from repo in LakeFS: ${e.getMessage}"
-          )
       }
 
       Response.ok().build()
@@ -1040,14 +1048,8 @@ class DatasetResource extends LazyLogging {
 
       // Decode the file path
       val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
-      // Try to reset the file change in LakeFS
-      try {
+      withLakeFSErrorHandling(s"resetting uncommitted changes of file '$filePath'") {
         LakeFSStorageClient.resetObjectUploadOrDeletion(repositoryName, filePath)
-      } catch {
-        case e: Exception =>
-          throw new WebApplicationException(
-            s"Failed to reset the changes from repo in LakeFS: ${e.getMessage}"
-          )
       }
       Response.ok().build()
     }
@@ -1156,6 +1158,7 @@ class DatasetResource extends LazyLogging {
   }
 
   @GET
+  @PermitAll
   @Path("/{name}/publicVersion/list")
   def getPublicDatasetVersionList(
       @PathParam("name") did: Integer
@@ -1252,7 +1255,11 @@ class DatasetResource extends LazyLogging {
       val datasetName = dataset.getName
       val repositoryName = dataset.getRepositoryName
       val versionHash = datasetVersion.getVersionHash
-      val objects = LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, versionHash)
+      val objects = withLakeFSErrorHandling(
+        s"listing files of version '$versionHash' of dataset '$datasetName'"
+      ) {
+        LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, versionHash)
+      }
 
       if (objects.isEmpty) {
         return Response
@@ -1268,7 +1275,9 @@ class DatasetResource extends LazyLogging {
           try {
             objects.foreach { obj =>
               val filePath = obj.getPath
-              val file = LakeFSStorageClient.getFileFromRepo(repositoryName, versionHash, filePath)
+              val file = withLakeFSErrorHandling(s"downloading file '$filePath' for the zip") {
+                LakeFSStorageClient.getFileFromRepo(repositoryName, versionHash, filePath)
+              }
 
               zipOut.putNextEntry(new ZipEntry(filePath))
               Files.copy(Paths.get(file.toURI), zipOut)
@@ -1302,6 +1311,7 @@ class DatasetResource extends LazyLogging {
   }
 
   @GET
+  @PermitAll
   @Path("/{did}/publicVersion/{dvid}/rootFileNodes")
   def retrievePublicDatasetVersionRootFileNodes(
       @PathParam("did") did: Integer,
@@ -1322,6 +1332,7 @@ class DatasetResource extends LazyLogging {
   }
 
   @GET
+  @PermitAll
   @Path("/public/{did}")
   def getPublicDataset(
       @PathParam("did") did: Integer
@@ -1427,11 +1438,15 @@ class DatasetResource extends LazyLogging {
         errorResponse
 
       case Right((resolvedRepositoryName, resolvedCommitHash, resolvedFilePath)) =>
-        val url = LakeFSStorageClient.getFilePresignedUrl(
-          resolvedRepositoryName,
-          resolvedCommitHash,
-          resolvedFilePath
-        )
+        val url = withLakeFSErrorHandling(
+          s"generating a presigned URL for file '$resolvedFilePath'"
+        ) {
+          LakeFSStorageClient.getFilePresignedUrl(
+            resolvedRepositoryName,
+            resolvedCommitHash,
+            resolvedFilePath
+          )
+        }
 
         Response.ok(Map("presignedUrl" -> url)).build()
     }
@@ -2120,11 +2135,13 @@ class DatasetResource extends LazyLogging {
         )
         .asInstanceOf[OnDataset]
 
-      val fileSize = LakeFSStorageClient.getFileSize(
-        document.getRepositoryName(),
-        document.getVersionHash(),
-        document.getFileRelativePath()
-      )
+      val fileSize = withLakeFSErrorHandling(s"reading the size of cover image '$normalized'") {
+        LakeFSStorageClient.getFileSize(
+          document.getRepositoryName(),
+          document.getVersionHash(),
+          document.getFileRelativePath()
+        )
+      }
 
       if (fileSize > COVER_IMAGE_SIZE_LIMIT_BYTES) {
         throw new BadRequestException(
@@ -2146,6 +2163,7 @@ class DatasetResource extends LazyLogging {
     * @return 307 Temporary Redirect to cover image
     */
   @GET
+  @PermitAll
   @Path("/{did}/cover")
   def getDatasetCover(
       @PathParam("did") did: Integer,
@@ -2173,11 +2191,15 @@ class DatasetResource extends LazyLogging {
         .openReadonlyDocument(FileResolver.resolve(fullPath))
         .asInstanceOf[OnDataset]
 
-      val presignedUrl = LakeFSStorageClient.getFilePresignedUrl(
-        document.getRepositoryName(),
-        document.getVersionHash(),
-        document.getFileRelativePath()
-      )
+      val presignedUrl = withLakeFSErrorHandling(
+        s"generating a presigned URL for cover image '$coverImage'"
+      ) {
+        LakeFSStorageClient.getFilePresignedUrl(
+          document.getRepositoryName(),
+          document.getVersionHash(),
+          document.getFileRelativePath()
+        )
+      }
 
       Response.temporaryRedirect(new URI(presignedUrl)).build()
     }
@@ -2189,6 +2211,7 @@ class DatasetResource extends LazyLogging {
     * since `<img src>` cannot attach the Authorization header.
     */
   @GET
+  @PermitAll
   @Path("/{did}/cover-url")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getDatasetCoverUrl(
@@ -2217,11 +2240,15 @@ class DatasetResource extends LazyLogging {
             .openReadonlyDocument(FileResolver.resolve(fullPath))
             .asInstanceOf[OnDataset]
 
-          val presignedUrl = LakeFSStorageClient.getFilePresignedUrl(
-            document.getRepositoryName(),
-            document.getVersionHash(),
-            document.getFileRelativePath()
-          )
+          val presignedUrl = withLakeFSErrorHandling(
+            s"generating a presigned URL for cover image '$coverImage'"
+          ) {
+            LakeFSStorageClient.getFilePresignedUrl(
+              document.getRepositoryName(),
+              document.getVersionHash(),
+              document.getFileRelativePath()
+            )
+          }
 
           Response.ok(Map("url" -> presignedUrl)).build()
       }

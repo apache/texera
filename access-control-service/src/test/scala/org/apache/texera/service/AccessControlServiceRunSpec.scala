@@ -23,7 +23,9 @@ import io.dropwizard.core.setup.Environment
 import io.dropwizard.jersey.setup.JerseyEnvironment
 import io.dropwizard.jetty.MutableServletContextHandler
 import io.dropwizard.jetty.setup.ServletEnvironment
+import org.apache.texera.auth.UnauthorizedExceptionMapper
 import org.apache.texera.service.activity.UserActivityEventListener
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.mockito.ArgumentMatchers.isA
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -44,6 +46,9 @@ class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
     service.run(mock(classOf[AccessControlServiceConfiguration]), env)
 
     verify(jersey).register(isA(classOf[UserActivityEventListener]))
+    verify(jersey).register(classOf[UnauthorizedExceptionMapper])
+    // Without this feature Jersey ignores @RolesAllowed on the LiteLLM proxies.
+    verify(jersey).register(classOf[RolesAllowedDynamicFeature])
     verify(jersey).setUrlPattern("/api/*")
   }
 }
