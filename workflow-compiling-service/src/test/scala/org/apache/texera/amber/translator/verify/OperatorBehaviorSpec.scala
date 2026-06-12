@@ -86,9 +86,17 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers {
           // To enable: add a SourceHandler in SourceCategoryRunner.
         }
       }
+    } else if (JvmTransformCategoryRunner.canRun(opClass)) {
+      // JVM-native transforms: OpExecHarness on Path A, StandaloneRunner on
+      // Path B. Add the operator to JvmTransformCategoryRunner.handlersByClass
+      // (along with its fixture) to flip the test from ignored to active.
+      name should "produce equivalent output in Texera and standalone Python (jvm-native transform)" in {
+        JvmTransformCategoryRunner.run(opClass)
+      }
     } else {
-      name should "be verified once a category runner exists for this operator type" ignore {
-        // Transform / filter / join / viz / sklearn / ML — no runner yet.
+      name should "be verified once a TransformHandler is registered" ignore {
+        // JVM-native transform / join / set-op without a registered handler.
+        // To enable: add a TransformHandler in JvmTransformCategoryRunner.
       }
     }
   }
