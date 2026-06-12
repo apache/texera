@@ -30,18 +30,22 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
+import javax.validation.constraints.NotNull
+
 class WaterfallChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "xColumn", required = true)
   @JsonSchemaTitle("X Axis Values")
   @JsonPropertyDescription("The column representing categories or stages")
   @AutofillAttributeName
+  @NotNull(message = "X Axis Values cannot be empty")
   var xColumn: EncodableString = _
 
   @JsonProperty(value = "yColumn", required = true)
   @JsonSchemaTitle("Y Axis Values")
   @JsonPropertyDescription("The column representing numeric values for each stage")
   @AutofillAttributeName
+  @NotNull(message = "Y Axis Values cannot be empty")
   var yColumn: EncodableString = _
 
   override def getOutputSchemas(

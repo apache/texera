@@ -27,6 +27,7 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import java.util
+import javax.validation.constraints.NotEmpty
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class NestedTableOpDesc extends PythonOperatorDescriptor {
@@ -35,6 +36,7 @@ class NestedTableOpDesc extends PythonOperatorDescriptor {
     "List of columns to include in the nested table chart and their subgroup"
   )
   @JsonProperty(value = "add attribute", required = true)
+  @NotEmpty(message = "Included Columns cannot be empty")
   var includedColumns: util.List[NestedTableConfig] = _
 
   override def getOutputSchemas(

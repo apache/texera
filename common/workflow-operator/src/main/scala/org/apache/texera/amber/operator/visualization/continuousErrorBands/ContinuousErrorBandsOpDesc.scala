@@ -30,6 +30,7 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import java.util
+import javax.validation.constraints.NotEmpty
 import scala.jdk.CollectionConverters.ListHasAsScala
 class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
 
@@ -44,6 +45,7 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
   var yLabel: EncodableString = ""
 
   @JsonProperty(value = "bands", required = true)
+  @NotEmpty(message = "Bands cannot be empty")
   var bands: util.List[BandConfig] = _
 
   override def getOutputSchemas(

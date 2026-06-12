@@ -28,11 +28,14 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+
+import javax.validation.constraints.{DecimalMin, NotEmpty}
 class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Font Size")
   @JsonPropertyDescription("Font size of the Figure Factory Table")
+  @DecimalMin(value = "0", message = "Font size must be a non-negative number")
   var fontSize: Double = 12
 
   @JsonProperty(required = false)
@@ -43,17 +46,19 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = false)
   @JsonSchemaTitle("Row Height")
   @JsonPropertyDescription("Row height of the Figure Factory Table")
+  @DecimalMin(value = "30", message = "Row height must be at least 30")
   var rowHeight: Double = 30
 
   @JsonPropertyDescription("List of columns to include in the figure factory table")
   @JsonProperty(value = "add attribute", required = true)
+  @NotEmpty(message = "Columns cannot be empty")
   var columns: List[FigureFactoryTableConfig] = List()
 
   private def getAttributes: String =
     columns.map(c => pyb"""${c.attributeName}""").mkString(",")
 
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(columns.nonEmpty)
+    assert(columns.nonEmpty, "Columns cannot be empty")
 
     val attributes = getAttributes
     pyb"""
@@ -64,13 +69,16 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
   }
 
   def createFigureFactoryTablePlotlyFigure(): PythonTemplateBuilder = {
-    assert(columns.nonEmpty)
+    assert(columns.nonEmpty, "Columns cannot be empty")
 
     val intFontSize: Option[Double] = Option(fontSize)
     val intRowHeight: Option[Double] = Option(rowHeight)
 
-    assert(intFontSize.isDefined && intFontSize.get >= 0)
-    assert(intRowHeight.isDefined && intRowHeight.get >= 30)
+    assert(
+      intFontSize.isDefined && intFontSize.get >= 0,
+      "Font size must be a non-negative number"
+    )
+    assert(intRowHeight.isDefined && intRowHeight.get >= 30, "Row height must be at least 30")
 
     val attributes = getAttributes
     pyb"""
