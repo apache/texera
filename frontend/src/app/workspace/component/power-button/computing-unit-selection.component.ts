@@ -56,7 +56,11 @@ import {
   isComputingUnitShmTooLarge,
   getJvmMemorySliderConfig,
 } from "../../../common/util/computing-unit.util";
-import { PvePackageResponse, WorkflowPveService } from "../../service/virtual-environment/virtual-environment.service";
+import {
+  PvePackageResponse,
+  UserPveRecord,
+  WorkflowPveService,
+} from "../../service/virtual-environment/virtual-environment.service";
 import { NgClass, NgIf, NgFor, DecimalPipe, TitleCasePipe } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
@@ -140,6 +144,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
   pves: PveDraft[] = [];
   systemPackages: { name: string; version: string }[] = [];
   pveModalVisible = false;
+
+  // Saved PVE specs (name + packages) the user defined in the Python Venv
+  // dashboard. Fetched whenever the CU PVE modal opens so the user can pick
+  // one and have its packages installed into the active CU.
+  availableDbPves: UserPveRecord[] = [];
 
   // current workflow's Id, will change with wid in the workflowActionService.metadata
   protected readonly unitTypeMessageTemplate = unitTypeMessageTemplate;
@@ -768,6 +777,57 @@ export class ComputingUnitSelectionComponent implements OnInit {
   showPVEmodalVisible(): void {
     this.pveModalVisible = true;
     this.getPVEs();
+    this.refreshAvailableDbPves();
+  }
+
+  private refreshAvailableDbPves(): void {
+    this.workflowPveService
+      .listUserPves()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: records => {
+          this.availableDbPves = records;
+        },
+        error: (err: unknown) => {
+          console.error("Failed to fetch saved Python environments", err);
+          this.availableDbPves = [];
+        },
+      });
+  }
+
+  // Triggered when the user picks a saved PVE in the picker. Builds a new
+  // env card from its name + packages and immediately kicks off the existing
+  // CU install flow (createVirtualEnvironment), so pip output streams into
+  // the same panel.
+  installFromSavedPve(veid: number): void {
+    const saved = this.availableDbPves.find(p => p.veid === veid);
+    if (!saved) return;
+
+    const newPackages: PveUserPackageRow[] = Object.entries(saved.packages ?? {}).map(([name, raw]) => {
+      const match = raw?.match?.(/^(==|>=|<=)(.*)$/);
+      return {
+        name,
+        versionOp: (match ? match[1] : "==") as "==" | ">=" | "<=",
+        version: match ? match[2] : raw ?? "",
+      };
+    });
+
+    this.pves.push({
+      name: saved.name,
+      userPackages: [],
+      newPackages,
+      deletingPackages: [],
+      pipOutput: "",
+      prettyPipOutput: "",
+      expanded: true,
+      isInstalling: false,
+      isLocked: false,
+    });
+
+    const newIndex = this.pves.length - 1;
+    // Let Angular render the new card so its pip-output element exists before
+    // we start streaming.
+    setTimeout(() => this.createVirtualEnvironment(newIndex), 0);
   }
 
   closePveModal(): void {

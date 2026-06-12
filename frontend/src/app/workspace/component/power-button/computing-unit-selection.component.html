@@ -499,6 +499,33 @@
       </nz-collapse>
     </div>
 
+    <!-- Saved environments (from the user's Python Venv DB list) -->
+    <div class="saved-pves-section">
+      <nz-collapse>
+        <nz-collapse-panel
+          nzHeader="Saved Environments"
+          [nzActive]="true">
+          <div
+            *ngIf="availableDbPves.length === 0"
+            class="saved-pve-empty">
+            No saved environments yet. Create one from the Environments tab.
+          </div>
+          <div
+            *ngFor="let saved of availableDbPves"
+            class="saved-pve-row">
+            <span class="saved-pve-name">{{ saved.name }}</span>
+            <button
+              nz-button
+              nzType="primary"
+              nzSize="small"
+              (click)="installFromSavedPve(saved.veid)">
+              Install
+            </button>
+          </div>
+        </nz-collapse-panel>
+      </nz-collapse>
+    </div>
+
     <!-- Environments -->
     <nz-collapse>
       <nz-collapse-panel
