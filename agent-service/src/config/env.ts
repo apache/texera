@@ -22,7 +22,6 @@ import { z } from "zod";
 const EnvSchema = z.object({
   PORT: z.coerce.number().default(3001),
   API_PREFIX: z.string().default("/api"),
-  LLM_API_KEY: z.string().default("dummy"),
   TEXERA_SERVICE_LOG_LEVEL: z
     .enum(["ERROR", "WARN", "INFO", "DEBUG"])
     .transform(v => v.toLowerCase() as "error" | "warn" | "info" | "debug")
