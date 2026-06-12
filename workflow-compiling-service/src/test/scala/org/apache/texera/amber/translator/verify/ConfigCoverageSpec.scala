@@ -19,74 +19,69 @@
 
 package org.apache.texera.amber.translator.verify
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 /**
-  * Measures how far the reflective [[ConfigGenerator]] gets on its own: for
-  * every operator registered with [[StandaloneCodeGenerator]], try to produce a
-  * valid config from metadata alone and tally success vs. the reason it can't.
+  * Reports the harness verification tier per discovered [[StandaloneCodeGenerator]]
+  * operator: RUNNABLE (auto) / RUNNABLE (curated) / FLAG (reason). The `info`
+  * table printed by this spec is the coverage artifact shown at the handoff demo.
   *
-  * Prints a coverage table (the real number behind the "~70-75% auto-coverable"
-  * estimate) and asserts the in-memory JVM-exec operators we target first all
-  * configure cleanly. Operators it can't fill are reported, never silently
-  * passed — that list is exactly what the curated-override layer must cover.
+  * Hard-asserts the must-run set: the operators that must appear as RUNNABLE for
+  * the demo to be credible. Flagged operators are always reported with a reason —
+  * never silently passed.
   */
 class ConfigCoverageSpec extends AnyFlatSpec with Matchers {
 
-  private val schema = new Schema(
-    new Attribute("id", AttributeType.INTEGER),
-    new Attribute("name", AttributeType.STRING),
-    new Attribute("score", AttributeType.DOUBLE)
-  )
-  // Supply two ports; single-input operators just ignore port 1.
-  private val schemas = Map(0 -> schema, 1 -> schema)
-
-  // The JVM-exec, in-memory operators the harness targets first — these must
-  // auto-configure for the prototype to be useful.
-  private val mustCover = Set(
-    "UnionOpDesc",
+  // The ops the demo must show as runnable; extend as triage flips flags.
+  private val mustRun = Set(
     "IntersectOpDesc",
     "DifferenceOpDesc",
     "SymmetricDifferenceOpDesc",
     "HashJoinOpDesc",
-    "IntervalJoinOpDesc",
-    "SpecializedFilterOpDesc"
+    "SpecializedFilterOpDesc",
+    "SortOpDesc",
+    "LimitOpDesc"
   )
 
-  "ConfigGenerator" should "auto-configure the targeted JVM-exec operators and report overall coverage" in {
+  "the harness" should "classify every discovered operator into a tier and report coverage" in {
     val operators = OperatorBehaviorSpec.discoverStandaloneOperators()
 
     val rows = operators.map { opClass =>
       val name = opClass.getSimpleName
       val kind =
-        if (classOf[PythonOperatorDescriptor].isAssignableFrom(opClass)) "python-udf"
-        else if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass)) "source"
+        if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass)) "source"
+        else if (classOf[PythonOperatorDescriptor].isAssignableFrom(opClass)) "python-udf"
         else "jvm"
-      val outcome = ConfigGenerator.generate(opClass, schemas)
-      (name, kind, outcome)
+      val tier =
+        if (kind == "source") {
+          if (SourceCategoryRunner.canRun(opClass)) "RUNNABLE (curated source)"
+          else "FLAG (no source handler)"
+        } else
+          TransformVerificationRunner.disposition(opClass) match {
+            case TransformVerificationRunner.Runnable(t)     => s"RUNNABLE ($t)"
+            case TransformVerificationRunner.Flagged(reason) => s"FLAG ($reason)"
+          }
+      (name, kind, tier)
     }
 
-    // Print a readable coverage table.
-    val ok = rows.count(_._3.isRight)
-    info(s"Config coverage: $ok/${rows.size} operators auto-configured")
-    rows.sortBy { case (n, k, r) => (r.isRight, k, n) }.foreach {
-      case (name, kind, Right(_))     => info(f"  OK    [$kind%-10s] $name")
-      case (name, kind, Left(reason)) => info(f"  FLAG  [$kind%-10s] $name — $reason")
+    val runnable = rows.count(_._3.startsWith("RUNNABLE"))
+    info(s"Coverage: $runnable/${rows.size} operators runnable, ${rows.size - runnable} flagged")
+    Seq("jvm", "python-udf", "source").foreach { k =>
+      val of = rows.filter(_._2 == k)
+      info(s"  $k: ${of.count(_._3.startsWith("RUNNABLE"))}/${of.size} runnable")
+    }
+    rows.sortBy { case (n, k, t) => (!t.startsWith("RUNNABLE"), k, n) }.foreach {
+      case (name, kind, tier) => info(f"  $tier%-50s [$kind%-10s] $name")
     }
 
-    val jvm = rows.filter(_._2 == "jvm")
-    val jvmOk = jvm.count(_._3.isRight)
-    info(s"JVM-exec coverage: $jvmOk/${jvm.size}")
-
-    // Hard assertion: the operators we target first must all configure.
     val failedTargets = rows.collect {
-      case (name, _, Left(reason)) if mustCover.contains(name) => s"$name ($reason)"
+      case (name, _, tier) if mustRun.contains(name) && !tier.startsWith("RUNNABLE") =>
+        s"$name → $tier"
     }
-    withClue(s"targeted operators that failed to auto-configure: $failedTargets") {
+    withClue(s"must-run operators not runnable: $failedTargets") {
       failedTargets shouldBe empty
     }
   }
