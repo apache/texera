@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.core.storage.util
 
+import com.typesafe.scalalogging.LazyLogging
 import io.lakefs.clients.sdk._
 import io.lakefs.clients.sdk.model.ResetCreation.TypeEnum
 import io.lakefs.clients.sdk.model._
@@ -33,10 +34,14 @@ import scala.jdk.CollectionConverters._
   * LakeFSFileStorage provides high-level file storage operations using LakeFS,
   * similar to Git operations for version control and file management.
   */
-object LakeFSStorageClient {
+object LakeFSStorageClient extends LazyLogging {
 
   // Maximum number of results per LakeFS API request (pagination page size)
   private val PageSize = 1000
+
+  // Health-check retry settings: retry on failure before giving up.
+  private val HealthCheckMaxAttempts = 10
+  private val HealthCheckRetryDelayMillis = 3000L
 
   private lazy val apiClient: ApiClient = {
     val client = new ApiClient()
@@ -69,11 +74,25 @@ object LakeFSStorageClient {
   private val branchName: String = "main"
 
   def healthCheck(): Unit = {
-    try {
-      this.healthCheckApi.healthCheck().execute()
-    } catch {
-      case e: Exception =>
-        throw new RuntimeException(s"Failed to connect to lake fs server: ${e.getMessage}")
+    var attempt = 1
+    while (true) {
+      try {
+        this.healthCheckApi.healthCheck().execute()
+        return
+      } catch {
+        case e: Exception =>
+          if (attempt >= HealthCheckMaxAttempts) {
+            throw new RuntimeException(
+              s"Failed to connect to lake fs server after $HealthCheckMaxAttempts attempts: ${e.getMessage}"
+            )
+          }
+          logger.warn(
+            s"LakeFS not reachable (attempt $attempt/$HealthCheckMaxAttempts): ${e.getMessage}. " +
+              s"Retrying in ${HealthCheckRetryDelayMillis}ms..."
+          )
+          Thread.sleep(HealthCheckRetryDelayMillis)
+          attempt += 1
+      }
     }
   }
 
