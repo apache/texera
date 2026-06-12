@@ -39,6 +39,7 @@ import org.apache.texera.amber.engine.common.ambermessage.{
 }
 import org.apache.texera.amber.engine.common.virtualidentity.util.SELF
 import org.apache.texera.amber.error.ErrorUtils.safely
+import org.apache.texera.service.util.LargeBinaryManager
 
 import java.util.concurrent._
 
@@ -46,7 +47,10 @@ class DPThread(
     val actorId: ActorVirtualIdentity,
     dp: DataProcessor,
     logManager: ReplayLogManager,
-    internalQueue: LinkedBlockingQueue[DPInputQueueElement]
+    internalQueue: LinkedBlockingQueue[DPInputQueueElement],
+    // Controller-named, execution-scoped base URI for large binaries created on this
+    // thread (empty when unconfigured). Seeded into LargeBinaryManager at thread start.
+    largeBinaryBaseUri: String = ""
 ) extends AmberLogging {
 
   // initialize dp thread upon construction
@@ -91,6 +95,10 @@ class DPThread(
       dpThread = dpThreadExecutor.submit(new Runnable() {
         def run(): Unit = {
           Thread.currentThread().setName(getThreadName)
+          // Seed this thread's large-binary base URI (from WorkerConfig) before any tuple,
+          // so create() can append a suffix without the execution id. Once per thread,
+          // assuming a thread serves one execution.
+          LargeBinaryManager.setCurrentBaseUri(largeBinaryBaseUri)
           logger.info("DP thread started")
           startFuture.complete(())
           dp.statisticsManager.initializeWorkerStartTime(System.nanoTime())

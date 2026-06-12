@@ -39,6 +39,7 @@ import org.apache.texera.service.resource.{
   LiteLLMProxyResource
 }
 import org.eclipse.jetty.server.session.SessionHandler
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
 
 class AccessControlService extends Application[AccessControlServiceConfiguration] with LazyLogging {
@@ -83,6 +84,9 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
     environment.jersey.register(
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
+
+    // Required for @RolesAllowed on resources to be enforced.
+    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
 
     // Record USER_LAST_ACTIVE_TIME on every matched, completed request.
     // Lives only in this service because authenticated client sessions

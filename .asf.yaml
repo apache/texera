@@ -24,6 +24,8 @@ meta:
 github:
   description: "Human-AI Collaborative Data Science Using Visual Workflows"
   homepage: https://texera.apache.org/
+  ghp_branch: gh-pages
+  ghp_path: /
   labels:
     - human-ai-collaboration
     - ai-agents
