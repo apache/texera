@@ -21,8 +21,12 @@ package org.apache.texera.service.util
 
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
+import software.amazon.awssdk.services.s3.model.S3Error
 
 import java.io.ByteArrayInputStream
+import java.util.concurrent.Executors
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Random
 
 class S3StorageClientSpec
@@ -39,9 +43,9 @@ class S3StorageClientSpec
   }
 
   override def afterAll(): Unit = {
-    // Clean up test bucket
+    // Best-effort cleanup of the prefixes these tests use (deleteDirectory rejects an empty prefix).
     try {
-      S3StorageClient.deleteDirectory(testBucketName, "")
+      Seq("test", "delete-dir").foreach(S3StorageClient.deleteDirectory(testBucketName, _))
     } catch {
       case _: Exception => // Ignore cleanup errors
     }
@@ -333,5 +337,105 @@ class S3StorageClientSpec
     assert(downloadedData == testData)
 
     S3StorageClient.deleteObject(testBucketName, objectKey)
+  }
+
+  // ========================================
+  // deleteDirectory Tests
+  // ========================================
+
+  test("deleteDirectory should delete all objects under a prefix") {
+    val prefix = "delete-dir/small"
+    val keys = (0 until 5).map(i => s"$prefix/object-$i.txt")
+    keys.foreach(key =>
+      S3StorageClient.uploadObject(testBucketName, key, createInputStream("data"))
+    )
+
+    assert(S3StorageClient.directoryExists(testBucketName, prefix))
+
+    S3StorageClient.deleteDirectory(testBucketName, prefix)
+
+    assert(!S3StorageClient.directoryExists(testBucketName, prefix))
+  }
+
+  test("deleteDirectory should not delete siblings that merely share the prefix string") {
+    // The trailing-slash guard: deleting "delete-dir/small" (→ "delete-dir/small/") must leave the
+    // sibling "delete-dir/small-sibling.txt" untouched.
+    val prefix = "delete-dir/small"
+    S3StorageClient.uploadObject(testBucketName, s"$prefix/object.txt", createInputStream("data"))
+    val sibling = "delete-dir/small-sibling.txt"
+    S3StorageClient.uploadObject(testBucketName, sibling, createInputStream("keep me"))
+
+    S3StorageClient.deleteDirectory(testBucketName, prefix)
+
+    assert(!S3StorageClient.directoryExists(testBucketName, prefix))
+    val survivor = S3StorageClient.downloadObject(testBucketName, sibling)
+    assert(new String(readInputStream(survivor)) == "keep me")
+    survivor.close()
+    S3StorageClient.deleteObject(testBucketName, sibling)
+  }
+
+  test("deleteDirectory should delete more than 1000 objects under a prefix") {
+    // >1000 objects exercises pagination and delete batching; without them the tail is orphaned.
+    val prefix = "delete-dir/large"
+    val objectCount = 1001
+
+    // Upload concurrently to keep the test reasonably fast.
+    val pool = Executors.newFixedThreadPool(16)
+    implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(pool)
+    try {
+      val uploads = (0 until objectCount).map { i =>
+        Future {
+          S3StorageClient.uploadObject(
+            testBucketName,
+            f"$prefix/object-$i%05d.txt",
+            createInputStream("")
+          )
+        }
+      }
+      Await.result(Future.sequence(uploads), 5.minutes)
+    } finally {
+      pool.shutdown()
+    }
+
+    assert(S3StorageClient.directoryExists(testBucketName, prefix))
+
+    S3StorageClient.deleteDirectory(testBucketName, prefix)
+
+    assert(!S3StorageClient.directoryExists(testBucketName, prefix))
+  }
+
+  test("deleteDirectory should not throw for a prefix with no objects") {
+    // Empty listing: no DeleteObjects request is issued.
+    S3StorageClient.deleteDirectory(testBucketName, "delete-dir/non-existent")
+  }
+
+  // A real per-key failure needs object-lock setup, so test throwOnDeleteErrors directly.
+
+  test("throwOnDeleteErrors should raise on a per-key delete failure") {
+    val errors = Seq(S3Error.builder().key("delete-dir/locked.txt").code("AccessDenied").build())
+    val thrown = intercept[RuntimeException] {
+      S3StorageClient.throwOnDeleteErrors("delete-dir/", errors)
+    }
+    assert(thrown.getMessage.contains("delete-dir/locked.txt"))
+    assert(thrown.getMessage.contains("AccessDenied"))
+  }
+
+  test("throwOnDeleteErrors should not throw when there are no errors") {
+    S3StorageClient.throwOnDeleteErrors("delete-dir/", Seq.empty[S3Error])
+  }
+
+  test("throwOnDeleteErrors should report the true total but list at most the cap") {
+    val cap = S3StorageClient.MAX_LISTED_DELETE_ERRORS
+    val errorCount = cap + 5
+    val errors = (0 until errorCount).map(i =>
+      S3Error.builder().key(f"delete-dir/locked-$i%02d.txt").code("AccessDenied").build()
+    )
+    val thrown = intercept[RuntimeException] {
+      S3StorageClient.throwOnDeleteErrors("delete-dir/", errors)
+    }
+    assert(thrown.getMessage.contains(s"$errorCount object(s)"))
+    assert(thrown.getMessage.contains("delete-dir/locked-00.txt")) // first key is listed
+    assert(!thrown.getMessage.contains(f"delete-dir/locked-$cap%02d.txt")) // capped key is not
+    assert(thrown.getMessage.contains(s"and ${errorCount - cap} more"))
   }
 }
