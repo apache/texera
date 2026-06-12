@@ -61,7 +61,7 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers {
           SourceCategoryRunner.run(opClass)
         }
       } else {
-        name should "be verified once a SourceHandler is registered" ignore {}
+        name should s"FLAGGED — ${SourceCategoryRunner.flagReason(opClass)}" ignore {}
       }
     } else {
       TransformVerificationRunner.disposition(opClass) match {

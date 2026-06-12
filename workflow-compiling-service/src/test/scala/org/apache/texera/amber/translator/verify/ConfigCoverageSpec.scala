@@ -58,7 +58,7 @@ class ConfigCoverageSpec extends AnyFlatSpec with Matchers {
       val tier =
         if (kind == "source") {
           if (SourceCategoryRunner.canRun(opClass)) "RUNNABLE (curated source)"
-          else "FLAG (no source handler)"
+          else s"FLAG (${SourceCategoryRunner.flagReason(opClass)})"
         } else
           TransformVerificationRunner.disposition(opClass) match {
             case TransformVerificationRunner.Runnable(t)     => s"RUNNABLE ($t)"
