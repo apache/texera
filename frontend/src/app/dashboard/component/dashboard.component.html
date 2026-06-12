@@ -110,6 +110,17 @@
             <span>Compute</span>
           </li>
           <li
+            nz-menu-item
+            nz-tooltip="Manage saved Python virtual environments"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="USER_PYTHON_VENV">
+            <span
+              nz-icon
+              nzType="python"></span>
+            <span>Environments</span>
+          </li>
+          <li
             *ngIf="sidebarTabs.quota_enabled"
             nz-menu-item
             nz-tooltip="Quota information"

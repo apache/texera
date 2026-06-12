@@ -46,6 +46,21 @@ class TestTuple:
     def test_tuple_as_dict(self, target_tuple):
         assert target_tuple.as_dict() == {"x": 1, "y": "a"}
 
+    def test_tuple_as_dict_deepcopy_isolates_values(self, target_tuple):
+        d = target_tuple.as_dict(deepcopy=True)
+        d["scores"] = [1, 2]
+        d["scores"].append(3)
+        # mutating the deep-copied dict must not affect the tuple
+        assert "scores" not in target_tuple.as_dict()
+
+    def test_tuple_as_dict_is_shallow_by_default(self, target_tuple):
+        d = target_tuple.as_dict()
+        assert d == {"x": 1, "y": "a"}
+        # reassigning keys on the copy must not leak back into the tuple
+        d["x"] = 999
+        del d["y"]
+        assert target_tuple.as_dict() == {"x": 1, "y": "a"}
+
     def test_tuple_as_series(self, target_tuple):
         assert (target_tuple.as_series() == pandas.Series({"x": 1, "y": "a"})).all()
 
