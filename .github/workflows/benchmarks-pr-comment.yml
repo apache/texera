@@ -1,0 +1,261 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Posts (or upserts) a PR comment with bench results AFTER the Benchmarks
+# workflow completes.
+#
+# Why a separate workflow_run-triggered file:
+#   - The Benchmarks workflow runs on `pull_request`, which for fork PRs
+#     gets a read-only GITHUB_TOKEN and zero secret access — GitHub's
+#     hard-coded security model. We can't comment from there.
+#   - `workflow_run` runs in the BASE repo's context (apache/texera)
+#     with normal token + secret access, so it CAN comment on fork PRs.
+#   - This is the ASF-approved pattern; `pull_request_target` is policy-
+#     forbidden for any action that handles tokens.
+#
+# Why workflow_run is safe here vs pull_request_target:
+#   - We only READ a small, opaque artifact (pr-number.txt + the bench
+#     JSON / CSV) produced by the upstream run; we don't execute any
+#     PR-author code in this workflow.
+#   - The PR number is validated against ^[0-9]+$ before being used in
+#     any API call, blocking ref injection.
+
+name: Benchmarks PR Comment
+
+on:
+  workflow_run:
+    workflows: ["Benchmarks"]
+    types: [completed]
+
+permissions:
+  # Need pull-requests: write to post / update the comment.
+  # contents: read is the default and enough to checkout for github-script
+  # which we don't actually do here (we only call REST APIs).
+  pull-requests: write
+  actions: read
+
+jobs:
+  comment:
+    # Only act when the upstream Benchmarks run was triggered by a PR.
+    # push-to-main / schedule / dispatch produce no PR to comment on.
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download bench-results artifact
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const runId = context.payload.workflow_run.id;
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId,
+            });
+            const match = data.artifacts.find((a) => a.name.startsWith("bench-results-"));
+            if (!match) {
+              core.warning(`no bench-results-* artifact on run ${runId}; nothing to comment.`);
+              return;
+            }
+            const zip = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: match.id,
+              archive_format: "zip",
+            });
+            fs.mkdirSync("bench-results-zip", { recursive: true });
+            fs.writeFileSync(path.join("bench-results-zip", "artifact.zip"), Buffer.from(zip.data));
+            core.info(`downloaded artifact ${match.name} (${match.size_in_bytes} bytes)`);
+
+      - name: Unzip artifact
+        run: |
+          mkdir -p bench-results
+          unzip -o bench-results-zip/artifact.zip -d bench-results
+          ls -la bench-results/
+
+      - name: Read PR number from artifact
+        id: pr
+        # Read + strictly validate (digits only) before using in API calls.
+        # The artifact comes from a fork-triggered workflow whose contents
+        # are not entirely trusted; numeric-only PR numbers block any
+        # injection vector through this value.
+        run: |
+          if [ ! -f bench-results/pr-number.txt ]; then
+            echo "no pr-number.txt in artifact; bailing out"
+            exit 0
+          fi
+          raw=$(tr -d '[:space:]' < bench-results/pr-number.txt)
+          if ! [[ "$raw" =~ ^[0-9]+$ ]]; then
+            echo "invalid pr-number.txt contents: '$raw'"
+            exit 1
+          fi
+          echo "number=$raw" >> "$GITHUB_OUTPUT"
+
+      - name: Upsert PR comment with bench summary
+        if: steps.pr.outputs.number != ''
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        with:
+          script: |
+            const fs = require("fs");
+            const pr = Number(process.env.PR_NUMBER);
+            const marker = "<!-- texera-benchmarks-comment -->";
+
+            // CSV comes from a fork-PR-controlled artifact — sanitize before
+            // embedding in markdown:
+            //   1. Cap total size so a giant junk file can't bloat a comment.
+            //   2. Strip any triple-backtick sequence so the content cannot
+            //      escape the surrounding code fence and inject arbitrary
+            //      markdown (phishing links, image-rendering tricks, etc).
+            //      Replacement with a zero-width char preserves byte alignment
+            //      visually while neutralizing fence termination.
+            const MAX_CSV_BYTES = 32 * 1024;
+            const csvPath = "bench-results/arrow-flight-e2e.csv";
+            let csv = null;
+            if (fs.existsSync(csvPath)) {
+              let raw = fs.readFileSync(csvPath, "utf8");
+              if (raw.length > MAX_CSV_BYTES) {
+                raw = raw.slice(0, MAX_CSV_BYTES) + "\n[truncated]";
+              }
+              csv = raw.replace(/```+/g, "`​``").trim();
+            }
+
+            // Per-cell sanitizer for the markdown table: strip newlines, escape
+            // pipes (would break columns), and cap length.
+            const escapeCell = (s) =>
+              s == null
+                ? ""
+                : String(s).replace(/[\r\n]+/g, " ").replace(/\|/g, "\\|").slice(0, 64);
+
+            // Render selected columns as a markdown table. Drops noise columns
+            // (config_idx, total_tuples, total_bytes, lat_p95_us) and converts
+            // microseconds to milliseconds for latency readability. Returns
+            // null on any parsing failure → fallback renders raw CSV instead.
+            const csvToTable = (text) => {
+              try {
+                const rows = text
+                  .trim()
+                  .split(/\r?\n/)
+                  .map((line) => line.split(","));
+                if (rows.length < 2) return null;
+                const header = rows[0].map((h) => h.trim());
+                const idx = (col) => header.indexOf(col);
+                const cols = [
+                  { col: "batch_size", label: "batch", fmt: (v) => v },
+                  { col: "schema_width", label: "schema_w", fmt: (v) => v },
+                  { col: "string_len", label: "str_len", fmt: (v) => v },
+                  { col: "num_batches", label: "n_batches", fmt: (v) => v },
+                  { col: "tuples_per_sec", label: "tuples/s", fmt: (v) => v },
+                  { col: "mb_per_sec", label: "MB/s", fmt: (v) => v },
+                  {
+                    col: "lat_p50_us",
+                    label: "p50 ms",
+                    fmt: (v) => (parseFloat(v) / 1000).toFixed(2),
+                  },
+                  {
+                    col: "lat_p99_us",
+                    label: "p99 ms",
+                    fmt: (v) => (parseFloat(v) / 1000).toFixed(2),
+                  },
+                  { col: "total_ms", label: "total ms", fmt: (v) => v },
+                ].filter((c) => idx(c.col) >= 0);
+                if (cols.length === 0) return null;
+                const lines = [];
+                lines.push("| " + cols.map((c) => escapeCell(c.label)).join(" | ") + " |");
+                lines.push("|" + cols.map(() => "---:").join("|") + "|");
+                for (const row of rows.slice(1)) {
+                  const cells = cols.map((c) => {
+                    const raw = row[idx(c.col)];
+                    try {
+                      return escapeCell(c.fmt(raw));
+                    } catch (e) {
+                      return escapeCell(raw);
+                    }
+                  });
+                  lines.push("| " + cells.join(" | ") + " |");
+                }
+                return lines.join("\n");
+              } catch (e) {
+                core.warning(`csvToTable failed: ${e.message}`);
+                return null;
+              }
+            };
+
+            // workflow_run.html_url is GitHub-emitted (URL to apache/texera
+            // run page); not attacker-influenceable.
+            const upstreamUrl = context.payload.workflow_run.html_url;
+
+            // Primary view: rendered markdown table for skim-readability.
+            // Fallback view (collapsed <details>): raw sanitized CSV for full
+            // verifiability — readers click to expand if they need every column.
+            const tableMd = csv ? csvToTable(csv) : null;
+            const bodyParts = [marker, "## Arrow Flight E2E bench", ""];
+            if (tableMd) {
+              bodyParts.push(tableMd, "");
+            } else if (!csv) {
+              bodyParts.push("_(no arrow-flight-e2e.csv in artifact)_", "");
+            } else {
+              bodyParts.push("_(unable to parse CSV; raw below)_", "");
+            }
+            if (csv) {
+              bodyParts.push(
+                "<details><summary>Raw CSV</summary>",
+                "",
+                "```csv",
+                csv,
+                "```",
+                "",
+                "</details>",
+                ""
+              );
+            }
+            bodyParts.push(`[Full workflow run](${upstreamUrl})`);
+            const body = bodyParts.join("\n");
+
+            // Find existing marker comment so subsequent runs upsert in place.
+            // Paginate via `paginate` so a long-running PR with >100 comments
+            // still locates the marker — otherwise we'd silently create a
+            // duplicate every push past the 100-comment ceiling.
+            const allComments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                per_page: 100,
+              }
+            );
+            const existing = allComments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+              core.info(`updated comment ${existing.id} on PR #${pr}`);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                body,
+              });
+              core.info(`created new comment on PR #${pr}`);
+            }
