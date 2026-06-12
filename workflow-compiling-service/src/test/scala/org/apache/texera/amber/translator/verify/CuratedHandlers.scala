@@ -22,6 +22,12 @@ package org.apache.texera.amber.translator.verify
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.aggregate.{
+  AggregateOpDesc,
+  AggregationFunction,
+  AggregationOperation
+}
+import org.apache.texera.amber.operator.dictionary.{DictionaryMatcherOpDesc, MatchingType}
 import org.apache.texera.amber.operator.difference.DifferenceOpDesc
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
@@ -30,6 +36,7 @@ import org.apache.texera.amber.operator.filter.{
 }
 import org.apache.texera.amber.operator.hashJoin.{HashJoinOpDesc, JoinType}
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 
@@ -58,7 +65,10 @@ object CuratedHandlers {
     DifferenceTransformHandler,
     SymmetricDifferenceTransformHandler,
     HashJoinTransformHandler,
-    SortTransformHandler
+    SortTransformHandler,
+    AggregateTransformHandler,
+    DictionaryMatcherTransformHandler,
+    ProjectionTransformHandler
   )
 
   val byClass: Map[Class[_ <: LogicalOp], TransformHandler] =
@@ -232,6 +242,60 @@ object HashJoinTransformHandler extends TransformHandler {
     desc.joinType = JoinType.INNER
 
     (desc, Map(PortIdentity(0) -> buildPath, PortIdentity(1) -> probePath))
+  }
+}
+
+/** Aggregate: the harness runs the JVM path (getPhysicalPlan) before
+  *  standalone codegen, and getPhysicalPlan mutates `aggregations` via
+  *  getFinal, setting attribute := resultAttribute — auto-config's free-form
+  *  resultAttribute "1" then leaks into the generated pandas as a column ref
+  *  (KeyError). Choosing resultAttribute == attribute makes the mutation a
+  *  no-op. Emit-order policy (hash-partition vs first-occurrence) lives in
+  *  [[TransformVerificationRunner.orderInsensitiveOps]]. */
+object AggregateTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[AggregateOpDesc]
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val desc = new AggregateOpDesc()
+    val agg = new AggregationOperation()
+    agg.aggFunction = AggregationFunction.SUM
+    agg.attribute = "score"
+    agg.resultAttribute = "score" // must equal attribute; see scaladoc
+    desc.aggregations = List(agg)
+    desc.groupByKeys = List("name")
+    (desc, CanonicalFixture.writeInputs(testRoot, 1))
+  }
+}
+
+/** DictionaryMatcher: auto-config autofills the canonical fixture's first
+  *  column (`id`, INTEGER) into `attribute`, but DictionaryMatcherOpExec
+  *  casts that field to String (ClassCastException). Point it at `name` with
+  *  a dictionary matching a strict subset of rows. Map op — both paths keep
+  *  input row order, so strict positional comparison holds. */
+object DictionaryMatcherTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[DictionaryMatcherOpDesc]
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val desc = new DictionaryMatcherOpDesc()
+    desc.dictionary = "alice,bob,zelda" // alice/bob recur in the fixture; zelda never matches
+    desc.attribute = "name"
+    desc.resultAttribute = "matched"
+    desc.matchingType = MatchingType.SCANBASED
+    (desc, CanonicalFixture.writeInputs(testRoot, 1))
+  }
+}
+
+/** Projection: `attributes` carries no @JsonProperty, so the auto-config tier
+  *  leaves it empty and ProjectionOpExec rejects the empty list
+  *  (Preconditions.checkArgument). Keep two columns, renaming one, to
+  *  exercise both select and alias. Map op — strict order holds. */
+object ProjectionTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[ProjectionOpDesc]
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val desc = new ProjectionOpDesc()
+    desc.attributes = List(
+      new AttributeUnit("id", ""),
+      new AttributeUnit("score", "points")
+    )
+    (desc, CanonicalFixture.writeInputs(testRoot, 1))
   }
 }
 

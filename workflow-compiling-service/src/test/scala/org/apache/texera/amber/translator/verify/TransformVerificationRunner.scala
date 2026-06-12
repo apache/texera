@@ -25,9 +25,17 @@ import org.apache.texera.amber.operator.{
   PythonOperatorDescriptor,
   StandaloneCodeGenerator
 }
+import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
+import org.apache.texera.amber.operator.cartesianProduct.CartesianProductOpDesc
 import org.apache.texera.amber.operator.difference.DifferenceOpDesc
+import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
+import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
+import org.apache.texera.amber.operator.randomksampling.RandomKSamplingOpDesc
+import org.apache.texera.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
+import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
 
@@ -56,7 +64,10 @@ object TransformVerificationRunner {
     classOf[IntersectOpDesc],           // mutable.HashSet emit order
     classOf[DifferenceOpDesc],          // leftHashSet.diff iterator order
     classOf[SymmetricDifferenceOpDesc], // union of two hash-set diffs
-    classOf[HashJoinOpDesc[_]]          // build-map bucket order vs pd.merge
+    classOf[HashJoinOpDesc[_]],         // build-map bucket order vs pd.merge
+    classOf[CartesianProductOpDesc],    // JVM emits per arriving right tuple × stored left (right-major) vs pandas cross-merge left-major
+    classOf[IntervalJoinOpDesc],        // streaming emit per arriving tuple against opposite-side buffer (port-interleaving order) vs pandas batch left-major
+    classOf[AggregateOpDesc]            // hash-partitioned group emit order vs groupby(sort=False) first-occurrence order
   )
 
   /** Triaged, explicitly-not-run operators: class → honest reason, shown in
@@ -64,7 +75,27 @@ object TransformVerificationRunner {
   val knownIssues: Map[Class[_], String] = Map(
     classOf[UnionOpDesc] ->
       ("variadic input port: generateStandaloneCode assumes exactly 2 " +
-        "upstream links but operatorInfo declares a single multi-link port")
+        "upstream links but operatorInfo declares a single multi-link port"),
+    classOf[DummyOpDesc] ->
+      ("harness gap: placeholder operator with no physical execution — " +
+        "LogicalOp.getPhysicalOp throws NotImplementedError"),
+    classOf[IfOpDesc] ->
+      ("harness gap: the Condition port carries State in live Texera; the " +
+        "harness can only feed tuple tables, which IfOpExec forwards to the " +
+        "active output (condition rows + data rows) while the standalone " +
+        "translation deliberately ignores condition-port data"),
+    classOf[RandomKSamplingOpDesc] ->
+      ("non-deterministic: per-row keep decisions from JVM java.util.Random " +
+        "(LCG) vs Python's Mersenne Twister select different rows even with " +
+        "equal seeds"),
+    classOf[ReservoirSamplingOpDesc] ->
+      ("non-deterministic: reservoir replacement indices from JVM " +
+        "java.util.Random (LCG) vs Python's Mersenne Twister diverge even " +
+        "with equal seeds"),
+    classOf[SplitOpDesc] ->
+      ("non-deterministic: random partition mask from scala.util.Random " +
+        "(LCG) vs numpy RandomState (Mersenne Twister) diverges even with " +
+        "equal seeds")
   )
 
   sealed trait Disposition
