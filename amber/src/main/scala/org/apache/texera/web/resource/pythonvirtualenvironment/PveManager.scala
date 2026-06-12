@@ -169,7 +169,7 @@ object PveManager extends LazyLogging {
           .foreach(Files.deleteIfExists)
         finally stream.close()
       } catch {
-        case _: Throwable => () // best-effort cleanup
+        case _: Throwable => ()
       }
     }
   }
