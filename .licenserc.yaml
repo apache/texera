@@ -20,6 +20,7 @@ header:
     - '**/LICENSE-binary'
     - '**/LICENSE-binary-*'
     - '**/NOTICE-binary'
+    - '**/NOTICE-binary-*'
     - '.dockerignore'
     - '.gitattributes'
     - '.github/PULL_REQUEST_TEMPLATE'

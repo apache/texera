@@ -42,11 +42,12 @@ import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, WorkflowFI
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.engine.common.virtualidentity.util.SELF
+import org.apache.texera.service.util.LargeBinaryManager
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.{CompletableFuture, LinkedBlockingQueue, TimeUnit}
 
 class DPThreadSpec extends AnyFlatSpec with MockFactory {
 
@@ -238,6 +239,35 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     val logs = logStorage.getReader("tmpLog").mkRecordIterator().toArray
     logStorage.deleteStorage()
     assert(logs.length > 1)
+  }
+
+  "DP Thread" should "seed the base URI so create() yields execution-scoped keys" in {
+    val eid = 7777L
+    val baseUri = LargeBinaryManager.baseUriForExecution(eid)
+    // create() runs on the DP thread; capture what it produces there.
+    val capturedUri = new CompletableFuture[String]()
+    val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    dp.executor = new OperatorExecutor {
+      override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+        capturedUri.complete(LargeBinaryManager.create())
+        Iterator.empty
+      }
+    }
+    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
+    dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
+    dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
+    (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
+    val dpThread = new DPThread(workerId, dp, logManager, inputQueue, baseUri)
+    dpThread.start()
+    inputQueue.put(
+      FIFOMessageElement(WorkflowFIFOMessage(dataChannelId, 0, DataFrame(Array(tuples(0)))))
+    )
+
+    val uri = capturedUri.get(5, TimeUnit.SECONDS)
+    assert(uri.startsWith(s"s3://${LargeBinaryManager.DEFAULT_BUCKET}/objects/$eid/"))
+    // a unique suffix is appended to the execution-scoped base URI
+    assert(uri.length > baseUri.length)
   }
 
 }

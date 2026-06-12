@@ -93,6 +93,8 @@ export class WorkflowWebsocketService {
     this.wsWithReconnectSubscription?.unsubscribe();
     this.statusUpdateSubscription?.unsubscribe();
     this.websocket?.complete();
+    // the worker count comes from the live connection; reset it once the socket is gone
+    this.numWorkers = -1;
     this.updateConnectionStatus(false);
   }
 
