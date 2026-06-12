@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.lang3.SystemUtils
 import org.apache.texera.amber.config.PythonUtils
 
 import java.nio.file.{Files, Path, Paths}
@@ -60,8 +61,16 @@ object PveManager extends LazyLogging {
   private def pveDir(cuid: Int, pveName: String): Path =
     cuidDir(cuid, pveName).resolve("pve")
 
+  // Resolves the Python interpreter inside a venv. POSIX puts it at
+  // `<venv>/bin/python`; Windows puts it at `<venv>/Scripts/python.exe`.
+  private def venvPython(venvDir: Path): Path =
+    if (SystemUtils.IS_OS_WINDOWS)
+      venvDir.resolve("Scripts").resolve("python.exe")
+    else
+      venvDir.resolve("bin").resolve("python")
+
   private def pythonBinPath(cuid: Int, pveName: String): Path =
-    pveDir(cuid, pveName).resolve("bin").resolve("python")
+    venvPython(pveDir(cuid, pveName))
 
   /*
    * Validates the PVE name and returns the Python binary path if it exists,
@@ -112,7 +121,7 @@ object PveManager extends LazyLogging {
 
     val tempVenv = Files.createTempDirectory("texera-system-venv-")
     try {
-      val python = tempVenv.resolve("bin").resolve("python").toString
+      val python = venvPython(tempVenv).toString
       val createCode =
         Process(Seq(PythonUtils.getPythonExecutable, "-m", "venv", tempVenv.toString)).!
       if (createCode != 0) {
