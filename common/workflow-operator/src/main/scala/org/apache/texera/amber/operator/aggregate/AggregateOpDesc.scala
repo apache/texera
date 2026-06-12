@@ -29,14 +29,14 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNameList
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.{NotNull, Size}
 
-class AggregateOpDesc extends LogicalOp {
+class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
   @JsonProperty(value = "aggregations", required = true)
   @JsonPropertyDescription("multiple aggregation functions")
   @NotNull(message = "aggregation cannot be null")
@@ -129,4 +129,120 @@ class AggregateOpDesc extends LogicalOp {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+
+  // JVM splits this into a partial+final two-phase plan (HashPartition on
+  // groupByKeys, distributed reduce per AggregationOperation.getAggFunc). The
+  // standalone equivalent runs in a single process, so we collapse to one
+  // pandas groupby (or a single-row reduction when groupByKeys is empty).
+  //
+  // Per-function mapping mirrors AggregationOperation:
+  //   SUM     -> Series.sum   |  AVERAGE -> Series.mean
+  //   MIN/MAX -> Series.min/max
+  //   COUNT   -> Series.count (non-null) when attribute is set,
+  //              groupby.size / len() when attribute is null/empty
+  //   CONCAT  -> custom _texera_agg_concat (matches the JVM quirk where
+  //              leading-null streaks are dropped but mid-stream nulls
+  //              become empty positions in the comma-separated string)
+  //
+  // Known divergences:
+  //   * Row order: JVM emits in hash-partition order; pandas
+  //     groupby(..., sort=False) emits in first-occurrence order. Use a
+  //     harness that order-normalizes both sides before comparing.
+  //   * Floating-point AVERAGE may differ in the last ULP because JVM does
+  //     partial sum/count first, then divides, whereas pandas computes mean
+  //     in one pass. compare.py's rtol=1e-5 absorbs this.
+  //
+  // Note: AggregateOpDesc.getPhysicalPlan() mutates `aggregations` via
+  // `getFinal` (COUNT -> SUM). This generator reads `aggregations` directly,
+  // so it MUST be invoked before getPhysicalPlan on the same instance. The
+  // current translator calls it in that order; PyOpExecHarness-style runners
+  // that call getPhysicalPlan first need to capture this code earlier.
+  override def generateStandaloneCode(): String = {
+    val keys = Option(groupByKeys).getOrElse(List())
+    val aggs = Option(aggregations).getOrElse(List())
+
+    // Identical helper definition each call — keeps the standalone module
+    // self-contained without relying on a shared prelude.
+    val concatHelper =
+      """def _texera_agg_concat(series):
+        |    parts = []
+        |    started = False
+        |    for v in series:
+        |        if not started:
+        |            if pd.isna(v):
+        |                continue
+        |            parts.append(str(v))
+        |            started = True
+        |        else:
+        |            parts.append("" if pd.isna(v) else str(v))
+        |    return ",".join(parts)""".stripMargin
+
+    if (keys.isEmpty) {
+      val rowEntries = aggs
+        .map(agg =>
+          s"    ${toPyDoubleQuotedLiteral(agg.resultAttribute)}: ${aggExprScalar(agg)},"
+        )
+        .mkString("\n")
+      s"""$concatHelper
+         |out1df = pd.DataFrame([{
+         |$rowEntries
+         |}])""".stripMargin
+    } else {
+      val keysLit = keys.map(toPyDoubleQuotedLiteral).mkString("[", ", ", "]")
+      val aggLines = aggs.zipWithIndex
+        .map {
+          case (agg, i) =>
+            s"_texera_agg_s$i = ${aggExprGroupby(agg, "_texera_agg_groups")}"
+        }
+        .mkString("\n")
+      val mergeLines = aggs.indices
+        .map(i =>
+          s"out1df = out1df.merge(_texera_agg_s$i.reset_index(), on=$keysLit, how=\"left\")"
+        )
+        .mkString("\n")
+      s"""$concatHelper
+         |_texera_agg_groups = in1df.groupby($keysLit, dropna=False, sort=False)
+         |out1df = in1df[$keysLit].drop_duplicates().reset_index(drop=True)
+         |$aggLines
+         |$mergeLines""".stripMargin
+    }
+  }
+
+  private def aggExprScalar(agg: AggregationOperation): String = {
+    val attrLit =
+      if (agg.attribute == null || agg.attribute.isEmpty) "None"
+      else toPyDoubleQuotedLiteral(agg.attribute)
+    agg.aggFunction match {
+      case AggregationFunction.SUM     => s"in1df[$attrLit].sum()"
+      case AggregationFunction.AVERAGE => s"in1df[$attrLit].mean()"
+      case AggregationFunction.MIN     => s"in1df[$attrLit].min()"
+      case AggregationFunction.MAX     => s"in1df[$attrLit].max()"
+      case AggregationFunction.COUNT =>
+        if (agg.attribute == null || agg.attribute.isEmpty) "int(len(in1df))"
+        else s"int(in1df[$attrLit].count())"
+      case AggregationFunction.CONCAT => s"_texera_agg_concat(in1df[$attrLit])"
+    }
+  }
+
+  private def aggExprGroupby(agg: AggregationOperation, groups: String): String = {
+    val attrLit =
+      if (agg.attribute == null || agg.attribute.isEmpty) "None"
+      else toPyDoubleQuotedLiteral(agg.attribute)
+    val resultLit = toPyDoubleQuotedLiteral(agg.resultAttribute)
+    agg.aggFunction match {
+      case AggregationFunction.SUM     => s"$groups[$attrLit].sum().rename($resultLit)"
+      case AggregationFunction.AVERAGE => s"$groups[$attrLit].mean().rename($resultLit)"
+      case AggregationFunction.MIN     => s"$groups[$attrLit].min().rename($resultLit)"
+      case AggregationFunction.MAX     => s"$groups[$attrLit].max().rename($resultLit)"
+      case AggregationFunction.COUNT =>
+        if (agg.attribute == null || agg.attribute.isEmpty)
+          s"$groups.size().rename($resultLit)"
+        else s"$groups[$attrLit].count().rename($resultLit)"
+      case AggregationFunction.CONCAT =>
+        s"$groups[$attrLit].apply(_texera_agg_concat).rename($resultLit)"
+    }
+  }
+
+  private def toPyDoubleQuotedLiteral(s: String): String =
+    "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
