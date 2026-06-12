@@ -24,10 +24,8 @@
 #
 # On pull requests, the author can request or cancel reviewer requests
 # via `/request-review @user [@user ...]` and `/unrequest-review @user
-# [@user ...]`. If `/request-review` is used without mentions, the job
-# falls back to git blame on changed files to auto-detect reviewers. We
-# avoid the `/review` namespace so it stays free for future use (e.g.
-# self-review).
+# [@user ...]`. We avoid the `/review` namespace so it stays free for 
+# future use (e.g. self-review).
 #
 # On PR open/update, the `suggest-reviewers` job automatically runs
 # `git blame` on every changed file and posts (or edits) a single
