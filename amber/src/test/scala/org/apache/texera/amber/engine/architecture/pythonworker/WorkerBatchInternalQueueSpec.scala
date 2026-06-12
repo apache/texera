@@ -236,7 +236,7 @@ class WorkerBatchInternalQueueSpec extends AnyFlatSpec {
     q.enqueueData(DataElement(f2, s2))
     assert(q.getQueuedCredit(s1) == f1.inMemSize)
     assert(q.getQueuedCredit(s2) == f2.inMemSize)
-    // Drain only s1 by reading both items (FIFO within data queue).
+    // Drain only s1 by reading the first item (FIFO within data queue).
     q.getElement // s1's frame
     assert(q.getQueuedCredit(s1) == 0L)
     assert(
