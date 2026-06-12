@@ -93,7 +93,7 @@ class OutputManager:
         ] = dict()
 
         # Loop-end operators have a single output port; remember its base
-        # URI so `reset_loopend_storage` can re-provision the iceberg
+        # URI so `reset_output_storage` can re-provision the iceberg
         # tables on each loop iteration.
         self._storage_uri_base: typing.Optional[str] = None
 
@@ -138,7 +138,7 @@ class OutputManager:
         state materialization on the same port. `storage_uri_base` is the
         port's base URI; the result and state URIs are derived from it.
         """
-        # Remember the base URI so `reset_loopend_storage` can re-provision
+        # Remember the base URI so `reset_output_storage` can re-provision
         # the iceberg tables on subsequent loop iterations.
         self._storage_uri_base = storage_uri_base
         document, _ = DocumentFactory.open_document(
@@ -234,8 +234,39 @@ class OutputManager:
         elif port_id in self._port_state_writers:
             self._port_state_writers[port_id][0].put(element)
 
-    def reset_storage(self) -> None:
-        port_id = self.get_port_ids()[0]
+    def reset_output_storage(self) -> None:
+        """Drop and recreate this operator's result and state tables, then
+        reopen the storage writers against the empty tables.
+
+        Called only by a Loop End worker, once per loop iteration (see the
+        ``LoopEndOperator`` branch in ``MainLoop.process_input_state``). Each
+        iteration must start from empty tables so the materialization the
+        downstream eventually reads holds only the final iteration's rows
+        rather than every iteration's rows concatenated.
+
+        Truncating live storage is safe here because a workflow containing a
+        loop runs in MATERIALIZED execution mode: downstream operators do not
+        start reading this output until the loop region has fully completed,
+        so no reader can observe an intermediate truncation.
+
+        Preconditions (always satisfied by a Loop End worker): the operator
+        has exactly one output port, and ``set_up_port_storage_writer`` has
+        already run for it (so ``_storage_uri_base`` is populated). Both are
+        checked so future misuse fails loudly instead of silently resetting
+        the wrong port or dereferencing ``None``.
+        """
+        port_ids = self.get_port_ids()
+        if len(port_ids) != 1:
+            raise RuntimeError(
+                f"reset_output_storage expects exactly one output port, "
+                f"but found {len(port_ids)}"
+            )
+        if self._storage_uri_base is None:
+            raise RuntimeError(
+                "reset_output_storage called before the output port's storage "
+                "writer was set up"
+            )
+        port_id = port_ids[0]
         storage_uri_base = self._storage_uri_base
         self.close_port_storage_writers()
         DocumentFactory.create_document(

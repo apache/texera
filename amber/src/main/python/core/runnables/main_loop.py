@@ -264,7 +264,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if output_state is not None:
             executor = self.context.executor_manager.executor
             if isinstance(executor, LoopEndOperator):
-                self.context.output_manager.reset_storage()
+                self.context.output_manager.reset_output_storage()
             elif isinstance(executor, LoopStartOperator):
                 # A LoopStart stamps its own id/uri onto the state it emits.
                 (
