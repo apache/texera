@@ -229,12 +229,17 @@ jobs:
           sbt scalafmtCheckAll \
               "scalafixAll --check" \
               WorkflowExecutionService/dist
-      - name: Unzip amber dist and check binary licenses
-        # Per-module LICENSE-binary files live at the repo root after #4668;
-        # the amber JVM dist is checked against amber/LICENSE-binary-java.
-        # The audit always runs (mirroring the previous 'if: always()' on its
-        # own step) and never fails the step; the binding check's exit code
-        # drives it.
+      - name: Unzip amber dist and check binary LICENSE + NOTICE
+        # Per-module LICENSE-binary files live at the repo root after #4668.
+        # One step covers the amber dist's third-party content end to end:
+        #   * LICENSE-binary-java  — check bundled jars against the claimed
+        #     licenses (audit always runs and never fails the step);
+        #   * NOTICE-binary        — regenerate from the same unzipped lib dir
+        #     via generate_notice_binary.py (plus amber/NOTICE-binary-python for
+        #     the non-jar python attributions) and diff against the committed
+        #     file. Drift means a dep changed without rerunning the generator —
+        #     fix by running:
+        #       ./bin/licensing/generate_notice_binary.py amber/NOTICE-binary /tmp/dists/amber-*/lib --extras amber/NOTICE-binary-python
         run: |
           set -euo pipefail
           mkdir -p /tmp/dists
@@ -245,6 +250,12 @@ jobs:
             --license-binary amber/LICENSE-binary-java \
             /tmp/dists/amber-*/lib || check_exit=$?
           ./bin/licensing/audit_jar_licenses.py /tmp/dists/amber-*/lib || true
+
+          ./bin/licensing/generate_notice_binary.py /tmp/notice-amber.txt /tmp/dists/amber-*/lib --extras amber/NOTICE-binary-python
+          if ! diff -u amber/NOTICE-binary /tmp/notice-amber.txt; then
+            echo "::error::amber/NOTICE-binary differs from generator output. Regenerate with bin/licensing/generate_notice_binary.py and commit."
+            check_exit=1
+          fi
           exit "$check_exit"
       - name: Create texera_db_for_test_cases
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
@@ -589,9 +600,16 @@ jobs:
         # Single sbt invocation so dist + test share compiled state. Use
         # `jacoco` so the codecov upload step has a report to pick up.
         run: sbt "${{ matrix.sbt_project }}/dist" "${{ matrix.sbt_project }}/jacoco"
-      - name: Unzip ${{ matrix.service }} dist and check binary licenses
-        # Each platform service has its own LICENSE-binary at the repo root
-        # after #4668; check this service's dist against just its own file.
+      - name: Unzip ${{ matrix.service }} dist and check binary LICENSE + NOTICE
+        # Each platform service has its own LICENSE-binary / NOTICE-binary at
+        # the repo root after #4668. One step covers both for this service's
+        # dist:
+        #   * LICENSE-binary  — check bundled jars against the claimed licenses
+        #     (audit always runs and never fails the step);
+        #   * NOTICE-binary   — regenerate from the same unzipped lib dir via
+        #     generate_notice_binary.py and diff against the committed file.
+        #     Drift means a dep changed without rerunning the generator — fix:
+        #       ./bin/licensing/generate_notice_binary.py ${{ matrix.service }}/NOTICE-binary /tmp/dists/${{ matrix.service }}-*/lib
         run: |
           set -euo pipefail
           mkdir -p /tmp/dists
@@ -602,6 +620,12 @@ jobs:
             --license-binary ${{ matrix.service }}/LICENSE-binary \
             /tmp/dists/${{ matrix.service }}-*/lib || check_exit=$?
           ./bin/licensing/audit_jar_licenses.py /tmp/dists/${{ matrix.service }}-*/lib || true
+
+          ./bin/licensing/generate_notice_binary.py /tmp/notice-${{ matrix.service }}.txt /tmp/dists/${{ matrix.service }}-*/lib
+          if ! diff -u ${{ matrix.service }}/NOTICE-binary /tmp/notice-${{ matrix.service }}.txt; then
+            echo "::error::${{ matrix.service }}/NOTICE-binary differs from generator output. Regenerate with bin/licensing/generate_notice_binary.py and commit."
+            check_exit=1
+          fi
           exit "$check_exit"
       - name: Upload ${{ matrix.service }} coverage to Codecov
         # Per-service flag so each matrix entry has its own Codecov view

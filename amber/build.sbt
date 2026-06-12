@@ -62,6 +62,13 @@ Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "
 // AMBER_TEST_FILTER env var below routes which tagged subset runs.
 Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "test" / "integration"
 
+// `amber/src/bench` holds performance benchmarks (no pass/fail assertion;
+// emit metrics for the github-action-benchmark CI dashboard). Kept out of
+// `src/test/` so reviewers don't conflate "runs in test suite" with "is a
+// test". Same Test-scope wiring as `integration/` above so scalafmt /
+// scalafix still cover it and `sbt Test/runMain` can invoke benches.
+Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "bench" / "scala"
+
 // Test-filter switch driven by the AMBER_TEST_FILTER env var so the
 // amber and amber-integration CI jobs select disjoint subsets without
 // each invocation having to embed a `set Tests.Argument(...)` prefix.
