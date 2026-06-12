@@ -62,9 +62,19 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers {
     val name = opClass.getSimpleName
 
     if (classOf[PythonOperatorDescriptor].isAssignableFrom(opClass)) {
-      name should "be verified by a Python-worker harness (not yet built)" ignore {
-        // Out of scope: OpExecHarness rejects OpExecWithCode. Needs a
-        // separate path that drives a real Python worker.
+      // Python-native ops are driven by PyOpExecHarness (via the
+      // py_op_driver subprocess) instead of OpExecHarness. Per-category
+      // dispatch mirrors the JVM side: sources would go through a future
+      // Python source runner; everything else routes to the transform
+      // runner if a handler exists for it.
+      if (PythonTransformCategoryRunner.canRun(opClass)) {
+        name should "produce equivalent output in Texera and standalone Python (python-native transform)" in {
+          PythonTransformCategoryRunner.run(opClass)
+        }
+      } else {
+        name should "be verified once a TransformHandler is registered" ignore {
+          // To enable: add a TransformHandler in PythonTransformCategoryRunner.
+        }
       }
     } else if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass)) {
       if (SourceCategoryRunner.canRun(opClass)) {
