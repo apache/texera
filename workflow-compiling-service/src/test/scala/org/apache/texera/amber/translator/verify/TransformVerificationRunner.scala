@@ -1,0 +1,158 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.translator.verify
+
+import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.operator.{
+  LogicalOp,
+  PythonOperatorDescriptor,
+  StandaloneCodeGenerator
+}
+import org.apache.texera.amber.operator.difference.DifferenceOpDesc
+import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
+import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
+import org.apache.texera.amber.operator.union.UnionOpDesc
+
+import java.nio.file.{Files, Path}
+import scala.util.{Failure, Success, Try}
+
+/**
+  * Unified verification runner for non-source operators implementing
+  * [[StandaloneCodeGenerator]]. Resolves, per operator:
+  *   - Path A engine: [[PyOpExecHarness]] for PythonOperatorDescriptor,
+  *     [[OpExecHarness]] otherwise; Path B is always [[StandaloneRunner]].
+  *   - Config + fixture: curated handler ([[CuratedHandlers]]) if registered,
+  *     else [[ConfigGenerator]] against the [[CanonicalFixture]] schemas.
+  *   - Comparison: strict positional unless the class is in
+  *     [[orderInsensitiveOps]]; all declared output ports are compared.
+  * Operators that can't be run are Flagged with a reason — never silently
+  * skipped.
+  */
+object TransformVerificationRunner {
+
+  /** Ops whose two paths legitimately emit the same rows in different orders
+    * (JVM hash-bucket iteration vs pandas order). Comparator lex-sorts both
+    * sides — a deliberate weakening; only add a class here with a justifying
+    * comment. */
+  val orderInsensitiveOps: Set[Class[_]] = Set(
+    classOf[IntersectOpDesc],           // mutable.HashSet emit order
+    classOf[DifferenceOpDesc],          // leftHashSet.diff iterator order
+    classOf[SymmetricDifferenceOpDesc], // union of two hash-set diffs
+    classOf[HashJoinOpDesc[_]]          // build-map bucket order vs pd.merge
+  )
+
+  /** Triaged, explicitly-not-run operators: class → honest reason, shown in
+    * the test report and coverage table. */
+  val knownIssues: Map[Class[_], String] = Map(
+    classOf[UnionOpDesc] ->
+      ("variadic input port: generateStandaloneCode assumes exactly 2 " +
+        "upstream links but operatorInfo declares a single multi-link port")
+  )
+
+  sealed trait Disposition
+  final case class Runnable(tier: String) extends Disposition // "auto" | "curated"
+  final case class Flagged(reason: String) extends Disposition
+
+  /** Static classification — cheap (reflection only, no subprocesses), called
+    * at spec construction time to decide test-vs-ignore. */
+  def disposition(opClass: Class[_ <: LogicalOp]): Disposition =
+    knownIssues.get(opClass) match {
+      case Some(reason) => Flagged(s"known issue: $reason")
+      case None =>
+        Try(opClass.getDeclaredConstructor().newInstance()) match {
+          case Failure(e) => Flagged(s"cannot instantiate: ${e.getMessage}")
+          case Success(op: StandaloneCodeGenerator) =>
+            if (!op.producesDataFrame())
+              Flagged("visualization: no DataFrame output to compare")
+            else if (CuratedHandlers.byClass.contains(opClass))
+              Runnable("curated")
+            else
+              ConfigGenerator.generate(opClass, CanonicalFixture.schemasByPort) match {
+                case Left(reason) => Flagged(s"cannot auto-configure: $reason")
+                case Right(configured) =>
+                  Try(configured.operatorInfo.inputPorts.size) match {
+                    case Failure(e) =>
+                      Flagged(s"operatorInfo failed on generated config: ${e.getMessage}")
+                    case Success(n) if n < 1 || n > 2 =>
+                      Flagged(s"unsupported input port count: $n")
+                    case Success(_) => Runnable("auto")
+                  }
+              }
+          case Success(_) =>
+            Flagged("does not implement StandaloneCodeGenerator")
+        }
+    }
+
+  /** Execute both paths and assert parity on every declared output port.
+    * Precondition: disposition(opClass) returned Runnable. */
+  def run(opClass: Class[_ <: LogicalOp]): Unit = {
+    val testRoot = Files.createTempDirectory(s"verify-${opClass.getSimpleName}-")
+
+    val (opDesc, inputs) = CuratedHandlers.byClass.get(opClass) match {
+      case Some(handler) => handler.fixture(testRoot)
+      case None =>
+        val configured = ConfigGenerator
+          .generate(opClass, CanonicalFixture.schemasByPort)
+          .fold(
+            reason => throw new IllegalStateException(s"cannot auto-configure: $reason"),
+            identity
+          )
+        val inputPortCount = configured.operatorInfo.inputPorts.size
+        (configured, CanonicalFixture.writeInputs(testRoot, inputPortCount))
+    }
+
+    val outputPortCount = opDesc.operatorInfo.outputPorts.size
+    val actualDir = testRoot.resolve("actual")
+    Files.createDirectories(actualDir)
+
+    val pathAOutputs: Map[PortIdentity, Path] =
+      if (classOf[PythonOperatorDescriptor].isAssignableFrom(opClass))
+        PyOpExecHarness.execute(opDesc, inputs = inputs, outputDir = actualDir).outputs
+      else
+        OpExecHarness.execute(opDesc, inputs = inputs, outputDir = actualDir).outputs
+
+    // StandaloneRunner keys inputs by 1-based port index (the inNdf convention).
+    val standaloneInputs: Map[Int, Path] =
+      inputs.toSeq.sortBy(_._1.id).zipWithIndex.map {
+        case ((_, path), idx) => (idx + 1) -> path
+      }.toMap
+
+    val pathB = StandaloneRunner.run(
+      opDesc = opDesc,
+      inputs = standaloneInputs,
+      outputPortCount = outputPortCount,
+      workDir = testRoot
+    )
+
+    val orderSensitive = !orderInsensitiveOps.contains(opClass)
+    (0 until outputPortCount).foreach { port =>
+      val actual = pathAOutputs.getOrElse(
+        PortIdentity(port),
+        throw new AssertionError(s"Texera path produced no output for port $port")
+      )
+      val expected = pathB.outputs.getOrElse(
+        port + 1,
+        throw new AssertionError(s"standalone path produced no output for port $port")
+      )
+      Comparator.assertEqual(actual, expected, orderSensitive = orderSensitive)
+    }
+  }
+}
