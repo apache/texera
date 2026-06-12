@@ -116,7 +116,7 @@ jobs:
             const nonCommitterCounts = new Map(); // non-collaborators with a GitHub login
 
             for (const { filename, status } of files) {
-              if (status === 'removed') continue;
+              if (status === 'removed' || status === 'added') continue;
 
               let blameOutput;
               try {
