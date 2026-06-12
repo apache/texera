@@ -98,8 +98,10 @@ object JSONUtils {
       val current = entry._1
       val currentParent = entry._2
       if (current.isObject) {
-        for (key <- current.fieldNames().asScala) {
-          val child: JsonNode = current.get(key)
+        // Iterate entries (key + value) to avoid a second lookup per field.
+        for (entry <- current.fields().asScala) {
+          val key = entry.getKey
+          val child: JsonNode = entry.getValue
           val absoluteKey = (if (currentParent.nonEmpty) currentParent + "." else "") + key
           if (flatten && (child.isObject || child.isArray)) {
             stack.push((child, absoluteKey))
