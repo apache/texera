@@ -22,7 +22,7 @@ import pyarrow
 import struct
 import typing
 from collections import OrderedDict
-from copy import deepcopy
+from copy import deepcopy as _deepcopy
 from loguru import logger
 from pandas._libs.missing import checknull
 from pympler import asizeof
@@ -230,43 +230,25 @@ class Tuple:
 
     def as_series(self) -> pandas.Series:
         """Convert the tuple to Pandas series format"""
-        return pandas.Series(self.copy())
+        return pandas.Series(self.as_dict())
 
     def _evaluate_all_fields(self) -> None:
         # resolve any lazy field accessors in place
         for i in self.get_field_names():
             self.__getitem__(i)
 
-    def copy(self) -> "OrderedDict[str, Field]":
+    def as_dict(self, deepcopy: bool = False) -> "OrderedDict[str, Field]":
         """
-        Return a shallow copy of this tuple's field data.
-        Fields will be fetched from accessor if absent.
+        Return this tuple's field data as a dict, fetching lazy fields first.
 
-        The dict is independent (keys may be added/removed/reassigned) but field
-        values are shared by reference. Safe because the tuple only reassigns
-        field slots, never mutates a value in place; avoids per-read deepcopy
-        cost for tuples carrying large field values. Use ``as_dict`` when value
-        isolation is required.
-
+        :param deepcopy: if True, deep copy values; else shallow copy (default)
         :return: dict with all the fields
         """
         self._evaluate_all_fields()
-        return self._field_data.copy()
-
-    def as_dict(self) -> "OrderedDict[str, Field]":
-        """
-        Return a deep copy of this tuple's field data.
-        Fields will be fetched from accessor if absent.
-
-        Use ``copy`` instead on hot paths where field values are not mutated.
-
-        :return: dict with all the fields
-        """
-        self._evaluate_all_fields()
-        return deepcopy(self._field_data)
+        return _deepcopy(self._field_data) if deepcopy else self._field_data.copy()
 
     def as_key_value_pairs(self) -> List[typing.Tuple[str, Field]]:
-        return [(k, v) for k, v in self.copy().items()]
+        return [(k, v) for k, v in self.as_dict().items()]
 
     def get_serialized_field(self, field_name: str) -> Field:
         """
