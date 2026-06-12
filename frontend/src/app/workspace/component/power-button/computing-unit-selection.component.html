@@ -472,40 +472,28 @@
         </ng-template>
         <nz-collapse-panel [nzHeader]="systemHeaderTpl">
           <div class="system-panel-inner">
-            <div
-              *ngIf="systemPackagesLoading"
-              class="system-loading">
-              <span
-                nz-icon
-                nzType="loading"
-                nzTheme="outline"></span>
-              Fetching system packages…
+            <div class="package-header-row">
+              <div class="package-column-label">Package</div>
+              <div class="package-column-label">Version</div>
             </div>
 
-            <ng-container *ngIf="!systemPackagesLoading">
-              <div class="package-header-row">
-                <div class="package-column-label">Package</div>
-                <div class="package-column-label">Version</div>
-              </div>
+            <div
+              *ngFor="let pkg of systemPackages"
+              class="package-row system-row">
+              <div class="system-package-inputs">
+                <input
+                  nz-input
+                  class="system-input"
+                  [disabled]="true"
+                  [ngModel]="pkg.name" />
 
-              <div
-                *ngFor="let pkg of systemPackages"
-                class="package-row system-row">
-                <div class="system-package-inputs">
-                  <input
-                    nz-input
-                    class="system-input"
-                    [disabled]="true"
-                    [ngModel]="pkg.name" />
-
-                  <input
-                    nz-input
-                    class="system-input"
-                    [disabled]="true"
-                    [ngModel]="pkg.version" />
-                </div>
+                <input
+                  nz-input
+                  class="system-input"
+                  [disabled]="true"
+                  [ngModel]="pkg.version" />
               </div>
-            </ng-container>
+            </div>
           </div>
         </nz-collapse-panel>
       </nz-collapse>
