@@ -6,8 +6,6 @@
   "type": "module",
   "dependencies": {
     "express": "4.20.0",
-    "hocon-parser": "1.0.1",
-    "hoconjs": "1.0.0",
     "pyright": "1.1.377",
     "typescript": "5.5.4",
     "vscode-languageserver": "9.0.1",
