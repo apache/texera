@@ -21,10 +21,10 @@
  * Shared TestBed configuration for WorkflowEditorComponent specs.
  *
  * The workflow editor has two spec files that drive the same component:
- *   - workflow-editor.component.spec.ts        (jsdom test target)
- *   - workflow-editor.browser.spec.ts          (test-browser target,
- *                                               for JointJS event paths
- *                                               that need real DOM/SVG)
+ *   - workflow-editor.component.spec.ts          (jsdom test target)
+ *   - workflow-editor.component.browser.spec.ts  (test-browser target,
+ *                                                 for JointJS event paths
+ *                                                 that need real DOM/SVG)
  *
  * Both specs configure TestBed with the same set of imports and
  * providers. Exporting the two arrays here keeps them in lock-step so
