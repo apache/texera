@@ -60,6 +60,7 @@ object AccessControlResource extends LazyLogging {
   def authorize(
       uriInfo: UriInfo,
       headers: HttpHeaders,
+      securityContext: SecurityContext,
       bodyOpt: Option[String] = None
   ): Response = {
     val path = uriInfo.getPath
@@ -68,7 +69,7 @@ object AccessControlResource extends LazyLogging {
     path match {
       case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() |
           pveRoute() =>
-        checkComputingUnitAccess(uriInfo, headers, bodyOpt)
+        checkComputingUnitAccess(uriInfo, headers, securityContext, bodyOpt)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
         Response.status(Response.Status.FORBIDDEN).build()
@@ -78,6 +79,7 @@ object AccessControlResource extends LazyLogging {
   private def checkComputingUnitAccess(
       uriInfo: UriInfo,
       headers: HttpHeaders,
+      securityContext: SecurityContext,
       bodyOpt: Option[String]
   ): Response = {
     val queryParams: Map[String, String] = uriInfo
@@ -90,18 +92,6 @@ object AccessControlResource extends LazyLogging {
     logger.info(
       s"Request URI: ${uriInfo.getRequestUri} and headers: ${headers.getRequestHeaders.asScala} and queryParams: $queryParams"
     )
-
-    val token: String = {
-      val qToken = queryParams.get("access-token").filter(_.nonEmpty)
-      val hToken = Option(headers.getRequestHeader("Authorization"))
-        .flatMap(_.asScala.headOption)
-        .map(_.replaceFirst("(?i)^Bearer\\s+", "")) // case-insensitive "Bearer "
-        .map(_.trim)
-        .filter(_.nonEmpty)
-      val bToken = bodyOpt.flatMap(extractTokenFromBody)
-      qToken.orElse(hToken).orElse(bToken).getOrElse("")
-    }
-    logger.info(s"token extracted from request $token")
 
     val cuid = queryParams.get("cuid").filter(_.nonEmpty).getOrElse {
       uriInfo.getPath match {
@@ -121,7 +111,20 @@ object AccessControlResource extends LazyLogging {
     var cuAccess: PrivilegeEnum = PrivilegeEnum.NONE
     var userSession: Optional[SessionUser] = Optional.empty()
     try {
-      userSession = parseToken(token)
+      // The Authorization header is parsed once by JwtAuthFilter, which
+      // installs a SessionUser into the SecurityContext. Reuse it when
+      // present, and only fall back to parsing the query / body token
+      // (which the filter does not see) when no principal is available.
+      val principal = Option(securityContext)
+        .flatMap(sc => Option(sc.getUserPrincipal))
+        .collect { case u: SessionUser => u }
+      userSession = principal match {
+        case Some(user) => Optional.of(user)
+        case None =>
+          val qToken = queryParams.get("access-token").filter(_.nonEmpty)
+          val bToken = bodyOpt.flatMap(extractTokenFromBody)
+          parseToken(qToken.orElse(bToken).getOrElse(""))
+      }
       if (userSession.isEmpty)
         return Response.status(Response.Status.FORBIDDEN).build()
 
@@ -217,9 +220,10 @@ class AccessControlResource extends LazyLogging {
   @Path("/{path:.*}")
   def authorizeGet(
       @Context uriInfo: UriInfo,
-      @Context headers: HttpHeaders
+      @Context headers: HttpHeaders,
+      @Context securityContext: SecurityContext
   ): Response = {
-    AccessControlResource.authorize(uriInfo, headers)
+    AccessControlResource.authorize(uriInfo, headers, securityContext)
   }
 
   @POST
@@ -227,19 +231,26 @@ class AccessControlResource extends LazyLogging {
   def authorizePost(
       @Context uriInfo: UriInfo,
       @Context headers: HttpHeaders,
+      @Context securityContext: SecurityContext,
       body: String
   ): Response = {
     logger.info("Request body: " + body)
-    AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
+    AccessControlResource.authorize(
+      uriInfo,
+      headers,
+      securityContext,
+      Option(body).map(_.trim).filter(_.nonEmpty)
+    )
   }
 
   @DELETE
   @Path("/{path:.*}")
   def authorizeDelete(
       @Context uriInfo: UriInfo,
-      @Context headers: HttpHeaders
+      @Context headers: HttpHeaders,
+      @Context securityContext: SecurityContext
   ): Response = {
-    AccessControlResource.authorize(uriInfo, headers)
+    AccessControlResource.authorize(uriInfo, headers, securityContext)
   }
 }
 
