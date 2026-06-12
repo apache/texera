@@ -85,6 +85,11 @@ object StorageConfig {
     conf.getString("storage.s3.multipart.part-size")
   )
 
+  // Staged file cleanup specifics
+  val cleanupEnabled: Boolean = conf.getBoolean("storage.cleanup.enabled")
+  val cleanupRetentionHours: Int = conf.getInt("storage.cleanup.retention-hours")
+  val cleanupIntervalMinutes: Int = conf.getInt("storage.cleanup.interval-minutes")
+
   // File storage configurations
   val fileStorageDirectoryPath: Path =
     Path
@@ -127,6 +132,11 @@ object StorageConfig {
   val ENV_LAKEFS_AUTH_PASSWORD = "STORAGE_LAKEFS_AUTH_PASSWORD"
   val ENV_LAKEFS_BLOCK_STORAGE_TYPE = "STORAGE_LAKEFS_BLOCK_STORAGE_TYPE"
   val ENV_LAKEFS_BLOCK_STORAGE_BUCKET_NAME = "STORAGE_LAKEFS_BLOCK_STORAGE_BUCKET_NAME"
+
+  // Staged file cleanup
+  val ENV_CLEANUP_ENABLED = "STORAGE_CLEANUP_ENABLED"
+  val ENV_CLEANUP_RETENTION_HOURS = "STORAGE_CLEANUP_RETENTION_HOURS"
+  val ENV_CLEANUP_INTERVAL_MINUTES = "STORAGE_CLEANUP_INTERVAL_MINUTES"
 
   // S3
   val ENV_S3_ENDPOINT = "STORAGE_S3_ENDPOINT"

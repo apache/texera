@@ -44,6 +44,7 @@ import org.apache.texera.service.resource.{
 }
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LargeBinaryManager
+import org.apache.texera.service.util.StagedFileCleanupJob
 import org.eclipse.jetty.server.session.SessionHandler
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
@@ -104,6 +105,18 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)
+
+    // Periodically clean up uploaded but uncommitted (staged) dataset files
+    if (StorageConfig.cleanupEnabled) {
+      environment
+        .lifecycle()
+        .manage(
+          new StagedFileCleanupJob(
+            StorageConfig.cleanupRetentionHours,
+            StorageConfig.cleanupIntervalMinutes
+          )
+        )
+    }
   }
 }
 
