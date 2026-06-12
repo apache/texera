@@ -16,7 +16,7 @@ Migrating notebook code into Texera operators, then wiring those operators with 
 
 ## 2. Example: convert a "tweet analysis" notebook into a workflow
 
-> The [notebook](https://hub.texera.io/user/dataset/124), [dataset](https://hub.texera.io/user/dataset/124) and [workflow](https://hub.texera.io/user/workflow/1162) in this example are available on [TexeraHub](https://hub.texera.io/about).
+> The [notebook](https://hub.texera.io/dashboard/user/dataset/124), [dataset](https://hub.texera.io/dashboard/user/dataset/124) and [workflow](https://hub.texera.io/dashboard/user/workspace/1162) in this example are available on [TexeraHub](https://hub.texera.io/dashboard/about).
 
 ### Notebook Overview
 We will use a Tweet-Analysis notebook to demonstrate the migration process. The notebook has three cells:
@@ -174,17 +174,3 @@ Texera contains more than 110 built-in operators that cover data loading, cleani
 - **Identify the data dependencies in the Python code in order to connect operators**
 
 In Texera, data flows along links. Before wiring operators, review the notebook to understand which variables feed which; then reproduce those dependencies via links so the executions matches the original notebook.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
