@@ -30,7 +30,7 @@
     </changeSet>
 
     <changeSet id="24" author="sarahasad23">
-        <sqlFile path="sql/updates/24.sql/"/>
+        <sqlFile path="sql/updates/24.sql"/>
     </changeSet>
 
     <!-- example changeSet
