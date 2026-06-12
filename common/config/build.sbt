@@ -50,5 +50,6 @@ Compile / scalacOptions ++= Seq(
 
 // Core Dependencies
 libraryDependencies ++= Seq(
-  "com.typesafe" % "config" % "1.4.6" // For configuration management
+  "com.typesafe" % "config" % "1.4.6", // For configuration management
+  "org.scalatest" %% "scalatest" % "3.2.15" % Test // ScalaTest (for unit tests)
 )
