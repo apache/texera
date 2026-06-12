@@ -57,6 +57,12 @@ export function validateToken(token: string): boolean {
   return !isTokenExpired(token);
 }
 
+export function extractBearerToken(header: string | undefined): string | undefined {
+  if (!header) return undefined;
+  const [scheme, token] = header.split(" ");
+  return scheme?.toLowerCase() === "bearer" && token ? token : undefined;
+}
+
 export function createAuthHeaders(token: string): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,

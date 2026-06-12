@@ -31,6 +31,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings._
+import org.apache.texera.service.util.LargeBinaryManager
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
@@ -273,11 +274,15 @@ class SchedulingConfigsSpec extends AnyFlatSpec {
   // WorkerConfig.generateWorkerConfigs
   // ---------------------------------------------------------------------------
 
-  private def physicalOp(parallelizable: Boolean, suggested: Option[Int]): PhysicalOp =
+  private def physicalOp(
+      parallelizable: Boolean,
+      suggested: Option[Int],
+      executionId: ExecutionIdentity = ExecutionIdentity(0)
+  ): PhysicalOp =
     PhysicalOp(
       PhysicalOpIdentity(OperatorIdentity("op"), "main"),
       WorkflowIdentity(0),
-      ExecutionIdentity(0),
+      executionId,
       OpExecInitInfo.Empty,
       parallelizable = parallelizable,
       suggestedWorkerNum = suggested
@@ -307,5 +312,15 @@ class SchedulingConfigsSpec extends AnyFlatSpec {
     val configs =
       WorkerConfig.generateWorkerConfigs(physicalOp(parallelizable = true, suggested = None))
     assert(configs.size == ApplicationConfig.numWorkerPerOperatorByDefault)
+  }
+
+  it should "set largeBinaryBaseUri to the execution-scoped base URI for every worker" in {
+    val eid = ExecutionIdentity(42L)
+    val configs = WorkerConfig.generateWorkerConfigs(
+      physicalOp(parallelizable = true, suggested = Some(3), executionId = eid)
+    )
+    val expected = LargeBinaryManager.baseUriForExecution(eid.id)
+    assert(expected.contains(s"objects/${eid.id}/"))
+    assert(configs.forall(_.largeBinaryBaseUri == expected))
   }
 }
