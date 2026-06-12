@@ -19,6 +19,34 @@ import io
 import os
 import requests
 import urllib.parse
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# (connect, read) timeout and retry settings for the file-service GETs below.
+_CONNECT_TIMEOUT_SECONDS = 10
+_READ_TIMEOUT_SECONDS = 60
+_REQUEST_TIMEOUT = (_CONNECT_TIMEOUT_SECONDS, _READ_TIMEOUT_SECONDS)
+_MAX_RETRIES = 3
+_RETRY_BACKOFF_FACTOR = 0.5
+_RETRY_STATUS_FORCELIST = (500, 502, 503, 504)
+
+
+def _build_session() -> requests.Session:
+    """Returns a Session that retries GETs on connection errors and 5xx."""
+    retry = Retry(
+        total=_MAX_RETRIES,
+        connect=_MAX_RETRIES,
+        read=_MAX_RETRIES,
+        backoff_factor=_RETRY_BACKOFF_FACTOR,
+        status_forcelist=_RETRY_STATUS_FORCELIST,
+        allowed_methods=frozenset({"GET"}),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session = requests.Session()
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
 
 class DatasetFileDocument:
@@ -69,7 +97,13 @@ class DatasetFileDocument:
 
         params = {"filePath": encoded_file_path}
 
-        response = requests.get(self.presign_endpoint, headers=headers, params=params)
+        with _build_session() as session:
+            response = session.get(
+                self.presign_endpoint,
+                headers=headers,
+                params=params,
+                timeout=_REQUEST_TIMEOUT,
+            )
 
         if response.status_code != 200:
             raise RuntimeError(
@@ -100,7 +134,8 @@ class DatasetFileDocument:
         :raises: RuntimeError if the retrieval fails.
         """
         presigned_url = self.get_presigned_url()
-        response = requests.get(presigned_url)
+        with _build_session() as session:
+            response = session.get(presigned_url, timeout=_REQUEST_TIMEOUT)
 
         if response.status_code != 200:
             raise RuntimeError(
