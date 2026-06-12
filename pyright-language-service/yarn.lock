@@ -404,16 +404,6 @@ hasown@^2.0.0:
   dependencies:
     function-bind "^1.1.2"
 
-hocon-parser@1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/hocon-parser/-/hocon-parser-1.0.1.tgz#b79b66143999b255e08b673c83291b5e363f0b78"
-  integrity sha512-qMKuQh6pLPQc0gXsl91hAJEjD4JghV1VukO5gKOzjolCnupCbGHpERzMCkZLwVDLq7sL8xR6P4iWhcM1my3HtA==
-
-hoconjs@1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/hoconjs/-/hoconjs-1.0.0.tgz#5fe5c5bc1ab300f734c3aa8b1d8d95d83b4e2ca0"
-  integrity sha512-6jbw9YydPpchxOqrPsIMBZZXGn1F+iSX/iMS5KeBPZfcgj1DfxbjegtzoIHdlyxz24/bCczGGaUCocSXqfNfow==
-
 http-errors@2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/http-errors/-/http-errors-2.0.0.tgz#b7774a1486ef73cf7667ac9ae0858c012c57b9d3"
