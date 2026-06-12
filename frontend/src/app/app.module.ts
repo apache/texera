@@ -162,6 +162,7 @@ import { ResultExportationComponent } from "./workspace/component/result-exporta
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
+import { CardItemComponent } from "./dashboard/component/user/list-item/card-item/card-item.component";
 import { HubComponent } from "./hub/component/hub.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
@@ -347,6 +348,7 @@ registerLocaleData(en);
     HighlightSearchTermsPipe,
     SearchBarComponent,
     ListItemComponent,
+    CardItemComponent,
     SearchResultsComponent,
     HubComponent,
     HubWorkflowDetailComponent,

@@ -213,4 +213,29 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(results.isEmpty)
     opExec.close()
   }
+
+  it should "not match 'twitter' against 'Twitter' when case-sensitive" in {
+    opDesc.attribute = "text"
+    opDesc.keyword = "twitter"
+    opDesc.isCaseSensitive = true
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
+    opExec.open()
+    val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
+    assert(results.isEmpty)
+    opExec.close()
+    opDesc.isCaseSensitive = false
+  }
+
+  it should "match 'Twitter' against 'Twitter' when case-sensitive" in {
+    opDesc.attribute = "text"
+    opDesc.keyword = "Twitter"
+    opDesc.isCaseSensitive = true
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
+    opExec.open()
+    val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
+    assert(results.length == 1)
+    assert(results.head.getField[String]("text") == "Twitter")
+    opExec.close()
+    opDesc.isCaseSensitive = false
+  }
 }
