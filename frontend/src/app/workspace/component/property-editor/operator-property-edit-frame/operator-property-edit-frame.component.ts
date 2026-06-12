@@ -239,6 +239,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       body: "Uploaded audio returns classification labels.",
       assetSrc: "assets/sample-audio.wav",
     },
+    "image-text-to-text": {
+      kind: "image",
+      inputLabel: "Image + text prompt",
+      outputLabel: "Generated text",
+      title: "Image-text-to-text preview",
+      body: "The model reads an image and a text prompt to produce a response.",
+      outputBody: "The image shows a superhero leaping across rooftops at sunset.",
+      assetSrc: "assets/sample-image.png",
+    },
     "image-classification": {
       kind: "image",
       inputLabel: "Image input",
@@ -982,7 +991,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             ...mappedField.expressions,
             hide: (field: FormlyFieldConfig) => {
               const t = getSelectedTask(field);
-              return t !== "text-generation" && t !== undefined;
+              return t !== "text-generation";
             },
           };
         }
