@@ -90,33 +90,59 @@ class PostgreSQLConnUtilSpec extends AnyFlatSpec with BeforeAndAfterAll {
     override def getParentLogger: Logger = Logger.getLogger("test-pg-capturing")
   }
 
-  // Snapshot the real PG drivers so afterAll can restore them.
-  private val savedRealDrivers: List[Driver] = ArrayBuffer.empty[Driver].toList
+  // Snapshot of real PG drivers temporarily deregistered in beforeAll.
+  // Restored in afterAll so other suites are not left with a broken
+  // JDBC driver registry.
+  private val savedRealDrivers: ArrayBuffer[Driver] = ArrayBuffer.empty
+
+  /** `acceptsURL` is declared `throws SQLException`; treat any throw as
+    * "this driver doesn't claim our scheme" so a flaky third-party driver
+    * cannot abort the whole suite.
+    */
+  private def safeAcceptsURL(d: Driver, url: String): Boolean =
+    try d.acceptsURL(url)
+    catch { case _: Throwable => false }
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-    // Remove every other driver that accepts jdbc:postgresql: so our
+    // Remove every other driver that claims jdbc:postgresql: so our
     // capturing driver is the only one DriverManager.getConnection sees.
-    val others = DriverManager.getDrivers.asScala.toList.filter { d =>
-      d != CapturingPGDriver && d.acceptsURL("jdbc:postgresql://h/d")
+    // Wrapped in try/catch so that if any deregistration / registration
+    // step throws, we restore whatever we already deregistered before
+    // failing the suite — the alternative leaves the JVM's JDBC registry
+    // in an inconsistent state for the rest of the test run.
+    try {
+      val others = DriverManager.getDrivers.asScala.toList.filter { d =>
+        d != CapturingPGDriver && safeAcceptsURL(d, "jdbc:postgresql://h/d")
+      }
+      others.foreach { d =>
+        savedRealDrivers += d
+        DriverManager.deregisterDriver(d)
+      }
+      DriverManager.registerDriver(CapturingPGDriver)
+    } catch {
+      case t: Throwable =>
+        // Best-effort restore before re-throwing.
+        savedRealDrivers.foreach { d =>
+          try DriverManager.registerDriver(d)
+          catch { case _: Throwable => () }
+        }
+        throw t
     }
-    others.foreach { d =>
-      savedRealDriversBuffer += d
-      DriverManager.deregisterDriver(d)
-    }
-    DriverManager.registerDriver(CapturingPGDriver)
   }
 
   override protected def afterAll(): Unit = {
     try {
-      DriverManager.deregisterDriver(CapturingPGDriver)
-      savedRealDriversBuffer.foreach(DriverManager.registerDriver)
+      try DriverManager.deregisterDriver(CapturingPGDriver)
+      catch { case _: Throwable => () }
+      savedRealDrivers.foreach { d =>
+        try DriverManager.registerDriver(d)
+        catch { case _: Throwable => () }
+      }
     } finally {
       super.afterAll()
     }
   }
-
-  private val savedRealDriversBuffer: ArrayBuffer[Driver] = ArrayBuffer.empty
 
   private def clearCapture(): Unit = {
     CapturingPGDriver.seenUrls.clear()
