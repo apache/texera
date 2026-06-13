@@ -37,8 +37,9 @@ import java.util.Base64
   * `self.decode_python_template('...')` wrapper instead of inlined as raw text.
   *
   * Extracting these into a mixin keeps the two specs focused on the parts that
-  * actually differ — operator name, group, generated class name, isLoopEnd flag,
-  * which user fields exist, and what statements the generated code must contain.
+  * actually differ — operator name, group, generated class name, the
+  * reusesOutputStorageOnReExecution flag, which user fields exist, and what
+  * statements the generated code must contain.
   */
 trait LoopOpDescSpecMixin extends Matchers {
 

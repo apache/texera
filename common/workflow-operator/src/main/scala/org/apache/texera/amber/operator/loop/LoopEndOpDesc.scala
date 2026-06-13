@@ -53,7 +53,7 @@ class LoopEndOpDesc extends LogicalOp {
       .withOutputPorts(operatorInfo.outputPorts)
       .withSuggestedWorkerNum(1)
       .withParallelizable(false)
-      .withIsLoopEnd(true)
+      .withReusesOutputStorageOnReExecution(true)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

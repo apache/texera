@@ -121,12 +121,13 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     assertNonParallelizableSingleWorker(desc().getPhysicalOp(workflowId, executionId))
   }
 
-  it should "not be tagged as a loop end" in {
-    // The isLoopEnd flag is consumed by RegionExecutionCoordinator to skip
-    // recreating result/state tables across loop iterations. LoopStart
-    // must NOT carry the flag -- only LoopEnd does.
+  it should "not reuse output storage across re-execution" in {
+    // The reusesOutputStorageOnReExecution flag is consumed by
+    // RegionExecutionCoordinator to skip recreating result/state tables
+    // across loop iterations. LoopStart must NOT carry it -- only LoopEnd
+    // (which accumulates output) does.
     val physical = desc().getPhysicalOp(workflowId, executionId)
-    physical.isLoopEnd shouldBe false
+    physical.reusesOutputStorageOnReExecution shouldBe false
   }
 
   it should "carry the generated Python code via OpExecWithCode" in {

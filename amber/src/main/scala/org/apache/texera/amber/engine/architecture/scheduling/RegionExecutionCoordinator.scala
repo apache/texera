@@ -576,15 +576,16 @@ class RegionExecutionCoordinator(
           region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
         val schema =
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
-        // LoopEnd operators may re-execute the region multiple times; on
-        // subsequent iterations the result/state documents already exist,
-        // and `createDocument` (overrideIfExists=true) would clobber them.
-        // Skip the create call when the document is already there.
-        val isLoopEndRegion = region.getOperators.exists(_.isLoopEnd)
-        if (!isLoopEndRegion || !DocumentFactory.documentExists(resultURI)) {
+        // Operators that reuse their output storage across region re-runs
+        // (e.g. LoopEnd, which accumulates output across loop iterations)
+        // already have their result/state documents from a prior run; on
+        // re-execution `createDocument` (overrideIfExists=true) would clobber
+        // them, so skip the create call when the document is already there.
+        val reusesOutputStorage = region.getOperators.exists(_.reusesOutputStorageOnReExecution)
+        if (!reusesOutputStorage || !DocumentFactory.documentExists(resultURI)) {
           DocumentFactory.createDocument(resultURI, schema)
         }
-        if (!isLoopEndRegion || !DocumentFactory.documentExists(stateURI)) {
+        if (!reusesOutputStorage || !DocumentFactory.documentExists(stateURI)) {
           DocumentFactory.createDocument(stateURI, State.schema)
         }
         if (!isRestart) {
