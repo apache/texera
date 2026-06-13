@@ -257,17 +257,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self.context.statistics_manager.increase_output_statistics(
                     PortIdentity(0), output_tuple.in_mem_size()
                 )
-                for to, batch in self.context.output_manager.tuple_to_batch(
-                    output_tuple
-                ):
-                    self._output_queue.put(
-                        DataElement(
-                            tag=ChannelIdentity(
-                                ActorVirtualIdentity(self.context.worker_id), to, False
-                            ),
-                            payload=batch,
-                        )
-                    )
+                self._emit_batches(
+                    self.context.output_manager.tuple_to_batch(output_tuple)
+                )
                 self.context.output_manager.save_tuple_to_storage_if_needed(
                     output_tuple
                 )
@@ -295,16 +287,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 output_loop_start_state_uri,
             )
 
-    def _emit_and_save_state(
-        self,
-        state: State,
-        loop_counter: int,
-        loop_start_id: str = "",
-        loop_start_state_uri: str = "",
-    ) -> None:
-        for to, batch in self.context.output_manager.emit_state(
-            state, loop_counter, loop_start_id, loop_start_state_uri
-        ):
+    def _emit_batches(self, batches) -> None:
+        """Put each (receiver, batch) pair on the output queue as a DataElement."""
+        for to, batch in batches:
             self._output_queue.put(
                 DataElement(
                     tag=ChannelIdentity(
@@ -313,6 +298,19 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     payload=batch,
                 )
             )
+
+    def _emit_and_save_state(
+        self,
+        state: State,
+        loop_counter: int,
+        loop_start_id: str = "",
+        loop_start_state_uri: str = "",
+    ) -> None:
+        self._emit_batches(
+            self.context.output_manager.emit_state(
+                state, loop_counter, loop_start_id, loop_start_state_uri
+            )
+        )
         self.context.output_manager.save_state_to_storage_if_needed(
             state, loop_counter, loop_start_id, loop_start_state_uri
         )

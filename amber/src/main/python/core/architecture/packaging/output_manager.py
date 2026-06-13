@@ -141,47 +141,31 @@ class OutputManager:
         # Remember the base URI so `reset_output_storage` can re-provision
         # the iceberg tables on subsequent loop iterations.
         self._storage_uri_base = storage_uri_base
-        document, _ = DocumentFactory.open_document(
-            VFSURIFactory.result_uri(storage_uri_base)
-        )
-        buffered_item_writer = document.writer(str(get_worker_index(self.worker_id)))
-        writer_queue = Queue()
-        port_storage_writer = PortStorageWriter(
-            buffered_item_writer=buffered_item_writer, queue=writer_queue
-        )
-        writer_thread = threading.Thread(
-            target=port_storage_writer.run,
-            daemon=True,
-            name=f"port_storage_writer_thread_{port_id}",
-        )
-        writer_thread.start()
-        self._port_storage_writers[port_id] = (
-            writer_queue,
-            port_storage_writer,
-            writer_thread,
-        )
 
-        state_document, _ = DocumentFactory.open_document(
-            VFSURIFactory.state_uri(storage_uri_base)
+        def start_writer(uri: str, name_prefix: str, registry: dict) -> None:
+            document, _ = DocumentFactory.open_document(uri)
+            writer_queue = Queue()
+            writer = PortStorageWriter(
+                buffered_item_writer=document.writer(
+                    str(get_worker_index(self.worker_id))
+                ),
+                queue=writer_queue,
+            )
+            thread = threading.Thread(
+                target=writer.run, daemon=True, name=f"{name_prefix}_{port_id}"
+            )
+            thread.start()
+            registry[port_id] = (writer_queue, writer, thread)
+
+        start_writer(
+            VFSURIFactory.result_uri(storage_uri_base),
+            "port_storage_writer_thread",
+            self._port_storage_writers,
         )
-        state_buffered_item_writer = state_document.writer(
-            str(get_worker_index(self.worker_id))
-        )
-        state_writer_queue = Queue()
-        state_port_writer = PortStorageWriter(
-            buffered_item_writer=state_buffered_item_writer,
-            queue=state_writer_queue,
-        )
-        state_writer_thread = threading.Thread(
-            target=state_port_writer.run,
-            daemon=True,
-            name=f"port_state_writer_thread_{port_id}",
-        )
-        state_writer_thread.start()
-        self._port_state_writers[port_id] = (
-            state_writer_queue,
-            state_port_writer,
-            state_writer_thread,
+        start_writer(
+            VFSURIFactory.state_uri(storage_uri_base),
+            "port_state_writer_thread",
+            self._port_state_writers,
         )
 
     def get_port(self, port_id=None) -> WorkerPort:
@@ -288,17 +272,13 @@ class OutputManager:
         writer threads to finish, which indicates the port storage writing
         are finished.
         """
-        for _, writer, _ in self._port_storage_writers.values():
-            # This non-blocking stop call will let the storage writers
-            # flush the remaining buffer
-            writer.stop()
-        for _, _, writer_thread in self._port_storage_writers.values():
-            # This blocking call will wait for all the writer to finish commit
-            writer_thread.join()
-        for _, state_writer, _ in self._port_state_writers.values():
-            state_writer.stop()
-        for _, _, state_writer_thread in self._port_state_writers.values():
-            state_writer_thread.join()
+        for registry in (self._port_storage_writers, self._port_state_writers):
+            # Non-blocking stop lets each writer flush its remaining buffer;
+            # the join then waits for the commit to finish.
+            for _, writer, _ in registry.values():
+                writer.stop()
+            for _, _, thread in registry.values():
+                thread.join()
         self._port_state_writers.clear()
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:

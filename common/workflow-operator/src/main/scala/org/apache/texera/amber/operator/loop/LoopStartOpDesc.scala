@@ -21,15 +21,10 @@ package org.apache.texera.amber.operator.loop
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.executor.OpExecWithCode
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
-class LoopStartOpDesc extends LogicalOp {
+class LoopStartOpDesc extends LoopOpDesc {
   @JsonProperty(required = true, defaultValue = "i = 0")
   @JsonSchemaTitle("Initialization")
   var initialization: EncodableString = ""
@@ -38,42 +33,17 @@ class LoopStartOpDesc extends LogicalOp {
   @JsonSchemaTitle("Output")
   var output: EncodableString = ""
 
-  override def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp =
-    PhysicalOp
-      .oneToOnePhysicalOp(
-        workflowId,
-        executionId,
-        operatorIdentifier,
-        OpExecWithCode(generatePythonCode(), "python")
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withSuggestedWorkerNum(1)
-      .withParallelizable(false)
+  override protected def operatorName: String = "Loop Start"
 
-  override def operatorInfo: OperatorInfo =
-    OperatorInfo(
-      "Loop Start",
-      "Begin a loop that iterates over rows of the input table; pairs with Loop End.",
-      OperatorGroupConstants.CONTROL_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
-    )
+  override protected def operatorDescription: String =
+    "Begin a loop that iterates over rows of the input table; pairs with Loop End."
 
-  // A loop's back-edge is the cross-region materialized state channel, which
-  // only exists under MATERIALIZED execution mode.
-  override def requiresMaterializedExecution: Boolean = true
-
-  // User-supplied `initialization` and `output` are interpolated via the
-  // `pyb` builder, which base64-encodes each EncodableString and renders
-  // it as a `self.decode_python_template('<b64>')` expression. This means
-  // an arbitrary user string -- including quotes, newlines, or
-  // backslashes -- can never break the surrounding Python syntax,
-  // because the user text is no longer pasted in as a raw quoted literal.
-  def generatePythonCode(): String = {
+  // User-supplied `initialization` and `output` are interpolated via the `pyb`
+  // builder, which base64-encodes each EncodableString and renders it as a
+  // `self.decode_python_template('<b64>')` expression. So an arbitrary user
+  // string -- including quotes, newlines, or backslashes -- can never break the
+  // surrounding Python syntax, because the text is no longer pasted in raw.
+  override def generatePythonCode(): String = {
     pyb"""
        |from pytexera import *
        |class ProcessLoopStartOperator(LoopStartOperator):

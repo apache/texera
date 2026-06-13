@@ -338,46 +338,21 @@ class LoopStartOperator(TableOperator):
     """Base class for the runtime side of a Loop Start operator.
 
     The generator in ``LoopStartOpDesc.scala`` emits a thin
-    ``ProcessLoopStartOperator(LoopStartOperator)`` subclass that does
-    nothing more than wire the user-supplied ``initialization`` and
-    ``output`` expressions into ``open()`` and ``process_table()``; all
-    substantive logic lives here.
+    ``ProcessLoopStartOperator(LoopStartOperator)`` subclass that wires the
+    user-supplied ``initialization`` and ``output`` expressions into
+    ``open()`` and ``process_table()``; all substantive logic lives here.
 
-    Lifecycle
-    ---------
-    * ``open()`` runs once when the worker starts. The generated subclass
-      executes the user's ``initialization`` against a fresh ``self.state``
-      dict; after it returns ``self.state`` holds *only* the user's loop
-      variables.
-    * ``process_state(state, port)`` (final) runs once when upstream sends
-      this LoopStart its input state; it merges that state into
-      ``self.state``. The nested pass-through branch and all
-      ``loop_counter`` bookkeeping live in
-      ``MainLoop._process_state_frame``, not here.
-    * ``process_table(table, port)`` is provided by the generated subclass
-      and yields a downstream row via ``eval_output(...)`` against the
-      user's ``output`` expression.
-    * ``produce_state_on_finish(port)`` (final) emits the state crossing
-      the boundary to the matching LoopEnd: user variables plus the input
-      table serialized as an Apache Arrow IPC stream (not pickle).
+    ``open()`` seeds ``self.state`` with the user's loop variables;
+    ``process_state`` merges upstream state in; ``produce_state_on_finish``
+    emits those variables plus the input table (Arrow IPC, not pickle) to the
+    matching LoopEnd. ``loop_counter`` and the nested pass-through are owned by
+    ``MainLoop._process_state_frame``, not this operator.
 
-    Subclass contract
-    -----------------
-    The generated subclass overrides ``open()`` and ``process_table()``
-    only. All other methods are ``@overrides.final``; do not override
-    them. After ``open()`` returns, ``self.state`` must be a dict
-    containing the user's loop variables (none of the reserved names in
-    ``_RESERVED_STATE_KEYS``).
-
-    Reserved names
-    --------------
-    * ``loop_counter`` / ``LoopStartId`` / ``LoopStartStateURI`` -- live on
-      the StateFrame envelope (``core.models.payload``), not in
-      ``self.state``. Stamped by this operator's worker via
-      ``MainLoop._compute_loop_start_id``.
-    * ``table`` / ``output`` -- transient names only available inside the
-      ``eval_output`` throwaway namespace; never persisted in
-      ``self.state``. See ``_RESERVED_STATE_KEYS``.
+    Subclass contract: the generated subclass overrides ``open()`` and
+    ``process_table()`` only; all other methods are ``@overrides.final``. After
+    ``open()`` returns ``self.state`` holds only the user's loop variables --
+    none of the reserved names; see the ``_RESERVED_STATE_KEYS`` module comment
+    for the ``table``/``output`` vs envelope-borne counter/id/uri split.
     """
 
     @overrides.final
@@ -413,44 +388,22 @@ class LoopEndOperator(TableOperator):
     The generator in ``LoopEndOpDesc.scala`` emits a thin
     ``ProcessLoopEndOperator(LoopEndOperator)`` subclass that wires the
     user-supplied ``update`` expression into ``process_state(...)`` (via
-    ``run_update``) and the ``condition`` expression into ``condition()``
-    (via ``eval_condition``); all substantive logic lives here.
+    ``run_update``) and the ``condition`` expression into ``condition()`` (via
+    ``eval_condition``); all substantive logic lives here.
 
-    Lifecycle
-    ---------
-    * ``process_table(table, port)`` (final) yields each input table
-      through as-is.
-    * ``process_state(state, port)`` is provided by the generated
-      subclass. It calls ``run_update(update_code, state)`` to decode the
-      input table (from its Arrow IPC bytes), run the user's ``update`` in
-      a throwaway namespace, stash the table on ``self._loop_table``, and
-      persist only user variables back into ``self.state``. Returns
-      ``None``.
-    * ``condition()`` is the abstract method the generated subclass
-      implements by delegating to ``eval_condition(...)`` against the
-      user's ``condition`` expression. Called by ``MainLoop.complete()``
-      to decide whether to fire the back-edge via
-      ``_jump_to_loop_start``.
+    ``process_table`` yields each input table through as-is; ``process_state``
+    runs the user's ``update`` and persists only user variables back into
+    ``self.state`` (keeping the decoded table on ``self._loop_table``);
+    ``condition()`` decides whether ``MainLoop.complete()`` fires the back-edge.
 
-    Subclass contract
-    -----------------
-    The generated subclass overrides ``process_state()`` (delegating to
-    ``run_update``) and ``condition()`` (delegating to
-    ``eval_condition``). All other methods are ``@overrides.final``; do
-    not override them. ``self.state`` / ``self._loop_table`` are
-    initialized empty at construction and only populated by
-    ``run_update`` on the matching-loop consume, so ``condition()``
-    returns ``False`` until that first consume (a LoopEnd that never
-    consumed a matching state -- e.g. an inner LoopEnd that only forwarded
-    outer-loop pass-through state -- must not fire the back-edge).
-
-    Reserved names
-    --------------
-    Same as ``LoopStartOperator``: ``loop_counter`` / ``LoopStartId`` /
-    ``LoopStartStateURI`` live on the StateFrame envelope (never in user
-    state); ``table`` / ``output`` are transient names available only
-    inside ``run_update`` / ``eval_condition``'s throwaway namespace and
-    are stripped from ``self.state``. See ``_RESERVED_STATE_KEYS``.
+    Subclass contract: the generated subclass overrides ``process_state()`` and
+    ``condition()`` only; all other methods are ``@overrides.final``.
+    ``self.state`` / ``self._loop_table`` start empty and are populated only by
+    ``run_update`` on the matching-loop consume, so ``condition()`` returns
+    ``False`` until that first consume -- a LoopEnd that never consumed a
+    matching state (e.g. an inner LoopEnd that only forwarded outer-loop
+    pass-through state) must not fire the back-edge. Reserved names: see
+    ``_RESERVED_STATE_KEYS``.
     """
 
     def __init__(self):

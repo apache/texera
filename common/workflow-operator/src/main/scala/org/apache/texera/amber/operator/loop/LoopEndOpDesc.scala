@@ -21,15 +21,10 @@ package org.apache.texera.amber.operator.loop
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.executor.OpExecWithCode
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
-class LoopEndOpDesc extends LogicalOp {
+class LoopEndOpDesc extends LoopOpDesc {
   @JsonProperty(required = true, defaultValue = "i += 1")
   @JsonSchemaTitle("Update")
   var update: EncodableString = ""
@@ -38,43 +33,19 @@ class LoopEndOpDesc extends LogicalOp {
   @JsonSchemaTitle("Condition")
   var condition: EncodableString = ""
 
-  override def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp =
-    PhysicalOp
-      .oneToOnePhysicalOp(
-        workflowId,
-        executionId,
-        operatorIdentifier,
-        OpExecWithCode(generatePythonCode(), "python")
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withSuggestedWorkerNum(1)
-      .withParallelizable(false)
-      .withReusesOutputStorageOnReExecution(true)
+  override protected def operatorName: String = "Loop End"
 
-  override def operatorInfo: OperatorInfo =
-    OperatorInfo(
-      "Loop End",
-      "Close a loop body and decide whether to iterate again based on a condition; pairs with Loop Start.",
-      OperatorGroupConstants.CONTROL_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
-    )
+  override protected def operatorDescription: String =
+    "Close a loop body and decide whether to iterate again based on a condition; pairs with Loop Start."
 
-  // A loop's back-edge is the cross-region materialized state channel, which
-  // only exists under MATERIALIZED execution mode.
-  override def requiresMaterializedExecution: Boolean = true
+  override protected def reusesOutputStorage: Boolean = true
 
   // User-supplied `update` and `condition` are interpolated via the `pyb`
-  // builder, which base64-encodes each EncodableString and renders it as
-  // a `self.decode_python_template('<b64>')` expression. This means an
-  // arbitrary user string -- including quotes, newlines, or backslashes
-  // -- can never break the surrounding Python syntax, because the user
-  // text is no longer pasted in as a raw quoted literal.
-  def generatePythonCode(): String = {
+  // builder, which base64-encodes each EncodableString and renders it as a
+  // `self.decode_python_template('<b64>')` expression. So an arbitrary user
+  // string -- including quotes, newlines, or backslashes -- can never break the
+  // surrounding Python syntax, because the text is no longer pasted in raw.
+  override def generatePythonCode(): String = {
     pyb"""
        |from pytexera import *
        |class ProcessLoopEndOperator(LoopEndOperator):
