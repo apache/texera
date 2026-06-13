@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.tablesChart
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -91,9 +92,17 @@ class TablesConfigSpec extends AnyFlatSpec {
     assert(jp.required, "attributeName must be marked required")
   }
 
-  it should "carry @NotNull (jakarta validation contract)" in {
+  it should "carry @NotNull (javax.validation contract)" in {
     val field = classOf[TablesConfig].getDeclaredField("attributeName")
     val notNull = field.getAnnotation(classOf[NotNull])
-    assert(notNull != null, "attributeName must carry @NotNull for jakarta validation")
+    assert(notNull != null, "attributeName must carry @NotNull for javax.validation")
+  }
+
+  it should
+    "carry @AutofillAttributeName (UI populates the dropdown from the input schema)" in {
+    val ann = classOf[TablesConfig]
+      .getDeclaredField("attributeName")
+      .getAnnotation(classOf[AutofillAttributeName])
+    assert(ann != null, "@AutofillAttributeName must be present so the UI auto-populates")
   }
 }

@@ -70,17 +70,17 @@ class NestedTableConfigSpec extends AnyFlatSpec {
     "serialize newName under the JSON key `name` (per @JsonProperty(value = \"name\"))" in {
     // The wire-key for `newName` is `name`, not `newName` — a regression
     // that drifted to `newName` would silently break every workflow JSON
-    // that carries this config. Pin the wire-key explicitly.
+    // that carries this config. Parse the JSON into a tree so the
+    // assertion is robust to Jackson formatting (spaces, key ordering)
+    // and unambiguous about which key carries which value.
     val c = new NestedTableConfig
     c.newName = "renamed"
-    val json = objectMapper.writeValueAsString(c)
+    val tree = objectMapper.readTree(objectMapper.writeValueAsString(c))
+    assert(tree.has("name"), s"expected wire-key 'name' in JSON tree: $tree")
+    assert(tree.get("name").asText() == "renamed")
     assert(
-      json.contains("\"name\":\"renamed\""),
-      s"expected 'name':'renamed' wire-key in JSON, got: $json"
-    )
-    assert(
-      !json.contains("\"newName\""),
-      s"the field name 'newName' must NOT appear as a JSON key, got: $json"
+      !tree.has("newName"),
+      s"field name 'newName' must NOT appear as a JSON key, got: $tree"
     )
   }
 

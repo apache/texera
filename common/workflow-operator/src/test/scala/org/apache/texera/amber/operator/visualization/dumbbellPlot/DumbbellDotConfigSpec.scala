@@ -57,9 +57,15 @@ class DumbbellDotConfigSpec extends AnyFlatSpec {
     val original = new DumbbellDotConfig
     original.dotValue = "amount"
     val json = objectMapper.writeValueAsString(original)
+    // Parse the JSON into a tree and assert on field presence + value
+    // directly — this stays robust to formatting changes (spaces, key
+    // ordering) that pure substring matching would mistake for drift.
+    val tree = objectMapper.readTree(json)
+    assert(tree.has("dot"), s"expected wire-key 'dot' in JSON, got: $json")
+    assert(tree.get("dot").asText() == "amount")
     assert(
-      json.contains("\"dot\":\"amount\""),
-      s"expected 'dot':'amount' wire-key in JSON, got: $json"
+      !tree.has("dotValue"),
+      s"field name 'dotValue' must NOT appear as a JSON key, got: $json"
     )
     val restored = objectMapper.readValue(json, classOf[DumbbellDotConfig])
     assert(restored.dotValue == "amount")
@@ -86,11 +92,11 @@ class DumbbellDotConfigSpec extends AnyFlatSpec {
     assert(jp.required, "dotValue must be marked required")
   }
 
-  it should "carry @NotNull (jakarta validation contract)" in {
+  it should "carry @NotNull (javax.validation contract)" in {
     val notNull = classOf[DumbbellDotConfig]
       .getDeclaredField("dotValue")
       .getAnnotation(classOf[NotNull])
-    assert(notNull != null, "dotValue must carry @NotNull for jakarta validation")
+    assert(notNull != null, "dotValue must carry @NotNull for javax.validation")
   }
 
   it should "carry @AutofillAttributeName (UI populates the dropdown from the input schema)" in {
