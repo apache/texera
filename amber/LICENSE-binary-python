@@ -269,7 +269,6 @@ Python packages:
   - mmh3==5.2.1
   - pampy==0.3.0
   - plotly==5.24.1
-  - pluggy==1.6.0
   - pydantic==2.13.4
   - pydantic-core==2.46.4
   - pyparsing==3.3.2

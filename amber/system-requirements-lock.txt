@@ -58,7 +58,6 @@ packaging==26.2
 pampy==0.3.0
 pandas==2.2.3
 pg8000==1.31.5
-pluggy==1.6.0
 praw==7.6.1
 prawcore==2.4.0
 propcache==0.5.2
