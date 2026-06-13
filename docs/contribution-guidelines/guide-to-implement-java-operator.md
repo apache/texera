@@ -234,7 +234,7 @@ Texera's backend is responsible for determining the UI information to the fronte
      ```python
     @JsonProperty(required=true)
     @JsonSchemaTitle("Client Id")
-    @JsonPropertyDescription("Client id that uses to access Reddit API")
+    @JsonPropertyDescription("Client id that uses to access the external API")
     var clientId: String = _
     ```
     

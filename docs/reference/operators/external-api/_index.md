@@ -12,9 +12,8 @@ tags: [external-api]
 
 | Operator | Description |
 |----------|-------------|
-| [Reddit Search](reddit-search/) | Search for recent posts with python-wrapped Reddit API, PRAW |
 | [Twitter Full Archive Search API](twitter-full-archive-search-api/) | Retrieve data from Twitter Full Archive Search API |
 | [Twitter Search API](twitter-search-api/) | Retrieve data from Twitter Search API |
 | [URL Fetcher](url-fetcher/) | Fetch the content of a single URL |
 
-**Total**: 4 operators
+**Total**: 3 operators

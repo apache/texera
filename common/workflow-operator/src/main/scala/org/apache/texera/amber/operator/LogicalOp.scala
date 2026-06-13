@@ -70,7 +70,6 @@ import org.apache.texera.amber.operator.sklearn.training._
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.sort.{SortOpDesc, StableMergeSortOpDesc}
 import org.apache.texera.amber.operator.sortPartitions.SortPartitionsOpDesc
-import org.apache.texera.amber.operator.source.apis.reddit.RedditSearchSourceOpDesc
 import org.apache.texera.amber.operator.source.apis.twitter.v2.{
   TwitterFullArchiveSearchSourceOpDesc,
   TwitterSearchSourceOpDesc
@@ -232,7 +231,6 @@ trait StateTransferFunc
     new Type(value = classOf[DictionaryMatcherOpDesc], name = "DictionaryMatcher"),
     new Type(value = classOf[SortPartitionsOpDesc], name = "SortPartitions"),
     new Type(value = classOf[CSVOldScanSourceOpDesc], name = "CSVOldFileScan"),
-    new Type(value = classOf[RedditSearchSourceOpDesc], name = "RedditSearch"),
     new Type(value = classOf[PythonLambdaFunctionOpDesc], name = "PythonLambdaFunction"),
     new Type(value = classOf[PythonTableReducerOpDesc], name = "PythonTableReducer"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
