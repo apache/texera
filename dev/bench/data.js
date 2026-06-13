@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781311467510,
+  "lastUpdate": 1781311469351,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -2196,6 +2196,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=10 sl=64",
             "value": 978269.424,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "xinyual3@uci.edu",
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7ae9b35f12748616daf7bcc925fdde2e5def5187",
+          "message": "test(workflow-operator): add unit test coverage for filter-family operator executors (#5656)\n\n### What changes were proposed in this PR?\n\nPin behavior of four previously-uncovered modules in the `FilterOpExec`\ninheritance hierarchy in `common/workflow-operator`. No production-code\nchanges.\n\n| Spec | Source class | Tests |\n| --- | --- | --- |\n| `FilterOpExecSpec` | `FilterOpExec` (abstract base) | 9 |\n| `RegexOpExecSpec` | `RegexOpExec` | 8 |\n| `SubstringSearchOpExecSpec` | `SubstringSearchOpExec` | 10 |\n| `RandomKSamplingOpExecSpec` | `RandomKSamplingOpExec` | 7 |\n\nAll four spec files follow the `<srcClassName>Spec.scala` one-to-one\nconvention. `SpecializedFilterOpExec` already has its own spec; this PR\ncovers the rest of the family.\n\n**Behavior pinned — `FilterOpExec`**\n\n| Surface | Contract |\n| --- | --- |\n| `processTuple` (matching predicate) | yields the input tuple as a\nsingle-element iterator |\n| `processTuple` (non-matching predicate) | yields an empty iterator |\n| `processTuple` | passes the actual tuple instance to the predicate;\nignores the `port` argument |\n| `setFilterFunc` | swapping the predicate changes the next\n`processTuple` result; value-aware predicates branch per-tuple |\n| Type contract | `FilterOpExec` is a `Serializable OperatorExecutor` |\n\n**Behavior pinned — `RegexOpExec`**\n\n| Surface | Contract |\n| --- | --- |\n| matching regex | yields the tuple |\n| find-semantics | unanchored substring match (not full-string\n`matches`) |\n| `caseInsensitive = true` / `false` | matches case-(in)sensitively |\n| invalid regex string | construction succeeds (lazy `Pattern`);\n`PatternSyntaxException` surfaces on first `processTuple` |\n| repeated invocations | pattern stays cached; results are stable |\n| malformed descriptor JSON | construction throws\n`JsonProcessingException` |\n\n**Behavior pinned — `SubstringSearchOpExec`**\n\n| Surface | Contract |\n| --- | --- |\n| substring present / absent | yields tuple / nothing |\n| position in value (start / middle / end) | irrelevant —\n`String.contains` semantics |\n| `isCaseSensitive = true` / `false` | case-(in)sensitive (lowercased\nequality on both sides) |\n| empty substring | matches every value, including the empty string |\n| repeated invocations | results stable |\n| malformed descriptor JSON | construction throws\n`JsonProcessingException` |\n\n**Behavior pinned — `RandomKSamplingOpExec`**\n\n| Surface | Contract |\n| --- | --- |\n| `percentage = 100` | accepts every tuple (1000-sample run) |\n| `percentage = 0` | rejects every tuple (1000-sample run) |\n| Same `workerCount` + `percentage` | identical emission count across\ntwo fresh instances (deterministic seed) |\n| `percentage = 50` | approximately half pass (within ±150 of 1000 over\n2000 draws) |\n| Different `workerCount` | divergent emission sequences (the seed is\n`workerCount`) |\n| malformed descriptor JSON | construction throws\n`JsonProcessingException` |\n\n`FilterOpExec` is abstract, so the spec uses a minimal test-only\nconcrete subclass that exposes `setFilterFunc` for behavior-only\nassertions. The three subclass specs build descriptor JSON via\n`objectMapper.writeValueAsString` of a fresh `*OpDesc` (same fixture\npattern as the existing `SpecializedFilterOpExecSpec`).\n\n### Any related issues, documentation, discussions?\n\nCloses #5652.\n\n### How was this PR tested?\n\nPure unit-test additions; verified locally with:\n\n- `sbt \"WorkflowOperator/testOnly\norg.apache.texera.amber.operator.filter.FilterOpExecSpec\norg.apache.texera.amber.operator.regex.RegexOpExecSpec\norg.apache.texera.amber.operator.substringSearch.SubstringSearchOpExecSpec\norg.apache.texera.amber.operator.randomksampling.RandomKSamplingOpExecSpec\"`\n— 34 tests, all green\n- `sbt scalafmtCheckAll` — clean\n- CI to confirm\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.7 [1M context])",
+          "timestamp": "2026-06-13T00:30:08Z",
+          "tree_id": "57e3eee2ddc27b399f843bfc0bdff1f893477272",
+          "url": "https://github.com/apache/texera/commit/7ae9b35f12748616daf7bcc925fdde2e5def5187"
+        },
+        "date": 1781311468840,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 24805.263,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 38344.907,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 38344.907,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 133219.446,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 173178.494,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 173178.494,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 1059717.997,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1104221.303,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1104221.303,
             "unit": "us"
           }
         ]
