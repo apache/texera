@@ -157,8 +157,27 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._check_and_report_console_messages(force_flush=True)
         controller_interface = self._async_rpc_client.controller_stub()
         executor = self.context.executor_manager.executor
-        if isinstance(executor, LoopEndOperator) and executor.condition():
-            self._jump_to_loop_start(executor, controller_interface)
+        if isinstance(executor, LoopEndOperator):
+            # condition() evaluates a user-supplied expression on this main
+            # loop thread. A UDF error on the data path is caught and
+            # reported (DataProcessor._executor_session); mirror that here so
+            # a bad condition (a typo, an undefined name) surfaces as an
+            # operator-facing error and pauses the worker, instead of killing
+            # the thread through run()'s @logger.catch(reraise=True).
+            try:
+                should_jump = executor.condition()
+            except Exception as err:
+                logger.exception(err)
+                exc_info = (type(err), err, err.__traceback__)
+                self.context.exception_manager.set_exception_info(exc_info)
+                self.context.console_message_manager.report_exception(
+                    self.context.worker_id, exc_info
+                )
+                self._check_and_report_console_messages(force_flush=True)
+                self.context.pause_manager.pause(PauseType.EXCEPTION_PAUSE)
+                return
+            if should_jump:
+                self._jump_to_loop_start(executor, controller_interface)
         executor.close()
         # stop the data processing thread
         self.data_processor.stop()

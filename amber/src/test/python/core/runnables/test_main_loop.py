@@ -1789,6 +1789,59 @@ class TestMainLoop:
         assert "boom-from-executor" in events[0][1].title
         assert events[1][1] is PauseType.EXCEPTION_PAUSE
 
+    @pytest.mark.timeout(2)
+    def test_complete_reports_loopend_condition_error_instead_of_crashing(
+        self, main_loop, monkeypatch
+    ):
+        # Reviewer feedback (#discussion_r3400851492): complete() evaluates a
+        # LoopEnd's user-supplied condition() on the main loop thread, before
+        # close()/COMPLETED and outside DataProcessor's guarded executor
+        # session. A typo or undefined name in the condition would otherwise
+        # propagate through run()'s @logger.catch(reraise=True) and kill the
+        # worker thread silently. The guard must report it like a UDF error
+        # (record on the exception manager + ERROR console message +
+        # EXCEPTION_PAUSE) and skip both the loop-back edge and completion.
+        class _BoomLoopEnd(LoopEndOperator):
+            def __init__(self):
+                super().__init__()
+                self.closed = False
+
+            def condition(self):
+                raise ValueError("name 'i' is not defined")
+
+            def close(self):
+                self.closed = True
+
+        executor = _BoomLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+
+        console_msgs = []
+        pauses = []
+        jumped = []
+        monkeypatch.setattr(
+            main_loop, "_send_console_message", lambda msg: console_msgs.append(msg)
+        )
+        monkeypatch.setattr(
+            main_loop.context.pause_manager,
+            "pause",
+            lambda pause_type, change_state=True: pauses.append(pause_type),
+        )
+        monkeypatch.setattr(
+            main_loop, "_jump_to_loop_start", lambda *args: jumped.append(True)
+        )
+
+        # Must not raise: a bad condition is reported, not propagated.
+        main_loop.complete()
+
+        assert jumped == [], "must not take the loop-back edge on a failed condition"
+        assert not executor.closed, "must return before completing the worker"
+        assert main_loop.context.exception_manager.has_exception()
+        assert pauses == [PauseType.EXCEPTION_PAUSE]
+        error_msgs = [m for m in console_msgs if m.msg_type == ConsoleMessageType.ERROR]
+        assert len(error_msgs) == 1
+        assert "ValueError" in error_msgs[0].title
+        assert "name 'i' is not defined" in error_msgs[0].title
+
     # -- Loop counter is runtime-owned (relocated from test_loop_operators) ---
     #
     # loop_counter is not part of State; it rides on the StateFrame envelope and
