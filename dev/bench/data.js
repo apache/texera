@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781372248054,
+  "lastUpdate": 1781372249957,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -2412,6 +2412,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=10 sl=64",
             "value": 925686.333,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mengw15@uci.edu",
+            "name": "Meng Wang",
+            "username": "mengw15"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "515d37221adb3d3e2ae282a8bd82151f547c3d51",
+          "message": "test(frontend): extend GmailService spec to cover all methods (#5460)\n\n### What changes were proposed in this PR?\n\nExtends the existing `gmail.service.spec.ts` (added in #5164, which\ncovered `sendEmail`'s success/error toasts) to cover the remaining\nsurface of the 3-method service:\n\n- `sendEmail` request-body shape — explicit receiver, and the\nempty-string default when omitted\n- `sendEmail` error branch also logs `console.error(\"Send email error:\",\n…)`\n- `getSenderEmail()` — a `GET` to `/gmail/sender/email` (text) that\nemits the body with no `NotificationService` side-effect\n- `notifyUnauthorizedLogin` — POST body shape, success toast, and error\ntoast + `console.error` logging\n\nFollows `frontend/TESTING.md` (Vitest, `HttpClientTestingModule`).\n\n### Any related issues, documentation, discussions?\n\nCloses #5456. Builds on #5164.\n\n### How was this PR tested?\n\n`yarn test --include='**/gmail.service.spec.ts'` → 9 passed. `prettier\n--check` clean.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (claude-opus-4-7)",
+          "timestamp": "2026-06-13T17:18:45Z",
+          "tree_id": "47f15aad73a3f32861d6965c95a3df7035331d92",
+          "url": "https://github.com/apache/texera/commit/515d37221adb3d3e2ae282a8bd82151f547c3d51"
+        },
+        "date": 1781372249546,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 18748.837,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 26351.459,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 26351.459,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 82212.681,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 104760.768,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 104760.768,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 689348.359,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 744235.069,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 744235.069,
             "unit": "us"
           }
         ]
