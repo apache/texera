@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781310928503,
+  "lastUpdate": 1781310930511,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -1980,6 +1980,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=10 sl=64",
             "value": 1107533.754,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "xinyual3@uci.edu",
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "190823f7562ba8c0bb2a515b0ce4823cf640e049",
+          "message": "test(workflow-operator): add unit test coverage for CaseSensitiveAnalyzer (#5658)\n\n### What changes were proposed in this PR?\n\nPin behavior of the Lucene `Analyzer` used by the keyword-search\noperator when the user opts into case-sensitive matching. The\nabstraction skips the lowercasing pipeline used by `StandardAnalyzer`,\nso a regression here would silently downgrade case-sensitive search. No\nproduction-code changes.\n\n| Spec | Source class | Tests |\n| --- | --- | --- |\n| `CaseSensitiveAnalyzerSpec` | `CaseSensitiveAnalyzer` | 13 |\n\nSpec file name follows the `<srcClassName>Spec.scala` one-to-one\nconvention.\n\n**Behavior pinned**\n\n| Surface | Contract |\n| --- | --- |\n| Mixed-case input | every emitted token preserves its original case |\n| All-uppercase / all-lowercase tokens | preserved (no normalization in\neither direction) |\n| Single-space splitting | tokens are separated cleanly |\n| Tabs and newlines | also split tokens |\n| Collapsed whitespace runs | no empty tokens emitted |\n| Embedded punctuation (`abc,def`) | stays one token\n(`WhitespaceTokenizer` only splits on whitespace) |\n| Sentence-final punctuation (`Hello, world!`) | stays attached\n(`Hello,`, `world!`) |\n| Empty input | no tokens |\n| Pure-whitespace input | no tokens |\n| `StopFilter` with `CharArraySet.EMPTY_SET` | English stop words (`the`\n/ `and` / `a`) are NOT removed (vs `StandardAnalyzer`'s default\nbehavior) |\n| Different field names | same tokenization (field-name independent) |\n| Successive `tokenStream` calls | each gets its own independent stream\n|\n\nThe harness uses the canonical Lucene `reset → incrementToken → end →\nclose` lifecycle and collects `CharTermAttribute` values into a buffer —\nsame pattern any future analyzer spec in this codebase should follow.\n\n### Any related issues, documentation, discussions?\n\nCloses #5654.\n\n### How was this PR tested?\n\nPure unit-test addition; verified locally with:\n\n- `sbt \"WorkflowOperator/testOnly\norg.apache.texera.amber.operator.keywordSearch.CaseSensitiveAnalyzerSpec\"`\n— 13 tests, all green\n- `sbt scalafmtCheckAll` — clean\n- CI to confirm\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.7 [1M context])",
+          "timestamp": "2026-06-13T00:19:41Z",
+          "tree_id": "f611d8cc0bcd54dca2e32c8d9c294bd948752aed",
+          "url": "https://github.com/apache/texera/commit/190823f7562ba8c0bb2a515b0ce4823cf640e049"
+        },
+        "date": 1781310930028,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 23385.296,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 35616.585,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 35616.585,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 117791.334,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 150001.411,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 150001.411,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 1037502.723,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1056481.771,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1056481.771,
             "unit": "us"
           }
         ]
