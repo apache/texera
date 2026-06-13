@@ -21,108 +21,108 @@ import { isAudioUrl, isImageUrl, isVideoUrl } from "./media-type.util";
 
 describe("isImageUrl", () => {
   it("should return true for data:image/ data URLs", () => {
-    expect(isImageUrl("data:image/png;base64,abc123")).toBeTrue();
-    expect(isImageUrl("data:image/jpeg;base64,abc123")).toBeTrue();
-    expect(isImageUrl("data:image/webp;base64,abc123")).toBeTrue();
+    expect(isImageUrl("data:image/png;base64,abc123")).toBe(true);
+    expect(isImageUrl("data:image/jpeg;base64,abc123")).toBe(true);
+    expect(isImageUrl("data:image/webp;base64,abc123")).toBe(true);
   });
 
   it("should return true for common image file extensions", () => {
-    expect(isImageUrl("https://example.com/photo.png")).toBeTrue();
-    expect(isImageUrl("https://example.com/photo.jpg")).toBeTrue();
-    expect(isImageUrl("https://example.com/photo.jpeg")).toBeTrue();
-    expect(isImageUrl("https://example.com/photo.gif")).toBeTrue();
-    expect(isImageUrl("https://example.com/photo.webp")).toBeTrue();
+    expect(isImageUrl("https://example.com/photo.png")).toBe(true);
+    expect(isImageUrl("https://example.com/photo.jpg")).toBe(true);
+    expect(isImageUrl("https://example.com/photo.jpeg")).toBe(true);
+    expect(isImageUrl("https://example.com/photo.gif")).toBe(true);
+    expect(isImageUrl("https://example.com/photo.webp")).toBe(true);
   });
 
   it("should be case-insensitive for extensions", () => {
-    expect(isImageUrl("https://example.com/photo.PNG")).toBeTrue();
-    expect(isImageUrl("https://example.com/photo.JPG")).toBeTrue();
+    expect(isImageUrl("https://example.com/photo.PNG")).toBe(true);
+    expect(isImageUrl("https://example.com/photo.JPG")).toBe(true);
   });
 
   it("should return true for URLs with query strings", () => {
-    expect(isImageUrl("https://example.com/photo.png?v=1")).toBeTrue();
+    expect(isImageUrl("https://example.com/photo.png?v=1")).toBe(true);
   });
 
   it("should return false for audio and video URLs", () => {
-    expect(isImageUrl("data:audio/mp3;base64,abc")).toBeFalse();
-    expect(isImageUrl("data:video/mp4;base64,abc")).toBeFalse();
-    expect(isImageUrl("https://example.com/clip.mp4")).toBeFalse();
+    expect(isImageUrl("data:audio/mp3;base64,abc")).toBe(false);
+    expect(isImageUrl("data:video/mp4;base64,abc")).toBe(false);
+    expect(isImageUrl("https://example.com/clip.mp4")).toBe(false);
   });
 
   it("should return false for plain text strings", () => {
-    expect(isImageUrl("hello world")).toBeFalse();
-    expect(isImageUrl("")).toBeFalse();
+    expect(isImageUrl("hello world")).toBe(false);
+    expect(isImageUrl("")).toBe(false);
   });
 });
 
 describe("isAudioUrl", () => {
   it("should return true for data:audio/ data URLs", () => {
-    expect(isAudioUrl("data:audio/mp3;base64,abc123")).toBeTrue();
-    expect(isAudioUrl("data:audio/wav;base64,abc123")).toBeTrue();
+    expect(isAudioUrl("data:audio/mp3;base64,abc123")).toBe(true);
+    expect(isAudioUrl("data:audio/wav;base64,abc123")).toBe(true);
   });
 
   it("should return true for common audio file extensions", () => {
-    expect(isAudioUrl("https://example.com/clip.mp3")).toBeTrue();
-    expect(isAudioUrl("https://example.com/clip.wav")).toBeTrue();
-    expect(isAudioUrl("https://example.com/clip.ogg")).toBeTrue();
-    expect(isAudioUrl("https://example.com/clip.m4a")).toBeTrue();
-    expect(isAudioUrl("https://example.com/clip.flac")).toBeTrue();
+    expect(isAudioUrl("https://example.com/clip.mp3")).toBe(true);
+    expect(isAudioUrl("https://example.com/clip.wav")).toBe(true);
+    expect(isAudioUrl("https://example.com/clip.ogg")).toBe(true);
+    expect(isAudioUrl("https://example.com/clip.m4a")).toBe(true);
+    expect(isAudioUrl("https://example.com/clip.flac")).toBe(true);
   });
 
   it("should be case-insensitive for extensions", () => {
-    expect(isAudioUrl("https://example.com/clip.MP3")).toBeTrue();
-    expect(isAudioUrl("https://example.com/clip.WAV")).toBeTrue();
+    expect(isAudioUrl("https://example.com/clip.MP3")).toBe(true);
+    expect(isAudioUrl("https://example.com/clip.WAV")).toBe(true);
   });
 
   it("should return true for URLs with query strings", () => {
-    expect(isAudioUrl("https://example.com/clip.mp3?token=xyz")).toBeTrue();
+    expect(isAudioUrl("https://example.com/clip.mp3?token=xyz")).toBe(true);
   });
 
   it("should return false for image and video URLs", () => {
-    expect(isAudioUrl("data:image/png;base64,abc")).toBeFalse();
-    expect(isAudioUrl("data:video/mp4;base64,abc")).toBeFalse();
-    expect(isAudioUrl("https://example.com/photo.png")).toBeFalse();
+    expect(isAudioUrl("data:image/png;base64,abc")).toBe(false);
+    expect(isAudioUrl("data:video/mp4;base64,abc")).toBe(false);
+    expect(isAudioUrl("https://example.com/photo.png")).toBe(false);
   });
 
   it("should return false for plain text strings", () => {
-    expect(isAudioUrl("hello world")).toBeFalse();
-    expect(isAudioUrl("")).toBeFalse();
+    expect(isAudioUrl("hello world")).toBe(false);
+    expect(isAudioUrl("")).toBe(false);
   });
 });
 
 describe("isVideoUrl", () => {
   it("should return true for data:video/ data URLs", () => {
-    expect(isVideoUrl("data:video/mp4;base64,abc123")).toBeTrue();
-    expect(isVideoUrl("data:video/webm;base64,abc123")).toBeTrue();
+    expect(isVideoUrl("data:video/mp4;base64,abc123")).toBe(true);
+    expect(isVideoUrl("data:video/webm;base64,abc123")).toBe(true);
   });
 
   it("should return true for common video file extensions", () => {
-    expect(isVideoUrl("https://example.com/clip.mp4")).toBeTrue();
-    expect(isVideoUrl("https://example.com/clip.webm")).toBeTrue();
-    expect(isVideoUrl("https://example.com/clip.ogg")).toBeTrue();
+    expect(isVideoUrl("https://example.com/clip.mp4")).toBe(true);
+    expect(isVideoUrl("https://example.com/clip.webm")).toBe(true);
+    expect(isVideoUrl("https://example.com/clip.ogg")).toBe(true);
   });
 
   it("should return true for fal.media CDN URLs", () => {
-    expect(isVideoUrl("https://v3b.fal.media/files/abc123/output.mp4")).toBeTrue();
+    expect(isVideoUrl("https://v3b.fal.media/files/abc123/output.mp4")).toBe(true);
   });
 
   it("should be case-insensitive for extensions", () => {
-    expect(isVideoUrl("https://example.com/clip.MP4")).toBeTrue();
-    expect(isVideoUrl("https://example.com/clip.WEBM")).toBeTrue();
+    expect(isVideoUrl("https://example.com/clip.MP4")).toBe(true);
+    expect(isVideoUrl("https://example.com/clip.WEBM")).toBe(true);
   });
 
   it("should return true for URLs with query strings", () => {
-    expect(isVideoUrl("https://example.com/clip.mp4?t=5")).toBeTrue();
+    expect(isVideoUrl("https://example.com/clip.mp4?t=5")).toBe(true);
   });
 
   it("should return false for image and audio URLs", () => {
-    expect(isVideoUrl("data:image/png;base64,abc")).toBeFalse();
-    expect(isVideoUrl("data:audio/mp3;base64,abc")).toBeFalse();
-    expect(isVideoUrl("https://example.com/photo.jpg")).toBeFalse();
+    expect(isVideoUrl("data:image/png;base64,abc")).toBe(false);
+    expect(isVideoUrl("data:audio/mp3;base64,abc")).toBe(false);
+    expect(isVideoUrl("https://example.com/photo.jpg")).toBe(false);
   });
 
   it("should return false for plain text strings", () => {
-    expect(isVideoUrl("hello world")).toBeFalse();
-    expect(isVideoUrl("")).toBeFalse();
+    expect(isVideoUrl("hello world")).toBe(false);
+    expect(isVideoUrl("")).toBe(false);
   });
 });
