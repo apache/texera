@@ -62,6 +62,48 @@ object PythonWorkflowWorker {
     )
     objectMapper.writeValueAsString(entries.toMap)
   }
+
+  /**
+    * Assemble the Python worker startup configuration as named (key, value) pairs.
+    * Worker-specific values are passed in; storage-related values are read from the
+    * shared StorageConfig (Postgres/REST catalog fields are blank unless that catalog
+    * type is active). Returned as a sequence (not a Map) so encodeStartupConfig can
+    * detect a duplicate key.
+    */
+  def buildStartupConfig(
+      workerId: String,
+      outputPort: String,
+      rPath: String,
+      largeBinaryBaseUri: String
+  ): Seq[(String, String)] = {
+    val isPostgres = StorageConfig.icebergCatalogType == "postgres"
+    val isRest = StorageConfig.icebergCatalogType == "rest"
+    Seq(
+      "workerId" -> workerId,
+      "outputPort" -> outputPort,
+      "loggerLevel" -> UdfConfig.pythonLogStreamHandlerLevel,
+      "rPath" -> rPath,
+      "icebergCatalogType" -> StorageConfig.icebergCatalogType,
+      "icebergPostgresCatalogUriWithoutScheme" ->
+        (if (isPostgres) StorageConfig.icebergPostgresCatalogUriWithoutScheme else ""),
+      "icebergPostgresCatalogUsername" ->
+        (if (isPostgres) StorageConfig.icebergPostgresCatalogUsername else ""),
+      "icebergPostgresCatalogPassword" ->
+        (if (isPostgres) StorageConfig.icebergPostgresCatalogPassword else ""),
+      "icebergRestCatalogUri" -> (if (isRest) StorageConfig.icebergRESTCatalogUri else ""),
+      "icebergRestCatalogWarehouseName" ->
+        (if (isRest) StorageConfig.icebergRESTCatalogWarehouseName else ""),
+      "icebergTableNamespace" -> StorageConfig.icebergTableResultNamespace,
+      "icebergTableStateNamespace" -> StorageConfig.icebergTableStateNamespace,
+      "icebergFileStorageDirectoryPath" -> StorageConfig.fileStorageDirectoryPath.toString,
+      "icebergTableCommitBatchSize" -> StorageConfig.icebergTableCommitBatchSize.toString,
+      "s3Endpoint" -> StorageConfig.s3Endpoint,
+      "s3Region" -> StorageConfig.s3Region,
+      "s3AuthUsername" -> StorageConfig.s3Username,
+      "s3AuthPassword" -> StorageConfig.s3Password,
+      "s3LargeBinariesBaseUri" -> largeBinaryBaseUri
+    )
+  }
 }
 
 class PythonWorkflowWorker(
@@ -199,40 +241,15 @@ class PythonWorkflowWorker(
 
     val pythonBin: String = choosePythonBin()
 
-    // Set the Iceberg related arguments based on the catalog type.
-    val isPostgres = StorageConfig.icebergCatalogType == "postgres"
-    val isRest = StorageConfig.icebergCatalogType == "rest"
-
     // Pass startup configuration to the Python worker by name, as a single JSON
     // object, rather than by argv position. This way the two sides agree by key,
     // so adding/removing/reordering a field can no longer silently misassign
     // values; a missing or renamed key fails loudly on the Python side instead.
-    // Built as a sequence so a duplicate key fails loudly (see encodeStartupConfig)
-    // rather than being silently dropped.
-    val startupConfig: Seq[(String, String)] = Seq(
-      "workerId" -> workerConfig.workerId.name,
-      "outputPort" -> Integer.toString(pythonProxyServer.getPortNumber.get()),
-      "loggerLevel" -> UdfConfig.pythonLogStreamHandlerLevel,
-      "rPath" -> RENVPath,
-      "icebergCatalogType" -> StorageConfig.icebergCatalogType,
-      "icebergPostgresCatalogUriWithoutScheme" ->
-        (if (isPostgres) StorageConfig.icebergPostgresCatalogUriWithoutScheme else ""),
-      "icebergPostgresCatalogUsername" ->
-        (if (isPostgres) StorageConfig.icebergPostgresCatalogUsername else ""),
-      "icebergPostgresCatalogPassword" ->
-        (if (isPostgres) StorageConfig.icebergPostgresCatalogPassword else ""),
-      "icebergRestCatalogUri" -> (if (isRest) StorageConfig.icebergRESTCatalogUri else ""),
-      "icebergRestCatalogWarehouseName" ->
-        (if (isRest) StorageConfig.icebergRESTCatalogWarehouseName else ""),
-      "icebergTableNamespace" -> StorageConfig.icebergTableResultNamespace,
-      "icebergTableStateNamespace" -> StorageConfig.icebergTableStateNamespace,
-      "icebergFileStorageDirectoryPath" -> StorageConfig.fileStorageDirectoryPath.toString,
-      "icebergTableCommitBatchSize" -> StorageConfig.icebergTableCommitBatchSize.toString,
-      "s3Endpoint" -> StorageConfig.s3Endpoint,
-      "s3Region" -> StorageConfig.s3Region,
-      "s3AuthUsername" -> StorageConfig.s3Username,
-      "s3AuthPassword" -> StorageConfig.s3Password,
-      "s3LargeBinariesBaseUri" -> workerConfig.largeBinaryBaseUri
+    val startupConfig = PythonWorkflowWorker.buildStartupConfig(
+      workerConfig.workerId.name,
+      Integer.toString(pythonProxyServer.getPortNumber.get()),
+      RENVPath,
+      workerConfig.largeBinaryBaseUri
     )
 
     pythonServerProcess = Process(

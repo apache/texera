@@ -43,4 +43,49 @@ class PythonWorkflowWorkerStartupConfigSpec extends AnyFlatSpec {
     }
     assert(exception.getMessage.contains("duplicate"))
   }
+
+  private val expectedKeys = Set(
+    "workerId",
+    "outputPort",
+    "loggerLevel",
+    "rPath",
+    "icebergCatalogType",
+    "icebergPostgresCatalogUriWithoutScheme",
+    "icebergPostgresCatalogUsername",
+    "icebergPostgresCatalogPassword",
+    "icebergRestCatalogUri",
+    "icebergRestCatalogWarehouseName",
+    "icebergTableNamespace",
+    "icebergTableStateNamespace",
+    "icebergFileStorageDirectoryPath",
+    "icebergTableCommitBatchSize",
+    "s3Endpoint",
+    "s3Region",
+    "s3AuthUsername",
+    "s3AuthPassword",
+    "s3LargeBinariesBaseUri"
+  )
+
+  "buildStartupConfig" should "produce exactly the expected named keys with the worker values" in {
+    val config =
+      PythonWorkflowWorker.buildStartupConfig("worker-7", "6000", "/opt/R", "s3://bucket/uri")
+    val map = config.toMap
+
+    assert(config.size == expectedKeys.size, "no duplicate or missing keys")
+    assert(map.keySet == expectedKeys)
+    assert(map("workerId") == "worker-7")
+    assert(map("outputPort") == "6000")
+    assert(map("rPath") == "/opt/R")
+    assert(map("s3LargeBinariesBaseUri") == "s3://bucket/uri")
+  }
+
+  it should "produce a config that round-trips through encodeStartupConfig" in {
+    val json = PythonWorkflowWorker.encodeStartupConfig(
+      PythonWorkflowWorker.buildStartupConfig("w", "1", "", "uri")
+    )
+    val parsed = objectMapper.readValue(json, classOf[java.util.Map[String, String]])
+    assert(parsed.get("workerId") == "w")
+    assert(parsed.get("s3LargeBinariesBaseUri") == "uri")
+    assert(parsed.size() == expectedKeys.size)
+  }
 }
