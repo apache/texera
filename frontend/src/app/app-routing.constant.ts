@@ -35,6 +35,7 @@ export const USER_WORKFLOW = `${USER}/workflow`;
 export const USER_DATASET = `${USER}/dataset`;
 export const USER_DATASET_CREATE = `${USER_DATASET}/create`;
 export const USER_COMPUTING_UNIT = `${USER}/compute`;
+export const USER_PYTHON_VENV = `${USER}/python-venv`;
 export const USER_QUOTA = `${USER}/quota`;
 export const USER_DISCUSSION = `${USER}/discussion`;
 
