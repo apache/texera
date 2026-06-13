@@ -32,11 +32,22 @@
 #     stack in required-checks.yml's LABEL_STACKS is present on the PR.
 #     Labels are applied by the .github/labeler.yml workflow on opened /
 #     synchronize, so we wait for that workflow to complete before
-#     deciding (same pattern required-checks.yml uses).
+#     deciding (same pattern required-checks.yml uses). A PR run benches
+#     the PR head, then re-runs the IDENTICAL trimmed grid against the
+#     base-branch (main) commit it targets, in the SAME runner (see the
+#     "Benchmark main baseline in the same runner" step). The delta between
+#     those two cancels cross-runner hardware variance (the dominant source
+#     of CI bench noise), so the PR comment's main-vs-branch comparison is
+#     apples-to-apples rather than PR-here vs a stored baseline captured on
+#     some other runner. PRs never publish to gh-pages.
 #   - push to main: always runs (same trimmed grid as PR for quick post-
-#     merge signal) and publishes to gh-pages.
-#   - schedule (weekly): runs the full 36-config sweep and publishes to
-#     gh-pages — this is the authoritative long-term baseline.
+#     merge signal) but does NOT publish to gh-pages; it only emits the
+#     job summary plus uploaded artifact. Publishing on every merge spammed
+#     the repo's Pulse / all-branches commit count with bot commits, so
+#     only the weekly schedule persists the baseline now.
+#   - schedule (weekly): runs the full 36-config sweep and is the sole
+#     writer that publishes to gh-pages (the authoritative long-term
+#     baseline).
 #   - workflow_dispatch: manual full-grid run (no publish; bring-your-own
 #     trigger for ad-hoc exploration).
 #
@@ -235,6 +246,61 @@ jobs:
         # inside bin/run-benchmarks.sh and adding a publish step below.
         run: bash bin/run-benchmarks.sh
 
+      - name: Benchmark main baseline in the same runner
+        # PR only: re-run the IDENTICAL trimmed grid against the base-branch
+        # (main) commit this PR targets, in THIS runner, right after the PR
+        # run above. Comparing two runs from the same machine cancels the
+        # cross-runner hardware variance that otherwise dominates CI bench
+        # deltas, so benchmarks-pr-comment.yml can show a trustworthy
+        # main-vs-branch comparison instead of PR-here vs a stored baseline
+        # captured on some other runner.
+        #
+        # The output convention is preserved: the PR's own outputs stay in
+        # bench-results/ untouched; we only ADD main's CSV as
+        # arrow-flight-e2e-main.csv (plus the base SHA in a sidecar file).
+        # The PR-mode grid is deterministic (see GridSpec in
+        # ArrowFlightActorBench.scala), so main's rows key 1:1 against the
+        # PR's rows for the comparison.
+        #
+        # Fail-soft by construction: no `set -e`, and a trap restores the
+        # PR's results plus the original checkout no matter where the main
+        # re-run dies (broken main, compile error, etc). On failure we emit
+        # no main CSV, and the comment workflow falls back to the stored
+        # gh-pages baseline. We also skip entirely if the PR run produced no
+        # CSV (e.g. the bench itself failed upstream).
+        if: ${{ github.event_name == 'pull_request' && !cancelled() }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -uo pipefail
+          if [ ! -f bench-results/arrow-flight-e2e.csv ]; then
+            echo "::warning::no PR bench CSV; skipping same-runner main baseline."
+            exit 0
+          fi
+          ORIG_REF=$(git rev-parse HEAD)
+          # Park the PR's outputs; main's re-run writes a fresh bench-results/.
+          mv bench-results bench-results-pr
+          restore() {
+            rm -rf bench-results
+            mv bench-results-pr bench-results 2>/dev/null || true
+            git checkout --force "$ORIG_REF" 2>/dev/null || true
+          }
+          trap restore EXIT
+          if ! git checkout --force "$BASE_SHA"; then
+            echo "::warning::could not check out base SHA $BASE_SHA; skipping main baseline."
+            exit 0
+          fi
+          # Regenerate proto bindings against main's protos, then re-bench.
+          bash bin/python-proto-gen.sh || { echo "::warning::main proto-gen failed; skipping main baseline."; exit 0; }
+          if bash bin/run-benchmarks.sh && [ -f bench-results/arrow-flight-e2e.csv ]; then
+            cp bench-results/arrow-flight-e2e.csv bench-results-pr/arrow-flight-e2e-main.csv
+            printf '%s' "$BASE_SHA" > bench-results-pr/arrow-flight-e2e-main.commit.txt
+            echo "captured same-runner main baseline at $BASE_SHA"
+          else
+            echo "::warning::main baseline re-run failed; PR comment falls back to the gh-pages baseline."
+          fi
+          # trap restores the PR outputs (now incl. main CSV) plus original ref.
+
       - name: Stash PR number for downstream comment workflow
         # PR fork workflows can't comment (GitHub forces read-only token);
         # benchmarks-pr-comment.yml runs separately via workflow_run with
@@ -273,17 +339,24 @@ jobs:
           retention-days: 14
 
       # Publish to the gh-pages dashboard. auto-push + save-data-file are
-      # both gated on push-to-main / schedule: PR runs only emit the job
-      # summary and the uploaded artifact, never touching the tracked
-      # baseline. Adding a new benchmark = adding one publish block below
-      # matching the JSON filename convention in bin/run-benchmarks.sh.
+      # gated on `schedule` ONLY: the weekly full-grid run is the single
+      # authoritative baseline writer. PR *and* push-to-main runs only emit
+      # the job summary and the uploaded artifact, never touching the
+      # tracked baseline. This is deliberate: each gh-pages write is a bot
+      # commit (one per chart, so two per run), and persisting on every
+      # merge to main flooded the repo's Pulse / all-branches commit count
+      # with `github-action-benchmark` commits. The post-merge run still
+      # gives quick signal via the rendered summary + artifact; only the
+      # weekly sweep persists. Adding a new benchmark = adding one publish
+      # block below matching the JSON filename convention in
+      # bin/run-benchmarks.sh.
       #
-      # `skip-fetch-gh-pages: true` because gh-pages does not exist on
-      # apache/texera yet — without this the action fatals with
-      # `couldn't find remote ref gh-pages` even before the auto-push
-      # decision. auto-push: true on push/schedule still creates the
-      # branch on first write. Once the dashboard is seeded, flip this
-      # to false to re-enable baseline comparison + alert-threshold.
+      # `skip-fetch-gh-pages: true` was originally needed because gh-pages
+      # did not exist; without it the action fatals with `couldn't find
+      # remote ref gh-pages` even before the auto-push decision. The branch
+      # is now seeded, so this can be flipped to false to re-enable baseline
+      # comparison + alert-threshold (a deliberate follow-up). auto-push on
+      # the weekly schedule still appends to the existing branch.
       #
       # `continue-on-error: true` keeps any other gh-pages-side surprise
       # (permission glitches, transient git failures) from failing the
@@ -298,8 +371,8 @@ jobs:
           tool: customBiggerIsBetter
           output-file-path: bench-results/arrow-flight-e2e-throughput.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
-          save-data-file: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
+          auto-push: ${{ github.event_name == 'schedule' }}
+          save-data-file: ${{ github.event_name == 'schedule' }}
           skip-fetch-gh-pages: true
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
@@ -317,8 +390,8 @@ jobs:
           tool: customSmallerIsBetter
           output-file-path: bench-results/arrow-flight-e2e-latency.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
-          save-data-file: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
+          auto-push: ${{ github.event_name == 'schedule' }}
+          save-data-file: ${{ github.event_name == 'schedule' }}
           skip-fetch-gh-pages: true
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
