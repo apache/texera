@@ -317,7 +317,7 @@ jobs:
     if: ${{ inputs.run_amber_integration }}
     strategy:
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-22.04, macos-latest]
         java-version: [17]
     runs-on: ${{ matrix.os }}
     env:
