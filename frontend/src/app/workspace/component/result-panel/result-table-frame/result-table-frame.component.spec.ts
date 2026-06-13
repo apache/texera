@@ -28,6 +28,7 @@ import { NzTableModule } from "ng-zorro-antd/table";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { isAudioUrl, isImageUrl, isVideoUrl } from "../../../../common/util/media-type.util";
 
 describe("ResultTableFrameComponent", () => {
   let component: ResultTableFrameComponent;
@@ -72,5 +73,26 @@ describe("ResultTableFrameComponent", () => {
 
   it("should set columnLimit from gui-config", () => {
     expect(component.columnLimit).toEqual(GUI_CONFIG_LIMIT);
+  });
+
+  it("should detect media URLs for result cells", () => {
+    expect(component.isVideoCell("https://example.com/clip.mp4")).toBe(true);
+    expect(component.isAudioCell("https://example.com/sound.wav")).toBe(true);
+    expect(component.isImageCell("data:image/png;base64,AAAA")).toBe(true);
+  });
+
+  it("should reject non-media values for result cells", () => {
+    expect(component.isVideoCell("plain text")).toBe(false);
+    expect(component.isAudioCell(123 as unknown)).toBe(false);
+    expect(component.isImageCell(null as unknown)).toBe(false);
+  });
+
+  it("media-type util helpers should classify URLs consistently", () => {
+    expect(isVideoUrl("clip.webm")).toBe(true);
+    expect(isAudioUrl("track.flac")).toBe(true);
+    expect(isImageUrl("image.webp")).toBe(true);
+    expect(isVideoUrl("text")).toBe(false);
+    expect(isAudioUrl("text")).toBe(false);
+    expect(isImageUrl("text")).toBe(false);
   });
 });

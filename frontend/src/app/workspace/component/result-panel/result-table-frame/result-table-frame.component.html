@@ -161,7 +161,40 @@
             class="table-cell"
             nzEllipsis
             (click)="open(i, row)">
-            <span class="cell-content">{{ column.getCell(row) }}</span>
+            <span class="cell-content">
+              <ng-container *ngIf="isVideoCell(column.getCell(row)); else checkAudio">
+                <i
+                  nz-icon
+                  nzType="play-circle"
+                  nzTheme="outline"
+                  title="Play video"
+                  style="margin-right: 4px"></i>
+                Play Video
+              </ng-container>
+              <ng-template #checkAudio>
+                <ng-container *ngIf="isAudioCell(column.getCell(row)); else checkImage">
+                  <i
+                    nz-icon
+                    nzType="sound"
+                    nzTheme="outline"
+                    title="Play audio"
+                    style="margin-right: 4px"></i>
+                  Play Audio
+                </ng-container>
+              </ng-template>
+              <ng-template #checkImage>
+                <ng-container *ngIf="isImageCell(column.getCell(row)); else textCell">
+                  <i
+                    nz-icon
+                    nzType="eye"
+                    nzTheme="outline"
+                    title="View image"
+                    style="margin-right: 4px"></i>
+                  View Image
+                </ng-container>
+              </ng-template>
+              <ng-template #textCell>{{ column.getCell(row) }}</ng-template>
+            </span>
             <button
               (click)="downloadData(currentResult[i][column.columnDef], i, columnIndex, column.columnDef); $event.stopPropagation()"
               nz-button

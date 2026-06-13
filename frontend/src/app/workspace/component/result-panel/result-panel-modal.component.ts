@@ -18,11 +18,17 @@
  */
 
 import { Component, inject, OnChanges } from "@angular/core";
+import { CommonModule } from "@angular/common";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzIconModule } from "ng-zorro-antd/icon";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
+import { NotificationService } from "../../../common/service/notification/notification.service";
+import { isAudioUrl, isVideoUrl, isImageUrl } from "src/app/common/util/media-type.util";
+import { AppSettings } from "../../../common/app-setting";
 
 /**
  *
@@ -42,20 +48,40 @@ import { NgxJsonViewerModule } from "ngx-json-viewer";
   selector: "texera-row-modal-content",
   templateUrl: "./result-panel-modal.component.html",
   styleUrls: ["./result-panel-model.component.scss"],
-  imports: [NgxJsonViewerModule],
+  imports: [CommonModule, NzButtonModule, NzIconModule, NgxJsonViewerModule],
 })
 export class RowModalComponent implements OnChanges {
+  rowEntries: { key: string; value: string; mediaSrc: string; isVideo: boolean; isImage: boolean; isAudio: boolean }[] =
+    [];
   // Index of current displayed row in currentResult
-  readonly operatorId: string = inject(NZ_MODAL_DATA).operatorId;
-  rowIndex: number = inject(NZ_MODAL_DATA).rowIndex;
+  private readonly modalData: { operatorId: string; rowIndex: number; rowData?: Record<string, unknown> } =
+    inject(NZ_MODAL_DATA);
+  readonly operatorId: string = this.modalData.operatorId;
+  rowIndex: number = this.modalData.rowIndex;
   currentDisplayRowData: Record<string, unknown> = {};
 
   constructor(
     public modal: NzModalRef<any, number>,
     private workflowResultService: WorkflowResultService,
-    private resizeService: PanelResizeService
+    private resizeService: PanelResizeService,
+    private notificationService: NotificationService
   ) {
+    if (this.modalData.rowData) {
+      this.currentDisplayRowData = this.modalData.rowData;
+      this.rowEntries = this.buildRowEntries(this.currentDisplayRowData);
+    }
     this.ngOnChanges();
+  }
+
+  get prettyRowJson(): string {
+    return JSON.stringify(this.currentDisplayRowData, null, 2);
+  }
+
+  copyText(text: string): void {
+    navigator.clipboard.writeText(text).then(
+      () => this.notificationService.success("Copied to clipboard"),
+      () => this.notificationService.error("Failed to copy")
+    );
   }
 
   ngOnChanges(): void {
@@ -64,7 +90,37 @@ export class RowModalComponent implements OnChanges {
       ?.selectTuple(this.rowIndex, this.resizeService.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(res => {
-        this.currentDisplayRowData = res.tuple;
+        if (res?.tuple) {
+          this.currentDisplayRowData = res.tuple;
+          this.rowEntries = this.buildRowEntries(this.currentDisplayRowData);
+        }
       });
+  }
+
+  trackByEntryKey(_index: number, entry: { key: string }): string {
+    return entry.key;
+  }
+
+  private resolveMediaSrc(value: string): string {
+    if (!value.startsWith("http://") && !value.startsWith("https://")) {
+      return value;
+    }
+    return `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(value)}`;
+  }
+
+  private buildRowEntries(
+    rowData: Record<string, unknown>
+  ): { key: string; value: string; mediaSrc: string; isVideo: boolean; isImage: boolean; isAudio: boolean }[] {
+    return Object.entries(rowData).map(([key, val]) => {
+      const value = typeof val === "string" ? val : JSON.stringify(val);
+      return {
+        key,
+        value,
+        mediaSrc: this.resolveMediaSrc(value),
+        isVideo: typeof val === "string" && isVideoUrl(val),
+        isImage: typeof val === "string" && isImageUrl(val),
+        isAudio: typeof val === "string" && isAudioUrl(val),
+      };
+    });
   }
 }

@@ -37,6 +37,7 @@ import { IndexableObject, TableColumn } from "../../../types/result-table.interf
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+import { isAudioUrl, isVideoUrl, isImageUrl } from "../../../../common/util/media-type.util";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
@@ -475,6 +476,18 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       this.currentColumnOffset += this.columnLimit;
       this.changePaginatedResultData();
     }
+  }
+
+  isVideoCell(value: unknown): boolean {
+    return typeof value === "string" && isVideoUrl(value);
+  }
+
+  isAudioCell(value: unknown): boolean {
+    return typeof value === "string" && isAudioUrl(value);
+  }
+
+  isImageCell(value: unknown): boolean {
+    return typeof value === "string" && isImageUrl(value);
   }
 
   onColumnSearch(event: Event): void {
