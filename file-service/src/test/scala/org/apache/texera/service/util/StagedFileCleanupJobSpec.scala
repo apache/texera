@@ -486,4 +486,231 @@ class StagedFileCleanupJobSpec
     uncommittedPaths() should not contain expiredStaged
     report.sessionsDeleted should be >= 1
   }
+
+  // ===========================================================================
+  // 12. Lifecycle: stop() before start() is a no-op (executor == null guard)
+  // ===========================================================================
+  "StagedFileCleanupJob lifecycle" should "allow stop() before start() without throwing" in {
+    val lifecycleJob = new StagedFileCleanupJob(RetentionHours, IntervalMinutes)
+    noException should be thrownBy lifecycleJob.stop()
+  }
+
+  // ===========================================================================
+  // 13. Lifecycle: start() then stop() schedules and tears down cleanly
+  // ===========================================================================
+  it should "start() then stop() without throwing" in {
+    // The scheduled task has a 1-minute initial delay, so its body never runs during this
+    // test; we are only covering the scheduling + teardown lines, not the lambda.
+    val lifecycleJob = new StagedFileCleanupJob(RetentionHours, IntervalMinutes)
+    try {
+      noException should be thrownBy lifecycleJob.start()
+    } finally {
+      // Always stop so a started daemon executor never leaks between tests.
+      lifecycleJob.stop()
+    }
+  }
+
+  // ===========================================================================
+  // 14. F1: orphan session (dataset has NULL repository_name) — cleaned, no abort attempted
+  // ===========================================================================
+  it should "delete an orphan session whose dataset has a NULL repository_name, without error" in {
+    // A second dataset with NO repository_name: such a did never appears in repoNameByDid,
+    // so the cleanup hits the `case None` branch (no multipart abort) and still deletes the row.
+    val nullRepoDataset = new Dataset
+    nullRepoDataset.setName(s"null-repo-ds-${System.nanoTime()}")
+    nullRepoDataset.setRepositoryName(null)
+    nullRepoDataset.setIsPublic(true)
+    nullRepoDataset.setIsDownloadable(true)
+    nullRepoDataset.setDescription("dataset with no LakeFS repo for orphan-session test")
+    nullRepoDataset.setOwnerUid(ownerUser.getUid)
+    val datasetDao = new DatasetDao(getDSLContext.configuration())
+    datasetDao.insert(nullRepoDataset)
+
+    try {
+      val orphanUploadId = s"orphan-upload-${System.nanoTime()}"
+      getDSLContext
+        .insertInto(DATASET_UPLOAD_SESSION)
+        .set(DATASET_UPLOAD_SESSION.DID, nullRepoDataset.getDid)
+        .set(DATASET_UPLOAD_SESSION.UID, ownerUser.getUid)
+        .set(DATASET_UPLOAD_SESSION.FILE_PATH, "orphan/file.bin")
+        .set(DATASET_UPLOAD_SESSION.UPLOAD_ID, orphanUploadId)
+        .set(DATASET_UPLOAD_SESSION.PHYSICAL_ADDRESS, "s3://whatever/orphan")
+        .set(DATASET_UPLOAD_SESSION.NUM_PARTS_REQUESTED, Int.box(1))
+        .set(DATASET_UPLOAD_SESSION.FILE_SIZE_BYTES, java.lang.Long.valueOf(16L))
+        .set(DATASET_UPLOAD_SESSION.PART_SIZE_BYTES, java.lang.Long.valueOf(32L))
+        .execute()
+
+      val report = job.runCleanupOnce(farFuture)
+
+      report.sessionsDeleted shouldEqual 1
+      report.errors shouldEqual 0
+      getDSLContext
+        .selectCount()
+        .from(DATASET_UPLOAD_SESSION)
+        .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(orphanUploadId))
+        .fetchOne(0, classOf[Int]) shouldEqual 0
+    } finally {
+      // Remove the extra dataset so later tests' repoNameByDid scan / counts are unaffected.
+      // (Its session row, if any survived, cascades away with the dataset.)
+      datasetDao.deleteById(nullRepoDataset.getDid)
+    }
+  }
+
+  // ===========================================================================
+  // 15. F2: staged DELETION of a committed object is skipped (not reset, not an error)
+  // ===========================================================================
+  it should "skip a staged deletion (REMOVED diff) without resetting it or counting an error" in {
+    // Commit an object, then stage a deletion of it on main WITHOUT committing. The pending
+    // deletion surfaces as a Diff of type REMOVED, which has no object behind it.
+    val committedThenDeleted = uniquePath("staged-deletion")
+    stageObject(committedThenDeleted, content = "to-be-deleted")
+    LakeFSStorageClient.createCommit(repoName, "main", "commit object for staged-deletion test")
+
+    // Stage the deletion (deleteObject targets the main branch but does not commit).
+    LakeFSStorageClient.deleteObject(repoName, committedThenDeleted)
+
+    // Sanity: the pending change is a REMOVED diff for this path.
+    val uncommitted = LakeFSStorageClient.retrieveUncommittedObjects(repoName)
+    uncommitted.map(_.getPath) should contain(committedThenDeleted)
+
+    val report = job.runCleanupOnce(farFuture)
+
+    // The REMOVED entry is skipped: not counted in objectsReset and not an error.
+    report.objectsReset shouldEqual 0
+    report.errors shouldEqual 0
+    // The staged deletion is left intact (still pending, not reverted by cleanup).
+    LakeFSStorageClient
+      .retrieveUncommittedObjects(repoName)
+      .map(_.getPath) should contain(committedThenDeleted)
+  }
+
+  // ===========================================================================
+  // 16. F2: a dataset pointing at a non-existent LakeFS repo (404) is skipped, no error
+  // ===========================================================================
+  it should "skip a dataset whose LakeFS repository does not exist, without error" in {
+    // A dataset row whose repository was never created in LakeFS. retrieveUncommittedObjects
+    // throws ApiException 404, which the job catches and skips.
+    val ghostDataset = new Dataset
+    ghostDataset.setName(s"ghost-ds-${System.nanoTime()}")
+    ghostDataset.setRepositoryName(s"ghost-repo-${System.nanoTime()}")
+    ghostDataset.setIsPublic(true)
+    ghostDataset.setIsDownloadable(true)
+    ghostDataset.setDescription("dataset pointing at a non-existent LakeFS repo")
+    ghostDataset.setOwnerUid(ownerUser.getUid)
+    val datasetDao = new DatasetDao(getDSLContext.configuration())
+    datasetDao.insert(ghostDataset)
+
+    try {
+      val report = job.runCleanupOnce(farFuture)
+      report.errors shouldEqual 0
+    } finally {
+      // Remove the ghost dataset so the per-test clean-slate teardown (which only resets the
+      // suite repo) and later tests' repo scan are not affected by a repo that doesn't exist.
+      datasetDao.deleteById(ghostDataset.getDid)
+    }
+  }
+
+  // ===========================================================================
+  // 17. F2: a staged CHANGED diff (content modification) is reset, not skipped
+  // ===========================================================================
+  it should "reset a staged content change (CHANGED diff) while keeping the committed version" in {
+    // Commit content A, then re-upload content B at the SAME path without committing. The
+    // pending modification surfaces as a Diff of type CHANGED (the `|| CHANGED` half of
+    // isObjectWrite), which must be treated as an object write and reset.
+    val changedPath = uniquePath("staged-changed")
+    stageObject(changedPath, content = "content-A")
+    LakeFSStorageClient.createCommit(repoName, "main", "commit content-A for CHANGED test")
+
+    stageObject(changedPath, content = "content-B-modified")
+
+    // Sanity: the path is now uncommitted (a CHANGED diff, not ADDED, since it was committed).
+    LakeFSStorageClient
+      .retrieveUncommittedObjects(repoName)
+      .find(_.getPath == changedPath)
+      .map(_.getType) shouldEqual Some(io.lakefs.clients.sdk.model.Diff.TypeEnum.CHANGED)
+
+    val report = job.runCleanupOnce(farFuture)
+
+    report.objectsReset should be >= 1
+    report.errors shouldEqual 0
+    // The staged change is reverted...
+    uncommittedPaths() should not contain changedPath
+    // ...and the committed version (content A) is intact and retrievable.
+    committedPaths() should contain(changedPath)
+    val committed = LakeFSStorageClient.getFileFromRepo(repoName, "main", changedPath)
+    new String(
+      java.nio.file.Files.readAllBytes(committed.toPath),
+      StandardCharsets.UTF_8
+    ) shouldEqual
+      "content-A"
+  }
+
+  // ===========================================================================
+  // 18. Multiple datasets/repos are cleaned in a single round (path-2 loop > 1 repo)
+  // ===========================================================================
+  it should "reset expired staged objects across multiple datasets, keyed per-dataset" in {
+    // A second dataset with its own LakeFS repo, initialized like the suite's.
+    val repo2 = s"cleanup-ds2-${System.nanoTime()}"
+    val dataset2 = new Dataset
+    dataset2.setName(s"cleanup-ds2-${System.nanoTime()}")
+    dataset2.setRepositoryName(repo2)
+    dataset2.setIsPublic(true)
+    dataset2.setIsDownloadable(true)
+    dataset2.setDescription("second dataset for multi-repo cleanup test")
+    dataset2.setOwnerUid(ownerUser.getUid)
+    val datasetDao = new DatasetDao(getDSLContext.configuration())
+    datasetDao.insert(dataset2)
+
+    try {
+      try LakeFSStorageClient.initRepo(repo2)
+      catch {
+        case e: ApiException if e.getCode == 409 => // already exists, fine
+      }
+
+      val now = farFuture
+
+      // One expired staged object in each repo -> both must be reset.
+      val expired1 = uniquePath("multi-expired-1")
+      stageObject(expired1) // suite repo
+      val expired2 = "multi-expired-2/obj.bin"
+      LakeFSStorageClient.writeFileToRepo(
+        repo2,
+        expired2,
+        new ByteArrayInputStream("staged-bytes".getBytes(StandardCharsets.UTF_8))
+      )
+
+      // An active session in dataset1 (path P) must NOT protect a same-named path in dataset2:
+      // activePathsByDid is keyed per dataset. Stage P in repo2 with no active session there.
+      val sharedPath = "shared/same-path.bin"
+      val activeUploadId = initSession(sharedPath) // active session for dataset1 only
+      setSessionCreatedAt(activeUploadId, now.minusMinutes(5)) // fresh relative to `now`
+      stageObject(sharedPath) // staged in dataset1 -> protected
+      LakeFSStorageClient.writeFileToRepo(
+        repo2,
+        sharedPath,
+        new ByteArrayInputStream("staged-bytes".getBytes(StandardCharsets.UTF_8))
+      ) // staged in dataset2 -> NOT protected (no session for dataset2)
+
+      val report = job.runCleanupOnce(now)
+
+      // Reset: expired1 (repo1), expired2 (repo2), and sharedPath in repo2 = 3.
+      report.objectsReset shouldEqual 3
+      report.errors shouldEqual 0
+
+      // dataset1: expired object gone, but the active-session-protected path survives.
+      uncommittedPaths() should not contain expired1
+      uncommittedPaths() should contain(sharedPath)
+
+      // dataset2: both staged objects gone (the dataset1 active path did not protect them).
+      val repo2Uncommitted = LakeFSStorageClient.retrieveUncommittedObjects(repo2).map(_.getPath)
+      repo2Uncommitted should not contain expired2
+      repo2Uncommitted should not contain sharedPath
+    } finally {
+      // Drop the extra dataset + repo so the suite's single-dataset assumptions hold and the
+      // per-test clean-slate (which only resets the suite repo) isn't affected.
+      datasetDao.deleteById(dataset2.getDid)
+      try LakeFSStorageClient.deleteRepo(repo2)
+      catch { case _: ApiException => /* best-effort cleanup */ }
+    }
+  }
 }
