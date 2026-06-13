@@ -137,9 +137,15 @@ class ReplayLogGeneratorSpec extends AnyFlatSpec with BeforeAndAfterAll {
       records: Seq[ReplayLogRecord]
   ): Unit = {
     val writer = storage.getWriter("log")
-    records.foreach(writer.writeRecord)
-    writer.flush()
-    writer.close()
+    // Close in a finally so a serialization failure mid-write does not leak
+    // the underlying output stream (which would otherwise block temp-dir
+    // cleanup, especially on Windows).
+    try {
+      records.foreach(writer.writeRecord)
+      writer.flush()
+    } finally {
+      writer.close()
+    }
   }
 
   private def msg(seq: Long): WorkflowFIFOMessage =
