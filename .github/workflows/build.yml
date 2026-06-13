@@ -371,12 +371,14 @@ jobs:
       - name: Install protoc
         # Version pinned in bin/protoc-version.txt. PROTOC_ARCH picks the
         # release asset for the host so the macOS matrix entry can install
-        # the same protoc as Linux.
+        # the same protoc as Linux. v3.19.4 predates upstream arm64-mac
+        # builds, so macOS uses the x86_64 asset and relies on Rosetta 2
+        # (preinstalled on GitHub's Apple Silicon runners).
         run: |
           PROTOC_VERSION=$(cat bin/protoc-version.txt)
           case "$RUNNER_OS" in
             Linux) PROTOC_ARCH=linux-x86_64 ;;
-            macOS) PROTOC_ARCH=osx-aarch_64 ;;
+            macOS) PROTOC_ARCH=osx-x86_64 ;;
             *)     echo "Unsupported RUNNER_OS=$RUNNER_OS"; exit 1 ;;
           esac
           curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${PROTOC_ARCH}.zip"
