@@ -32,7 +32,8 @@ object ComputingUnitAccess {
       .createDSLContext()
 
   def getComputingUnitAccess(cuid: Integer, uid: Integer): PrivilegeEnum = {
-    // owner uid + caller's access privilege in one query
+    // At most one row: cuid is the PK of workflow_computing_unit and (cuid, uid)
+    // is the PK of computing_unit_user_access, so the left join cannot fan out.
     val record = context
       .select(WORKFLOW_COMPUTING_UNIT.UID, COMPUTING_UNIT_USER_ACCESS.PRIVILEGE)
       .from(WORKFLOW_COMPUTING_UNIT)
