@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781389202550,
+  "lastUpdate": 1781394718317,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -1167,6 +1167,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=10 sl=64",
             "value": 953.2404698392654,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "eugenegujing@outlook.com",
+            "name": "Eugene Gu",
+            "username": "eugenegujing"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bdde6b946d79fbe668d211b77e663e2ed263e28f",
+          "message": "feat(workflow-operator): add not-blank validation messages (#5640)\n\n<!-- PR title: feat(workflow-operator): add not-blank validation\nmessages -->\n\n### What changes were proposed in this PR?\n\nExtends the not-blank validation pattern introduced for basic chart\noperators in #4006 to **all visualization operators**, and gives every\nbackend `assert` a human-readable message.\n\n**Why this matters.** The frontend (AJV + `required` + the autofill\nattribute enum) already blocks most empty required fields in normal UI\nusage, but three gaps remained where users or API callers hit a bare\n`assertion failed` with no explanation:\n\n| Gap | Example | Fix |\n|---|---|---|\n| Bare asserts are the only backend check for execution paths that\nbypass frontend validation (direct API calls, agent-generated workflows)\n| `assert(value.nonEmpty)` in `PieChartOpDesc` | Every assert now\ncarries a message, e.g. `assert(value.nonEmpty, \"Value Column cannot be\nempty\")` |\n| Empty lists pass AJV's `required` check (it only verifies key\npresence) | `FigureFactoryTableOpDesc.columns = []` ran and crashed |\n`@NotEmpty(message = ...)` on required list attributes → schema gains\n`minItems: 1` |\n| Numeric constraints existed only in backend asserts, invisible to the\nfrontend | `rowHeight = 10` passed the form, then `assert(rowHeight >=\n30)` crashed | `@DecimalMin` on `FigureFactoryTable`\n`fontSize`/`rowHeight` → schema gains `minimum` |\n\n**Changes in detail:**\n\n- Added messages to all 45 previously bare asserts across 23\nvisualization operators, splitting compound asserts (e.g.\n`assert(x.nonEmpty && y.nonEmpty)`) per field so the error names the\nexact missing attribute.\n- Added `@NotNull(message = ...)` to required string attributes lacking\nit; with the generator's `useMinLengthForNotNull`, the schema gains\n`minLength: 1` so the frontend rejects empty strings as well. Annotation\nmessages are identical to their assert messages (same convention as\n#4006). An annotation-only sweep over 20 more operator/config files\nbrings every required visualization attribute under a constraint.\n- Fixed two null defaults (`ImageVisualizerOpDesc.binaryContent`,\n`ScatterMatrixChartOpDesc.selectedAttributes`) that threw a\n`NullPointerException` before the assert could produce its message.\n- Added two missing guards for fields that were interpolated unchecked:\n`IcicleChartOpDesc.manipulateTable()` (`value`) and\n`RadarChartOpDesc.createPlotlyFigure()` (`valueColumns`).\n- No optional field gained a new required-ness constraint, so existing\nsaved workflows are unaffected.\n\n**Notes for reviewers:**\n\n- Messages quote each field's `@JsonSchemaTitle` verbatim; a few titles\nare terse (`x`, `r`, `theta` in contourPlot/quiverPlot/polarChart),\nproducing messages like `x cannot be empty`. Improving those titles is\nleft out of scope — happy to adjust if preferred.\n- `LineChartOpDesc.lines` reuses its pre-existing assert message (`At\nleast one line must be configured`) instead of inventing a second\nphrasing.\n- Non-visualization operators also have required attributes without\nconstraint annotations (~55 files); those fields need per-field semantic\nreview, so they are left for a follow-up issue.\n\n### Any related issues, documentation, discussions?\n\nCloses #4053. Follows the approach of #4006 (and #3692).\n\n### How was this PR tested?\n\nAdded 14 new spec files and extended 9 existing ones, covering every\ntouched operator with positive (all fields set → template renders the\nconfigured columns), negative (empty field → `AssertionError` whose\nmessage names the field and contains \"cannot be empty\"), and boundary\ncases (`rowHeight = 10` → \"at least 30\", `fontSize = -1` →\n\"non-negative\", exact boundary values pass).\n\n```\nsbt \"WorkflowOperator/testOnly org.apache.texera.amber.operator.visualization.*\"\n```\n\n168 tests, 31 suites, all passed. Also ran `sbt scalafixAll` and `sbt\nscalafmtAll` (clean).\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nCo-authored-by: Claude Code (Claude Fable 5)",
+          "timestamp": "2026-06-13T23:36:46Z",
+          "tree_id": "a2d36008c4931c4b2cd36a093654aa09320810a5",
+          "url": "https://github.com/apache/texera/commit/bdde6b946d79fbe668d211b77e663e2ed263e28f"
+        },
+        "date": 1781394717820,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 414.3305647702846,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 804.7969348285035,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 929.5848463771631,
             "unit": "tuples/sec"
           }
         ]
