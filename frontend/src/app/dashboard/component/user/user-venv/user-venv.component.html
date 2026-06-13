@@ -1,0 +1,183 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="section-container subsection-grid-container">
+  <nz-card class="section-title">
+    <h2 class="page-title">Environments</h2>
+    <div class="button-group">
+      <button
+        nz-button
+        class="create-btn"
+        (click)="showPveModal()"
+        title="Create Environment">
+        <i
+          nz-icon
+          nzType="file-add"
+          nzTheme="outline"></i>
+        <span>Create Environment</span>
+      </button>
+    </div>
+  </nz-card>
+
+  <nz-card
+    class="section-list-container"
+    [nzBodyStyle]="{ height: '100%' }">
+    <div class="python-env-page">
+      <div
+        *ngIf="pves.length === 0"
+        class="python-env-page-empty">
+        No environments yet. Click <strong>Create Environment</strong> to create one.
+      </div>
+
+      <ul
+        *ngIf="pves.length > 0"
+        class="python-env-page-list">
+        <li
+          *ngFor="let pve of pves; let i = index; trackBy: trackByVeid"
+          class="python-env-page-item"
+          (click)="openExistingPve(i)">
+          <span class="python-env-name">{{ pve.name || "(unnamed)" }}</span>
+          <i
+            nz-icon
+            nzType="delete"
+            class="python-env-delete-icon"
+            nz-tooltip
+            nzTooltipTitle="Delete environment"
+            (click)="confirmDeletePve(i); $event.stopPropagation()"
+            role="button"
+            aria-label="Delete environment">
+          </i>
+        </li>
+      </ul>
+    </div>
+  </nz-card>
+</div>
+
+<nz-modal
+  nzWrapClassName="pve-modal"
+  nzClassName="pve-modal"
+  [nzVisible]="pveModalVisible"
+  nzTitle="Python Environment"
+  (nzOnCancel)="closePveModal()"
+  [nzFooter]="customFooter">
+  <ng-template #customFooter>
+    <div class="footer-all">
+      <button
+        nz-button
+        nzType="default"
+        (click)="closePveModal()">
+        Close
+      </button>
+      <button
+        nz-button
+        nzType="primary"
+        [disabled]="!currentDraft?.name?.trim()"
+        [nzLoading]="saving"
+        (click)="saveEnvironment()">
+        Save
+      </button>
+    </div>
+  </ng-template>
+
+  <ng-container *nzModalContent>
+    <div
+      *ngIf="currentDraft as pve"
+      class="ve-form">
+      <div class="fieldRow">
+        <label class="fieldLabel">Virtual Environment Name</label>
+        <input
+          nz-input
+          class="fieldInput"
+          placeholder="Environment Name"
+          [(ngModel)]="pve.name" />
+      </div>
+
+      <div class="new-packages-section">
+        <div
+          class="package-row user-package-header-row"
+          *ngIf="pve.newPackages.length > 0">
+          <div class="user-package-inputs">
+            <div class="package-column-label">Package</div>
+            <div></div>
+            <div class="package-column-label">Version</div>
+            <div></div>
+          </div>
+        </div>
+
+        <div
+          *ngFor="let pkg of pve.newPackages; let i = index"
+          class="package-row">
+          <div class="user-package-inputs">
+            <div class="field">
+              <input
+                nz-input
+                placeholder="Package Name"
+                [(ngModel)]="pve.newPackages[i].name" />
+            </div>
+            <div class="field operator operator-select">
+              <nz-select
+                nzPlaceHolder="Select"
+                nzCentered
+                [(ngModel)]="pve.newPackages[i].versionOp">
+                <nz-option
+                  nzValue="=="
+                  nzLabel="=="></nz-option>
+                <nz-option
+                  nzValue=">="
+                  nzLabel=">="></nz-option>
+                <nz-option
+                  nzValue="<="
+                  nzLabel="<="></nz-option>
+              </nz-select>
+            </div>
+            <div class="field">
+              <input
+                nz-input
+                placeholder="Package Version"
+                [(ngModel)]="pve.newPackages[i].version" />
+            </div>
+            <button
+              nz-button
+              nzType="default"
+              nzShape="circle"
+              nzDanger
+              [class.highlighted-btn]="pkg.deleteToggle"
+              (click)="togglePackageDelete(pkg)">
+              <i
+                nz-icon
+                nzType="delete"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="add-btn">
+        <button
+          nz-button
+          nzType="primary"
+          nzShape="circle"
+          (click)="addPackage()">
+          <i
+            nz-icon
+            nzType="plus"></i>
+        </button>
+      </div>
+    </div>
+  </ng-container>
+</nz-modal>
