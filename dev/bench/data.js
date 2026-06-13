@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781372249957,
+  "lastUpdate": 1781372835949,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -894,6 +894,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=10 sl=64",
             "value": 1435.0459001483277,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "91584519+PG1204@users.noreply.github.com",
+            "name": "Prateek Ganigi",
+            "username": "PG1204"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "99b9ca281dd4524b0423bac9593ce1f9f136f14d",
+          "message": "test(frontend): share workflow-editor TestBed setup, drop double-run (#5626)\n\n### What changes were proposed in this PR?\nAddresses the two review comments on\n[#5318](https://github.com/apache/texera/issues/5318)'s follow-up\nimplementation:\n\n1. Share a common TestBed setup so the jsdom and browser specs don't\ndrift.\n\nThe .browser.spec.ts split created two TestBed configurations for the\nsame component - one in workflow-editor.component.spec.ts (External\nModule Integration describe), one in workflow-editor.browser.spec.ts.\nBoth configured nearly identical imports/providers arrays, which would\ninevitably drift over time.\nExtracted them into a new sibling file workflow-editor.test-utils.ts\nexporting two arrays:\n\n\nexport const workflowEditorTestImports = [ ... ];\nexport const workflowEditorTestProviders: Provider[] = [ ... ];\nThis follows the existing project convention in\n[frontend/src/app/common/testing/test-utils.ts](vscode-webview://1epki5h79lmkghv36u4evg54fuvmk17ndjca203mcg7opnnd5sg9/frontend/src/app/common/testing/test-utils.ts)\n(which exports commonTestImports and commonTestProviders the same way).\nEach spec's TestBed now collapses to:\n\n\nawait TestBed.configureTestingModule({\n  imports: workflowEditorTestImports,\n  providers: workflowEditorTestProviders,\n}).compileComponents();\nAdding or removing a service from either spec's setup is now a single\nedit in one file.\n\n2. Drop the explicit workflow-editor.component.spec.ts entry from the\ntest-browser include in angular.json.\n\nWith the six mouse-event tests now living in\nworkflow-editor.browser.spec.ts (picked up by the **/*.browser.spec.ts\nglob), the explicit listing of workflow-editor.component.spec.ts in\ntest-browser's include array was causing the file's 25 jsdom-friendly\ntests to run twice, once in jsdom (the default test target) and once in\nreal Chrome (the test-browser target). Removed that explicit entry; the\ntest-browser target now picks up only **/*.browser.spec.ts files.\n\nScope note. The pre-existing JointJS Paper describe block at the top of\nworkflow-editor.component.spec.ts has its own deliberately-different\nTestBed setup (ContextMenuComponent instead of\nNzModalCommentBoxComponent, Overlay, MockComputingUnitStatusService) and\nwas left untouched, it wasn't part of the duplication introduced by the\n.browser.spec.ts split.\n\n### Any related issues, documentation, discussions?\nAddresses review feedback on the follow-up PR for\n[#5318](https://github.com/apache/texera/issues/5318).\nCloses #5318 \nRelated to #3614 / PR #5146 (this PR restores tests that were commented\nout during PR #5146 as collateral from the #3614 fix).\n\n\n### How was this PR tested?\nExisting test runs: Verified no test-count regressions in either target,\nand the double-run is gone:\n\nng test (jsdom, full suite): 947 pass / 0 fail / 2 skipped / 1 todo\nacross 103 files\nng run gui:test-browser: 13 pass / 0 fail across 2 files (6 from\nworkflow-editor.browser.spec.ts + 7 from the pre-existing\ncode-editor.component.browser.spec.ts)\nworkflow-editor.component.spec.ts under jsdom: 25/25 pass (unchanged\nfrom before this PR)\nBrowser test count dropped from 38 -> 13, confirming the 25\njsdom-friendly tests in workflow-editor.component.spec.ts no longer\ndouble-run in real Chrome.\n\nStatic checks: tsc --noEmit and eslint clean on all four changed files.\n\n### Was this PR authored or co-authored using generative AI tooling?\nCo-authored-by: Claude Code (Anthropic Claude Opus 4.7)\n\n---------\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-13T17:32:57Z",
+          "tree_id": "1d7d21a43f56d77acba5d876421fcaacd0250392",
+          "url": "https://github.com/apache/texera/commit/99b9ca281dd4524b0423bac9593ce1f9f136f14d"
+        },
+        "date": 1781372835399,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 408.43387108356256,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 942.105216087343,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1122.2841129750852,
             "unit": "tuples/sec"
           }
         ]
