@@ -132,13 +132,11 @@ class AutoClosingIteratorSpec extends AnyFlatSpec {
   }
 
   it should
-    "re-invoke onClose on a retry when the previous onClose threw (alreadyClosed is set AFTER onClose)" in {
-    // Reading the production code: `alreadyClosed = true` runs AFTER
-    // `onClose()`. So if onClose throws, alreadyClosed stays false and
-    // a second hasNext will re-invoke onClose. This is the OPPOSITE of
-    // an "alreadyClosed once close was attempted" contract — characterize
-    // the current (brittle) behavior so a refactor that swaps the order
-    // (running `alreadyClosed = true` BEFORE `onClose()`) surfaces here.
+    "NOT re-invoke onClose on a retry when the previous onClose threw (alreadyClosed is set BEFORE onClose)" in {
+    // `alreadyClosed = true` runs BEFORE `onClose()`, so a throwing close
+    // is marked done before it can fail. The first hasNext still propagates
+    // the exception, but a second hasNext must NOT re-invoke onClose — it
+    // returns false with no further side effect.
     var closeCount = 0
     val it = new AutoClosingIterator[Int](
       Iterator.empty,
@@ -147,8 +145,9 @@ class AutoClosingIteratorSpec extends AnyFlatSpec {
         throw new RuntimeException("boom")
       }
     )
-    intercept[RuntimeException] { it.hasNext }
-    intercept[RuntimeException] { it.hasNext } // current impl re-runs onClose
-    assert(closeCount == 2, s"current impl re-fires onClose on retry; got $closeCount")
+    intercept[RuntimeException] { it.hasNext } // first (and only) close attempt
+    assert(closeCount == 1, s"onClose must fire once, got $closeCount")
+    assert(!it.hasNext, "retry after a throwing close returns false without re-closing")
+    assert(closeCount == 1, s"onClose must not re-fire on retry; got $closeCount")
   }
 }
