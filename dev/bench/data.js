@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781311178237,
+  "lastUpdate": 1781311180079,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -2088,6 +2088,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=10 sl=64",
             "value": 1056481.771,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "xinyual3@uci.edu",
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e0a96478817a5c7a2f585de1952e40f7c8ba534f",
+          "message": "test(workflow-operator): add unit test coverage for AutoClosingIterator and UnionOpExec (#5657)\n\n### What changes were proposed in this PR?\n\nPin behavior of two previously-uncovered helpers in\n`common/workflow-operator`. No production-code changes.\n\n| Spec | Source class | Tests |\n| --- | --- | --- |\n| `AutoClosingIteratorSpec` | `AutoClosingIterator` | 10 |\n| `UnionOpExecSpec` | `UnionOpExec` | 7 |\n\nBoth spec files follow the `<srcClassName>Spec.scala` one-to-one\nconvention.\n\n**Behavior pinned — `AutoClosingIterator`**\n\n| Surface | Contract |\n| --- | --- |\n| `hasNext` (non-empty source) | `true`; `onClose` not invoked |\n| `hasNext` (exhausted source) | `false`; `onClose` invoked exactly once\n|\n| Repeated `hasNext` after exhaustion | does NOT re-fire `onClose`\n(`alreadyClosed` guard) |\n| `next()` | delegates straight to the wrapped iterator (in order) |\n| Full traversal via `toList` | yields every element; `onClose` fires\nonce at the end |\n| Already-empty source | first `hasNext` returns `false` and fires\n`onClose` |\n| Mid-iteration | `onClose` stays un-fired between elements |\n| `onClose` throws | exception propagates (no swallowing) |\n| `onClose` throws + retry | current impl re-fires `onClose` (assignment\nto `alreadyClosed` runs AFTER `onClose()`); characterization pins this\nbehavior |\n\n**Behavior pinned — `UnionOpExec`**\n\n| Surface | Contract |\n| --- | --- |\n| `processTuple(tuple, port = 0)` | yields a single-element iterator\ncontaining the tuple |\n| `processTuple` (any port) | port-agnostic — same tuple passes through\nfor ports 0, 1, 5, 99, MaxValue, -1 |\n| Tuple identity | pass-through preserves the exact `Tuple` reference\n(no copy) |\n| Successive calls | each returns an independent fresh iterator (no\nshared cursor) |\n| Per-call iterator | yields exactly one element |\n| `null` tuple | passes through as `null` (the impl does not null-check)\n|\n| Type contract | `UnionOpExec` is an `OperatorExecutor` |\n\n### Any related issues, documentation, discussions?\n\nCloses #5653.\n\n### How was this PR tested?\n\nPure unit-test additions; verified locally with:\n\n- `sbt \"WorkflowOperator/testOnly\norg.apache.texera.amber.operator.source.scan.AutoClosingIteratorSpec\norg.apache.texera.amber.operator.union.UnionOpExecSpec\"` — 17 tests, all\ngreen\n- `sbt scalafmtCheckAll` — clean\n- CI to confirm\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.7 [1M context])",
+          "timestamp": "2026-06-13T00:22:16Z",
+          "tree_id": "ade9f49ac2e186c74ad0214bce109814859ccfa2",
+          "url": "https://github.com/apache/texera/commit/e0a96478817a5c7a2f585de1952e40f7c8ba534f"
+        },
+        "date": 1781311179610,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 21125.837,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 32942.286,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 32942.286,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 103313.683,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 126729.69,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 126729.69,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 906162.735,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 978269.424,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 978269.424,
             "unit": "us"
           }
         ]
