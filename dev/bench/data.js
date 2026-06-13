@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781374631925,
+  "lastUpdate": 1781374634006,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -2736,6 +2736,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=10 sl=64",
             "value": 934381.725,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "123780557+KYinXu@users.noreply.github.com",
+            "name": "Kyle Yin Xu",
+            "username": "KYinXu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6becb8596df32058f69473c39f4a9028f149954e",
+          "message": "test(workflow-operator): add ImageUtilitySpec for encodeImageToHTML (#5679)\n\n<!--\nThanks for sending a pull request (PR)! Here are some tips for you:\n1. If this is your first time, please read our contributor guidelines:\n[Contributing to\nTexera](https://github.com/apache/texera/blob/main/CONTRIBUTING.md)\n  2. Ensure you have added or run the appropriate tests for your PR\n  3. If the PR is work in progress, mark it a draft on GitHub.\n  4. Please write your PR title to summarize what this PR proposes, we \n    are following Conventional Commits style for PR titles as well.\n  5. Be sure to keep the PR description updated to reflect all changes.\n-->\n\n### What changes were proposed in this PR?\n\nPin the Python snippet emitted by ImageUtility.encodeImageToHTML() — the\nhelper that visualization operators splice into generated UDF code to\nbase64-encode binary image data into an <img> tag. Any drift in the\nf-string template or the error fallback would silently break\nimage-rendering operators (e.g. Word Cloud). No production-code changes.\nNegative cases are covered implicitly: removing any pinned substring\nfails the corresponding assertion.\n\n| Spec | Source Class | Tests |\n| --- | --- | --- |\n| ImageUtilitySpec | ImageUtility | 8 |\n\nSpec file name follows the `<srcClassName>Spec.scala` one-to-one\nconvention.\n\n**Behavior pinned**\n\n| Surface | Contract |\n| :--- | :--- |\n| `encodeImageToHTML` | returns a non-empty `String` |\n| Snippet imports base64 | substring `import base64` appears |\n| Snippet calls `base64.b64encode(binary_image_data)` | substring\nappears verbatim |\n| Snippet decodes to UTF-8 | substring `.decode(\"utf-8\")` appears |\n| Snippet emits an `<img>` tag with `data:image;base64,...` | substring\n`data:image;base64,{encoded_image_str}` appears (verifies the f-string\ntemplate) |\n| Snippet handles binary-decode failure via try/except | substrings\n`except Exception` and `Binary input is not valid` both appear |\n| Snippet contains a top-level `html =` assignment | substring `html =\nf` appears so downstream code can reference `html` |\n| Determinism | two calls return the exact same string |\n\nThe harness pins via `contains` on canonical substrings — resilient to\nincidental whitespace changes from `stripMargin` while still catching\nreal template drift.\n### Any related issues, documentation, discussions?\n<!--\nPlease use this section to link other resources if not mentioned\nalready.\n1. If this PR fixes an issue, please include `Fixes #1234`, `Resolves\n#1234`\nor `Closes #1234`. If it is only related, simply mention the issue\nnumber.\n  2. If there is design documentation, please add the link.\n  3. If there is a discussion in the mailing list, please add the link.\n-->\nCloses #5665 \n\n### How was this PR tested?\n<!--\nIf tests were added, say they were added here. Or simply mention that if\nthe PR\nis tested with existing test cases. Make sure to include/update test\ncases that\ncheck the changes thoroughly including negative and positive cases if\npossible.\nIf it was tested in a way different from regular unit tests, please\nclarify how\nyou tested step by step, ideally copy and paste-able, so that other\nreviewers can\ntest and check, and descendants can verify in the future. If tests were\nnot added,\nplease describe why they were not added and/or why it was difficult to\nadd.\n-->\nUnit tests were added here, tested through local verification:\n\n- ```sbt \"WorkflowOperator/testOnly\norg.apache.texera.amber.operator.visualization.ImageUtilitySpec\"``` -\nAll 8 tests passed\n- ```sbt scalafmtCheckAll``` -- clean\n- ```sbt scalafixAll --check``` No lint errors\n\n### Was this PR authored or co-authored using generative AI tooling?\n<!--\nIf generative AI tooling has been used in the process of authoring this\nPR,\nplease include the phrase: 'Generated-by: ' followed by the name of the\ntool\nand its version. If no, write 'No'. \nPlease refer to the [ASF Generative Tooling\nGuidance](https://www.apache.org/legal/generative-tooling.html) for\ndetails.\n-->\nGenerated-by: Composer 2.5 Fast",
+          "timestamp": "2026-06-13T18:00:43Z",
+          "tree_id": "13f359fb502e155ab86032e7378f5d3f1ef762de",
+          "url": "https://github.com/apache/texera/commit/6becb8596df32058f69473c39f4a9028f149954e"
+        },
+        "date": 1781374633590,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 18427.068,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 27720.763,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 27720.763,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 81828.97,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 108536.608,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 108536.608,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 694850.073,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 733876.887,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 733876.887,
             "unit": "us"
           }
         ]
