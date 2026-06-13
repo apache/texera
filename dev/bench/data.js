@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781377774746,
+  "lastUpdate": 1781385342193,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -1089,6 +1089,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=10 sl=64",
             "value": 917.3749188210405,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4fd395b8f9875d82d8aaf3cc4884ab2366381ae0",
+          "message": "chore(deps): bump shell-quote from 1.8.3 to 1.8.4 in /frontend (#5684)\n\nBumps [shell-quote](https://github.com/ljharb/shell-quote) from 1.8.3 to\n1.8.4.\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/ljharb/shell-quote/blob/main/CHANGELOG.md\">shell-quote's\nchangelog</a>.</em></p>\n<blockquote>\n<h2><a\nhref=\"https://github.com/ljharb/shell-quote/compare/v1.8.3...v1.8.4\">v1.8.4</a>\n- 2026-05-22</h2>\n<h3>Commits</h3>\n<ul>\n<li>[Fix] <code>quote</code>: validate object-token shapes <a\nhref=\"https://github.com/ljharb/shell-quote/commit/4378a6e613db5948168684864e49b42b83134d2d\"><code>4378a6e</code></a></li>\n<li>[Dev Deps] update <code>@ljharb/eslint-config</code>,\n<code>auto-changelog</code>, <code>eslint</code>, <code>npmignore</code>\n<a\nhref=\"https://github.com/ljharb/shell-quote/commit/22ebec04349065a45ad8afc8cc8d53c4624634a6\"><code>22ebec0</code></a></li>\n<li>[Tests] increase coverage <a\nhref=\"https://github.com/ljharb/shell-quote/commit/9f3caa31900cc6ee64858b31134144c648ce206d\"><code>9f3caa3</code></a></li>\n<li>[readme] replace runkit CI badge with shields.io check-runs badge <a\nhref=\"https://github.com/ljharb/shell-quote/commit/3344a047dd1e95f71c4ca27522cbfd05c56277e0\"><code>3344a04</code></a></li>\n<li>[Dev Deps] update <code>@ljharb/eslint-config</code> <a\nhref=\"https://github.com/ljharb/shell-quote/commit/699c5113d135f4d4591574bebf173334ffa453d4\"><code>699c511</code></a></li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/ljharb/shell-quote/commit/ff166e2b63eb5f932bd131a8886a99e9afdf45ae\"><code>ff166e2</code></a>\nv1.8.4</li>\n<li><a\nhref=\"https://github.com/ljharb/shell-quote/commit/4378a6e613db5948168684864e49b42b83134d2d\"><code>4378a6e</code></a>\n[Fix] <code>quote</code>: validate object-token shapes</li>\n<li><a\nhref=\"https://github.com/ljharb/shell-quote/commit/22ebec04349065a45ad8afc8cc8d53c4624634a6\"><code>22ebec0</code></a>\n[Dev Deps] update <code>@ljharb/eslint-config</code>,\n<code>auto-changelog</code>, <code>eslint</code>, `npmig...</li>\n<li><a\nhref=\"https://github.com/ljharb/shell-quote/commit/9f3caa31900cc6ee64858b31134144c648ce206d\"><code>9f3caa3</code></a>\n[Tests] increase coverage</li>\n<li><a\nhref=\"https://github.com/ljharb/shell-quote/commit/3344a047dd1e95f71c4ca27522cbfd05c56277e0\"><code>3344a04</code></a>\n[readme] replace runkit CI badge with shields.io check-runs badge</li>\n<li><a\nhref=\"https://github.com/ljharb/shell-quote/commit/699c5113d135f4d4591574bebf173334ffa453d4\"><code>699c511</code></a>\n[Dev Deps] update <code>@ljharb/eslint-config</code></li>\n<li>See full diff in <a\nhref=\"https://github.com/ljharb/shell-quote/compare/v1.8.3...v1.8.4\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility\nscore](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=shell-quote&package-manager=npm_and_yarn&previous-version=1.8.3&new-version=1.8.4)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't\nalter it yourself. You can also trigger a rebase manually by commenting\n`@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits\nthat have been made to it\n- `@dependabot show <dependency name> ignore conditions` will show all\nof the ignore conditions of the specified dependency\n- `@dependabot ignore this major version` will close this PR and stop\nDependabot creating any more for this major version (unless you reopen\nthe PR or upgrade to it yourself)\n- `@dependabot ignore this minor version` will close this PR and stop\nDependabot creating any more for this minor version (unless you reopen\nthe PR or upgrade to it yourself)\n- `@dependabot ignore this dependency` will close this PR and stop\nDependabot creating any more for this dependency (unless you reopen the\nPR or upgrade to it yourself)\nYou can disable automated security fix PRs for this repo from the\n[Security Alerts page](https://github.com/apache/texera/network/alerts).\n\n</details>\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-06-13T20:59:04Z",
+          "tree_id": "58c4b12a2ccef3dd30abd0a0da746c79facf6ca1",
+          "url": "https://github.com/apache/texera/commit/4fd395b8f9875d82d8aaf3cc4884ab2366381ae0"
+        },
+        "date": 1781385341632,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 425.8555569622274,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 957.9201030252267,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1117.584572849056,
             "unit": "tuples/sec"
           }
         ]
