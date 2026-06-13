@@ -24,7 +24,7 @@ from typing import Iterator, List, Mapping, Optional, Union, MutableMapping, Pro
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from .state import State
-from .table import all_output_to_tuple
+from .table import all_output_to_tuple, table_from_ipc_bytes, table_to_ipc_bytes
 
 import base64
 
@@ -279,6 +279,17 @@ class TableOperator(TupleOperatorV2):
         table = Table(self.__table_data[port])
         yield from self.process_table(table, port)
 
+    def _buffered_table(self, port: int) -> Table:
+        """Tuples buffered for ``port`` so far, materialized as a Table.
+
+        Exposed so subclasses (e.g. ``LoopStartOperator``) can read the
+        buffer outside the ``process_table`` callback without reaching into
+        the parent's name-mangled private field. Inside this class
+        ``self.__table_data`` resolves via normal name mangling, so a future
+        rename of ``TableOperator`` keeps callers transparent.
+        """
+        return Table(self.__table_data[port])
+
     @abstractmethod
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         """
@@ -327,8 +338,8 @@ class LoopStartOperator(TableOperator):
       and yields a downstream row via ``eval_output(...)`` against the
       user's ``output`` expression.
     * ``produce_state_on_finish(port)`` (final) emits the state crossing
-      the boundary to the matching LoopEnd: user variables plus the
-      pickled input table.
+      the boundary to the matching LoopEnd: user variables plus the input
+      table serialized as an Apache Arrow IPC stream (not pickle).
 
     Subclass contract
     -----------------
@@ -372,18 +383,20 @@ class LoopStartOperator(TableOperator):
 
     @overrides.final
     def produce_state_on_finish(self, port: int) -> State:
-        from pickle import dumps
-
-        # Emit the user's loop variables plus the pickled input table for the
-        # matching LoopEnd. `table`/`output` are runtime-reserved and are not
-        # kept in self.state, so drop any stray ones before adding the real
-        # pickled table.
+        # Emit the user's loop variables plus the buffered input table for the
+        # matching LoopEnd. The table rides as an Apache Arrow IPC stream, not
+        # pickle bytes: the receiving LoopEnd would otherwise have to
+        # `pickle.loads` data that lives in iceberg, a remote-code-execution
+        # surface. `table`/`output` are runtime-reserved and are not kept in
+        # self.state, so drop any stray ones before adding the real table.
+        # Reads the buffer through `_buffered_table` so a rename of
+        # `TableOperator` doesn't silently break this.
         produced = {
             key: value
             for key, value in self.state.items()
             if key not in _RESERVED_STATE_KEYS
         }
-        produced["table"] = dumps(Table(self._TableOperator__table_data[port]))
+        produced["table"] = table_to_ipc_bytes(self._buffered_table(port))
         return produced
 
 
@@ -401,10 +414,11 @@ class LoopEndOperator(TableOperator):
     * ``process_table(table, port)`` (final) yields each input table
       through as-is.
     * ``process_state(state, port)`` is provided by the generated
-      subclass. It calls ``run_update(update_code, state)`` to unpickle
-      the input table, run the user's ``update`` in a throwaway
-      namespace, stash the table on ``self._loop_table``, and persist
-      only user variables back into ``self.state``. Returns ``None``.
+      subclass. It calls ``run_update(update_code, state)`` to decode the
+      input table (from its Arrow IPC bytes), run the user's ``update`` in
+      a throwaway namespace, stash the table on ``self._loop_table``, and
+      persist only user variables back into ``self.state``. Returns
+      ``None``.
     * ``condition()`` is the abstract method the generated subclass
       implements by delegating to ``eval_condition(...)`` against the
       user's ``condition`` expression. Called by ``MainLoop.complete()``
@@ -434,14 +448,15 @@ class LoopEndOperator(TableOperator):
     @overrides.final
     def run_update(self, update_code: str, state: State) -> None:
         # Run the user's `update` in a throwaway namespace seeded with the
-        # incoming loop variables and the unpickled input table, then persist
-        # only the user variables back into self.state. `table`/`output` are
-        # runtime-reserved and never persist, so user code cannot silently
-        # clobber loop machinery through them. The real input table is kept on
+        # incoming loop variables and the input table, then persist only the
+        # user variables back into self.state. The table arrives as an Apache
+        # Arrow IPC stream (see LoopStartOperator.produce_state_on_finish), so
+        # it is decoded structurally rather than via pickle.loads -- no
+        # remote-code-execution surface. `table`/`output` are runtime-reserved
+        # and never persist, so user code cannot silently clobber loop
+        # machinery through them. The real input table is kept on
         # self._loop_table so condition() can read it after the update.
-        from pickle import loads
-
-        table = loads(state["table"])
+        table = table_from_ipc_bytes(state["table"])
         namespace = {
             key: value
             for key, value in state.items()

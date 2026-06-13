@@ -39,9 +39,9 @@ StateFrame envelope as their own columns -- so their handling is covered in
 test_main_loop.py::TestLoopCounterRuntime.
 """
 
-from pickle import loads
 from typing import Iterator, Optional
 
+import pyarrow as pa
 import pytest
 
 from core.models import State, Table, TableLike, Tuple
@@ -50,6 +50,7 @@ from core.models.operator import (
     LoopEndOperator,
     LoopStartOperator,
 )
+from core.models.table import table_from_ipc_bytes, table_to_ipc_bytes
 
 
 # ---------------------------------------------------------------------------
@@ -134,12 +135,39 @@ class TestLoopStartProcessState:
 # ---------------------------------------------------------------------------
 
 
+class TestBufferedTableAccessor:
+    """`TableOperator._buffered_table(port)` replaces the name-mangled
+    `self._TableOperator__table_data[port]` read, so a rename of the parent
+    class doesn't silently break LoopStart's table access."""
+
+    def test_returns_buffered_tuples_as_table(self):
+        op = _StubLoopStart()
+        op.open()
+        list(op.process_tuple(Tuple({"v": 1}), port=0))
+        list(op.process_tuple(Tuple({"v": 2}), port=0))
+
+        table = op._buffered_table(port=0)
+
+        assert isinstance(table, Table)
+        assert list(table.as_tuples()) == [Tuple({"v": 1}), Tuple({"v": 2})]
+
+    def test_buffers_are_keyed_by_port(self):
+        op = _StubLoopStart()
+        op.open()
+        list(op.process_tuple(Tuple({"v": 1}), port=0))
+        list(op.process_tuple(Tuple({"v": 99}), port=1))
+
+        assert list(op._buffered_table(port=0).as_tuples()) == [Tuple({"v": 1})]
+        assert list(op._buffered_table(port=1).as_tuples()) == [Tuple({"v": 99})]
+
+
 class TestLoopStartProduceStateOnFinish:
-    def test_pickles_buffered_table_into_state_table_field(self):
-        # produce_state_on_finish must serialize the buffered table via
-        # pickle (so the cross-region state stream can carry a heavy
-        # pandas DataFrame as bytes). The receiving LoopEnd unpickles
-        # it on the matching-loop branch.
+    def test_serializes_buffered_table_as_arrow_into_state_table_field(self):
+        # produce_state_on_finish serializes the buffered table as an Apache
+        # Arrow IPC stream (NOT pickle -- the receiving LoopEnd would otherwise
+        # have to pickle.loads data from iceberg, a remote-code-execution
+        # surface). The bytes must round-trip back to the same tuples and parse
+        # as a real Arrow stream.
         op = _StubLoopStart()
         op.open()
         # Drive a couple of tuples through to populate the per-port buffer.
@@ -150,12 +178,16 @@ class TestLoopStartProduceStateOnFinish:
 
         assert isinstance(produced, dict)
         assert "table" in produced
-        assert isinstance(produced["table"], bytes), "table must be pickled bytes"
-        # Round-trip through pickle.loads must give back our two tuples.
-        unpickled = loads(produced["table"])
-        assert isinstance(unpickled, Table)
-        rows = list(unpickled.as_tuples())
-        assert rows == [Tuple({"v": 1}), Tuple({"v": 2})]
+        assert isinstance(produced["table"], bytes), "table must be serialized bytes"
+        # The bytes are an Arrow IPC stream (stronger than a no-pickle-prefix
+        # check): if a future change swaps the encoder back to pickle, the
+        # Arrow reader raises here.
+        with pa.ipc.open_stream(pa.py_buffer(produced["table"])) as reader:
+            reader.read_all()
+        # Round-trip through the public helper must give back our two tuples.
+        decoded = table_from_ipc_bytes(produced["table"])
+        assert isinstance(decoded, Table)
+        assert list(decoded.as_tuples()) == [Tuple({"v": 1}), Tuple({"v": 2})]
 
     def test_user_state_fields_survive_into_produced_state(self):
         # Any vars the user set in open() (e.g. i, accumulators) must
@@ -216,16 +248,15 @@ class TestLoopEndMatchingBranch:
         # state flows downstream; the actual loop-back is driven by
         # main_loop.complete() reading executor.state.
         op = _StubLoopEnd(update="i += 1")
-        # Simulate LoopStart's produced state arriving here.
-        from pickle import dumps
-
+        # Simulate LoopStart's produced state arriving here. The table rides as
+        # Arrow IPC bytes (see produce_state_on_finish), not pickle.
         # The content carries only user data (i) and the per-iteration table
         # scratch. loop_counter / LoopStartId / LoopStartStateURI are
         # runtime-owned and ride the StateFrame envelope, never the content.
         incoming = State(
             {
                 "i": 2,
-                "table": dumps(Table([Tuple({"v": 1})])),
+                "table": table_to_ipc_bytes(Table([Tuple({"v": 1})])),
             }
         )
 
@@ -233,21 +264,21 @@ class TestLoopEndMatchingBranch:
 
         assert result is None, "matching-loop branch must not emit state downstream"
         assert op.state["i"] == 3, "user's update did not run on the matching branch"
-        # Only user variables persist in self.state; the unpickled table is kept
+        # Only user variables persist in self.state; the decoded table is kept
         # off to the side (self._loop_table) for condition(), never in the state.
         assert "table" not in op.state
         assert isinstance(op._loop_table, Table)
 
     def test_condition_evaluates_user_expression_against_stashed_state(self):
         op = _StubLoopEnd(update="i += 1", condition_expr="i < 3")
-        from pickle import dumps
 
-        # Drive process_state once so self.state is populated.
+        # Drive process_state once so self.state is populated. The table rides
+        # as Arrow IPC bytes, not pickle.
         op.process_state(
             State(
                 {
                     "i": 1,
-                    "table": dumps(Table([Tuple({"v": 1})])),
+                    "table": table_to_ipc_bytes(Table([Tuple({"v": 1})])),
                 }
             ),
             port=0,
@@ -259,7 +290,7 @@ class TestLoopEndMatchingBranch:
             State(
                 {
                     "i": 2,
-                    "table": dumps(Table([Tuple({"v": 1})])),
+                    "table": table_to_ipc_bytes(Table([Tuple({"v": 1})])),
                 }
             ),
             port=0,
