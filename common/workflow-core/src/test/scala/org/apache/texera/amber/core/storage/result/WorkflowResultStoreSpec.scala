@@ -95,7 +95,8 @@ class WorkflowResultStoreSpec extends AnyFlatSpec {
   // Default-arg construction
   // ---------------------------------------------------------------------------
 
-  it should "equal WorkflowResultStore() when constructed from the explicit Map.empty" in {
+  "WorkflowResultStore (default-arg construction)" should
+    "equal WorkflowResultStore(Map.empty) — the default arg is `Map.empty`" in {
     assert(WorkflowResultStore() == WorkflowResultStore(Map.empty))
   }
 }
