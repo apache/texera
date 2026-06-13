@@ -27,7 +27,6 @@ import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
-import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.amber.core.workflow.{
   ExecutionMode,
   PortIdentity,
@@ -115,17 +114,24 @@ class LoopIntegrationSpec
     )
 
   /**
-    * Run the workflow to completion and return each logical operator's
-    * cumulative output-tuple count (keyed by logical op id). The map is
-    * captured from the latest `ExecutionStatsUpdate`, which the controller
-    * delivers before `ExecutionStateUpdate(COMPLETED)`, so it is complete by
-    * the time the loop terminates.
+    * Run the workflow to completion and return, keyed by logical op id:
+    *   1. the cumulative output-tuple count (throughput) from the latest
+    *      `ExecutionStatsUpdate` (delivered before `COMPLETED`), and
+    *   2. the materialized RESULT-table row count per operator.
+    *
+    * The materialized counts are read inside the `COMPLETED` callback -- while
+    * the engine and storage singletons are still alive, the same point
+    * `DataProcessingSpec` reads its results -- looking up each operator's
+    * external RESULT uri the way the frontend does. Operators whose uri is
+    * absent (or whose document fails to open) are simply omitted, and the map
+    * is logged so a count/URI mismatch is visible in the CI output.
     */
-  private def runAndGetOutputCounts(
+  private def runAndGetCounts(
       operators: List[LogicalOp],
       links: List[LogicalLink]
-  ): (Map[String, Long], ExecutionIdentity) = {
+  ): (Map[String, Long], Map[String, Long]) = {
     val workflow = buildWorkflow(operators, links, materializedContext())
+    val eid = workflow.context.executionId
     val client = new AmberClient(
       system,
       workflow.context,
@@ -138,6 +144,7 @@ class LoopIntegrationSpec
     // is keyed by logical op id (WorkflowExecution aggregates worker stats by
     // logicalOpId), so tests look up an operator via its operatorIdentifier.id.
     var outputCounts: Map[String, Long] = Map.empty
+    var materializedCounts: Map[String, Long] = Map.empty
     client.registerCallback[ExecutionStatsUpdate](evt => {
       outputCounts = evt.operatorMetrics.map {
         case (opId, metrics) =>
@@ -149,39 +156,38 @@ class LoopIntegrationSpec
       client.shutdown()
     })
     client.registerCallback[ExecutionStateUpdate](evt => {
-      if (evt.state == COMPLETED) completion.setDone()
+      if (evt.state == COMPLETED) {
+        materializedCounts = operators.flatMap { op =>
+          WorkflowExecutionsResource
+            .getResultUriByLogicalPortId(eid, op.operatorIdentifier, PortIdentity())
+            .flatMap { uri =>
+              scala.util
+                .Try(
+                  DocumentFactory
+                    .openDocument(uri)
+                    ._1
+                    .asInstanceOf[VirtualDocument[Tuple]]
+                    .getCount
+                )
+                .toOption
+                .map(count => op.operatorIdentifier.id -> count)
+            }
+        }.toMap
+        val missing = operators
+          .map(_.operatorIdentifier.id)
+          .filterNot(materializedCounts.contains)
+        println(
+          s">>> LoopIntegrationSpec materialized row counts: $materializedCounts; " +
+            s"throughput counts: $outputCounts; ops with no external RESULT uri: $missing"
+        )
+        completion.setDone()
+      }
     })
     Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
     // A correct loop terminates; a broken one hangs until this deadline.
     Await.result(completion, Duration.fromMinutes(3))
     client.shutdown()
-    (outputCounts, workflow.context.executionId)
-  }
-
-  /**
-    * Count the rows in an operator's materialized RESULT table after the run.
-    * Unlike the cumulative `ExecutionStatsUpdate` output count (throughput),
-    * this reflects what is actually persisted -- so it distinguishes a LoopEnd
-    * that accumulated every iteration from one that was reset. The result URI
-    * is looked up the same way the frontend does (by logical op + external
-    * output port), then the iceberg document is opened and counted.
-    */
-  private def materializedResultRowCount(
-      op: LogicalOp,
-      executionId: ExecutionIdentity
-  ): Long = {
-    val uri = WorkflowExecutionsResource
-      .getResultUriByLogicalPortId(executionId, op.operatorIdentifier, PortIdentity())
-      .getOrElse(
-        throw new NoSuchElementException(
-          s"no result URI for operator ${op.operatorIdentifier.id}"
-        )
-      )
-    DocumentFactory
-      .openDocument(uri)
-      ._1
-      .asInstanceOf[VirtualDocument[Tuple]]
-      .getCount
+    (outputCounts, materializedCounts)
   }
 
   private def textInput(text: String): TextInputSourceOpDesc = {
@@ -211,7 +217,7 @@ class LoopIntegrationSpec
     val src = textInput("1\n2\n3")
     val start = loopStart("i = 0", "table.iloc[i]")
     val end = loopEnd("i += 1", "i < len(table)")
-    val (counts, eid) = runAndGetOutputCounts(
+    val (counts, materialized) = runAndGetCounts(
       List(src, start, end),
       List(link(src, start), link(start, end))
     )
@@ -223,9 +229,11 @@ class LoopIntegrationSpec
     assert(counts.getOrElse(end.operatorIdentifier.id, -1L) == 3)
     // A single (non-nested) LoopEnd accumulates the results of all of its own
     // iterations and never resets, so its materialized result holds all 3 rows.
+    val endRows = materialized.getOrElse(end.operatorIdentifier.id, -1L)
     assert(
-      materializedResultRowCount(end, eid) == 3,
-      "single LoopEnd must accumulate all iterations in its materialized result"
+      endRows == 3,
+      s"single LoopEnd must accumulate all iterations in its materialized " +
+        s"result: expected 3, got $endRows (all: $materialized)"
     )
   }
 
@@ -249,7 +257,7 @@ class LoopIntegrationSpec
     val innerStart = loopStart("j = 0", "table.iloc[j]")
     val innerEnd = loopEnd("j += 1", "j < len(table)")
     val outerEnd = loopEnd("i += 1", "i < len(table)")
-    val (counts, eid) = runAndGetOutputCounts(
+    val (counts, materialized) = runAndGetCounts(
       List(src, outerStart, innerStart, innerEnd, outerEnd),
       List(
         link(src, outerStart),
@@ -269,13 +277,17 @@ class LoopIntegrationSpec
     // iteration, so its materialized result holds only the current (final)
     // outer iteration's 3 inner rows -- not 9. This is the assertion that fails
     // against the pre-fix code (where the inner reset never fired).
+    val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier.id, -1L)
+    val innerRows = materialized.getOrElse(innerEnd.operatorIdentifier.id, -1L)
     assert(
-      materializedResultRowCount(outerEnd, eid) == 9,
-      "outer LoopEnd must accumulate all 9 inner-iteration rows"
+      outerRows == 9,
+      s"outer LoopEnd must accumulate all 9 inner-iteration rows: " +
+        s"expected 9, got $outerRows (all: $materialized)"
     )
     assert(
-      materializedResultRowCount(innerEnd, eid) == 3,
-      "inner LoopEnd must reset per outer iteration (3 rows, not 9)"
+      innerRows == 3,
+      s"inner LoopEnd must reset per outer iteration (3 rows, not 9): " +
+        s"expected 3, got $innerRows (all: $materialized)"
     )
   }
 }
