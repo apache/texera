@@ -88,6 +88,18 @@ from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 from pytexera.udf.examples.echo_operator import EchoOperator
 
 
+class _FalseLoopEnd(LoopEndOperator):
+    def condition(self):
+        return False
+
+
+class _MatReader:
+    """Minimal input-port materialization reader stub carrying a uri."""
+
+    def __init__(self, uri):
+        self.uri = uri
+
+
 class TestMainLoop:
     @pytest.fixture
     def command_sequence(self):
@@ -1927,11 +1939,7 @@ class TestMainLoop:
         # loop: the runtime decrements and forwards, skipping the operator. It
         # also resets this (inner) LoopEnd's output storage -- the outer loop
         # advancing is the signal to drop the previous outer iteration's rows.
-        class StubLoopEnd(LoopEndOperator):
-            def condition(self):
-                return False
-
-        main_loop.context.executor_manager.executor = StubLoopEnd()
+        main_loop.context.executor_manager.executor = _FalseLoopEnd()
         emitted, switched, reset_calls = self._capture_state_emit(
             main_loop, monkeypatch
         )
@@ -1960,11 +1968,7 @@ class TestMainLoop:
         # loop_counter == 0 is the matching loop: the runtime runs the operator
         # (consume) via the context switch. The operator returns None, so no
         # state is emitted; the loop-back is driven by complete() separately.
-        class StubLoopEnd(LoopEndOperator):
-            def condition(self):
-                return False
-
-        main_loop.context.executor_manager.executor = StubLoopEnd()
+        main_loop.context.executor_manager.executor = _FalseLoopEnd()
         emitted, switched, reset_calls = self._capture_state_emit(
             main_loop, monkeypatch
         )
@@ -1986,11 +1990,7 @@ class TestMainLoop:
         # the previous outer iteration's rows are dropped before this outer
         # iteration's inner results accumulate. It must NOT invoke the operator,
         # and forwards the outer state one level out (loop_counter - 1).
-        class StubLoopEnd(LoopEndOperator):
-            def condition(self):
-                return False
-
-        main_loop.context.executor_manager.executor = StubLoopEnd()
+        main_loop.context.executor_manager.executor = _FalseLoopEnd()
         emitted, switched, reset_calls = self._capture_state_emit(
             main_loop, monkeypatch
         )
@@ -2023,11 +2023,7 @@ class TestMainLoop:
         # metadata must yield a user-facing `current_input_state` that
         # contains only the inner State's keys -- never the envelope
         # names.
-        class StubLoopEnd(LoopEndOperator):
-            def condition(self):
-                return False
-
-        main_loop.context.executor_manager.executor = StubLoopEnd()
+        main_loop.context.executor_manager.executor = _FalseLoopEnd()
         # Standard stubs: emit/save/switch don't fire real work. The
         # consume branch sets `current_input_state` to the inner State
         # BEFORE the (stubbed) context switch, so the assertion below
@@ -2083,11 +2079,7 @@ class TestMainLoop:
         `input_manager.get_input_port_mat_reader_threads` returns: one
         port -> one reader runnable carrying the given URI."""
 
-        class _Reader:
-            def __init__(self, u):
-                self.uri = u
-
-        return {PortIdentity(0, internal=False): [_Reader(uri)]}
+        return {PortIdentity(0, internal=False): [_MatReader(uri)]}
 
     def test_compute_loop_start_id_parses_worker_id_via_canonical_helper(
         self, main_loop, monkeypatch
@@ -2139,13 +2131,9 @@ class TestMainLoop:
         # surfaces the misconfiguration loudly instead.
         main_loop.context.worker_id = "Worker:WF1-LoopStart-op-abc-main-0"
 
-        class _R:
-            def __init__(self, u):
-                self.uri = u
-
         two_ports = {
-            PortIdentity(0, internal=False): [_R("vfs:///a")],
-            PortIdentity(1, internal=False): [_R("vfs:///b")],
+            PortIdentity(0, internal=False): [_MatReader("vfs:///a")],
+            PortIdentity(1, internal=False): [_MatReader("vfs:///b")],
         }
         monkeypatch.setattr(
             main_loop.context.input_manager,
@@ -2163,14 +2151,15 @@ class TestMainLoop:
         # reader runnable would have silently picked the first.
         main_loop.context.worker_id = "Worker:WF1-LoopStart-op-abc-main-0"
 
-        class _R:
-            def __init__(self, u):
-                self.uri = u
-
         monkeypatch.setattr(
             main_loop.context.input_manager,
             "get_input_port_mat_reader_threads",
-            lambda: {PortIdentity(0, internal=False): [_R("vfs:///a"), _R("vfs:///b")]},
+            lambda: {
+                PortIdentity(0, internal=False): [
+                    _MatReader("vfs:///a"),
+                    _MatReader("vfs:///b"),
+                ]
+            },
         )
 
         with pytest.raises(RuntimeError, match="exactly one input reader"):

@@ -619,18 +619,15 @@ class RegionExecutionCoordinator(
         // MainLoop._process_state_frame -- which is orthogonal to this
         // region-provisioning reuse.)
         val reusesOutputStorage = region.getOperators.exists(_.reusesOutputStorageOnReExecution)
-        RegionExecutionCoordinator.provisionOutputDocument(
-          resultURI,
-          reusesOutputStorage,
-          DocumentFactory.documentExists,
-          uri => DocumentFactory.createDocument(uri, schema)
-        )
-        RegionExecutionCoordinator.provisionOutputDocument(
-          stateURI,
-          reusesOutputStorage,
-          DocumentFactory.documentExists,
-          uri => DocumentFactory.createDocument(uri, State.schema)
-        )
+        Seq((resultURI, schema), (stateURI, State.schema)).foreach {
+          case (uri, sch) =>
+            RegionExecutionCoordinator.provisionOutputDocument(
+              uri,
+              reusesOutputStorage,
+              DocumentFactory.documentExists,
+              u => DocumentFactory.createDocument(u, sch)
+            )
+        }
         if (!isRestart) {
           val (_, eid, _, _) = decodeURI(resultURI)
           WorkflowExecutionsResource.insertOperatorPortResultUri(

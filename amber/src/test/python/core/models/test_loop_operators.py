@@ -113,6 +113,11 @@ class _StubLoopEnd(LoopEndOperator):
 # ---------------------------------------------------------------------------
 
 
+def _ipc_one_row():
+    """One-row table as Arrow IPC bytes (the loop `table` payload)."""
+    return table_to_ipc_bytes(Table([Tuple({"v": 1})]))
+
+
 class TestLoopStartProcessState:
     def test_first_time_state_is_merged_into_self_state_and_none_is_returned(self):
         # First entry: state from upstream (no LoopStartStateURI). The
@@ -254,7 +259,7 @@ class TestLoopEndBase:
         op = _StubLoopEnd(update="i += 1", condition_expr="i < 3")
         assert op._loop_table is None
         op.process_state(
-            State({"i": 0, "table": table_to_ipc_bytes(Table([Tuple({"v": 1})]))}),
+            State({"i": 0, "table": _ipc_one_row()}),
             port=0,
         )
         assert op._loop_table is not None
@@ -281,7 +286,7 @@ class TestLoopEndMatchingBranch:
         incoming = State(
             {
                 "i": 2,
-                "table": table_to_ipc_bytes(Table([Tuple({"v": 1})])),
+                "table": _ipc_one_row(),
             }
         )
 
@@ -303,7 +308,7 @@ class TestLoopEndMatchingBranch:
             State(
                 {
                     "i": 1,
-                    "table": table_to_ipc_bytes(Table([Tuple({"v": 1})])),
+                    "table": _ipc_one_row(),
                 }
             ),
             port=0,
@@ -315,7 +320,7 @@ class TestLoopEndMatchingBranch:
             State(
                 {
                     "i": 2,
-                    "table": table_to_ipc_bytes(Table([Tuple({"v": 1})])),
+                    "table": _ipc_one_row(),
                 }
             ),
             port=0,
