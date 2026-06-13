@@ -82,7 +82,7 @@ class SubstringSearchOpExecSpec extends AnyFlatSpec {
   }
 
   "SubstringSearchOpExec with isCaseSensitive = false" should
-    "match case-insensitively via lowercased equality (production lowercases both sides)" in {
+    "match case-insensitively (production lowercases both sides before String.contains)" in {
     val exec = new SubstringSearchOpExec(descJson(substring = "HELLO", isCaseSensitive = false))
     val t = tuple("hello world")
     assert(exec.processTuple(t, port = 0).toList == List(t))

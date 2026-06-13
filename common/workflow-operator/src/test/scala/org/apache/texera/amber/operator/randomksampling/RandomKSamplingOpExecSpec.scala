@@ -105,15 +105,15 @@ class RandomKSamplingOpExecSpec extends AnyFlatSpec {
     // sample — the seed is workerCount, so the streams diverge.
     val a = new RandomKSamplingOpExec(descJson(percentage = 50), idx = 0, workerCount = 1)
     val b = new RandomKSamplingOpExec(descJson(percentage = 50), idx = 0, workerCount = 2)
-    val emissionsA = (1 to 100).map(i => exec_emit(a, i))
-    val emissionsB = (1 to 100).map(i => exec_emit(b, i))
+    val emissionsA = (1 to 100).map(i => execEmit(a, i))
+    val emissionsB = (1 to 100).map(i => execEmit(b, i))
     assert(
       emissionsA != emissionsB,
       "different workerCount seeds must produce different emission sequences"
     )
   }
 
-  private def exec_emit(exec: RandomKSamplingOpExec, i: Int): Boolean =
+  private def execEmit(exec: RandomKSamplingOpExec, i: Int): Boolean =
     exec.processTuple(tuple(i), port = 0).nonEmpty
 
   // ---------------------------------------------------------------------------
