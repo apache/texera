@@ -264,6 +264,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if output_state is not None:
             executor = self.context.executor_manager.executor
             if isinstance(executor, LoopEndOperator):
+                # Runs once per iteration for every LoopEnd, on the
+                # matching-loop consume (loop_counter == 0). The nested
+                # pass-through (loop_counter > 0) is forwarded and returned in
+                # _process_state_frame before reaching here, so it never
+                # resets. Clearing the output each iteration keeps the
+                # materialization at the final iteration's rows rather than
+                # every iteration concatenated.
                 self.context.output_manager.reset_output_storage()
             elif isinstance(executor, LoopStartOperator):
                 # A LoopStart stamps its own id/uri onto the state it emits.
