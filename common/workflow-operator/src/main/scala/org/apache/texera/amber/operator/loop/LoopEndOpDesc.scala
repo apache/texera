@@ -64,6 +64,10 @@ class LoopEndOpDesc extends LogicalOp {
       outputPorts = List(OutputPort())
     )
 
+  // A loop's back-edge is the cross-region materialized state channel, which
+  // only exists under MATERIALIZED execution mode.
+  override def requiresMaterializedExecution: Boolean = true
+
   // User-supplied `update` and `condition` are interpolated via the `pyb`
   // builder, which base64-encodes each EncodableString and renders it as
   // a `self.decode_python_template('<b64>')` expression. This means an
