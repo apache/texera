@@ -125,10 +125,12 @@ class CaseSensitiveAnalyzerSpec extends AnyFlatSpec {
   "CaseSensitiveAnalyzer (StopFilter with CharArraySet.EMPTY_SET)" should
     "NOT remove common English stop words (the / and / of / a)" in {
     // StandardAnalyzer's default stop set would strip "the", "and",
-    // "a"; this analyzer is built with `CharArraySet.EMPTY_SET` so
-    // every token survives. Pin that explicitly.
-    val out = tokensOf("body", "the quick and a brown fox")
-    assert(out == List("the", "quick", "and", "a", "brown", "fox"))
+    // "of", "a"; this analyzer is built with `CharArraySet.EMPTY_SET`
+    // so every token survives. Pin that explicitly.
+    val out = tokensOf("body", "the quick and a brown fox jumps of off")
+    assert(
+      out == List("the", "quick", "and", "a", "brown", "fox", "jumps", "of", "off")
+    )
   }
 
   // ---------------------------------------------------------------------------
@@ -143,10 +145,38 @@ class CaseSensitiveAnalyzerSpec extends AnyFlatSpec {
     assert(a == b, "field name must not change tokenization")
   }
 
-  it should "return independent TokenStreams for successive tokenStream calls" in {
-    // Consuming one TokenStream must not affect a second one. The helper
-    // creates a fresh analyzer per call, so by design they're independent —
-    // pin that two same-input calls yield identical token lists.
-    assert(tokensOf("body", "alpha Beta GAMMA") == tokensOf("body", "alpha Beta GAMMA"))
+  it should
+    "return independent TokenStreams for successive tokenStream calls on the SAME analyzer instance" in {
+    // Reuse one analyzer across two tokenStream calls — consuming the
+    // first stream must not affect the second. The helper would create
+    // a fresh analyzer per call, masking the intra-analyzer reuse
+    // behavior; do the lifecycle manually here.
+    val analyzer = new CaseSensitiveAnalyzer
+    try {
+      def collect(input: String): List[String] = {
+        val stream = analyzer.tokenStream("body", new java.io.StringReader(input))
+        val termAttr = stream.addAttribute(classOf[CharTermAttribute])
+        val out = ArrayBuffer.empty[String]
+        try {
+          stream.reset()
+          while (stream.incrementToken()) {
+            out.append(termAttr.toString)
+          }
+          stream.end()
+        } finally {
+          stream.close()
+        }
+        out.toList
+      }
+      val first = collect("alpha Beta GAMMA")
+      val second = collect("alpha Beta GAMMA")
+      assert(first == List("alpha", "Beta", "GAMMA"))
+      assert(second == first, "second tokenStream call must not be affected by the first")
+      // Different input on the SAME analyzer also produces correct tokens.
+      val third = collect("foo bar")
+      assert(third == List("foo", "bar"))
+    } finally {
+      analyzer.close()
+    }
   }
 }
