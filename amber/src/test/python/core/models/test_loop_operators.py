@@ -93,10 +93,12 @@ class _StubLoopEnd(LoopEndOperator):
     """
 
     def __init__(self, update="i += 1", condition_expr="i < 3"):
+        # No self.state seeding here: the real generated ProcessLoopEndOperator
+        # has no __init__/open, so it relies entirely on LoopEndOperator's base
+        # __init__. Mirroring that lets the tests exercise the base init.
         super().__init__()
         self._update = update
         self._condition_expr = condition_expr
-        self.state = {}
 
     def process_state(self, state: State, port: int) -> Optional[State]:
         self.run_update(self._update, state)
@@ -234,6 +236,28 @@ class TestLoopEndBase:
         # "abstract".
         with pytest.raises(TypeError, match="abstract"):
             _Missing()
+
+    def test_condition_returns_false_before_any_state_is_consumed(self):
+        # MainLoop.complete() calls condition() on every LoopEnd. One that
+        # never consumed a matching state (run_update never ran) -- e.g. an
+        # inner LoopEnd that only forwarded outer-loop pass-through state --
+        # must return False (don't fire the back-edge) rather than raise
+        # AttributeError on self._loop_table / self.state, or NameError when
+        # the user's condition references undefined loop variables.
+        op = _StubLoopEnd(condition_expr="i < len(table)")
+        assert op.condition() is False
+
+    def test_consumed_flag_flips_after_run_update(self):
+        # Before any consume the loop hasn't run here; after run_update the
+        # real condition is evaluated against the consumed state.
+        op = _StubLoopEnd(update="i += 1", condition_expr="i < 3")
+        assert op._consumed_state is False
+        op.process_state(
+            State({"i": 0, "table": table_to_ipc_bytes(Table([Tuple({"v": 1})]))}),
+            port=0,
+        )
+        assert op._consumed_state is True
+        assert op.condition() is True  # i became 1, 1 < 3
 
 
 # ---------------------------------------------------------------------------

@@ -430,7 +430,12 @@ class LoopEndOperator(TableOperator):
     The generated subclass overrides ``process_state()`` (delegating to
     ``run_update``) and ``condition()`` (delegating to
     ``eval_condition``). All other methods are ``@overrides.final``; do
-    not override them.
+    not override them. ``self.state`` / ``self._loop_table`` are
+    initialized empty at construction and only populated by
+    ``run_update`` on the matching-loop consume, so ``condition()``
+    returns ``False`` until that first consume (a LoopEnd that never
+    consumed a matching state -- e.g. an inner LoopEnd that only forwarded
+    outer-loop pass-through state -- must not fire the back-edge).
 
     Reserved names
     --------------
@@ -440,6 +445,19 @@ class LoopEndOperator(TableOperator):
     inside ``run_update`` / ``eval_condition``'s throwaway namespace and
     are stripped from ``self.state``. See ``_RESERVED_STATE_KEYS``.
     """
+
+    def __init__(self):
+        super().__init__()
+        # MainLoop.complete() calls condition() on every LoopEnd, including one
+        # that never consumed a matching state (an inner LoopEnd that only
+        # forwarded outer-loop pass-through state, or a loop that completed
+        # without a matching-branch consume). run_update is what populates
+        # self.state / self._loop_table, so initialize them -- plus a
+        # "consumed" flag eval_condition checks -- to avoid AttributeError and
+        # to terminate cleanly in that case.
+        self.state: State = {}
+        self._loop_table: Optional[Table] = None
+        self._consumed_state: bool = False
 
     @overrides.final
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -470,9 +488,16 @@ class LoopEndOperator(TableOperator):
             for key, value in namespace.items()
             if key not in _RESERVED_STATE_KEYS
         }
+        self._consumed_state = True
 
     @overrides.final
     def eval_condition(self, condition_expr: str) -> bool:
+        # No matching state was consumed (run_update never ran): the loop never
+        # iterated here, so do not continue. Returning False also avoids
+        # evaluating the user's condition against loop variables that don't
+        # exist yet (which would raise NameError).
+        if not self._consumed_state:
+            return False
         namespace = {**self.state, "table": self._loop_table}
         exec("output = " + condition_expr, {}, namespace)
         return namespace["output"]
