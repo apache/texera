@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781374634006,
+  "lastUpdate": 1781377498422,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -1011,6 +1011,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=10 sl=64",
             "value": 1429.717512187697,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "xinyual3@uci.edu",
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7ae2374bead9361735f5538b6501337d3ea32c56",
+          "message": "test(config): add unit test coverage for ConfigParserUtil (#5659)\n\n### What changes were proposed in this PR?\n\nPin behavior of `ConfigParserUtil.parseSizeStringToBytes` — the\nsize-string parser used by `StorageConfig` for S3 multipart sizing. The\n`common/config` module had no test infrastructure before this PR (no\n`src/test` directory existed); this PR adds the directory and configures\nthe standard ScalaTest dependency the way the other backend modules do.\n\n| Spec | Source class | Tests |\n| --- | --- | --- |\n| `ConfigParserUtilSpec` | `ConfigParserUtil` | 16 |\n\nSpec file name follows the `<srcClassName>Spec.scala` one-to-one\nconvention.\n\n**Behavior pinned**\n\n| Surface | Contract |\n| --- | --- |\n| `1KB` / `1MB` / `1GB` | parses to `1024L` / `1024 * 1024L` / `1024 *\n1024 * 1024L` |\n| Multi-digit values (`100MB`, `1024KB`, `128GB`) | scales correctly by\nthe unit multiplier |\n| `5GB` | preserves `Long` precision (result exceeds `Int.MaxValue`) |\n| `0010KB` | parses to `10 * 1024L` (decimal-only, no octal\ninterpretation) |\n| Missing unit (`100`) | throws `IllegalArgumentException` with\ndiagnostic |\n| Unsupported unit (`5TB`) | throws `IllegalArgumentException` |\n| Empty string | throws `IllegalArgumentException` |\n| Lowercase unit (`5mb`) | throws `IllegalArgumentException` (regex is\nanchored to `[KMG]B`) |\n| Embedded whitespace (`5 MB`) | throws `IllegalArgumentException` |\n| Non-numeric value (`abcMB`) | throws `IllegalArgumentException` |\n| Unit-only input (`MB`) | throws `IllegalArgumentException` |\n| Return type | `Long` (compile-time enforced) |\n\n**Build-config change**\n\nAdds `org.scalatest %% scalatest % 3.2.15 % Test` to\n`common/config/build.sbt`. The version matches the other backend modules\n(`common/workflow-operator`, `common/dao`, `amber`). Scope is `Test` so\nthe dependency does not leak into the production classpath.\n\n### Any related issues, documentation, discussions?\n\nCloses #5655.\n\n### How was this PR tested?\n\nPure unit-test addition (plus the build-config tweak above); verified\nlocally with:\n\n- `sbt \"Config/testOnly\norg.apache.texera.amber.util.ConfigParserUtilSpec\"` — 16 tests, all\ngreen\n- `sbt scalafmtCheckAll` — clean\n- CI to confirm\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.7 [1M context])",
+          "timestamp": "2026-06-13T18:52:29Z",
+          "tree_id": "2e5a358109f2310bebc03bf7975d3e3f51f1d54a",
+          "url": "https://github.com/apache/texera/commit/7ae2374bead9361735f5538b6501337d3ea32c56"
+        },
+        "date": 1781377497927,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 379.9732636752667,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 812.9586889741707,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 919.1715558369533,
             "unit": "tuples/sec"
           }
         ]
