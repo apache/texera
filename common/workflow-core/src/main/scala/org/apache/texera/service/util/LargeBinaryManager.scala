@@ -75,8 +75,8 @@ object LargeBinaryManager extends LazyLogging {
   }
 
   /**
-    * Deletes all large binaries for one execution. Uses deleteDirectory, which removes one
-    * listing page (<= 1000 objects) — enough for expected counts; more needs a paginated delete.
+    * Deletes all large binaries for one execution via deleteDirectory, which removes every object
+    * under the prefix.
     *
     * @param executionId the execution whose large binaries should be removed
     */
