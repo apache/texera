@@ -247,16 +247,17 @@ class TestLoopEndBase:
         op = _StubLoopEnd(condition_expr="i < len(table)")
         assert op.condition() is False
 
-    def test_consumed_flag_flips_after_run_update(self):
-        # Before any consume the loop hasn't run here; after run_update the
-        # real condition is evaluated against the consumed state.
+    def test_loop_table_set_after_run_update(self):
+        # _loop_table is None until a matching state is consumed (that None is
+        # what condition() short-circuits on); after run_update it holds the
+        # decoded table and the real condition is evaluated.
         op = _StubLoopEnd(update="i += 1", condition_expr="i < 3")
-        assert op._consumed_state is False
+        assert op._loop_table is None
         op.process_state(
             State({"i": 0, "table": table_to_ipc_bytes(Table([Tuple({"v": 1})]))}),
             port=0,
         )
-        assert op._consumed_state is True
+        assert op._loop_table is not None
         assert op.condition() is True  # i became 1, 1 < 3
 
 
