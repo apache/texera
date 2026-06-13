@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781389200437,
+  "lastUpdate": 1781389202550,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -3168,6 +3168,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=10 sl=64",
             "value": 943636.18,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "17627829+Yicong-Huang@users.noreply.github.com",
+            "name": "Yicong Huang",
+            "username": "Yicong-Huang"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a0442876321ede19fe7f33e57c1f7b277c09e3ba",
+          "message": "chore(frontend): refresh UDF operator icons (#5686)\n\n### What changes were proposed in this PR?\n\nReplaces the eight UDF operator icons under\n`frontend/src/assets/operator_images/` with a clean, consistent\ntypographic set. The previous icons were mismatched — the three Python\nUDF icons carried a leftover red \"New\" overlay, and the\nLambda/Reducer/Java/R icons varied in size and visual style (logo art,\nplain text, stock marks).\n\nEach new icon is a 1024×1024 transparent PNG with a large,\ntightly-cropped hero glyph and, where needed, a small descriptor stacked\nbeneath it: `Py` (Python UDF), `Py` + `src` (Python UDF source), `Py` +\n`2-in` (dual-input Python UDF), `λ` + `py` (Python lambda), `Σ` + `py`\n(Python table reducer), `Java` (Java UDF), `R` (R UDF), `R` + `src` (R\nUDF source). Every Python wordmark — both the hero `Py` and the `py`\ndescriptor — uses the same Python blue/gold two-color scheme; the\n`src`/`2-in` qualifiers are gray. Java uses its orange/blue, R its blue.\nFilenames are unchanged, so they continue to map to the\n`assets/operator_images/<operatorType>.png` lookup in\n`joint-ui.service.ts`.\n\nBefore / after comparison of all eight icons:\n\n![Before and after comparison of the eight UDF operator\nicons](https://raw.githubusercontent.com/Yicong-Huang/texera/media/udf-icons-preview/udf-icons-preview/_before_after.png)\n\n### Any related issues, documentation, discussions?\n\nCloses #5685\n\n### How was this PR tested?\n\nThis is a static asset swap with no code changes, so no automated tests\nwere added. Verified manually by running the Angular frontend (`ng\nserve`) against a local backend and confirming all eight icons render\ncorrectly in the operator panel and on the workflow canvas. Each PNG is\na 1024×1024 transparent square and the eight filenames exactly match the\nexisting files, so the operator-type icon lookup is unaffected.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Opus 4.8 (Cowork)\n\nCo-authored-by: Yicong Huang <yiconghuang@cs.umass.edu>",
+          "timestamp": "2026-06-13T22:03:39Z",
+          "tree_id": "d6b17b997a64c4c258a8e93652ed019f2f77f126",
+          "url": "https://github.com/apache/texera/commit/a0442876321ede19fe7f33e57c1f7b277c09e3ba"
+        },
+        "date": 1781389202070,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 24518.596,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 34934.639,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 34934.639,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 120315.388,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 145016.611,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 145016.611,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 1052107.943,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1094010.381,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1094010.381,
             "unit": "us"
           }
         ]
