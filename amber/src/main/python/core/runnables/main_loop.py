@@ -282,16 +282,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         output_state = self.context.state_processing_manager.get_output_state()
         if output_state is not None:
             executor = self.context.executor_manager.executor
-            if isinstance(executor, LoopEndOperator):
-                # Runs once per iteration for every LoopEnd, on the
-                # matching-loop consume (loop_counter == 0). The nested
-                # pass-through (loop_counter > 0) is forwarded and returned in
-                # _process_state_frame before reaching here, so it never
-                # resets. Clearing the output each iteration keeps the
-                # materialization at the final iteration's rows rather than
-                # every iteration concatenated.
-                self.context.output_manager.reset_output_storage()
-            elif isinstance(executor, LoopStartOperator):
+            if isinstance(executor, LoopStartOperator):
                 # A LoopStart stamps its own id/uri onto the state it emits.
                 (
                     output_loop_start_id,
@@ -377,6 +368,21 @@ class MainLoop(StoppableQueueBlockingRunnable):
         executor = self.context.executor_manager.executor
 
         if isinstance(executor, LoopEndOperator) and in_counter > 0:
+            # An inner Loop End receiving the enclosing (outer) loop's boundary
+            # state (loop_counter > 0): the signal that the outer loop has
+            # advanced. Reset this Loop End's output now, before forwarding, so
+            # the new outer iteration's inner results accumulate from empty
+            # instead of concatenating across outer iterations. The input reader
+            # replays all states before any data each region execution, so the
+            # result/state tables still hold the PREVIOUS outer iteration's rows
+            # at this point. This fires exactly once per outer iteration: the
+            # inner LoopStart's output (and thus this pass-through) is recreated
+            # on every inner back-edge, so the outer state only reaches here on
+            # the first inner iteration of each outer iteration. A single /
+            # outermost Loop End never reaches this branch (no enclosing loop,
+            # so never loop_counter > 0) and so never resets -- it accumulates
+            # all of its own iterations.
+            self.context.output_manager.reset_output_storage()
             # State belongs to an outer loop: step one level out and forward,
             # carrying the outer loop's id/uri unchanged.
             self._emit_and_save_state(

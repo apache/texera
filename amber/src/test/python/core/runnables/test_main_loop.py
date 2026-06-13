@@ -1849,16 +1849,25 @@ class TestMainLoop:
     # pass-through branches the operator must be skipped entirely.
 
     def _capture_state_emit(self, main_loop, monkeypatch):
-        """Stub emit/save/switch; return (emitted, switched) recorders.
+        """Stub emit/save/switch/reset; return (emitted, switched, reset_calls).
 
         Each `emitted` entry is (state, loop_counter, loop_start_id,
         loop_start_state_uri) so tests can assert the loop metadata the runtime
-        attaches to the StateFrame envelope.
+        attaches to the StateFrame envelope. `reset_calls` records each
+        `output_manager.reset_output_storage()` call (stubbed so the real
+        iceberg-truncation never runs in the unit test); the inner-LoopEnd
+        pass-through is expected to fire it once, the consume path never.
         """
         emitted = []
         switched = []
+        reset_calls = []
         monkeypatch.setattr(main_loop, "_check_and_process_control", lambda: None)
         monkeypatch.setattr(main_loop, "_switch_context", lambda: switched.append(True))
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "reset_output_storage",
+            lambda: reset_calls.append(True),
+        )
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
@@ -1874,7 +1883,7 @@ class TestMainLoop:
             "save_state_to_storage_if_needed",
             lambda state, loop_counter, *_: None,
         )
-        return emitted, switched
+        return emitted, switched, reset_calls
 
     def test_loopstart_reentry_increments_counter_and_skips_operator(
         self, main_loop, monkeypatch
@@ -1888,7 +1897,9 @@ class TestMainLoop:
                 yield
 
         main_loop.context.executor_manager.executor = StubLoopStart()
-        emitted, switched = self._capture_state_emit(main_loop, monkeypatch)
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
 
         main_loop._process_state_frame(
             StateFrame(
@@ -1907,18 +1918,23 @@ class TestMainLoop:
         assert "loop_counter" not in emitted_state  # never leaks into State
         # the outer loop's id/uri ride through unchanged
         assert (emitted_id, emitted_uri) == ("outer-loop", "vfs:///outer")
+        assert reset_calls == [], "a LoopStart never resets output storage"
 
     def test_loopend_passthrough_decrements_counter_and_skips_operator(
         self, main_loop, monkeypatch
     ):
         # loop_counter > 0 at a LoopEnd means the state belongs to an outer
-        # loop: the runtime decrements and forwards, skipping the operator.
+        # loop: the runtime decrements and forwards, skipping the operator. It
+        # also resets this (inner) LoopEnd's output storage -- the outer loop
+        # advancing is the signal to drop the previous outer iteration's rows.
         class StubLoopEnd(LoopEndOperator):
             def condition(self):
                 return False
 
         main_loop.context.executor_manager.executor = StubLoopEnd()
-        emitted, switched = self._capture_state_emit(main_loop, monkeypatch)
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
 
         main_loop._process_state_frame(
             StateFrame(
@@ -1930,6 +1946,7 @@ class TestMainLoop:
         )
 
         assert switched == [], "pass-through must not invoke the operator"
+        assert reset_calls == [True], "pass-through resets the inner LoopEnd output"
         assert len(emitted) == 1
         emitted_state, emitted_counter, emitted_id, emitted_uri = emitted[0]
         assert emitted_counter == 1  # 2 - 1
@@ -1948,12 +1965,51 @@ class TestMainLoop:
                 return False
 
         main_loop.context.executor_manager.executor = StubLoopEnd()
-        emitted, switched = self._capture_state_emit(main_loop, monkeypatch)
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
 
         main_loop._process_state_frame(StateFrame(State({"i": 0}), loop_counter=0))
 
         assert switched == [True], "consume branch must invoke the operator"
         assert emitted == [], "operator returned None -> nothing emitted"
+        assert reset_calls == [], "consume / single loop must not reset output"
+
+    def test_inner_loop_end_passthrough_resets_output_storage(
+        self, main_loop, monkeypatch
+    ):
+        # Reviewer feedback (#discussion_r3400851478): a LoopEnd accumulates the
+        # results of all of its own iterations, but an INNER LoopEnd of a nested
+        # loop must accumulate only within the current outer iteration. The
+        # outer loop's boundary state passing through (loop_counter > 0) is the
+        # "outer advanced" signal, and is where reset_output_storage fires so
+        # the previous outer iteration's rows are dropped before this outer
+        # iteration's inner results accumulate. It must NOT invoke the operator,
+        # and forwards the outer state one level out (loop_counter - 1).
+        class StubLoopEnd(LoopEndOperator):
+            def condition(self):
+                return False
+
+        main_loop.context.executor_manager.executor = StubLoopEnd()
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
+
+        main_loop._process_state_frame(
+            StateFrame(
+                State({"i": 7}),
+                loop_counter=1,
+                loop_start_id="outer-loop",
+                loop_start_state_uri="vfs:///outer",
+            )
+        )
+
+        assert reset_calls == [True], "inner pass-through resets once per outer iter"
+        assert switched == [], "reset path must not invoke the operator"
+        assert len(emitted) == 1
+        _, emitted_counter, emitted_id, emitted_uri = emitted[0]
+        assert emitted_counter == 0  # 1 - 1, forwarded to the outer LoopEnd
+        assert (emitted_id, emitted_uri) == ("outer-loop", "vfs:///outer")
 
     def test_user_state_excludes_envelope_metadata_on_consume_branch(
         self, main_loop, monkeypatch

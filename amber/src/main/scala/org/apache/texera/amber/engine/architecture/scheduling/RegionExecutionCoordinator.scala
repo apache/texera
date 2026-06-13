@@ -610,10 +610,14 @@ class RegionExecutionCoordinator(
         val schema =
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
         // Operators that reuse their output storage across region re-runs
-        // (e.g. LoopEnd, which accumulates output across loop iterations)
-        // already have their result/state documents from a prior run; on
-        // re-execution `createDocument` (overrideIfExists=true) would clobber
-        // them, so reuse the existing document when it is already there.
+        // (e.g. LoopEnd, whose output accumulates across the iterations of its
+        // own loop) already have their result/state documents from a prior
+        // run; on re-execution `createDocument` (overrideIfExists=true) would
+        // clobber them, so reuse the existing document when it is already
+        // there. (The inner LoopEnd of a nested loop additionally drops its
+        // output once per outer iteration -- on the Python worker side in
+        // MainLoop._process_state_frame -- which is orthogonal to this
+        // region-provisioning reuse.)
         val reusesOutputStorage = region.getOperators.exists(_.reusesOutputStorageOnReExecution)
         RegionExecutionCoordinator.provisionOutputDocument(
           resultURI,

@@ -24,12 +24,17 @@ import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
+import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.storage.model.VirtualDocument
+import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.amber.core.workflow.{
   ExecutionMode,
   PortIdentity,
   WorkflowContext,
   WorkflowSettings
 }
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.amber.engine.architecture.controller._
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
@@ -119,7 +124,7 @@ class LoopIntegrationSpec
   private def runAndGetOutputCounts(
       operators: List[LogicalOp],
       links: List[LogicalLink]
-  ): Map[String, Long] = {
+  ): (Map[String, Long], ExecutionIdentity) = {
     val workflow = buildWorkflow(operators, links, materializedContext())
     val client = new AmberClient(
       system,
@@ -150,7 +155,33 @@ class LoopIntegrationSpec
     // A correct loop terminates; a broken one hangs until this deadline.
     Await.result(completion, Duration.fromMinutes(3))
     client.shutdown()
-    outputCounts
+    (outputCounts, workflow.context.executionId)
+  }
+
+  /**
+    * Count the rows in an operator's materialized RESULT table after the run.
+    * Unlike the cumulative `ExecutionStatsUpdate` output count (throughput),
+    * this reflects what is actually persisted -- so it distinguishes a LoopEnd
+    * that accumulated every iteration from one that was reset. The result URI
+    * is looked up the same way the frontend does (by logical op + external
+    * output port), then the iceberg document is opened and counted.
+    */
+  private def materializedResultRowCount(
+      op: LogicalOp,
+      executionId: ExecutionIdentity
+  ): Long = {
+    val uri = WorkflowExecutionsResource
+      .getResultUriByLogicalPortId(executionId, op.operatorIdentifier, PortIdentity())
+      .getOrElse(
+        throw new NoSuchElementException(
+          s"no result URI for operator ${op.operatorIdentifier.id}"
+        )
+      )
+    DocumentFactory
+      .openDocument(uri)
+      ._1
+      .asInstanceOf[VirtualDocument[Tuple]]
+      .getCount
   }
 
   private def textInput(text: String): TextInputSourceOpDesc = {
@@ -180,7 +211,7 @@ class LoopIntegrationSpec
     val src = textInput("1\n2\n3")
     val start = loopStart("i = 0", "table.iloc[i]")
     val end = loopEnd("i += 1", "i < len(table)")
-    val counts = runAndGetOutputCounts(
+    val (counts, eid) = runAndGetOutputCounts(
       List(src, start, end),
       List(link(src, start), link(start, end))
     )
@@ -190,6 +221,12 @@ class LoopIntegrationSpec
     // the iteration count. An off-by-one counter bug that still terminated
     // would land on 2 or 4 here.
     assert(counts.getOrElse(end.operatorIdentifier.id, -1L) == 3)
+    // A single (non-nested) LoopEnd accumulates the results of all of its own
+    // iterations and never resets, so its materialized result holds all 3 rows.
+    assert(
+      materializedResultRowCount(end, eid) == 3,
+      "single LoopEnd must accumulate all iterations in its materialized result"
+    )
   }
 
   it should "run a nested loop for exactly 9 inner iterations (3 outer x 3 inner)" in {
@@ -212,7 +249,7 @@ class LoopIntegrationSpec
     val innerStart = loopStart("j = 0", "table.iloc[j]")
     val innerEnd = loopEnd("j += 1", "j < len(table)")
     val outerEnd = loopEnd("i += 1", "i < len(table)")
-    val counts = runAndGetOutputCounts(
+    val (counts, eid) = runAndGetOutputCounts(
       List(src, outerStart, innerStart, innerEnd, outerEnd),
       List(
         link(src, outerStart),
@@ -226,5 +263,19 @@ class LoopIntegrationSpec
     // terminal outer LoopEnd. (This matches the Nested.Loop.json demo, which
     // was observed to run the inner body 9 times.)
     assert(counts.getOrElse(outerEnd.operatorIdentifier.id, -1L) == 9)
+    // Materialized results distinguish accumulate-vs-reset (the cumulative
+    // throughput count above cannot): the outer LoopEnd accumulates all 9 rows
+    // that flowed through, but the INNER LoopEnd resets once per outer
+    // iteration, so its materialized result holds only the current (final)
+    // outer iteration's 3 inner rows -- not 9. This is the assertion that fails
+    // against the pre-fix code (where the inner reset never fired).
+    assert(
+      materializedResultRowCount(outerEnd, eid) == 9,
+      "outer LoopEnd must accumulate all 9 inner-iteration rows"
+    )
+    assert(
+      materializedResultRowCount(innerEnd, eid) == 3,
+      "inner LoopEnd must reset per outer iteration (3 rows, not 9)"
+    )
   }
 }

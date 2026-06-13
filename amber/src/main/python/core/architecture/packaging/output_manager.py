@@ -238,11 +238,15 @@ class OutputManager:
         """Drop and recreate this operator's result and state tables, then
         reopen the storage writers against the empty tables.
 
-        Called only by a Loop End worker, once per loop iteration (see the
-        ``LoopEndOperator`` branch in ``MainLoop.process_input_state``). Each
-        iteration must start from empty tables so the materialization the
-        downstream eventually reads holds only the final iteration's rows
-        rather than every iteration's rows concatenated.
+        Called only for the *inner* Loop End of a *nested* loop, once per
+        *outer* iteration, from the outer pass-through branch in
+        ``MainLoop._process_state_frame`` (the ``loop_counter > 0`` branch).
+        A Loop End accumulates the results of all of its own iterations; the
+        inner Loop End must, in addition, drop the previous outer iteration's
+        rows when the outer loop advances, so each outer iteration accumulates
+        from empty rather than concatenating across outer iterations. A single
+        / outermost Loop End never reaches that branch and so never resets --
+        it keeps all of its iterations.
 
         Truncating live storage is safe here because a workflow containing a
         loop runs in MATERIALIZED execution mode: downstream operators do not
