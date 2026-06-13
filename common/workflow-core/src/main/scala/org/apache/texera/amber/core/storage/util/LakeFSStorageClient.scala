@@ -80,10 +80,15 @@ object LakeFSStorageClient extends LazyLogging {
         this.healthCheckApi.healthCheck().execute()
         return
       } catch {
+        case ie: InterruptedException =>
+          // Restore the interrupt status and fail fast rather than retrying.
+          Thread.currentThread().interrupt()
+          throw new RuntimeException("Interrupted while waiting to retry lake fs health check", ie)
         case e: Exception =>
           if (attempt >= HealthCheckMaxAttempts) {
             throw new RuntimeException(
-              s"Failed to connect to lake fs server after $HealthCheckMaxAttempts attempts: ${e.getMessage}"
+              s"Failed to connect to lake fs server after $HealthCheckMaxAttempts attempts: ${e.getMessage}",
+              e
             )
           }
           logger.warn(
