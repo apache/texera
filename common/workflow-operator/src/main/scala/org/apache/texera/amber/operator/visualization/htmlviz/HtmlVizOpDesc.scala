@@ -41,7 +41,7 @@ class HtmlVizOpDesc extends LogicalOp {
   @JsonSchemaTitle("HTML content")
   @AutofillAttributeName
   @NotNull(message = "HTML content cannot be empty")
-  var htmlContentAttrName: String = _
+  var htmlContentAttrName: String = ""
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,

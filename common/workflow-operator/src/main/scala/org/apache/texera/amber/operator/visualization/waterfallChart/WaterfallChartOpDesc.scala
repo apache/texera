@@ -39,14 +39,14 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("The column representing categories or stages")
   @AutofillAttributeName
   @NotNull(message = "X Axis Values cannot be empty")
-  var xColumn: EncodableString = _
+  var xColumn: EncodableString = ""
 
   @JsonProperty(value = "yColumn", required = true)
   @JsonSchemaTitle("Y Axis Values")
   @JsonPropertyDescription("The column representing numeric values for each stage")
   @AutofillAttributeName
   @NotNull(message = "Y Axis Values cannot be empty")
-  var yColumn: EncodableString = _
+  var yColumn: EncodableString = ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -64,6 +64,8 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor {
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
+    assert(xColumn.nonEmpty, "X Axis Values cannot be empty")
+    assert(yColumn.nonEmpty, "Y Axis Values cannot be empty")
     pyb"""
        |        x_values = table[$xColumn]
        |        y_values = table[$yColumn]

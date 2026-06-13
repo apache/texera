@@ -37,7 +37,7 @@ class NestedTableOpDesc extends PythonOperatorDescriptor {
   )
   @JsonProperty(value = "add attribute", required = true)
   @NotEmpty(message = "Included Columns cannot be empty")
-  var includedColumns: util.List[NestedTableConfig] = _
+  var includedColumns: util.List[NestedTableConfig] = new util.ArrayList[NestedTableConfig]()
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -55,6 +55,7 @@ class NestedTableOpDesc extends PythonOperatorDescriptor {
     )
 
   private def createNestedTable(): PythonTemplateBuilder = {
+    assert(includedColumns != null && !includedColumns.isEmpty, "Included Columns cannot be empty")
     val sortedColumns = includedColumns.asScala.sortBy(_.attributeGroup)
 
     pyb"""

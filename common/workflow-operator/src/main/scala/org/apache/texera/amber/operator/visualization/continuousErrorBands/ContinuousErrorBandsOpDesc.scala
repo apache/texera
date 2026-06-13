@@ -46,7 +46,7 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "bands", required = true)
   @NotEmpty(message = "Bands cannot be empty")
-  var bands: util.List[BandConfig] = _
+  var bands: util.List[BandConfig] = new util.ArrayList[BandConfig]()
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -64,6 +64,7 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
+    assert(bands != null && !bands.isEmpty, "Bands cannot be empty")
     val bandsPart = bands.asScala
       .map { bandConf =>
         val colorPart = if (bandConf.color != "") {
