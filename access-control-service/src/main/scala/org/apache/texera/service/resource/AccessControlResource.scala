@@ -27,7 +27,7 @@ import jakarta.ws.rs.{Consumes, DELETE, GET, POST, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
-import org.apache.texera.config.{GuiConfig, KubernetesConfig, LLMConfig}
+import org.apache.texera.config.{GuiConfig, LLMConfig}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
@@ -138,11 +138,11 @@ object AccessControlResource extends LazyLogging {
     }
 
     // Dynamic Routing Logic
-    // Use the URI persisted for the computing unit (written by the managing
-    // service when the pod is created) as the routing target, so the address is
-    // resolved from a single source of truth instead of being reconstructed
-    // here. Fall back to the conventional in-cluster address if no URI has been
-    // recorded for the unit yet.
+    // Route to the URI recorded for the computing unit (written by the managing
+    // service when the pod is created). This recorded URI is the single source
+    // of truth for where the unit is reachable, allowing units to live anywhere
+    // the gateway can route to. If no URI has been recorded, the unit is not
+    // routable and the connection is refused.
     val cuDao = new WorkflowComputingUnitDao(
       SqlServer.getInstance().createDSLContext().configuration()
     )
@@ -154,10 +154,8 @@ object AccessControlResource extends LazyLogging {
         logger.info(s"Routing CU $cuidInt to recorded host: $uri")
         uri
       case None =>
-        val workflowComputingUnitPoolName = KubernetesConfig.computeUnitPoolName
-        val workflowComputingUnitPoolNamespace = KubernetesConfig.computeUnitPoolNamespace
-        val workflowComputingUnitPoolPort = KubernetesConfig.computeUnitPortNumber
-        s"computing-unit-$cuidInt.$workflowComputingUnitPoolName-svc.$workflowComputingUnitPoolNamespace.svc.cluster.local:$workflowComputingUnitPoolPort"
+        logger.warn(s"Refusing CU $cuidInt: no URI recorded for the computing unit")
+        return Response.status(Response.Status.FORBIDDEN).build()
     }
 
     Response
