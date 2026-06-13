@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781377500538,
+  "lastUpdate": 1781377772998,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -1050,6 +1050,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=10 sl=64",
             "value": 919.1715558369533,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "125538144+benjaminle22@users.noreply.github.com",
+            "name": "Benjamin Le",
+            "username": "benjaminle22"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aceca29cbda1f223ac17753efb58eba726e58b2f",
+          "message": "test(frontend): expand OperatorReuseCacheStatusService spec coverage (#5624)\n\n### What changes were proposed in this PR?\nExpands the existing spec for `OperatorReuseCacheStatusService`, which\npreviously only checked `should be created`. Adds behavior-focused tests\ncovering both constructor subscriptions: the `CacheStatusUpdateEvent`\nwebsocket handler and the `getReuseCacheOperatorsChangedStream` handler.\nTests verify that `JointUIService.changeOperatorReuseCacheStatus` is\ncalled correctly for each operator, that the `mainJointPaper` null guard\nis respected in both handlers, and that empty operator lists do not\nthrow.\n\n### Any related issues, documentation, discussions?\nCloses #5543\n\n### How was this PR tested?\nNew tests run via `yarn test -- operator-reuse-cache-status` and `yarn\nlint`. 6 tests passing.\n\n### Was this PR authored or co-authored using generative AI tooling?\nGenerated-by: Claude (Claude Sonnet 4.6)\n\nCo-authored-by: Benjamin Le <benjaminl@uci.edu>",
+          "timestamp": "2026-06-13T18:54:04Z",
+          "tree_id": "a6bb83aa00c102b61bfa1c9af3c242f86a6c33da",
+          "url": "https://github.com/apache/texera/commit/aceca29cbda1f223ac17753efb58eba726e58b2f"
+        },
+        "date": 1781377772571,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 361.59528252380477,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 797.545154101567,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 917.3749188210405,
             "unit": "tuples/sec"
           }
         ]
