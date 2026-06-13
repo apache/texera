@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781311469351,
+  "lastUpdate": 1781372024542,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -816,6 +816,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=10 sl=64",
             "value": 946.2959606810432,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "xinyual3@uci.edu",
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6032413f6f1e65b6a32e53542c4668f00698ec26",
+          "message": "test(amber): add unit test coverage for LogicalPlan (#5441)\n\n### What changes were proposed in this PR?\n\nAdds `LogicalPlanSpec` covering\n`amber/src/main/scala/org/apache/texera/workflow/LogicalPlan.scala` —\nthe user-facing logical workflow graph case class plus its companion\nfactory.\n\n| Surface | Pinned |\n| --- | --- |\n| Construction | `LogicalPlan(operators, links)` exposes both fields\nverbatim. |\n| `LogicalPlan.apply(LogicalPlanPojo)` | Lifts the POJO's operators +\nlinks into a `LogicalPlan`, ignoring the POJO-only `opsToViewResult` /\n`opsToReuseResult` fields. |\n| `getTopologicalOpIds` | Topological order on a linear chain; respects\nedge directionality across a fan-out (`a → b, a → c`) — source first,\ntwo sinks unordered in the tail. |\n| `getOperator` | Returns the operator with the requested id; throws\n`NoSuchElementException` for an unknown id. |\n| `getTerminalOperatorIds` | Single sink in a linear chain; every\nout-degree-0 operator in a fan-out plan; every operator when there are\nno links; empty list for an empty plan. |\n| `getUpstreamLinks` | Returns every link whose `toOpId` matches the\nargument; preserves construction order when multiple links flow into the\nsame target; returns an empty list when nothing flows in. |\n| `resolveScanSourceOpFileName` | Failures with `Some(errorList)` are\nappended per-operator instead of throwing; with `None` the first failure\nrethrows; non-`ScanSourceOpDesc` operators are left untouched (no\nerrors, no resolution). Failures are forced deterministically by\npointing a `ScanSourceOpDesc` fixture at a non-existent file path. |\n\nA happy-path `resolveScanSourceOpFileName` test is intentionally\nomitted: `FileResolver` reaches the LakeFS / dataset service in\nproduction and is environment-dependent, so a deterministic unit test\nwould have to mock that surface — out of scope for this spec.\n\nNo production code changed; this is test-only.\n\n### Any related issues, documentation, discussions?\n\nCloses #5438\n\n### How was this PR tested?\n\n```\nsbt \"WorkflowExecutionService/Test/testOnly org.apache.texera.workflow.LogicalPlanSpec\"\n# → 16 tests, all pass\n\nsbt \"WorkflowExecutionService/Test/scalafmtCheck\"\n# → clean\n```\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 4.7)",
+          "timestamp": "2026-06-13T17:17:17Z",
+          "tree_id": "9dc71d1c975c6d1272c2d271d85a342f4cc0310f",
+          "url": "https://github.com/apache/texera/commit/6032413f6f1e65b6a32e53542c4668f00698ec26"
+        },
+        "date": 1781372023982,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 414.82193623199566,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 949.8288698549242,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1126.0742796626898,
             "unit": "tuples/sec"
           }
         ]
