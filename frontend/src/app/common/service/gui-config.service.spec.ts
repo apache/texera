@@ -207,4 +207,42 @@ describe("GuiConfigService", () => {
     http.expectNone(`${API}/config/user-system`);
     await expect(pending).rejects.toThrow(/pre-login configuration/);
   });
+
+  // ─── source() isolation ───────────────────────────────────────────────────
+
+  it("source() keeps each endpoint's payload retrievable in isolation", async () => {
+    const preLoginPending = firstValueFrom(service.loadPreLogin());
+    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
+    await preLoginPending;
+
+    const postLoginPending = firstValueFrom(service.loadPostLogin());
+    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
+    http.expectOne(`${API}/config/user-system`).flush(USER_SYSTEM_PAYLOAD);
+    await postLoginPending;
+
+    expect(service.source("preLogin")).toEqual(PRE_LOGIN_PAYLOAD);
+    expect(service.source("gui")).toEqual(GUI_PAYLOAD);
+    expect(service.source("amber")).toEqual(AMBER_PAYLOAD);
+    expect(service.source("userSystem")).toEqual(USER_SYSTEM_PAYLOAD);
+  });
+
+  it("source() does not bleed keys across sources", async () => {
+    // A value from one endpoint must not appear under another.
+    const pending = firstValueFrom(service.loadPostLogin());
+    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
+    http.expectOne(`${API}/config/user-system`).flush(USER_SYSTEM_PAYLOAD);
+    await pending;
+
+    expect(service.source("amber")).toHaveProperty("defaultDataTransferBatchSize");
+    expect(service.source("gui")).not.toHaveProperty("defaultDataTransferBatchSize");
+    expect(service.source("gui")).not.toHaveProperty("inviteOnly");
+    // env still flattens them together for the common single-flag call sites.
+    expect(service.env.defaultDataTransferBatchSize).toBe(400);
+  });
+
+  it("source() returns an empty object for an endpoint that has not loaded", () => {
+    expect(service.source("amber")).toEqual({});
+  });
 });
