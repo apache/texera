@@ -100,15 +100,19 @@ class AutoClosingIteratorSpec extends AnyFlatSpec {
     "leave onClose un-fired between elements (only fires after hasNext returns false)" in {
     var fired = false
     val it = new AutoClosingIterator[Int](Iterator(1, 2, 3), () => fired = true)
-    while (it.hasNext) {
-      it.next()
-      // After every next(), there is at least one more element OR the
-      // next hasNext call will fire onClose. Until that point, fired
-      // must remain false.
-      // (When the final next() consumes 3, fired is still false because
-      // the loop hasn't run hasNext again yet.)
-    }
-    assert(fired, "after the while loop's final hasNext, onClose must have fired")
+    // Step-by-step assertion: after each hasNext that returns TRUE,
+    // onClose MUST still be un-fired. Only the hasNext that returns
+    // false may flip `fired`. A bug that prematurely closed during a
+    // truthy hasNext would surface here, not just at the loop's exit.
+    assert(it.hasNext); assert(!fired, "onClose must not fire while element 1 is reachable")
+    assert(it.next() == 1)
+    assert(it.hasNext); assert(!fired, "onClose must not fire while element 2 is reachable")
+    assert(it.next() == 2)
+    assert(it.hasNext); assert(!fired, "onClose must not fire while element 3 is reachable")
+    assert(it.next() == 3)
+    // The final hasNext returns false — THIS is the call that fires onClose.
+    assert(!it.hasNext)
+    assert(fired, "after hasNext first returns false, onClose must have fired")
   }
 
   // ---------------------------------------------------------------------------
@@ -128,11 +132,13 @@ class AutoClosingIteratorSpec extends AnyFlatSpec {
   }
 
   it should
-    "still mark itself as closed even when onClose throws (close runs before alreadyClosed is set)" in {
+    "re-invoke onClose on a retry when the previous onClose threw (alreadyClosed is set AFTER onClose)" in {
     // Reading the production code: `alreadyClosed = true` runs AFTER
-    // `onClose()`. So if onClose throws, alreadyClosed stays false and a
-    // second hasNext could re-invoke onClose. Pin the CURRENT behavior
-    // so a refactor that swaps the order surfaces here.
+    // `onClose()`. So if onClose throws, alreadyClosed stays false and
+    // a second hasNext will re-invoke onClose. This is the OPPOSITE of
+    // an "alreadyClosed once close was attempted" contract — characterize
+    // the current (brittle) behavior so a refactor that swaps the order
+    // (running `alreadyClosed = true` BEFORE `onClose()`) surfaces here.
     var closeCount = 0
     val it = new AutoClosingIterator[Int](
       Iterator.empty,
