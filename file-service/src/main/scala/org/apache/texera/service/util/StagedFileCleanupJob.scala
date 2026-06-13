@@ -54,6 +54,9 @@ class StagedFileCleanupJob(retentionHours: Int, intervalMinutes: Int)
     extends Managed
     with LazyLogging {
 
+  require(retentionHours > 0, s"retentionHours must be > 0 (got $retentionHours)")
+  require(intervalMinutes > 0, s"intervalMinutes must be > 0 (got $intervalMinutes)")
+
   private var executor: ScheduledExecutorService = _
 
   override def start(): Unit = {
