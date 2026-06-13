@@ -42,6 +42,12 @@ export class GuiConfigService {
   // Each endpoint's payload, kept under its own key.
   private configBySource: Partial<Record<ConfigSource, Partial<GuiConfig>>> = {};
 
+  // Memoized flat merge. Rebuilt only when a source is written so that env
+  // returns a stable reference: callers read env on every change-detection
+  // cycle, and one call site mutates env through a two-way [(ngModel)] binding,
+  // which only persists when the object identity is held across reads.
+  private mergedCache: GuiConfig | null = null;
+
   // Merge precedence when a key appears in multiple sources (later wins).
   private static readonly MERGE_ORDER: ConfigSource[] = ["preLogin", "gui", "amber", "userSystem"];
 
@@ -75,7 +81,7 @@ export class GuiConfigService {
   loadPreLogin(): Observable<Partial<GuiConfig>> {
     return this.http.get<PreLoginConfig>(`${AppSettings.getApiEndpoint()}/config/pre-login`).pipe(
       tap(preLogin => {
-        this.configBySource.preLogin = preLogin;
+        this.setSource("preLogin", preLogin);
       }),
       map(() => this.env),
       catchError((error: unknown) => {
@@ -96,25 +102,34 @@ export class GuiConfigService {
     const userSystemConfig$ = this.http.get<UserSystemConfig>(`${AppSettings.getApiEndpoint()}/config/user-system`);
     return forkJoin([guiConfig$, amberConfig$, userSystemConfig$]).pipe(
       tap(([guiConfig, amberConfig, userSystemConfig]) => {
-        this.configBySource.gui = guiConfig;
-        this.configBySource.amber = amberConfig;
-        this.configBySource.userSystem = userSystemConfig;
+        this.setSource("gui", guiConfig);
+        this.setSource("amber", amberConfig);
+        this.setSource("userSystem", userSystemConfig);
       }),
       map(() => this.env)
     );
   }
 
-  // Flat merge of all sources, derived on each read.
+  // Flat merge of all sources, memoized so reads return a stable reference.
   get env(): GuiConfig {
-    return GuiConfigService.MERGE_ORDER.reduce(
-      (merged, source) => ({ ...merged, ...this.configBySource[source] }),
-      {} as Partial<GuiConfig>
-    ) as GuiConfig;
+    if (this.mergedCache === null) {
+      this.mergedCache = GuiConfigService.MERGE_ORDER.reduce(
+        (merged, source) => ({ ...merged, ...this.configBySource[source] }),
+        {} as Partial<GuiConfig>
+      ) as GuiConfig;
+    }
+    return this.mergedCache;
   }
 
   // One endpoint's payload, in isolation.
   source(name: ConfigSource): Partial<GuiConfig> {
     return this.configBySource[name] ?? {};
+  }
+
+  // Store a source payload and invalidate the merged view.
+  private setSource(name: ConfigSource, payload: Partial<GuiConfig>): void {
+    this.configBySource[name] = payload;
+    this.mergedCache = null;
   }
 
   private static hasStoredAccessToken(): boolean {

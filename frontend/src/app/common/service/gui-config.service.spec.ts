@@ -245,4 +245,36 @@ describe("GuiConfigService", () => {
   it("source() returns an empty object for an endpoint that has not loaded", () => {
     expect(service.source("amber")).toEqual({});
   });
+
+  // ─── env reference stability ───────────────────────────────────────────────
+
+  it("env returns a stable reference between loads so two-way bindings persist", async () => {
+    const pending = firstValueFrom(service.loadPreLogin());
+    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
+    await pending;
+
+    // Repeated reads must return the same object (relied on by change detection
+    // and by the [(ngModel)] write-through at menu.component.html).
+    expect(service.env).toBe(service.env);
+
+    // A write through env persists across subsequent reads.
+    (service.env as any).workflowEmailNotificationEnabled = true;
+    expect(service.env.workflowEmailNotificationEnabled).toBe(true);
+  });
+
+  it("env reference is rebuilt after a new source loads", async () => {
+    const preLoginPending = firstValueFrom(service.loadPreLogin());
+    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
+    await preLoginPending;
+    const before = service.env;
+
+    const postLoginPending = firstValueFrom(service.loadPostLogin());
+    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
+    http.expectOne(`${API}/config/user-system`).flush(USER_SYSTEM_PAYLOAD);
+    await postLoginPending;
+
+    expect(service.env).not.toBe(before);
+    expect(service.env.defaultDataTransferBatchSize).toBe(400);
+  });
 });
