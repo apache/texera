@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781373959832,
+  "lastUpdate": 1781373961358,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -2628,6 +2628,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=10 sl=64",
             "value": 950291.512,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "133594317+justinsiek@users.noreply.github.com",
+            "name": "Justin Siek",
+            "username": "justinsiek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1a65a3168c5ffbd171e8ed0d64dec495e45c1b24",
+          "message": "fix(workflow-operator): set alreadyClosed before onClose (#5678)\n\n### What changes were proposed in this PR?\n\n`AutoClosingIterator.hasNext` only set `alreadyClosed = true` after\ncalling `onClose()`, and so if `onClose()` throws, `alreadyClosed` would\nstay false, and so a subsequent `hasNext` would reinvoke `onClose()`,\nrunning cleanup a second time on a resource whose close already failed.\n\nThe change makes `alreadyClosed = true` run before `onClose()`.\n\n### Any related issues, documentation, discussions?\n\nCloses #5660 \n\n### How was this PR tested?\n\nUpdated AutoClosingIteratorSpec — replaced the existing characterization\ntest (\"re-invoke onClose on a retry when the previous onClose threw\")\nwith a positive assertion that a second hasNext after a throwing close\ndoes NOT re-invoke onClose (closeCount stays at 1) and returns false.\n\n`sbt \"WorkflowOperator/testOnly\norg.apache.texera.amber.operator.source.scan.AutoClosingIteratorSpec\"`\n- 10/10 pass. `sbt scalafmtCheckAll` passes.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 4.8)\n\nCo-authored-by: Justin Siek <justinsiek@Justins-MacBook-Air.local>",
+          "timestamp": "2026-06-13T17:51:17Z",
+          "tree_id": "def41efc3df06efdc98d8d418cd0036e1f7a88f8",
+          "url": "https://github.com/apache/texera/commit/1a65a3168c5ffbd171e8ed0d64dec495e45c1b24"
+        },
+        "date": 1781373961187,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 21179.594,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 32330.656,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 32330.656,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 101587.556,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 147869.303,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 147869.303,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 895292.224,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 934381.725,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 934381.725,
             "unit": "us"
           }
         ]
