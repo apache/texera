@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.texera.amber.config
+package org.apache.texera.config
 
 // Util function used by PveManager and PythonWorkflowWorker
 object PythonUtils {

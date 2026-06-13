@@ -20,7 +20,7 @@
 package org.apache.texera.amber.core.storage.model
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.config.EnvironmentalVariable
+import org.apache.texera.config.EnvironmentalVariable
 import org.apache.texera.amber.core.storage.model.DatasetFileDocument.{
   fileServiceGetPresignURLEndpoint,
   userJwtToken
