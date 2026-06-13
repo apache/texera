@@ -60,9 +60,42 @@ import org.apache.texera.web.SessionState
 import org.apache.texera.web.model.websocket.event.RegionStateEvent
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
+import java.net.URI
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration.{Duration => ScalaDuration}
+
+object RegionExecutionCoordinator {
+
+  /**
+    * Decide whether to (re)create the output document at `uri`, then act.
+    *
+    * When `reuseExistingStorage` is set and the document already exists, the
+    * existing document is kept untouched -- this is how an operator whose
+    * region re-executes (e.g. LoopEnd, which accumulates output across loop
+    * iterations) avoids clobbering output an earlier run produced, since
+    * `createDocument` overrides any existing document. Otherwise the document
+    * is created.
+    *
+    * `documentExists` / `createDocument` are injected so the create-or-reuse
+    * decision can be unit-tested without an iceberg backend or a live region.
+    *
+    * @return true iff `createDocument` was invoked.
+    */
+  def provisionOutputDocument(
+      uri: URI,
+      reuseExistingStorage: Boolean,
+      documentExists: URI => Boolean,
+      createDocument: URI => Unit
+  ): Boolean = {
+    if (reuseExistingStorage && documentExists(uri)) {
+      false
+    } else {
+      createDocument(uri)
+      true
+    }
+  }
+}
 
 /**
   * The executor of a region.
@@ -580,14 +613,20 @@ class RegionExecutionCoordinator(
         // (e.g. LoopEnd, which accumulates output across loop iterations)
         // already have their result/state documents from a prior run; on
         // re-execution `createDocument` (overrideIfExists=true) would clobber
-        // them, so skip the create call when the document is already there.
+        // them, so reuse the existing document when it is already there.
         val reusesOutputStorage = region.getOperators.exists(_.reusesOutputStorageOnReExecution)
-        if (!reusesOutputStorage || !DocumentFactory.documentExists(resultURI)) {
-          DocumentFactory.createDocument(resultURI, schema)
-        }
-        if (!reusesOutputStorage || !DocumentFactory.documentExists(stateURI)) {
-          DocumentFactory.createDocument(stateURI, State.schema)
-        }
+        RegionExecutionCoordinator.provisionOutputDocument(
+          resultURI,
+          reusesOutputStorage,
+          DocumentFactory.documentExists,
+          uri => DocumentFactory.createDocument(uri, schema)
+        )
+        RegionExecutionCoordinator.provisionOutputDocument(
+          stateURI,
+          reusesOutputStorage,
+          DocumentFactory.documentExists,
+          uri => DocumentFactory.createDocument(uri, State.schema)
+        )
         if (!isRestart) {
           val (_, eid, _, _) = decodeURI(resultURI)
           WorkflowExecutionsResource.insertOperatorPortResultUri(
