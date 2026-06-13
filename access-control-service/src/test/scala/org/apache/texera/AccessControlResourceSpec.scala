@@ -291,4 +291,11 @@ class AccessControlResourceSpec
 
     response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
   }
+
+  it should "return OK for a PUT request when user has access" in {
+    val (uri, headers) = mockRequest("/pve/system", Some(testCU.getCuid.toString))
+    val response = new AccessControlResource().authorizePut(uri, headers, """{"name":"env"}""")
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+  }
 }
