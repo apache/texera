@@ -384,7 +384,11 @@ jobs:
           curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${PROTOC_ARCH}.zip"
           sudo unzip -o /tmp/protoc.zip -d /usr/local
           sudo chmod +x /usr/local/bin/protoc
-          sudo chmod -R a+rX /usr/local/include/google
+          # Make sure non-root users can traverse /usr/local/include —
+          # otherwise protoc's import resolver hits EACCES on macOS when
+          # walking the include path (Linux runners happen to default
+          # to 755 here, so this step was a no-op there before).
+          sudo chmod -R a+rX /usr/local/include
       - name: Start Postgres
         # Replaces the job-level `services.postgres` container, which
         # GitHub only supports on Linux runners. Both branches end with
