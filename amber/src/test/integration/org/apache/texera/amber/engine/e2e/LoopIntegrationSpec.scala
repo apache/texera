@@ -62,15 +62,22 @@ import scala.concurrent.duration.DurationInt
   * expected number of iterations.
   *
   * Termination alone is too weak: a counter bug that still terminated (e.g.
-  * off-by-one) would pass. So each test asserts the terminal LoopEnd's
-  * cumulative output-tuple count. LoopEnd is an identity pass-through on data,
-  * so by conservation that count equals the number of rows that flowed through
-  * the loop -- i.e. the iteration count: 3 for the single loop, 9 for the 3x3
-  * nested loop. The count comes from `ExecutionStatsUpdate`, which the
-  * controller delivers (after querying final worker stats) before
-  * `ExecutionStateUpdate(COMPLETED)`; the worker persists across the
-  * `JumpToOperatorRegion` re-executions so its output statistic accumulates
-  * across iterations rather than resetting.
+  * off-by-one) would pass. So each test asserts the LoopEnd's MATERIALIZED
+  * result-table row count, read from iceberg after the run. LoopEnd is an
+  * identity pass-through on data, so the rows it materializes equal the rows
+  * that flowed through it: a single (outermost) LoopEnd accumulates every
+  * iteration (3 for the single loop; 9 for the terminal outer LoopEnd of the
+  * 3x3 nested loop), and an inner LoopEnd resets once per outer iteration (so
+  * 3, not 9).
+  *
+  * NOTE: the cumulative `ExecutionStatsUpdate` output count is NOT usable as
+  * the iteration count here. A loop region's workers are recreated on every
+  * `JumpToOperatorRegion` re-execution (each iteration spawns a fresh worker
+  * actor), so the per-logical-op output statistic reflects only the final
+  * iteration's worker and does not accumulate. The iceberg result, by
+  * contrast, persists across iterations (the scheduler reuses a LoopEnd's
+  * output document via `reusesOutputStorageOnReExecution`), so it is the
+  * reliable signal.
   *
   * Tagged @IntegrationTest because it spawns Python workers; routed to the
   * `amber-integration` CI job.
@@ -114,22 +121,20 @@ class LoopIntegrationSpec
     )
 
   /**
-    * Run the workflow to completion and return, keyed by logical op id:
-    *   1. the cumulative output-tuple count (throughput) from the latest
-    *      `ExecutionStatsUpdate` (delivered before `COMPLETED`), and
-    *   2. the materialized RESULT-table row count per operator.
+    * Run the loop workflow to completion and return each operator's
+    * materialized RESULT-table row count, keyed by logical op id.
     *
-    * The materialized counts are read inside the `COMPLETED` callback -- while
-    * the engine and storage singletons are still alive, the same point
-    * `DataProcessingSpec` reads its results -- looking up each operator's
-    * external RESULT uri the way the frontend does. Operators whose uri is
-    * absent (or whose document fails to open) are simply omitted, and the map
-    * is logged so a count/URI mismatch is visible in the CI output.
+    * Read inside the `COMPLETED` callback while the engine and storage
+    * singletons are still alive (the same point `DataProcessingSpec` reads its
+    * results), looking up each operator's external RESULT uri the way the
+    * frontend does. Operators whose uri is absent, or whose document can't be
+    * opened, are omitted (tolerated, not fatal). Failure messages below
+    * include the full map so an unexpected count is visible.
     */
-  private def runAndGetCounts(
+  private def runAndGetMaterializedRowCounts(
       operators: List[LogicalOp],
       links: List[LogicalLink]
-  ): (Map[String, Long], Map[String, Long]) = {
+  ): Map[String, Long] = {
     val workflow = buildWorkflow(operators, links, materializedContext())
     val eid = workflow.context.executionId
     val client = new AmberClient(
@@ -140,17 +145,7 @@ class LoopIntegrationSpec
       _ => {}
     )
     val completion = Promise[Unit]()
-    // Latest per-operator cumulative output-tuple counts. ExecutionStatsUpdate
-    // is keyed by logical op id (WorkflowExecution aggregates worker stats by
-    // logicalOpId), so tests look up an operator via its operatorIdentifier.id.
-    var outputCounts: Map[String, Long] = Map.empty
     var materializedCounts: Map[String, Long] = Map.empty
-    client.registerCallback[ExecutionStatsUpdate](evt => {
-      outputCounts = evt.operatorMetrics.map {
-        case (opId, metrics) =>
-          opId -> metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum
-      }
-    })
     client.registerCallback[FatalError](evt => {
       completion.setException(evt.e)
       client.shutdown()
@@ -173,13 +168,6 @@ class LoopIntegrationSpec
                 .map(count => op.operatorIdentifier.id -> count)
             }
         }.toMap
-        val missing = operators
-          .map(_.operatorIdentifier.id)
-          .filterNot(materializedCounts.contains)
-        println(
-          s">>> LoopIntegrationSpec materialized row counts: $materializedCounts; " +
-            s"throughput counts: $outputCounts; ops with no external RESULT uri: $missing"
-        )
         completion.setDone()
       }
     })
@@ -187,7 +175,7 @@ class LoopIntegrationSpec
     // A correct loop terminates; a broken one hangs until this deadline.
     Await.result(completion, Duration.fromMinutes(3))
     client.shutdown()
-    (outputCounts, materializedCounts)
+    materializedCounts
   }
 
   private def textInput(text: String): TextInputSourceOpDesc = {
@@ -217,22 +205,19 @@ class LoopIntegrationSpec
     val src = textInput("1\n2\n3")
     val start = loopStart("i = 0", "table.iloc[i]")
     val end = loopEnd("i += 1", "i < len(table)")
-    val (counts, materialized) = runAndGetCounts(
+    val materialized = runAndGetMaterializedRowCounts(
       List(src, start, end),
       List(link(src, start), link(start, end))
     )
-    // LoopStart emits one row per iteration (table.iloc[i]); i advances
-    // 0,1,2 and stops at i == 3, so the body runs exactly 3 times. LoopEnd
-    // passes those rows through unchanged, so its cumulative output count is
-    // the iteration count. An off-by-one counter bug that still terminated
-    // would land on 2 or 4 here.
-    assert(counts.getOrElse(end.operatorIdentifier.id, -1L) == 3)
-    // A single (non-nested) LoopEnd accumulates the results of all of its own
-    // iterations and never resets, so its materialized result holds all 3 rows.
+    // LoopStart emits one row per iteration (table.iloc[i]); i advances 0,1,2
+    // and stops at i == 3, so the body runs exactly 3 times. A single
+    // (outermost) LoopEnd is an identity pass-through that accumulates every
+    // iteration and never resets, so its materialized result holds all 3 rows.
+    // An off-by-one counter bug that still terminated would land on 2 or 4.
     val endRows = materialized.getOrElse(end.operatorIdentifier.id, -1L)
     assert(
       endRows == 3,
-      s"single LoopEnd must accumulate all iterations in its materialized " +
+      s"single LoopEnd must accumulate all 3 iterations in its materialized " +
         s"result: expected 3, got $endRows (all: $materialized)"
     )
   }
@@ -244,7 +229,7 @@ class LoopIntegrationSpec
     // (output = "table"), so the inner loop iterates over 3 rows; with 3 outer
     // iterations the inner body runs 3 x 3 = 9 times. Because every LoopEnd is
     // an identity pass-through on data, the same 9 rows flow out of the
-    // terminal outer LoopEnd, so its cumulative output count is 9.
+    // terminal outer LoopEnd.
     //
     // This is the case that exercises the loop_counter increment/decrement and
     // the LoopStartId/LoopStartStateURI routing carried on the StateFrame
@@ -257,7 +242,7 @@ class LoopIntegrationSpec
     val innerStart = loopStart("j = 0", "table.iloc[j]")
     val innerEnd = loopEnd("j += 1", "j < len(table)")
     val outerEnd = loopEnd("i += 1", "i < len(table)")
-    val (counts, materialized) = runAndGetCounts(
+    val materialized = runAndGetMaterializedRowCounts(
       List(src, outerStart, innerStart, innerEnd, outerEnd),
       List(
         link(src, outerStart),
@@ -266,17 +251,12 @@ class LoopIntegrationSpec
         link(innerEnd, outerEnd)
       )
     )
-    // Every inner iteration produces one row, and each LoopEnd forwards it
-    // unchanged, so the 9 inner-iteration rows flow all the way out of the
-    // terminal outer LoopEnd. (This matches the Nested.Loop.json demo, which
-    // was observed to run the inner body 9 times.)
-    assert(counts.getOrElse(outerEnd.operatorIdentifier.id, -1L) == 9)
-    // Materialized results distinguish accumulate-vs-reset (the cumulative
-    // throughput count above cannot): the outer LoopEnd accumulates all 9 rows
-    // that flowed through, but the INNER LoopEnd resets once per outer
-    // iteration, so its materialized result holds only the current (final)
-    // outer iteration's 3 inner rows -- not 9. This is the assertion that fails
-    // against the pre-fix code (where the inner reset never fired).
+    // Materialized results distinguish accumulate-vs-reset: the terminal outer
+    // LoopEnd accumulates all 9 inner-iteration rows that flowed through, but
+    // the INNER LoopEnd resets once per outer iteration, so its materialized
+    // result holds only the final outer iteration's 3 inner rows -- not 9.
+    // The inner == 3 assertion is the one that fails against the pre-fix code
+    // (where the inner reset never fired and it accumulated all 9).
     val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier.id, -1L)
     val innerRows = materialized.getOrElse(innerEnd.operatorIdentifier.id, -1L)
     assert(
