@@ -17,11 +17,17 @@
  * under the License.
  */
 
-declare module 'hocon-parser' {
-  /**
-   * The module itself is callable, accepting a string (HOCON config) and returning a parsed object.
-   */
-  function hoconParser(input: string): any;
+package org.apache.texera.web.resource
 
-  export = hoconParser;
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+class HealthCheckResourceSpec extends AnyFlatSpec with Matchers {
+
+  // The /healthcheck endpoint is what readiness probes hit. The contract is
+  // an exact `{"status": "ok"}` JSON body; any change here would also need
+  // a coordinated update in deployment manifests.
+  "HealthCheckResource.healthCheck" should "return the canonical status map" in {
+    new HealthCheckResource().healthCheck shouldBe Map("status" -> "ok")
+  }
 }

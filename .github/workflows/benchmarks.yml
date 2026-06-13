@@ -1,0 +1,327 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Texera benchmarks — bench-agnostic umbrella workflow.
+#
+# This file is the single CI entry for ALL Texera performance benchmarks
+# (currently Arrow Flight E2E; JMH and others land here as well). The
+# workflow knows nothing about specific benches — bin/run-benchmarks.sh
+# is the opaque entry point that owns which benches run and where their
+# outputs land under bench-results/. Adding a new bench is:
+#   1. Append the run command to bin/run-benchmarks.sh.
+#   2. Add a `Publish <chart-name>` step block below pointing at the
+#      bench's JSON output file with the right `tool:` setting.
+# This workflow file otherwise stays unchanged.
+#
+# Triggering — mirrors amber-integration's label gate (NOT file paths):
+#   - PR: runs only when one of the labels mapped to the amber-integration
+#     stack in required-checks.yml's LABEL_STACKS is present on the PR.
+#     Labels are applied by the .github/labeler.yml workflow on opened /
+#     synchronize, so we wait for that workflow to complete before
+#     deciding (same pattern required-checks.yml uses).
+#   - push to main: always runs (same trimmed grid as PR for quick post-
+#     merge signal) and publishes to gh-pages.
+#   - schedule (weekly): runs the full 36-config sweep and publishes to
+#     gh-pages — this is the authoritative long-term baseline.
+#   - workflow_dispatch: manual full-grid run (no publish; bring-your-own
+#     trigger for ad-hoc exploration).
+#
+# Two modes via BENCH_MODE env (read by the bench Scala main):
+#   pr   — 3 configs × 20 batches, ~5 min   (PR + push-to-main)
+#   full — 36 configs × 200 batches, ~50-60 min   (schedule + dispatch)
+#
+# Non-blocking: this workflow is NOT included in required-checks.yml's
+# `required-checks` aggregator, so its result doesn't gate merges even
+# when it fails. Adding it to branch protection later is a deliberate
+# .asf.yaml change.
+#
+# Permissions:
+#   contents: write — needed by benchmark-action's auto-push to gh-pages.
+#   PR runs (which GitHub auto-downgrades to read-only on forks) gate
+#   auto-push off via the event check, so the missing write is never
+#   exercised.
+
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+  schedule:
+    # Weekly full-grid baseline refresh, Sundays 08:00 UTC. PR and post-
+    # merge runs use a trimmed 3-config grid to stay around 5 min; the
+    # scheduled run covers the full 36-config sweep that the gh-pages
+    # dashboard tracks long-term.
+    - cron: "0 8 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: benchmarks-${{ github.ref }}
+  # On main: never cancel an in-flight baseline run; on PRs: supersede.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  precheck:
+    # Decide whether to run based on PR labels (push / dispatch always
+    # run). Lifted from required-checks.yml's precheck so the trigger
+    # surface matches amber-integration exactly.
+    name: Precheck
+    runs-on: ubuntu-latest
+    outputs:
+      run_bench: ${{ steps.decide.outputs.run_bench }}
+    steps:
+      - name: Wait for Pull Request Labeler
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const ref = context.payload.pull_request.head.sha;
+            const maxAttempts = 30;
+            for (let i = 0; i < maxAttempts; i++) {
+              const { data } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref,
+                check_name: "labeler",
+              });
+              const check = data.check_runs[0];
+              if (check && check.status === "completed") {
+                core.info(`labeler ${check.conclusion}`);
+                return;
+              }
+              core.info(`labeler not ready (attempt ${i + 1}/${maxAttempts})`);
+              await new Promise((r) => setTimeout(r, 10000));
+            }
+            core.warning("labeler did not complete within 5 minutes; proceeding with current labels.");
+
+      - name: Decide whether to run bench
+        id: decide
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const eventName = context.eventName;
+            if (eventName !== "pull_request") {
+              // push to main / workflow_dispatch always run.
+              core.info(`event=${eventName} — running unconditionally`);
+              core.setOutput("run_bench", "true");
+              return;
+            }
+            // Re-fetch labels: the labeler may have just added some.
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+            const labels = pr.labels.map((l) => l.name);
+            core.info(`PR labels: ${labels.join(", ") || "(none)"}`);
+            // Mirrors LABEL_STACKS in required-checks.yml: every label
+            // whose stack list contains "amber-integration" triggers this
+            // bench. Keep in sync if LABEL_STACKS there changes.
+            const TRIGGER_LABELS = new Set([
+              "pyamber",
+              "engine",
+              "amber-integration",
+              "common",
+              "ddl-change",
+              "ci",
+            ]);
+            const matched = labels.filter((l) => TRIGGER_LABELS.has(l));
+            const shouldRun = matched.length > 0;
+            core.info(
+              shouldRun
+                ? `Triggering on labels: ${matched.join(", ")}`
+                : "No trigger label present; skipping bench."
+            );
+            core.setOutput("run_bench", shouldRun ? "true" : "false");
+
+  bench:
+    name: Bench
+    needs: precheck
+    if: ${{ needs.precheck.outputs.run_bench == 'true' }}
+    runs-on: ubuntu-22.04
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      # `pr` mode = 3-config trimmed sweep (~5 min) for PR + post-merge.
+      # `full` mode = 36-config sweep (~50-60 min) for schedule + manual.
+      # Read by the bench Scala main (see GridSpec switch); workflow only
+      # decides which mode to pass.
+      BENCH_MODE: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'full' || 'pr' }}
+    services:
+      # The bench itself doesn't touch the DB, but sbt's transitive compile
+      # chain reaches `common/auth` which imports JOOQ-generated classes
+      # from `org.apache.texera.dao.jooq.generated.*`. JOOQ codegen at
+      # sbt compile time requires a live Postgres to introspect against;
+      # without it the auth module's `User` / `UserRoleEnum` symbols fail
+      # to resolve and the whole bench compile aborts. Mirrors the same
+      # service block from amber-integration in build.yml.
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 17
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Python dependencies
+        # Mirrors amber-integration's installer in build.yml so the bench
+        # subprocess imports resolve identically (pytorch CPU index +
+        # betterproto plugin via dev-requirements).
+        run: |
+          python -m pip install uv
+          if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
+          if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt; fi
+      - name: Install protoc
+        run: |
+          PROTOC_VERSION=$(cat bin/protoc-version.txt)
+          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          sudo unzip -o /tmp/protoc.zip -d /usr/local
+          sudo chmod +x /usr/local/bin/protoc
+          sudo chmod -R a+rX /usr/local/include/google
+      - name: Create Database for JOOQ codegen
+        # Minimal subset of amber-integration's "Create Databases" step —
+        # JOOQ only introspects against texera_db, not iceberg/lakefs/
+        # lakekeeper schemas which the bench never touches.
+        run: psql -h localhost -U postgres -f sql/texera_ddl.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Generate Python proto bindings
+        run: bash bin/python-proto-gen.sh
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+
+      - name: Run benchmarks
+        # Single opaque entry point — this workflow doesn't know which
+        # benches exist. Adding a JMH suite later = appending one line
+        # inside bin/run-benchmarks.sh and adding a publish step below.
+        run: bash bin/run-benchmarks.sh
+
+      - name: Stash PR number for downstream comment workflow
+        # PR fork workflows can't comment (GitHub forces read-only token);
+        # benchmarks-pr-comment.yml runs separately via workflow_run with
+        # proper write access, and needs the PR number to find the target.
+        # github.event.workflow_run.pull_requests is empty for fork PRs,
+        # so we ferry the number via artifact.
+        if: ${{ github.event_name == 'pull_request' && !cancelled() }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: echo "$PR_NUMBER" > bench-results/pr-number.txt
+
+      - name: Render bench summary
+        # Render the bench CSV into a markdown table on the workflow run
+        # page. Visible without further clicks — and doesn't need any
+        # extra permissions (writes to $GITHUB_STEP_SUMMARY only).
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "## Bench results (\`$BENCH_MODE\` mode)"
+            echo
+            if [ -f bench-results/arrow-flight-e2e.csv ]; then
+              echo '```csv'
+              cat bench-results/arrow-flight-e2e.csv
+              echo '```'
+            else
+              echo "_(no bench-results/arrow-flight-e2e.csv produced)_"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload bench artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results-${{ github.run_id }}
+          path: bench-results/
+          retention-days: 14
+
+      # Publish to the gh-pages dashboard. auto-push + save-data-file are
+      # both gated on push-to-main / schedule: PR runs only emit the job
+      # summary and the uploaded artifact, never touching the tracked
+      # baseline. Adding a new benchmark = adding one publish block below
+      # matching the JSON filename convention in bin/run-benchmarks.sh.
+      #
+      # `skip-fetch-gh-pages: true` because gh-pages does not exist on
+      # apache/texera yet — without this the action fatals with
+      # `couldn't find remote ref gh-pages` even before the auto-push
+      # decision. auto-push: true on push/schedule still creates the
+      # branch on first write. Once the dashboard is seeded, flip this
+      # to false to re-enable baseline comparison + alert-threshold.
+      #
+      # `continue-on-error: true` keeps any other gh-pages-side surprise
+      # (permission glitches, transient git failures) from failing the
+      # bench job overall — the bench data itself is already in the
+      # uploaded artifact above.
+      - name: Publish throughput
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
+        with:
+          name: Arrow Flight E2E Throughput
+          tool: customBiggerIsBetter
+          output-file-path: bench-results/arrow-flight-e2e-throughput.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
+          save-data-file: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
+          skip-fetch-gh-pages: true
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+          alert-threshold: "150%"
+          # comment-on-alert needs pull-requests:write; skip and let
+          # results show up via summary-always instead.
+          comment-on-alert: false
+          summary-always: true
+      - name: Publish latency
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
+        with:
+          name: Arrow Flight E2E Latency
+          tool: customSmallerIsBetter
+          output-file-path: bench-results/arrow-flight-e2e-latency.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
+          save-data-file: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' }}
+          skip-fetch-gh-pages: true
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+          alert-threshold: "150%"
+          comment-on-alert: false
+          summary-always: true
