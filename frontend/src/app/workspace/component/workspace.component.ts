@@ -51,6 +51,9 @@ import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workfl
 import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
 import { USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
+import { ComputingUnitStatusService } from "../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { ExecuteWorkflowService } from "../service/execute-workflow/execute-workflow.service";
+import { WorkflowResultService } from "../service/workflow-result/workflow-result.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { ResultPanelComponent } from "./result-panel/result-panel.component";
@@ -126,7 +129,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private hubService: HubService,
     private codeEditorService: CodeEditorService,
     private config: GuiConfigService,
-    private changeDetectorRef: ChangeDetectorRef
+    private changeDetectorRef: ChangeDetectorRef,
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private executeWorkflowService: ExecuteWorkflowService,
+    private workflowResultService: WorkflowResultService
   ) {}
 
   ngOnInit() {
@@ -144,6 +150,12 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      */
     this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
     this.workflowActionService.setHighlightingEnabled(true);
+    // Clear session state when the user switches computing units in-canvas, so
+    // the previous unit's status/console/results don't linger.
+    this.computingUnitStatusService
+      .getConnectionResetStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.resetWorkflowSessionState());
   }
 
   ngAfterViewInit(): void {
@@ -184,6 +196,20 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
     this.codeEditorViewRef.clear();
     this.workflowActionService.clearWorkflow();
+    // Tear down the connection and all websocket-derived session state so a
+    // re-entered workflow starts clean instead of reusing the previous one.
+    this.computingUnitStatusService.disconnect();
+    this.resetWorkflowSessionState();
+  }
+
+  /**
+   * Clear websocket-derived session state (execution status, console, results).
+   * Shared by workspace teardown and in-canvas unit switches.
+   */
+  private resetWorkflowSessionState(): void {
+    this.executeWorkflowService.resetExecutionAndWorkers();
+    this.workflowConsoleService.clearConsoleMessages();
+    this.workflowResultService.clearResults();
   }
 
   registerAutoPersistWorkflow(): void {
