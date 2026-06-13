@@ -19,30 +19,24 @@
 
 package org.apache.texera.amber.engine.e2e
 
-import com.twitter.util.{Await, Duration, Promise}
+import com.twitter.util.Duration
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
-import org.apache.texera.amber.core.storage.DocumentFactory
-import org.apache.texera.amber.core.storage.model.VirtualDocument
-import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
   ExecutionMode,
   PortIdentity,
   WorkflowContext,
   WorkflowSettings
 }
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
-import org.apache.texera.amber.engine.architecture.controller._
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import org.apache.texera.amber.engine.common.AmberRuntime
-import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.e2e.TestUtils.{
   buildWorkflow,
   cleanupWorkflowExecutionData,
   initiateTexeraDBForTestCases,
+  runWorkflowAndReadResults,
   setUpWorkflowExecutionData
 }
 import org.apache.texera.amber.operator.LogicalOp
@@ -121,62 +115,22 @@ class LoopIntegrationSpec
     )
 
   /**
-    * Run the loop workflow to completion and return each operator's
-    * materialized RESULT-table row count, keyed by logical op id.
-    *
-    * Read inside the `COMPLETED` callback while the engine and storage
-    * singletons are still alive (the same point `DataProcessingSpec` reads its
-    * results), looking up each operator's external RESULT uri the way the
-    * frontend does. Operators whose uri is absent, or whose document can't be
-    * opened, are omitted (tolerated, not fatal). Failure messages below
-    * include the full map so an unexpected count is visible.
+    * Run the loop workflow to completion and return each operator's materialized
+    * RESULT-table row count, keyed by operator id. Delegates to the shared
+    * `TestUtils.runWorkflowAndReadResults` harness (a correct loop terminates
+    * within the 3-minute deadline; a broken one hangs until it).
     */
   private def runAndGetMaterializedRowCounts(
       operators: List[LogicalOp],
       links: List[LogicalLink]
-  ): Map[String, Long] = {
-    val workflow = buildWorkflow(operators, links, materializedContext())
-    val eid = workflow.context.executionId
-    val client = new AmberClient(
+  ): Map[OperatorIdentity, Long] =
+    runWorkflowAndReadResults(
       system,
-      workflow.context,
-      workflow.physicalPlan,
-      ControllerConfig.default,
-      _ => {}
+      buildWorkflow(operators, links, materializedContext()),
+      operators.map(_.operatorIdentifier),
+      _.getCount,
+      Duration.fromMinutes(3)
     )
-    val completion = Promise[Unit]()
-    var materializedCounts: Map[String, Long] = Map.empty
-    client.registerCallback[FatalError](evt => {
-      completion.setException(evt.e)
-      client.shutdown()
-    })
-    client.registerCallback[ExecutionStateUpdate](evt => {
-      if (evt.state == COMPLETED) {
-        materializedCounts = operators.flatMap { op =>
-          WorkflowExecutionsResource
-            .getResultUriByLogicalPortId(eid, op.operatorIdentifier, PortIdentity())
-            .flatMap { uri =>
-              scala.util
-                .Try(
-                  DocumentFactory
-                    .openDocument(uri)
-                    ._1
-                    .asInstanceOf[VirtualDocument[Tuple]]
-                    .getCount
-                )
-                .toOption
-                .map(count => op.operatorIdentifier.id -> count)
-            }
-        }.toMap
-        completion.setDone()
-      }
-    })
-    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
-    // A correct loop terminates; a broken one hangs until this deadline.
-    Await.result(completion, Duration.fromMinutes(3))
-    client.shutdown()
-    materializedCounts
-  }
 
   private def textInput(text: String): TextInputSourceOpDesc = {
     val op = new TextInputSourceOpDesc()
@@ -214,7 +168,7 @@ class LoopIntegrationSpec
     // (outermost) LoopEnd is an identity pass-through that accumulates every
     // iteration and never resets, so its materialized result holds all 3 rows.
     // An off-by-one counter bug that still terminated would land on 2 or 4.
-    val endRows = materialized.getOrElse(end.operatorIdentifier.id, -1L)
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
     assert(
       endRows == 3,
       s"single LoopEnd must accumulate all 3 iterations in its materialized " +
@@ -257,8 +211,8 @@ class LoopIntegrationSpec
     // result holds only the final outer iteration's 3 inner rows -- not 9.
     // The inner == 3 assertion is the one that fails against the pre-fix code
     // (where the inner reset never fired and it accumulated all 9).
-    val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier.id, -1L)
-    val innerRows = materialized.getOrElse(innerEnd.operatorIdentifier.id, -1L)
+    val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier, -1L)
+    val innerRows = materialized.getOrElse(innerEnd.operatorIdentifier, -1L)
     assert(
       outerRows == 9,
       s"outer LoopEnd must accumulate all 9 inner-iteration rows: " +
