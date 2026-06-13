@@ -37,6 +37,18 @@ class OnDatasetSpec extends AnyFlatSpec {
     override def getFileRelativePath(): String = relPath
   }
 
+  /**
+    * A second, distinct concrete impl — used to verify the trait is open
+    * (not sealed) and that *different* implementations (not just different
+    * field values) coexist correctly. Returns fixed strings to make the
+    * test independent of any constructor arguments.
+    */
+  private class HardcodedOnDataset extends OnDataset {
+    override def getRepositoryName(): String = "fixed-repo"
+    override def getVersionHash(): String = "fixed-hash"
+    override def getFileRelativePath(): String = "fixed/path"
+  }
+
   // ---------------------------------------------------------------------------
   // Accessor surface — return verbatim
   // ---------------------------------------------------------------------------
@@ -68,12 +80,21 @@ class OnDatasetSpec extends AnyFlatSpec {
     assert(ds.getFileRelativePath() == "")
   }
 
-  it should "return distinct values across two distinct implementations" in {
+  it should
+    "return distinct values across two genuinely distinct concrete implementations" in {
+    // Use a different concrete class (HardcodedOnDataset) — not just a
+    // second StubOnDataset instance — so the test actually exercises the
+    // trait's open-extension contract and confirms different impls
+    // implement getRepositoryName / getVersionHash / getFileRelativePath
+    // independently.
     val a: OnDataset = new StubOnDataset("repo-a", "h-a", "p-a")
-    val b: OnDataset = new StubOnDataset("repo-b", "h-b", "p-b")
+    val b: OnDataset = new HardcodedOnDataset
     assert(a.getRepositoryName() != b.getRepositoryName())
     assert(a.getVersionHash() != b.getVersionHash())
     assert(a.getFileRelativePath() != b.getFileRelativePath())
+    assert(b.getRepositoryName() == "fixed-repo")
+    assert(b.getVersionHash() == "fixed-hash")
+    assert(b.getFileRelativePath() == "fixed/path")
   }
 
   // ---------------------------------------------------------------------------
@@ -92,8 +113,9 @@ class OnDatasetSpec extends AnyFlatSpec {
   it should
     "not match a different unrelated type via type-pattern (sanity check)" in {
     // Asymmetry sanity: a String is NOT an OnDataset. This catches a
-    // bizarre regression where someone made `OnDataset` extend `AnyRef`-
-    // less-specific.
+    // refactor that accidentally widened `OnDataset` to a structural /
+    // type-alias declaration (e.g. `type OnDataset = AnyRef`), which
+    // would make every reference type match the pattern.
     val notDs: AnyRef = "hello"
     val matched: Boolean = notDs match {
       case _: OnDataset => true

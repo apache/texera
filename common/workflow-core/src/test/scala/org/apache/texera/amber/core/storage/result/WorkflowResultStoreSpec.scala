@@ -44,7 +44,7 @@ class WorkflowResultStoreSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   "WorkflowResultStore(...)" should
-    "preserve a Map carrying multiple operator metadatas" in {
+    "preserve a Map carrying metadata entries for multiple operators" in {
     val store = WorkflowResultStore(
       Map(
         opA -> OperatorResultMetadata(10, "h-a"),
