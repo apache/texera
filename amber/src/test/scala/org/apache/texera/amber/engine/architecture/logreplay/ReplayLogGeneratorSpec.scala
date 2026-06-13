@@ -51,36 +51,55 @@ class ReplayLogGeneratorSpec extends AnyFlatSpec with BeforeAndAfterAll {
     ActorSystem("ReplayLogGeneratorSpec-test", AmberRuntime.pekkoConfig)
   private val testSerde: Serialization = SerializationExtension(testSystem)
 
+  private def getAmberRuntimeField(name: String): AnyRef = {
+    val field = AmberRuntime.getClass.getDeclaredField(name)
+    field.setAccessible(true)
+    field.get(AmberRuntime)
+  }
+
   private def setAmberRuntimeField(name: String, value: AnyRef): Unit = {
     val field = AmberRuntime.getClass.getDeclaredField(name)
     field.setAccessible(true)
     field.set(AmberRuntime, value)
   }
 
+  // Capture whatever AmberRuntime held before we overwrite it so afterAll can
+  // restore it. Unconditionally nulling the fields would clobber an already
+  // initialized AmberRuntime and couple this suite to test execution order.
+  private var prevActorSystem: AnyRef = _
+  private var prevSerde: AnyRef = _
+
   override protected def beforeAll(): Unit = {
     super.beforeAll()
+    prevActorSystem = getAmberRuntimeField("_actorSystem")
+    prevSerde = getAmberRuntimeField("_serde")
     setAmberRuntimeField("_actorSystem", testSystem)
     setAmberRuntimeField("_serde", testSerde)
   }
 
   override protected def afterAll(): Unit = {
-    setAmberRuntimeField("_serde", null)
-    setAmberRuntimeField("_actorSystem", null)
+    setAmberRuntimeField("_serde", prevSerde)
+    setAmberRuntimeField("_actorSystem", prevActorSystem)
     TestKit.shutdownActorSystem(testSystem)
     super.afterAll()
   }
+
+  private val isWindows: Boolean =
+    System.getProperty("os.name", "").toLowerCase.contains("win")
 
   // Best-effort temp-dir cleanup. `Files.walk` returns a closeable Stream
   // backed by an open directory handle — wrap in try/finally so the
   // handle is released even if traversal throws.
   //
-  // We tolerate `FileSystemException` on `deleteIfExists` because
+  // On Windows we tolerate `FileSystemException` on `deleteIfExists` because
   // `ReplayLogGenerator.generate` short-circuits at `ReplayDestination`
   // via a non-local `return`, which leaks the underlying
-  // `SequentialRecordReader.Input` stream — and on Windows a leaked
-  // open file handle blocks the temp file from being deleted. That is a
-  // production bug to fix separately; in-test we just let the OS reap
-  // the temp files later instead of failing the case.
+  // `SequentialRecordReader.Input` stream — and a leaked open file handle
+  // blocks the temp file from being deleted there. That is a production bug
+  // to fix separately; in-test we just let the OS reap the temp files later
+  // instead of failing the case. On other platforms an open handle does not
+  // block deletion, so a `FileSystemException` signals a real problem and is
+  // allowed to propagate.
   private def cleanup(sub: Path): Unit = {
     val root = sub.getParent
     if (root == null || !Files.exists(root)) return
@@ -90,7 +109,7 @@ class ReplayLogGeneratorSpec extends AnyFlatSpec with BeforeAndAfterAll {
         .sorted(java.util.Comparator.reverseOrder())
         .forEach { child =>
           try Files.deleteIfExists(child)
-          catch { case _: java.nio.file.FileSystemException => () }
+          catch { case _: java.nio.file.FileSystemException if isWindows => () }
         }
     } finally {
       stream.close()
