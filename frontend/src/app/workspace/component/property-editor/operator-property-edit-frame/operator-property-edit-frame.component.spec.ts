@@ -291,4 +291,34 @@ describe("OperatorPropertyEditFrameComponent", () => {
     fixture.detectChanges();
     expect(component.operatorVersion).toEqual(mockScanPredicate.operatorVersion);
   });
+
+  describe("operator description truncation", () => {
+    it("should truncate text with CSS line-clamp when description is long", () => {
+      const p = document.createElement("p");
+      p.style.overflow = "hidden";
+      p.style.display = "-webkit-box";
+      p.style.webkitLineClamp = "3";
+      p.style.webkitBoxOrient = "vertical";
+      p.textContent =
+        "Visualize data using a Bullet Chart that shows a primary quantitative bar and delta indicator. " +
+        "Optional elements such as qualitative ranges (steps) and a performance threshold are displayed only when provided.";
+      document.body.appendChild(p);
+
+      expect(p.style.overflow).toBe("hidden");
+      expect(p.style.webkitLineClamp).toBe("3");
+      expect(p.style.webkitBoxOrient).toBe("vertical");
+      expect(p.textContent?.length).toBeGreaterThan(100);
+
+      document.body.removeChild(p);
+    });
+
+    it("should show tooltip attribute on description container", () => {
+      const div = document.createElement("div");
+      div.setAttribute("nz-tooltip", "");
+      div.setAttribute("nzTooltipPlacement", "bottom");
+
+      expect(div.hasAttribute("nz-tooltip")).toBe(true);
+      expect(div.getAttribute("nzTooltipPlacement")).toBe("bottom");
+    });
+  });
 });
