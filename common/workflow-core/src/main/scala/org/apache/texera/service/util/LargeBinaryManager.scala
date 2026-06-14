@@ -20,7 +20,7 @@
 package org.apache.texera.service.util
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.common.config.StorageConfig
 
 import java.util.UUID
 

@@ -22,7 +22,7 @@ package org.apache.texera.amber.core.storage.util
 import io.lakefs.clients.sdk._
 import io.lakefs.clients.sdk.model.ResetCreation.TypeEnum
 import io.lakefs.clients.sdk.model._
-import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.common.config.StorageConfig
 
 import java.io.{File, FileOutputStream, InputStream}
 import java.net.URI
