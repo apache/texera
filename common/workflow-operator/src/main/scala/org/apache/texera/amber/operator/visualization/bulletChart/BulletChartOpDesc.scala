@@ -31,6 +31,7 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 
 import java.util
 import java.util.{List => JList}
+import javax.validation.constraints.NotNull
 import scala.jdk.CollectionConverters._
 
 /**
@@ -42,11 +43,14 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value")
   @JsonPropertyDescription("The actual value to display on the bullet chart")
-  @AutofillAttributeName var value: EncodableString = ""
+  @AutofillAttributeName
+  @NotNull(message = "Value cannot be empty")
+  var value: EncodableString = ""
 
   @JsonProperty(value = "deltaReference", required = true)
   @JsonSchemaTitle("Delta Reference")
   @JsonPropertyDescription("The reference value for the delta indicator. e.g., 100")
+  @NotNull(message = "Delta Reference cannot be empty")
   var deltaReference: EncodableString = ""
 
   @JsonProperty(value = "thresholdValue", required = false)
