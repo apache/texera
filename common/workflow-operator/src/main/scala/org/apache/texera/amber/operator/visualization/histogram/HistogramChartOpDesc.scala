@@ -29,11 +29,14 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+
+import javax.validation.constraints.NotNull
 class HistogramChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("Column for counting values.")
   @AutofillAttributeName
+  @NotNull(message = "Value Column cannot be empty")
   var value: EncodableString = ""
 
   @JsonProperty(required = false)
@@ -67,7 +70,7 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor {
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(value.nonEmpty)
+    assert(value.nonEmpty, "Value Column cannot be empty")
     var colorParam = pyb""
     var categoryParam = pyb""
     var marginalParam = pyb""
