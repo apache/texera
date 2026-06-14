@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.common
 
 import org.apache.pekko.actor.Cancellable
-import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import org.apache.texera.amber.engine.architecture.messaginglayer.{CongestionControl, FlowControl}
