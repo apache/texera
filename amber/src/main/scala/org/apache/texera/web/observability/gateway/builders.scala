@@ -287,10 +287,12 @@ object ParcaQueryBuilder {
   def build(req: ValidatedProfilesRequest, scope: GatewayScope): String = {
     val selectors = scala.collection.mutable.ArrayBuffer[String]()
     selectors += """deployment="texera""""
-    req.workflowId.foreach { id =>
+    // Launder through Option[Any]: Option[Long]#foreach unboxes the
+    // Integer Jackson stores and crashes. See LogsQLBuilder.appendId.
+    req.workflowId.asInstanceOf[Option[Any]].foreach { id =>
       selectors += s"""texera_workflow_id="$id""""
     }
-    req.executionId.foreach { id =>
+    req.executionId.asInstanceOf[Option[Any]].foreach { id =>
       selectors += s"""texera_execution_id="$id""""
     }
     val selectorBody = selectors.mkString(",")
