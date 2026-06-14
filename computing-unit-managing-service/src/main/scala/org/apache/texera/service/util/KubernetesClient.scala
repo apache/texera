@@ -22,7 +22,7 @@ package org.apache.texera.service.util
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
-import org.apache.texera.config.KubernetesConfig
+import org.apache.texera.common.config.KubernetesConfig
 
 import scala.jdk.CollectionConverters._
 
