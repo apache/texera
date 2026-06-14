@@ -277,4 +277,49 @@ describe("GuiConfigService", () => {
     expect(service.env).not.toBe(before);
     expect(service.env.defaultDataTransferBatchSize).toBe(400);
   });
+
+  it("a write through env is discarded when a source reloads", async () => {
+    // Documents the boundary of the memoized write-through: in-memory edits made
+    // via [(ngModel)] land on the merged cache only, not on any source payload.
+    // A subsequent source load invalidates the cache, so the edit does not
+    // survive a re-fetch (e.g. a fresh login re-running loadPostLogin). This is
+    // intentional (config reloads are authoritative) and is locked in here so a
+    // future "persist edits across reloads" change is a deliberate decision.
+    const preLoginPending = firstValueFrom(service.loadPreLogin());
+    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
+    await preLoginPending;
+
+    (service.env as any).workflowEmailNotificationEnabled = true;
+    expect(service.env.workflowEmailNotificationEnabled).toBe(true);
+
+    const postLoginPending = firstValueFrom(service.loadPostLogin());
+    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
+    http.expectOne(`${API}/config/user-system`).flush(USER_SYSTEM_PAYLOAD);
+    await postLoginPending;
+
+    expect(service.env.workflowEmailNotificationEnabled).toBeUndefined();
+  });
+
+  // ─── merge precedence ───────────────────────────────────────────────────────
+
+  it("env merges sources in MERGE_ORDER so a later source wins on a shared key", async () => {
+    // The typed source payloads are disjoint, so precedence never fires through
+    // the public API, but the merge reduce implements "later source wins" and
+    // nothing else covers it. Inject an overlapping key via the raw payloads to
+    // lock the documented order (preLogin, gui, amber, userSystem).
+    const preLoginPending = firstValueFrom(service.loadPreLogin());
+    http.expectOne(`${API}/config/pre-login`).flush({ ...PRE_LOGIN_PAYLOAD, inviteOnly: false });
+    await preLoginPending;
+    // userSystem comes after preLogin in MERGE_ORDER, so its value must win.
+    expect(service.env.inviteOnly).toBe(false);
+
+    const postLoginPending = firstValueFrom(service.loadPostLogin());
+    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
+    http.expectOne(`${API}/config/user-system`).flush({ inviteOnly: true });
+    await postLoginPending;
+
+    expect(service.env.inviteOnly).toBe(true);
+  });
 });
