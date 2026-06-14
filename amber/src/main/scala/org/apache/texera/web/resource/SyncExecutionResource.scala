@@ -273,29 +273,35 @@ class SyncExecutionResource extends LazyLogging {
           }
         }
 
+      val executionId = executionService.workflowContext.executionId
+
       val (finalState, terminatedByConsoleError, terminatedByTargetResults) =
         terminationReason match {
           case TerminalStateReached(state) =>
+            // The engine commits the result writer (via the worker's blocking writerThread.join())
+            // before an operator's COMPLETED state becomes observable, so on a normal finish the
+            // results are already on disk; poll briefly to confirm storage has landed before we
+            // read it, instead of sleeping a fixed interval.
+            if (state.state == COMPLETED) {
+              awaitResultsPersisted(executionId, executionService, request.targetOperatorIds)
+            }
             (state, false, false)
           case ConsoleErrorDetected(_) =>
             killExecution(executionService)
             (executionService.executionStateStore.metadataStore.getState, true, false)
           case TargetResultsReady(_) =>
-            // RegionExecutionCoordinator caches upstream results asynchronously after operators
-            // complete; sleep gives that caching a chance to finish before we shut down the client.
-            // TODO: replace with a synchronous signal from the engine.
-            Thread.sleep(500)
+            // Wait until the targets' outputs are fully committed to storage before tearing down
+            // the execution client. The engine commits the result writer before reporting
+            // COMPLETED, so this normally returns on the first poll.
+            awaitResultsPersisted(executionId, executionService, request.targetOperatorIds)
             killExecution(executionService)
-            // Override to COMPLETED — we have everything we asked for, even though the engine
+            // Override to COMPLETED: we have everything we asked for, even though the engine
             // sees this as a kill.
             executionService.executionStateStore.metadataStore.updateState(metadataStore =>
               updateWorkflowState(COMPLETED, metadataStore)
             )
             (executionService.executionStateStore.metadataStore.getState, false, true)
         }
-
-      // Let the result writer flush before we read storage.
-      Thread.sleep(500)
 
       // Console DB writes lag the in-memory store; pass the latter so error extraction
       // can fall back when the row hasn't landed yet.
@@ -304,7 +310,6 @@ class SyncExecutionResource extends LazyLogging {
         case _                                  => None
       }
 
-      val executionId = executionService.workflowContext.executionId
       val operatorInfos = collectOperatorInfos(
         executionId,
         executionService,
@@ -372,6 +377,93 @@ class SyncExecutionResource extends LazyLogging {
     } catch {
       case e: Exception =>
         logger.warn(s"Error killing execution: ${e.getMessage}")
+    }
+  }
+
+  /**
+    * Blocks until every target operator's default external result port holds at least as many
+    * rows as its stats already report, or until `timeoutMillis` elapses. This replaces a pair of
+    * fixed `Thread.sleep` calls: the engine commits the Iceberg result writer (via the worker's
+    * blocking `writerThread.join()`) before `portCompleted`/`workerExecutionCompleted` fire, i.e.
+    * before the web layer ever observes `operatorState == COMPLETED`, so the data is normally
+    * already on disk and the first poll returns immediately. The timeout is a defensive cap for the
+    * rare case where storage lags; operators with no registered result storage are treated as ready.
+    */
+  private def awaitResultsPersisted(
+      executionId: ExecutionIdentity,
+      executionService: org.apache.texera.web.service.WorkflowExecutionService,
+      targetOperatorIds: List[String],
+      timeoutMillis: Long = 2000L,
+      pollIntervalMillis: Long = 25L
+  ): Unit = {
+    // Expected committed count for the default external output port (PortIdentity()), the same
+    // port collectOperatorResult reads, taken from the in-memory stats store.
+    def expectedOutputCount(opId: String): Long =
+      executionService.executionStateStore.statsStore.getState.operatorInfo
+        .get(opId)
+        .flatMap { metrics =>
+          metrics.operatorStatistics.outputMetrics
+            .find(_.portId == PortIdentity())
+            .map(_.tupleMetrics.count)
+        }
+        .getOrElse(0L)
+
+    // Rows currently committed to the operator's default external result storage; None when no
+    // result storage is registered for the operator (nothing to wait for). A registered-but-not-
+    // yet-openable document reports 0 so the poll keeps waiting until it lands.
+    def committedCount(opId: String): Option[Long] =
+      WorkflowExecutionsResource
+        .getResultUriByLogicalPortId(executionId, OperatorIdentity(opId), PortIdentity())
+        .map { uri =>
+          try {
+            DocumentFactory
+              .openDocument(uri)
+              ._1
+              .asInstanceOf[VirtualDocument[Tuple]]
+              .getCount
+          } catch {
+            case _: Exception => 0L
+          }
+        }
+
+    awaitUntil(
+      targetOperatorIds,
+      expectedOutputCount,
+      committedCount,
+      timeoutMillis,
+      pollIntervalMillis,
+      () => System.currentTimeMillis(),
+      Thread.sleep
+    )
+  }
+
+  /**
+    * Bounded readiness-poll core: blocks until every target operator is ready or `timeoutMillis`
+    * elapses, sleeping `pollIntervalMillis` between checks. An operator is ready when its expected
+    * count is non-positive, when it has no committed count (no result storage to wait for), or when
+    * its committed count has reached the expected count. The clock and sleep are injected so the
+    * timeout/early-exit behavior is unit-testable without real waiting.
+    */
+  private[resource] def awaitUntil(
+      targetOperatorIds: List[String],
+      expectedCountOf: String => Long,
+      committedCountOf: String => Option[Long],
+      timeoutMillis: Long,
+      pollIntervalMillis: Long,
+      now: () => Long,
+      sleep: Long => Unit
+  ): Unit = {
+    if (targetOperatorIds.isEmpty) return
+
+    def ready: Boolean =
+      targetOperatorIds.forall { opId =>
+        val expected = expectedCountOf(opId)
+        expected <= 0 || committedCountOf(opId).forall(_ >= expected)
+      }
+
+    val deadline = now() + timeoutMillis
+    while (!ready && now() < deadline) {
+      sleep(pollIntervalMillis)
     }
   }
 
