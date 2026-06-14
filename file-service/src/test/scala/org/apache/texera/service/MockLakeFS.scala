@@ -52,6 +52,16 @@ trait MockLakeFS extends ForAllTestContainer with BeforeAndAfterAll { self: Suit
     .createContainer()
   postgres.container.withNetwork(network)
 
+  // LakeFS bakes the pre-signed endpoint into its env before containers start,
+  // so MinIO cannot use a dynamically mapped host port: presigned URLs must be
+  // reachable from the host at an address known ahead of time. Reserve a free
+  // host port and pin MinIO's 9000 to it.
+  val minioHostPort: Int = {
+    val socket = new java.net.ServerSocket(0)
+    try socket.getLocalPort
+    finally socket.close()
+  }
+
   // MinIO for object storage
   val minio = MinIOContainer(
     dockerImageName = DockerImageName.parse("minio/minio:RELEASE.2025-02-28T09-55-16Z"),
@@ -59,6 +69,15 @@ trait MockLakeFS extends ForAllTestContainer with BeforeAndAfterAll { self: Suit
     password = "password"
   )
   minio.container.withNetwork(network)
+  minio.container.withCreateContainerCmdModifier { cmd =>
+    import com.github.dockerjava.api.model.{ExposedPort, PortBinding, Ports}
+    // setting explicit bindings replaces them all, so 9001 (console) must keep
+    // a dynamic binding or the container readiness check never passes
+    cmd.getHostConfig.withPortBindings(
+      new PortBinding(Ports.Binding.bindPort(minioHostPort), ExposedPort.tcp(9000)),
+      new PortBinding(Ports.Binding.empty(), ExposedPort.tcp(9001))
+    )
+  }
 
   // LakeFS
   val lakefsDatabaseURL: String =
@@ -80,7 +99,7 @@ trait MockLakeFS extends ForAllTestContainer with BeforeAndAfterAll { self: Suit
       "LAKEFS_BLOCKSTORE_TYPE" -> "s3",
       "LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE" -> "true",
       "LAKEFS_BLOCKSTORE_S3_ENDPOINT" -> s"http://${minio.container.getNetworkAliases.get(0)}:9000",
-      "LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT" -> "http://localhost:9000",
+      "LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT" -> s"http://localhost:$minioHostPort",
       "LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID" -> "texera_minio",
       "LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY" -> "password",
       "LAKEFS_AUTH_ENCRYPT_SECRET_KEY" -> "random_string_for_lakefs",

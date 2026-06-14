@@ -27,7 +27,6 @@ import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import software.amazon.awssdk.core.sync.RequestBody
 
 import java.io.InputStream
-import java.security.MessageDigest
 import scala.jdk.CollectionConverters._
 
 /**
@@ -40,6 +39,10 @@ object S3StorageClient {
   val MAXIMUM_NUM_OF_MULTIPART_S3_PARTS = 10_000
   //Keep on sync with LakeFS https://github.com/treeverse/lakeFS/pull/10180
   val PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS = 24
+  // S3 DeleteObjects accepts at most 1000 keys per request.
+  val MAX_KEYS_PER_DELETE_REQUEST = 1000
+  // Cap how many failed keys are listed in the error message.
+  private[util] val MAX_LISTED_DELETE_ERRORS = 10
 
   // Initialize MinIO-compatible S3 Client
   private lazy val s3Client: S3Client = {
@@ -97,50 +100,60 @@ object S3StorageClient {
   }
 
   /**
-    * Deletes a directory (all objects under a given prefix) from a bucket.
+    * Deletes every object whose key begins with `directoryPrefix`. S3 keys are a flat namespace
+    * with no real directories, so a "directory" is just a shared key prefix.
+    *
+    * A trailing `/` is added when missing so the prefix matches on a path boundary (`a/b` deletes
+    * `a/b/file` but not `a/bc/file`). An empty prefix would match the whole bucket and is rejected.
     *
     * @param bucketName Target S3/MinIO bucket.
-    * @param directoryPrefix The directory to delete (must end with `/`).
+    * @param directoryPrefix Non-empty key prefix to delete.
     */
   def deleteDirectory(bucketName: String, directoryPrefix: String): Unit = {
-    // Ensure the directory prefix ends with `/` to avoid accidental deletions
+    require(directoryPrefix.nonEmpty, "directoryPrefix must not be empty")
     val prefix = if (directoryPrefix.endsWith("/")) directoryPrefix else directoryPrefix + "/"
 
-    // List objects under the given prefix
-    val listRequest = ListObjectsV2Request
-      .builder()
-      .bucket(bucketName)
-      .prefix(prefix)
-      .build()
+    val listRequest = ListObjectsV2Request.builder().bucket(bucketName).prefix(prefix).build()
 
-    val listResponse = s3Client.listObjectsV2(listRequest)
+    // Delete in batches capped at the per-request key limit. Attempt every batch before raising,
+    // so one undeletable key can't strand the rest; `quiet(true)` keeps each response to just the
+    // failures.
+    val errors = s3Client
+      .listObjectsV2Paginator(listRequest)
+      .contents()
+      .asScala
+      .iterator
+      .map(obj => ObjectIdentifier.builder().key(obj.key()).build())
+      .grouped(MAX_KEYS_PER_DELETE_REQUEST)
+      .flatMap { batch =>
+        s3Client
+          .deleteObjects(
+            DeleteObjectsRequest
+              .builder()
+              .bucket(bucketName)
+              .delete(Delete.builder().objects(batch.asJava).quiet(true).build())
+              .build()
+          )
+          .errors()
+          .asScala
+      }
+      .toList
 
-    // Extract object keys
-    val objectKeys = listResponse.contents().asScala.map(_.key())
+    throwOnDeleteErrors(prefix, errors)
+  }
 
-    if (objectKeys.nonEmpty) {
-      val objectsToDelete =
-        objectKeys.map(key => ObjectIdentifier.builder().key(key).build()).asJava
-
-      val deleteRequest = Delete
-        .builder()
-        .objects(objectsToDelete)
-        .build()
-
-      // Compute MD5 checksum for MinIO if required
-      val md5Hash = MessageDigest
-        .getInstance("MD5")
-        .digest(deleteRequest.toString.getBytes("UTF-8"))
-
-      // Convert object keys to S3 DeleteObjectsRequest format
-      val deleteObjectsRequest = DeleteObjectsRequest
-        .builder()
-        .bucket(bucketName)
-        .delete(deleteRequest)
-        .build()
-
-      // Perform batch deletion
-      s3Client.deleteObjects(deleteObjectsRequest)
+  /** Raise if any object failed to delete, listing up to `MAX_LISTED_DELETE_ERRORS` keys. */
+  private[util] def throwOnDeleteErrors(prefix: String, errors: Seq[S3Error]): Unit = {
+    if (errors.nonEmpty) {
+      val listed = errors.take(MAX_LISTED_DELETE_ERRORS).map(e => s"${e.key()} (${e.code()})")
+      val summary =
+        if (errors.size > MAX_LISTED_DELETE_ERRORS)
+          s" (and ${errors.size - MAX_LISTED_DELETE_ERRORS} more)"
+        else ""
+      throw new RuntimeException(
+        s"Failed to delete ${errors.size} object(s) under prefix '$prefix': " +
+          listed.mkString(", ") + summary
+      )
     }
   }
 
