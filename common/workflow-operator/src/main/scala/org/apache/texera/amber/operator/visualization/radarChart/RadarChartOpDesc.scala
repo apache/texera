@@ -33,7 +33,7 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
-import javax.validation.constraints.NotNull
+import javax.validation.constraints.{NotEmpty, NotNull}
 
 // type constraint: value can only be numeric
 @JsonSchemaInject(json = """
@@ -51,13 +51,14 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Name Column")
   @JsonPropertyDescription("Column containing entity names for each radar")
   @AutofillAttributeName
-  @NotNull(message = "Name column cannot be empty")
+  @NotNull(message = "Name Column cannot be empty")
   var nameColumn: EncodableString = ""
 
   @JsonProperty(value = "valueColumns", required = true)
   @JsonSchemaTitle("Value Columns")
   @JsonPropertyDescription("Columns containing numeric values for radar chart axes")
   @AutofillAttributeNameList
+  @NotEmpty(message = "Value Columns cannot be empty")
   var valueColumns: List[EncodableString] = _
 
   @JsonProperty(value = "fillOpacity", required = true)
@@ -84,8 +85,8 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
   }
 
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(nameColumn.nonEmpty)
-    assert(valueColumns != null && valueColumns.nonEmpty)
+    assert(nameColumn.nonEmpty, "Name Column cannot be empty")
+    assert(valueColumns != null && valueColumns.nonEmpty, "Value Columns cannot be empty")
     val valueColsList = valueColumns.map(col => pyb"""$col""").mkString(", ")
     pyb"""
        |        required_cols = [$nameColumn, $valueColsList]
@@ -98,6 +99,7 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
   }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
+    assert(valueColumns != null && valueColumns.nonEmpty, "Value Columns cannot be empty")
     val valueColsList = valueColumns.map(col => pyb"""$col""").mkString(", ")
     pyb"""
        |        fig = go.Figure()
