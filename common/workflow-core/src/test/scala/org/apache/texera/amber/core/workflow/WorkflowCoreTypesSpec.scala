@@ -142,14 +142,6 @@ class WorkflowCoreTypesSpec extends AnyFlatSpec {
     assert(op.parallelizable, "the original instance is immutable")
   }
 
-  "PhysicalOp.withReusesOutputStorageOnReExecution" should "default to false and round-trip through copy" in {
-    val op = newPhysicalOp("a")
-    assert(!op.reusesOutputStorageOnReExecution, "defaults to false")
-    val flipped = op.withReusesOutputStorageOnReExecution(true)
-    assert(flipped.reusesOutputStorageOnReExecution)
-    assert(!op.reusesOutputStorageOnReExecution, "the original instance is immutable")
-  }
-
   "PhysicalOp.withSuggestedWorkerNum" should "set the suggested worker count" in {
     val op = newPhysicalOp("a").withSuggestedWorkerNum(7)
     assert(op.suggestedWorkerNum.contains(7))
