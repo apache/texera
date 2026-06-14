@@ -279,7 +279,9 @@ class OutputManager:
                 writer.stop()
             for _, _, thread in registry.values():
                 thread.join()
-        self._port_state_writers.clear()
+            # Drop the stopped writers so a later reset/close doesn't act on
+            # stale entries (set_up_port_storage_writer repopulates on reset).
+            registry.clear()
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """

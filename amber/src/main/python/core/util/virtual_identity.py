@@ -30,7 +30,7 @@ MATERIALIZATION_READER_ACTOR_PREFIX = "MATERIALIZATION_READER_"
 
 
 def get_worker_index(worker_id: str) -> int:
-    match = worker_name_pattern.match(worker_id)
+    match = worker_name_pattern.fullmatch(worker_id)
     if match:
         return int(match.group(4))
     raise ValueError("Invalid worker ID format")
@@ -46,7 +46,7 @@ def get_operator_id(worker_id: str) -> str:
     non-match), this raises ``ValueError`` so a malformed worker id fails loudly
     rather than yielding a wrong id silently.
     """
-    match = worker_name_pattern.match(worker_id)
+    match = worker_name_pattern.fullmatch(worker_id)
     if match:
         return match.group(2)
     raise ValueError(f"Invalid worker ID format: {worker_id}")

@@ -51,12 +51,12 @@ class LoopEndOpDesc extends LoopOpDesc {
        |class ProcessLoopEndOperator(LoopEndOperator):
        |    @overrides
        |    def process_state(self, state: State, port: int) -> Optional[State]:
-       |      self.run_update($update, state)
-       |      return None
+       |        self.run_update($update, state)
+       |        return None
        |
        |    @overrides
        |    def condition(self) -> bool:
-       |      return self.eval_condition($condition)
+       |        return self.eval_condition($condition)
        |""".encode
   }
 }

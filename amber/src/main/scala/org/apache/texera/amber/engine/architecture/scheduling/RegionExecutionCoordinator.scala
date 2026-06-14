@@ -618,7 +618,11 @@ class RegionExecutionCoordinator(
         // output once per outer iteration -- on the Python worker side in
         // MainLoop._process_state_frame -- which is orthogonal to this
         // region-provisioning reuse.)
-        val reusesOutputStorage = region.getOperators.exists(_.reusesOutputStorageOnReExecution)
+        // Decided per the operator that OWNS this port, not region-wide: a
+        // region mixing a reuse op (LoopEnd) with others must still recreate
+        // the others' documents on re-execution.
+        val reusesOutputStorage =
+          region.getOperator(outputPortId.opId).reusesOutputStorageOnReExecution
         Seq((resultURI, schema), (stateURI, State.schema)).foreach {
           case (uri, sch) =>
             RegionExecutionCoordinator.provisionOutputDocument(
