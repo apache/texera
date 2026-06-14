@@ -33,7 +33,7 @@ def get_worker_index(worker_id: str) -> int:
     match = worker_name_pattern.fullmatch(worker_id)
     if match:
         return int(match.group(4))
-    raise ValueError("Invalid worker ID format")
+    raise ValueError(f"Invalid worker ID format: {worker_id}")
 
 
 def get_operator_id(worker_id: str) -> str:

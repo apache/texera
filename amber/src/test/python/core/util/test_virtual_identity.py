@@ -76,6 +76,13 @@ class TestGetWorkerIndex:
         # greedy `.+` and breaks the trailing match surfaces here.
         assert get_worker_index("Worker:WF1-myOp-1st-physical-op-3") == 3
 
+    def test_raises_value_error_on_trailing_junk(self):
+        # fullmatch (not match) anchors the end of the string: a well-formed
+        # prefix followed by trailing junk must fail loudly. The old
+        # start-anchored match() would have silently returned 7 here.
+        with pytest.raises(ValueError, match="Invalid worker ID format"):
+            get_worker_index("Worker:WF1-myOp-main-7extra")
+
 
 class TestGetOperatorId:
     def test_extracts_operator_id_from_canonical_name(self):
@@ -104,6 +111,13 @@ class TestGetOperatorId:
     def test_raises_value_error_on_partial_match(self):
         with pytest.raises(ValueError, match="Invalid worker ID format"):
             get_operator_id("Worker:WF1-myOp-main")
+
+    def test_raises_value_error_on_trailing_junk(self):
+        # fullmatch anchors the end: a valid-looking prefix with trailing junk
+        # must fail loudly. The old start-anchored match() would have silently
+        # returned "myOp" here.
+        with pytest.raises(ValueError, match="Invalid worker ID format"):
+            get_operator_id("Worker:WF1-myOp-main-0extra")
 
 
 class TestSerializeGlobalPortIdentity:
