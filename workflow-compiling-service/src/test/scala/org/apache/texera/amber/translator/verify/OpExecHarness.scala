@@ -236,9 +236,15 @@ object OpExecHarness extends LazyLogging {
       def bucket(emitted: Iterator[(TupleLike, Option[PortIdentity])]): Unit = {
         emitted.foreach {
           case (tupleLike, portOpt) =>
-            // Default: port 0 (matches the trait's wrapping of single-output
-            // processTuple). For multi-output ops, port is explicit.
-            val outPortId = portOpt.getOrElse(PortIdentity(0))
+            // Default: the op's single output port. Most operators have one
+            // output and use the trait's default port-0 wrapping, but
+            // multi-stage plans (e.g. HashJoin build) put their internal
+            // output on PortIdentity(0, internal = true) — a hardcoded
+            // PortIdentity(0, false) would NoSuchElementException here.
+            val outPortId = portOpt.getOrElse {
+              if (phOp.outputPorts.size == 1) phOp.outputPorts.keys.head
+              else PortIdentity(0)
+            }
             val outSchema = phOp
               .outputPorts(outPortId)
               ._3

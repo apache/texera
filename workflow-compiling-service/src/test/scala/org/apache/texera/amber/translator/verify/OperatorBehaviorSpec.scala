@@ -20,11 +20,7 @@
 package org.apache.texera.amber.translator.verify
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
-import org.apache.texera.amber.operator.{
-  LogicalOp,
-  PythonOperatorDescriptor,
-  StandaloneCodeGenerator
-}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -33,22 +29,18 @@ import org.scalatest.matchers.should.Matchers
   * Auto-discovered behavioral-parity tests: for every operator registered
   * with [[LogicalOp]]'s `@JsonSubTypes` that implements
   * [[StandaloneCodeGenerator]], emit a test that runs both Path A (Texera
-  * JVM exec via [[OpExecHarness]]) and Path B (translator-generated Python
-  * via [[StandaloneRunner]]) and asserts their outputs are equivalent.
+  * exec) and Path B (translator-generated Python via [[StandaloneRunner]])
+  * and asserts their outputs are equivalent.
   *
-  * The point: adding a new operator that mixes in
-  * [[StandaloneCodeGenerator]] should yield free behavioral coverage as
-  * soon as it's registered in Texera. No edits to this spec required —
-  * the new operator gets enumerated by reflection, dispatched to its
-  * category's runner, and tested with that category's fixture defaults.
+  * Dispatch is auto-first: [[TransformVerificationRunner]] classifies each
+  * non-source transform as `Runnable("auto")` (auto-configured fixture),
+  * `Runnable("curated")` (hand-written fixture from [[CuratedHandlers]]),
+  * or `Flagged(reason)` (shown as ignored with the reason in the test name).
+  * Sources route to [[SourceCategoryRunner]] unchanged.
   *
-  * Operators that can't be tested today are marked `ignore` (visible in
-  * the test report, don't block CI) with a one-line reason:
-  *   - PythonOperatorDescriptor subclasses (Sort, SpecializedFilter,
-  *     BarChart, …) — [[OpExecHarness]] only drives JVM execs.
-  *   - Operators outside a supported category — no category runner yet.
-  *   - Source operators without a registered [[SourceHandler]] —
-  *     someone needs to add one to [[SourceCategoryRunner]].
+  * No edits to this spec are needed when a new operator is added — reflection
+  * discovers it automatically via `@JsonSubTypes`. The tier label appears in
+  * the test name so the report shows which path exercised each operator.
   *
   * Requires Python 3 with pandas on the [[Comparator]] / [[StandaloneRunner]]
   * resolution chain (`UDF_PYTHON_PATH` env var, then `python3.12`).
@@ -61,24 +53,27 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers {
   OperatorBehaviorSpec.discoverStandaloneOperators().foreach { opClass =>
     val name = opClass.getSimpleName
 
-    if (classOf[PythonOperatorDescriptor].isAssignableFrom(opClass)) {
-      name should "be verified by a Python-worker harness (not yet built)" ignore {
-        // Out of scope: OpExecHarness rejects OpExecWithCode. Needs a
-        // separate path that drives a real Python worker.
-      }
-    } else if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass)) {
+    if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass)) {
+      // Sources keep their handler-per-source design: each needs a real file
+      // in its specific format, which a generic fixture can't supply.
       if (SourceCategoryRunner.canRun(opClass)) {
         name should "produce equivalent output in Texera and standalone Python (source)" in {
           SourceCategoryRunner.run(opClass)
         }
       } else {
-        name should "be verified once a SourceHandler is registered" ignore {
-          // To enable: add a SourceHandler in SourceCategoryRunner.
-        }
+        name should s"FLAGGED — ${SourceCategoryRunner.flagReason(opClass)}" ignore {}
       }
     } else {
-      name should "be verified once a category runner exists for this operator type" ignore {
-        // Transform / filter / join / viz / sklearn / ML — no runner yet.
+      TransformVerificationRunner.disposition(opClass) match {
+        case TransformVerificationRunner.Runnable(tier) =>
+          name should s"produce equivalent output in Texera and standalone Python ($tier)" in {
+            TransformVerificationRunner.run(opClass)
+          }
+        case TransformVerificationRunner.Flagged(reason) =>
+          name should s"FLAGGED — $reason" ignore {
+            // Reason is in the test name so the report carries it; the
+            // coverage table in ConfigCoverageSpec aggregates these.
+          }
       }
     }
   }

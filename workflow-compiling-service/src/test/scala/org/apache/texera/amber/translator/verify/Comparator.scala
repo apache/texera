@@ -47,15 +47,21 @@ object Comparator {
   def assertEqual(
       actual: Path,
       expected: Path,
+      orderSensitive: Boolean = true,
       pythonExe: String = resolvePython()
   ): Unit = {
     val scriptPath = extractScript()
     val outBuf = ArrayBuffer.empty[String]
     val errBuf = ArrayBuffer.empty[String]
     val procLogger = ProcessLogger(line => outBuf += line, line => errBuf += line)
-    val exit = Process(
-      Seq(pythonExe, scriptPath.toString, actual.toString, expected.toString)
-    ).!(procLogger)
+    // --unordered tells compare.py to lex-sort both DataFrames by all columns
+    // before assert_frame_equal — needed for set-semantics ops whose JVM
+    // emission order doesn't match the pandas equivalent. Default stays
+    // positional so deterministic-order ops still catch row-order regressions.
+    val baseArgs = Seq(pythonExe, scriptPath.toString)
+    val flagArgs = if (!orderSensitive) Seq("--unordered") else Seq.empty
+    val cmd = baseArgs ++ flagArgs ++ Seq(actual.toString, expected.toString)
+    val exit = Process(cmd).!(procLogger)
 
     if (exit != 0) {
       throw new ComparatorMismatchException(
