@@ -71,6 +71,21 @@ object VirtualIdentityUtils {
     }
   }
 
+  /**
+    * Extract the logical operator id from a worker actor id of the form
+    * `Worker:WF<workflowId>-<operatorId>-<layerName>-<workerIndex>`.
+    *
+    * Convenience wrapper for the common `getPhysicalOpId(workerId).logicalOpId.id`
+    * pattern; the Python sibling is `core.util.virtual_identity.get_operator_id`.
+    * The Python helper raises `ValueError` on a non-match for fail-loud
+    * semantics; this Scala helper preserves the existing sentinel-on-miss
+    * behavior (`"__DummyOperator"`) so it stays a drop-in replacement for
+    * the inline pattern at call sites.
+    */
+  def getOperatorId(workerId: ActorVirtualIdentity): String = {
+    getPhysicalOpId(workerId).logicalOpId.id
+  }
+
   def getWorkerIndex(workerId: ActorVirtualIdentity): Option[Int] = {
     workerId.name match {
       case workerNamePattern(_, _, _, idx) =>
