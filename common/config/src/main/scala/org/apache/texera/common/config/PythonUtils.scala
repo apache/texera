@@ -16,14 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.texera.config
+package org.apache.texera.common.config
 
-import com.typesafe.config.{Config, ConfigFactory}
-
-object ComputingUnitConfig {
-
-  private val conf: Config = ConfigFactory.parseResources("computing-unit.conf").resolve()
-
-  val localComputingUnitEnabled: Boolean = conf.getBoolean("computing-unit.local.enabled")
-  val sharingComputingUnitEnabled: Boolean = conf.getBoolean("computing-unit.sharing.enabled")
+// Util function used by PveManager and PythonWorkflowWorker
+object PythonUtils {
+  def getPythonExecutable: String = {
+    val pythonPath = UdfConfig.pythonPath.trim
+    if (pythonPath.isEmpty) "python3" else pythonPath
+  }
 }

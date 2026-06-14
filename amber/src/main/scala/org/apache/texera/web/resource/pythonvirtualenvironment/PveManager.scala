@@ -25,7 +25,7 @@ import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters._
 import scala.sys.process._
 import java.util.Comparator
-import org.apache.texera.config.PythonUtils
+import org.apache.texera.common.config.PythonUtils
 
 /**
   * PveManager is responsible for managing Python Virtual Environments (PVEs)

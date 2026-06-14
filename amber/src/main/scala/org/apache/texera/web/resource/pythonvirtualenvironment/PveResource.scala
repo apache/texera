@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-import org.apache.texera.config.KubernetesConfig
+import org.apache.texera.common.config.KubernetesConfig
 
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType

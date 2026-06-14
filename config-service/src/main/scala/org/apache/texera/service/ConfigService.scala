@@ -31,7 +31,7 @@ import org.apache.texera.auth.{
   SessionUser,
   UnauthorizedExceptionMapper
 }
-import org.apache.texera.config.{DefaultsConfig, StorageConfig}
+import org.apache.texera.common.config.{DefaultsConfig, StorageConfig}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
 import org.eclipse.jetty.server.session.SessionHandler

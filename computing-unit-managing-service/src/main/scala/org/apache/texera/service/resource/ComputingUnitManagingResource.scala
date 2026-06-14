@@ -28,13 +28,13 @@ import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.commons.lang3.StringUtils
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import org.apache.texera.auth.{JwtAuth, SessionUser}
-import org.apache.texera.config.KubernetesConfig.{
+import org.apache.texera.common.config.KubernetesConfig.{
   cpuLimitOptions,
   gpuLimitOptions,
   maxNumOfRunningComputingUnitsPerUser,
   memoryLimitOptions
 }
-import org.apache.texera.config.{
+import org.apache.texera.common.config.{
   ComputingUnitConfig,
   EnvironmentalVariable,
   KubernetesConfig,

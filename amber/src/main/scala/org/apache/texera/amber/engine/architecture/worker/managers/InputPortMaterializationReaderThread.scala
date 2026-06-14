@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.worker.managers
 
 import io.grpc.MethodDescriptor
-import org.apache.texera.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.model.VirtualDocument

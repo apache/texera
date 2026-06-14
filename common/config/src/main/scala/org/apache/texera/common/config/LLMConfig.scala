@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.texera.config
+package org.apache.texera.common.config
 
-// Util function used by PveManager and PythonWorkflowWorker
-object PythonUtils {
-  def getPythonExecutable: String = {
-    val pythonPath = UdfConfig.pythonPath.trim
-    if (pythonPath.isEmpty) "python3" else pythonPath
-  }
+import com.typesafe.config.{Config, ConfigFactory}
+
+object LLMConfig {
+  private val conf: Config = ConfigFactory.parseResources("llm.conf").resolve()
+
+  // LLM Service Configuration
+  val baseUrl: String = conf.getString("llm.base-url")
+  val masterKey: String = conf.getString("llm.master-key")
 }

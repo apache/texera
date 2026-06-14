@@ -20,7 +20,7 @@
 package org.apache.texera.web.resource.aiassistant
 
 import com.typesafe.config.Config
-import org.apache.texera.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 
 import java.net.{HttpURLConnection, URL}
 

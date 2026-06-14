@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.texera.config
+package org.apache.texera.common.config
 
 import com.typesafe.config.{Config, ConfigFactory}
 
-object LLMConfig {
-  private val conf: Config = ConfigFactory.parseResources("llm.conf").resolve()
+object PekkoConfig {
 
-  // LLM Service Configuration
-  val baseUrl: String = conf.getString("llm.base-url")
-  val masterKey: String = conf.getString("llm.master-key")
+  // Load configuration
+  private val conf: Config = ConfigFactory.parseResources("cluster.conf").resolve()
+
+  // Return the complete Pekko configuration with fallback to default application config
+  def pekkoConfig: Config = conf.withFallback(ConfigFactory.defaultApplication()).resolve()
 }

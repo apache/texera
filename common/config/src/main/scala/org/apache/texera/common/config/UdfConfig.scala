@@ -16,15 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.texera.config
+package org.apache.texera.common.config
 
 import com.typesafe.config.{Config, ConfigFactory}
 
-object PekkoConfig {
+object UdfConfig {
 
   // Load configuration
-  private val conf: Config = ConfigFactory.parseResources("cluster.conf").resolve()
+  private val conf: Config = ConfigFactory.parseResources("udf.conf").resolve()
 
-  // Return the complete Pekko configuration with fallback to default application config
-  def pekkoConfig: Config = conf.withFallback(ConfigFactory.defaultApplication()).resolve()
+  // Python specifics
+  val pythonPath: String = conf.getString("python.path")
+  val pythonLogStreamHandlerLevel: String = conf.getString("python.log.streamHandler.level")
+  val pythonLogStreamHandlerFormat: String = conf.getString("python.log.streamHandler.format")
+  val pythonLogFileHandlerDir: String = conf.getString("python.log.fileHandler.dir")
+  val pythonLogFileHandlerLevel: String = conf.getString("python.log.fileHandler.level")
+  val pythonLogFileHandlerFormat: String = conf.getString("python.log.fileHandler.format")
+
+  // R specifics
+  val rPath: String = conf.getString("r.path")
 }
