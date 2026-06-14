@@ -25,17 +25,21 @@ import io.fabric8.kubernetes.client.KubernetesClientException
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
-import org.apache.texera.amber.config.{EnvironmentalVariable, StorageConfig}
 import org.apache.commons.lang3.StringUtils
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import org.apache.texera.auth.{JwtAuth, SessionUser}
-import org.apache.texera.config.KubernetesConfig.{
+import org.apache.texera.common.config.KubernetesConfig.{
   cpuLimitOptions,
   gpuLimitOptions,
   maxNumOfRunningComputingUnitsPerUser,
   memoryLimitOptions
 }
-import org.apache.texera.config.{ComputingUnitConfig, KubernetesConfig}
+import org.apache.texera.common.config.{
+  ComputingUnitConfig,
+  EnvironmentalVariable,
+  KubernetesConfig,
+  StorageConfig
+}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
