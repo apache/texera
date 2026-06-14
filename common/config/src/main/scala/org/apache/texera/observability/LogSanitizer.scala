@@ -101,8 +101,10 @@ object LogSanitizer {
     truncate(scrubbed)
   }
 
-  /** Truncate to MaxBodyBytes, appending the marker if cut. */
-  private def truncate(body: String): String = {
+  /** Truncate to MaxBodyBytes, appending the marker if cut. Public so
+    *  callers building a body outside `sanitize` can enforce the cap.
+    */
+  def truncate(body: String): String = {
     if (body.length <= MaxBodyBytes) body
     else body.substring(0, MaxBodyBytes - TruncatedMarker.length) + TruncatedMarker
   }

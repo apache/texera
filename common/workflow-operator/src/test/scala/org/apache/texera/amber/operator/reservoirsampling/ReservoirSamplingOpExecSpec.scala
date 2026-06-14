@@ -105,6 +105,27 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
     assert(emitted == List(tuple(0), tuple(1), tuple(2), tuple(3)))
   }
 
+  it should "emit only the filled prefix, without null padding, when input size < k" in {
+    val exec = newExec(k = 5)
+    val emitted = runFinish(exec, 0 until 2)
+    assert(emitted == List(tuple(0), tuple(1)), "only the received tuples are emitted, in order")
+    assert(!emitted.contains(null), "the unfilled reservoir slots must not leak as null tuples")
+  }
+
+  it should "emit nothing when the input stream is empty" in {
+    val exec = newExec(k = 5)
+    val emitted = runFinish(exec, Seq.empty)
+    assert(emitted.isEmpty, "an unfilled reservoir with no input emits no (null) tuples")
+  }
+
+  it should "not emit null padding on a worker that receives fewer tuples than its share" in {
+    // k=10 over 3 workers gives worker 0 a share of 4 (equallyPartitionGoal), but skewed
+    // partitioning delivers it only 2 tuples; the 2 unfilled slots must not surface as nulls.
+    val exec = newExec(k = 10, idx = 0, workerCount = 3)
+    val emitted = runFinish(exec, 0 until 2)
+    assert(emitted == List(tuple(0), tuple(1)))
+  }
+
   it should "keep exactly k tuples, all drawn from the input, when input size > k" in {
     val exec = newExec(k = 5)
     val input = 0 until 100

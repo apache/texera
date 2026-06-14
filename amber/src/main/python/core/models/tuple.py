@@ -22,7 +22,7 @@ import pyarrow
 import struct
 import typing
 from collections import OrderedDict
-from copy import deepcopy
+from copy import deepcopy as _deepcopy
 from loguru import logger
 from pandas._libs.missing import checknull
 from pympler import asizeof
@@ -232,16 +232,20 @@ class Tuple:
         """Convert the tuple to Pandas series format"""
         return pandas.Series(self.as_dict())
 
-    def as_dict(self) -> "OrderedDict[str, Field]":
-        """
-        Return a dictionary copy of this tuple.
-        Fields will be fetched from accessor if absent.
-        :return: dict with all the fields
-        """
-        # evaluate all the fields now
+    def _evaluate_all_fields(self) -> None:
+        # resolve any lazy field accessors in place
         for i in self.get_field_names():
             self.__getitem__(i)
-        return deepcopy(self._field_data)
+
+    def as_dict(self, deepcopy: bool = False) -> "OrderedDict[str, Field]":
+        """
+        Return this tuple's field data as a dict, fetching lazy fields first.
+
+        :param deepcopy: if True, deep copy values; else shallow copy (default)
+        :return: dict with all the fields
+        """
+        self._evaluate_all_fields()
+        return _deepcopy(self._field_data) if deepcopy else self._field_data.copy()
 
     def as_key_value_pairs(self) -> List[typing.Tuple[str, Field]]:
         return [(k, v) for k, v in self.as_dict().items()]

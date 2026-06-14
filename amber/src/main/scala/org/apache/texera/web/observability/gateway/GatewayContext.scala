@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.observability.gateway
 
-import org.apache.texera.config.ObservabilityGatewayConfig
+import org.apache.texera.common.config.ObservabilityGatewayConfig
 
 /**
   * Single bag of collaborators every observability resource needs.

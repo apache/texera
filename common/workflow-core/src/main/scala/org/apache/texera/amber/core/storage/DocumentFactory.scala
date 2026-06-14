@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.core.storage
 
-import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.storage.FileResolver.DATASET_FILE_URI_SCHEME
 import org.apache.texera.amber.core.storage.VFSResourceType._
 import org.apache.texera.amber.core.storage.VFSURIFactory.{VFS_FILE_URI_SCHEME, decodeURI}

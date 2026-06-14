@@ -18,14 +18,12 @@
 package org.apache.texera.auth.util
 
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  ComputingUnitUserAccessDao,
-  WorkflowComputingUnitDao
+import org.apache.texera.dao.jooq.generated.Tables.{
+  COMPUTING_UNIT_USER_ACCESS,
+  WORKFLOW_COMPUTING_UNIT
 }
+import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.jooq.DSLContext
-
-import scala.jdk.CollectionConverters._
 
 object ComputingUnitAccess {
   private def context: DSLContext =
@@ -34,22 +32,26 @@ object ComputingUnitAccess {
       .createDSLContext()
 
   def getComputingUnitAccess(cuid: Integer, uid: Integer): PrivilegeEnum = {
-    val workflowComputingUnitDao = new WorkflowComputingUnitDao(context.configuration())
-    val unit = workflowComputingUnitDao.fetchOneByCuid(cuid)
+    // At most one row: cuid is the PK of workflow_computing_unit and (cuid, uid)
+    // is the PK of computing_unit_user_access, so the left join cannot fan out.
+    val record = context
+      .select(WORKFLOW_COMPUTING_UNIT.UID, COMPUTING_UNIT_USER_ACCESS.PRIVILEGE)
+      .from(WORKFLOW_COMPUTING_UNIT)
+      .leftJoin(COMPUTING_UNIT_USER_ACCESS)
+      .on(
+        COMPUTING_UNIT_USER_ACCESS.CUID
+          .eq(WORKFLOW_COMPUTING_UNIT.CUID)
+          .and(COMPUTING_UNIT_USER_ACCESS.UID.eq(uid))
+      )
+      .where(WORKFLOW_COMPUTING_UNIT.CUID.eq(cuid))
+      .fetchOne()
 
-    if (unit.getUid.equals(uid)) {
-      return PrivilegeEnum.WRITE // owner has write access
-    }
-
-    val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(context.configuration())
-    val accessOpt = computingUnitUserAccessDao
-      .fetchByUid(uid)
-      .asScala
-      .find(_.getCuid.equals(cuid))
-
-    accessOpt match {
-      case Some(access) => access.getPrivilege
-      case None         => PrivilegeEnum.NONE
+    if (record == null) {
+      PrivilegeEnum.NONE // no such unit
+    } else if (record.value1().equals(uid)) {
+      PrivilegeEnum.WRITE // owner
+    } else {
+      Option(record.value2()).getOrElse(PrivilegeEnum.NONE)
     }
   }
 }
