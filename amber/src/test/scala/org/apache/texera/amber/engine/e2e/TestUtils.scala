@@ -26,11 +26,12 @@ import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
-import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity}
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.amber.engine.architecture.controller.{
   ControllerConfig,
   ExecutionStateUpdate,
+  FatalError,
   Workflow
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
@@ -76,6 +77,66 @@ object TestUtils {
     workflowCompiler.compile(
       LogicalPlanPojo(operators, links, List(), List())
     )
+  }
+
+  /**
+    * Resolve and read each operator's external RESULT document at `executionId`,
+    * applying `extract` to the opened document. Operators with no external
+    * RESULT uri (e.g. one whose output wasn't materialized) are omitted. Shared
+    * by the e2e specs so the lookup-open-extract block doesn't drift between
+    * copies.
+    */
+  def readMaterializedResults[T](
+      executionId: ExecutionIdentity,
+      operatorIds: Iterable[OperatorIdentity],
+      extract: VirtualDocument[Tuple] => T
+  ): Map[OperatorIdentity, T] =
+    operatorIds.flatMap { opId =>
+      getResultUriByLogicalPortId(executionId, opId, PortIdentity()).map { uri =>
+        opId -> extract(
+          DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]]
+        )
+      }
+    }.toMap
+
+  /**
+    * Run `workflow` to COMPLETED, then read the requested operators' materialized
+    * results via `readMaterializedResults`. A FatalError aborts the run and is
+    * surfaced as the exception from the completion await. Shared by the simple
+    * "run and read" e2e specs (e.g. DataProcessingSpec, LoopIntegrationSpec);
+    * specs that drive the run differently (e.g. reconfiguration's pause/resume)
+    * call `readMaterializedResults` directly inside their own completion callback.
+    */
+  def runWorkflowAndReadResults[T](
+      system: ActorSystem,
+      workflow: Workflow,
+      operatorIds: Iterable[OperatorIdentity],
+      extract: VirtualDocument[Tuple] => T,
+      completionTimeout: Duration = Duration.fromMinutes(1)
+  ): Map[OperatorIdentity, T] = {
+    val client = new AmberClient(
+      system,
+      workflow.context,
+      workflow.physicalPlan,
+      ControllerConfig.default,
+      _ => {}
+    )
+    val completion = Promise[Unit]()
+    var results: Map[OperatorIdentity, T] = Map.empty
+    client.registerCallback[FatalError](evt => {
+      completion.setException(evt.e)
+      client.shutdown()
+    })
+    client.registerCallback[ExecutionStateUpdate](evt => {
+      if (evt.state == COMPLETED) {
+        results = readMaterializedResults(workflow.context.executionId, operatorIds, extract)
+        completion.setDone()
+      }
+    })
+    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+    Await.result(completion, completionTimeout)
+    client.shutdown()
+    results
   }
 
   /**
@@ -188,29 +249,11 @@ object TestUtils {
     var result: Map[OperatorIdentity, List[Tuple]] = null
     client.registerCallback[ExecutionStateUpdate](evt => {
       if (evt.state == COMPLETED) {
-        result = workflow.logicalPlan.getTerminalOperatorIds
-          .filter(terminalOpId => {
-            val uri = getResultUriByLogicalPortId(
-              workflow.context.executionId,
-              terminalOpId,
-              PortIdentity()
-            )
-            uri.nonEmpty
-          })
-          .map(terminalOpId => {
-            val uri = getResultUriByLogicalPortId(
-              workflow.context.executionId,
-              terminalOpId,
-              PortIdentity()
-            ).get
-            terminalOpId -> DocumentFactory
-              .openDocument(uri)
-              ._1
-              .asInstanceOf[VirtualDocument[Tuple]]
-              .get()
-              .toList
-          })
-          .toMap
+        result = readMaterializedResults(
+          workflow.context.executionId,
+          workflow.logicalPlan.getTerminalOperatorIds,
+          _.get().toList
+        )
         completion.setDone()
       }
     })
