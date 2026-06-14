@@ -20,6 +20,7 @@ import pytest
 from core.util.virtual_identity import (
     deserialize_global_port_identity,
     get_from_actor_id_for_input_port_storage,
+    get_operator_id,
     get_worker_index,
     serialize_global_port_identity,
 )
@@ -74,6 +75,35 @@ class TestGetWorkerIndex:
         # correctly. Pin this so a future regex tightening that drops the
         # greedy `.+` and breaks the trailing match surfaces here.
         assert get_worker_index("Worker:WF1-myOp-1st-physical-op-3") == 3
+
+
+class TestGetOperatorId:
+    def test_extracts_operator_id_from_canonical_name(self):
+        assert get_operator_id("Worker:WF1-myOp-main-0") == "myOp"
+
+    def test_isolates_operator_id_containing_hyphens(self):
+        # Load-bearing: operator ids contain dashes; greedy `.+` must still
+        # stop at the final <layer>-<index> tokens.
+        assert (
+            get_operator_id("Worker:WF12-PythonUDFV2-abc-def-main-0")
+            == "PythonUDFV2-abc-def"
+        )
+
+    def test_handles_non_main_layer_and_nonzero_index(self):
+        # The exact case the old `rsplit("-main-0")` got silently wrong.
+        assert get_operator_id("Worker:WF3-op-loopLayer-7") == "op"
+
+    def test_operator_id_ending_in_digits(self):
+        assert get_operator_id("Worker:WF1-op123-main-0") == "op123"
+
+    def test_raises_value_error_on_special_actor_id(self):
+        # Companions like CONTROLLER / SELF must fail loudly, not return junk.
+        with pytest.raises(ValueError, match="Invalid worker ID format"):
+            get_operator_id("CONTROLLER")
+
+    def test_raises_value_error_on_partial_match(self):
+        with pytest.raises(ValueError, match="Invalid worker ID format"):
+            get_operator_id("Worker:WF1-myOp-main")
 
 
 class TestSerializeGlobalPortIdentity:
