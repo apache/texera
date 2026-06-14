@@ -36,15 +36,20 @@ def get_worker_index(worker_id: str) -> int:
     raise ValueError(f"Invalid worker ID format: {worker_id}")
 
 
-def get_operator_id(worker_id: str) -> str:
+def get_logical_op_id(worker_id: str) -> str:
     """
     Extract the logical operator id from a worker actor name of the form
     ``Worker:WF<workflowId>-<operatorId>-<layerName>-<workerIndex>``.
 
-    Mirrors the canonical parse in Scala ``VirtualIdentityUtils.getPhysicalOpId``.
-    Unlike the Scala sibling (which returns a ``__DummyOperator`` sentinel on a
-    non-match), this raises ``ValueError`` so a malformed worker id fails loudly
-    rather than yielding a wrong id silently.
+    Returns the logical operator id only (the ``<operatorId>`` segment); the
+    physical operator id additionally carries the ``<layerName>``. Name
+    parallels Scala ``VirtualIdentityUtils.getLogicalOpId`` so the logical /
+    physical distinction is visible at every call site (the matching Scala
+    physical-id accessor is ``getPhysicalOpId``).
+
+    Unlike the Scala sibling (which returns a ``__DummyOperator`` sentinel
+    on a non-match), this raises ``ValueError`` so a malformed worker id
+    fails loudly rather than yielding a wrong id silently.
     """
     match = worker_name_pattern.fullmatch(worker_id)
     if match:

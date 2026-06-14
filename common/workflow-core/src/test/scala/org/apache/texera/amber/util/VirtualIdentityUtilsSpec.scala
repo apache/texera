@@ -94,20 +94,20 @@ class VirtualIdentityUtilsSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // ----- getOperatorId -----
+  // ----- getLogicalOpId -----
 
-  "getOperatorId" should "return the logical operator id from a worker actor name" in {
+  "getLogicalOpId" should "return the logical operator id from a worker actor name" in {
     val actor = ActorVirtualIdentity("Worker:WF7-myOp-main-3")
-    VirtualIdentityUtils.getOperatorId(actor) shouldBe "myOp"
+    VirtualIdentityUtils.getLogicalOpId(actor) shouldBe "myOp"
   }
 
   it should "match getPhysicalOpId(...).logicalOpId.id for worker actor names" in {
-    // Pin the helper as a thin wrapper — `getOperatorId(workerId)` and
+    // Pin the helper as a thin wrapper — `getLogicalOpId(workerId)` and
     // `getPhysicalOpId(workerId).logicalOpId.id` must always agree, so
     // call sites that migrate to the helper are guaranteed to keep
     // identical behavior.
     val actor = ActorVirtualIdentity("Worker:WF1-multi-part-op-main-0")
-    VirtualIdentityUtils.getOperatorId(actor) shouldBe
+    VirtualIdentityUtils.getLogicalOpId(actor) shouldBe
       VirtualIdentityUtils.getPhysicalOpId(actor).logicalOpId.id
   }
 
@@ -115,11 +115,11 @@ class VirtualIdentityUtilsSpec extends AnyFlatSpec with Matchers {
     // The Python sibling raises ValueError on a non-match; the Scala
     // helper preserves the existing __DummyOperator sentinel so it
     // stays a drop-in replacement for the inline pattern at call sites
-    // (see VirtualIdentityUtils.getOperatorId docstring).
+    // (see VirtualIdentityUtils.getLogicalOpId docstring).
     val controller = ActorVirtualIdentity("CONTROLLER")
-    VirtualIdentityUtils.getOperatorId(controller) shouldBe "__DummyOperator"
+    VirtualIdentityUtils.getLogicalOpId(controller) shouldBe "__DummyOperator"
     val self = ActorVirtualIdentity("SELF")
-    VirtualIdentityUtils.getOperatorId(self) shouldBe "__DummyOperator"
+    VirtualIdentityUtils.getLogicalOpId(self) shouldBe "__DummyOperator"
   }
 
   // ----- getWorkerIndex -----
