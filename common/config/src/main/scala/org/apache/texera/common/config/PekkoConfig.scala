@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.texera.amber.config
+package org.apache.texera.common.config
 
-// Util function used by PveManager and PythonWorkflowWorker
-object PythonUtils {
-  def getPythonExecutable: String = {
-    val pythonPath = UdfConfig.pythonPath.trim
-    if (pythonPath.isEmpty) "python3" else pythonPath
-  }
+import com.typesafe.config.{Config, ConfigFactory}
+
+object PekkoConfig {
+
+  // Load configuration
+  private val conf: Config = ConfigFactory.parseResources("cluster.conf").resolve()
+
+  // Return the complete Pekko configuration with fallback to default application config
+  def pekkoConfig: Config = conf.withFallback(ConfigFactory.defaultApplication()).resolve()
 }
