@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.messaginglayer
 
 import org.apache.pekko.actor.Cancellable
-import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.engine.architecture.common.PekkoActorService
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
