@@ -30,6 +30,7 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import java.util
+import javax.validation.constraints.NotEmpty
 import scala.jdk.CollectionConverters.ListHasAsScala
 class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
 
@@ -44,7 +45,8 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
   var yLabel: EncodableString = ""
 
   @JsonProperty(value = "bands", required = true)
-  var bands: util.List[BandConfig] = _
+  @NotEmpty(message = "Bands cannot be empty")
+  var bands: util.List[BandConfig] = new util.ArrayList[BandConfig]()
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -62,6 +64,7 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
+    assert(bands != null && !bands.isEmpty, "Bands cannot be empty")
     val bandsPart = bands.asScala
       .map { bandConf =>
         val colorPart = if (bandConf.color != "") {
