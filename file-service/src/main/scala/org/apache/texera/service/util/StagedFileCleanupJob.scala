@@ -124,35 +124,43 @@ class StagedFileCleanupJob(retentionHours: Int, intervalMinutes: Int)
 
     expiredSessions.foreach { session =>
       try {
-        repoNameByDid.get(session.getDid) match {
-          case Some(repoName) =>
-            try {
-              LakeFSStorageClient.abortPresignedMultipartUploads(
-                repoName,
-                session.getFilePath,
-                session.getUploadId,
-                session.getPhysicalAddress
-              )
-            } catch {
-              // Already aborted (or never materialized): safe to delete the session row.
-              case e: ApiException if e.getCode == 404 =>
-                logger.debug(
-                  s"Multipart upload ${session.getUploadId} not found in LakeFS; " +
-                    "treating as already aborted"
+        // Delete the row and abort the multipart in one transaction, deleting FIRST. LakeFS is
+        // external and cannot truly enroll in a DB transaction, but the abort is idempotent
+        // (re-aborting an already-aborted upload returns 404, treated as success below), so the
+        // only risk is the abort failing AFTER the delete is staged. By staging the delete first
+        // and letting a non-404 abort failure roll the whole transaction back, the session row
+        // survives and the next round retries — never leaving an orphaned multipart behind.
+        SqlServer.withTransaction(ctx) { txn =>
+          txn
+            .deleteFrom(DATASET_UPLOAD_SESSION)
+            .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(session.getUploadId))
+            .execute()
+          repoNameByDid.get(session.getDid) match {
+            case Some(repoName) =>
+              try {
+                LakeFSStorageClient.abortPresignedMultipartUploads(
+                  repoName,
+                  session.getFilePath,
+                  session.getUploadId,
+                  session.getPhysicalAddress
                 )
-            }
-          case None =>
-            // Dataset row gone or repository_name is NULL: the multipart lived in that
-            // repository's namespace, so there is nothing left to abort.
-            logger.debug(
-              s"No repository for dataset ${session.getDid}; " +
-                s"deleting orphan upload session ${session.getUploadId}"
-            )
+              } catch {
+                // Already aborted (or never materialized): safe to delete the session row.
+                case e: ApiException if e.getCode == 404 =>
+                  logger.debug(
+                    s"Multipart upload ${session.getUploadId} not found in LakeFS; " +
+                      "treating as already aborted"
+                  )
+              }
+            case None =>
+              // Dataset row gone or repository_name is NULL: the multipart lived in that
+              // repository's namespace, so there is nothing left to abort.
+              logger.debug(
+                s"No repository for dataset ${session.getDid}; " +
+                  s"deleting orphan upload session ${session.getUploadId}"
+              )
+          }
         }
-        ctx
-          .deleteFrom(DATASET_UPLOAD_SESSION)
-          .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(session.getUploadId))
-          .execute()
         sessionsDeleted += 1
       } catch {
         case t: Throwable =>
@@ -203,6 +211,13 @@ class StagedFileCleanupJob(retentionHours: Int, intervalMinutes: Int)
                   objectsReset += 1
                 }
               } catch {
+                // Concurrently committed/reset, or already cleaned by another round: the
+                // object is gone, which is the desired end state for an idempotent job.
+                case e: ApiException if e.getCode == 404 =>
+                  logger.debug(
+                    s"Staged object '$path' not found in repo '$repoName'; " +
+                      "treating as already cleaned"
+                  )
                 case t: Throwable =>
                   logger.warn(
                     s"Failed to clean up staged object '$path' in repo '$repoName'",

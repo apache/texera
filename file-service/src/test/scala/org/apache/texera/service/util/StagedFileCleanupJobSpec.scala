@@ -511,7 +511,7 @@ class StagedFileCleanupJobSpec
   }
 
   // ===========================================================================
-  // 14. F1: orphan session (dataset has NULL repository_name) — cleaned, no abort attempted
+  // 14. Path 1 (session cleanup): orphan session (dataset has NULL repository_name) — cleaned, no abort attempted
   // ===========================================================================
   it should "delete an orphan session whose dataset has a NULL repository_name, without error" in {
     // A second dataset with NO repository_name: such a did never appears in repoNameByDid,
@@ -557,7 +557,7 @@ class StagedFileCleanupJobSpec
   }
 
   // ===========================================================================
-  // 15. F2: staged DELETION of a committed object is skipped (not reset, not an error)
+  // 15. Path 2 (staged objects): staged DELETION of a committed object is skipped (not reset, not an error)
   // ===========================================================================
   it should "skip a staged deletion (REMOVED diff) without resetting it or counting an error" in {
     // Commit an object, then stage a deletion of it on main WITHOUT committing. The pending
@@ -585,7 +585,7 @@ class StagedFileCleanupJobSpec
   }
 
   // ===========================================================================
-  // 16. F2: a dataset pointing at a non-existent LakeFS repo (404) is skipped, no error
+  // 16. Path 2 (staged objects): a dataset pointing at a non-existent LakeFS repo (404) is skipped, no error
   // ===========================================================================
   it should "skip a dataset whose LakeFS repository does not exist, without error" in {
     // A dataset row whose repository was never created in LakeFS. retrieveUncommittedObjects
@@ -611,7 +611,7 @@ class StagedFileCleanupJobSpec
   }
 
   // ===========================================================================
-  // 17. F2: a staged CHANGED diff (content modification) is reset, not skipped
+  // 17. Path 2 (staged objects): a staged CHANGED diff (content modification) is reset, not skipped
   // ===========================================================================
   it should "reset a staged content change (CHANGED diff) while keeping the committed version" in {
     // Commit content A, then re-upload content B at the SAME path without committing. The
@@ -711,6 +711,113 @@ class StagedFileCleanupJobSpec
       datasetDao.deleteById(dataset2.getDid)
       try LakeFSStorageClient.deleteRepo(repo2)
       catch { case _: ApiException => /* best-effort cleanup */ }
+    }
+  }
+
+  // ===========================================================================
+  // 19. Path 1 (session cleanup): a non-404 abort failure rolls back the row delete (transactional)
+  // ===========================================================================
+  it should "roll back the session-row delete when the multipart abort fails (non-404)" in {
+    // Same failure mechanism as test 11: a bogus uploadId / physical address whose abort
+    // throws a NON-404 error. Unlike test 11, this asserts the DB row SURVIVES, proving the
+    // delete (staged first inside withTransaction) is rolled back rather than committed.
+    // A timeout or a 5xx from LakeFS takes this same non-404 -> rollback -> retry path.
+    val bogusPath = uniquePath("rollback-bogus-session")
+    insertBogusSession(bogusPath) // created_at defaults to now -> expired under farFuture
+    val bogusId = fetchSession(bogusPath).getUploadId
+
+    try {
+      val report = job.runCleanupOnce(farFuture)
+
+      report.errors shouldEqual 1
+      report.sessionsDeleted shouldEqual 0
+      // Key assertion vs. test 11: the delete was rolled back with the failed abort, so the
+      // row is still present and the next round will retry it.
+      fetchSession(bogusPath) should not be null
+    } finally {
+      // The row survives the rolled-back round, so remove it explicitly to keep later tests'
+      // exact counts independent (beforeEach also clears the table, but be explicit).
+      getDSLContext
+        .deleteFrom(DATASET_UPLOAD_SESSION)
+        .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(bogusId))
+        .execute()
+    }
+  }
+
+  // ===========================================================================
+  // 20. Path 1 (session cleanup): a transiently-failing session is cleaned on the NEXT round (self-heals)
+  // ===========================================================================
+  it should "clean a transiently-failing session on the next round (retried, not stuck)" in {
+    // Demonstrates Yicong's "cleaned in next round": round 1's abort fails (non-404) and rolls
+    // back, leaving the row; once the transient condition clears, a later round succeeds.
+    val filePath = uniquePath("transient-session")
+    insertBogusSession(filePath) // abort throws non-404 under the bogus physical address
+    val bogusId = fetchSession(filePath).getUploadId
+
+    try {
+      // Round 1: abort fails -> transaction rolls back -> row survives, counted as an error.
+      val round1 = job.runCleanupOnce(farFuture)
+      round1.errors shouldEqual 1
+      round1.sessionsDeleted shouldEqual 0
+      fetchSession(filePath) should not be null
+
+      // Clear the transient failure deterministically WITHOUT faking the client: replace the
+      // bogus row with a REAL session at the same logical path, then abort its multipart
+      // out-of-band (the test-10 mechanism). The next round's abort therefore returns 404,
+      // which the job treats as success.
+      getDSLContext
+        .deleteFrom(DATASET_UPLOAD_SESSION)
+        .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(bogusId))
+        .execute()
+      initSession(filePath)
+      val healed = fetchSession(filePath)
+      LakeFSStorageClient.abortPresignedMultipartUploads(
+        repoName,
+        filePath,
+        healed.getUploadId,
+        healed.getPhysicalAddress
+      )
+
+      // Round 2: abort hits the already-aborted 404 (success) -> row is deleted, no error.
+      val round2 = job.runCleanupOnce(farFuture)
+      round2.errors shouldEqual 0
+      round2.sessionsDeleted shouldEqual 1
+      fetchSession(filePath) shouldBe null
+    } finally {
+      // Best-effort: remove any row that may survive an unexpected mid-test failure.
+      getDSLContext
+        .deleteFrom(DATASET_UPLOAD_SESSION)
+        .where(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
+        .execute()
+    }
+  }
+
+  // ===========================================================================
+  // 21. Path 1 (session cleanup): a failing item does not prevent a healthy item in the same round from cleaning
+  // ===========================================================================
+  it should "clean a healthy session in the same round where another item fails, keeping the failed row" in {
+    // Test 11 asserts the healthy item is cleaned and the batch continues, but does NOT assert
+    // that the failing row SURVIVES (rolled back). This pins both halves precisely.
+    val healthyPath = uniquePath("healthy-alongside-failing")
+    initSession(healthyPath) // abort succeeds -> row deleted
+    val bogusPath = uniquePath("failing-alongside-healthy")
+    insertBogusSession(bogusPath) // abort throws non-404 -> transaction rolls back
+    val bogusId = fetchSession(bogusPath).getUploadId
+
+    try {
+      val report = job.runCleanupOnce(farFuture)
+
+      report.sessionsDeleted shouldEqual 1
+      report.errors shouldEqual 1
+      // Healthy item cleaned despite the sibling failure...
+      fetchSession(healthyPath) shouldBe null
+      // ...and the failing item's row is rolled back (survives), ready to retry next round.
+      fetchSession(bogusPath) should not be null
+    } finally {
+      getDSLContext
+        .deleteFrom(DATASET_UPLOAD_SESSION)
+        .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(bogusId))
+        .execute()
     }
   }
 }
