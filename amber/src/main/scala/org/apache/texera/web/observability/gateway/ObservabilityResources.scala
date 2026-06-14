@@ -542,6 +542,7 @@ class ProfilesResource(ctx: GatewayContext) extends LazyLogging {
 class ObservabilityHealthResource(ctx: GatewayContext) extends LazyLogging {
 
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def health(@Auth user: SessionUser): Response = {
     // Light-touch reachability — used by the dashboard to render
     // "Disabled" / "Unreachable" panels. No backend query; just a
