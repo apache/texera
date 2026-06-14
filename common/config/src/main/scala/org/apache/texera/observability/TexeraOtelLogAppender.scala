@@ -86,12 +86,9 @@ class TexeraOtelLogAppender extends UnsynchronizedAppenderBase[ILoggingEvent] {
     val baseBody = LogSanitizer.sanitize(event.getFormattedMessage)
     val body = Option(event.getThrowableProxy) match {
       case Some(proxy) =>
-        // JVM-generated stack frames are trusted (not user input), so
-        // we skip the C0 strip that would collapse newlines and ruin
-        // readability. We do still cap the total length implicitly
-        // via the OTel SDK's per-record body limit, and the body
-        // stays valid UTF-8 because Logback emits ASCII frame text.
-        baseBody + "\n" + formatThrowable(proxy)
+        // Trusted JVM frames: skip the C0 strip so newlines survive,
+        // but still cap length (the OTel SDK does not bound the body).
+        LogSanitizer.truncate(baseBody + "\n" + formatThrowable(proxy))
       case None => baseBody
     }
     val builder = logger

@@ -30,17 +30,21 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
+import javax.validation.constraints.NotNull
+
 class NetworkGraphOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Source Column")
   @JsonPropertyDescription("Source node for edge in graph")
   @AutofillAttributeName
+  @NotNull(message = "Source Column cannot be empty")
   var source: EncodableString = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Destination Column")
   @JsonPropertyDescription("Destination node for edge in graph")
   @AutofillAttributeName
+  @NotNull(message = "Destination Column cannot be empty")
   var destination: EncodableString = ""
 
   @JsonProperty(defaultValue = "Network Graph")
@@ -63,8 +67,8 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor {
     )
 
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(source.nonEmpty)
-    assert(destination.nonEmpty)
+    assert(source.nonEmpty, "Source Column cannot be empty")
+    assert(destination.nonEmpty, "Destination Column cannot be empty")
     pyb"""
          |        table = table.dropna(subset = [$source]) #remove missing values
          |        table = table.dropna(subset = [$destination]) #remove missing values

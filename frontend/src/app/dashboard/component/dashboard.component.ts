@@ -39,6 +39,7 @@ import {
   USER_DISCUSSION,
   USER_OBSERVABILITY,
   USER_PROJECT,
+  USER_PYTHON_VENV,
   USER_QUOTA,
   USER_WORKFLOW,
 } from "../../app-routing.constant";
@@ -110,6 +111,7 @@ export class DashboardComponent implements OnInit {
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
   protected readonly USER_DATASET = USER_DATASET;
   protected readonly USER_COMPUTING_UNIT = USER_COMPUTING_UNIT;
+  protected readonly USER_PYTHON_VENV = USER_PYTHON_VENV;
   protected readonly USER_QUOTA = USER_QUOTA;
   protected readonly USER_DISCUSSION = USER_DISCUSSION;
   protected readonly USER_OBSERVABILITY = USER_OBSERVABILITY;

@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.e2e
 
 import com.twitter.util.{Await, Duration, Promise, Return}
 import org.apache.pekko.actor.ActorSystem
-import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
