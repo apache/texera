@@ -114,6 +114,40 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers {
     clock.nowMillis shouldBe 50L
   }
 
+  it should "treat a committed count above the expected count as ready" in {
+    val clock = new FakeClock
+    resource.awaitUntil(
+      targetOperatorIds = List("op"),
+      expectedCountOf = _ => 10L,
+      committedCountOf = _ => Some(15L), // storage already holds more rows than stats report
+      timeoutMillis = 1000L,
+      pollIntervalMillis = 25L,
+      now = clock.now,
+      sleep = clock.sleep
+    )
+    clock.sleepCount shouldBe 0
+  }
+
+  it should "not block on a storage-less operator while waiting on another" in {
+    val clock = new FakeClock
+    var bChecks = 0
+    resource.awaitUntil(
+      targetOperatorIds = List("a", "b"),
+      expectedCountOf = _ => 5L,
+      committedCountOf = {
+        case "a" => None // a has no result storage, must not hold up the poll
+        case _ =>
+          bChecks += 1
+          Some(if (bChecks >= 2) 5L else 0L) // b lands on the second check
+      },
+      timeoutMillis = 1000L,
+      pollIntervalMillis = 25L,
+      now = clock.now,
+      sleep = clock.sleep
+    )
+    clock.sleepCount shouldBe 1
+  }
+
   it should "require every target operator to be ready" in {
     val clock = new FakeClock
     var bChecks = 0
