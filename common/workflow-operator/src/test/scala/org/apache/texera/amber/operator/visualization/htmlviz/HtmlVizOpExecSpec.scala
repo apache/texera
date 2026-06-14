@@ -69,4 +69,20 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.getField("html-content").asInstanceOf[String] == "<html></html>")
 
   }
+
+  it should "throw an AssertionError (not a NullPointerException) on open() when html content is left empty" in {
+    val emptyDesc = new HtmlVizOpDesc()
+    // htmlContentAttrName left at its "" default
+    val htmlVizOpExec = new HtmlVizOpExec(objectMapper.writeValueAsString(emptyDesc))
+    val ex = intercept[AssertionError](htmlVizOpExec.open())
+    assert(ex.getMessage != null)
+    assert(ex.getMessage.contains("HTML content cannot be empty"))
+  }
+
+  it should "open() successfully when html content is configured" in {
+    val configuredDesc = new HtmlVizOpDesc()
+    configuredDesc.htmlContentAttrName = "field1"
+    val htmlVizOpExec = new HtmlVizOpExec(objectMapper.writeValueAsString(configuredDesc))
+    htmlVizOpExec.open()
+  }
 }
