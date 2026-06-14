@@ -25,7 +25,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.config.KubernetesConfig
+import org.apache.texera.common.config.KubernetesConfig
 import org.jooq.exception.DataAccessException
 
 import javax.ws.rs._

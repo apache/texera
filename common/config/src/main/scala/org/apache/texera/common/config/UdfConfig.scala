@@ -16,14 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.texera.config
+package org.apache.texera.common.config
 
 import com.typesafe.config.{Config, ConfigFactory}
 
-object ComputingUnitConfig {
+object UdfConfig {
 
-  private val conf: Config = ConfigFactory.parseResources("computing-unit.conf").resolve()
+  // Load configuration
+  private val conf: Config = ConfigFactory.parseResources("udf.conf").resolve()
 
-  val localComputingUnitEnabled: Boolean = conf.getBoolean("computing-unit.local.enabled")
-  val sharingComputingUnitEnabled: Boolean = conf.getBoolean("computing-unit.sharing.enabled")
+  // Python specifics
+  val pythonPath: String = conf.getString("python.path")
+  val pythonLogStreamHandlerLevel: String = conf.getString("python.log.streamHandler.level")
+  val pythonLogStreamHandlerFormat: String = conf.getString("python.log.streamHandler.format")
+  val pythonLogFileHandlerDir: String = conf.getString("python.log.fileHandler.dir")
+  val pythonLogFileHandlerLevel: String = conf.getString("python.log.fileHandler.level")
+  val pythonLogFileHandlerFormat: String = conf.getString("python.log.fileHandler.format")
+
+  // R specifics
+  val rPath: String = conf.getString("r.path")
 }

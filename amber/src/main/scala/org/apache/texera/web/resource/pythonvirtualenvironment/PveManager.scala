@@ -25,7 +25,7 @@ import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters._
 import scala.sys.process._
 import java.util.Comparator
-import org.apache.texera.amber.config.PythonUtils
+import org.apache.texera.common.config.PythonUtils
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.tables.daos.VirtualEnvironmentsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.VirtualEnvironments
