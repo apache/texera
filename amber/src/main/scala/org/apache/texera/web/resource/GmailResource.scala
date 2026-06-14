@@ -21,7 +21,7 @@ package org.apache.texera.web.resource
 
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.config.UserSystemConfig
+import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao

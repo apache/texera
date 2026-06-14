@@ -131,6 +131,26 @@
             nzTheme="outline"
             nzType="minus-square"></i>
         </button>
+        <button
+          nz-button
+          title="List View"
+          (click)="setViewType('list')"
+          [nzType]="viewType === 'list' ? 'primary' : 'default'">
+          <i
+            nz-icon
+            nzType="bars"
+            nzTheme="outline"></i>
+        </button>
+        <button
+          nz-button
+          title="Card View"
+          (click)="setViewType('card')"
+          [nzType]="viewType === 'card' ? 'primary' : 'default'">
+          <i
+            nz-icon
+            nzType="appstore"
+            nzTheme="outline"></i>
+        </button>
       </nz-space-compact>
       <texera-filters
         [pid]="pid"
@@ -153,9 +173,27 @@
     </nz-select>
   </div>
 
+  <ng-template
+    #workflowCardTpl
+    let-entry>
+    <texera-card-item
+      class="workflow-card-item"
+      [entry]="entry"
+      [currentUid]="currentUid"
+      [isPrivateSearch]="true"
+      [editable]="true"
+      (deleted)="deleteWorkflow(entry)"
+      (duplicated)="onClickDuplicateWorkflow(entry)"
+      (refresh)="refreshSearchResult()"
+      (checkboxChanged)="searchResultsComponent.onEntryCheckboxChange()">
+    </texera-card-item>
+  </ng-template>
+
   <texera-search-results
     [editable]="true"
     [isPrivateSearch]="true"
+    [viewMode]="viewType"
+    [cardTemplate]="workflowCardTpl"
     (deleted)="deleteWorkflow($event)"
     (refresh)="refreshSearchResult()"
     (duplicated)="onClickDuplicateWorkflow($event)"
