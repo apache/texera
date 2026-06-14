@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.e2e
 
-import com.twitter.util.{Await, Duration, Promise, Return}
+import com.twitter.util.{Await, Duration, Promise, Return, Throw, Try}
 import org.apache.pekko.actor.ActorSystem
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.executor.OpExecInitInfo
@@ -114,29 +114,36 @@ object TestUtils {
       extract: VirtualDocument[Tuple] => T,
       completionTimeout: Duration = Duration.fromMinutes(1)
   ): Map[OperatorIdentity, T] = {
+    // The Promise carries the result so completing the run and handing back the
+    // value are atomic. Every terminal path uses `updateIfEmpty`, so a second
+    // event (a late FatalError after COMPLETED, or a repeated state update)
+    // can't throw inside a callback and get swallowed -- which would otherwise
+    // mask the real failure as a timeout. A read failure inside the COMPLETED
+    // callback fails the Promise (via `Try`) instead of hanging, and
+    // `shutdown()` runs in a `finally` so a timeout or error can't leak the
+    // client's actors.
+    val completion = Promise[Map[OperatorIdentity, T]]()
     val client = new AmberClient(
       system,
       workflow.context,
       workflow.physicalPlan,
       ControllerConfig.default,
-      _ => {}
+      e => completion.updateIfEmpty(Throw(e))
     )
-    val completion = Promise[Unit]()
-    var results: Map[OperatorIdentity, T] = Map.empty
-    client.registerCallback[FatalError](evt => {
-      completion.setException(evt.e)
+    try {
+      client.registerCallback[FatalError](evt => completion.updateIfEmpty(Throw(evt.e)))
+      client.registerCallback[ExecutionStateUpdate](evt => {
+        if (evt.state == COMPLETED) {
+          completion.updateIfEmpty(
+            Try(readMaterializedResults(workflow.context.executionId, operatorIds, extract))
+          )
+        }
+      })
+      Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+      Await.result(completion, completionTimeout)
+    } finally {
       client.shutdown()
-    })
-    client.registerCallback[ExecutionStateUpdate](evt => {
-      if (evt.state == COMPLETED) {
-        results = readMaterializedResults(workflow.context.executionId, operatorIds, extract)
-        completion.setDone()
-      }
-    })
-    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
-    Await.result(completion, completionTimeout)
-    client.shutdown()
-    results
+    }
   }
 
   /**
