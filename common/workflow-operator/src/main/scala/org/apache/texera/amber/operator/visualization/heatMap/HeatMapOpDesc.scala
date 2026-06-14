@@ -29,24 +29,29 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+
+import javax.validation.constraints.NotNull
 class HeatMapOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("Value X Column")
   @JsonPropertyDescription("the values along the x-axis")
   @AutofillAttributeName
+  @NotNull(message = "Value X Column cannot be empty")
   var x: EncodableString = ""
 
   @JsonProperty(value = "y", required = true)
   @JsonSchemaTitle("Value Y Column")
   @JsonPropertyDescription("the values along the y-axis")
   @AutofillAttributeName
+  @NotNull(message = "Value Y Column cannot be empty")
   var y: EncodableString = ""
 
   @JsonProperty(value = "Values", required = true)
   @JsonSchemaTitle("Values")
   @JsonPropertyDescription("the values of the heatmap")
   @AutofillAttributeName
+  @NotNull(message = "Values cannot be empty")
   var value: EncodableString = ""
 
   override def getOutputSchemas(
@@ -65,9 +70,9 @@ class HeatMapOpDesc extends PythonOperatorDescriptor {
     )
 
   private def createHeatMap(): PythonTemplateBuilder = {
-    assert(x.nonEmpty)
-    assert(y.nonEmpty)
-    assert(value.nonEmpty)
+    assert(x.nonEmpty, "Value X Column cannot be empty")
+    assert(y.nonEmpty, "Value Y Column cannot be empty")
+    assert(value.nonEmpty, "Values cannot be empty")
     pyb"""
        |        heatmap = go.Heatmap(z=table[$value],x=table[$x],y=table[$y])
        |        layout = go.Layout(margin=dict(l=0, r=0, b=0, t=0))

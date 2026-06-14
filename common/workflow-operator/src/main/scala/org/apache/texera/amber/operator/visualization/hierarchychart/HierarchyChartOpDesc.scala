@@ -46,7 +46,7 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Chart Type")
   @JsonPropertyDescription("Treemap or Sunburst")
-  @NotNull(message = "Hierarchy Chart Type cannot be empty")
+  @NotNull(message = "Chart Type cannot be empty")
   var hierarchyChartType: HierarchyChartType = _
 
   @JsonProperty(required = true)
@@ -54,14 +54,14 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription(
     "Hierarchy of attributes from a higher-level category to lower-level category"
   )
-  @NotEmpty(message = "Hierarchy path list cannot be empty")
+  @NotEmpty(message = "Hierarchy Path cannot be empty")
   var hierarchy: List[HierarchySection] = List()
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("The value associated with the size of each sector in the chart")
   @AutofillAttributeName
-  @NotNull(message = "Value column cannot be empty")
+  @NotNull(message = "Value Column cannot be empty")
   var value: EncodableString = ""
 
   override def getOutputSchemas(
@@ -83,7 +83,7 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
     hierarchy.map(c => pyb"${c.attributeName}").mkString(",")
 
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(value.nonEmpty)
+    assert(value.nonEmpty, "Value Column cannot be empty")
     val attributes = getHierarchyAttributesInPython
     pyb"""
        |        table[$value] = table[table[$value] > 0][$value] # remove non-positive numbers from the data
@@ -92,7 +92,7 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
   }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(hierarchy.nonEmpty)
+    assert(hierarchy.nonEmpty, "Hierarchy Path cannot be empty")
     val attributes = getHierarchyAttributesInPython
     pyb"""
        |        fig = px.${hierarchyChartType.getPlotlyExpressApiName}(table, path=[$attributes], values=$value,

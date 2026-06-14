@@ -31,9 +31,31 @@ export interface PvePackageResponse {
   userPackages: string[];
 }
 
+export interface UserPveRecord {
+  veid: number;
+  name: string;
+  packages: Record<string, string>;
+}
+
 @Injectable({ providedIn: "root" })
 export class WorkflowPveService {
   constructor(private http: HttpClient) {}
+
+  savePve(name: string, packages: Record<string, string>): Observable<{ veid: number }> {
+    return this.http.post<{ veid: number }>("/pve/db", { name, packages });
+  }
+
+  updateUserPve(veid: number, name: string, packages: Record<string, string>): Observable<{ veid: number }> {
+    return this.http.put<{ veid: number }>(`/pve/db/${veid}`, { name, packages });
+  }
+
+  listUserPves(): Observable<UserPveRecord[]> {
+    return this.http.get<UserPveRecord[]>("/pve/db");
+  }
+
+  deleteUserPve(veid: number): Observable<void> {
+    return this.http.delete<void>(`/pve/db/${veid}`);
+  }
 
   getAccessToken(): string | null {
     const token = AuthService.getAccessToken();
