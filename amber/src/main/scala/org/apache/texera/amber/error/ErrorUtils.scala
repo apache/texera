@@ -110,7 +110,7 @@ object ErrorUtils {
     var operatorId = "unknown operator"
     var workerId = ""
     if (actorIdOpt.isDefined) {
-      operatorId = VirtualIdentityUtils.getPhysicalOpId(actorIdOpt.get).logicalOpId.id
+      operatorId = VirtualIdentityUtils.getLogicalOpId(actorIdOpt.get)
       workerId = actorIdOpt.get.name
     }
     (operatorId, workerId)
