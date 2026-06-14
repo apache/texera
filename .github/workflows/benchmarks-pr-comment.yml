@@ -43,8 +43,11 @@ on:
 
 permissions:
   # Need pull-requests: write to post / update the comment.
-  # Need contents: read to load the latest main benchmark baseline from
-  # gh-pages/dev/bench/data.js for PR-vs-main comparison.
+  # Need contents: read to load the long-term 7-day average from
+  # gh-pages/dev/bench/data.js. The PRIMARY main-vs-branch comparison now
+  # comes from the same-runner main baseline CSV in the upstream artifact
+  # (bench-results/arrow-flight-e2e-main.csv); gh-pages supplies only the
+  # 7d-avg column plus a full fallback when that same-runner CSV is absent.
   pull-requests: write
   actions: read
   contents: read
@@ -240,6 +243,39 @@ jobs:
                 );
 
             const prRows = csv ? prRowsFromCsv(csv) : [];
+
+            // Same-runner main baseline, added by the Benchmarks workflow's
+            // "Benchmark main baseline in the same runner" step. When present
+            // it is the PREFERRED baseline: produced on THIS runner back-to-back
+            // with the PR run, so the delta carries no cross-runner hardware
+            // variance. Parsed numerically only (never embedded in the comment),
+            // so no markdown-fence escaping is needed; just bound the size.
+            const readMainCsv = (p) => {
+              if (!fs.existsSync(p)) return null;
+              let raw = fs.readFileSync(p, "utf8");
+              if (raw.length > MAX_CSV_BYTES) raw = raw.slice(0, MAX_CSV_BYTES) + "\n[truncated]";
+              return raw.trim();
+            };
+            const mainCsv = readMainCsv("bench-results/arrow-flight-e2e-main.csv");
+            let mainCommit = "";
+            try {
+              const c = fs.readFileSync("bench-results/arrow-flight-e2e-main.commit.txt", "utf8").trim();
+              if (/^[0-9a-f]{7,40}$/i.test(c)) mainCommit = c.slice(0, 7);
+            } catch (e) { /* optional sidecar; absence is fine */ }
+
+            // Build a baseline `latest` map from the same-runner main CSV, keyed
+            // identically to the comparison keys (`${suite}\0${name}`) so it
+            // drops straight into comparisonToTable. Mirrors prRowsFromCsv,
+            // including the derived MB/s metric.
+            const buildLatestFromCsv = (text) => {
+              const map = new Map();
+              for (const row of prRowsFromCsv(text)) {
+                for (const m of [row.throughput, row.mbps, row.p50, row.p95, row.p99]) {
+                  map.set(`${m.suite}\0${m.name}`, { value: m.value, unit: m.unit });
+                }
+              }
+              return map;
+            };
 
             const bytesPerTuple = (benchName) => {
               const match = benchName.match(/bs=(\d+)\s+sw=(\d+)\s+sl=(\d+)/);
@@ -511,11 +547,28 @@ jobs:
             const upstreamUrl = context.payload.workflow_run.html_url;
             const dashboardUrl = "https://apache.github.io/texera/dev/bench/";
 
-            // Primary view: PR-vs-main comparison when the gh-pages baseline
-            // is available. Fallback: rendered PR-only markdown table.
-            // Fallback view (collapsed <details>): raw sanitized CSV for full
-            // verifiability — readers click to expand if they need every column.
-            const baseline = await loadMainBaseline();
+            // Primary view: PR-vs-main comparison. Prefer the same-runner main
+            // baseline (hardware-noise-free); fall back to the gh-pages
+            // baseline. Either way the gh-pages data still supplies the 7-day
+            // average column. Last-resort fallback: rendered PR-only markdown
+            // table, then raw sanitized CSV in a collapsed <details>.
+            const ghPagesBaseline = await loadMainBaseline();
+            let baseline = ghPagesBaseline;
+            let sameRunBaseline = false;
+            if (mainCsv) {
+              const latest = buildLatestFromCsv(mainCsv);
+              if (latest.size > 0) {
+                baseline = {
+                  latest,
+                  // Keep the long-term 7-day average from gh-pages when we have
+                  // it; the same-runner CSV is a single point in time.
+                  average7d: ghPagesBaseline?.average7d || new Map(),
+                  commit: mainCommit || ghPagesBaseline?.commit || "",
+                  date: ghPagesBaseline?.date || 0,
+                };
+                sameRunBaseline = true;
+              }
+            }
             const comparison = comparisonToTable(prRows, baseline);
             const tableMd = csv ? csvToTable(csv) : null;
             const bodyParts = [
@@ -526,11 +579,14 @@ jobs:
             if (comparison) {
               const baselineBits = [];
               if (baseline.commit) baselineBits.push(`main \`${baseline.commit}\``);
-              if (baseline.date) baselineBits.push(new Date(baseline.date).toISOString());
+              if (sameRunBaseline) baselineBits.push("same runner");
+              else if (baseline.date) baselineBits.push(new Date(baseline.date).toISOString());
               bodyParts.push(
                 comparison.summary,
                 "",
-                `> CI benchmark results are noisy; treat <±${NOISE_THRESHOLD_PCT}% as noise unless repeated.`,
+                sameRunBaseline
+                  ? `> Compared against main \`${mainCommit || baseline.commit}\` benchmarked on **this same runner**, so the delta is largely free of cross-runner hardware noise. The "7d avg" column still reflects the gh-pages dashboard. Treat <±${NOISE_THRESHOLD_PCT}% as noise unless repeated.`
+                  : `> CI benchmark results are noisy; treat <±${NOISE_THRESHOLD_PCT}% as noise unless repeated.`,
                 "",
                 `[Dashboard](${dashboardUrl}) · [Run](${upstreamUrl})`,
                 "",
