@@ -369,26 +369,28 @@ jobs:
           if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt; fi
       - name: Install protoc
-        # Version pinned in bin/protoc-version.txt. PROTOC_ARCH picks the
-        # release asset for the host so the macOS matrix entry can install
-        # the same protoc as Linux. v3.19.4 predates upstream arm64-mac
-        # builds, so macOS uses the x86_64 asset and relies on Rosetta 2
-        # (preinstalled on GitHub's Apple Silicon runners).
+        # Linux pins protoc to the version in bin/protoc-version.txt via
+        # the upstream release zip. macOS uses brew's arm64-native
+        # protobuf instead because protoc 3.19.4 has no arm64-mac build
+        # and running the x86_64 binary under Rosetta breaks
+        # protoc-gen-python_betterproto (the plugin's shebang resolves
+        # to arm64-only setup-python, and the resulting arch/site-pkg
+        # split surfaces as a silent "plugin failed status 1"). For
+        # proto3 sources the python_betterproto plugin's output depends
+        # on betterproto, not protoc, so the version drift is benign
+        # for python-proto-gen.sh — bin/python-proto-gen.sh derives the
+        # include dir from `command -v protoc`, so brew's /opt/homebrew
+        # layout is picked up automatically.
         run: |
-          PROTOC_VERSION=$(cat bin/protoc-version.txt)
-          case "$RUNNER_OS" in
-            Linux) PROTOC_ARCH=linux-x86_64 ;;
-            macOS) PROTOC_ARCH=osx-x86_64 ;;
-            *)     echo "Unsupported RUNNER_OS=$RUNNER_OS"; exit 1 ;;
-          esac
-          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${PROTOC_ARCH}.zip"
-          sudo unzip -o /tmp/protoc.zip -d /usr/local
-          sudo chmod +x /usr/local/bin/protoc
-          # Make sure non-root users can traverse /usr/local/include —
-          # otherwise protoc's import resolver hits EACCES on macOS when
-          # walking the include path (Linux runners happen to default
-          # to 755 here, so this step was a no-op there before).
-          sudo chmod -R a+rX /usr/local/include
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            PROTOC_VERSION=$(cat bin/protoc-version.txt)
+            curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+            sudo unzip -o /tmp/protoc.zip -d /usr/local
+            sudo chmod +x /usr/local/bin/protoc
+            sudo chmod -R a+rX /usr/local/include
+          else
+            brew install protobuf
+          fi
       - name: Start Postgres
         # Replaces the job-level `services.postgres` container, which
         # GitHub only supports on Linux runners. Both branches end with
