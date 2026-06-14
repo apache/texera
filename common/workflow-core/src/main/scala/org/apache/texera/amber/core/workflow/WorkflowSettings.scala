@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.core.workflow
 
-import org.apache.texera.config.GuiConfig
+import org.apache.texera.common.config.GuiConfig
 
 case class WorkflowSettings(
     dataTransferBatchSize: Int = 400,

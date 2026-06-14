@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.messaginglayer
 
-import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 
