@@ -270,8 +270,7 @@ jobs:
         # module jacoco.xml that the codecov upload step picks up.
         # `WorkflowExecutionService/jacoco` only runs that project's
         # Test config (sbt's `test` task does not transit dependsOn),
-        # so common modules' tests are listed explicitly here. Modules
-        # with no tests (Config) are skipped.
+        # so common modules' tests are listed explicitly here.
         #
         # AMBER_TEST_FILTER=skip-integration tells amber/build.sbt to
         # exclude @org.apache.texera.amber.tags.IntegrationTest specs;
@@ -281,6 +280,7 @@ jobs:
         run: |
           sbt "DAO/jacoco" \
               "Auth/jacoco" \
+              "Config/jacoco" \
               "PyBuilder/jacoco" \
               "WorkflowCore/jacoco" \
               "WorkflowOperator/jacoco" \

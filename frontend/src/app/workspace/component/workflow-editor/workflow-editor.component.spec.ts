@@ -24,16 +24,15 @@ import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowEditorComponent } from "./workflow-editor.component";
-import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
+import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../../service/joint-ui/joint-ui.service";
-import { NzModalModule, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
+import { NzModalModule } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as joint from "jointjs";
 import { marbles } from "rxjs-marbles";
 import {
-  mockCommentBox,
   mockPoint,
   mockResultPredicate,
   mockScanPredicate,
@@ -46,23 +45,15 @@ import { OperatorState } from "../../types/execute-workflow.interface";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
-import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { tap } from "rxjs/operators";
-import { UserService } from "src/app/common/service/user/user.service";
-import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";
-import { createYTypeFromObject } from "../../types/shared-editing.interface";
-import * as jQuery from "jquery";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
-
-const createJQueryEvent = (event: string, properties?: object): JQuery.Event =>
-  (jQuery as unknown as JQueryStatic).Event(event, properties);
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -235,44 +226,13 @@ describe("WorkflowEditorComponent", () => {
     let validationWorkflowService: ValidationWorkflowService;
     let dragDropService: DragDropService;
     let jointUIService: JointUIService;
-    let nzModalService: NzModalService;
     let undoRedoService: UndoRedoService;
     let workflowVersionService: WorkflowVersionService;
 
     beforeEach(async () => {
       await TestBed.configureTestingModule({
-        imports: [
-          RouterTestingModule,
-          HttpClientTestingModule,
-          NzModalModule,
-          NzDropDownModule,
-          NoopAnimationsModule,
-          WorkflowEditorComponent,
-          NzModalCommentBoxComponent,
-        ],
-        providers: [
-          JointUIService,
-          WorkflowUtilService,
-          WorkflowActionService,
-          UndoRedoService,
-          ValidationWorkflowService,
-          DragDropService,
-          NzModalService,
-          NzContextMenuService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          {
-            provide: UserService,
-            useClass: StubUserService,
-          },
-          WorkflowStatusService,
-          ExecuteWorkflowService,
-          UndoRedoService,
-          WorkflowVersionService,
-          ...commonTestProviders,
-        ],
+        imports: workflowEditorTestImports,
+        providers: workflowEditorTestProviders,
       }).compileComponents();
     });
 
@@ -285,113 +245,10 @@ describe("WorkflowEditorComponent", () => {
       dragDropService = TestBed.inject(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model
       jointUIService = TestBed.inject(JointUIService);
-      nzModalService = TestBed.inject(NzModalService);
       undoRedoService = TestBed.inject(UndoRedoService);
       workflowVersionService = TestBed.inject(WorkflowVersionService);
       fixture.detectChanges();
     });
-
-    // TODO(#3614): the following four mouse/click-event tests rely on JointJS
-    // event paths that jsdom does not implement (HTMLCanvasElement.getContext,
-    // SVG hit-testing, jQuery .trigger("mousedown"/"dblclick") dispatch to
-    // JointJS cell views). They pass under the test-browser target
-    // (ng run gui:test-browser, real Chrome via Playwright) but fail under
-    // the default jsdom-based test runner. Commented out so the spec file
-    // can be included in the default test run; revive once a jsdom-compatible
-    // path or a runtime-targeted skip helper is available.
-    // it("should try to highlight the operator when user mouse clicks on an operator", () => {
-    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    //   // install a spy on the highlight operator function and pass the call through
-    //   vi.spyOn(jointGraphWrapper, "highlightOperators");
-    //   workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    //
-    //   // unhighlight the operator in case it's automatically highlighted
-    //   jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
-    //
-    //   // find the joint Cell View object of the operator element
-    //   const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
-    //   jointCellView.$el.trigger("mousedown");
-    //
-    //   fixture.detectChanges();
-    //
-    //   // assert the function is called once
-    //   // expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
-    //   // assert the highlighted operator is correct
-    //   expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
-    // });
-    //
-    // it("should highlight the commentBox when user clicks on a commentBox", () => {
-    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    //   vi.spyOn(jointGraphWrapper, "highlightCommentBoxes");
-    //   workflowActionService.addCommentBox(mockCommentBox);
-    //   jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
-    //   const jointCellView = component.paper.findViewByModel(mockCommentBox.commentBoxID);
-    //   jointCellView.$el.trigger("mousedown");
-    //   fixture.detectChanges();
-    //   expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([mockCommentBox.commentBoxID]);
-    // });
-    //
-    // it("should open commentBox as NzModal when user double clicks on a commentBox", () => {
-    //   const modalRef: NzModalRef = nzModalService.create({
-    //     nzTitle: "CommentBox",
-    //     nzContent: NzModalCommentBoxComponent,
-    //     nzData: { commentBox: createYTypeFromObject(mockCommentBox) },
-    //     nzAutofocus: null,
-    //     nzFooter: [
-    //       {
-    //         label: "OK",
-    //         onClick: () => {
-    //           modalRef.destroy();
-    //         },
-    //         type: "primary",
-    //       },
-    //     ],
-    //   });
-    //   vi.spyOn(nzModalService, "create").mockReturnValue(modalRef);
-    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    //   workflowActionService.addCommentBox(mockCommentBox);
-    //   jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
-    //   const jointCellView = component.paper.findViewByModel(mockCommentBox.commentBoxID);
-    //   jointCellView.$el.trigger("dblclick");
-    //   expect(nzModalService.create).toHaveBeenCalled();
-    //   fixture.detectChanges();
-    //   modalRef.destroy();
-    // });
-    //
-    // it("should unhighlight all highlighted operators when user mouse clicks on the blank space", () => {
-    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    //
-    //   // add and highlight two operators
-    //   workflowActionService.addOperatorsAndLinks(
-    //     [
-    //       { op: mockScanPredicate, pos: mockPoint },
-    //       { op: mockResultPredicate, pos: mockPoint },
-    //     ],
-    //     []
-    //   );
-    //   jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID, mockResultPredicate.operatorID);
-    //
-    //   // assert that both operators are highlighted
-    //   expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
-    //   expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
-    //
-    //   // find a blank area on the JointJS paper
-    //   const blankPoint = { x: mockPoint.x + 100, y: mockPoint.y + 100 };
-    //   expect(component.paper.findViewsFromPoint(blankPoint)).toEqual([]);
-    //
-    //   // trigger a click on the blank area using JointJS paper's jQuery element
-    //   const point = component.paper.localToClientPoint(blankPoint);
-    //   const event = createJQueryEvent("mousedown", {
-    //     clientX: point.x,
-    //     clientY: point.y,
-    //   });
-    //   component.paper.$el.trigger(event);
-    //
-    //   fixture.detectChanges();
-    //
-    //   // assert that all operators are unhighlighted
-    //   expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
-    // });
 
     it("should react to operator highlight event and change the appearance of the operator to be highlighted", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
@@ -909,57 +766,6 @@ describe("WorkflowEditorComponent", () => {
     //     const pastedOperatorPosition = jointGraphWrapper.getElementPosition(pastedOperatorID);
     //     expect(pastedOperatorPosition).not.toEqual(mockPoint);
     //   }
-    // });
-
-    // TODO(#3614): the next two shift-click multi-select tests also depend on
-    // jsdom-incompatible JointJS event paths (see the earlier mouse-event
-    // block above). Passing under ng run gui:test-browser; commented out so
-    // the spec file can run under the default jsdom test target.
-    // it("should highlight multiple operators when user clicks on them with shift key pressed", () => {
-    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    //
-    //   workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    //   workflowActionService.addOperator(mockResultPredicate, mockPoint);
-    //   jointGraphWrapper.highlightOperators(mockResultPredicate.operatorID);
-    //
-    //   // assert that only the last operator is highlighted
-    //   expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
-    //   expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).not.toContain(mockScanPredicate.operatorID);
-    //
-    //   // find the joint Cell View object of the first operator element
-    //   const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
-    //
-    //   // trigger a shift click on the cell view using its jQuery element
-    //   const event = createJQueryEvent("mousedown", { shiftKey: true });
-    //   jointCellView.$el.trigger(event);
-    //
-    //   fixture.detectChanges();
-    //
-    //   // assert that both operators are highlighted
-    //   expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
-    //   expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
-    // });
-    //
-    // it("should unhighlight the highlighted operator when user clicks on it with shift key pressed", () => {
-    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    //
-    //   workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    //   jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
-    //
-    //   // assert that the operator is highlighted
-    //   expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
-    //
-    //   // find the joint Cell View object of the operator element
-    //   const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
-    //
-    //   // trigger a shift click on the cell view using its jQuery element
-    //   const event = createJQueryEvent("mousedown", { shiftKey: true });
-    //   jointCellView.$el.trigger(event);
-    //
-    //   fixture.detectChanges();
-    //
-    //   // assert that the operator is unhighlighted
-    //   expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).not.toContain(mockScanPredicate.operatorID);
     // });
 
     it("should highlight all operators when user presses command + A", () => {
