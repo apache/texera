@@ -30,6 +30,8 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
+import javax.validation.constraints.NotNull
+
 /**
   * URL Visualization operator to render any content in given URL link
   * This is the description of the operator
@@ -48,6 +50,7 @@ class UrlVizOpDesc extends LogicalOp {
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL content")
   @AutofillAttributeName
+  @NotNull(message = "URL content cannot be empty")
   val urlContentAttrName: String = ""
 
   override def getPhysicalOp(

@@ -24,9 +24,12 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 
+import javax.validation.constraints.NotNull
+
 class FigureFactoryTableConfig {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute Name")
   @AutofillAttributeName
+  @NotNull(message = "Attribute Name cannot be empty")
   var attributeName: EncodableString = ""
 }
