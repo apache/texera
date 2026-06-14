@@ -30,18 +30,22 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
+import javax.validation.constraints.NotNull
+
 class PolarChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "r", required = true)
   @JsonSchemaTitle("r")
   @JsonPropertyDescription("The column name for radial values (must be numeric)")
   @AutofillAttributeName
+  @NotNull(message = "r cannot be empty")
   var r: EncodableString = ""
 
   @JsonProperty(value = "theta", required = true)
   @JsonSchemaTitle("theta")
   @JsonPropertyDescription("The column name for angular values (must be numeric)")
   @AutofillAttributeName
+  @NotNull(message = "theta cannot be empty")
   var theta: EncodableString = ""
 
   override def getOutputSchemas(
