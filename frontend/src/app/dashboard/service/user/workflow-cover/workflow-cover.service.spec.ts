@@ -64,4 +64,24 @@ describe("WorkflowCoverService", () => {
     req.flush(null);
     expect(completed).toBe(true);
   });
+
+  it("setCoverFromFile PUTs the resized data URL and resolves with it", async () => {
+    const dataUrl = "data:image/jpeg;base64,resized";
+    // The resize step relies on canvas/Image decoding, which jsdom cannot run;
+    // stub it so the test exercises the upload wiring deterministically.
+    (service as any).fileToResizedDataUrl = vi.fn().mockResolvedValue(dataUrl);
+    const file = new File(["x"], "pic.png", { type: "image/png" });
+
+    const resultPromise = service.setCoverFromFile(7, file);
+    // Let the stubbed resize promise settle so the HTTP request is issued.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const req = httpMock.expectOne(coverUrl(7));
+    expect(req.request.method).toBe("PUT");
+    expect(req.request.body).toEqual({ image: dataUrl });
+    req.flush(null);
+
+    await expect(resultPromise).resolves.toBe(dataUrl);
+  });
 });
