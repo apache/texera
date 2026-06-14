@@ -43,6 +43,11 @@ class KeywordSearchOpDesc extends FilterOpDesc {
   @JsonSchemaInject(json = """{"minLength": 1}""")
   var keyword: String = _
 
+  @JsonProperty(required = true, defaultValue = "false")
+  @JsonSchemaTitle("Case Sensitive")
+  @JsonPropertyDescription("Whether the keyword is case sensitive or not")
+  var isCaseSensitive: Boolean = false
+
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity

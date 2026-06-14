@@ -23,7 +23,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.BehaviorSubject
-import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.result.iceberg.OnIceberg
@@ -318,7 +318,7 @@ class WorkflowService(
     *  2. Clears URI references from the execution registry
     *  3. Safely clears all result and console message documents
     *  4. Expires Iceberg snapshots for runtime statistics
-    *  5. Deletes large binaries from MinIO
+    *  5. Deletes this execution's large binaries from MinIO
     *
     * @param eid The execution identity to clean up resources for
     */
@@ -355,7 +355,7 @@ class WorkflowService(
           logger.debug(s"Error processing document at $uri: ${error.getMessage}")
       }
     }
-    // Delete large binaries
-    LargeBinaryManager.deleteAllObjects()
+    // Delete this execution's large binaries
+    LargeBinaryManager.deleteByExecution(eid.id)
   }
 }

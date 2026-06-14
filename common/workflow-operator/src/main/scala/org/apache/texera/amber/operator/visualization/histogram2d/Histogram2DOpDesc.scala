@@ -28,18 +28,22 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 class Histogram2DOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X Column")
   @JsonPropertyDescription("Numeric column for the X axis bins.")
   @AutofillAttributeName
+  @NotNull(message = "X Column cannot be empty")
   var xColumn: EncodableString = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y Column")
   @JsonPropertyDescription("Numeric column for the Y axis bins.")
   @AutofillAttributeName
+  @NotNull(message = "Y Column cannot be empty")
   var yColumn: EncodableString = ""
 
   @JsonProperty(required = true, defaultValue = "10")

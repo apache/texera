@@ -1,0 +1,667 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Posts (or upserts) a PR comment with bench results AFTER the Benchmarks
+# workflow completes.
+#
+# Why a separate workflow_run-triggered file:
+#   - The Benchmarks workflow runs on `pull_request`, which for fork PRs
+#     gets a read-only GITHUB_TOKEN and zero secret access — GitHub's
+#     hard-coded security model. We can't comment from there.
+#   - `workflow_run` runs in the BASE repo's context (apache/texera)
+#     with normal token + secret access, so it CAN comment on fork PRs.
+#   - This is the ASF-approved pattern; `pull_request_target` is policy-
+#     forbidden for any action that handles tokens.
+#
+# Why workflow_run is safe here vs pull_request_target:
+#   - We only READ a small, opaque artifact (pr-number.txt + the bench
+#     JSON / CSV) produced by the upstream run; we don't execute any
+#     PR-author code in this workflow.
+#   - The PR number is validated against ^[0-9]+$ before being used in
+#     any API call, blocking ref injection.
+
+name: Benchmarks PR Comment
+
+on:
+  workflow_run:
+    workflows: ["Benchmarks"]
+    types: [completed]
+
+permissions:
+  # Need pull-requests: write to post / update the comment.
+  # Need contents: read to load the long-term 7-day average from
+  # gh-pages/dev/bench/data.js. The PRIMARY main-vs-branch comparison now
+  # comes from the same-runner main baseline CSV in the upstream artifact
+  # (bench-results/arrow-flight-e2e-main.csv); gh-pages supplies only the
+  # 7d-avg column plus a full fallback when that same-runner CSV is absent.
+  pull-requests: write
+  actions: read
+  contents: read
+
+jobs:
+  comment:
+    # Only act when the upstream Benchmarks run was triggered by a PR.
+    # push-to-main / schedule / dispatch produce no PR to comment on.
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download bench-results artifact
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const runId = context.payload.workflow_run.id;
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId,
+            });
+            const match = data.artifacts.find((a) => a.name.startsWith("bench-results-"));
+            if (!match) {
+              core.warning(`no bench-results-* artifact on run ${runId}; nothing to comment.`);
+              return;
+            }
+            const zip = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: match.id,
+              archive_format: "zip",
+            });
+            fs.mkdirSync("bench-results-zip", { recursive: true });
+            fs.writeFileSync(path.join("bench-results-zip", "artifact.zip"), Buffer.from(zip.data));
+            core.info(`downloaded artifact ${match.name} (${match.size_in_bytes} bytes)`);
+
+      - name: Unzip artifact
+        run: |
+          mkdir -p bench-results
+          unzip -o bench-results-zip/artifact.zip -d bench-results
+          ls -la bench-results/
+
+      - name: Read PR number from artifact
+        id: pr
+        # Read + strictly validate (digits only) before using in API calls.
+        # The artifact comes from a fork-triggered workflow whose contents
+        # are not entirely trusted; numeric-only PR numbers block any
+        # injection vector through this value.
+        run: |
+          if [ ! -f bench-results/pr-number.txt ]; then
+            echo "no pr-number.txt in artifact; bailing out"
+            exit 0
+          fi
+          raw=$(tr -d '[:space:]' < bench-results/pr-number.txt)
+          if ! [[ "$raw" =~ ^[0-9]+$ ]]; then
+            echo "invalid pr-number.txt contents: '$raw'"
+            exit 1
+          fi
+          echo "number=$raw" >> "$GITHUB_OUTPUT"
+
+      - name: Upsert PR comment with bench summary
+        if: steps.pr.outputs.number != ''
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        with:
+          script: |
+            const fs = require("fs");
+            const pr = Number(process.env.PR_NUMBER);
+            const marker = "<!-- texera-benchmarks-comment -->";
+            const NOISE_THRESHOLD_PCT = 5;
+
+            // CSV comes from a fork-PR-controlled artifact — sanitize before
+            // embedding in markdown:
+            //   1. Cap total size so a giant junk file can't bloat a comment.
+            //   2. Strip any triple-backtick sequence so the content cannot
+            //      escape the surrounding code fence and inject arbitrary
+            //      markdown (phishing links, image-rendering tricks, etc).
+            //      Replacement with a zero-width char preserves byte alignment
+            //      visually while neutralizing fence termination.
+            const MAX_CSV_BYTES = 32 * 1024;
+            const csvPath = "bench-results/arrow-flight-e2e.csv";
+            let csv = null;
+            if (fs.existsSync(csvPath)) {
+              let raw = fs.readFileSync(csvPath, "utf8");
+              if (raw.length > MAX_CSV_BYTES) {
+                raw = raw.slice(0, MAX_CSV_BYTES) + "\n[truncated]";
+              }
+              csv = raw.replace(/```+/g, "`​``").trim();
+            }
+            // Per-cell sanitizer for the markdown table: strip newlines, escape
+            // pipes (would break columns), and cap length.
+            const escapeCell = (s) =>
+              s == null
+                ? ""
+                : String(s).replace(/[\r\n]+/g, " ").replace(/\|/g, "\\|").slice(0, 64);
+
+            // Render selected columns as a markdown table. Drops noise columns
+            // (config_idx, total_tuples, total_bytes, lat_p95_us) and converts
+            // microseconds to milliseconds for latency readability. Returns
+            // null on any parsing failure → fallback renders raw CSV instead.
+            const csvToTable = (text) => {
+              try {
+                const rows = text
+                  .trim()
+                  .split(/\r?\n/)
+                  .map((line) => line.split(","));
+                if (rows.length < 2) return null;
+                const header = rows[0].map((h) => h.trim());
+                const idx = (col) => header.indexOf(col);
+                const cols = [
+                  { col: "batch_size", label: "batch", fmt: (v) => v },
+                  { col: "schema_width", label: "schema_w", fmt: (v) => v },
+                  { col: "string_len", label: "str_len", fmt: (v) => v },
+                  { col: "num_batches", label: "n_batches", fmt: (v) => v },
+                  { col: "tuples_per_sec", label: "tuples/s", fmt: (v) => v },
+                  { col: "mb_per_sec", label: "MB/s", fmt: (v) => v },
+                  {
+                    col: "lat_p50_us",
+                    label: "p50 ms",
+                    fmt: (v) => (parseFloat(v) / 1000).toFixed(2),
+                  },
+                  {
+                    col: "lat_p99_us",
+                    label: "p99 ms",
+                    fmt: (v) => (parseFloat(v) / 1000).toFixed(2),
+                  },
+                  { col: "total_ms", label: "total ms", fmt: (v) => v },
+                ].filter((c) => idx(c.col) >= 0);
+                if (cols.length === 0) return null;
+                const lines = [];
+                lines.push("| " + cols.map((c) => escapeCell(c.label)).join(" | ") + " |");
+                lines.push("|" + cols.map(() => "---:").join("|") + "|");
+                for (const row of rows.slice(1)) {
+                  const cells = cols.map((c) => {
+                    const raw = row[idx(c.col)];
+                    try {
+                      return escapeCell(c.fmt(raw));
+                    } catch (e) {
+                      return escapeCell(raw);
+                    }
+                  });
+                  lines.push("| " + cells.join(" | ") + " |");
+                }
+                return lines.join("\n");
+              } catch (e) {
+                core.warning(`csvToTable failed: ${e.message}`);
+                return null;
+              }
+            };
+
+            const parseCsvRows = (text) => {
+              const rows = text
+                .trim()
+                .split(/\r?\n/)
+                .map((line) => line.split(","));
+              if (rows.length < 2) return [];
+              const header = rows[0].map((h) => h.trim());
+              const idx = (col) => header.indexOf(col);
+              return rows.slice(1).map((row) => ({ row, idx }));
+            };
+
+            const prRowsFromCsv = (text) =>
+              parseCsvRows(text)
+                .map(({ row, idx }) => {
+                  const config = `bs=${row[idx("batch_size")]} sw=${row[idx("schema_width")]} sl=${row[idx("string_len")]}`;
+                  const metric = (suite, prefix, unit, value) => ({
+                    suite,
+                    name: `${prefix} / ${config}`,
+                    unit,
+                    value: Number(value),
+                  });
+                  return {
+                    config,
+                    throughput: metric(
+                      "Arrow Flight E2E Throughput",
+                      "throughput",
+                      "tuples/sec",
+                      row[idx("tuples_per_sec")]
+                    ),
+                    mbps: metric("Arrow Flight E2E MB/s", "MB/s", "MB/s", row[idx("mb_per_sec")]),
+                    p50: metric("Arrow Flight E2E Latency", "latency p50", "us", row[idx("lat_p50_us")]),
+                    p95: metric("Arrow Flight E2E Latency", "latency p95", "us", row[idx("lat_p95_us")]),
+                    p99: metric("Arrow Flight E2E Latency", "latency p99", "us", row[idx("lat_p99_us")]),
+                  };
+                })
+                .filter((item) =>
+                  [item.throughput, item.mbps, item.p50, item.p95, item.p99].every((metric) =>
+                    Number.isFinite(metric.value)
+                  )
+                );
+
+            const prRows = csv ? prRowsFromCsv(csv) : [];
+
+            // Same-runner main baseline, added by the Benchmarks workflow's
+            // "Benchmark main baseline in the same runner" step. When present
+            // it is the PREFERRED baseline: produced on THIS runner back-to-back
+            // with the PR run, so the delta carries no cross-runner hardware
+            // variance. Parsed numerically only (never embedded in the comment),
+            // so no markdown-fence escaping is needed; just bound the size.
+            const readMainCsv = (p) => {
+              if (!fs.existsSync(p)) return null;
+              let raw = fs.readFileSync(p, "utf8");
+              if (raw.length > MAX_CSV_BYTES) raw = raw.slice(0, MAX_CSV_BYTES) + "\n[truncated]";
+              return raw.trim();
+            };
+            const mainCsv = readMainCsv("bench-results/arrow-flight-e2e-main.csv");
+            let mainCommit = "";
+            try {
+              const c = fs.readFileSync("bench-results/arrow-flight-e2e-main.commit.txt", "utf8").trim();
+              if (/^[0-9a-f]{7,40}$/i.test(c)) mainCommit = c.slice(0, 7);
+            } catch (e) { /* optional sidecar; absence is fine */ }
+
+            // Build a baseline `latest` map from the same-runner main CSV, keyed
+            // identically to the comparison keys (`${suite}\0${name}`) so it
+            // drops straight into comparisonToTable. Mirrors prRowsFromCsv,
+            // including the derived MB/s metric.
+            const buildLatestFromCsv = (text) => {
+              const map = new Map();
+              for (const row of prRowsFromCsv(text)) {
+                for (const m of [row.throughput, row.mbps, row.p50, row.p95, row.p99]) {
+                  map.set(`${m.suite}\0${m.name}`, { value: m.value, unit: m.unit });
+                }
+              }
+              return map;
+            };
+
+            const bytesPerTuple = (benchName) => {
+              const match = benchName.match(/bs=(\d+)\s+sw=(\d+)\s+sl=(\d+)/);
+              if (!match) return null;
+              return Number(match[2]) * Number(match[3]);
+            };
+
+            const derivedMbpsBench = (throughputBench) => {
+              const bytes = bytesPerTuple(throughputBench.name);
+              if (!bytes) return null;
+              return {
+                name: throughputBench.name.replace(/^throughput/, "MB/s"),
+                unit: "MB/s",
+                value: (Number(throughputBench.value) * bytes) / (1024 * 1024),
+              };
+            };
+
+            const loadMainBaseline = async () => {
+              try {
+                const { data } = await github.rest.repos.getContent({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  path: "dev/bench/data.js",
+                  ref: "gh-pages",
+                });
+                if (Array.isArray(data) || data.type !== "file") {
+                  core.warning("gh-pages/dev/bench/data.js is not a file.");
+                  return null;
+                }
+                let raw = null;
+                if (data.content) {
+                  raw = Buffer.from(data.content, data.encoding || "base64").toString("utf8");
+                } else if (data.download_url) {
+                  const response = await fetch(data.download_url);
+                  if (!response.ok) {
+                    core.warning(`failed to download gh-pages/dev/bench/data.js: HTTP ${response.status}`);
+                    return null;
+                  }
+                  raw = await response.text();
+                } else {
+                  core.warning("gh-pages/dev/bench/data.js has no inline content or download_url.");
+                  return null;
+                }
+                const match = raw.match(/window\.BENCHMARK_DATA\s*=\s*(\{[\s\S]*\})\s*;?\s*$/);
+                if (!match) {
+                  core.warning("could not find BENCHMARK_DATA assignment in gh-pages data.js.");
+                  return null;
+                }
+                const parsed = JSON.parse(match[1]);
+                const latestBenches = new Map();
+                let baselineCommit = "";
+                let baselineDate = 0;
+                const suites = Object.entries(parsed.entries || {});
+                for (const [_suite, entries] of suites) {
+                  if (!Array.isArray(entries) || entries.length === 0) continue;
+                  for (const entry of entries) {
+                    if (Number(entry.date || 0) > baselineDate) {
+                      baselineDate = Number(entry.date || 0);
+                      baselineCommit = String(entry.commit?.id || "").slice(0, 7);
+                    }
+                  }
+                }
+                const cutoffDate = baselineDate - 7 * 24 * 60 * 60 * 1000;
+                const averageSums = new Map();
+                const addBench = (target, suite, bench, extra = {}) => {
+                  const value = Number(bench.value);
+                  if (!bench.name || !Number.isFinite(value)) return;
+                  target.set(`${suite}\0${bench.name}`, {
+                    value,
+                    unit: String(bench.unit || ""),
+                    ...extra,
+                  });
+                };
+                const addAverage = (suite, bench) => {
+                  const value = Number(bench.value);
+                  if (!bench.name || !Number.isFinite(value)) return;
+                  const key = `${suite}\0${bench.name}`;
+                  const current = averageSums.get(key) || {
+                    total: 0,
+                    count: 0,
+                    unit: String(bench.unit || ""),
+                  };
+                  current.total += value;
+                  current.count += 1;
+                  averageSums.set(key, current);
+                };
+                for (const [suite, entries] of suites) {
+                  if (!Array.isArray(entries) || entries.length === 0) continue;
+                  const latest = entries.reduce((best, entry) => {
+                    if (!best) return entry;
+                    return Number(entry.date || 0) > Number(best.date || 0) ? entry : best;
+                  }, null);
+                  for (const bench of latest?.benches || []) {
+                    const value = Number(bench.value);
+                    if (!bench.name || !Number.isFinite(value)) continue;
+                    addBench(latestBenches, suite, bench, {
+                        commit: String(latest.commit?.id || "").slice(0, 7),
+                        date: Number(latest.date || 0),
+                      });
+                    if (suite === "Arrow Flight E2E Throughput") {
+                      const mbps = derivedMbpsBench(bench);
+                      if (mbps) {
+                        addBench(latestBenches, "Arrow Flight E2E MB/s", mbps, {
+                          commit: String(latest.commit?.id || "").slice(0, 7),
+                          date: Number(latest.date || 0),
+                        });
+                      }
+                    }
+                  }
+                  for (const entry of entries) {
+                    if (Number(entry.date || 0) < cutoffDate) continue;
+                    for (const bench of entry.benches || []) {
+                      addAverage(suite, bench);
+                      if (suite === "Arrow Flight E2E Throughput") {
+                        const mbps = derivedMbpsBench(bench);
+                        if (mbps) {
+                          addAverage("Arrow Flight E2E MB/s", mbps);
+                        }
+                      }
+                    }
+                  }
+                }
+                const average7d = new Map();
+                for (const [key, item] of averageSums.entries()) {
+                  if (item.count > 0) {
+                    average7d.set(key, {
+                      value: item.total / item.count,
+                      unit: item.unit,
+                      count: item.count,
+                    });
+                  }
+                }
+                return { latest: latestBenches, average7d, commit: baselineCommit, date: baselineDate };
+              } catch (e) {
+                core.warning(`failed to load gh-pages benchmark baseline: ${e.message}`);
+                return null;
+              }
+            };
+
+            const fmtNumber = (value) => {
+              if (!Number.isFinite(value)) return "n/a";
+              if (Math.abs(value) >= 1000) return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
+              if (Math.abs(value) >= 10) return value.toLocaleString("en-US", { maximumFractionDigits: 2 });
+              return value.toLocaleString("en-US", { maximumFractionDigits: 3 });
+            };
+
+            const fmtValue = (value, unit) => `${fmtNumber(value)}${unit ? ` ${unit}` : ""}`;
+
+            const deltaInfo = (bench, baseline) => {
+              if (!baseline || !Number.isFinite(baseline.value) || baseline.value === 0) {
+                return { status: "missing", label: "no baseline", emoji: "⚪", text: "n/a" };
+              }
+              const pct = ((bench.value - baseline.value) / baseline.value) * 100;
+              if (!Number.isFinite(pct)) {
+                return { status: "missing", label: "no baseline", emoji: "⚪", text: "n/a" };
+              }
+              const status =
+                Math.abs(pct) <= NOISE_THRESHOLD_PCT
+                  ? "noise"
+                  : bench.suite.includes("Throughput") || bench.suite.includes("MB/s")
+                    ? pct > 0
+                      ? "better"
+                      : "worse"
+                    : pct < 0
+                      ? "better"
+                      : "worse";
+              const labels = {
+                better: "better",
+                worse: "worse",
+                noise: "noise",
+              };
+              const emojis = {
+                better: "🟢",
+                worse: "🔴",
+                noise: "⚪",
+              };
+              const sign = pct > 0 ? "+" : "";
+              return {
+                status,
+                label: labels[status],
+                emoji: emojis[status],
+                text: `${sign}${pct.toFixed(1)}%`,
+              };
+            };
+
+            const comparisonToTable = (rows, baseline) => {
+              if (rows.length === 0 || !baseline) return null;
+              const counts = { better: 0, worse: 0, noise: 0, missing: 0 };
+              const metricKeys = ["throughput", "mbps", "p50", "p95", "p99"];
+              const lines = [
+                "| | config | throughput | MB/s | latency | max Δ latest / 7d |",
+                "|---|---|---:|---:|---:|---:|",
+              ];
+              const baselineLines = [
+                "| config | metric | PR | latest main | 7d avg | Δ latest | Δ 7d |",
+                "|---|---|---:|---:|---:|---:|---:|",
+              ];
+              const metricInfo = (config, metricLabel, bench) => {
+                const key = `${bench.suite}\0${bench.name}`;
+                const main = baseline.latest.get(key);
+                const average = baseline.average7d.get(key);
+                const delta = deltaInfo(bench, main);
+                counts[delta.status] += 1;
+                baselineLines.push(
+                  `| ${escapeCell(config)} | ${escapeCell(metricLabel)} | ` +
+                    `${escapeCell(fmtValue(bench.value, bench.unit))} | ` +
+                    `${escapeCell(main ? fmtValue(main.value, main.unit || bench.unit) : "n/a")} | ` +
+                    `${escapeCell(average ? fmtValue(average.value, average.unit || bench.unit) : "n/a")} | ` +
+                    `${escapeCell(delta.text)} | ${escapeCell(deltaInfo(bench, average).text)} |`
+                );
+                return { delta, averageDelta: deltaInfo(bench, average), value: fmtNumber(bench.value) };
+              };
+              for (const row of rows) {
+                const statuses = metricKeys.map((key) => deltaInfo(row[key], baseline.latest.get(`${row[key].suite}\0${row[key].name}`)));
+                const status = statuses.some((item) => item.status === "worse")
+                  ? "🔴"
+                  : statuses.some((item) => item.status === "better")
+                    ? "🟢"
+                    : statuses.every((item) => item.status === "missing")
+                      ? "⚪"
+                      : "⚪";
+                const throughput = metricInfo(row.config, "throughput", row.throughput);
+                const mbps = metricInfo(row.config, "MB/s", row.mbps);
+                const p50 = metricInfo(row.config, "p50", row.p50);
+                const p95 = metricInfo(row.config, "p95", row.p95);
+                const p99 = metricInfo(row.config, "p99", row.p99);
+                const material = [throughput, mbps, p50, p95, p99]
+                  .map((item) => item.delta)
+                  .filter((delta) => delta.status === "better" || delta.status === "worse");
+                const averageMaterial = [throughput, mbps, p50, p95, p99]
+                  .map((item) => item.averageDelta)
+                  .filter((delta) => delta.status === "better" || delta.status === "worse");
+                const maxByAbs = (items) =>
+                  items.sort((a, b) => Math.abs(Number(b.text.replace("%", ""))) - Math.abs(Number(a.text.replace("%", ""))))[0];
+                const maxDelta = material.length === 0
+                  ? `⚪ within ±${NOISE_THRESHOLD_PCT}%`
+                  : maxByAbs(material);
+                const maxAverageDelta = averageMaterial.length === 0
+                  ? `⚪ within ±${NOISE_THRESHOLD_PCT}%`
+                  : maxByAbs(averageMaterial);
+                const formatMaxDelta = (delta) =>
+                  typeof delta === "string" ? delta : `${delta.emoji} ${delta.text}`;
+                lines.push(
+                  `| ${status} | ${escapeCell(row.config)} | ` +
+                    `${escapeCell(throughput.value)} | ${escapeCell(mbps.value)} | ` +
+                    `${escapeCell(p50.value)}/${escapeCell(p95.value)}/${escapeCell(p99.value)} us | ` +
+                    `${formatMaxDelta(maxDelta)} / ${formatMaxDelta(maxAverageDelta)} |`
+                );
+              }
+              const verdict = counts.worse > 0
+                ? "⚠️ Benchmark changes need a look"
+                : counts.missing > 0
+                  ? "⚠️ Benchmark baseline incomplete"
+                  : "✅ No material benchmark regressions detected";
+              const summary =
+                `🟢 ${counts.better} better · 🔴 ${counts.worse} worse · ` +
+                `⚪ ${counts.noise} noise (<±${NOISE_THRESHOLD_PCT}%) · ` +
+                `${counts.missing} without baseline`;
+              return {
+                table: lines.join("\n"),
+                baselineTable: baselineLines.join("\n"),
+                verdict,
+                summary,
+              };
+            };
+
+            // workflow_run.html_url is GitHub-emitted (URL to apache/texera
+            // run page); not attacker-influenceable.
+            const upstreamUrl = context.payload.workflow_run.html_url;
+            const dashboardUrl = "https://apache.github.io/texera/dev/bench/";
+
+            // Primary view: PR-vs-main comparison. Prefer the same-runner main
+            // baseline (hardware-noise-free); fall back to the gh-pages
+            // baseline. Either way the gh-pages data still supplies the 7-day
+            // average column. Last-resort fallback: rendered PR-only markdown
+            // table, then raw sanitized CSV in a collapsed <details>.
+            const ghPagesBaseline = await loadMainBaseline();
+            let baseline = ghPagesBaseline;
+            let sameRunBaseline = false;
+            if (mainCsv) {
+              const latest = buildLatestFromCsv(mainCsv);
+              if (latest.size > 0) {
+                baseline = {
+                  latest,
+                  // Keep the long-term 7-day average from gh-pages when we have
+                  // it; the same-runner CSV is a single point in time.
+                  average7d: ghPagesBaseline?.average7d || new Map(),
+                  commit: mainCommit || ghPagesBaseline?.commit || "",
+                  date: ghPagesBaseline?.date || 0,
+                };
+                sameRunBaseline = true;
+              }
+            }
+            const comparison = comparisonToTable(prRows, baseline);
+            const tableMd = csv ? csvToTable(csv) : null;
+            const bodyParts = [
+              marker,
+              `## ${comparison?.verdict || "📊 Arrow Flight E2E bench"}`,
+              "",
+            ];
+            if (comparison) {
+              const baselineBits = [];
+              if (baseline.commit) baselineBits.push(`main \`${baseline.commit}\``);
+              if (sameRunBaseline) baselineBits.push("same runner");
+              else if (baseline.date) baselineBits.push(new Date(baseline.date).toISOString());
+              bodyParts.push(
+                comparison.summary,
+                "",
+                sameRunBaseline
+                  ? `> Compared against main \`${mainCommit || baseline.commit}\` benchmarked on **this same runner**, so the delta is largely free of cross-runner hardware noise. The "7d avg" column still reflects the gh-pages dashboard. Treat <±${NOISE_THRESHOLD_PCT}% as noise unless repeated.`
+                  : `> CI benchmark results are noisy; treat <±${NOISE_THRESHOLD_PCT}% as noise unless repeated.`,
+                "",
+                `[Dashboard](${dashboardUrl}) · [Run](${upstreamUrl})`,
+                "",
+                comparison.table,
+                "",
+                "<details><summary>Baseline details</summary>",
+                "",
+                baselineBits.length
+                  ? `Latest ${baselineBits.join(" from ")}`
+                  : "Latest main baseline",
+                "",
+                comparison.baselineTable,
+                "",
+                "</details>",
+                ""
+              );
+            } else if (tableMd) {
+              bodyParts.push(
+                "⚪ _Main baseline was unavailable, so this comment shows PR results only._",
+                "",
+                `[Full dashboard](${dashboardUrl}) · [Workflow run](${upstreamUrl})`,
+                "",
+                tableMd,
+                ""
+              );
+            } else if (!csv) {
+              bodyParts.push("_(no arrow-flight-e2e.csv in artifact)_", "");
+            } else {
+              bodyParts.push("_(unable to parse CSV; raw below)_", "");
+            }
+            if (csv) {
+              bodyParts.push(
+                "<details><summary>Raw CSV</summary>",
+                "",
+                "```csv",
+                csv,
+                "```",
+                "",
+                "</details>",
+                ""
+              );
+            }
+            if (!comparison && !tableMd) {
+              bodyParts.push(`[Full dashboard](${dashboardUrl}) · [Workflow run](${upstreamUrl})`);
+            }
+            const body = bodyParts.join("\n");
+
+            // Find existing marker comment so subsequent runs upsert in place.
+            // Paginate via `paginate` so a long-running PR with >100 comments
+            // still locates the marker — otherwise we'd silently create a
+            // duplicate every push past the 100-comment ceiling.
+            const allComments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                per_page: 100,
+              }
+            );
+            const existing = allComments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+              core.info(`updated comment ${existing.id} on PR #${pr}`);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                body,
+              });
+              core.info(`created new comment on PR #${pr}`);
+            }

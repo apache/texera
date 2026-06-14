@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.architecture.pythonworker
 
 import org.apache.pekko.actor.Props
 import com.twitter.util.Promise
-import org.apache.texera.amber.config.{PythonUtils, StorageConfig, UdfConfig}
+import org.apache.texera.common.config.{PythonUtils, StorageConfig, UdfConfig}
 import org.apache.texera.amber.core.virtualidentity.ChannelIdentity
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkAck
@@ -209,7 +209,8 @@ class PythonWorkflowWorker(
         StorageConfig.s3Endpoint,
         StorageConfig.s3Region,
         StorageConfig.s3Username,
-        StorageConfig.s3Password
+        StorageConfig.s3Password,
+        workerConfig.largeBinaryBaseUri
       )
     ).run(BasicIO.standard(false))
   }

@@ -30,6 +30,7 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import java.util
+import javax.validation.constraints.NotEmpty
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class LineChartOpDesc extends PythonOperatorDescriptor {
@@ -45,6 +46,7 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
   var xLabel: EncodableString = ""
 
   @JsonProperty(value = "lines", required = true)
+  @NotEmpty(message = "At least one line must be configured")
   var lines: util.List[LineConfig] = new util.ArrayList[LineConfig]()
 
   override def getOutputSchemas(

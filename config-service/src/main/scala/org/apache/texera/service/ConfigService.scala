@@ -25,9 +25,13 @@ import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import org.apache.texera.amber.config.StorageConfig
-import org.apache.texera.auth.{JwtAuthFilter, RequestLoggingFilter, SessionUser}
-import org.apache.texera.config.DefaultsConfig
+import org.apache.texera.auth.{
+  JwtAuthFilter,
+  RequestLoggingFilter,
+  SessionUser,
+  UnauthorizedExceptionMapper
+}
+import org.apache.texera.common.config.{DefaultsConfig, StorageConfig}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
 import org.eclipse.jetty.server.session.SessionHandler
@@ -111,6 +115,7 @@ object ConfigService {
   def registerAuthFeatures(environment: Environment): Unit = {
     // Register JWT authentication filter
     environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
+    environment.jersey.register(classOf[UnauthorizedExceptionMapper])
 
     // Enable @Auth annotation for injecting SessionUser
     environment.jersey.register(

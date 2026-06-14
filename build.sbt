@@ -16,7 +16,7 @@
 // under the License.
 
 ThisBuild / organization := "org.apache.texera"
-ThisBuild / version      := "1.1.0-incubating"
+ThisBuild / version      := "1.3.0-incubating-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.18"
 
 // Pull JDK 17+ JVM flags from .jvmopts so every JVM the build launches sees the same list.
@@ -66,7 +66,9 @@ lazy val DAO = (project in file("common/dao")).settings(asfLicensingSettings)
 lazy val Config = (project in file("common/config")).settings(asfLicensingSettings)
 lazy val Auth = (project in file("common/auth"))
   .settings(asfLicensingSettings)
+  .configs(Test)
   .dependsOn(DAO, Config)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val ConfigService = (project in file("config-service"))
   .dependsOn(Auth, Config)
   .settings(asfLicensingSettings)
