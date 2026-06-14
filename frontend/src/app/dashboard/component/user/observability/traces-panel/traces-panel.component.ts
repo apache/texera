@@ -82,14 +82,14 @@ export class TracesPanelComponent implements OnInit, OnChanges, OnDestroy {
       this.form.patchValue({ traceId });
       this.fetch();
     });
-    if (this.initialTraceId) {
-      this.form.patchValue({ traceId: this.initialTraceId });
-      this.fetch();
-    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["initialTraceId"] && this.initialTraceId) {
+    // Auto-fetch only on the first binding (panel created after the
+    // pivot emit, which the onPivot subscription missed). Later changes
+    // arrive with an onPivot emit, so fetching here too would duplicate.
+    const change = changes["initialTraceId"];
+    if (change?.isFirstChange() && this.initialTraceId) {
       this.form.patchValue({ traceId: this.initialTraceId });
       this.fetch();
     }
