@@ -212,8 +212,12 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
     this.chartOptions = {};
     this.summaries = {};
 
-    // Fan out one request per chart. Each is independent so a
-    // failing one doesn't kill the others.
+    // Fan out one request per chart, independent so one failure doesn't
+    // kill the others. Clear `loading` only once all requests settle.
+    let pending = this.chartDescriptors.length;
+    const settle = () => {
+      if (--pending === 0) this.loading = false;
+    };
     this.chartDescriptors.forEach(desc => {
       try {
         this.observabilityService
@@ -228,7 +232,7 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
             next: resp => {
               this.chartOptions[desc.name] = this.buildOption(desc.title, desc.unit, resp);
               this.summaries[desc.name] = this.computeSummary(resp, desc.aggregate ?? "latest");
-              this.loading = false;
+              settle();
             },
             error: (err: unknown) => {
               // Per-metric breadcrumb: the fan-out shares a single
@@ -237,7 +241,7 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
               // eslint-disable-next-line no-console
               console.warn(`[observability] metric '${desc.name}' failed to load`, err);
               this.errorMessage = humanizeError(err);
-              this.loading = false;
+              settle();
             },
           });
       } catch (e) {
@@ -245,8 +249,10 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
           // eslint-disable-next-line no-console
           console.warn(`[observability] metric '${desc.name}' rejected before dispatch: ${e.message}`);
           this.errorMessage = e.message;
+        } else {
+          this.errorMessage = humanizeError(e);
         }
-        this.loading = false;
+        settle();
       }
     });
   }
