@@ -2067,7 +2067,7 @@ class TestMainLoop:
     # Reviewer feedback (#discussion_r3285892249) flagged these as the
     # most fragile loop-runtime methods. Most of the original concerns
     # have since been addressed (worker-id parsing moved to the canonical
-    # `get_operator_id`; LoopStartId / LoopStartStateURI now ride the
+    # `get_logical_op_id`; LoopStartId / LoopStartStateURI now ride the
     # StateFrame envelope, not user state). What remained: the silent
     # first-port pick in `_compute_loop_start_id`, and no unit coverage
     # for either method. The cases below close both gaps.
@@ -2084,7 +2084,7 @@ class TestMainLoop:
     def test_compute_loop_start_id_parses_worker_id_via_canonical_helper(
         self, main_loop, monkeypatch
     ):
-        # Pin that we delegate the worker-id parse to `get_operator_id` --
+        # Pin that we delegate the worker-id parse to `get_logical_op_id` --
         # the inline `split("-")` style flagged in the reviewer comment is
         # gone, and the test would fail loudly if a future refactor put it
         # back.

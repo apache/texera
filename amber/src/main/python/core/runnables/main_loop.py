@@ -47,7 +47,7 @@ from core.storage.vfs_uri_factory import VFSURIFactory
 from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.customized_queue.queue_base import QueueElement
-from core.util.virtual_identity import get_operator_id
+from core.util.virtual_identity import get_logical_op_id
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
@@ -105,7 +105,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # A LoopStart stamps its own operator id and the iceberg URI its input
         # is read from onto the state it emits; the matching LoopEnd reads them
         # back to jump. These ride the StateFrame envelope, not user state.
-        loop_start_id = get_operator_id(self.context.worker_id)
+        loop_start_id = get_logical_op_id(self.context.worker_id)
         # The URI lives on the upstream operator's output port (which
         # LoopStart's first materialization reader is reading from). LoopStart
         # is constrained to a single input port + single reader, so fail loud
