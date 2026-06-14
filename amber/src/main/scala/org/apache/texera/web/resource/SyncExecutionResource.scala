@@ -278,10 +278,7 @@ class SyncExecutionResource extends LazyLogging {
       val (finalState, terminatedByConsoleError, terminatedByTargetResults) =
         terminationReason match {
           case TerminalStateReached(state) =>
-            // The engine commits the result writer (via the worker's blocking writerThread.join())
-            // before an operator's COMPLETED state becomes observable, so on a normal finish the
-            // results are already on disk; poll briefly to confirm storage has landed before we
-            // read it, instead of sleeping a fixed interval.
+            // Confirm results have landed in storage before reading them.
             if (state.state == COMPLETED) {
               awaitResultsPersisted(executionId, executionService, request.targetOperatorIds)
             }
@@ -290,13 +287,11 @@ class SyncExecutionResource extends LazyLogging {
             killExecution(executionService)
             (executionService.executionStateStore.metadataStore.getState, true, false)
           case TargetResultsReady(_) =>
-            // Wait until the targets' outputs are fully committed to storage before tearing down
-            // the execution client. The engine commits the result writer before reporting
-            // COMPLETED, so this normally returns on the first poll.
+            // Confirm target outputs are committed to storage before shutting down the client.
             awaitResultsPersisted(executionId, executionService, request.targetOperatorIds)
             killExecution(executionService)
-            // Override to COMPLETED: we have everything we asked for, even though the engine
-            // sees this as a kill.
+            // Override to COMPLETED: the targets produced everything requested, though the
+            // engine records the shutdown as a kill.
             executionService.executionStateStore.metadataStore.updateState(metadataStore =>
               updateWorkflowState(COMPLETED, metadataStore)
             )
@@ -381,13 +376,9 @@ class SyncExecutionResource extends LazyLogging {
   }
 
   /**
-    * Blocks until every target operator's default external result port holds at least as many
-    * rows as its stats already report, or until `timeoutMillis` elapses. This replaces a pair of
-    * fixed `Thread.sleep` calls: the engine commits the Iceberg result writer (via the worker's
-    * blocking `writerThread.join()`) before `portCompleted`/`workerExecutionCompleted` fire, i.e.
-    * before the web layer ever observes `operatorState == COMPLETED`, so the data is normally
-    * already on disk and the first poll returns immediately. The timeout is a defensive cap for the
-    * rare case where storage lags; operators with no registered result storage are treated as ready.
+    * Blocks until every target operator's default external result port holds at least as many rows
+    * as its stats report, or until `timeoutMillis` elapses. Operators with no result storage are
+    * treated as ready.
     */
   private def awaitResultsPersisted(
       executionId: ExecutionIdentity,
@@ -396,8 +387,7 @@ class SyncExecutionResource extends LazyLogging {
       timeoutMillis: Long = 2000L,
       pollIntervalMillis: Long = 25L
   ): Unit = {
-    // Expected committed count for the default external output port (PortIdentity()), the same
-    // port collectOperatorResult reads, taken from the in-memory stats store.
+    // Expected row count for the default external output port, from the stats store.
     def expectedOutputCount(opId: String): Long =
       executionService.executionStateStore.statsStore.getState.operatorInfo
         .get(opId)
@@ -408,9 +398,8 @@ class SyncExecutionResource extends LazyLogging {
         }
         .getOrElse(0L)
 
-    // Rows currently committed to the operator's default external result storage; None when no
-    // result storage is registered for the operator (nothing to wait for). A registered-but-not-
-    // yet-openable document reports 0 so the poll keeps waiting until it lands.
+    // Rows committed to the operator's default external result storage; None when the operator has
+    // no result storage. A registered but not-yet-openable document reports 0.
     def committedCount(opId: String): Option[Long] =
       WorkflowExecutionsResource
         .getResultUriByLogicalPortId(executionId, OperatorIdentity(opId), PortIdentity())
@@ -438,11 +427,10 @@ class SyncExecutionResource extends LazyLogging {
   }
 
   /**
-    * Bounded readiness-poll core: blocks until every target operator is ready or `timeoutMillis`
-    * elapses, sleeping `pollIntervalMillis` between checks. An operator is ready when its expected
-    * count is non-positive, when it has no committed count (no result storage to wait for), or when
-    * its committed count has reached the expected count. The clock and sleep are injected so the
-    * timeout/early-exit behavior is unit-testable without real waiting.
+    * Blocks until every target operator is ready or `timeoutMillis` elapses, sleeping
+    * `pollIntervalMillis` between checks. An operator is ready when its expected count is
+    * non-positive, it has no committed count, or its committed count reaches the expected count.
+    * The clock and sleep are injected so tests can drive timing.
     */
   private[resource] def awaitUntil(
       targetOperatorIds: List[String],
