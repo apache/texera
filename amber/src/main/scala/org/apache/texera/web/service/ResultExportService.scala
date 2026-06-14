@@ -23,7 +23,7 @@ import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.tototoshi.csv.CSVWriter
-import org.apache.texera.amber.config.EnvironmentalVariable
+import org.apache.texera.common.config.EnvironmentalVariable
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple

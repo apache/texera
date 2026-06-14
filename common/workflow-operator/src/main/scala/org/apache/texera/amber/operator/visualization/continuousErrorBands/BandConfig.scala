@@ -25,18 +25,22 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.visualization.lineChart.LineConfig
 
+import javax.validation.constraints.NotNull
+
 class BandConfig extends LineConfig {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y-Axis Upper Bound")
   @JsonPropertyDescription("Represents upper bound error of y-values")
   @AutofillAttributeName
+  @NotNull(message = "Y-Axis Upper Bound cannot be empty")
   var yUpper: EncodableString = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y-Axis Lower Bound")
   @JsonPropertyDescription("Represents lower bound error of y-values")
   @AutofillAttributeName
+  @NotNull(message = "Y-Axis Lower Bound cannot be empty")
   var yLower: EncodableString = ""
 
   @JsonProperty(required = false)

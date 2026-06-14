@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.logreplay
 
 import com.google.common.collect.Queues
-import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordWriter
