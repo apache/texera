@@ -88,9 +88,17 @@ class MySQLConnUtilSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
+    // The probe URL mirrors the exact shape `MySQLConnUtil.connect`
+    // constructs (`jdbc:mysql://{host}:{port}/{database}?…`), including
+    // the canonical query parameters. A permissive third-party driver
+    // that returns `false` on a stripped-down probe but `true` on the
+    // real URL would otherwise slip past us.
     try {
       val others = DriverManager.getDrivers.asScala.toList.filter { d =>
-        d != CapturingMySQLDriver && safeAcceptsURL(d, "jdbc:mysql://h/d")
+        d != CapturingMySQLDriver && safeAcceptsURL(
+          d,
+          "jdbc:mysql://probe-host:3306/probe-db?autoReconnect=true&useSSL=true"
+        )
       }
       others.foreach { d =>
         savedRealDrivers += d
@@ -220,10 +228,16 @@ class MySQLConnUtilSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
   it should "propagate SQLException when the driver throws" in {
     val throwingDriver = new Driver {
-      override def connect(url: String, info: Properties): Connection =
-        throw new SQLException(s"forced-fail-for-test")
       override def acceptsURL(url: String): Boolean =
         url != null && url.startsWith("jdbc:mysql:")
+      // Follow the JDBC contract: return `null` if the URL isn't ours
+      // and throw only on a matching URL — keeps the helper from
+      // interfering with `DriverManager.getConnection` calls for any
+      // other scheme that might happen during the suite.
+      override def connect(url: String, info: Properties): Connection = {
+        if (!acceptsURL(url)) return null
+        throw new SQLException("forced-fail-for-test")
+      }
       override def getPropertyInfo(url: String, info: Properties) =
         Array.empty[DriverPropertyInfo]
       override def getMajorVersion: Int = 99

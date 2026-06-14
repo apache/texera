@@ -107,13 +107,18 @@ class PostgreSQLConnUtilSpec extends AnyFlatSpec with BeforeAndAfterAll {
     super.beforeAll()
     // Remove every other driver that claims jdbc:postgresql: so our
     // capturing driver is the only one DriverManager.getConnection sees.
+    // The probe URL mirrors the exact shape `PostgreSQLConnUtil.connect`
+    // constructs (`jdbc:postgresql://{host}:{port}/{database}`) so a
+    // permissive third-party driver that returns `false` on a stripped-
+    // down probe but `true` on the real URL can't slip past us.
+    //
     // Wrapped in try/catch so that if any deregistration / registration
     // step throws, we restore whatever we already deregistered before
     // failing the suite — the alternative leaves the JVM's JDBC registry
     // in an inconsistent state for the rest of the test run.
     try {
       val others = DriverManager.getDrivers.asScala.toList.filter { d =>
-        d != CapturingPGDriver && safeAcceptsURL(d, "jdbc:postgresql://h/d")
+        d != CapturingPGDriver && safeAcceptsURL(d, "jdbc:postgresql://probe-host:5432/probe-db")
       }
       others.foreach { d =>
         savedRealDrivers += d
@@ -227,10 +232,16 @@ class PostgreSQLConnUtilSpec extends AnyFlatSpec with BeforeAndAfterAll {
     // CapturingPGDriver in-place, so register a higher-priority throwing
     // driver and remove it after.
     val throwingDriver = new Driver {
-      override def connect(url: String, info: Properties): Connection =
-        throw new SQLException(s"forced-fail-for-test")
       override def acceptsURL(url: String): Boolean =
         url != null && url.startsWith("jdbc:postgresql:")
+      // Follow the JDBC contract: return `null` if the URL is not ours,
+      // then throw only on a matching URL. A future refactor that calls
+      // `DriverManager.getConnection` with a different scheme while
+      // this driver is registered would otherwise see a spurious throw.
+      override def connect(url: String, info: Properties): Connection = {
+        if (!acceptsURL(url)) return null
+        throw new SQLException("forced-fail-for-test")
+      }
       override def getPropertyInfo(url: String, info: Properties) = Array.empty[DriverPropertyInfo]
       override def getMajorVersion: Int = 99
       override def getMinorVersion: Int = 0
