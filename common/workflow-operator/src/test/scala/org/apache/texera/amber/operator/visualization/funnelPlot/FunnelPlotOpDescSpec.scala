@@ -24,6 +24,9 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
 class FunnelPlotOpDescSpec extends AnyFlatSpec with Matchers {
 
   private def configured: FunnelPlotOpDesc = {
@@ -32,6 +35,13 @@ class FunnelPlotOpDescSpec extends AnyFlatSpec with Matchers {
     op.y = "count"
     op
   }
+
+  private def b64(s: String): String =
+    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
+
+  // The part of an assert message that names the offending field.
+  private def fieldPart(msg: String): String =
+    msg.toLowerCase.replace("cannot be empty", "")
 
   "FunnelPlotOpDesc.operatorInfo" should "advertise the user-friendly name and Financial group" in {
     val info = (new FunnelPlotOpDesc).operatorInfo
@@ -91,5 +101,29 @@ class FunnelPlotOpDescSpec extends AnyFlatSpec with Matchers {
     op.x = ""
     op.y = ""
     assertThrows[AssertionError](op.generatePythonCode())
+  }
+
+  it should "throw AssertionError naming the X Column when only x is missing" in {
+    val op = new FunnelPlotOpDesc
+    op.y = "count"
+    val ex = intercept[AssertionError](op.generatePythonCode())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    fieldPart(ex.getMessage) should include("x")
+  }
+
+  it should "throw AssertionError naming the Y Column when only y is missing" in {
+    val op = new FunnelPlotOpDesc
+    op.x = "stage"
+    val ex = intercept[AssertionError](op.generatePythonCode())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    fieldPart(ex.getMessage) should include("y")
+  }
+
+  it should "carry the configured x and y columns (as runtime decode payloads) in the generated code" in {
+    val code = configured.generatePythonCode()
+    code should include(b64("stage"))
+    code should include(b64("count"))
   }
 }
