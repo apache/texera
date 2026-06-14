@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.architecture.pythonworker
 
 import org.apache.pekko.actor.Props
 import com.twitter.util.Promise
-import org.apache.texera.amber.config.{PythonUtils, StorageConfig, UdfConfig}
+import org.apache.texera.common.config.{PythonUtils, StorageConfig, UdfConfig}
 import org.apache.texera.amber.core.virtualidentity.ChannelIdentity
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkAck
