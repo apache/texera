@@ -121,9 +121,10 @@ export class GuiConfigService {
     return this.mergedCache;
   }
 
-  // One endpoint's payload, in isolation.
+  // One endpoint's payload, in isolation. Returns a shallow copy so callers
+  // cannot mutate the stored source and desync it from the memoized env view.
   source(name: ConfigSource): Partial<GuiConfig> {
-    return this.configBySource[name] ?? {};
+    return { ...(this.configBySource[name] ?? {}) };
   }
 
   // Store a source payload and invalidate the merged view.
