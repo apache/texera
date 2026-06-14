@@ -97,13 +97,18 @@ class DatasetFileDocument:
 
         params = {"filePath": encoded_file_path}
 
-        with _build_session() as session:
-            response = session.get(
-                self.presign_endpoint,
-                headers=headers,
-                params=params,
-                timeout=_REQUEST_TIMEOUT,
-            )
+        try:
+            with _build_session() as session:
+                response = session.get(
+                    self.presign_endpoint,
+                    headers=headers,
+                    params=params,
+                    timeout=_REQUEST_TIMEOUT,
+                )
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(
+                f"Failed to get presigned URL: request failed: {e}"
+            ) from e
 
         if response.status_code != 200:
             raise RuntimeError(
@@ -134,8 +139,13 @@ class DatasetFileDocument:
         :raises: RuntimeError if the retrieval fails.
         """
         presigned_url = self.get_presigned_url()
-        with _build_session() as session:
-            response = session.get(presigned_url, timeout=_REQUEST_TIMEOUT)
+        try:
+            with _build_session() as session:
+                response = session.get(presigned_url, timeout=_REQUEST_TIMEOUT)
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(
+                f"Failed to retrieve file content: request failed: {e}"
+            ) from e
 
         if response.status_code != 200:
             raise RuntimeError(

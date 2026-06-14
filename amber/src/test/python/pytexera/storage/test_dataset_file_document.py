@@ -18,6 +18,7 @@
 import io
 
 import pytest
+import requests
 from unittest.mock import patch, MagicMock
 
 from pytexera.storage.dataset_file_document import (
@@ -27,7 +28,6 @@ from pytexera.storage.dataset_file_document import (
     _MAX_RETRIES,
     _RETRY_STATUS_FORCELIST,
 )
-
 
 DEFAULT_ENDPOINT = "http://localhost:9092/api/dataset/presign-download"
 CUSTOM_ENDPOINT = "https://example.test/api/presign"
@@ -290,3 +290,26 @@ class TestTimeoutsAndRetries:
                 assert retry.allowed_methods == frozenset({"GET"})
         finally:
             session.close()
+
+    def test_presigned_url_request_timeout_is_wrapped_in_runtime_error(
+        self, monkeypatch
+    ):
+        doc = self._make_doc(monkeypatch)
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
+            mock_get.side_effect = requests.exceptions.ReadTimeout("timed out")
+            with pytest.raises(RuntimeError, match="request failed"):
+                doc.get_presigned_url()
+
+    def test_download_request_timeout_is_wrapped_in_runtime_error(self, monkeypatch):
+        doc = self._make_doc(monkeypatch)
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
+            mock_get.side_effect = [
+                make_response(200, body={"presignedUrl": "https://signed.test/x"}),
+                requests.exceptions.ConnectionError("connection reset"),
+            ]
+            with pytest.raises(RuntimeError, match="Failed to retrieve file content"):
+                doc.read_file()
