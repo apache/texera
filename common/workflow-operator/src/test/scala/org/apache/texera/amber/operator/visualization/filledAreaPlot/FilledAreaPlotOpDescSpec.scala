@@ -21,14 +21,19 @@ package org.apache.texera.amber.operator.visualization.filledAreaPlot
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
+class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
 
   var opDesc: FilledAreaPlotOpDesc = _
 
   before {
     opDesc = new FilledAreaPlotOpDesc()
   }
+
+  // The part of an assert message that names the offending field.
+  private def fieldPart(msg: String): String =
+    msg.toLowerCase.replace("cannot be empty", "")
 
   it should "throw error if X is empty" in {
     val y = "test1"
@@ -65,4 +70,38 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     }
   }
 
+  it should "throw AssertionError naming the X-axis Attribute when only x is missing" in {
+    opDesc.y = "area_y"
+    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    fieldPart(ex.getMessage) should include("x")
+  }
+
+  it should "throw AssertionError naming the Y-axis Attribute when only y is missing" in {
+    opDesc.x = "area_x"
+    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    fieldPart(ex.getMessage) should include("y")
+  }
+
+  it should "throw AssertionError naming the Line Group when facetColumn is enabled without a line group" in {
+    opDesc.x = "area_x"
+    opDesc.y = "area_y"
+    opDesc.facetColumn = true
+    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    fieldPart(ex.getMessage) should include("line")
+  }
+
+  it should "render the configured x and y attributes when set" in {
+    opDesc.x = "area_x"
+    opDesc.y = "area_y"
+    val plain = opDesc.createPlotlyFigure().plain
+    plain should include("area_x")
+    plain should include("area_y")
+    plain should include("px.area")
+  }
 }

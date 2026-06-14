@@ -28,6 +28,11 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
   */
 class HtmlVizOpExec(descString: String) extends OperatorExecutor {
   private val desc: HtmlVizOpDesc = objectMapper.readValue(descString, classOf[HtmlVizOpDesc])
+  override def open(): Unit =
+    assert(
+      desc.htmlContentAttrName != null && desc.htmlContentAttrName.nonEmpty,
+      "HTML content cannot be empty"
+    )
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] =
     Iterator(TupleLike(tuple.getField[Any](desc.htmlContentAttrName)))
 }

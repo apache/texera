@@ -32,6 +32,8 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+
+import javax.validation.constraints.{NotEmpty, NotNull}
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -47,12 +49,14 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Selected Attributes")
   @JsonPropertyDescription("The axes of each scatter plot in the matrix.")
   @AutofillAttributeNameList
-  var selectedAttributes: List[EncodableString] = _
+  @NotEmpty(message = "Selected Attributes cannot be empty")
+  var selectedAttributes: List[EncodableString] = List()
 
   @JsonProperty(value = "Color", required = true)
   @JsonSchemaTitle("Color Column")
   @JsonPropertyDescription("Column to color points")
   @AutofillAttributeName
+  @NotNull(message = "Color Column cannot be empty")
   var color: EncodableString = ""
 
   override def getOutputSchemas(
@@ -71,7 +75,10 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(selectedAttributes.nonEmpty)
+    assert(
+      selectedAttributes != null && selectedAttributes.nonEmpty,
+      "Selected Attributes cannot be empty"
+    )
 
     val list_Attributes = selectedAttributes.map(attribute => pyb"""$attribute""").mkString(",")
     pyb"""
