@@ -22,9 +22,13 @@ package org.apache.texera.service.resource
 import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
-// ApplicationConfig lives in common/config, not the amber module.
-import org.apache.texera.amber.config.ApplicationConfig
-import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, UserSystemConfig}
+import org.apache.texera.common.config.{
+  ApplicationConfig,
+  AuthConfig,
+  ComputingUnitConfig,
+  GuiConfig,
+  UserSystemConfig
+}
 
 @Path("/config")
 @Produces(Array(MediaType.APPLICATION_JSON))

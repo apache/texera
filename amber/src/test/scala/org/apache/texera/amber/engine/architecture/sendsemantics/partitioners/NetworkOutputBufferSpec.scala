@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.sendsemantics.partitioners
 
-import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
