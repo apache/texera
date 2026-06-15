@@ -173,7 +173,7 @@ jobs:
     if: ${{ inputs.run_amber }}
     strategy:
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-latest]
         java-version: [17]
     runs-on: ${{ matrix.os }}
     env:
@@ -323,7 +323,7 @@ jobs:
       # the docker image, macOS uses brew + the upstream
       # aarch64-apple-darwin lakekeeper tarball.
       matrix:
-        os: [ubuntu-22.04, macos-latest]
+        os: [ubuntu-latest, macos-latest]
         java-version: [17]
     runs-on: ${{ matrix.os }}
     env:
@@ -622,7 +622,7 @@ jobs:
     # cover every module in the amber job above, so this matrix skips them.
     if: ${{ inputs.run_platform }}
     name: ${{ format('platform{0} ({1})', inputs.job_name_suffix, matrix.service) }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
