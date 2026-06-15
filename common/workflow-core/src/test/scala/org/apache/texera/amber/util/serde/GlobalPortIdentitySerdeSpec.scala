@@ -248,4 +248,41 @@ class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
     restored.portId.internal shouldBe true
     restored.input shouldBe false
   }
+
+  it should "round-trip a value containing '=' (only ',' is a sensitive separator)" in {
+    // Counterpart to the comma case above: the deserializer anchors on the
+    // literal `logicalOpId=` prefix and then captures up to the next comma
+    // (`[^,]+`), so an embedded `=` is harmless and round-trips intact.
+    // Pin this so a future regex change that special-cased `=` would fail.
+    val p = globalPort(logical = "a=b")
+    GlobalPortIdentitySerde.deserializeFromString(p.serializeAsString) shouldBe p
+  }
+
+  it should "serialize an empty logicalOpId but fail to deserialize the result (serialize does not guard emptiness)" in {
+    // The serializer only rejects underscores and negative portIds, not empty
+    // identifiers, so an empty logicalOpId serializes into `(logicalOpId=,...)`.
+    // The deserializer's `[^,]+` requires at least one character, so that
+    // output can no longer be parsed back — the serialize side of the same
+    // asymmetry the "empty field body" deserialize test characterizes.
+    val s = globalPort(logical = "").serializeAsString
+    intercept[IllegalArgumentException] {
+      GlobalPortIdentitySerde.deserializeFromString(s)
+    }
+  }
+
+  it should "name the offending field in the require failure message" in {
+    // The three serialize-side guards throw IllegalArgumentException; assert
+    // the message identifies which field failed so a regression that wires a
+    // check to the wrong field (e.g. validating logicalOpId in layerName's
+    // guard) is caught instead of silently still throwing.
+    intercept[IllegalArgumentException] {
+      globalPort(logical = "__x").serializeAsString
+    }.getMessage should include("logicalOpId")
+    intercept[IllegalArgumentException] {
+      globalPort(layer = "a_b").serializeAsString
+    }.getMessage should include("layerName")
+    intercept[IllegalArgumentException] {
+      globalPort(portIdValue = -1).serializeAsString
+    }.getMessage should include("portId")
+  }
 }
