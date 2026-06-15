@@ -143,13 +143,13 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
   }
 
   it should "reuse its output storage across re-execution so RegionExecutionCoordinator skips iceberg recreation" in {
-    // The reusesOutputStorageOnReExecution flag drives the
-    // `if (!reusesOutputStorage || !DocumentFactory.documentExists(...))`
-    // branch in RegionExecutionCoordinator. Without it, every loop
-    // iteration would unconditionally recreate the result/state tables
-    // and lose accumulated data. The flag must be set.
+    // The output port's `reusesOutputStorage` flag drives the create-or-reuse
+    // decision in DocumentFactory.createOrReuseDocument (called by
+    // RegionExecutionCoordinator). Without it, every loop iteration would
+    // unconditionally recreate the result/state tables and lose accumulated
+    // data. The flag must be set on Loop End's output port.
     val physical = desc().getPhysicalOp(workflowId, executionId)
-    physical.reusesOutputStorageOnReExecution shouldBe true
+    physical.outputPorts.values.head._1.reusesOutputStorage shouldBe true
   }
 
   it should "carry the generated Python code via OpExecWithCode" in {

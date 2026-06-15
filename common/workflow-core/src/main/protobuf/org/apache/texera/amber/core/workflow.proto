@@ -62,6 +62,11 @@ message OutputPort {
   string displayName = 2;
   bool blocking = 3;
   OutputMode mode = 4;
+  // Whether storage at this port is reused (kept and appended to) rather than
+  // recreated when the owning operator's region re-executes -- e.g. a LoopEnd
+  // port whose output accumulates across the iterations of its own loop. The
+  // region scheduler reads this when provisioning the port's output document.
+  bool reusesOutputStorage = 5;
 }
 
 

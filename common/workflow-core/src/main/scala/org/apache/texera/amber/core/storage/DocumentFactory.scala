@@ -134,6 +134,35 @@ object DocumentFactory {
   }
 
   /**
+    * Create the document at `uri`, unless `reuseExisting` is set and a document
+    * already exists there -- in which case the existing document is kept
+    * untouched. This lets a caller whose output accumulates across re-runs
+    * (e.g. a LoopEnd port whose region re-executes once per loop iteration)
+    * preserve the already-populated document instead of clobbering it, since
+    * `createDocument` overrides any existing document.
+    *
+    * `exists` / `create` default to this object's own `documentExists` /
+    * `createDocument`; they are parameterized only so the create-or-reuse
+    * decision can be unit-tested without an iceberg backend.
+    *
+    * @return true iff a document was (re)created.
+    */
+  def createOrReuseDocument(
+      uri: URI,
+      schema: Schema,
+      reuseExisting: Boolean,
+      exists: URI => Boolean = documentExists,
+      create: (URI, Schema) => Unit = (u, s) => { createDocument(u, s); () }
+  ): Boolean = {
+    if (reuseExisting && exists(uri)) {
+      false
+    } else {
+      create(uri, schema)
+      true
+    }
+  }
+
+  /**
     * Open a document specified by the uri.
     * If the document is storing structural data, the schema will also be returned
     * @param uri the uri of the document

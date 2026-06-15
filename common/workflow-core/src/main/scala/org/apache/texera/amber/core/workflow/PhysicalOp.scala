@@ -198,12 +198,6 @@ case class PhysicalOp(
     // schema propagation function
     propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
-    // Whether to reuse this operator's existing output storage instead of
-    // recreating it when its region re-executes, so output accumulated by
-    // earlier runs (e.g. across loop iterations) survives. Named after the
-    // behavior the scheduler checks, not the operator that sets it, so any
-    // future operator needing the same treatment can reuse it.
-    reusesOutputStorageOnReExecution: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None,
     // name of the PVE to execute within
@@ -321,17 +315,6 @@ case class PhysicalOp(
     */
   def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
     this.copy(isOneToManyOp = isOneToManyOp)
-
-  /**
-    * Creates a copy specifying whether this operator's output storage is
-    * reused rather than recreated when its region re-executes (see the field
-    * doc). The region scheduler uses it to preserve iceberg output across
-    * loop iterations instead of overwriting it on every region invocation.
-    */
-  def withReusesOutputStorageOnReExecution(
-      reusesOutputStorageOnReExecution: Boolean
-  ): PhysicalOp =
-    this.copy(reusesOutputStorageOnReExecution = reusesOutputStorageOnReExecution)
 
   /**
     * Creates a copy of the PhysicalOp with the schema of a specified input port updated.

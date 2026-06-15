@@ -51,8 +51,8 @@ abstract class LoopOpDesc extends LogicalOp {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp = {
-    val physicalOp = PhysicalOp
+  ): PhysicalOp =
+    PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
@@ -60,12 +60,14 @@ abstract class LoopOpDesc extends LogicalOp {
         OpExecWithCode(generatePythonCode(), "python")
       )
       .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      // Loop End reuses its output storage across region re-executions (it
+      // accumulates across the iterations of its own loop), so the flag rides
+      // its output port; the region scheduler reads it per output port.
+      .withOutputPorts(
+        operatorInfo.outputPorts.map(_.copy(reusesOutputStorage = reusesOutputStorage))
+      )
       .withSuggestedWorkerNum(1)
       .withParallelizable(false)
-    if (reusesOutputStorage) physicalOp.withReusesOutputStorageOnReExecution(true)
-    else physicalOp
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

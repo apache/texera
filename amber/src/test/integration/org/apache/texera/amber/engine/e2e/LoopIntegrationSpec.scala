@@ -70,8 +70,8 @@ import scala.concurrent.duration.DurationInt
   * actor), so the per-logical-op output statistic reflects only the final
   * iteration's worker and does not accumulate. The iceberg result, by
   * contrast, persists across iterations (the scheduler reuses a LoopEnd's
-  * output document via `reusesOutputStorageOnReExecution`), so it is the
-  * reliable signal.
+  * output document via its output port's `reusesOutputStorage` flag), so it is
+  * the reliable signal.
   *
   * Tagged @IntegrationTest because it spawns Python workers; routed to the
   * `amber-integration` CI job.
