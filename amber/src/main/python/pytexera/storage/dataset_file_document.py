@@ -22,34 +22,34 @@ import urllib.parse
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# (connect, read) timeout and retry settings for the file-service GETs below.
-_CONNECT_TIMEOUT_SECONDS = 10
-_READ_TIMEOUT_SECONDS = 60
-_REQUEST_TIMEOUT = (_CONNECT_TIMEOUT_SECONDS, _READ_TIMEOUT_SECONDS)
-_MAX_RETRIES = 3
-_RETRY_BACKOFF_FACTOR = 0.5
-_RETRY_STATUS_FORCELIST = (500, 502, 503, 504)
-
-
-def _build_session() -> requests.Session:
-    """Returns a Session that retries GETs on connection errors and 5xx."""
-    retry = Retry(
-        total=_MAX_RETRIES,
-        connect=_MAX_RETRIES,
-        read=_MAX_RETRIES,
-        backoff_factor=_RETRY_BACKOFF_FACTOR,
-        status_forcelist=_RETRY_STATUS_FORCELIST,
-        allowed_methods=frozenset({"GET"}),
-        raise_on_status=False,
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session = requests.Session()
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    return session
-
 
 class DatasetFileDocument:
+    # (connect, read) timeout and retry settings for the file-service GETs below.
+    _CONNECT_TIMEOUT_SECONDS = 10
+    _READ_TIMEOUT_SECONDS = 60
+    _REQUEST_TIMEOUT = (_CONNECT_TIMEOUT_SECONDS, _READ_TIMEOUT_SECONDS)
+    _MAX_RETRIES = 3
+    _RETRY_BACKOFF_FACTOR = 0.5
+    _RETRY_STATUS_FORCELIST = (500, 502, 503, 504)
+
+    @classmethod
+    def _build_session(cls) -> requests.Session:
+        """Returns a Session that retries GETs on connection errors and 5xx."""
+        retry = Retry(
+            total=cls._MAX_RETRIES,
+            connect=cls._MAX_RETRIES,
+            read=cls._MAX_RETRIES,
+            backoff_factor=cls._RETRY_BACKOFF_FACTOR,
+            status_forcelist=cls._RETRY_STATUS_FORCELIST,
+            allowed_methods=frozenset({"GET"}),
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        session = requests.Session()
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        return session
+
     def __init__(self, file_path: str):
         """
         Parses the file path into dataset metadata.
@@ -98,12 +98,12 @@ class DatasetFileDocument:
         params = {"filePath": encoded_file_path}
 
         try:
-            with _build_session() as session:
+            with self._build_session() as session:
                 response = session.get(
                     self.presign_endpoint,
                     headers=headers,
                     params=params,
-                    timeout=_REQUEST_TIMEOUT,
+                    timeout=self._REQUEST_TIMEOUT,
                 )
         except requests.exceptions.RequestException as e:
             raise RuntimeError(
@@ -140,8 +140,8 @@ class DatasetFileDocument:
         """
         presigned_url = self.get_presigned_url()
         try:
-            with _build_session() as session:
-                response = session.get(presigned_url, timeout=_REQUEST_TIMEOUT)
+            with self._build_session() as session:
+                response = session.get(presigned_url, timeout=self._REQUEST_TIMEOUT)
         except requests.exceptions.RequestException as e:
             raise RuntimeError(
                 f"Failed to retrieve file content: request failed: {e}"

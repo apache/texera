@@ -21,13 +21,7 @@ import pytest
 import requests
 from unittest.mock import patch, MagicMock
 
-from pytexera.storage.dataset_file_document import (
-    DatasetFileDocument,
-    _build_session,
-    _REQUEST_TIMEOUT,
-    _MAX_RETRIES,
-    _RETRY_STATUS_FORCELIST,
-)
+from pytexera.storage.dataset_file_document import DatasetFileDocument
 
 DEFAULT_ENDPOINT = "http://localhost:9092/api/dataset/presign-download"
 CUSTOM_ENDPOINT = "https://example.test/api/presign"
@@ -262,7 +256,7 @@ class TestTimeoutsAndRetries:
             mock_get.return_value = make_response(200, body={"presignedUrl": "u"})
             doc.get_presigned_url()
             _, kwargs = mock_get.call_args
-            assert kwargs["timeout"] == _REQUEST_TIMEOUT
+            assert kwargs["timeout"] == DatasetFileDocument._REQUEST_TIMEOUT
 
     def test_download_request_passes_request_timeout(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
@@ -275,17 +269,19 @@ class TestTimeoutsAndRetries:
             ]
             doc.read_file()
             _, download_kwargs = mock_get.call_args_list[1]
-            assert download_kwargs["timeout"] == _REQUEST_TIMEOUT
+            assert download_kwargs["timeout"] == DatasetFileDocument._REQUEST_TIMEOUT
 
     def test_session_mounts_retry_adapter_for_http_and_https(self):
-        session = _build_session()
+        session = DatasetFileDocument._build_session()
         try:
             for prefix in ("http://", "https://"):
                 retry = session.get_adapter(prefix).max_retries
-                assert retry.total == _MAX_RETRIES
-                assert retry.connect == _MAX_RETRIES
-                assert retry.read == _MAX_RETRIES
-                assert set(retry.status_forcelist) == set(_RETRY_STATUS_FORCELIST)
+                assert retry.total == DatasetFileDocument._MAX_RETRIES
+                assert retry.connect == DatasetFileDocument._MAX_RETRIES
+                assert retry.read == DatasetFileDocument._MAX_RETRIES
+                assert set(retry.status_forcelist) == set(
+                    DatasetFileDocument._RETRY_STATUS_FORCELIST
+                )
                 # Only idempotent GETs should be retried.
                 assert retry.allowed_methods == frozenset({"GET"})
         finally:
