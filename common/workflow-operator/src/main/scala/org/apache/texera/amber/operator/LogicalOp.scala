@@ -462,16 +462,6 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
 
   def operatorInfo: OperatorInfo
 
-  /**
-    * Whether this operator can only run correctly under MATERIALIZED execution
-    * mode. Defaults to false. Operators that carry state across re-executions
-    * of their region (e.g. the loop operators, whose back-edge is the
-    * cross-region materialized state channel) override this to true, so the
-    * execution service can enforce the mode without depending on any specific
-    * operator class.
-    */
-  def requiresMaterializedExecution: Boolean = false
-
   private def getOperatorVersion: String = {
     val path = "amber/src/main/scala/"
     val operatorPath = path + this.getClass.getPackage.getName.replace(".", "/")

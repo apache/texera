@@ -121,10 +121,10 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     assertNonParallelizableSingleWorker(desc().getPhysicalOp(workflowId, executionId))
   }
 
-  "LoopStartOpDesc.requiresMaterializedExecution" should "be true" in {
+  "LoopStartOpDesc.getPhysicalOp" should "require materialized execution" in {
     // The loop back-edge is the cross-region materialized state channel, so the
-    // execution service rejects a non-MATERIALIZED run (see validateExecutionMode).
-    desc().requiresMaterializedExecution shouldBe true
+    // scheduler forces a fully-materialized schedule (PhysicalOp.requiresMaterializedExecution).
+    desc().getPhysicalOp(workflowId, executionId).requiresMaterializedExecution shouldBe true
   }
 
   it should "not reuse output storage across re-execution" in {

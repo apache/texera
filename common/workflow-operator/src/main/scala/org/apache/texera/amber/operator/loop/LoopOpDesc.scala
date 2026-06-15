@@ -63,6 +63,10 @@ abstract class LoopOpDesc extends LogicalOp {
       .withOutputPorts(operatorInfo.outputPorts)
       .withSuggestedWorkerNum(1)
       .withParallelizable(false)
+      // A loop's back-edge is the cross-region materialized state channel, so
+      // the loop operators only run correctly under a fully-materialized
+      // schedule; the scheduler forces it when this flag is set.
+      .withRequiresMaterializedExecution(true)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -75,8 +79,4 @@ abstract class LoopOpDesc extends LogicalOp {
       // declared on the output port and the region scheduler reads it there.
       outputPorts = List(OutputPort(reusesOutputStorage = reusesOutputStorage))
     )
-
-  // A loop's back-edge is the cross-region materialized state channel, which
-  // only exists under MATERIALIZED execution mode.
-  override def requiresMaterializedExecution: Boolean = true
 }

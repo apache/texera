@@ -198,6 +198,11 @@ case class PhysicalOp(
     // schema propagation function
     propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
+    // Whether this operator can only run correctly under a fully-materialized
+    // schedule (e.g. a loop operator, whose back-edge is a cross-region
+    // materialized state channel). The schedule generator forces materialized
+    // region boundaries when any operator sets this. Default false.
+    requiresMaterializedExecution: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None,
     // name of the PVE to execute within
@@ -315,6 +320,13 @@ case class PhysicalOp(
     */
   def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
     this.copy(isOneToManyOp = isOneToManyOp)
+
+  /**
+    * creates a copy specifying whether this operator can only run correctly
+    * under a fully-materialized schedule (see the field doc)
+    */
+  def withRequiresMaterializedExecution(requiresMaterializedExecution: Boolean): PhysicalOp =
+    this.copy(requiresMaterializedExecution = requiresMaterializedExecution)
 
   /**
     * Creates a copy of the PhysicalOp with the schema of a specified input port updated.
