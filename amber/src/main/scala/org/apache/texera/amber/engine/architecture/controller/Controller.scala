@@ -22,7 +22,7 @@ package org.apache.texera.amber.engine.architecture.controller
 import org.apache.pekko.actor.SupervisorStrategy.Stop
 import org.apache.pekko.actor.{AllForOneStrategy, Props, SupervisorStrategy}
 import org.apache.texera.web.model.websocket.response.RegionUpdateEvent
-import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.virtualidentity.ChannelIdentity
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkAck

@@ -44,11 +44,12 @@ object TupleUtils {
 
     val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
 
+    // Parse and flatten once; reused for schema inference and value extraction.
     val root: JsonNode = objectMapper.readTree(json)
+    val data: Map[String, String] = JSONToMap(root)
     if (root.isObject) {
-      val fields: Map[String, String] = JSONToMap(root)
-      fieldNames = fieldNames.++(fields.keySet)
-      allFields += fields
+      fieldNames = fieldNames.++(data.keySet)
+      allFields += data
     }
 
     val sortedFieldNames = fieldNames.toList
@@ -73,7 +74,6 @@ object TupleUtils {
 
     try {
       val fields = scala.collection.mutable.ArrayBuffer.empty[Any]
-      val data = JSONToMap(objectMapper.readTree(json))
 
       for (fieldName <- schema.getAttributeNames) {
         if (data.contains(fieldName)) {

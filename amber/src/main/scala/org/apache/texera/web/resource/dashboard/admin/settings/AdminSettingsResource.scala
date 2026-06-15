@@ -22,7 +22,7 @@ package org.apache.texera.web.resource.dashboard.admin.settings
 import com.fasterxml.jackson.annotation.JsonProperty
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.config.DefaultsConfig
+import org.apache.texera.common.config.DefaultsConfig
 import org.apache.texera.dao.SqlServer
 import org.jooq.impl.DSL
 
