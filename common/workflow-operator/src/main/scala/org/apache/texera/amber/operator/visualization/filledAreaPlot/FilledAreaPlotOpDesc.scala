@@ -87,11 +87,11 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(x.nonEmpty)
-    assert(y.nonEmpty)
+    assert(x.nonEmpty, "X-axis Attribute cannot be empty")
+    assert(y.nonEmpty, "Y-axis Attribute cannot be empty")
 
     if (facetColumn) {
-      assert(lineGroup.nonEmpty)
+      assert(lineGroup.nonEmpty, "Line Group cannot be empty")
     }
 
     val colorArg = if (color.nonEmpty) pyb""", color=$color""" else ""

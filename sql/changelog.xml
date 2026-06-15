@@ -29,6 +29,10 @@
         <sqlFile path="sql/updates/23.sql"/>
     </changeSet>
 
+    <changeSet id="24" author="sarahasad23">
+        <sqlFile path="sql/updates/24.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>
