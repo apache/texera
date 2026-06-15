@@ -76,7 +76,7 @@ from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
 
 @pytest.mark.integration
 class TestStateMaterializationE2E:
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope="class")
     def _init_storage_config(self):
         """Initialize StorageConfig + IcebergCatalogInstance for the real
         postgres-backed catalog in the `amber-integration` CI job.
@@ -100,14 +100,22 @@ class TestStateMaterializationE2E:
         and re-init with the prod-correct credentials; safe because
         test_iceberg_document's tests are deselected from this run.
 
-        Credentials read the same `STORAGE_ICEBERG_CATALOG_POSTGRES_*`
-        env vars the production code consumes (via storage.conf), so
-        the test matches whichever identity the Scala side uses in the
-        same job. Defaults to `postgres/postgres` (the storage.conf
-        default that `amber-integration` runs with) when unset.
+        All catalog + S3 settings read the same `STORAGE_*` env vars
+        the production code consumes (via storage.conf), so the test
+        matches whichever identity the Scala side uses in the same job
+        and stays aligned with the bucket / endpoint the workflow
+        provisions. Defaults mirror storage.conf so a local sbt run
+        without those vars exported still works.
+
+        Class-scoped so the reset + tempdir allocation happens once
+        per class; the two tests in this class share state through the
+        same StorageConfig singleton anyway.
         """
         StorageConfig._initialized = False
         IcebergCatalogInstance._instance = None
+        large_binaries_bucket = os.environ.get(
+            "STORAGE_S3_LARGE_BINARIES_BUCKET", "texera-large-binaries"
+        )
         StorageConfig.initialize(
             catalog_type="postgres",
             postgres_uri_without_scheme=os.environ.get(
@@ -126,11 +134,17 @@ class TestStateMaterializationE2E:
             table_state_namespace="operator-port-state",
             directory_path=tempfile.mkdtemp(prefix="texera-state-e2e-warehouse-"),
             commit_batch_size=4096,
-            s3_endpoint="http://localhost:9000",
-            s3_region="us-east-1",
-            s3_auth_username="minioadmin",
-            s3_auth_password="minioadmin",
-            s3_large_binaries_base_uri="s3://texera-large-binaries/objects/0/",
+            s3_endpoint=os.environ.get(
+                "STORAGE_S3_ENDPOINT", "http://localhost:9000"
+            ),
+            s3_region=os.environ.get("STORAGE_S3_REGION", "us-west-2"),
+            s3_auth_username=os.environ.get(
+                "STORAGE_S3_AUTH_USERNAME", "texera_minio"
+            ),
+            s3_auth_password=os.environ.get(
+                "STORAGE_S3_AUTH_PASSWORD", "password"
+            ),
+            s3_large_binaries_base_uri=f"s3://{large_binaries_bucket}/objects/0/",
         )
 
     @pytest.fixture

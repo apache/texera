@@ -577,15 +577,7 @@ jobs:
       - name: Generate Python proto bindings
         # Integration specs spawn Python UDF workers that import the
         # generated betterproto bindings. Independent of sbt and the JDK.
-        run: |
-          bash bin/python-proto-gen.sh || {
-            echo "--- proto-gen failed; diagnostics ---"
-            python -c 'import sys; print("python:", sys.executable, sys.version)'
-            which protoc protoc-gen-python_betterproto || true
-            python -c 'import betterproto, betterproto.plugin.main; print("betterproto OK:", betterproto.__file__)' || true
-            file "$(which protoc)" || true
-            exit 1
-          }
+        run: bash bin/python-proto-gen.sh
       - name: Lint and run amber integration tests
         # AMBER_TEST_FILTER=integration-only tells amber/build.sbt to
         # keep only @org.apache.texera.amber.tags.IntegrationTest
