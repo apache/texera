@@ -44,6 +44,23 @@ import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
 
+object CostBasedScheduleGenerator {
+
+  /**
+    * The execution mode to schedule under: MATERIALIZED when any operator in
+    * `physicalPlan` requires it (e.g. the loop operators, whose back-edge is a
+    * cross-region materialized state channel), otherwise the requested mode.
+    */
+  private[scheduling] def effectiveExecutionMode(
+      physicalPlan: PhysicalPlan,
+      requestedMode: ExecutionMode
+  ): ExecutionMode =
+    if (physicalPlan.operators.exists(_.requiresMaterializedExecution))
+      ExecutionMode.MATERIALIZED
+    else
+      requestedMode
+}
+
 class CostBasedScheduleGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan,
@@ -307,11 +324,10 @@ class CostBasedScheduleGenerator(
       // An operator may require a fully-materialized schedule (e.g. a loop,
       // whose back-edge is a cross-region materialized state channel). When any
       // does, materialize fully regardless of the requested execution mode.
-      val effectiveMode =
-        if (physicalPlan.operators.exists(_.requiresMaterializedExecution))
-          ExecutionMode.MATERIALIZED
-        else
-          workflowContext.workflowSettings.executionMode
+      val effectiveMode = CostBasedScheduleGenerator.effectiveExecutionMode(
+        physicalPlan,
+        workflowContext.workflowSettings.executionMode
+      )
       effectiveMode match {
         case ExecutionMode.MATERIALIZED =>
           getFullyMaterializedSearchState
