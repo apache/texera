@@ -37,20 +37,28 @@ import {
   USER_PROJECT,
   USER_WORKSPACE,
 } from "../../../../app-routing.constant";
-
+import { DriveService } from "../../../service/user/google-drive/drive.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { EMPTY, Subject } from "rxjs";
 describe("ListItemComponent", () => {
   let component: ListItemComponent;
   let fixture: ComponentFixture<ListItemComponent>;
   let workflowPersistService: Mocked<WorkflowPersistService>;
+  let driveServiceMock: Mocked<DriveService>;
+  let notificationServiceMock: Mocked<NotificationService>;
 
   beforeEach(async () => {
     const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
+    driveServiceMock = { connect: vi.fn().mockReturnValue(EMPTY) } as unknown as Mocked<DriveService>;
+    notificationServiceMock = { success: vi.fn(), error: vi.fn() } as unknown as Mocked<NotificationService>;
 
     await TestBed.configureTestingModule({
       imports: [ListItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
       providers: [
         { provide: WorkflowPersistService, useValue: workflowPersistServiceSpy },
         { provide: UserService, useClass: StubUserService },
+        { provide: DriveService, useValue: driveServiceMock },
+        { provide: NotificationService, useValue: notificationServiceMock },
         NzModalService,
         ...commonTestProviders,
       ],
@@ -187,6 +195,34 @@ describe("ListItemComponent", () => {
       } as unknown as DashboardEntry;
       component.initializeEntry();
       expect(component.entryLink).toEqual([HUB_DATASET_RESULT_DETAIL, "301"]);
+    });
+  });
+
+  describe("Export to Drive", () => {
+    it("calls driveService.connect() when onClickExportToDrive is called", () => {
+      component.onClickExportToDrive();
+      expect(driveServiceMock.connect).toHaveBeenCalled();
+    });
+
+    it("shows success notification when connect completes", () => {
+      const connect$ = new Subject<void>();
+      driveServiceMock.connect.mockReturnValue(connect$.asObservable());
+
+      component.onClickExportToDrive();
+      connect$.next();
+      connect$.complete();
+
+      expect(notificationServiceMock.success).toHaveBeenCalledWith("Connected to Google Drive");
+    });
+
+    it("shows error notification when connect errors", () => {
+      const connect$ = new Subject<void>();
+      driveServiceMock.connect.mockReturnValue(connect$.asObservable());
+
+      component.onClickExportToDrive();
+      connect$.error(new Error("connection failed"));
+
+      expect(notificationServiceMock.error).toHaveBeenCalledWith("Failed to connect to Google Drive");
     });
   });
 });
