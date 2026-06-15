@@ -60,12 +60,7 @@ abstract class LoopOpDesc extends LogicalOp {
         OpExecWithCode(generatePythonCode(), "python")
       )
       .withInputPorts(operatorInfo.inputPorts)
-      // Loop End reuses its output storage across region re-executions (it
-      // accumulates across the iterations of its own loop), so the flag rides
-      // its output port; the region scheduler reads it per output port.
-      .withOutputPorts(
-        operatorInfo.outputPorts.map(_.copy(reusesOutputStorage = reusesOutputStorage))
-      )
+      .withOutputPorts(operatorInfo.outputPorts)
       .withSuggestedWorkerNum(1)
       .withParallelizable(false)
 
@@ -75,7 +70,10 @@ abstract class LoopOpDesc extends LogicalOp {
       operatorDescription,
       OperatorGroupConstants.CONTROL_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      // Loop End reuses its output storage across region re-executions (it
+      // accumulates across the iterations of its own loop); the flag is
+      // declared on the output port and the region scheduler reads it there.
+      outputPorts = List(OutputPort(reusesOutputStorage = reusesOutputStorage))
     )
 
   // A loop's back-edge is the cross-region materialized state channel, which
