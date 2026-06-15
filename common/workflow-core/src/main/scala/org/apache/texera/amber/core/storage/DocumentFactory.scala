@@ -134,33 +134,27 @@ object DocumentFactory {
   }
 
   /**
-    * Create the document at `uri`, unless `reuseExisting` is set and a document
-    * already exists there -- in which case the existing document is kept
-    * untouched. This lets a caller whose output accumulates across re-runs
-    * (e.g. a LoopEnd port whose region re-executes once per loop iteration)
-    * preserve the already-populated document instead of clobbering it, since
-    * `createDocument` overrides any existing document.
+    * Return the document at `uri`: when `reuseExisting` is set and a document
+    * already exists there, open and return the existing one -- so a caller whose
+    * output accumulates across re-runs (e.g. a LoopEnd port whose region
+    * re-executes once per loop iteration) keeps the already-populated document
+    * instead of clobbering it, since `createDocument` overrides any existing
+    * document. Otherwise create it. Either way the caller gets the document, so
+    * the call site need not branch on create-vs-reuse.
     *
-    * `exists` / `create` default to this object's own `documentExists` /
-    * `createDocument`; they are parameterized only so the create-or-reuse
-    * decision can be unit-tested without an iceberg backend.
-    *
-    * @return true iff a document was (re)created.
+    * `exists` / `open` / `create` default to this object's own `documentExists`
+    * / `openDocument` / `createDocument`; they are parameterized only so the
+    * create-or-reuse decision can be unit-tested without an iceberg backend.
     */
   def createOrReuseDocument(
       uri: URI,
       schema: Schema,
       reuseExisting: Boolean,
       exists: URI => Boolean = documentExists,
-      create: (URI, Schema) => Unit = (u, s) => { createDocument(u, s); () }
-  ): Boolean = {
-    if (reuseExisting && exists(uri)) {
-      false
-    } else {
-      create(uri, schema)
-      true
-    }
-  }
+      open: URI => VirtualDocument[_] = (u: URI) => openDocument(u)._1,
+      create: (URI, Schema) => VirtualDocument[_] = createDocument
+  ): VirtualDocument[_] =
+    if (reuseExisting && exists(uri)) open(uri) else create(uri, schema)
 
   /**
     * Open a document specified by the uri.

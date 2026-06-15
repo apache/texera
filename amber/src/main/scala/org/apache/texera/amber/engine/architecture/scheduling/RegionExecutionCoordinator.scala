@@ -590,6 +590,15 @@ class RegionExecutionCoordinator(
             .outputPorts(outputPortId.portId)
             ._1
             .reusesOutputStorage
+        // Guard: no operator enables reusesOutputStorage in production yet -- it
+        // activates with the loop operators, which aren't on main. Fail loudly
+        // if one does rather than silently exercising the dormant reuse path.
+        // Remove/relax this guard when introducing the loop operators.
+        require(
+          !reusesOutputStorage,
+          s"Output port $outputPortId set reusesOutputStorage, which is not " +
+            "supported in production yet (it activates with the loop operators)."
+        )
         Seq((resultURI, schema), (stateURI, State.schema)).foreach {
           case (uri, sch) =>
             DocumentFactory.createOrReuseDocument(uri, sch, reusesOutputStorage)
