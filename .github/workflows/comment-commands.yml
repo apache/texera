@@ -113,13 +113,14 @@ jobs:
             const committerCounts = new Map();    // collaborators
             const nonCommitterCounts = new Map(); // non-collaborators with a GitHub login
 
-            for (const { filename, status } of files) {
+            for (const { filename, status, previous_filename } of files) {
               if (status === 'removed' || status === 'added') continue;
+              const blamePath = status === 'renamed' ? previous_filename : filename;
 
               let blameOutput;
               try {
                 blameOutput = execFileSync(
-                  'git', ['blame', '-p', pull.base.sha, '--', filename],
+                  'git', ['blame', '-p', pull.base.sha, '--', blamePath],
                   { encoding: 'utf8' },
                 );
               } catch (e) {
