@@ -134,16 +134,10 @@ class TestStateMaterializationE2E:
             table_state_namespace="operator-port-state",
             directory_path=tempfile.mkdtemp(prefix="texera-state-e2e-warehouse-"),
             commit_batch_size=4096,
-            s3_endpoint=os.environ.get(
-                "STORAGE_S3_ENDPOINT", "http://localhost:9000"
-            ),
+            s3_endpoint=os.environ.get("STORAGE_S3_ENDPOINT", "http://localhost:9000"),
             s3_region=os.environ.get("STORAGE_S3_REGION", "us-west-2"),
-            s3_auth_username=os.environ.get(
-                "STORAGE_S3_AUTH_USERNAME", "texera_minio"
-            ),
-            s3_auth_password=os.environ.get(
-                "STORAGE_S3_AUTH_PASSWORD", "password"
-            ),
+            s3_auth_username=os.environ.get("STORAGE_S3_AUTH_USERNAME", "texera_minio"),
+            s3_auth_password=os.environ.get("STORAGE_S3_AUTH_PASSWORD", "password"),
             s3_large_binaries_base_uri=f"s3://{large_binaries_bucket}/objects/0/",
         )
 
