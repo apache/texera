@@ -22,7 +22,7 @@ import io.dropwizard.auth.Auth
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.web.resource.auth.GoogleDriveAuthResource._
-import org.apache.texera.config.UserSystemConfig
+import org.apache.texera.common.config.UserSystemConfig
 import com.google.api.client.googleapis.auth.oauth2.{
   GoogleAuthorizationCodeRequestUrl,
   GoogleAuthorizationCodeTokenRequest

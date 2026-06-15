@@ -41,6 +41,7 @@ import { firstValueFrom } from "rxjs";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { ActionType, HubService } from "../../../../hub/service/hub.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { DriveService } from "../../../service/user/google-drive/drive.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { formatCount, formatRelativeTime } from "src/app/common/util/format.util";
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
@@ -65,6 +66,7 @@ import { FormsModule } from "@angular/forms";
 import { UserAvatarComponent } from "../user-avatar/user-avatar.component";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
+import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 
 @UntilDestroy()
 @Component({
@@ -86,6 +88,7 @@ import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
     UserAvatarComponent,
     NzWaveDirective,
     NzPopconfirmDirective,
+    NzDropDownModule,
   ],
 })
 export class ListItemComponent implements OnChanges {
@@ -110,6 +113,7 @@ export class ListItemComponent implements OnChanges {
   @Input() editable = false;
   private _entry?: DashboardEntry;
   hovering: boolean = false;
+  exportMenuVisible = false;
 
   @Input()
   get entry(): DashboardEntry {
@@ -135,6 +139,7 @@ export class ListItemComponent implements OnChanges {
     private modal: NzModalService,
     private hubService: HubService,
     private downloadService: DownloadService,
+    private driveService: DriveService,
     private cdr: ChangeDetectorRef,
     private notificationService: NotificationService
   ) {}
@@ -256,6 +261,16 @@ export class ListItemComponent implements OnChanges {
       this.downloadService.downloadDataset(this.entry.id, this.entry.name).pipe(untilDestroyed(this)).subscribe();
     }
   };
+
+  public onClickExportToDrive(): void {
+    this.driveService
+      .connect()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success("Connected to Google Drive"),
+        error: () => this.notificationService.error("Failed to connect to Google Drive"),
+      });
+  }
 
   onEditName(): void {
     this.originalName = this.entry.name;

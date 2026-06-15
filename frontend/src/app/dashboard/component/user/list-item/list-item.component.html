@@ -22,7 +22,8 @@
   class="list-item-card"
   [class.selected]="entry.checked"
   [class.has-button-group]="isPrivateSearch"
-  [class.editing-description]="editingDescription">
+  [class.editing-description]="editingDescription"
+  [class.export-menu-open]="exportMenuVisible">
   <div
     (mouseenter)="hovering = true"
     (mouseleave)="hovering = false"
@@ -217,12 +218,29 @@
       nz-button
       nzType="text"
       *ngIf="entry.type === 'workflow' || entry.type === 'dataset'"
-      title="Download"
-      (click)="onClickDownload()">
+      nz-dropdown
+      [(nzVisible)]="exportMenuVisible"
+      nzOverlayClassName="export-dropdown-menu"
+      [nzDropdownMenu]="exportMenu"
+      title="Export">
       <i
         nz-icon
         nzType="cloud-download"></i>
     </button>
+    <nz-dropdown-menu #exportMenu="nzDropdownMenu">
+      <ul nz-menu>
+        <li
+          nz-menu-item
+          (click)="onClickDownload()">
+          Download
+        </li>
+        <li
+          nz-menu-item
+          (click)="onClickExportToDrive(); $event.stopPropagation()">
+          Export to Drive
+        </li>
+      </ul>
+    </nz-dropdown-menu>
     <button
       nz-button
       nzType="text"
