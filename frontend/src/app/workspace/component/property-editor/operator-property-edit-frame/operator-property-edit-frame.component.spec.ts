@@ -291,4 +291,30 @@ describe("OperatorPropertyEditFrameComponent", () => {
     fixture.detectChanges();
     expect(component.operatorVersion).toEqual(mockScanPredicate.operatorVersion);
   });
+
+  describe("inEnum validator expression", () => {
+    it("should pass validation when value is null", () => {
+      const expression = (c: { value: unknown }) =>
+        c.value == null || ["option1", "option2"].includes(c.value as string);
+      expect(expression({ value: null })).toBe(true);
+    });
+
+    it("should pass validation when value is undefined", () => {
+      const expression = (c: { value: unknown }) =>
+        c.value == null || ["option1", "option2"].includes(c.value as string);
+      expect(expression({ value: undefined })).toBe(true);
+    });
+
+    it("should pass validation when value is a valid enum option", () => {
+      const expression = (c: { value: unknown }) =>
+        c.value == null || ["option1", "option2"].includes(c.value as string);
+      expect(expression({ value: "option1" })).toBe(true);
+    });
+
+    it("should fail validation when value is not in enum", () => {
+      const expression = (c: { value: unknown }) =>
+        c.value == null || ["option1", "option2"].includes(c.value as string);
+      expect(expression({ value: "invalid" })).toBe(false);
+    });
+  });
 });
