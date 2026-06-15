@@ -29,36 +29,43 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 class CandlestickChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "date", required = true)
   @JsonSchemaTitle("Date Column")
   @JsonPropertyDescription("the date of the candlestick")
   @AutofillAttributeName
+  @NotNull(message = "Date Column cannot be empty")
   var date: EncodableString = ""
 
   @JsonProperty(value = "open", required = true)
   @JsonSchemaTitle("Opening Price Column")
   @JsonPropertyDescription("the opening price of the candlestick")
   @AutofillAttributeName
+  @NotNull(message = "Opening Price Column cannot be empty")
   var open: EncodableString = ""
 
   @JsonProperty(value = "high", required = true)
   @JsonSchemaTitle("Highest Price Column")
   @JsonPropertyDescription("the highest price of the candlestick")
   @AutofillAttributeName
+  @NotNull(message = "Highest Price Column cannot be empty")
   var high: EncodableString = ""
 
   @JsonProperty(value = "low", required = true)
   @JsonSchemaTitle("Lowest Price Column")
   @JsonPropertyDescription("the lowest price of the candlestick")
   @AutofillAttributeName
+  @NotNull(message = "Lowest Price Column cannot be empty")
   var low: EncodableString = ""
 
   @JsonProperty(value = "close", required = true)
   @JsonSchemaTitle("Closing Price Column")
   @JsonPropertyDescription("the closing price of the candlestick")
   @AutofillAttributeName
+  @NotNull(message = "Closing Price Column cannot be empty")
   var close: EncodableString = ""
 
   override def getOutputSchemas(
