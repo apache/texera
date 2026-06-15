@@ -37,7 +37,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   buildWorkflow,
   cleanupWorkflowExecutionData,
   initiateTexeraDBForTestCases,
-  runWorkflowAndReadResults,
+  runWorkflowAndReadTerminalResults,
   setUpWorkflowExecutionData
 }
 import org.apache.texera.amber.operator.TestOperators
@@ -96,12 +96,7 @@ class DataProcessingSpec
   }
 
   def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] =
-    runWorkflowAndReadResults(
-      system,
-      workflow,
-      workflow.logicalPlan.getTerminalOperatorIds,
-      _.get().toList
-    )
+    runWorkflowAndReadTerminalResults(system, workflow)
 
   "Engine" should "execute headerlessCsv workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()

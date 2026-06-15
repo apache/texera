@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.e2e
 
-import com.twitter.util.{Await, Duration, Promise, Return}
+import com.twitter.util.{Await, Duration, Promise, Return, Throw, Try}
 import org.apache.pekko.actor.ActorSystem
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.executor.OpExecInitInfo
@@ -100,12 +100,22 @@ object TestUtils {
     }.toMap
 
   /**
+    * Convenience over `readMaterializedResults` for the common case: read each
+    * terminal operator's result of `workflow` as a `List[Tuple]`.
+    */
+  def readMaterializedResults(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] =
+    readMaterializedResults(
+      workflow.context.executionId,
+      workflow.logicalPlan.getTerminalOperatorIds,
+      _.get().toList
+    )
+
+  /**
     * Run `workflow` to COMPLETED, then read the requested operators' materialized
     * results via `readMaterializedResults`. A FatalError aborts the run and is
-    * surfaced as the exception from the completion await. Shared by the simple
-    * "run and read" e2e specs (e.g. DataProcessingSpec, LoopIntegrationSpec);
-    * specs that drive the run differently (e.g. reconfiguration's pause/resume)
-    * call `readMaterializedResults` directly inside their own completion callback.
+    * surfaced as the exception from the completion await. Specs that drive the
+    * run differently (e.g. a pause/resume flow) read results directly inside
+    * their own completion callback instead.
     */
   def runWorkflowAndReadResults[T](
       system: ActorSystem,
@@ -114,30 +124,54 @@ object TestUtils {
       extract: VirtualDocument[Tuple] => T,
       completionTimeout: Duration = Duration.fromMinutes(1)
   ): Map[OperatorIdentity, T] = {
+    // The Promise carries the result so completing the run and handing back the
+    // value are atomic. Every terminal path uses `updateIfEmpty`, so a second
+    // event (a late FatalError after COMPLETED, or a repeated state update)
+    // can't throw inside a callback and get swallowed -- which would otherwise
+    // mask the real failure as a timeout. A read failure inside the COMPLETED
+    // callback fails the Promise (via `Try`) instead of hanging, and
+    // `shutdown()` runs in a `finally` so a timeout or error can't leak the
+    // client's actors.
+    val completion = Promise[Map[OperatorIdentity, T]]()
     val client = new AmberClient(
       system,
       workflow.context,
       workflow.physicalPlan,
       ControllerConfig.default,
-      _ => {}
+      e => completion.updateIfEmpty(Throw(e))
     )
-    val completion = Promise[Unit]()
-    var results: Map[OperatorIdentity, T] = Map.empty
-    client.registerCallback[FatalError](evt => {
-      completion.setException(evt.e)
+    try {
+      client.registerCallback[FatalError](evt => completion.updateIfEmpty(Throw(evt.e)))
+      client.registerCallback[ExecutionStateUpdate](evt => {
+        if (evt.state == COMPLETED) {
+          completion.updateIfEmpty(
+            Try(readMaterializedResults(workflow.context.executionId, operatorIds, extract))
+          )
+        }
+      })
+      Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+      Await.result(completion, completionTimeout)
+    } finally {
       client.shutdown()
-    })
-    client.registerCallback[ExecutionStateUpdate](evt => {
-      if (evt.state == COMPLETED) {
-        results = readMaterializedResults(workflow.context.executionId, operatorIds, extract)
-        completion.setDone()
-      }
-    })
-    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
-    Await.result(completion, completionTimeout)
-    client.shutdown()
-    results
+    }
   }
+
+  /**
+    * Convenience over `runWorkflowAndReadResults` for the common case: run
+    * `workflow` and read each terminal operator's result as a `List[Tuple]`.
+    */
+  def runWorkflowAndReadTerminalResults(
+      system: ActorSystem,
+      workflow: Workflow,
+      completionTimeout: Duration = Duration.fromMinutes(1)
+  ): Map[OperatorIdentity, List[Tuple]] =
+    runWorkflowAndReadResults(
+      system,
+      workflow,
+      workflow.logicalPlan.getTerminalOperatorIds,
+      _.get().toList,
+      completionTimeout
+    )
 
   /**
     * If a test case accesses the user system through singleton resources that cache the DSLContext (e.g., executes a
@@ -249,11 +283,7 @@ object TestUtils {
     var result: Map[OperatorIdentity, List[Tuple]] = null
     client.registerCallback[ExecutionStateUpdate](evt => {
       if (evt.state == COMPLETED) {
-        result = readMaterializedResults(
-          workflow.context.executionId,
-          workflow.logicalPlan.getTerminalOperatorIds,
-          _.get().toList
-        )
+        result = readMaterializedResults(workflow)
         completion.setDone()
       }
     })
