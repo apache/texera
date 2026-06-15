@@ -20,7 +20,6 @@
 import { CdkDragDrop } from "@angular/cdk/drag-drop";
 import { FormArray, FormControl } from "@angular/forms";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { vi } from "vitest";
 import { FormlyRepeatDndComponent } from "./repeat-dnd.component";
 
 describe("FormlyRepeatDndComponent", () => {
