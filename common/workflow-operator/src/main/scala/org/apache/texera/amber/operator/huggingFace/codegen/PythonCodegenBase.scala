@@ -295,7 +295,8 @@ object PythonCodegenBase {
        |            elif task in ("text-to-image", "text-to-video"):
        |                inp = {"prompt": prompt_value}
        |            elif task == "automatic-speech-recognition" and img_b64:
-       |                inp = {"audio": f"data:audio/wav;base64,{img_b64}"}
+       |                audio_content_type = raw_binary_headers.get("Content-Type", "audio/mpeg")
+       |                inp = {"audio": f"data:{audio_content_type};base64,{img_b64}"}
        |            elif task == "image-to-image" and img_b64:
        |                data_url = f"data:image/png;base64,{img_b64}"
        |                inp = {"image": data_url, "images": [data_url], "input_image": data_url, "prompt": prompt_value}

@@ -42,8 +42,6 @@ object AudioTaskCodegen extends TaskCodegen {
       |                use_raw_binary_body = True
       |                raw_binary_headers = audio_headers
       |            elif task == "text-to-speech":
-      |                payload = {"inputs": prompt_value}
-      |            else:
       |                payload = {"inputs": prompt_value}""".stripMargin
 
   override def parsePython(ctx: CodegenContext): String =

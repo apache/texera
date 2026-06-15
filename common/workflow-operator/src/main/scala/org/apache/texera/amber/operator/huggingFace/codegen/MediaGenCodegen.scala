@@ -37,10 +37,7 @@ object MediaGenCodegen extends TaskCodegen {
   )
 
   override def payloadPython(ctx: CodegenContext): String =
-    """            if task in ("text-to-image", "text-to-video"):
-      |                payload = {"inputs": prompt_value}
-      |            else:
-      |                payload = {"inputs": prompt_value}""".stripMargin
+    """            payload = {"inputs": prompt_value}""".stripMargin
 
   override def parsePython(ctx: CodegenContext): String =
     """            if task == "text-to-image":
