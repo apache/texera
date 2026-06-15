@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.texera.amber.config
+package org.apache.texera.common.config
 
 // Environment variable names for all the *.conf files
 // TODO: currently these values are hard-coded, it would be good to have a way to dynamically load these names to avoid 2-copy
