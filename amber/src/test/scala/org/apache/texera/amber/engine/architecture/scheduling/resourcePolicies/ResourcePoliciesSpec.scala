@@ -105,7 +105,7 @@ class ResourcePoliciesSpec extends AnyFlatSpec {
         if (!op.parallelizable) 1
         else
           op.suggestedWorkerNum.getOrElse(
-            org.apache.texera.amber.config.ApplicationConfig.numWorkerPerOperatorByDefault
+            org.apache.texera.common.config.ApplicationConfig.numWorkerPerOperatorByDefault
           )
       assert(workers == expected, s"unexpected worker count for ${op.id}")
     }

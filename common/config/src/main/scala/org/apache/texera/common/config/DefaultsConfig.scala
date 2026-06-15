@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.texera.config
+package org.apache.texera.common.config
 
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, ConfigValueType}
 
