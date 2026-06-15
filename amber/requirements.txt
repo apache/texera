@@ -33,7 +33,6 @@ typing_extensions==4.14.1
 pytest-reraise==2.1.2
 Deprecated==1.2.14
 fs==2.4.16
-praw==7.6.1
 bidict==0.22.0
 cached_property==1.5.2
 psutil==5.9.0
