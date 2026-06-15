@@ -21,13 +21,14 @@ package org.apache.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.WorkflowContext
+import org.apache.texera.amber.core.workflow.{ExecutionMode, WorkflowContext, WorkflowSettings}
 import org.apache.texera.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import org.apache.texera.amber.engine.common.Utils
 import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.common.executionruntimestate.ExecutionMetadataStore
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
   WorkflowErrorEvent,
@@ -52,6 +53,36 @@ object WorkflowExecutionService {
       .getLatestExecutionID(workflowId.id.toInt, computingUnitId)
       .map(eid => new ExecutionIdentity(eid.longValue()))
   }
+
+  /**
+    * Reject a submission whose execution mode can't run the given operators.
+    *
+    * Some operators only work under MATERIALIZED execution (the loop
+    * operators, whose back-edge is the cross-region materialized state
+    * channel). Rather than silently rewriting the user's choice -- which would
+    * leave the UI showing one mode while the engine ran another -- throw with
+    * an actionable message so the caller surfaces it to the user.
+    *
+    * Keyed off the operator-declared `LogicalOp.requiresMaterializedExecution`
+    * flag rather than matching a specific operator class, so this service does
+    * not depend on which operators happen to need materialization, and any
+    * such operator (Loop Start OR Loop End on its own) triggers the check.
+    */
+  def validateExecutionMode(
+      operators: Seq[LogicalOp],
+      settings: WorkflowSettings
+  ): Unit = {
+    if (
+      settings.executionMode != ExecutionMode.MATERIALIZED
+      && operators.exists(_.requiresMaterializedExecution)
+    ) {
+      throw new IllegalArgumentException(
+        "This workflow contains operators that require MATERIALIZED execution mode " +
+          "(e.g. Loop Start / Loop End). Please open Workflow Settings → Execution Mode, " +
+          "change it to Materialized, and re-run."
+      )
+    }
+  }
 }
 
 class WorkflowExecutionService(
@@ -66,6 +97,13 @@ class WorkflowExecutionService(
 ) extends SubscriptionManager
     with LazyLogging {
 
+  // Some operators (the loop operators) only run correctly under MATERIALIZED
+  // execution. Reject a mismatched submission loudly rather than silently
+  // coercing the mode, which would leave the UI and the engine disagreeing.
+  WorkflowExecutionService.validateExecutionMode(
+    request.logicalPlan.operators,
+    request.workflowSettings
+  )
   workflowContext.workflowSettings = request.workflowSettings
   val wsInput = new WebsocketInput(errorHandler)
 
