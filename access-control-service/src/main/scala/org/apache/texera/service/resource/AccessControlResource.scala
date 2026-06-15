@@ -27,7 +27,7 @@ import jakarta.ws.rs.{Consumes, DELETE, GET, POST, PUT, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
-import org.apache.texera.config.{GuiConfig, KubernetesConfig, LLMConfig}
+import org.apache.texera.common.config.{GuiConfig, KubernetesConfig, LLMConfig}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 
 import java.net.URLDecoder

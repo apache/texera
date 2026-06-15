@@ -20,7 +20,7 @@
 package org.apache.texera.web.resource.auth
 
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
-import org.apache.texera.config.UserSystemConfig
+import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum

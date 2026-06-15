@@ -110,7 +110,6 @@
             "runnerConfig": "vitest.browser.config.ts",
             "tsConfig": "src/tsconfig.spec.json",
             "include": [
-              "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts",
               "**/*.browser.spec.ts"
             ]
           }

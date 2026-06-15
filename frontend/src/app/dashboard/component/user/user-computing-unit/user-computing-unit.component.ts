@@ -39,6 +39,7 @@ import {
   getJvmMemorySliderConfig,
 } from "../../../../common/util/computing-unit.util";
 import { ComputingUnitActionsService } from "../../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
+import { interval } from "rxjs";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -183,6 +184,12 @@ export class UserComputingUnitComponent implements OnInit {
       .subscribe(units => {
         this.allComputingUnits = units;
         this.entries = units.map(u => new DashboardEntry(u));
+      });
+
+    interval(1000)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.computingUnitStatusService.refreshComputingUnitList();
       });
   }
 

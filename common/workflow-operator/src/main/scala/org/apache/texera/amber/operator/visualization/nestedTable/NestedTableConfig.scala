@@ -23,14 +23,18 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 
+import javax.validation.constraints.NotNull
+
 class NestedTableConfig {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute group")
+  @NotNull(message = "Attribute group cannot be empty")
   var attributeGroup: EncodableString = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Original attribute Name")
   @AutofillAttributeName
+  @NotNull(message = "Original attribute Name cannot be empty")
   var originalName: EncodableString = ""
 
   @JsonProperty(value = "name", required = false)
