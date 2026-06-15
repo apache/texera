@@ -316,25 +316,19 @@ jobs:
     # license check stay in `amber`; this job is tests-only.
     if: ${{ inputs.run_amber_integration }}
     strategy:
+      # macOS provisions postgres / minio / lakekeeper natively because
+      # GitHub-hosted macOS runners have no Docker (and `services:`
+      # containers are Linux-only). Each docker-dependent step below
+      # branches on $RUNNER_OS inside its `run:` script: Linux keeps
+      # the docker image, macOS uses brew + the upstream
+      # aarch64-apple-darwin lakekeeper tarball.
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-22.04, macos-latest]
         java-version: [17]
     runs-on: ${{ matrix.os }}
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
-    services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -375,13 +369,59 @@ jobs:
           if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt; fi
       - name: Install protoc
-        # Version pinned in bin/protoc-version.txt.
+        # Linux pins protoc to the version in bin/protoc-version.txt via
+        # the upstream release zip. macOS uses brew's arm64-native
+        # protobuf instead because protoc 3.19.4 has no arm64-mac build
+        # and running the x86_64 binary under Rosetta breaks
+        # protoc-gen-python_betterproto (the plugin's shebang resolves
+        # to arm64-only setup-python, and the resulting arch/site-pkg
+        # split surfaces as a silent "plugin failed status 1"). For
+        # proto3 sources the python_betterproto plugin's output depends
+        # on betterproto, not protoc, so the version drift is benign
+        # for python-proto-gen.sh — bin/python-proto-gen.sh derives the
+        # include dir from `command -v protoc`, so brew's /opt/homebrew
+        # layout is picked up automatically.
         run: |
-          PROTOC_VERSION=$(cat bin/protoc-version.txt)
-          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
-          sudo unzip -o /tmp/protoc.zip -d /usr/local
-          sudo chmod +x /usr/local/bin/protoc
-          sudo chmod -R a+rX /usr/local/include/google
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            PROTOC_VERSION=$(cat bin/protoc-version.txt)
+            curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+            sudo unzip -o /tmp/protoc.zip -d /usr/local
+            sudo chmod +x /usr/local/bin/protoc
+            sudo chmod -R a+rX /usr/local/include
+          else
+            brew install protobuf
+          fi
+      - name: Start Postgres
+        # Replaces the job-level `services.postgres` container, which
+        # GitHub only supports on Linux runners. Both branches end with
+        # postgres listening on localhost:5432 with a `postgres` superuser
+        # (password 'postgres') so the psql steps below stay OS-agnostic.
+        # macOS uses brew's pg_hba `trust` for 127.0.0.1, which means the
+        # password is effectively ignored — same effective auth as the
+        # Linux docker image here.
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            docker run -d --name postgres \
+              -p 5432:5432 \
+              -e POSTGRES_PASSWORD=postgres \
+              postgres
+            for i in $(seq 1 30); do
+              docker exec postgres pg_isready -U postgres -h localhost -q && break
+              echo "Waiting for Postgres... (attempt $i)"
+              sleep 1
+            done
+            docker exec postgres pg_isready -U postgres -h localhost -q
+          else
+            brew install postgresql@16
+            brew services start postgresql@16
+            for i in $(seq 1 30); do
+              pg_isready -h localhost -q && break
+              echo "Waiting for Postgres... (attempt $i)"
+              sleep 1
+            done
+            createuser -h localhost -s postgres
+            psql -h localhost -d postgres -c "ALTER USER postgres WITH PASSWORD 'postgres';"
+          fi
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
@@ -400,43 +440,79 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Start MinIO
+        # Linux uses the pinned docker image; macOS uses brew's native
+        # arm64 binary, backgrounded via nohup and logged to /tmp/minio.log
+        # for post-mortem if the curl health check below fails. The brew
+        # version drifts from the Linux pin, but the tests only touch
+        # S3-protocol surface that has been stable across releases.
         run: |
-          docker run -d --name minio --network host \
-            -e MINIO_ROOT_USER=texera_minio \
-            -e MINIO_ROOT_PASSWORD=password \
-            minio/minio:RELEASE.2025-02-28T09-55-16Z server /data
-          for i in $(seq 1 3); do
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            docker run -d --name minio --network host \
+              -e MINIO_ROOT_USER=texera_minio \
+              -e MINIO_ROOT_PASSWORD=password \
+              minio/minio:RELEASE.2025-02-28T09-55-16Z server /data
+          else
+            brew install minio/stable/minio
+            mkdir -p /tmp/minio-data
+            MINIO_ROOT_USER=texera_minio MINIO_ROOT_PASSWORD=password \
+              nohup minio server /tmp/minio-data > /tmp/minio.log 2>&1 &
+          fi
+          for i in $(seq 1 15); do
             curl -sf http://localhost:9000/minio/health/live && break
             echo "Waiting for MinIO... (attempt $i)"
             sleep 1
           done
+          curl -sf http://localhost:9000/minio/health/live
       - name: Start Lakekeeper
+        # Linux uses the v0.11.0 docker image; macOS downloads the
+        # same-version aarch64-apple-darwin tarball that upstream
+        # publishes alongside the linux image (v0.11.0 onward). Both
+        # branches run `migrate` then `serve`, then poll the binary's
+        # built-in `healthcheck` subcommand until ready. Failure dumps
+        # the container logs (Linux) or /tmp/lakekeeper.log (macOS).
         env:
+          LAKEKEEPER_VERSION: v0.11.0
           LAKEKEEPER__PG_DATABASE_URL_READ: postgres://postgres:postgres@localhost:5432/texera_lakekeeper
           LAKEKEEPER__PG_DATABASE_URL_WRITE: postgres://postgres:postgres@localhost:5432/texera_lakekeeper
           LAKEKEEPER__PG_ENCRYPTION_KEY: texera_key
+          LAKEKEEPER__METRICS_PORT: "9091"
         run: |
-          docker run --rm --network host \
-            -e LAKEKEEPER__PG_DATABASE_URL_READ \
-            -e LAKEKEEPER__PG_DATABASE_URL_WRITE \
-            -e LAKEKEEPER__PG_ENCRYPTION_KEY \
-            vakamo/lakekeeper:v0.11.0 migrate
-          docker run -d --name lakekeeper --network host \
-            -e LAKEKEEPER__PG_DATABASE_URL_READ \
-            -e LAKEKEEPER__PG_DATABASE_URL_WRITE \
-            -e LAKEKEEPER__PG_ENCRYPTION_KEY \
-            -e LAKEKEEPER__METRICS_PORT=9091 \
-            vakamo/lakekeeper:v0.11.0 serve
-          for i in $(seq 1 3); do
-            docker exec lakekeeper /home/nonroot/lakekeeper healthcheck && break
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            docker run --rm --network host \
+              -e LAKEKEEPER__PG_DATABASE_URL_READ \
+              -e LAKEKEEPER__PG_DATABASE_URL_WRITE \
+              -e LAKEKEEPER__PG_ENCRYPTION_KEY \
+              vakamo/lakekeeper:${LAKEKEEPER_VERSION} migrate
+            docker run -d --name lakekeeper --network host \
+              -e LAKEKEEPER__PG_DATABASE_URL_READ \
+              -e LAKEKEEPER__PG_DATABASE_URL_WRITE \
+              -e LAKEKEEPER__PG_ENCRYPTION_KEY \
+              -e LAKEKEEPER__METRICS_PORT \
+              vakamo/lakekeeper:${LAKEKEEPER_VERSION} serve
+            healthcheck() { docker exec lakekeeper /home/nonroot/lakekeeper healthcheck; }
+            on_fail() { echo "Lakekeeper failed to start. Container logs:"; docker logs lakekeeper; }
+          else
+            curl -fsSL -o /tmp/lakekeeper.tar.gz \
+              "https://github.com/lakekeeper/lakekeeper/releases/download/${LAKEKEEPER_VERSION}/lakekeeper-aarch64-apple-darwin.tar.gz"
+            mkdir -p /tmp/lakekeeper-bin
+            tar -xzf /tmp/lakekeeper.tar.gz -C /tmp/lakekeeper-bin
+            LAKEKEEPER_BIN=$(find /tmp/lakekeeper-bin -type f -perm -u+x -name lakekeeper | head -1)
+            if [ -z "$LAKEKEEPER_BIN" ]; then
+              echo "Could not find lakekeeper binary in tarball:"
+              find /tmp/lakekeeper-bin -type f
+              exit 1
+            fi
+            "$LAKEKEEPER_BIN" migrate
+            nohup "$LAKEKEEPER_BIN" serve > /tmp/lakekeeper.log 2>&1 &
+            healthcheck() { "$LAKEKEEPER_BIN" healthcheck; }
+            on_fail() { echo "Lakekeeper failed to start. Log:"; cat /tmp/lakekeeper.log; }
+          fi
+          for i in $(seq 1 15); do
+            healthcheck && break
             echo "Waiting for Lakekeeper... (attempt $i)"
             sleep 1
           done
-          docker exec lakekeeper /home/nonroot/lakekeeper healthcheck || {
-            echo "Lakekeeper failed to start. Container logs:"
-            docker logs lakekeeper
-            exit 1
-          }
+          healthcheck || { on_fail; exit 1; }
       - name: Initialize Lakekeeper warehouse
         # Pull defaults out of storage.conf so this step doesn't duplicate
         # values that already live in the runtime config. Each scalar in
@@ -461,9 +537,18 @@ jobs:
           LAKEKEEPER_BASE=${REST_URI%/catalog}
           LAKEKEEPER_BASE=${LAKEKEEPER_BASE%/}
 
-          docker run --rm --network host --entrypoint sh minio/mc -c \
-            "mc alias set minio $S3_ENDPOINT $S3_USERNAME $S3_PASSWORD && \
-             mc mb --ignore-existing minio/$S3_BUCKET"
+          # bucket creation runs through `mc`; on Linux we keep the
+          # minio/mc image, on macOS we use the brew-installed native CLI
+          # since docker is unavailable.
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            docker run --rm --network host --entrypoint sh minio/mc -c \
+              "mc alias set minio $S3_ENDPOINT $S3_USERNAME $S3_PASSWORD && \
+               mc mb --ignore-existing minio/$S3_BUCKET"
+          else
+            brew install minio-mc
+            mc alias set minio "$S3_ENDPOINT" "$S3_USERNAME" "$S3_PASSWORD"
+            mc mb --ignore-existing "minio/$S3_BUCKET"
+          fi
           curl -sf -X POST -H 'Content-Type: application/json' \
             -d '{"project-id":"00000000-0000-0000-0000-000000000000","project-name":"default"}' \
             "$LAKEKEEPER_BASE/management/v1/project" || true
@@ -762,49 +847,6 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
-
-  pyamber-state-materialization-mac:
-    # Diagnostic leg: cross-region state materialization is reported to
-    # fail on macOS while working on Windows / Linux. The main `pyamber`
-    # job above runs only on ubuntu-latest because it depends on a
-    # postgres service container (service containers don't work on
-    # macOS runners). The state-materialization integration tests use
-    # an in-process sqlite-backed SqlCatalog instead, so we can run
-    # them on macOS without postgres infra. If they fail here but pass
-    # in the main `pyamber` job, we've reproduced the macOS-specific
-    # regression in CI.
-    if: ${{ inputs.run_pyamber }}
-    runs-on: macos-latest
-    steps:
-      - name: Checkout Texera
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.checkout_ref || github.sha }}
-          fetch-depth: 0
-      - name: Prepare backport workspace
-        if: ${{ inputs.backport_target_branch != '' }}
-        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - name: Install dependencies
-        run: |
-          python -m pip install uv
-          if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
-          if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
-      - name: Install protoc
-        # Homebrew protoc; this job doesn't exercise scalapb so the
-        # bin/protoc-version.txt pin doesn't apply here.
-        run: brew install protobuf
-      - name: Generate Python proto bindings
-        run: bash bin/python-proto-gen.sh
-      - name: Run state-materialization integration tests
-        run: |
-          cd amber && pytest -sv \
-            src/test/python/core/architecture/packaging/test_state_materialization_e2e.py \
-            src/test/python/core/runnables/test_main_loop.py::TestMainLoop::test_process_start_channel_persists_produce_state_on_start_output
 
   agent-service:
     if: ${{ inputs.run_agent_service }}
