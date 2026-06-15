@@ -60,7 +60,6 @@ import org.apache.texera.web.SessionState
 import org.apache.texera.web.model.websocket.event.RegionStateEvent
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
-import java.net.URI
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration.{Duration => ScalaDuration}
