@@ -19,86 +19,78 @@
 
 package org.apache.texera.amber.core.storage
 
-import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.core.storage.model.VirtualDocument
+import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
-import scala.collection.mutable
 
 /**
   * Unit tests for `DocumentFactory.createOrReuseDocument`, the create-or-reuse
-  * decision behind output-port storage provisioning.
+  * decision behind output-port storage provisioning. It always returns the
+  * document (opened when reused, created otherwise) so the call site doesn't
+  * branch.
   *
-  * This is the branch that lets a re-executing region (a loop body) keep the
-  * output an earlier run accumulated instead of clobbering it: a LoopEnd port's
-  * region runs once per iteration, and `createDocument` overrides any existing
-  * document, so on a re-run the existing document must be reused rather than
-  * recreated.
-  *
-  * `exists` / `create` are injected so the four cases can be pinned directly
-  * with a spy -- no iceberg backend, no live region.
+  * `exists` / `open` / `create` are injected so the decision can be pinned with
+  * trivial document stubs -- no iceberg backend, no live region.
   */
 class DocumentFactorySpec extends AnyFlatSpec with Matchers {
 
   private val uri = new URI("vfs:///wf/result/loop-end")
   private val schema = Schema()
 
-  /** Run createOrReuseDocument with a spy and return (created?, #create calls). */
-  private def provision(reuseExisting: Boolean, exists: Boolean): (Boolean, Int) = {
-    val createCalls = mutable.ArrayBuffer.empty[URI]
-    val created = DocumentFactory.createOrReuseDocument(
+  private def stubDoc: VirtualDocument[Tuple] =
+    new VirtualDocument[Tuple] {
+      override def getURI: URI = uri
+      override def clear(): Unit = ()
+    }
+  private val opened: VirtualDocument[_] = stubDoc
+  private val created: VirtualDocument[_] = stubDoc
+
+  /** Run with spies; return (document handed back, which path was taken). */
+  private def run(reuseExisting: Boolean, exists: Boolean): (VirtualDocument[_], String) = {
+    var path = ""
+    val doc = DocumentFactory.createOrReuseDocument(
       uri,
       schema,
       reuseExisting,
       _ => exists,
-      (u, _) => { createCalls += u; () }
+      _ => { path = "open"; opened },
+      (_, _) => { path = "create"; created }
     )
-    (created, createCalls.size)
+    (doc, path)
   }
 
   "createOrReuseDocument" should
-    "reuse (not recreate) an existing document when the port reuses storage" in {
-    // The loop-iteration case: the document is already there from a prior
-    // region run, so it must NOT be recreated -- otherwise the accumulated
-    // output would be clobbered.
-    val (created, createCalls) = provision(reuseExisting = true, exists = true)
-    created shouldBe false
-    createCalls shouldBe 0
+    "open and return the existing document when the port reuses storage and one exists" in {
+    val (doc, path) = run(reuseExisting = true, exists = true)
+    path shouldBe "open"
+    doc should be theSameInstanceAs opened
   }
 
-  it should "create the document when the port reuses storage but none exists yet" in {
-    // First iteration: nothing to reuse, so it must be created.
-    val (created, createCalls) = provision(reuseExisting = true, exists = false)
-    created shouldBe true
-    createCalls shouldBe 1
+  it should "create when the port reuses storage but none exists yet" in {
+    val (doc, path) = run(reuseExisting = true, exists = false)
+    path shouldBe "create"
+    doc should be theSameInstanceAs created
   }
 
-  it should "always (re)create when the port does not reuse storage, even if a document exists" in {
-    // Non-reuse ports get a fresh document every region execution; an existing
-    // one is intentionally overwritten.
-    val (created, createCalls) = provision(reuseExisting = false, exists = true)
-    created shouldBe true
-    createCalls shouldBe 1
+  it should "always create when the port does not reuse storage, even if one exists" in {
+    val (doc, path) = run(reuseExisting = false, exists = true)
+    path shouldBe "create"
+    doc should be theSameInstanceAs created
   }
 
-  it should "create when the port does not reuse storage and none exists" in {
-    val (created, createCalls) = provision(reuseExisting = false, exists = false)
-    created shouldBe true
-    createCalls shouldBe 1
-  }
-
-  it should "not probe existence when the port does not reuse storage (create unconditionally)" in {
-    // Short-circuit: a non-reuse port always recreates, so it must not even
-    // probe for existence.
-    var existsProbed = false
+  it should "not probe existence when the port does not reuse storage" in {
+    var probed = false
     DocumentFactory.createOrReuseDocument(
       uri,
       schema,
       reuseExisting = false,
-      _ => { existsProbed = true; true },
-      (_, _) => ()
+      _ => { probed = true; true },
+      _ => opened,
+      (_, _) => created
     )
-    existsProbed shouldBe false
+    probed shouldBe false
   }
 }
