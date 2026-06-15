@@ -22,10 +22,7 @@ package org.apache.texera.amber.engine.e2e
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
-import com.twitter.util.{Await, Duration, Promise}
 import org.apache.texera.amber.clustering.SingleNodeListener
-import org.apache.texera.amber.core.storage.DocumentFactory
-import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.{AttributeType, Tuple}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
@@ -35,19 +32,16 @@ import org.apache.texera.amber.core.workflow.{
   WorkflowSettings
 }
 import org.apache.texera.amber.engine.architecture.controller._
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import org.apache.texera.amber.engine.common.AmberRuntime
-import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.e2e.TestUtils.{
   buildWorkflow,
   cleanupWorkflowExecutionData,
   initiateTexeraDBForTestCases,
+  runWorkflowAndReadTerminalResults,
   setUpWorkflowExecutionData
 }
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.aggregate.AggregationFunction
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
@@ -101,54 +95,8 @@ class DataProcessingSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] = {
-    var results: Map[OperatorIdentity, List[Tuple]] = null
-    val client = new AmberClient(
-      system,
-      workflow.context,
-      workflow.physicalPlan,
-      ControllerConfig.default,
-      error => {}
-    )
-    val completion = Promise[Unit]()
-    client.registerCallback[FatalError](evt => {
-      completion.setException(evt.e)
-      client.shutdown()
-    })
-
-    client
-      .registerCallback[ExecutionStateUpdate](evt => {
-        if (evt.state == COMPLETED) {
-          results = workflow.logicalPlan.getTerminalOperatorIds
-            .filter(terminalOpId => {
-              val uri = getResultUriByLogicalPortId(
-                workflowContext.executionId,
-                terminalOpId,
-                PortIdentity()
-              )
-              uri.nonEmpty
-            })
-            .map(terminalOpId => {
-              val uri = getResultUriByLogicalPortId(
-                workflowContext.executionId,
-                terminalOpId,
-                PortIdentity()
-              ).get
-              terminalOpId -> DocumentFactory
-                .openDocument(uri)
-                ._1
-                .asInstanceOf[VirtualDocument[Tuple]]
-                .get()
-                .toList
-            })
-            .toMap
-          completion.setDone()
-        }
-      })
-    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
-    Await.result(completion, Duration.fromMinutes(1))
-    results
-  }
+  def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] =
+    runWorkflowAndReadTerminalResults(system, workflow)
 
   "Engine" should "execute headerlessCsv workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
