@@ -23,11 +23,11 @@ import com.typesafe.scalalogging.LazyLogging
 import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
 import jakarta.ws.rs.core._
-import jakarta.ws.rs.{Consumes, DELETE, GET, POST, Path, Produces}
+import jakarta.ws.rs.{Consumes, DELETE, GET, POST, PUT, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
-import org.apache.texera.config.{GuiConfig, LLMConfig}
+import org.apache.texera.common.config.{GuiConfig, LLMConfig}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
@@ -245,6 +245,16 @@ class AccessControlResource extends LazyLogging {
       body: String
   ): Response = {
     logger.info("Request body: " + body)
+    AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
+  }
+
+  @PUT
+  @Path("/{path:.*}")
+  def authorizePut(
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders,
+      body: String
+  ): Response = {
     AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
   }
 
