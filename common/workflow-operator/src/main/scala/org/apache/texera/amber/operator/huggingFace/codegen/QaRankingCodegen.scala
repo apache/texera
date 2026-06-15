@@ -66,9 +66,9 @@ object QaRankingCodegen extends TaskCodegen {
 
   override def parsePython(ctx: CodegenContext): String =
     """            if task == "question-answering":
-      |                return body.get("answer", json.dumps(body))
+      |                return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)
       |            elif task == "table-question-answering":
-      |                return body.get("answer", json.dumps(body))
+      |                return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)
       |            elif task in ("zero-shot-classification", "sentence-similarity", "text-ranking"):
       |                return json.dumps(body)""".stripMargin
 }

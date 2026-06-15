@@ -515,7 +515,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("ctx_col = self.CONTEXT_COLUMN")
     code should include("Context column")
     code should include("""payload = {"inputs": {"question": prompt_value, "context": ctx_val}}""")
-    code should include("""return body.get("answer", json.dumps(body))""")
+    code should include(
+      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
+    )
   }
 
   it should "route table-question-answering with a precomputed table payload" in {
@@ -523,7 +525,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("""if task == "table-question-answering":""")
     code should include("table_dict = {}")
     code should include("""payload = {"inputs": {"query": prompt_value, "table": table_dict}}""")
-    code should include("""return body.get("answer", json.dumps(body))""")
+    code should include(
+      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
+    )
   }
 
   it should "route zero-shot-classification with candidate labels" in {
@@ -531,6 +535,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       makeDesc(task = "zero-shot-classification", candidateLabels = "positive,negative")
         .generatePythonCode()
     code should include("self.CANDIDATE_LABELS = ")
+    code should include("""if task == "zero-shot-classification":""")
+    code should include("Candidate Labels are required for zero-shot-classification.")
     code should include("""elif task == "zero-shot-classification":""")
     code should include("labels = [l.strip() for l in self.CANDIDATE_LABELS.split")
     code should include(""""parameters": {"candidate_labels": labels}""")

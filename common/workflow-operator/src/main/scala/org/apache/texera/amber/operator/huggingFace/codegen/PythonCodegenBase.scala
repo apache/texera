@@ -497,6 +497,11 @@ object PythonCodegenBase {
        |                f"Prompt column '{prompt_col}' not found in input table. "
        |                f"Available columns: {list(table.columns)}"
        |            )
+       |        if task == "zero-shot-classification":
+       |            assert self.CANDIDATE_LABELS and self.CANDIDATE_LABELS.strip(), (
+       |                "Candidate Labels are required for zero-shot-classification. "
+       |                "Provide a comma-separated list of labels."
+       |            )
        |        if task == "question-answering":
        |            ctx_col = self.CONTEXT_COLUMN
        |            assert ctx_col and ctx_col in table.columns, (
