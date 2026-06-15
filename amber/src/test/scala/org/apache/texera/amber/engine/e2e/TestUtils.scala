@@ -100,12 +100,22 @@ object TestUtils {
     }.toMap
 
   /**
+    * Convenience over `readMaterializedResults` for the common case: read each
+    * terminal operator's result of `workflow` as a `List[Tuple]`.
+    */
+  def readMaterializedResults(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] =
+    readMaterializedResults(
+      workflow.context.executionId,
+      workflow.logicalPlan.getTerminalOperatorIds,
+      _.get().toList
+    )
+
+  /**
     * Run `workflow` to COMPLETED, then read the requested operators' materialized
     * results via `readMaterializedResults`. A FatalError aborts the run and is
-    * surfaced as the exception from the completion await. Shared by the simple
-    * "run and read" e2e specs (e.g. DataProcessingSpec, LoopIntegrationSpec);
-    * specs that drive the run differently (e.g. reconfiguration's pause/resume)
-    * call `readMaterializedResults` directly inside their own completion callback.
+    * surfaced as the exception from the completion await. Specs that drive the
+    * run differently (e.g. a pause/resume flow) read results directly inside
+    * their own completion callback instead.
     */
   def runWorkflowAndReadResults[T](
       system: ActorSystem,
@@ -145,6 +155,23 @@ object TestUtils {
       client.shutdown()
     }
   }
+
+  /**
+    * Convenience over `runWorkflowAndReadResults` for the common case: run
+    * `workflow` and read each terminal operator's result as a `List[Tuple]`.
+    */
+  def runWorkflowAndReadTerminalResults(
+      system: ActorSystem,
+      workflow: Workflow,
+      completionTimeout: Duration = Duration.fromMinutes(1)
+  ): Map[OperatorIdentity, List[Tuple]] =
+    runWorkflowAndReadResults(
+      system,
+      workflow,
+      workflow.logicalPlan.getTerminalOperatorIds,
+      _.get().toList,
+      completionTimeout
+    )
 
   /**
     * If a test case accesses the user system through singleton resources that cache the DSLContext (e.g., executes a
@@ -256,11 +283,7 @@ object TestUtils {
     var result: Map[OperatorIdentity, List[Tuple]] = null
     client.registerCallback[ExecutionStateUpdate](evt => {
       if (evt.state == COMPLETED) {
-        result = readMaterializedResults(
-          workflow.context.executionId,
-          workflow.logicalPlan.getTerminalOperatorIds,
-          _.get().toList
-        )
+        result = readMaterializedResults(workflow)
         completion.setDone()
       }
     })
