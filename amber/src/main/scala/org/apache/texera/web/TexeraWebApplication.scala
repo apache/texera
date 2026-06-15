@@ -33,7 +33,11 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
 import org.apache.texera.web.resource._
-import org.apache.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
+import org.apache.texera.web.resource.auth.{
+  AuthResource,
+  GoogleAuthResource,
+  GoogleDriveAuthResource
+}
 import org.apache.texera.web.resource.dashboard.DashboardResource
 import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import org.apache.texera.web.resource.dashboard.admin.settings.AdminSettingsResource
@@ -143,6 +147,7 @@ class TexeraWebApplication
 
     environment.jersey.register(classOf[AuthResource])
     environment.jersey.register(classOf[GoogleAuthResource])
+    environment.jersey.register(classOf[GoogleDriveAuthResource])
     environment.jersey.register(classOf[UserConfigResource])
     environment.jersey.register(classOf[FeedbackResource])
     environment.jersey.register(classOf[AdminUserResource])
