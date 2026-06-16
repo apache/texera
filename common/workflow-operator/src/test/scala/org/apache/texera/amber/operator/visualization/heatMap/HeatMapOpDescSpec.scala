@@ -24,6 +24,9 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
 class HeatMapOpDescSpec extends AnyFlatSpec with Matchers {
 
   private def configured: HeatMapOpDesc = {
@@ -33,6 +36,13 @@ class HeatMapOpDescSpec extends AnyFlatSpec with Matchers {
     op.value = "v"
     op
   }
+
+  private def b64(s: String): String =
+    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
+
+  // The part of an assert message that names the offending field.
+  private def fieldPart(msg: String): String =
+    msg.toLowerCase.replace("cannot be empty", "")
 
   "HeatMapOpDesc.operatorInfo" should "advertise the user-friendly name and Scientific group" in {
     val info = (new HeatMapOpDesc).operatorInfo
@@ -71,5 +81,43 @@ class HeatMapOpDescSpec extends AnyFlatSpec with Matchers {
     // ("") hit the assert path and surface as AssertionError.
     val op = new HeatMapOpDesc
     assertThrows[AssertionError](op.generatePythonCode())
+  }
+
+  it should "throw AssertionError naming the X column when everything is empty" in {
+    val op = new HeatMapOpDesc
+    val ex = intercept[AssertionError](op.generatePythonCode())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    fieldPart(ex.getMessage) should include("x")
+  }
+
+  it should "throw AssertionError naming the Y column when only x is set" in {
+    val op = new HeatMapOpDesc
+    op.x = "ax"
+    val ex = intercept[AssertionError](op.generatePythonCode())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    fieldPart(ex.getMessage) should include("y")
+  }
+
+  it should "throw AssertionError naming the Values column when x and y are set" in {
+    val op = new HeatMapOpDesc
+    op.x = "ax"
+    op.y = "ay"
+    val ex = intercept[AssertionError](op.generatePythonCode())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    fieldPart(ex.getMessage) should include("value")
+  }
+
+  it should "carry the configured x/y/value columns (as runtime decode payloads) in the generated code" in {
+    val op = new HeatMapOpDesc
+    op.x = "HEAT_X_SENT"
+    op.y = "HEAT_Y_SENT"
+    op.value = "HEAT_V_SENT"
+    val code = op.generatePythonCode()
+    code should include(b64("HEAT_X_SENT"))
+    code should include(b64("HEAT_Y_SENT"))
+    code should include(b64("HEAT_V_SENT"))
   }
 }

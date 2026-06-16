@@ -34,10 +34,13 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.visualization.ImageUtility
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+
+import javax.validation.constraints.NotNull
 class WordCloudOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text column")
   @AutofillAttributeName
+  @NotNull(message = "Text column cannot be empty")
   var textColumn: EncodableString = ""
 
   @JsonProperty(defaultValue = "100")

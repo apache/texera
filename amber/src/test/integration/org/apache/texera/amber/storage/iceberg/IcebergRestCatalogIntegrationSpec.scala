@@ -22,7 +22,7 @@ package org.apache.texera.amber.storage.iceberg
 import org.apache.iceberg.catalog.TableIdentifier
 import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.rest.RESTCatalog
-import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.texera.amber.util.IcebergUtil

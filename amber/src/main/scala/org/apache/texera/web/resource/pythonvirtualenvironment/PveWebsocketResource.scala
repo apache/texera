@@ -19,6 +19,8 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
+import org.apache.texera.common.config.KubernetesConfig
+
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import java.util.concurrent.LinkedBlockingQueue

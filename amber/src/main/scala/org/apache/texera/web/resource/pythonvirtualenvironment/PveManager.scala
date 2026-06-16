@@ -28,7 +28,7 @@ import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters._
 import scala.sys.process._
 import java.util.Comparator
-import org.apache.texera.amber.config.PythonUtils
+import org.apache.texera.common.config.PythonUtils
 import org.apache.texera.dao.SqlServer
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.SystemUtils
