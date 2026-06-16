@@ -89,9 +89,13 @@ class UnionOpDescSpec extends AnyFlatSpec with Matchers {
   // ---------------------------------------------------------------------------
 
   "UnionOpDesc" should
-    "produce distinct instances (no static state shared across instantiations)" in {
+    "assign a fresh operatorIdentifier per instance (UUID-based id is not shared)" in {
+    // `LogicalOp` initializes `operatorId` from `UUID.randomUUID()` in
+    // its constructor body, so two `new UnionOpDesc` allocations must
+    // hold different identifiers. A regression to a static / shared id
+    // would surface here as the two ids being equal.
     val a = new UnionOpDesc
     val b = new UnionOpDesc
-    a should not be theSameInstanceAs(b)
+    a.operatorIdentifier should not equal b.operatorIdentifier
   }
 }
