@@ -22,7 +22,8 @@ package org.apache.texera.service
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.core.setup.Environment
 import io.dropwizard.jersey.setup.JerseyEnvironment
-import org.apache.texera.auth.UnauthorizedExceptionMapper
+import org.apache.texera.auth.{RoleAnnotationEnforcer, UnauthorizedExceptionMapper}
+import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -46,5 +47,13 @@ class ConfigServiceRunSpec extends AnyFlatSpec with Matchers {
     verify(jersey).register(
       org.mockito.ArgumentMatchers.any(classOf[AuthValueFactoryProvider.Binder[_]])
     )
+  }
+
+  // Guards the actual endpoints this service registers: every HTTP method must
+  // carry @RolesAllowed/@PermitAll/@DenyAll, the regression the startup check exists for.
+  "ConfigService's registered resources" should "all declare access control" in {
+    RoleAnnotationEnforcer.findUnannotatedEndpoints(
+      Seq(classOf[ConfigResource], classOf[HealthCheckResource])
+    ) shouldBe empty
   }
 }

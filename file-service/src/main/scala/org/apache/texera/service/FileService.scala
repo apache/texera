@@ -31,6 +31,7 @@ import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.{
   JwtAuthFilter,
   RequestLoggingFilter,
+  RoleAnnotationEnforcer,
   SessionUser,
   UnauthorizedExceptionMapper
 }
@@ -47,6 +48,7 @@ import org.apache.texera.service.util.LargeBinaryManager
 import org.eclipse.jetty.server.session.SessionHandler
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
+import scala.jdk.CollectionConverters._
 
 class FileService extends Application[FileServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[FileServiceConfiguration]): Unit = {
@@ -102,12 +104,25 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
 
+    FileService.enforceRoleAnnotations(environment)
+
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)
   }
 }
 
 object FileService {
+  // Fail fast at startup if any registered endpoint is missing an
+  // @RolesAllowed/@PermitAll/@DenyAll annotation.
+  def enforceRoleAnnotations(environment: Environment): Unit = {
+    val resourceConfig = environment.jersey.getResourceConfig
+    RoleAnnotationEnforcer.enforce(
+      resourceConfig.getClasses.asScala.toSet ++ resourceConfig.getInstances.asScala
+        .map(_.getClass),
+      "FileService"
+    )
+  }
+
   def main(args: Array[String]): Unit = {
     // Set the configuration file's path
     val configFilePath = Path

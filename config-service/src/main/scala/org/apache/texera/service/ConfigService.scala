@@ -28,6 +28,7 @@ import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.auth.{
   JwtAuthFilter,
   RequestLoggingFilter,
+  RoleAnnotationEnforcer,
   SessionUser,
   UnauthorizedExceptionMapper
 }
@@ -39,6 +40,7 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.jooq.impl.DSL
 
 import java.nio.file.Path
+import scala.jdk.CollectionConverters._
 
 class ConfigService extends Application[ConfigServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[ConfigServiceConfiguration]): Unit = {
@@ -71,6 +73,8 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
     ConfigService.registerAuthFeatures(environment)
 
     environment.jersey.register(new ConfigResource)
+
+    ConfigService.enforceRoleAnnotations(environment)
 
     // Preload default.conf into site_setting tables
     try {
@@ -124,6 +128,17 @@ object ConfigService {
 
     // Enforce @RolesAllowed annotations on resource methods
     environment.jersey.register(classOf[RolesAllowedDynamicFeature])
+  }
+
+  // Fail fast at startup if any registered endpoint is missing an
+  // @RolesAllowed/@PermitAll/@DenyAll annotation.
+  def enforceRoleAnnotations(environment: Environment): Unit = {
+    val resourceConfig = environment.jersey.getResourceConfig
+    RoleAnnotationEnforcer.enforce(
+      resourceConfig.getClasses.asScala.toSet ++ resourceConfig.getInstances.asScala
+        .map(_.getClass),
+      "ConfigService"
+    )
   }
 
   def main(args: Array[String]): Unit = {

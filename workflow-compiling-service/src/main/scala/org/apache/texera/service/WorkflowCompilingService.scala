@@ -26,13 +26,19 @@ import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.util.ObjectMapperUtils
-import org.apache.texera.auth.{JwtAuthFilter, SessionUser, UnauthorizedExceptionMapper}
+import org.apache.texera.auth.{
+  JwtAuthFilter,
+  RoleAnnotationEnforcer,
+  SessionUser,
+  UnauthorizedExceptionMapper
+}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
 import org.eclipse.jetty.servlet.FilterHolder
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 import java.nio.file.Path
+import scala.jdk.CollectionConverters._
 
 class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfiguration] {
   override def initialize(bootstrap: Bootstrap[WorkflowCompilingServiceConfiguration]): Unit = {
@@ -68,6 +74,8 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
 
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
+
+    WorkflowCompilingService.enforceRoleAnnotations(environment)
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     val requestLogger = org.slf4j.LoggerFactory.getLogger("org.eclipse.jetty.server.RequestLog")
@@ -108,6 +116,17 @@ object WorkflowCompilingService {
 
     // Enforce @RolesAllowed annotations on resource methods
     environment.jersey.register(classOf[RolesAllowedDynamicFeature])
+  }
+
+  // Fail fast at startup if any registered endpoint is missing an
+  // @RolesAllowed/@PermitAll/@DenyAll annotation.
+  def enforceRoleAnnotations(environment: Environment): Unit = {
+    val resourceConfig = environment.jersey.getResourceConfig
+    RoleAnnotationEnforcer.enforce(
+      resourceConfig.getClasses.asScala.toSet ++ resourceConfig.getInstances.asScala
+        .map(_.getClass),
+      "WorkflowCompilingService"
+    )
   }
 
   def main(args: Array[String]): Unit = {

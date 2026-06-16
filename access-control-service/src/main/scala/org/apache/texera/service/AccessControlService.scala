@@ -27,6 +27,7 @@ import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.auth.{
   JwtAuthFilter,
   RequestLoggingFilter,
+  RoleAnnotationEnforcer,
   SessionUser,
   UnauthorizedExceptionMapper
 }
@@ -41,6 +42,7 @@ import org.apache.texera.service.resource.{
 import org.eclipse.jetty.server.session.SessionHandler
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
+import scala.jdk.CollectionConverters._
 
 class AccessControlService extends Application[AccessControlServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[AccessControlServiceConfiguration]): Unit = {
@@ -94,11 +96,24 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
     // with high recall.
     environment.jersey.register(new UserActivityEventListener())
 
+    AccessControlService.enforceRoleAnnotations(environment)
+
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)
   }
 }
 object AccessControlService {
+  // Fail fast at startup if any registered endpoint is missing an
+  // @RolesAllowed/@PermitAll/@DenyAll annotation.
+  def enforceRoleAnnotations(environment: Environment): Unit = {
+    val resourceConfig = environment.jersey.getResourceConfig
+    RoleAnnotationEnforcer.enforce(
+      resourceConfig.getClasses.asScala.toSet ++ resourceConfig.getInstances.asScala
+        .map(_.getClass),
+      "AccessControlService"
+    )
+  }
+
   def main(args: Array[String]): Unit = {
     val accessControlPath = Path
       .of(sys.env.getOrElse("TEXERA_HOME", "."))
