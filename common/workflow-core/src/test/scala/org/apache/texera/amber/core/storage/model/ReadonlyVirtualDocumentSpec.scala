@@ -80,7 +80,18 @@ class ReadonlyVirtualDocumentSpec extends AnyFlatSpec {
     assert(d.getRange(1, 4).toList == List(1, 2, 3))
   }
 
-  it should "accept an optional `columns` argument (default None) without changing the result" in {
+  it should
+    "accept the optional `columns` argument and resolve its default (None) when omitted at the call site" in {
+    // The `columns` parameter exists so impls can project a subset of
+    // columns — `Some(...)` can LEGITIMATELY change the result on
+    // column-aware impls (e.g. iceberg-backed documents). What this
+    // case pins is the *call-site* contract: the third argument can
+    // be supplied or omitted, and the default is `None`.
+    //
+    // The stub deliberately ignores `columns` so the [from, until)
+    // slice is independent of the column selection — that lets us
+    // assert the call-site shape without taking a position on how
+    // impls should interpret `columns`.
     val d: ReadonlyVirtualDocument[Int] = new StubReadonlyIntDoc(IndexedSeq(0, 1, 2))
     // Call-site with all three positional args.
     assert(d.getRange(0, 2, columns = Some(Seq("c"))).toList == List(0, 1))

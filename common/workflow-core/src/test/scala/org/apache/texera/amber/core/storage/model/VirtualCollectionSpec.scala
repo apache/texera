@@ -70,7 +70,11 @@ class VirtualCollectionSpec extends AnyFlatSpec {
     assert(c.getURI == uri("file:///tmp/coll"))
   }
 
-  it should "expose getDocuments as the list of registered child documents (insertion order)" in {
+  it should "expose getDocuments as a list whose membership matches every addChild call" in {
+    // The `VirtualCollection` API does NOT document an ordering
+    // guarantee on `getDocuments`, so assert on membership (the set
+    // of URIs) rather than exact sequence — over-constraining future
+    // impls is more brittle than under-constraining.
     val c = new StubCollection(uri("file:///coll"))
     assert(c.getDocuments.isEmpty)
     val docA = new StubDocument(uri("file:///coll/a"))
@@ -79,9 +83,7 @@ class VirtualCollectionSpec extends AnyFlatSpec {
     c.addChild("b", docB)
     val docs = c.getDocuments
     assert(docs.size == 2)
-    // LinkedHashMap preserves insertion order; pin the URI sequence so
-    // a regression to HashMap-backed storage would surface here.
-    assert(docs.map(_.getURI) == List(docA.getURI, docB.getURI))
+    assert(docs.map(_.getURI).toSet == Set(docA.getURI, docB.getURI))
   }
 
   it should "look up a child by name via getDocument" in {
@@ -92,15 +94,19 @@ class VirtualCollectionSpec extends AnyFlatSpec {
     assert(c.getDocument("only") eq doc)
   }
 
-  it should "let getDocument signal a missing child (the spec leaves that to impls)" in {
+  it should "let an impl decide how to signal a missing child (not pinned by the abstract class)" in {
     // The abstract class declares `getDocument(name): VirtualDocument[_]`
     // with no exception specification — impls choose how to signal a
-    // missing child. The stub raises NoSuchElementException; pin that
-    // behavior.
+    // missing child. Avoid pinning a specific exception type here so
+    // the case does not become an implicit contract on every future
+    // impl; just pin that the call does NOT silently return a
+    // (legitimate) document for an unregistered name.
     val c = new StubCollection(uri("file:///coll"))
-    intercept[NoSuchElementException] {
-      c.getDocument("does-not-exist")
-    }
+    val outcome = scala.util.Try(c.getDocument("does-not-exist"))
+    assert(
+      outcome.isFailure,
+      s"a missing-child lookup must signal failure (it MUST NOT silently return a document); got: $outcome"
+    )
   }
 
   // ---------------------------------------------------------------------------
