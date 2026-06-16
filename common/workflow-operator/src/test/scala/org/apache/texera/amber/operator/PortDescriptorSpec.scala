@@ -166,10 +166,13 @@ class PortDescriptorSpec extends AnyFlatSpec {
     "deserialize a truly-legacy payload that has `allowMultiInputs` but NO `disallowMultiInputs`" in {
     // Pre-#4379 workflow JSONs (e.g. `bin/single-node/examples/workflows/`)
     // emit ONLY the old `allowMultiInputs` key, not the new
-    // `disallowMultiInputs`. Pin that Jackson tolerates the absence of
-    // the new field and applies the case-class default (`false`) — the
-    // mixed-legacy case above doesn't exercise this since both keys are
-    // present.
+    // `disallowMultiInputs`. `PortDescription` does NOT declare a Scala
+    // constructor default for `disallowMultiInputs`, so what we're
+    // pinning is Jackson's missing-boolean deserialization behavior
+    // (the project uses `jackson-module-no-ctor-deser`, which yields
+    // `false` for a missing primitive boolean) — not a Scala default.
+    // The mixed-legacy case above does not exercise this since both
+    // keys are present.
     val trulyLegacyJson = """
       {
         "portID": "p",
@@ -184,7 +187,8 @@ class PortDescriptorSpec extends AnyFlatSpec {
     assert(parsed.isSuccess, s"truly-legacy JSON must deserialize without error; got: $parsed")
     val pd = parsed.get
     assert(pd.portID == "p")
-    // Missing-field default: `disallowMultiInputs` falls back to `false`.
+    // Jackson's missing-boolean behavior: `disallowMultiInputs` is
+    // omitted from the JSON and ends up `false` after deserialization.
     assert(!pd.disallowMultiInputs)
   }
 
