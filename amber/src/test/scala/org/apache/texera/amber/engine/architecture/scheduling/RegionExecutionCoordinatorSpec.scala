@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import com.twitter.util.Future
+import com.twitter.util.{Duration => TwitterDuration, Future}
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
@@ -120,6 +120,26 @@ class RegionExecutionCoordinatorSpec
     assert(workerState(fixture) == WorkerState.TERMINATED)
   }
 
+  it should "give up with a descriptive error once the EndWorker retry budget is exhausted" in {
+    // EndWorker always fails: a worker that never finishes draining.
+    val fixture = createSingleRegionFixture(
+      endWorkerResponse = _ => Some(transientEndWorkerFailure),
+      maxTerminationAttempts = 3,
+      killRetryDelay = TwitterDuration.fromMilliseconds(5)
+    )
+
+    launchRegion(fixture.coordinator)
+    val completion = requestRegionCompletion(fixture.coordinator)
+
+    val failure = intercept[IllegalStateException] {
+      await(completion)
+    }
+    assert(failure.getMessage.contains("could not be terminated after 3 attempts"))
+    assert(!fixture.coordinator.isCompleted)
+    assert(fixture.rpcProbe.endWorkerCalls.size == 3)
+    assert(fixture.actorRefService.hasActorRef(fixture.workerId))
+  }
+
   private case class SingleRegionFixture(
       coordinator: RegionExecutionCoordinator,
       rpcProbe: ControllerRpcProbe,
@@ -131,7 +151,9 @@ class RegionExecutionCoordinatorSpec
   )
 
   private def createSingleRegionFixture(
-      endWorkerResponse: WorkerRpcCall => Option[ControlReturn]
+      endWorkerResponse: WorkerRpcCall => Option[ControlReturn],
+      maxTerminationAttempts: Int = RegionExecutionCoordinator.DefaultMaxTerminationAttempts,
+      killRetryDelay: TwitterDuration = RegionExecutionCoordinator.DefaultKillRetryDelay
   ): SingleRegionFixture = {
     val physicalOp = createSourceOp("test-op")
     val workerId = createWorkerId(physicalOp)
@@ -158,7 +180,9 @@ class RegionExecutionCoordinatorSpec
       rpcProbe.asyncRPCClient,
       ControllerConfig(None, None, None, None),
       controller.actorService,
-      controller.actorRefService
+      controller.actorRefService,
+      maxTerminationAttempts,
+      killRetryDelay
     )
 
     SingleRegionFixture(
