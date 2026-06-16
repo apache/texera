@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import org.apache.texera.amber.core.workflow.UnknownPartition
+import org.apache.texera.amber.core.workflow.{HashPartition, UnknownPartition}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -162,12 +162,38 @@ class PortDescriptorSpec extends AnyFlatSpec {
     assert(parsed.isSuccess, s"legacy JSON must deserialize without error; got: $parsed")
   }
 
+  it should
+    "deserialize a truly-legacy payload that has `allowMultiInputs` but NO `disallowMultiInputs`" in {
+    // Pre-#4379 workflow JSONs (e.g. `bin/single-node/examples/workflows/`)
+    // emit ONLY the old `allowMultiInputs` key, not the new
+    // `disallowMultiInputs`. Pin that Jackson tolerates the absence of
+    // the new field and applies the case-class default (`false`) — the
+    // mixed-legacy case above doesn't exercise this since both keys are
+    // present.
+    val trulyLegacyJson = """
+      {
+        "portID": "p",
+        "displayName": "d",
+        "allowMultiInputs": true,
+        "isDynamicPort": false,
+        "partitionRequirement": { "type": "none" }
+      }
+    """
+    val parsed =
+      scala.util.Try(objectMapper.readValue(trulyLegacyJson, classOf[PortDescription]))
+    assert(parsed.isSuccess, s"truly-legacy JSON must deserialize without error; got: $parsed")
+    val pd = parsed.get
+    assert(pd.portID == "p")
+    // Missing-field default: `disallowMultiInputs` falls back to `false`.
+    assert(!pd.disallowMultiInputs)
+  }
+
   // ---------------------------------------------------------------------------
   // JSON round-trip — every field survives serde
   // ---------------------------------------------------------------------------
 
   "PortDescription JSON round-trip" should
-    "preserve portID / displayName / disallowMultiInputs / isDynamicPort / dependencies" in {
+    "preserve every field including the polymorphic partitionRequirement" in {
     val p = PortDescription(
       portID = "rt-1",
       displayName = "rt-display",
@@ -183,5 +209,26 @@ class PortDescriptorSpec extends AnyFlatSpec {
     assert(restored.disallowMultiInputs == p.disallowMultiInputs)
     assert(restored.isDynamicPort == p.isDynamicPort)
     assert(restored.dependencies == p.dependencies)
+    // partitionRequirement is a sealed `PartitionInfo` carrying a
+    // `@JsonTypeInfo` discriminator (`type` property). Drift in the
+    // annotation set or in the subtype-name table would silently
+    // break workflow JSON deserialization; pin this field too.
+    assert(restored.partitionRequirement == p.partitionRequirement)
+  }
+
+  it should "round-trip a non-Unknown PartitionInfo (HashPartition with attributes)" in {
+    // Vary the PartitionInfo subtype away from the default so the
+    // discriminator + value layout is exercised end-to-end.
+    val p = PortDescription(
+      portID = "rt-2",
+      displayName = "hash",
+      disallowMultiInputs = false,
+      isDynamicPort = false,
+      partitionRequirement = HashPartition(List("a", "b")),
+      dependencies = List.empty
+    )
+    val restored =
+      objectMapper.readValue(objectMapper.writeValueAsString(p), classOf[PortDescription])
+    assert(restored.partitionRequirement == HashPartition(List("a", "b")))
   }
 }
