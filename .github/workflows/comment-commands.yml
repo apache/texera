@@ -57,7 +57,7 @@ permissions:
 
 jobs:
   suggest-reviewers:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
