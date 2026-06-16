@@ -25,7 +25,6 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.common.config.KubernetesConfig
 import org.jooq.exception.DataAccessException
 
 import javax.ws.rs._
@@ -55,10 +54,9 @@ class PveResource extends LazyLogging {
   @Path("/system")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getSystemPackages: util.Map[String, util.List[String]] = {
-    val isLocal = !KubernetesConfig.kubernetesComputingUnitEnabled
     try {
       val systemPkgs =
-        PveManager.getSystemPackages(isLocal).toList.asJava
+        PveManager.getSystemPackages.toList.asJava
 
       Map("system" -> systemPkgs).asJava
     } catch {
@@ -208,12 +206,10 @@ class PveResource extends LazyLogging {
       @PathParam("pveName") pveName: String,
       @PathParam("packageName") packageName: String
   ): Response = {
-    val isLocal = !KubernetesConfig.kubernetesComputingUnitEnabled
     val messages = PveManager.deletePackages(
       cuid,
       packageName,
-      pveName,
-      isLocal
+      pveName
     )
 
     if (messages.exists(_.contains("[PVE][ERR]"))) {
