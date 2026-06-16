@@ -68,8 +68,11 @@ class UnionOpDescSpec extends AnyFlatSpec with Matchers {
     val op = new UnionOpDesc
     val info = op.operatorInfo
     val physical = op.getPhysicalOp(workflowId, executionId)
-    physical.inputPorts should have size info.inputPorts.size.toLong
-    physical.outputPorts should have size info.outputPorts.size.toLong
+    // `physical.inputPorts` / `outputPorts` are `Map`s — compare `size`
+    // (Int) directly; the descriptor's `operatorInfo.*.size` is also an
+    // Int, so no Long coercion is needed.
+    assert(physical.inputPorts.size == info.inputPorts.size)
+    assert(physical.outputPorts.size == info.outputPorts.size)
   }
 
   it should "leave the partition requirement empty (no hash-alignment forced)" in {
