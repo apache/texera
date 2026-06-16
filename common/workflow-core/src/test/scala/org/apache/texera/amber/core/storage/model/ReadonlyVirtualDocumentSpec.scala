@@ -42,7 +42,10 @@ class ReadonlyVirtualDocumentSpec extends AnyFlatSpec {
     override def getCount: Long = items.size.toLong
     override def asInputStream(): InputStream =
       new ByteArrayInputStream(items.map(_.toByte).toArray)
-    override def asFile(): File = new File("/tmp/stub-int")
+    // Use the OS-portable temp directory rather than a hardcoded
+    // `/tmp/...` path so the spec also runs on Windows.
+    override def asFile(): File =
+      new File(System.getProperty("java.io.tmpdir"), "stub-int")
   }
 
   // ---------------------------------------------------------------------------
@@ -67,15 +70,21 @@ class ReadonlyVirtualDocumentSpec extends AnyFlatSpec {
 
   "ReadonlyVirtualDocument.getRange" should
     "yield items in `[from, until)` (half-open interval — `until` is exclusive)" in {
-    val d = new StubReadonlyIntDoc(IndexedSeq(0, 1, 2, 3, 4))
+    // Type via the trait so the default-arg contract (`columns: Option[…] = None`)
+    // is resolved at the call site through the trait's signature, not the
+    // concrete subclass. Scala resolves default parameters from the
+    // STATIC type, so a `StubReadonlyIntDoc`-typed value without its own
+    // default would not get a default at the call site.
+    val d: ReadonlyVirtualDocument[Int] =
+      new StubReadonlyIntDoc(IndexedSeq(0, 1, 2, 3, 4))
     assert(d.getRange(1, 4).toList == List(1, 2, 3))
   }
 
   it should "accept an optional `columns` argument (default None) without changing the result" in {
-    val d = new StubReadonlyIntDoc(IndexedSeq(0, 1, 2))
+    val d: ReadonlyVirtualDocument[Int] = new StubReadonlyIntDoc(IndexedSeq(0, 1, 2))
     // Call-site with all three positional args.
     assert(d.getRange(0, 2, columns = Some(Seq("c"))).toList == List(0, 1))
-    // Call-site that omits the third arg — must compile via default.
+    // Call-site that omits the third arg — resolved via the trait's default.
     assert(d.getRange(0, 2).toList == List(0, 1))
   }
 

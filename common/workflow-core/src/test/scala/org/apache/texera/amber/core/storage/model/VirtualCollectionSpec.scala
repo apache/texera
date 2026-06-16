@@ -60,7 +60,9 @@ class VirtualCollectionSpec extends AnyFlatSpec {
   private def uri(s: String): URI = new URI(s)
 
   // ---------------------------------------------------------------------------
-  // Trait declares four abstract methods — pinned via concrete subclass
+  // Abstract class declares four abstract methods — pinned via a
+  // concrete subclass. (VirtualCollection is an `abstract class`, not a
+  // trait — see `VirtualCollection.scala`.)
   // ---------------------------------------------------------------------------
 
   "VirtualCollection (concrete subclass)" should "delegate getURI to the implementation" in {
@@ -91,9 +93,10 @@ class VirtualCollectionSpec extends AnyFlatSpec {
   }
 
   it should "let getDocument signal a missing child (the spec leaves that to impls)" in {
-    // The trait declares `getDocument(name): VirtualDocument[_]` with no
-    // exception specification — impls choose how to signal a missing
-    // child. The stub raises NoSuchElementException; pin that behavior.
+    // The abstract class declares `getDocument(name): VirtualDocument[_]`
+    // with no exception specification — impls choose how to signal a
+    // missing child. The stub raises NoSuchElementException; pin that
+    // behavior.
     val c = new StubCollection(uri("file:///coll"))
     intercept[NoSuchElementException] {
       c.getDocument("does-not-exist")
@@ -118,7 +121,7 @@ class VirtualCollectionSpec extends AnyFlatSpec {
   // Type-pattern matching — `case _: VirtualCollection`
   // ---------------------------------------------------------------------------
 
-  "A VirtualCollection value" should "match the VirtualCollection trait via type-pattern" in {
+  "A VirtualCollection value" should "match the VirtualCollection type via type-pattern" in {
     val c: AnyRef = new StubCollection(uri("file:///coll"))
     val matched = c match {
       case _: VirtualCollection => true
@@ -130,7 +133,7 @@ class VirtualCollectionSpec extends AnyFlatSpec {
   it should
     "NOT match an unrelated type via type-pattern (sanity check)" in {
     // Asymmetry sanity: a String is not a VirtualCollection. Catches a
-    // refactor that widened the trait to a structural / type-alias
+    // refactor that widened the abstract class to a structural / type-alias
     // declaration.
     val notCol: AnyRef = "hello"
     val matched = notCol match {
