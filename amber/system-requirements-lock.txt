@@ -46,7 +46,6 @@ h2==4.3.0
 hpack==4.1.0
 hyperframe==6.1.0
 idna==3.15
-iniconfig==1.1.1
 jmespath==1.1.0
 loguru==0.7.0
 markdown-it-py==4.2.0
@@ -59,7 +58,6 @@ packaging==26.2
 pampy==0.3.0
 pandas==2.2.3
 pg8000==1.31.5
-pluggy==1.6.0
 praw==7.6.1
 prawcore==2.4.0
 propcache==0.5.2
@@ -73,9 +71,6 @@ pyiceberg==0.11.1
 pympler==1.1
 pyparsing==3.3.2
 pyroaring==1.1.0
-pytest==7.4.0
-pytest-reraise==2.1.2
-pytest-timeout==2.2.0
 python-dateutil==2.8.2
 pytz==2026.2
 readerwriterlock==1.0.9
