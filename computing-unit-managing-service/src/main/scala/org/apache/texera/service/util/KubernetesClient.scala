@@ -35,7 +35,7 @@ object KubernetesClient {
   private val podNamePrefix = "computing-unit"
 
   def generatePodURI(cuid: Int): String = {
-    s"${generatePodName(cuid)}.${KubernetesConfig.computeUnitServiceName}.$namespace.svc.cluster.local"
+    s"${generatePodName(cuid)}.${KubernetesConfig.computeUnitServiceName}.$namespace.svc.cluster.local:${KubernetesConfig.computeUnitPortNumber}"
   }
 
   def generatePodName(cuid: Int): String = s"$podNamePrefix-$cuid"
