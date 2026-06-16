@@ -46,7 +46,7 @@ abstract class LoopOpDesc extends LogicalOp {
     * Loop End accumulates output across its iterations and so reuses its output
     * storage on region re-execution; Loop Start does not.
     */
-  protected def reusesOutputStorage: Boolean = false
+  protected def reuseStorage: Boolean = false
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -77,6 +77,6 @@ abstract class LoopOpDesc extends LogicalOp {
       // Loop End reuses its output storage across region re-executions (it
       // accumulates across the iterations of its own loop); the flag is
       // declared on the output port and the region scheduler reads it there.
-      outputPorts = List(OutputPort(reusesOutputStorage = reusesOutputStorage))
+      outputPorts = List(OutputPort(reuseStorage = reuseStorage))
     )
 }

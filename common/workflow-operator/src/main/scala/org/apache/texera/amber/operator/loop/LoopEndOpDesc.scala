@@ -38,7 +38,7 @@ class LoopEndOpDesc extends LoopOpDesc {
   override protected def operatorDescription: String =
     "Close a loop body and decide whether to iterate again based on a condition; pairs with Loop Start."
 
-  override protected def reusesOutputStorage: Boolean = true
+  override protected def reuseStorage: Boolean = true
 
   // User-supplied `update` and `condition` are interpolated via the `pyb`
   // builder, which base64-encodes each EncodableString and renders it as a

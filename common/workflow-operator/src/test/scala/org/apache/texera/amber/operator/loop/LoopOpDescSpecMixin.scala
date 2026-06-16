@@ -38,7 +38,7 @@ import java.util.Base64
   *
   * Extracting these into a mixin keeps the two specs focused on the parts that
   * actually differ — operator name, group, generated class name, the output
-  * port's reusesOutputStorage flag, which user fields exist, and what
+  * port's reuseStorage flag, which user fields exist, and what
   * statements the generated code must contain.
   */
 trait LoopOpDescSpecMixin extends Matchers {

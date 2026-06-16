@@ -128,12 +128,12 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
   }
 
   it should "not reuse output storage across re-execution" in {
-    // The output port's `reusesOutputStorage` flag is consumed by
+    // The output port's `reuseStorage` flag is consumed by
     // RegionExecutionCoordinator (via DocumentFactory.createOrReuseDocument) to
     // skip recreating result/state tables across loop iterations. LoopStart's
     // port must NOT carry it -- only LoopEnd (which accumulates output) does.
     val physical = desc().getPhysicalOp(workflowId, executionId)
-    physical.outputPorts.values.head._1.reusesOutputStorage shouldBe false
+    physical.outputPorts.values.head._1.reuseStorage shouldBe false
   }
 
   it should "carry the generated Python code via OpExecWithCode" in {

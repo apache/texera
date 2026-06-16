@@ -578,21 +578,21 @@ class RegionExecutionCoordinator(
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
         // An output port whose storage accumulates across region re-executions
         // (e.g. a LoopEnd port, whose output builds up over the iterations of
-        // its own loop) sets `reusesOutputStorage`, so the existing document is
-        // preserved rather than clobbered by `createDocument` (overrideIfExists
-        // = true). Read per output port -- storage behavior is port-specific.
+        // its own loop) sets `reuseStorage`. When set, the port's existing
+        // document is kept and reopened on each re-run; when unset, a fresh one
+        // is created. Read per output port -- storage behavior is port-specific.
         // (The inner LoopEnd of a nested loop additionally drops its output
         // once per outer iteration on the Python worker side in
         // MainLoop._process_state_frame, which is orthogonal to this.)
-        val reusesOutputStorage =
+        val reuseStorage =
           region
             .getOperator(outputPortId.opId)
             .outputPorts(outputPortId.portId)
             ._1
-            .reusesOutputStorage
+            .reuseStorage
         Seq((resultURI, schema), (stateURI, State.schema)).foreach {
           case (uri, sch) =>
-            DocumentFactory.createOrReuseDocument(uri, sch, reusesOutputStorage)
+            DocumentFactory.createOrReuseDocument(uri, sch, reuseStorage)
         }
         if (!isRestart) {
           val (_, eid, _, _) = decodeURI(resultURI)
