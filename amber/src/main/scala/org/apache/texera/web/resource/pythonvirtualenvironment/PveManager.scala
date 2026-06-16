@@ -19,8 +19,6 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.lang3.SystemUtils
 
 import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.BlockingQueue
