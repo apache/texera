@@ -272,7 +272,7 @@ class TestTimeoutsAndRetries:
             assert download_kwargs["timeout"] == DatasetFileDocument._REQUEST_TIMEOUT
 
     def test_session_mounts_retry_adapter_for_http_and_https(self):
-        session = DatasetFileDocument._build_session()
+        session = DatasetFileDocument._retry_session()
         try:
             for prefix in ("http://", "https://"):
                 retry = session.get_adapter(prefix).max_retries

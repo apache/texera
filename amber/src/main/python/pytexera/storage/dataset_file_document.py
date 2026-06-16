@@ -25,15 +25,16 @@ from urllib3.util.retry import Retry
 
 class DatasetFileDocument:
     # (connect, read) timeout and retry settings for the file-service GETs below.
-    _CONNECT_TIMEOUT_SECONDS = 10
-    _READ_TIMEOUT_SECONDS = 60
+    # Read timeout bounds inactivity between bytes, not total download time.
+    _CONNECT_TIMEOUT_SECONDS = 5
+    _READ_TIMEOUT_SECONDS = 10
     _REQUEST_TIMEOUT = (_CONNECT_TIMEOUT_SECONDS, _READ_TIMEOUT_SECONDS)
     _MAX_RETRIES = 3
     _RETRY_BACKOFF_FACTOR = 0.5
     _RETRY_STATUS_FORCELIST = (500, 502, 503, 504)
 
     @classmethod
-    def _build_session(cls) -> requests.Session:
+    def _retry_session(cls) -> requests.Session:
         """Returns a Session that retries GETs on connection errors and 5xx."""
         retry = Retry(
             total=cls._MAX_RETRIES,
@@ -98,7 +99,7 @@ class DatasetFileDocument:
         params = {"filePath": encoded_file_path}
 
         try:
-            with self._build_session() as session:
+            with self._retry_session() as session:
                 response = session.get(
                     self.presign_endpoint,
                     headers=headers,
@@ -140,7 +141,7 @@ class DatasetFileDocument:
         """
         presigned_url = self.get_presigned_url()
         try:
-            with self._build_session() as session:
+            with self._retry_session() as session:
                 response = session.get(presigned_url, timeout=self._REQUEST_TIMEOUT)
         except requests.exceptions.RequestException as e:
             raise RuntimeError(
