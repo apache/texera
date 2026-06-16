@@ -140,6 +140,24 @@ class RegionExecutionCoordinatorSpec
     assert(fixture.actorRefService.hasActorRef(fixture.workerId))
   }
 
+  it should "give up after a single attempt when the budget is one" in {
+    val fixture = createSingleRegionFixture(
+      endWorkerResponse = _ => Some(transientEndWorkerFailure),
+      maxTerminationAttempts = 1,
+      killRetryDelay = TwitterDuration.fromMilliseconds(5)
+    )
+
+    launchRegion(fixture.coordinator)
+    val completion = requestRegionCompletion(fixture.coordinator)
+
+    val failure = intercept[IllegalStateException] {
+      await(completion)
+    }
+    assert(failure.getMessage.contains("could not be terminated after 1 attempts"))
+    assert(failure.getMessage.contains(fixture.workerId.toString))
+    assert(fixture.rpcProbe.endWorkerCalls.size == 1)
+  }
+
   private case class SingleRegionFixture(
       coordinator: RegionExecutionCoordinator,
       rpcProbe: ControllerRpcProbe,
