@@ -76,8 +76,12 @@ class UnionOpDescSpec extends AnyFlatSpec with Matchers {
     // Unlike Distinct / Difference / Intersect in the same SET group,
     // Union does NOT require its inputs to be hash-partitioned — the
     // pass-through executor preserves whatever the upstream produced.
+    //
+    // Assert on the list itself (not just `.flatten`) so a regression
+    // that introduced a `None` entry (`List(None)` — same "no
+    // requirement" semantics but a different list shape) is caught here.
     val physical = (new UnionOpDesc).getPhysicalOp(workflowId, executionId)
-    physical.partitionRequirement.flatten shouldBe empty
+    physical.partitionRequirement shouldBe empty
   }
 
   // ---------------------------------------------------------------------------
