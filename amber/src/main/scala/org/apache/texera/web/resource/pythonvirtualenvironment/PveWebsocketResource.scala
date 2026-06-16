@@ -19,7 +19,6 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import java.util.concurrent.LinkedBlockingQueue

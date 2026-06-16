@@ -19,7 +19,6 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-
 import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.BlockingQueue
 import scala.collection.mutable.Map
