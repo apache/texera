@@ -177,23 +177,23 @@ jobs:
             body += `**Suggested reviewers** (based on \`git blame\` of changed files):\n\n`;
 
             if (committers.length) {
-              body += `**Committers** — can be formally requested: ${committers.map(l => `@${l}`).join(', ')}\n\n`;
+              body += `**Committers** — can be formally requested: ${committers.map(l => `\`@${l}\``).join(', ')}\n\n`;
             } else {
               body += `**Committers** — none identified\n\n`;
             }
 
             if (nonCommitters.length) {
-              body += `**Non-committer contributors** — cc to notify: ${nonCommitters.map(l => `@${l}`).join(', ')}\n\n`;
+              body += `**Non-committer contributors** — cc to notify: ${nonCommitters.map(l => `\`@${l}\``).join(', ')}\n\n`;
             }
 
             if (committers.length) {
               body += `Use \`/request-review @${committers[0]}\` to request a review`;
               if (nonCommitters.length) {
-                body += `, or cc ${nonCommitters.map(l => `@${l}`).join(' ')} to notify them`;
+                body += `, or cc ${nonCommitters.map(l => `\`@${l}\``).join(' ')} to notify them`;
               }
               body += '.';
             } else if (nonCommitters.length) {
-              body += `Cc ${nonCommitters.map(l => `@${l}`).join(' ')} to notify them.`;
+              body += `Cc ${nonCommitters.map(l => `\`@${l}\``).join(' ')} to notify them.`;
             } else {
               body += `No candidates found from blame history.`;
             }
