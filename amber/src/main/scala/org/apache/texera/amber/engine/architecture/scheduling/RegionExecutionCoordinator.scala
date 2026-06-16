@@ -578,30 +578,30 @@ class RegionExecutionCoordinator(
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
         // An output port whose storage accumulates across region re-executions
         // (e.g. a LoopEnd port, whose output builds up over the iterations of
-        // its own loop) sets `reusesOutputStorage`, so the existing document is
-        // preserved rather than clobbered by `createDocument` (overrideIfExists
-        // = true). Read per output port -- storage behavior is port-specific.
+        // its own loop) sets `reuseStorage`. When set, the port's existing
+        // document is kept and reopened on each re-run; when unset, a fresh one
+        // is created. Read per output port -- storage behavior is port-specific.
         // (The inner LoopEnd of a nested loop additionally drops its output
         // once per outer iteration on the Python worker side in
         // MainLoop._process_state_frame, which is orthogonal to this.)
-        val reusesOutputStorage =
+        val reuseStorage =
           region
             .getOperator(outputPortId.opId)
             .outputPorts(outputPortId.portId)
             ._1
-            .reusesOutputStorage
-        // Guard: no operator enables reusesOutputStorage in production yet -- it
-        // activates with the loop operators, which aren't on main. Fail loudly
-        // if one does rather than silently exercising the dormant reuse path.
-        // Remove/relax this guard when introducing the loop operators.
+            .reuseStorage
+        // Guard: no operator enables reuseStorage in production yet -- it
+        // activates with the loop operators, which aren't on main. Until then
+        // this fails loudly so the dormant reuse path is never silently
+        // exercised. Remove/relax this guard when introducing the loop operators.
         require(
-          !reusesOutputStorage,
-          s"Output port $outputPortId set reusesOutputStorage, which is not " +
+          !reuseStorage,
+          s"Output port $outputPortId set reuseStorage, which is not " +
             "supported in production yet (it activates with the loop operators)."
         )
         Seq((resultURI, schema), (stateURI, State.schema)).foreach {
           case (uri, sch) =>
-            DocumentFactory.createOrReuseDocument(uri, sch, reusesOutputStorage)
+            DocumentFactory.createOrReuseDocument(uri, sch, reuseStorage)
         }
         if (!isRestart) {
           val (_, eid, _, _) = decodeURI(resultURI)

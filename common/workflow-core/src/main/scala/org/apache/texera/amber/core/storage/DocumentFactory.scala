@@ -139,8 +139,7 @@ object DocumentFactory {
     * output accumulates across re-runs (e.g. a LoopEnd port whose region
     * re-executes once per loop iteration) keeps the already-populated document
     * instead of clobbering it, since `createDocument` overrides any existing
-    * document. Otherwise create it. Either way the caller gets the document, so
-    * the call site need not branch on create-vs-reuse.
+    * document. Otherwise create it.
     *
     * `exists` / `open` / `create` default to this object's own `documentExists`
     * / `openDocument` / `createDocument`; they are parameterized only so the

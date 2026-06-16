@@ -23,7 +23,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 /**
-  * Guard for the `OutputPort.reusesOutputStorage` flag.
+  * Guard for the `OutputPort.reuseStorage` flag.
   *
   * The flag tells the region scheduler to reuse (append to) a port's storage
   * across region re-executions instead of recreating it. Only an operator whose
@@ -36,11 +36,11 @@ import org.scalatest.matchers.should.Matchers
   */
 class OutputPortReuseFlagSpec extends AnyFlatSpec with Matchers {
 
-  "No registered operator" should "enable OutputPort.reusesOutputStorage on any of its output ports" in {
+  "No registered operator" should "enable OutputPort.reuseStorage on any of its output ports" in {
     OperatorMetadataGenerator.operatorTypeMap.keys.foreach { opClass =>
       opClass.getConstructor().newInstance().operatorInfo.outputPorts.foreach { port =>
         withClue(s"${opClass.getSimpleName} / output port ${port.id}: ") {
-          port.reusesOutputStorage shouldBe false
+          port.reuseStorage shouldBe false
         }
       }
     }
