@@ -1,0 +1,93 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.operator.union
+
+import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+class UnionOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val workflowId = WorkflowIdentity(1L)
+  private val executionId = ExecutionIdentity(1L)
+
+  // ---------------------------------------------------------------------------
+  // operatorInfo — descriptor metadata
+  // ---------------------------------------------------------------------------
+
+  "UnionOpDesc.operatorInfo" should "advertise the user-friendly name and Set group" in {
+    val info = (new UnionOpDesc).operatorInfo
+    info.userFriendlyName shouldBe "Union"
+    info.operatorGroupName shouldBe OperatorGroupConstants.SET_GROUP
+    info.operatorDescription should include("Union")
+  }
+
+  it should "expose exactly one input port and one (non-blocking) output port" in {
+    val info = (new UnionOpDesc).operatorInfo
+    info.inputPorts should have length 1
+    info.outputPorts should have length 1
+    info.outputPorts.head.blocking shouldBe false
+  }
+
+  // ---------------------------------------------------------------------------
+  // getPhysicalOp — wiring to UnionOpExec
+  // ---------------------------------------------------------------------------
+
+  "UnionOpDesc.getPhysicalOp" should
+    "wire the UnionOpExec class name into the OpExecInitInfo" in {
+    val op = new UnionOpDesc
+    val physical = op.getPhysicalOp(workflowId, executionId)
+    physical.opExecInitInfo match {
+      case OpExecWithClassName(className, _) =>
+        className shouldBe "org.apache.texera.amber.operator.union.UnionOpExec"
+      case other =>
+        fail(s"expected OpExecWithClassName, got $other")
+    }
+  }
+
+  it should "expose the same input/output port shape as operatorInfo" in {
+    val op = new UnionOpDesc
+    val info = op.operatorInfo
+    val physical = op.getPhysicalOp(workflowId, executionId)
+    physical.inputPorts should have size info.inputPorts.size.toLong
+    physical.outputPorts should have size info.outputPorts.size.toLong
+  }
+
+  it should "leave the partition requirement empty (no hash-alignment forced)" in {
+    // Unlike Distinct / Difference / Intersect in the same SET group,
+    // Union does NOT require its inputs to be hash-partitioned — the
+    // pass-through executor preserves whatever the upstream produced.
+    val physical = (new UnionOpDesc).getPhysicalOp(workflowId, executionId)
+    physical.partitionRequirement.flatten shouldBe empty
+  }
+
+  // ---------------------------------------------------------------------------
+  // Independent instances
+  // ---------------------------------------------------------------------------
+
+  "UnionOpDesc" should
+    "produce distinct instances (no static state shared across instantiations)" in {
+    val a = new UnionOpDesc
+    val b = new UnionOpDesc
+    a should not be theSameInstanceAs(b)
+  }
+}
