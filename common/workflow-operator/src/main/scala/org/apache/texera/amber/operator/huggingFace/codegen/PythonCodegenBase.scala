@@ -461,8 +461,8 @@ object PythonCodegenBase {
        |        # --- resolve all available inference providers for this model (tried in order) ---
        |        providers = self._resolve_providers(token)
        |
-       |        # --- validate prompt column exists (skipped for image-only tasks) ---
-       |        if task not in image_only_tasks:
+       |        # --- validate prompt column exists (required for non-image tasks) ---
+       |        if task not in image_tasks:
        |            assert prompt_col in table.columns, (
        |                f"Prompt column '{prompt_col}' not found in input table. "
        |                f"Available columns: {list(table.columns)}"
