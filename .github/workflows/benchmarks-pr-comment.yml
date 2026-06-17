@@ -57,7 +57,7 @@ jobs:
     # Only act when the upstream Benchmarks run was triggered by a PR.
     # push-to-main / schedule / dispatch produce no PR to comment on.
     if: ${{ github.event.workflow_run.event == 'pull_request' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Download bench-results artifact
         uses: actions/github-script@v8
