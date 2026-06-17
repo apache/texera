@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -39,7 +39,7 @@ import javax.validation.constraints.NotNull
   */
 
 // type can be numerical only
-class BubbleChartOpDesc extends PythonOperatorDescriptor {
+class BubbleChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "xValue", required = true)
   @JsonSchemaTitle("X-Column")
@@ -141,5 +141,33 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content':html}
          |"""
     finalCode.encode
+  }
+
+  // Output is an HTML chart, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val colorArg =
+      if (enableColor) s""", color="$colorCategory"""" else ""
+
+    s"""if in1df.empty:
+       |    print("Bubble chart error: Input table is empty.")
+       |else:
+       |    in1df.dropna(subset=["$xValue", "$yValue", "$zValue"], inplace=True)
+       |    if in1df.empty:
+       |        print("Bubble chart error: No valid rows left (every row has at least 1 missing value).")
+       |    else:
+       |        fig = go.Figure(px.scatter(
+       |            in1df,
+       |            x="$xValue",
+       |            y="$yValue",
+       |            size="$zValue",
+       |            size_max=100$colorArg
+       |        ))
+       |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Bubble chart saved to output.html")""".stripMargin
   }
 }
