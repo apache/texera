@@ -25,11 +25,11 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class CandlestickChartOpDesc extends PythonOperatorDescriptor {
+class CandlestickChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "date", required = true)
   @JsonSchemaTitle("Date Column")
@@ -105,5 +105,20 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor {
        |        yield {'html-content': html}
        |""".encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String =
+    s"""fig = go.Figure(data=[go.Candlestick(
+       |    x=in1df["$date"],
+       |    open=in1df["$open"],
+       |    high=in1df["$high"],
+       |    low=in1df["$low"],
+       |    close=in1df["$close"]
+       |)])
+       |fig.update_layout(title='Candlestick Chart')
+       |fig.write_json("output.json")
+       |fig.write_html("output.html")
+       |print("Candlestick chart saved to output.json and output.html")""".stripMargin
 
 }
