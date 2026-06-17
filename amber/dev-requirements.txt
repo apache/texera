@@ -20,6 +20,11 @@
 # pip-licenses output and never need to be tracked in LICENSE-binary
 # / NOTICE-binary. Not installed by packaging.
 
+# pytest test runner and plugins.
+pytest==7.4.0
+pytest-reraise==2.1.2
+pytest-timeout==2.2.0
+
 # Coverage instrumentation for pytest; emits coverage.xml consumed by
 # Codecov's Phase 1 upload.
 pytest-cov==5.0.0

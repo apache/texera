@@ -19,8 +19,6 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-import org.apache.texera.common.config.KubernetesConfig
-
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import java.util.concurrent.LinkedBlockingQueue
@@ -43,7 +41,6 @@ class PveWebsocketResource {
 
     val cuid = params.get("cuid").get(0).toInt
     val pveName = params.get("pveName").get(0)
-    val isLocal = !KubernetesConfig.kubernetesComputingUnitEnabled
     val action = params.getOrDefault("action", java.util.List.of("create")).get(0)
 
     val queue = new LinkedBlockingQueue[String]()
@@ -52,7 +49,7 @@ class PveWebsocketResource {
       try {
         action match {
           case "create" =>
-            PveManager.createNewPve(cuid, queue, pveName, isLocal)
+            PveManager.createNewPve(cuid, queue, pveName)
 
           case "install" =>
             val packages =
@@ -66,7 +63,7 @@ class PveWebsocketResource {
                 .map(_.replace("\"", "").trim)
                 .filter(_.nonEmpty)
 
-            PveManager.installUserPackages(packages, cuid, queue, pveName, isLocal)
+            PveManager.installUserPackages(packages, cuid, queue, pveName)
 
           case _ =>
             queue.put(s"[ERR] Unknown action: $action")
