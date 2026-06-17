@@ -38,6 +38,19 @@ import org.apache.texera.amber.operator.reservoirsampling.ReservoirSamplingOpDes
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
+import org.apache.texera.amber.operator.visualization.DotPlot.DotPlotOpDesc
+import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
+import org.apache.texera.amber.operator.visualization.boxViolinPlot.BoxViolinPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
+import org.apache.texera.amber.operator.visualization.IcicleChart.IcicleChartOpDesc
+import org.apache.texera.amber.operator.visualization.bubbleChart.BubbleChartOpDesc
+import org.apache.texera.amber.operator.visualization.bulletChart.BulletChartOpDesc
+import org.apache.texera.amber.operator.visualization.candlestickChart.CandlestickChartOpDesc
+import org.apache.texera.amber.operator.visualization.carpetPlot.CarpetPlotOpDesc
+import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
+import org.apache.texera.amber.operator.visualization.continuousErrorBands.ContinuousErrorBandsOpDesc
+import org.apache.texera.amber.operator.visualization.contourPlot.ContourPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 
 import java.nio.file.{Files, Path}
 import scala.util.{Failure, Success, Try}
@@ -68,6 +81,27 @@ object TransformVerificationRunner {
     classOf[CartesianProductOpDesc],    // JVM emits per arriving right tuple × stored left (right-major) vs pandas cross-merge left-major
     classOf[IntervalJoinOpDesc],        // streaming emit per arriving tuple against opposite-side buffer (port-interleaving order) vs pandas batch left-major
     classOf[AggregateOpDesc]            // hash-partitioned group emit order vs groupby(sort=False) first-occurrence order
+  )
+
+  /** Visualization operators with deterministic Plotly JSON validation. */
+  val visualizationJsonOps: Set[Class[_]] = Set(
+    classOf[BarChartOpDesc],
+    classOf[BulletChartOpDesc],
+    classOf[CandlestickChartOpDesc],
+    classOf[CarpetPlotOpDesc],
+    classOf[ChoroplethMapOpDesc],
+    classOf[ContinuousErrorBandsOpDesc],
+    classOf[ContourPlotOpDesc],
+    classOf[DotPlotOpDesc],
+    classOf[IcicleChartOpDesc],
+    classOf[BubbleChartOpDesc],
+    classOf[ScatterMatrixChartOpDesc],
+    classOf[BoxViolinPlotOpDesc]
+  )
+
+  /** Visualization operators with deterministic HTML validation. */
+  val visualizationHtmlOps: Set[Class[_]] = Set(
+    classOf[ImageVisualizerOpDesc]
   )
 
   /** Triaged, explicitly-not-run operators: class → honest reason, shown in
@@ -112,7 +146,9 @@ object TransformVerificationRunner {
           case Failure(e) => Flagged(s"cannot instantiate: ${e.getMessage}")
           case Success(op: StandaloneCodeGenerator) =>
             if (!op.producesDataFrame())
-              Flagged("visualization: no DataFrame output to compare")
+              if (visualizationJsonOps.contains(opClass) || visualizationHtmlOps.contains(opClass))
+                Runnable("visualization")
+              else Flagged("visualization: no DataFrame output to compare")
             else if (CuratedHandlers.byClass.contains(opClass))
               Runnable("curated")
             else
@@ -154,6 +190,11 @@ object TransformVerificationRunner {
     val actualDir = testRoot.resolve("actual")
     Files.createDirectories(actualDir)
 
+    if (!opDesc.asInstanceOf[StandaloneCodeGenerator].producesDataFrame()) {
+      runVisualization(opClass, opDesc, inputs, outputPortCount, actualDir, testRoot)
+      return
+    }
+
     val pathAOutputs: Map[PortIdentity, Path] =
       if (classOf[PythonOperatorDescriptor].isAssignableFrom(opClass))
         PyOpExecHarness.execute(opDesc, inputs = inputs, outputDir = actualDir).outputs
@@ -184,6 +225,59 @@ object TransformVerificationRunner {
         throw new AssertionError(s"standalone path produced no output for port $port")
       )
       Comparator.assertEqual(actual, expected, orderSensitive = orderSensitive)
+    }
+  }
+
+  private def runVisualization(
+      opClass: Class[_ <: LogicalOp],
+      opDesc: LogicalOp,
+      inputs: Map[PortIdentity, Path],
+      outputPortCount: Int,
+      actualDir: Path,
+      testRoot: Path
+  ): Unit = {
+    require(
+      visualizationJsonOps.contains(opClass) || visualizationHtmlOps.contains(opClass),
+      s"${opClass.getSimpleName} is not registered for visualization validation"
+    )
+    require(outputPortCount == 1, "visualization JSON validation currently supports one output port")
+    require(
+      classOf[PythonOperatorDescriptor].isAssignableFrom(opClass),
+      "visualization JSON validation currently supports Python visualization operators"
+    )
+
+    val actual = PyOpExecHarness
+      .execute(opDesc, inputs = inputs, outputDir = actualDir)
+      .outputs
+      .getOrElse(
+        PortIdentity(0),
+        throw new AssertionError("Texera path produced no visualization output for port 0")
+      )
+
+    val standaloneInputs: Map[Int, Path] =
+      inputs.toSeq.sortBy(_._1.id).zipWithIndex.map {
+        case ((_, path), idx) => (idx + 1) -> path
+      }.toMap
+
+    StandaloneRunner.run(
+      opDesc = opDesc,
+      inputs = standaloneInputs,
+      outputPortCount = outputPortCount,
+      workDir = testRoot
+    )
+
+    if (visualizationJsonOps.contains(opClass)) {
+      val expected = testRoot.resolve("output.json")
+      if (!Files.exists(expected)) {
+        throw new AssertionError(s"standalone visualization path did not produce $expected")
+      }
+      VisualizationJsonComparator.assertEqual(actual, expected)
+    } else {
+      val expected = testRoot.resolve("output.html")
+      if (!Files.exists(expected)) {
+        throw new AssertionError(s"standalone visualization path did not produce $expected")
+      }
+      VisualizationHtmlComparator.assertEqual(actual, expected)
     }
   }
 }
