@@ -37,6 +37,7 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.nio.file.{Files, Path}
+import java.util.Base64
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
@@ -396,6 +397,8 @@ object TupleIO {
               case AttributeType.LONG    => Long.box(fieldNode.asLong())
               case AttributeType.DOUBLE  => Double.box(fieldNode.asDouble())
               case AttributeType.BOOLEAN => Boolean.box(fieldNode.asBoolean())
+              case AttributeType.BINARY =>
+                Base64.getDecoder.decode(fieldNode.asText())
               case other =>
                 throw new UnsupportedOperationException(
                   s"TupleIO MVP doesn't support $other yet"
@@ -425,6 +428,8 @@ object TupleIO {
                 case AttributeType.LONG    => node.put(attr.getName, v.asInstanceOf[Long])
                 case AttributeType.DOUBLE  => node.put(attr.getName, v.asInstanceOf[Double])
                 case AttributeType.BOOLEAN => node.put(attr.getName, v.asInstanceOf[Boolean])
+                case AttributeType.BINARY =>
+                  node.put(attr.getName, Base64.getEncoder.encodeToString(v.asInstanceOf[Array[Byte]]))
                 case other =>
                   throw new UnsupportedOperationException(
                     s"TupleIO MVP doesn't support $other yet"

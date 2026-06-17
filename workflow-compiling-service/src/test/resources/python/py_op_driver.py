@@ -53,6 +53,7 @@ this driver never has to infer them. The driver writes the schema back as a
 """
 from __future__ import annotations
 
+import base64
 import inspect
 import json
 import sys
@@ -179,8 +180,10 @@ def _coerce_field(raw: Any, attr_type: AttributeType) -> Any:
         return float(raw)
     if attr_type == AttributeType.BOOL:
         return bool(raw)
-    # TIMESTAMP / BINARY / LARGE_BINARY: defer until an operator actually
-    # exercises them. Failing loud beats silently passing a string through.
+    if attr_type == AttributeType.BINARY:
+        return base64.b64decode(raw)
+    # TIMESTAMP / LARGE_BINARY: defer until an operator actually exercises
+    # them. Failing loud beats silently passing a string through.
     raise NotImplementedError(
         f"py_op_driver: reading attribute type {attr_type!r} from JSONL is "
         f"not implemented yet"
