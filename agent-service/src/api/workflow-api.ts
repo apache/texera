@@ -18,7 +18,7 @@
  */
 
 import { getBackendConfig } from "./backend-api";
-import { createAuthHeaders } from "./auth-api";
+import { createAuthHeaders } from "../auth/jwt";
 import type { WorkflowContent } from "../types/workflow";
 
 export interface Workflow {
