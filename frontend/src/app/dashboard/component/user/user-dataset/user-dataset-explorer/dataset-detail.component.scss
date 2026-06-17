@@ -62,6 +62,9 @@ body {
 }
 
 .sider-resize-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 100%;
   width: 5px;
   border-right: 1px solid #e8e8e8;
@@ -74,7 +77,6 @@ body {
   font-size: 12px;
   height: 20px;
   line-height: 20px;
-  margin-top: 400px;
 }
 
 .file-renderer {
