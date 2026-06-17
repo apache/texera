@@ -113,6 +113,7 @@ class DotPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerato
        |                   color_discrete_sequence=px.colors.qualitative.Dark2)
        |    fig.update_traces(marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')))
        |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |    fig.write_json("output.json")
        |    fig.write_html("output.html")
        |    print("Dot plot saved to output.html")""".stripMargin
   }
