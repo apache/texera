@@ -232,6 +232,49 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should
+    "emit single-backslash regex/whitespace escapes in the HTML->image helpers" in {
+    // The HTML->image helpers came from the original monolith where, inside a
+    // raw triple-quoted Scala string, "\\n"/"\\." emit DOUBLE backslashes to
+    // Python. That makes the base64 char class match a literal backslash+n
+    // instead of a newline, and makes the Plotly detection regex require a
+    // literal backslash before "newPlot" (so it never matches). The generated
+    // Python must contain single-backslash forms.
+    val code = makeDesc(task = "image-to-text", inputImageColumn = "img").generatePythonCode()
+
+    // base64 char class allows real newlines/CR; strip uses real newline chars.
+    code should include("""[A-Za-z0-9+/\n\r =]""")
+    code should include(""".replace("\n", "").replace("\r", "")""")
+    // Plotly detection regex uses real regex escapes.
+    code should include("""r"Plotly\.(?:newPlot|react)\s*\(\s*"""")
+    // whitespace-skip set contains real whitespace chars.
+    code should include("""in " ,\n\r\t"""")
+
+    // The broken double-backslash forms must NOT reappear.
+    code should not include """[A-Za-z0-9+/\\n\\r =]"""
+    code should not include """Plotly\\.(?:newPlot|react)"""
+    code should not include """in " ,\\n\\r\\t""""
+  }
+
+  it should "treat pandas NA sentinels (NaN, pd.NA, NaT) as missing in _read_binary_value" in {
+    // isinstance(value, float) only catches float('nan'); pd.NA / NaT are not
+    // floats and previously fell through to be str()-ified into bytes. The
+    // guarded pd.isna check now catches all scalar NA sentinels.
+    val code = makeDesc(task = "image-classification", inputImageColumn = "img")
+      .generatePythonCode()
+    code should include("if pd.isna(value):")
+    code should include("except (TypeError, ValueError):")
+    // The old float-only guard must be gone.
+    code should not include "isinstance(value, float) and pd.isna(value)"
+  }
+
+  it should "not import the unused top-level urlparse in the generated script" in {
+    val code = makeDesc().generatePythonCode()
+    code should not include "from urllib.parse import urlparse\n"
+    // The local aliased import is still used where needed.
+    code should include("from urllib.parse import urlparse as _urlparse")
+  }
+
+  it should
     "convert Replicate terminal failed/canceled status into a synthetic 502 with surfaced error detail" in {
     // Replicate's polling endpoint returns HTTP 200 even when the prediction
     // itself terminally failed. Without this fix,

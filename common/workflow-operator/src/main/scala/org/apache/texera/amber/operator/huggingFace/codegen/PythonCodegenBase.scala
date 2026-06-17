@@ -63,7 +63,6 @@ object PythonCodegenBase {
        |import base64
        |import requests
        |import pandas as pd
-       |from urllib.parse import urlparse
        |from pytexera import *
        |
        |# Defensive format check for MODEL_ID before it is interpolated into
@@ -661,10 +660,20 @@ object PythonCodegenBase {
        |        return base64.b64encode(image_bytes).decode("utf-8")
        |
        |    def _read_binary_value(self, value):
-       |        if value is None or (isinstance(value, float) and pd.isna(value)):
+       |        if value is None:
        |            return None
        |        if isinstance(value, bytes):
        |            return value
+       |        # Treat scalar pandas/numpy missing sentinels (NaN, pd.NA, NaT) as empty.
+       |        # isinstance(value, float) only catches float('nan'); pd.NA / NaT are not
+       |        # floats and would otherwise be str()-ified into "<NA>"/"NaT" bytes. Guard
+       |        # pd.isna against non-scalar inputs, where it returns an array and `if`
+       |        # raises on an ambiguous truth value.
+       |        try:
+       |            if pd.isna(value):
+       |                return None
+       |        except (TypeError, ValueError):
+       |            pass
        |        val = str(value).strip()
        |        if not val:
        |            return None
@@ -697,29 +706,29 @@ object PythonCodegenBase {
        |        return False
        |
        |    def _html_to_image_bytes(self, html_string):
-       |        match = re.search(r"data:image/[^;]+;base64,([A-Za-z0-9+/\\n\\r =]+)", html_string)
+       |        match = re.search(r"data:image/[^;]+;base64,([A-Za-z0-9+/\n\r =]+)", html_string)
        |        if match:
-       |            b64 = match.group(1).replace("\\n", "").replace("\\r", "").replace(" ", "")
+       |            b64 = match.group(1).replace("\n", "").replace("\r", "").replace(" ", "")
        |            return base64.b64decode(b64)
        |        if "Plotly." in html_string:
        |            try:
        |                import plotly.graph_objects as go
        |                import plotly.io as pio
-       |                plotly_match = re.search(r"Plotly\\.(?:newPlot|react)\\s*\\(\\s*", html_string)
+       |                plotly_match = re.search(r"Plotly\.(?:newPlot|react)\s*\(\s*", html_string)
        |                if plotly_match:
        |                    pos = plotly_match.end()
        |                    if pos < len(html_string) and html_string[pos] in ('"', "'"):
        |                        q = html_string[pos]
        |                        pos += 1
        |                        while pos < len(html_string) and html_string[pos] != q:
-       |                            if html_string[pos] == "\\\\":
+       |                            if html_string[pos] == "\\":
        |                                pos += 1
        |                            pos += 1
        |                        pos += 1
-       |                    while pos < len(html_string) and html_string[pos] in " ,\\n\\r\\t":
+       |                    while pos < len(html_string) and html_string[pos] in " ,\n\r\t":
        |                        pos += 1
        |                    data_json, pos = self._extract_json_arg(html_string, pos)
-       |                    while pos < len(html_string) and html_string[pos] in " ,\\n\\r\\t":
+       |                    while pos < len(html_string) and html_string[pos] in " ,\n\r\t":
        |                        pos += 1
        |                    layout_json, _ = self._extract_json_arg(html_string, pos)
        |                    if data_json:
@@ -753,7 +762,7 @@ object PythonCodegenBase {
        |        while pos < len(text) and depth > 0:
        |            c = text[pos]
        |            if in_string:
-       |                if c == "\\\\":
+       |                if c == "\\":
        |                    pos += 2
        |                    continue
        |                if c == '"':
