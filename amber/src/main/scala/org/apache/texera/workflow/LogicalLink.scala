@@ -25,6 +25,12 @@ import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 
 object LogicalLink {
+
+  // Reads an OperatorIdentity from either the plain-string shape the
+  // frontend emits (`"op-A"`) or the object shape Jackson emits for an
+  // OperatorIdentity (`{"id":"op-A"}`). Keep in sync with the
+  // workflow-compiling-service LogicalLink.readOperatorIdentity, which is
+  // intentionally identical.
   private def readOperatorIdentity(node: JsonNode, fieldName: String): OperatorIdentity = {
     if (node == null || node.isNull) {
       OperatorIdentity(null)
@@ -34,12 +40,16 @@ object LogicalLink {
       val idNode = node.get("id")
       if (idNode == null || idNode.isNull) {
         OperatorIdentity(null)
-      } else {
+      } else if (idNode.isTextual) {
         OperatorIdentity(idNode.asText())
+      } else {
+        throw new IllegalArgumentException(
+          s"LogicalLink $fieldName.id must be a string or null, but was ${idNode.getNodeType}"
+        )
       }
     } else {
       throw new IllegalArgumentException(
-        s"LogicalLink $fieldName must be a string or an object with an id field"
+        s"LogicalLink $fieldName must be a string or an object with an id field, but was ${node.getNodeType}"
       )
     }
   }

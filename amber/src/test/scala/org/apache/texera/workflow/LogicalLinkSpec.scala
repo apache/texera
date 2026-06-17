@@ -275,4 +275,84 @@ class LogicalLinkSpec extends AnyFlatSpec {
     }
     assert(ex.getCause.isInstanceOf[IllegalArgumentException])
   }
+
+  it should "reject an object-shape op id with no `id` field (null id fails the require guard)" in {
+    // In amber (strict), an object-shape fromOpId lacking an `id` field
+    // resolves to OperatorIdentity(null), which the primary constructor's
+    // `require` rejects — surfaced as ValueInstantiationException.
+    val node = objectMapper.createObjectNode()
+    node.set("fromOpId", objectMapper.createObjectNode()) // {} — no "id"
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(node, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+    assert(ex.getCause.getMessage.contains("fromOpId must be non-null"))
+  }
+
+  it should "reject an object-shape op id whose `id` field is non-textual" in {
+    // `{"id": 123}` is malformed: `id` must be a string (or null). The
+    // helper throws rather than silently coercing 123 -> "123"; Jackson
+    // wraps the IllegalArgumentException in a ValueInstantiationException.
+    val node = objectMapper.createObjectNode()
+    val badOpId = objectMapper.createObjectNode()
+    badOpId.put("id", 123)
+    node.set("fromOpId", badOpId)
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(node, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+    assert(ex.getCause.getMessage.contains("fromOpId.id must be a string"))
+  }
+
+  it should "reject an op id that is neither a string nor an object (e.g. a number)" in {
+    // A top-level numeric fromOpId hits the final else branch of
+    // readOperatorIdentity, which throws; Jackson wraps it.
+    val node = objectMapper.createObjectNode()
+    node.put("fromOpId", 12345)
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(node, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+    assert(ex.getCause.getMessage.contains("fromOpId must be a string or an object"))
+  }
+
+  it should "reject an explicit JSON null op id (exercises the node.isNull branch)" in {
+    // An explicit `"fromOpId": null` arrives as a NullNode (an absent field
+    // arrives as Java null), exercising the `node.isNull` branch; require
+    // then rejects the null id.
+    val node = objectMapper.createObjectNode()
+    node.set("fromOpId", objectMapper.nullNode())
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(node, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+  }
+
+  it should "reject an object-shape op id with an explicit null `id` (exercises the idNode.isNull branch)" in {
+    // `{"id": null}` makes idNode a NullNode, exercising the `idNode.isNull`
+    // branch; require then rejects the resulting OperatorIdentity(null).
+    val opId = objectMapper.createObjectNode()
+    opId.set("id", objectMapper.nullNode())
+    val node = objectMapper.createObjectNode()
+    node.set("fromOpId", opId)
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(node, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+  }
 }

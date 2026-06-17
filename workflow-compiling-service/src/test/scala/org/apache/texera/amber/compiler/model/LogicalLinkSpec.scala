@@ -250,5 +250,49 @@ class LogicalLinkSpec extends AnyFlatSpec {
       objectMapper.treeToValue(node, classOf[LogicalLink])
     }
     assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+    assert(ex.getCause.getMessage.contains("fromOpId must be a string or an object"))
+  }
+
+  it should "throw when an object-shape opId has a non-textual `id` field" in {
+    // Leniency covers null/empty/self-loop semantics, not malformed JSON
+    // types: `{"id": 123}` is rejected rather than coerced to "123".
+    val node = objectMapper.createObjectNode()
+    val badOpId = objectMapper.createObjectNode()
+    badOpId.put("id", 123)
+    node.set("fromOpId", badOpId)
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(node, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+    assert(ex.getCause.getMessage.contains("fromOpId.id must be a string"))
+  }
+
+  it should "treat an explicit JSON null op id as OperatorIdentity(null) (exercises the node.isNull branch)" in {
+    // An explicit `"fromOpId": null` arrives as a NullNode (an absent field
+    // arrives as Java null); WCS leniency maps it to OperatorIdentity(null).
+    val node = objectMapper.createObjectNode()
+    node.set("fromOpId", objectMapper.nullNode())
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val link = objectMapper.treeToValue(node, classOf[LogicalLink])
+    assert(link.fromOpId == OperatorIdentity(null))
+  }
+
+  it should "treat an object-shape op id with explicit null `id` as OperatorIdentity(null) (exercises the idNode.isNull branch)" in {
+    // `{"id": null}` — `id` is present but JSON null, so idNode is a NullNode.
+    // WCS leniency maps this to OperatorIdentity(null).
+    val opId = objectMapper.createObjectNode()
+    opId.set("id", objectMapper.nullNode())
+    val node = objectMapper.createObjectNode()
+    node.set("fromOpId", opId)
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val link = objectMapper.treeToValue(node, classOf[LogicalLink])
+    assert(link.fromOpId == OperatorIdentity(null))
   }
 }
