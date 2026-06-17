@@ -137,15 +137,19 @@ class ReadonlyVirtualDocumentSpec extends AnyFlatSpec {
 
   "ReadonlyVirtualDocument[Int]" should
     "preserve the type parameter on every accessor (compile-time enforced)" in {
-    val d: ReadonlyVirtualDocument[Int] = new StubReadonlyIntDoc(IndexedSeq(1))
+    // Use a two-item fixture so `getAfter(0)` (a documented, non-negative
+    // offset) yields the second item — the trait's docs describe
+    // `offset` as a 0-based index, so the test should stay within that
+    // documented range.
+    val d: ReadonlyVirtualDocument[Int] = new StubReadonlyIntDoc(IndexedSeq(1, 2))
     val item: Int = d.getItem(0)
     val iter: Iterator[Int] = d.get()
     val range: Iterator[Int] = d.getRange(0, 1)
-    val after: Iterator[Int] = d.getAfter(-1)
+    val after: Iterator[Int] = d.getAfter(0)
     assert(item == 1)
-    assert(iter.toList == List(1))
+    assert(iter.toList == List(1, 2))
     assert(range.toList == List(1))
-    assert(after.toList == List(1))
+    assert(after.toList == List(2))
   }
 
   // ---------------------------------------------------------------------------
