@@ -25,7 +25,7 @@ import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
-import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
+import { Validation, ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
@@ -398,8 +398,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * overwrites a state-derived stroke (or vice versa) for an operator that
    * is both invalid and has a cached execution status.
    */
-  private applyOperatorBorder(operatorID: string): void {
-    const validation = this.validationWorkflowService.validateOperator(operatorID);
+  private applyOperatorBorder(operatorID: string, validation?: Validation): void {
+    validation ??= this.validationWorkflowService.validateOperator(operatorID);
     if (!validation.isValid) {
       this.jointUIService.changeOperatorColor(this.paper, operatorID, false);
       return;
@@ -1025,7 +1025,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.validationWorkflowService
       .getOperatorValidationStream()
       .pipe(untilDestroyed(this))
-      .subscribe(value => this.applyOperatorBorder(value.operatorID));
+      .subscribe(value => this.applyOperatorBorder(value.operatorID, value.validation));
   }
 
   /**

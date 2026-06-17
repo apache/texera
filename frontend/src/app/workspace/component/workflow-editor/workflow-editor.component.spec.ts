@@ -22,7 +22,7 @@ import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
+import { Validation, ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowEditorComponent } from "./workflow-editor.component";
 import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -909,6 +909,19 @@ describe("WorkflowEditorComponent", () => {
         fixture.detectChanges();
 
         expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
+      });
+
+      it("uses the supplied validation without recomputing the operator validation", () => {
+        const suppliedValidation: Validation = { isValid: false, messages: {} };
+        const validateOperatorSpy = vi
+          .spyOn(validationWorkflowService, "validateOperator")
+          .mockReturnValue({ isValid: true });
+        const changeOperatorColorSpy = vi.spyOn(jointUIService, "changeOperatorColor").mockImplementation(() => {});
+
+        component["applyOperatorBorder"](mockScanPredicate.operatorID, suppliedValidation);
+
+        expect(validateOperatorSpy).not.toHaveBeenCalled();
+        expect(changeOperatorColorSpy).toHaveBeenCalledWith(component.paper, mockScanPredicate.operatorID, false);
       });
     });
   });
