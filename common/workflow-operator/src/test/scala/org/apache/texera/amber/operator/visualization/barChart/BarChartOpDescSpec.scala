@@ -103,6 +103,17 @@ class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     code should not include "FIELDS_SENT"
   }
 
+  it should "not pass an empty category column to Plotly color" in {
+    opDesc.value = "VAL_SENT"
+    opDesc.fields = "FIELDS_SENT"
+    opDesc.categoryColumn = ""
+
+    val code = opDesc.generatePythonCode()
+
+    code should include("color=self.decode_python_template('') if False else None")
+    code should not include "color=self.decode_python_template('') if True else None"
+  }
+
   it should "fail-fast when value or fields is unset (asserts inside manipulateTable)" in {
     // manipulateTable asserts nonEmpty on value AND fields with explicit
     // messages ("Value column cannot be empty" / "Fields cannot be empty").

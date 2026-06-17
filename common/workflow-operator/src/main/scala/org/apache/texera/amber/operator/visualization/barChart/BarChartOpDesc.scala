@@ -109,7 +109,7 @@ class BarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
       isPatternSelected = "True"
 
     var isCategoryColumn = "False"
-    if (categoryColumn != "No Selection")
+    if (categoryColumn.nonEmpty && categoryColumn != "No Selection")
       isCategoryColumn = "True"
 
     val finalCode =
@@ -172,8 +172,9 @@ class BarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
        |if not in1df.empty and "$fields" != "$value":
        |    fig = go.Figure(px.bar(in1df, $barArgs))
        |    fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+       |    fig.write_json("output.json")
        |    fig.write_html("output.html")
-       |    print("Bar chart saved to output.html")
+       |    print("Bar chart saved to output.json and output.html")
        |elif "$fields" == "$value":
        |    print("Bar chart error: Fields should not have the same value.")
        |elif in1df.empty:

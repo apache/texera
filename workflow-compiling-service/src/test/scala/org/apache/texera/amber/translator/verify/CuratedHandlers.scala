@@ -68,7 +68,20 @@ object CuratedHandlers {
     SortTransformHandler,
     AggregateTransformHandler,
     DictionaryMatcherTransformHandler,
-    ProjectionTransformHandler
+    ProjectionTransformHandler,
+    BarChartVisualizationHandler,
+    BulletChartVisualizationHandler,
+    CandlestickChartVisualizationHandler,
+    CarpetPlotVisualizationHandler,
+    ChoroplethMapVisualizationHandler,
+    ContinuousErrorBandsVisualizationHandler,
+    ContourPlotVisualizationHandler,
+    DotPlotVisualizationHandler,
+    IcicleChartVisualizationHandler,
+    BubbleChartVisualizationHandler,
+    BoxViolinPlotVisualizationHandler,
+    ImageVisualizerVisualizationHandler,
+    ScatterMatrixVisualizationHandler
   )
 
   val byClass: Map[Class[_ <: LogicalOp], TransformHandler] =
