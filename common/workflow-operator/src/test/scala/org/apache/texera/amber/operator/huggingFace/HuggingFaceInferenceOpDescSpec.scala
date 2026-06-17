@@ -205,6 +205,23 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("""if content_type.startswith("image/"):""")
   }
 
+  it should
+    "not read arbitrary worker-filesystem paths for image inputs (SSRF/LFI hardening)" in {
+    // Opening an arbitrary path from the worker filesystem would let a workflow
+    // exfiltrate any file (e.g. /etc/passwd) via the inference call. Image inputs
+    // must be data URLs, http(s) URLs, rendered HTML, or raw/base64 bytes only —
+    // never a path passed to open().
+    val code = makeDesc(task = "image-classification", inputImageColumn = "img")
+      .generatePythonCode()
+    // The removed filesystem-read branches must not reappear.
+    code should not include "open(image_input"
+    code should not include "os.path.isfile(image_input)"
+    code should not include "os.path.exists(image_input)"
+    code should not include "if os.path.exists(val) and os.path.isfile(val):"
+    // Unsupported image inputs are rejected with a clear error instead.
+    code should include("Unsupported image input")
+  }
+
   it should "route VQA / document-QA through ImageTaskCodegen (base64 image + question payload)" in {
     val code = makeDesc(task = "visual-question-answering").generatePythonCode()
     code should include(
@@ -216,8 +233,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
 
   it should
     "convert Replicate terminal failed/canceled status into a synthetic 502 with surfaced error detail" in {
-    // Regression for Ma77Ball: Replicate's polling endpoint returns HTTP 200
-    // even when the prediction itself terminally failed. Without this fix,
+    // Replicate's polling endpoint returns HTTP 200 even when the prediction
+    // itself terminally failed. Without this fix,
     // _post_with_fallback sees status 200 and process_table parses the
     // success-shape, silently emitting json.dumps(body) (raw error JSON)
     // into the result column instead of a readable error. We synthesize a
@@ -246,8 +263,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
 
   it should
     "fail fast at runtime when zero-shot-image-classification has fewer than 2 candidate labels" in {
-    // Regression for Ma77Ball's comment: without a dedicated candidateLabels
-    // field (lands in PR 5), zero-shot reuses prompt_value as a comma-
+    // Without a dedicated candidateLabels field (lands in PR 5), zero-shot
+    // reuses prompt_value as a comma-
     // separated list. Two failure modes the bare list comprehension hides
     // are both caught by the >= 2 check:
     //  1. Empty prompt column → labels = [] → HF API rejects
@@ -267,7 +284,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
 
   it should
     "extract base64 image from image+prompt dict payloads in _call_provider so third-party providers receive it" in {
-    // Regression for the issue Ma77Ball flagged: visual-question-answering,
+    // Regression test: visual-question-answering,
     // document-question-answering, and zero-shot-image-classification build
     // dict payloads with use_raw_binary_body=False. Before the fix, when
     // those tasks routed off hf-inference to a third-party provider, the

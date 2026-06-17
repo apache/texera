@@ -619,12 +619,14 @@ object PythonCodegenBase {
        |            resp = requests.get(image_input, timeout=120)
        |            resp.raise_for_status()
        |            return resp.content
-       |        if not os.path.exists(image_input):
-       |            raise FileNotFoundError(f"Image file not found at path: {image_input}")
-       |        if not os.path.isfile(image_input):
-       |            raise ValueError(f"Image input path is not a file: {image_input}")
-       |        with open(image_input, "rb") as image_file:
-       |            return image_file.read()
+       |        # Reading arbitrary worker-filesystem paths is intentionally NOT
+       |        # supported: a workflow could otherwise point this at any file on the
+       |        # worker (e.g. /etc/passwd) and exfiltrate it via the inference call.
+       |        # Uploaded images arrive as data URLs; remote images as http(s) URLs.
+       |        raise ValueError(
+       |            "Unsupported image input. Upload an image (sent as a data URL) "
+       |            "or provide a public http(s) image URL."
+       |        )
        |
        |    def _compress_image_bytes(self, image_bytes, max_bytes=33000):
        |        from io import BytesIO
@@ -675,9 +677,10 @@ object PythonCodegenBase {
        |            resp = requests.get(val, timeout=120)
        |            resp.raise_for_status()
        |            return resp.content
-       |        if os.path.exists(val) and os.path.isfile(val):
-       |            with open(val, "rb") as f:
-       |                return f.read()
+       |        # No worker-filesystem path reads here either (see _read_image_input):
+       |        # a column value must be a data URL, http(s) URL, rendered HTML, or
+       |        # base64-encoded bytes. Anything else is treated as raw bytes, never
+       |        # as a path to open.
        |        try:
        |            return base64.b64decode(val)
        |        except Exception:
