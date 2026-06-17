@@ -104,8 +104,16 @@ export interface CommentBox {
   readonly height: number;
 }
 
+export enum ExecutionMode {
+  PIPELINED = "PIPELINED",
+  MATERIALIZED = "MATERIALIZED",
+}
+
 export interface WorkflowSettings {
   readonly dataTransferBatchSize: number;
+  // Optional here; the follow-up server/state PR makes it required and sets it
+  // in DEFAULT_WORKFLOW_SETTINGS alongside the broader workflow.ts reshaping.
+  readonly executionMode?: ExecutionMode;
 }
 
 export interface WorkflowContent {

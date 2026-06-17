@@ -17,8 +17,7 @@
  * under the License.
  */
 
-export * from "./backend-api";
-export * from "./execution-api";
-export * from "./workflow-api";
-export * from "../auth/jwt";
-export * from "./compile-api";
+export * from "./operator-metadata-client";
+export * from "./compile-client";
+export * from "./workflow-client";
+export * from "./execution-client";

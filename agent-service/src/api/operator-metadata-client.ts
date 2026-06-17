@@ -17,22 +17,16 @@
  * under the License.
  */
 
-export interface LogicalLink {
-  fromOpId: string;
-  fromPortId: { id: number; internal: boolean };
-  toOpId: string;
-  toPortId: { id: number; internal: boolean };
-}
+import { getServiceEndpoints } from "../config/endpoints";
+import type { OperatorMetadata } from "../types/metadata";
 
-interface LogicalOperator {
-  operatorID: string;
-  operatorType: string;
-  [key: string]: any;
-}
+export async function fetchOperatorMetadata(): Promise<OperatorMetadata> {
+  const url = `${getServiceEndpoints().apiEndpoint}/api/resources/operator-metadata`;
+  const response = await fetch(url);
 
-export interface LogicalPlan {
-  operators: LogicalOperator[];
-  links: LogicalLink[];
-  opsToViewResult?: string[];
-  opsToReuseResult?: string[];
+  if (!response.ok) {
+    throw new Error(`Failed to fetch operator metadata: ${response.status} ${response.statusText}`);
+  }
+
+  return (await response.json()) as OperatorMetadata;
 }

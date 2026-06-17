@@ -24,7 +24,7 @@ import { TexeraAgent } from "./agent/texera-agent";
 import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
 import { getBackendConfig } from "./api/backend-api";
 import { extractBearerToken, extractUserFromToken, validateToken } from "./auth/jwt";
-import { retrieveWorkflow } from "./api/workflow-api";
+import { retrieveWorkflow } from "./api/workflow-client";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
 import { createLogger } from "./logger";

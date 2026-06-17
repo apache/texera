@@ -18,16 +18,6 @@
  */
 
 import { env } from "../config/env";
-import type { OperatorMetadata } from "../types/metadata";
-
-export type {
-  InputPortInfo,
-  OutputPortInfo,
-  OperatorAdditionalMetadata,
-  OperatorSchema,
-  GroupInfo,
-  OperatorMetadata,
-} from "../types/metadata";
 
 interface BackendConfig {
   apiEndpoint: string;
@@ -45,15 +35,4 @@ const currentConfig: BackendConfig = {
 
 export function getBackendConfig(): BackendConfig {
   return { ...currentConfig };
-}
-
-export async function fetchOperatorMetadata(): Promise<OperatorMetadata> {
-  const url = `${currentConfig.apiEndpoint}/api/resources/operator-metadata`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch operator metadata: ${response.status} ${response.statusText}`);
-  }
-
-  return (await response.json()) as OperatorMetadata;
 }

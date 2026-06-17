@@ -23,7 +23,7 @@ import { createErrorResult, formatExecuteOperatorResult, getVisibleResultHeaders
 import type { WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
 import { env } from "../../config/env";
-import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
+import type { LogicalPlan, LogicalLink } from "../../types/workflow";
 import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
