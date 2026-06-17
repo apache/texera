@@ -128,6 +128,31 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
+  it should "use the csv basename in standalone code" in {
+    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+
+    val code = csvScanSourceOpDesc.generateStandaloneCode()
+
+    assert(code.contains("""filepath_or_buffer="country_sales_small_multi_line.csv""""))
+    assert(!code.contains("base64.b64decode"))
+    assert(!code.contains("io.BytesIO"))
+  }
+
+  it should "use the unresolved csv basename in standalone code" in {
+    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+
+    val code = csvScanSourceOpDesc.generateStandaloneCode()
+
+    assert(code.contains("""filepath_or_buffer="country_sales_small_multi_line.csv""""))
+    assert(!code.contains("base64.b64decode"))
+    assert(!code.contains("io.BytesIO"))
+  }
+
   it should "use comma as the default delimiter when customDelimiter is not set for parallel CSV" in {
     parallelCsvScanSourceOpDesc.customDelimiter = None
 
