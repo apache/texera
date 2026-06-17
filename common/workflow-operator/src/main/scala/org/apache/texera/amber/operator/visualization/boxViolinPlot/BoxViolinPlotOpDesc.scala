@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -40,7 +40,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
   }
 }
 """)
-class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
+class BoxViolinPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -147,6 +147,37 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |        """
     finalCode.encode
+  }
+
+  // Output is a Plotly visualization, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val horizontal = if (horizontalOrientation) "True" else "False"
+    val violin = if (violinPlot) "True" else "False"
+    val quartileMethod =
+      if (quartileType == null) "linear" else quartileType.getQuartiletype
+
+    s"""in1df = in1df.dropna(subset=["$value"])
+       |if not in1df.empty:
+       |    if $violin:
+       |        if $horizontal:
+       |            fig = px.violin(in1df, x="$value", box=True, points='all')
+       |        else:
+       |            fig = px.violin(in1df, y="$value", box=True, points='all')
+       |    else:
+       |        if $horizontal:
+       |            fig = px.box(in1df, x="$value", boxmode="overlay", points='all')
+       |        else:
+       |            fig = px.box(in1df, y="$value", boxmode="overlay", points='all')
+       |    fig.update_traces(quartilemethod="$quartileMethod", col=1)
+       |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Box/Violin Plot saved to output.json and output.html")
+       |else:
+       |    print("Box/Violin Plot error: value column contains only non-positive numbers or nulls.")""".stripMargin
   }
 
 }
