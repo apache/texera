@@ -95,13 +95,17 @@ export interface Point {
   readonly y: number;
 }
 
+export interface Comment {
+  readonly content: string;
+  readonly creationTime: string;
+  readonly creatorName: string;
+  readonly creatorID: number;
+}
+
 export interface CommentBox {
-  readonly commentBoxID: string;
-  readonly comments: string;
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
+  commentBoxID: string;
+  comments: Comment[];
+  commentBoxPosition: Point;
 }
 
 export enum ExecutionMode {
@@ -111,9 +115,7 @@ export enum ExecutionMode {
 
 export interface WorkflowSettings {
   readonly dataTransferBatchSize: number;
-  // Optional here; the follow-up server/state PR makes it required and sets it
-  // in DEFAULT_WORKFLOW_SETTINGS alongside the broader workflow.ts reshaping.
-  readonly executionMode?: ExecutionMode;
+  readonly executionMode: ExecutionMode;
 }
 
 export interface WorkflowContent {

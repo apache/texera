@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import type { LanguageModel, ModelMessage } from "ai";
 import type { WorkflowContent } from "./workflow";
 
 export enum AgentState {
@@ -115,7 +116,25 @@ export interface UserInfo {
   role: string;
 }
 
-export interface AgentDelegateConfig {
+/**
+ * Runtime delegation binding for an agent: the user it acts on behalf of and
+ * the workflow / computing unit it is bound to. `workflowId` is required
+ * because delegation is only established once a workflow has been resolved.
+ * This is in-memory state, not "configuration".
+ */
+export interface AgentDelegation {
+  userToken: string;
+  userInfo?: UserInfo;
+  workflowId: number;
+  workflowName?: string;
+  computingUnitId?: number;
+}
+
+/**
+ * Wire shape of a delegation at the HTTP boundary: `workflowId` is optional
+ * (resolved server-side) and `userToken` is masked in outbound responses.
+ */
+export interface AgentDelegationDto {
   userToken: string;
   userInfo?: UserInfo;
   workflowId?: number;
@@ -123,7 +142,8 @@ export interface AgentDelegateConfig {
   computingUnitId?: number;
 }
 
-export interface AgentSettingsApi {
+/** Tunable agent settings in their wire form (units in seconds/minutes). */
+export interface AgentSettingsDto {
   maxOperatorResultCharLimit?: number;
   maxOperatorResultCellCharLimit?: number;
   operatorResultSerializationMode?: "tsv";
@@ -133,6 +153,9 @@ export interface AgentSettingsApi {
   maxSteps?: number;
   allowedOperatorTypes?: string[];
 }
+
+/** Body of `PATCH /agents/:id/settings`; identical to the settings DTO. */
+export type UpdateAgentSettingsRequest = AgentSettingsDto;
 
 export interface AgentInfo {
   id: string;
@@ -140,8 +163,8 @@ export interface AgentInfo {
   modelType: string;
   state: AgentState;
   createdAt: Date;
-  delegate?: AgentDelegateConfig;
-  settings?: AgentSettingsApi;
+  delegate?: AgentDelegationDto;
+  settings?: AgentSettingsDto;
 }
 
 export interface CreateAgentRequest {
@@ -149,19 +172,28 @@ export interface CreateAgentRequest {
   name?: string;
   workflowId?: number;
   computingUnitId?: number;
-  settings?: AgentSettingsApi;
+  settings?: AgentSettingsDto;
 }
 
-export interface UpdateAgentSettingsRequest {
-  maxOperatorResultCharLimit?: number;
-  maxOperatorResultCellCharLimit?: number;
-  operatorResultSerializationMode?: "tsv";
-  toolTimeoutSeconds?: number;
-  executionTimeoutMinutes?: number;
-  disabledTools?: string[];
-  maxSteps?: number;
-  allowedOperatorTypes?: string[];
+/** Options for constructing a `TexeraAgent`. */
+export interface TexeraAgentOptions {
+  model: LanguageModel;
+  modelType: string;
+  agentId: string;
+  agentName?: string;
+  systemPrompt?: string;
 }
+
+/** Outcome of a single `sendMessage` generation run. */
+export interface AgentMessageResult {
+  response: string;
+  messages: ModelMessage[];
+  usage: TokenUsage;
+  stopped: boolean;
+  error?: string;
+}
+
+export type ReActStepCallback = (step: ReActStep) => void;
 
 /** Parameters for a single workflow-execution request. */
 export interface ExecutionRequestParams {

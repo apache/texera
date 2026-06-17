@@ -30,6 +30,7 @@ import type {
   WorkflowSettings,
   ValidationError,
 } from "../types/workflow";
+import { ExecutionMode } from "../types/workflow";
 
 export type { ValidationError, Validation } from "../types/workflow";
 
@@ -40,6 +41,7 @@ interface ValidationOutput {
 
 const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = {
   dataTransferBatchSize: 400,
+  executionMode: ExecutionMode.PIPELINED,
 };
 
 /**

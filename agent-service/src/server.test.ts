@@ -18,7 +18,7 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
-import { buildApp, _resetAgentStoreForTests } from "./server";
+import { buildApp, _resetAgentStoreForTests, printStartupMessage } from "./server";
 import { env } from "./config/env";
 
 const API = env.API_PREFIX;
@@ -148,6 +148,81 @@ describe(`POST ${API}/agents`, () => {
   });
 });
 
+describe(`POST ${API}/agents (delegated)`, () => {
+  function signToken(payload: Record<string, unknown>): string {
+    const encode = (o: Record<string, unknown>) => Buffer.from(JSON.stringify(o)).toString("base64");
+    return `${encode({ alg: "none" })}.${encode(payload)}.sig`;
+  }
+
+  const CONTENT = {
+    operators: [],
+    operatorPositions: {},
+    links: [],
+    commentBoxes: [],
+    settings: { dataTransferBatchSize: 400, executionMode: "PIPELINED" },
+  };
+
+  test("loads the workflow, binds the delegation, and masks the token", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: any) => {
+      const u = String(input);
+      if (u.includes("operator-metadata"))
+        return new Response(JSON.stringify({ operators: [], groups: [] }), { status: 200 });
+      if (u.includes("/api/workflow/")) {
+        return new Response(JSON.stringify({ wid: 9, name: "My WF", content: JSON.stringify(CONTENT) }), {
+          status: 200,
+        });
+      }
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+
+    try {
+      const token = signToken({
+        userId: 3,
+        sub: "alice",
+        email: "a@x.com",
+        role: "REGULAR",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
+      const res = await createAgent({ workflowId: 9 }, token);
+      expect(res.status).toBe(200);
+
+      const agent = await readJson<{
+        delegate: { userToken: string; workflowId: number; workflowName: string; userInfo: { name: string } };
+      }>(res);
+      expect(agent.delegate.userToken).toBe("***");
+      expect(agent.delegate.workflowId).toBe(9);
+      expect(agent.delegate.workflowName).toBe("My WF");
+      expect(agent.delegate.userInfo.name).toBe("alice");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  test("still creates the agent (without binding) when the workflow load fails", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: any) => {
+      const u = String(input);
+      if (u.includes("operator-metadata"))
+        return new Response(JSON.stringify({ operators: [], groups: [] }), { status: 200 });
+      if (u.includes("/api/workflow/")) return new Response("nope", { status: 500, statusText: "Server Error" });
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+
+    try {
+      const token = signToken({ userId: 3, sub: "alice", exp: Math.floor(Date.now() / 1000) + 3600 });
+      const res = await createAgent({ workflowId: 9 }, token);
+      expect(res.status).toBe(200);
+
+      // Delegation is only bound on a successful load, so it stays undefined here.
+      const agent = await readJson<{ delegate: unknown }>(res);
+      expect(agent.delegate).toBeUndefined();
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
+
 describe(`GET ${API}/agents`, () => {
   test("empty store returns no agents", async () => {
     const res = await getJson(`${API}/agents`);
@@ -247,5 +322,26 @@ describe(`PATCH ${API}/agents/:id/settings`, () => {
     );
     expect(reread.maxSteps).toBe(7);
     expect(reread.toolTimeoutSeconds).toBe(30);
+  });
+});
+
+describe("printStartupMessage", () => {
+  test("prints the banner including the configured service endpoints", () => {
+    const original = console.log;
+    const lines: string[] = [];
+    console.log = (...args: unknown[]) => {
+      lines.push(args.join(" "));
+    };
+    try {
+      printStartupMessage(app);
+    } finally {
+      console.log = original;
+    }
+
+    const out = lines.join("\n");
+    expect(out).toContain("Texera Agent Service");
+    expect(out).toContain("LLM_ENDPOINT:");
+    expect(out).toContain("WORKFLOW_COMPILING_SERVICE_ENDPOINT:");
+    expect(out).toContain("TEXERA_DASHBOARD_SERVICE_ENDPOINT:");
   });
 });

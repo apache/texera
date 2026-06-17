@@ -24,7 +24,16 @@ import { WorkflowState } from "./workflow-state";
 import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
 import { WorkflowResultState } from "./workflow-result-state";
 import { formatOperatorResult } from "./tools/result-formatting";
-import type { AgentSettings, ReActStep, TokenUsage, UserInfo } from "../types/agent";
+import type {
+  AgentSettings,
+  ReActStep,
+  TokenUsage,
+  AgentDelegation,
+  AgentMessageResult,
+  TexeraAgentOptions,
+  ReActStepCallback,
+  ExecutionRequestParams,
+} from "../types/agent";
 import {
   AgentState as AgentStateEnum,
   DEFAULT_AGENT_SETTINGS,
@@ -45,7 +54,6 @@ import {
   createExecuteOperatorTool,
   executeOperatorAndFormat,
   TOOL_NAME_EXECUTE_OPERATOR,
-  type ExecutionConfig,
 } from "./tools/workflow-execution-tools";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync } from "../api/compile-client";
@@ -54,24 +62,6 @@ import { createLogger } from "../logger";
 import type { Logger } from "pino";
 
 const PERSIST_DEBOUNCE_MS = 500;
-
-export interface TexeraAgentConfig {
-  model: LanguageModel;
-  modelType: string;
-  agentId: string;
-  agentName?: string;
-  systemPrompt?: string;
-}
-
-export interface AgentMessageResult {
-  response: string;
-  messages: ModelMessage[];
-  usage: TokenUsage;
-  stopped: boolean;
-  error?: string;
-}
-
-type ReActStepCallback = (step: ReActStep) => void;
 
 /**
  * A single Texera agent instance.
@@ -106,13 +96,7 @@ export class TexeraAgent {
 
   private currentMessageId: string | undefined = undefined;
 
-  private delegateConfig?: {
-    userToken: string;
-    userInfo?: UserInfo;
-    workflowId: number;
-    workflowName?: string;
-    computingUnitId?: number;
-  };
+  private delegation?: AgentDelegation;
 
   private stepCallback: ReActStepCallback | null = null;
 
@@ -126,13 +110,13 @@ export class TexeraAgent {
 
   private log: Logger;
 
-  constructor(config: TexeraAgentConfig) {
-    this.agentId = config.agentId;
-    this.agentName = config.agentName || `Agent-${config.agentId}`;
-    this.modelType = config.modelType;
+  constructor(options: TexeraAgentOptions) {
+    this.agentId = options.agentId;
+    this.agentName = options.agentName || `Agent-${options.agentId}`;
+    this.modelType = options.modelType;
     this.createdAt = new Date();
-    this.model = config.model;
-    this.systemPrompt = config.systemPrompt || "";
+    this.model = options.model;
+    this.systemPrompt = options.systemPrompt || "";
     this.log = createLogger("TexeraAgent", { agentId: this.agentId });
 
     this.workflowState = new WorkflowState();
@@ -180,12 +164,12 @@ export class TexeraAgent {
     this.settings.systemPrompt = this.systemPrompt;
   }
 
-  private buildExecutionConfig(): ExecutionConfig | undefined {
-    if (!this.delegateConfig) return undefined;
+  private buildExecutionParams(): ExecutionRequestParams | undefined {
+    if (!this.delegation) return undefined;
     return {
-      userToken: this.delegateConfig.userToken,
-      workflowId: this.delegateConfig.workflowId,
-      computingUnitId: this.delegateConfig.computingUnitId,
+      userToken: this.delegation.userToken,
+      workflowId: this.delegation.workflowId,
+      computingUnitId: this.delegation.computingUnitId,
       maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
       maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
       executionTimeoutMs: this.settings.executionTimeoutMs,
@@ -202,7 +186,7 @@ export class TexeraAgent {
       }
     }
 
-    const getExecutionConfig = this.delegateConfig ? () => this.buildExecutionConfig()! : undefined;
+    const getExecutionParams = this.delegation ? () => this.buildExecutionParams()! : undefined;
 
     const context: ToolContext = {
       metadataStore: this.metadataStore,
@@ -219,10 +203,10 @@ export class TexeraAgent {
       [TOOL_NAME_MODIFY_OPERATOR]: createModifyOperatorTool(this.workflowState, context),
     };
 
-    if (getExecutionConfig) {
+    if (getExecutionParams) {
       tools[TOOL_NAME_EXECUTE_OPERATOR] = createExecuteOperatorTool(
         this.workflowState,
-        getExecutionConfig,
+        getExecutionParams,
         (opId, operatorInfo) => {
           this.workflowResultState.set(opId, this.head, operatorInfo);
         }
@@ -416,38 +400,30 @@ export class TexeraAgent {
       return;
     }
 
-    if (!this.delegateConfig?.workflowId || !this.delegateConfig?.userToken) {
+    if (!this.delegation?.workflowId || !this.delegation?.userToken) {
       return;
     }
 
     try {
       const { retrieveWorkflow } = await import("../api/workflow-client");
-      const workflow = await retrieveWorkflow(this.delegateConfig.userToken, this.delegateConfig.workflowId);
+      const workflow = await retrieveWorkflow(this.delegation.userToken, this.delegation.workflowId);
       this.workflowState.setWorkflowContent(workflow.content);
-      this.log.debug({ workflowId: this.delegateConfig.workflowId }, "refreshed workflow from backend");
+      this.log.debug({ workflowId: this.delegation.workflowId }, "refreshed workflow from backend");
     } catch (error) {
       this.log.warn({ err: error }, "failed to refresh workflow from backend");
     }
   }
 
-  setDelegateConfig(config: {
-    userToken: string;
-    userInfo?: UserInfo;
-    workflowId: number;
-    workflowName?: string;
-    computingUnitId?: number;
-  }): void {
-    this.delegateConfig = config;
+  setDelegation(delegation: AgentDelegation): void {
+    this.delegation = delegation;
 
     this.tools = this.createTools();
 
     this.setupWorkflowChangeHandlers();
   }
 
-  getDelegateConfig():
-    | { userToken: string; userInfo?: UserInfo; workflowId: number; workflowName?: string; computingUnitId?: number }
-    | undefined {
-    return this.delegateConfig;
+  getDelegation(): AgentDelegation | undefined {
+    return this.delegation;
   }
 
   private setupWorkflowChangeHandlers(): void {
@@ -458,9 +434,9 @@ export class TexeraAgent {
     const subscription = new Subscription();
     const workflowChanged$ = this.workflowState.getWorkflowChangedStream();
 
-    if (this.delegateConfig?.workflowId && this.delegateConfig.userToken) {
+    if (this.delegation?.workflowId && this.delegation.userToken) {
       const persistSubscription = workflowChanged$.pipe(debounceTime(PERSIST_DEBOUNCE_MS)).subscribe(async () => {
-        if (!this.delegateConfig?.workflowId || !this.delegateConfig.userToken) {
+        if (!this.delegation?.workflowId || !this.delegation.userToken) {
           return;
         }
 
@@ -468,12 +444,12 @@ export class TexeraAgent {
           const { persistWorkflow } = await import("../api/workflow-client");
           const workflowContent = this.workflowState.getWorkflowContent();
           await persistWorkflow(
-            this.delegateConfig.userToken,
-            this.delegateConfig.workflowId,
-            this.delegateConfig.workflowName || "Agent Workflow",
+            this.delegation.userToken,
+            this.delegation.workflowId,
+            this.delegation.workflowName || "Agent Workflow",
             workflowContent
           );
-          this.log.debug({ workflowId: this.delegateConfig.workflowId }, "auto-persisted workflow");
+          this.log.debug({ workflowId: this.delegation.workflowId }, "auto-persisted workflow");
         } catch (error) {
           this.log.error({ err: error }, "failed to auto-persist workflow");
         }
@@ -613,8 +589,8 @@ export class TexeraAgent {
           this.addStep(agentStep);
           this.head = agentStepId;
 
-          const execConfig = this.buildExecutionConfig();
-          if (execConfig && toolCalls && toolResults) {
+          const execParams = this.buildExecutionParams();
+          if (execParams && toolCalls && toolResults) {
             const EXECUTE_AFTER_TOOLS = new Set([TOOL_NAME_ADD_OPERATOR, TOOL_NAME_MODIFY_OPERATOR]);
 
             for (let i = 0; i < toolCalls.length; i++) {
@@ -629,7 +605,7 @@ export class TexeraAgent {
               if (!operatorId) continue;
 
               try {
-                await executeOperatorAndFormat(this.workflowState, execConfig, operatorId, {
+                await executeOperatorAndFormat(this.workflowState, execParams, operatorId, {
                   abortSignal: this.abortController?.signal,
                   onResult: (opId, operatorInfo) => {
                     this.workflowResultState.set(opId, this.head, operatorInfo);

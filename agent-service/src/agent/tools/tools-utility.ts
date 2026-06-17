@@ -17,6 +17,9 @@
  * under the License.
  */
 
+import type { WorkflowState } from "../workflow-state";
+import type { OperatorInfo } from "../../types/execution";
+
 export const INTERNAL_RESULT_KEYS: ReadonlySet<string> = new Set(["__row_index__", "__is_visualization__"]);
 
 export function getVisibleResultHeaders(row: Record<string, any>): string[] {
@@ -73,4 +76,87 @@ export function formatExecuteOperatorResult(operatorId: string): string {
 
 export function formatOperatorError(operatorId: string, error: string): string {
   return `Error on operator ${operatorId}: ${error}`;
+}
+
+/**
+ * Renders an operator's input/output table shapes as a one/two-line summary,
+ * naming each input by its upstream operator id.
+ */
+export function formatOperatorIoShape(
+  workflowState: WorkflowState,
+  operatorId: string,
+  opInfo: OperatorInfo,
+  outputColumns: number
+): string {
+  const outputRows = opInfo.totalRowCount ?? opInfo.outputTuples;
+  const outputLine = `Output table shape: (${outputRows}, ${outputColumns})`;
+
+  const inputShapes = opInfo.inputPortShapes;
+  if (!inputShapes || inputShapes.length === 0) {
+    return outputLine;
+  }
+
+  const inputLinks = workflowState.getAllLinks().filter(l => l.target.operatorID === operatorId);
+  const portIndexToUpstream = new Map<number, string>();
+  const op = workflowState.getOperator(operatorId);
+  for (const link of inputLinks) {
+    const portIdx = op?.inputPorts.findIndex(p => p.portID === link.target.portID) ?? -1;
+    if (portIdx >= 0) {
+      portIndexToUpstream.set(portIdx, link.source.operatorID);
+    }
+  }
+
+  const inputPart = inputShapes
+    .sort((a, b) => a.portIndex - b.portIndex)
+    .map(p => {
+      const name = portIndexToUpstream.get(p.portIndex) ?? `input${p.portIndex}`;
+      return `${name}(${p.rows}, ${p.columns})`;
+    })
+    .join(", ");
+
+  return `Input operator(table shape): ${inputPart}\n${outputLine}`;
+}
+
+/**
+ * Serializes result records as a tab-separated table with a leading index
+ * column (pandas `__repr__` style), collapsing gaps in `__row_index__` into a
+ * `...` separator row.
+ */
+export function formatRecordsAsTable(records: Record<string, any>[]): string {
+  if (!records || records.length === 0) return "";
+
+  const hasRowIndex = "__row_index__" in records[0];
+  const headers = getVisibleResultHeaders(records[0]);
+  if (headers.length === 0) return "";
+  // Leading tab aligns headers with the index column (pandas __repr__ style).
+  const headerLine = "\t" + headers.join("\t");
+
+  const formattedRows: string[] = [];
+  let prevIndex = -1;
+
+  for (let i = 0; i < records.length; i++) {
+    const row = records[i];
+    const rowIndex = hasRowIndex ? (row["__row_index__"] as number) : i;
+
+    if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
+      const dots = headers.map(() => "...").join("\t");
+      formattedRows.push(`...\t${dots}`);
+    }
+    prevIndex = rowIndex;
+
+    const cells = headers.map(h => {
+      const val = row[h];
+      if (val === null) return "NaN";
+      if (val === undefined) return "";
+      if (typeof val === "number" || typeof val === "boolean") return String(val);
+      if (typeof val === "string") {
+        if (val === "NULL") return "NaN";
+        return val.replace(/\t/g, "\\t").replace(/\n/g, "\\n");
+      }
+      return JSON.stringify(val);
+    });
+    formattedRows.push(`${rowIndex}\t${cells.join("\t")}`);
+  }
+
+  return [headerLine, ...formattedRows].join("\n");
 }
