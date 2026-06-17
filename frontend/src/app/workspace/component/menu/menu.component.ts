@@ -18,7 +18,7 @@
  */
 
 import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet } from "@angular/common";
-import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnDestroy, OnInit, TemplateRef, ViewChild } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
 import {
@@ -147,6 +147,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
   @ViewChild("workflowNameInput") workflowNameInput: ElementRef<HTMLInputElement> | undefined;
+  @ViewChild("workflowPythonScriptModal", { static: true }) workflowPythonScriptModal?: TemplateRef<void>;
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = "Run";
@@ -647,6 +648,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   };
 
   public isTranslatingToPython = false;
+  public pythonCodeForModal = "";
 
   public onClickExportAsPython(): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
@@ -659,9 +661,10 @@ export class MenuComponent implements OnInit, OnDestroy {
       next: response => {
         this.isTranslatingToPython = false;
         if (response.type === "success") {
+          this.pythonCodeForModal = response.pythonCode ?? "";
           this.modalService.create({
             nzTitle: "Workflow as Python Script",
-            nzContent: `<pre style="max-height:70vh;overflow:auto;white-space:pre-wrap">${response.pythonCode}</pre>`,
+            nzContent: this.workflowPythonScriptModal ?? "",
             nzFooter: null,
             nzWidth: 800,
           });
@@ -674,6 +677,19 @@ export class MenuComponent implements OnInit, OnDestroy {
         this.notificationService.error("Request failed while translating workflow to Python.");
       },
     });
+  }
+
+  public async copyPythonCodeToClipboard(): Promise<void> {
+    if (!this.pythonCodeForModal) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(this.pythonCodeForModal);
+      this.notificationService.success("Python script copied to clipboard");
+    } catch (error) {
+      this.notificationService.error("Failed to copy Python script");
+    }
   }
 
   public onClickExportWorkflow(): void {

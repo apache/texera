@@ -190,3 +190,28 @@ texera-coeditor-user-icon {
 ::ng-deep .layers-dropdown {
   user-select: none;
 }
+
+.workflow-python-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workflow-python-modal-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.workflow-python-code {
+  max-height: 70vh;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f6f8fa;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}

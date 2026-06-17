@@ -391,6 +391,19 @@ describe("MenuComponent", () => {
     });
   });
 
+  it("copyPythonCodeToClipboard writes the generated Python script to the clipboard", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+    component.pythonCodeForModal = "print('hello')";
+
+    await component.copyPythonCodeToClipboard();
+
+    expect(writeText).toHaveBeenCalledWith("print('hello')");
+    expect(successSpy).toHaveBeenCalledWith("Python script copied to clipboard");
+    vi.unstubAllGlobals();
+  });
+
   describe("version history", () => {
     it("onClickGetAllVersions delegates to workflowVersionService.displayWorkflowVersions", () => {
       const displaySpy = vi.spyOn(workflowVersionService, "displayWorkflowVersions").mockImplementation(() => {});
