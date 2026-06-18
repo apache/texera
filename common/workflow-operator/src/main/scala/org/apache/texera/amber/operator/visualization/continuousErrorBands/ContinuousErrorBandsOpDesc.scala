@@ -25,13 +25,13 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import java.util
 import scala.jdk.CollectionConverters.ListHasAsScala
-class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
+class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "xLabel", required = false, defaultValue = "X Axis")
   @JsonSchemaTitle("X Label")
@@ -149,5 +149,60 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val traces =
+      bands.asScala
+        .map { bandConf =>
+          val colorPart =
+            if (bandConf.color != "")
+              s"""line={'color': "${bandConf.color}"}, marker={'color': "${bandConf.color}"}, """
+            else ""
+          val fillColorPart =
+            if (bandConf.fillColor != "") s"""fillcolor="${bandConf.fillColor}", """ else ""
+          val name = if (bandConf.name != "") bandConf.name else bandConf.yValue
+
+          s"""fig.add_trace(go.Scatter(
+             |    x=in1df["${bandConf.xValue}"],
+             |    y=in1df["${bandConf.yUpper}"],
+             |    mode='lines',
+             |    marker=dict(color="#444"),
+             |    line=dict(width=0),
+             |    showlegend=False,
+             |    name="$name"
+             |))
+             |fig.add_trace(go.Scatter(
+             |    x=in1df["${bandConf.xValue}"],
+             |    y=in1df["${bandConf.yLower}"],
+             |    mode='lines',
+             |    marker=dict(color="#444"),
+             |    line=dict(width=0),
+             |    fill='tonexty',
+             |    showlegend=False,
+             |    $fillColorPart
+             |    name="$name"
+             |))
+             |fig.add_trace(go.Scatter(
+             |    x=in1df["${bandConf.xValue}"],
+             |    y=in1df["${bandConf.yValue}"],
+             |    mode='${bandConf.mode.getModeInPlotly}',
+             |    $colorPart
+             |    name="$name"
+             |))""".stripMargin
+        }
+        .mkString("\n")
+
+    s"""fig = go.Figure()
+       |$traces
+       |fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+       |                  xaxis_title="$xLabel",
+       |                  yaxis_title="$yLabel",
+       |                  hovermode="x")
+       |fig.write_json("output.json")
+       |fig.write_html("output.html")
+       |print("Continuous error bands saved to output.json and output.html")""".stripMargin
   }
 }
