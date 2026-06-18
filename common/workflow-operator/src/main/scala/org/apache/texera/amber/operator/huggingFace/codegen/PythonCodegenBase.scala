@@ -120,6 +120,9 @@ object PythonCodegenBase {
        |        "ovhcloud", "publicai", "scaleway", "baseten",
        |    )
        |
+       |    # Hard cap on bytes pulled from an external (user/response-provided) URL.
+       |    MAX_REMOTE_FETCH_BYTES = 25 * 1024 * 1024
+       |
        |    def open(self):
        |        # User-provided strings reach the operator via base64-encoded
        |        # decode expressions so they cannot break Python syntax or
@@ -609,22 +612,62 @@ object PythonCodegenBase {
        |    # branches of _call_provider).
        |    # ──────────────────────────────────────────────────────────────────
        |
+       |    def _fetch_remote_url(self, url):
+       |        '''Fetch an external URL with SSRF hardening. Returns (content_type, data).
+       |        Enforces https-only, rejects private/loopback/link-local/reserved
+       |        addresses (covers the 169.254.169.254 cloud-metadata endpoint), and
+       |        caps the response at MAX_REMOTE_FETCH_BYTES. The address check runs
+       |        before the request, so it mitigates but does not fully prevent DNS
+       |        rebinding (requests re-resolves on connect).
+       |        '''
+       |        import ipaddress
+       |        import socket
+       |        from urllib.parse import urlparse as _urlparse
+       |        parsed = _urlparse(url)
+       |        if parsed.scheme != "https":
+       |            raise ValueError(f"Only https URLs are allowed (got scheme '{parsed.scheme}').")
+       |        host = parsed.hostname
+       |        if not host:
+       |            raise ValueError("Remote URL has no host.")
+       |        try:
+       |            addrinfos = socket.getaddrinfo(host, parsed.port or 443, proto=socket.IPPROTO_TCP)
+       |        except socket.gaierror as e:
+       |            raise ValueError(f"Could not resolve host '{host}': {e}")
+       |        for info in addrinfos:
+       |            ip = ipaddress.ip_address(info[4][0])
+       |            if (ip.is_private or ip.is_loopback or ip.is_link_local
+       |                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+       |                raise ValueError(f"Refusing to fetch from non-public address {ip}.")
+       |        resp = requests.get(url, timeout=120, stream=True)
+       |        resp.raise_for_status()
+       |        content_type = resp.headers.get("Content-Type", "")
+       |        total = 0
+       |        chunks = []
+       |        for chunk in resp.iter_content(65536):
+       |            total += len(chunk)
+       |            if total > self.MAX_REMOTE_FETCH_BYTES:
+       |                resp.close()
+       |                raise ValueError(
+       |                    f"Remote file exceeds the {self.MAX_REMOTE_FETCH_BYTES} byte limit."
+       |                )
+       |            chunks.append(chunk)
+       |        return content_type, b"".join(chunks)
+       |
        |    def _read_image_input(self):
        |        image_input = str(self.IMAGE_INPUT or "").strip()
        |        if image_input.startswith("data:"):
        |            _, encoded = image_input.split(",", 1)
        |            return base64.b64decode(encoded)
        |        if image_input.startswith("http://") or image_input.startswith("https://"):
-       |            resp = requests.get(image_input, timeout=120)
-       |            resp.raise_for_status()
-       |            return resp.content
+       |            _, data = self._fetch_remote_url(image_input)
+       |            return data
        |        # Reading arbitrary worker-filesystem paths is intentionally NOT
        |        # supported: a workflow could otherwise point this at any file on the
        |        # worker (e.g. /etc/passwd) and exfiltrate it via the inference call.
-       |        # Uploaded images arrive as data URLs; remote images as http(s) URLs.
+       |        # Uploaded images arrive as data URLs; remote images as https URLs.
        |        raise ValueError(
        |            "Unsupported image input. Upload an image (sent as a data URL) "
-       |            "or provide a public http(s) image URL."
+       |            "or provide a public https image URL."
        |        )
        |
        |    def _compress_image_bytes(self, image_bytes, max_bytes=33000):
@@ -683,9 +726,8 @@ object PythonCodegenBase {
        |            _, encoded = val.split(",", 1)
        |            return base64.b64decode(encoded)
        |        if val.startswith("http://") or val.startswith("https://"):
-       |            resp = requests.get(val, timeout=120)
-       |            resp.raise_for_status()
-       |            return resp.content
+       |            _, data = self._fetch_remote_url(val)
+       |            return data
        |        # No worker-filesystem path reads here either (see _read_image_input):
        |        # a column value must be a data URL, http(s) URL, rendered HTML, or
        |        # base64-encoded bytes. Anything else is treated as raw bytes, never
@@ -780,10 +822,12 @@ object PythonCodegenBase {
        |        return None, start_pos
        |
        |    def _url_to_data_url(self, url):
-       |        '''Fetch a URL and return a data URL with the correct MIME type.'''
-       |        resp = requests.get(url, timeout=120)
-       |        resp.raise_for_status()
-       |        content_type = resp.headers.get("Content-Type", "").split(";")[0].strip()
+       |        '''Fetch a URL and return a data URL with the correct MIME type.
+       |        Fetched via _fetch_remote_url so a malicious/compromised provider
+       |        cannot redirect this to an internal address or oversized payload.
+       |        '''
+       |        raw_content_type, data = self._fetch_remote_url(url)
+       |        content_type = raw_content_type.split(";")[0].strip()
        |        if not content_type or content_type == "application/octet-stream":
        |            from urllib.parse import urlparse as _urlparse
        |            ext = os.path.splitext(_urlparse(url).path.lower())[1]
@@ -794,7 +838,7 @@ object PythonCodegenBase {
        |            else:
        |                task_mime = {"image-to-image": "image/png"}
        |                content_type = task_mime.get(self.TASK, "application/octet-stream")
-       |        b64 = base64.b64encode(resp.content).decode("utf-8")
+       |        b64 = base64.b64encode(data).decode("utf-8")
        |        return f"data:{content_type};base64,{b64}"
        |
        |    def _parse_response(self, body):

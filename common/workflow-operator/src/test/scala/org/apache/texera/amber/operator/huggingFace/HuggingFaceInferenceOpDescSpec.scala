@@ -255,6 +255,29 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should not include """in " ,\\n\\r\\t""""
   }
 
+  it should "harden remote URL fetches against SSRF (https-only, private-IP block, size cap)" in {
+    // Remote image/result URLs (user-provided or returned by a third-party
+    // provider) are fetched through _fetch_remote_url, which enforces https,
+    // rejects private/loopback/link-local/reserved/metadata addresses, and
+    // caps the response size.
+    val code = makeDesc(task = "image-to-image", inputImageColumn = "img").generatePythonCode()
+    code should include("def _fetch_remote_url(self, url):")
+    // https-only
+    code should include("""if parsed.scheme != "https":""")
+    // private / metadata IP blocking (169.254.169.254 is link-local)
+    code should include("ip.is_private")
+    code should include("ip.is_loopback")
+    code should include("ip.is_link_local")
+    code should include("Refusing to fetch from non-public address")
+    // size cap
+    code should include("MAX_REMOTE_FETCH_BYTES")
+    code should include("Remote file exceeds the")
+    // all three fetch sites route through the helper (no raw requests.get on these URLs)
+    code should include("_, data = self._fetch_remote_url(image_input)")
+    code should include("_, data = self._fetch_remote_url(val)")
+    code should include("raw_content_type, data = self._fetch_remote_url(url)")
+  }
+
   it should "treat pandas NA sentinels (NaN, pd.NA, NaT) as missing in _read_binary_value" in {
     // isinstance(value, float) only catches float('nan'); pd.NA / NaT are not
     // floats and previously fell through to be str()-ified into bytes. The
