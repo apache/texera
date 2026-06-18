@@ -57,8 +57,17 @@ class UrlVizOpExecSpec extends AnyFlatSpec {
     assert(out.size == 1, s"expected one emission, got: $out")
     out.head match {
       case tupleLike: TupleLike =>
-        // The first field of the emitted TupleLike is the generated HTML.
-        tupleLike.getFields.head.toString
+        val fields = tupleLike.getFields
+        assert(
+          fields.size == 1,
+          s"expected exactly one field on the emitted TupleLike, got: $fields"
+        )
+        val field = fields.head
+        assert(
+          field.isInstanceOf[String],
+          s"expected the field to be a String, got ${field.getClass.getName}: $field"
+        )
+        field.asInstanceOf[String]
     }
   }
 
