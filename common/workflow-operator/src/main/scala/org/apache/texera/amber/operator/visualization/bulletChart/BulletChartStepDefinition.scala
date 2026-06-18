@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.bulletChart
 
-import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 
@@ -27,11 +27,18 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
   * Defines a step range used for qualitative segments in the Bullet Chart.
   */
 
-class BulletChartStepDefinition @JsonCreator() (
-    @JsonProperty("start")
-    @JsonSchemaTitle("Start")
-    var start: EncodableString,
-    @JsonProperty("end")
-    @JsonSchemaTitle("End")
-    var end: EncodableString
-)
+class BulletChartStepDefinition {
+  @JsonProperty("start")
+  @JsonSchemaTitle("Start")
+  var start: EncodableString = ""
+
+  @JsonProperty("end")
+  @JsonSchemaTitle("End")
+  var end: EncodableString = ""
+
+  def this(start: EncodableString, end: EncodableString) = {
+    this()
+    this.start = start
+    this.end = end
+  }
+}

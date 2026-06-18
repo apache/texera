@@ -20,12 +20,12 @@
 package org.apache.texera.amber.operator.visualization.bulletChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
@@ -37,7 +37,16 @@ import scala.jdk.CollectionConverters._
   * Visualization Operator to visualize results as a Bullet Chart
   */
 
-class BulletChartOpDesc extends PythonOperatorDescriptor {
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "value": {
+      "enum": ["integer", "long", "double"]
+    }
+  }
+}
+""")
+class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value")
@@ -89,6 +98,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |from pytexera import *
          |import plotly.graph_objects as go
          |import plotly.io as pio
+         |import pandas as pd
          |import json
          |
          |class ProcessTableOperator(UDFTableOperator):
@@ -140,9 +150,15 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |                yield {'html-content': self.render_error(f"Column '{value_col}' not found in input table.")}
          |                return
          |
-         |            table = table.dropna(subset=[value_col])
+         |            table = table.dropna(subset=[value_col]).copy()
          |            if table.empty:
          |                yield {'html-content': self.render_error("No valid data rows found after dropping nulls.")}
+         |                return
+         |
+         |            table[value_col] = pd.to_numeric(table[value_col], errors='coerce')
+         |            table = table.dropna(subset=[value_col])
+         |            if table.empty:
+         |                yield {'html-content': self.render_error(f"Column '{value_col}' does not contain numeric values.")}
          |                return
          |
          |            try:
@@ -227,5 +243,110 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |            yield {'html-content': self.render_error(f"General error: {str(e)}")}
          |"""
     finalCode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val stepsLiteral =
+      if (steps != null && !steps.isEmpty)
+        steps.asScala
+          .map(step => s"""{"start": "${step.start}", "end": "${step.end}"}""")
+          .mkString("[", ", ", "]")
+      else "[]"
+
+    s"""def render_error(error_msg):
+       |    return '''<h1>Bullet chart is not available.</h1>
+       |              <p>Reason: {} </p>'''.format(error_msg)
+       |
+       |def generate_gray_gradient(step_count):
+       |    colors = []
+       |    for i in range(step_count):
+       |        lightness = 90 - (i * (60 / max(1, step_count - 1)))
+       |        colors.append(f"hsl(0, 0%, {lightness}%)")
+       |    return colors
+       |
+       |def generate_valid_steps(steps_data):
+       |    valid_steps = []
+       |    step_errors = []
+       |    for index, step in enumerate(steps_data):
+       |        start = step.get('start', '')
+       |        end = step.get('end', '')
+       |        if start and end:
+       |            try:
+       |                s_val = float(start)
+       |                e_val = float(end)
+       |                if s_val < e_val:
+       |                    valid_steps.append({"start": s_val, "end": e_val})
+       |                else:
+       |                    step_errors.append(f"Step {index + 1}: start >= end ({s_val} >= {e_val})")
+       |            except Exception:
+       |                step_errors.append(f"Step {index + 1}: Invalid step values: start='{start}', end='{end}'")
+       |    return valid_steps, step_errors
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    value_col = "$value"
+       |    delta_ref = float("$deltaReference") if "$deltaReference".strip() else 0
+       |    if value_col not in in1df.columns:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error(f"Column '{value_col}' not found in input table."))
+       |    else:
+       |        table = in1df.dropna(subset=[value_col])
+       |        try:
+       |            threshold_val = float("$thresholdValue") if "$thresholdValue".strip() else None
+       |        except ValueError:
+       |            threshold_val = None
+       |        valid_steps, step_errors = generate_valid_steps($stepsLiteral)
+       |        step_colors = generate_gray_gradient(len(valid_steps))
+       |        steps_list = []
+       |        for index, step_data in enumerate(valid_steps):
+       |            steps_list.append({
+       |                "range": [step_data["start"], step_data["end"]],
+       |                "color": step_colors[index]
+       |            })
+       |        html_chunks = []
+       |        first_fig = None
+       |        for _, row in table.head(10).iterrows():
+       |            try:
+       |                actual = float(row[value_col])
+       |                gauge_config = {'shape': 'bullet'}
+       |                if steps_list:
+       |                    gauge_config['steps'] = steps_list
+       |                max_range_values = [actual, delta_ref]
+       |                if threshold_val is not None:
+       |                    max_range_values.append(threshold_val)
+       |                for r in steps_list:
+       |                    max_range_values.append(r["range"][1])
+       |                gauge_config['axis'] = {"range": [0, max(max_range_values) * 1.2]}
+       |                if threshold_val is not None:
+       |                    gauge_config["threshold"] = {
+       |                        "value": threshold_val,
+       |                        "line": {"color": "red", "width": 2},
+       |                        "thickness": 1
+       |                    }
+       |                fig = go.Figure(go.Indicator(
+       |                    mode="number+gauge+delta",
+       |                    value=actual,
+       |                    delta={"reference": delta_ref},
+       |                    gauge=gauge_config,
+       |                    domain={"x": [0.1, 1], "y": [0.1, 0.9]},
+       |                    title={"text": value_col}
+       |                ))
+       |                fig.update_layout(margin=dict(l=80, r=20, b=40, t=40), height=150)
+       |                if first_fig is None:
+       |                    first_fig = fig
+       |                html_chunk = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+       |                if step_errors:
+       |                    html_chunk += "<br><b>Step Errors:</b><ul>" + "".join([f"<li>{msg}</li>" for msg in step_errors]) + "</ul>"
+       |                html_chunks.append(html_chunk)
+       |            except Exception as e:
+       |                html_chunks.append(render_error(f"Error generating bullet chart: {str(e)}"))
+       |        if first_fig is not None:
+       |            first_fig.write_json("output.json")
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write("<div>" + "".join(html_chunks) + "</div>")""".stripMargin
   }
 }

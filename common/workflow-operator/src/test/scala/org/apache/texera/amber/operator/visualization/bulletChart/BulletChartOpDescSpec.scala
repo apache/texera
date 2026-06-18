@@ -69,6 +69,12 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
     decodeOccurrences should be >= 2
   }
 
+  it should "coerce the selected value column to numeric before rendering" in {
+    val code = configured.generatePythonCode()
+    code should include("pd.to_numeric(table[value_col], errors='coerce')")
+    code should include("does not contain numeric values")
+  }
+
   it should "default to an empty steps list when none are configured" in {
     // The bullet-chart template ships with several unrelated `[]` literals
     // (`colors`, `valid_steps`, `step_errors`, `steps_list`, `html_chunks`),
@@ -93,6 +99,12 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
     val baseDecodes = "decode_python_template".r.findAllIn(configured.generatePythonCode()).length
     val withSteps = "decode_python_template".r.findAllIn(code).length
     withSteps shouldBe baseDecodes + 4
+  }
+
+  "BulletChartStepDefinition" should "initialize with empty start and end defaults" in {
+    val step = new BulletChartStepDefinition()
+    step.start shouldBe ""
+    step.end shouldBe ""
   }
 
   it should "currently render a code block even with the default empty configuration (no assert guard)" in {
