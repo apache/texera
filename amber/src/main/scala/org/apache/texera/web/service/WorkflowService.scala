@@ -50,7 +50,7 @@ import org.apache.texera.amber.error.ErrorUtils.{
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.service.util.LargeBinaryManager
-import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
+import org.apache.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent}
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.service.WorkflowService.mkWorkflowStateId
@@ -292,10 +292,22 @@ class WorkflowService(
       executionService.onNext(execution)
       execution.executeWorkflow()
     } catch {
-      case e: Throwable => errorHandler(e)
+      case e: Throwable =>
+        errorHandler(e)
+        reportFatalErrorsToSubscribers(executionStateStore)
     }
 
   }
+
+  /**
+    * Push the fatal errors currently recorded in `stateStore` to connected
+    * websocket subscribers (via `errorSubject`). Used when execution
+    * initialization fails: `errorHandler` records the error into the metadata
+    * store, and this surfaces it to the frontend instead of leaving it only
+    * logged.
+    */
+  private[service] def reportFatalErrorsToSubscribers(stateStore: ExecutionStateStore): Unit =
+    errorSubject.onNext(WorkflowErrorEvent(stateStore.metadataStore.getState.fatalErrors))
 
   def convertToJson(frontendVersion: String): String = {
     val environmentVersionMap = Map(
