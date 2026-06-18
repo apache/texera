@@ -15,10 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
+import traceback
 from typing import Iterator
 
+from core.models import ExceptionInfo
 from core.util.buffer.timed_buffer import TimedBuffer
-from proto.org.apache.texera.amber.engine.architecture.rpc import ConsoleMessage
+from core.util.console_message.timestamp import current_time_in_local_timezone
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    ConsoleMessage,
+    ConsoleMessageType,
+)
 
 
 class ConsoleMessageManager:
@@ -30,3 +37,32 @@ class ConsoleMessageManager:
 
     def put_message(self, msg: ConsoleMessage) -> None:
         self.print_buf.put(msg)
+
+    def report_exception(self, worker_id: str, exc_info: ExceptionInfo) -> None:
+        """Queue an ERROR console message describing ``exc_info``.
+
+        Builds the operator-facing error message for an uncaught exception,
+        whether it surfaced from a UDF on the data path (DataProcessor) or
+        from a user expression evaluated on the main loop thread. Centralizing
+        it keeps both paths reporting identically; callers are responsible for
+        recording the exception with the exception manager and flushing/pausing
+        as appropriate.
+        """
+        tb = traceback.extract_tb(exc_info[2])
+        filename, line_number, func_name, text = tb[-1]
+        base_name = os.path.basename(filename)
+        module_name, _ = os.path.splitext(base_name)
+        formatted_exception = traceback.format_exception(*exc_info)
+        title: str = formatted_exception[-1].strip()
+        message: str = "\n".join(formatted_exception)
+
+        self.put_message(
+            ConsoleMessage(
+                worker_id=worker_id,
+                timestamp=current_time_in_local_timezone(),
+                msg_type=ConsoleMessageType.ERROR,
+                source=f"{module_name}:{func_name}:{line_number}",
+                title=title,
+                message=message,
+            )
+        )

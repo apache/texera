@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import sys
 from datetime import datetime, timedelta
 
 from core.architecture.managers.console_message_manager import ConsoleMessageManager
@@ -81,3 +82,29 @@ class TestConsoleMessageManager:
         mgr.print_buf._last_output_time = datetime.now() - timedelta(seconds=2)
         flushed = [m.title for m in mgr.get_messages(force_flush=False)]
         assert flushed == ["stale"]
+
+    def test_report_exception_emits_error_console_message(self):
+        # report_exception turns an exc_info into a single ERROR ConsoleMessage
+        # queued on the buffer: title is the exception's final line, message is
+        # the full formatted traceback, and source encodes the raising frame.
+        mgr = ConsoleMessageManager()
+        try:
+            raise ValueError("boom from udf")
+        except ValueError:
+            exc_info = sys.exc_info()
+
+        mgr.report_exception("worker-7", exc_info)
+
+        flushed = list(mgr.get_messages(force_flush=True))
+        assert len(flushed) == 1
+        msg = flushed[0]
+        assert msg.worker_id == "worker-7"
+        assert msg.msg_type == ConsoleMessageType.ERROR
+        assert msg.title == "ValueError: boom from udf"
+        assert "Traceback (most recent call last)" in msg.message
+        assert "ValueError: boom from udf" in msg.message
+        # source encodes "<module>:<func>:<line>" of the raising frame
+        parts = msg.source.split(":")
+        assert len(parts) == 3
+        assert parts[0] == "test_console_message_manager"
+        assert parts[1] == "test_report_exception_emits_error_console_message"
