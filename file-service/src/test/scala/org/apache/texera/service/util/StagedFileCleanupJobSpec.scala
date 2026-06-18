@@ -204,6 +204,13 @@ class StagedFileCleanupJobSpec
       .where(DATASET_UPLOAD_SESSION_PART.UPLOAD_ID.eq(uploadId))
       .fetchOne(0, classOf[Int])
 
+  private def countDatasetUploadSessions(): Int =
+    getDSLContext
+      .selectCount()
+      .from(DATASET_UPLOAD_SESSION)
+      .where(DATASET_UPLOAD_SESSION.DID.eq(cleanupDataset.getDid))
+      .fetchOne(0, classOf[Int])
+
   /** Pins a session's age precisely — the injectable-clock counterpart on the DB side. */
   private def setSessionCreatedAt(uploadId: String, createdAt: OffsetDateTime): Unit =
     getDSLContext
@@ -325,6 +332,25 @@ class StagedFileCleanupJobSpec
     second.sessionsDeleted shouldEqual 0
     second.objectsReset shouldEqual 0
     second.errors shouldEqual 0
+  }
+
+  it should "process only a bounded number of expired sessions per cleanup round" in {
+    val boundedJob =
+      new StagedFileCleanupJob(RetentionHours, IntervalMinutes, sessionCleanupBatchSize = 1)
+
+    initSession(uniquePath("bounded-session-1"))
+    initSession(uniquePath("bounded-session-2"))
+    countDatasetUploadSessions() shouldEqual 2
+
+    val first = boundedJob.runCleanupOnce(farFuture)
+    first.sessionsDeleted shouldEqual 1
+    first.errors shouldEqual 0
+    countDatasetUploadSessions() shouldEqual 1
+
+    val second = boundedJob.runCleanupOnce(farFuture)
+    second.sessionsDeleted shouldEqual 1
+    second.errors shouldEqual 0
+    countDatasetUploadSessions() shouldEqual 0
   }
 
   // ===========================================================================
@@ -679,8 +705,8 @@ class StagedFileCleanupJobSpec
         new ByteArrayInputStream("staged-bytes".getBytes(StandardCharsets.UTF_8))
       )
 
-      // An active session in dataset1 (path P) must NOT protect a same-named path in dataset2:
-      // activePathsByDid is keyed per dataset. Stage P in repo2 with no active session there.
+      // An active session in dataset1 (path P) must NOT protect a same-named path in dataset2.
+      // Stage P in repo2 with no active session there.
       val sharedPath = "shared/same-path.bin"
       val activeUploadId = initSession(sharedPath) // active session for dataset1 only
       setSessionCreatedAt(activeUploadId, now.minusMinutes(5)) // fresh relative to `now`

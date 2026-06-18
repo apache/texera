@@ -27,6 +27,7 @@ import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
+import org.jooq.DSLContext
 
 import java.time.OffsetDateTime
 import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
@@ -41,6 +42,10 @@ import scala.jdk.CollectionConverters._
   */
 case class CleanupReport(sessionsDeleted: Int, objectsReset: Int, errors: Int)
 
+object StagedFileCleanupJob {
+  private[util] val DefaultSessionCleanupBatchSize = 500
+}
+
 /**
   * Periodically cleans up uploaded but uncommitted dataset files:
   *   1. Aborts and deletes abandoned multipart upload sessions older than the retention window.
@@ -50,12 +55,19 @@ case class CleanupReport(sessionsDeleted: Int, objectsReset: Int, errors: Int)
   * @param retentionHours  Age (in hours) after which uncommitted uploads are cleaned up.
   * @param intervalMinutes Delay (in minutes) between cleanup rounds.
   */
-class StagedFileCleanupJob(retentionHours: Int, intervalMinutes: Int)
-    extends Managed
+class StagedFileCleanupJob(
+    retentionHours: Int,
+    intervalMinutes: Int,
+    sessionCleanupBatchSize: Int = StagedFileCleanupJob.DefaultSessionCleanupBatchSize
+) extends Managed
     with LazyLogging {
 
   require(retentionHours > 0, s"retentionHours must be > 0 (got $retentionHours)")
   require(intervalMinutes > 0, s"intervalMinutes must be > 0 (got $intervalMinutes)")
+  require(
+    sessionCleanupBatchSize > 0,
+    s"sessionCleanupBatchSize must be > 0 (got $sessionCleanupBatchSize)"
+  )
 
   private var executor: ScheduledExecutorService = _
 
@@ -95,8 +107,9 @@ class StagedFileCleanupJob(retentionHours: Int, intervalMinutes: Int)
     * @param now The reference time used to evaluate the retention window.
     * @return Summary counts for this round.
     */
-  def runCleanupOnce(now: OffsetDateTime = OffsetDateTime.now()): CleanupReport = {
+  private[util] def runCleanupOnce(now: OffsetDateTime = OffsetDateTime.now()): CleanupReport = {
     val cutoff = now.minusHours(retentionHours.toLong)
+    val cutoffEpochSecond = cutoff.toEpochSecond
     var sessionsDeleted = 0
     var objectsReset = 0
     var errors = 0
@@ -118,6 +131,8 @@ class StagedFileCleanupJob(retentionHours: Int, intervalMinutes: Int)
     val expiredSessions = ctx
       .selectFrom(DATASET_UPLOAD_SESSION)
       .where(DATASET_UPLOAD_SESSION.CREATED_AT.lt(cutoff))
+      .orderBy(DATASET_UPLOAD_SESSION.CREATED_AT.asc())
+      .limit(sessionCleanupBatchSize)
       .fetch()
       .asScala
       .toList
@@ -173,28 +188,14 @@ class StagedFileCleanupJob(retentionHours: Int, intervalMinutes: Int)
       }
     }
 
-    // File paths of still-active (non-expired) upload sessions, per dataset. Staged objects
-    // belonging to an active upload must never be reset.
-    val activePathsByDid: Map[Integer, Set[String]] = ctx
-      .select(DATASET_UPLOAD_SESSION.DID, DATASET_UPLOAD_SESSION.FILE_PATH)
-      .from(DATASET_UPLOAD_SESSION)
-      .where(DATASET_UPLOAD_SESSION.CREATED_AT.ge(cutoff))
-      .fetch()
-      .asScala
-      .groupBy(record => record.get(DATASET_UPLOAD_SESSION.DID))
-      .map {
-        case (did, records) =>
-          did -> records.map(_.get(DATASET_UPLOAD_SESSION.FILE_PATH)).toSet
-      }
-
     // Path 2: reset staged (uncommitted) objects older than the retention window.
     repoNameByDid.foreach {
       case (did, repoName) =>
         try {
-          val activePaths = activePathsByDid.getOrElse(did, Set.empty)
           val stagedObjects = LakeFSStorageClient.retrieveUncommittedObjects(repoName)
-          // diffBranch carries no mtime, so each candidate costs one extra statObject call
-          // (N+1). Unavoidable until LakeFS exposes timestamps in the diff API.
+          // diffBranch carries no mtime, so old write candidates need statObject calls.
+          // Re-check immediately before reset so a new upload to the same path is not judged
+          // by stale session/mtime reads from earlier in the cleanup round.
           stagedObjects.foreach { diff =>
             val path = diff.getPath
             val isObjectWrite =
@@ -203,12 +204,18 @@ class StagedFileCleanupJob(retentionHours: Int, intervalMinutes: Int)
               // E.g. a staged deletion of a committed file: there is no object behind it and
               // it consumes no storage, so leaving it is correct and cheap.
               logger.debug(s"Skipping staged ${diff.getType} entry '$path' in '$repoName'")
-            } else if (!activePaths.contains(path)) {
+            } else {
               try {
                 val mtime = LakeFSStorageClient.getStagedObjectMtime(repoName, path)
-                if (mtime < cutoff.toEpochSecond) {
-                  LakeFSStorageClient.resetObjectUploadOrDeletion(repoName, path)
-                  objectsReset += 1
+                if (
+                  mtime < cutoffEpochSecond &&
+                  !hasActiveUploadSession(ctx, did, path, cutoff)
+                ) {
+                  val latestMtime = LakeFSStorageClient.getStagedObjectMtime(repoName, path)
+                  if (latestMtime < cutoffEpochSecond) {
+                    LakeFSStorageClient.resetObjectUploadOrDeletion(repoName, path)
+                    objectsReset += 1
+                  }
                 }
               } catch {
                 // Concurrently committed/reset, or already cleaned by another round: the
@@ -238,10 +245,28 @@ class StagedFileCleanupJob(retentionHours: Int, intervalMinutes: Int)
         }
     }
 
-    logger.info(
+    logger.debug(
       s"Staged file cleanup round finished: sessionsDeleted=$sessionsDeleted, " +
         s"objectsReset=$objectsReset, errors=$errors"
     )
     CleanupReport(sessionsDeleted, objectsReset, errors)
   }
+
+  private def hasActiveUploadSession(
+      ctx: DSLContext,
+      did: Integer,
+      path: String,
+      cutoff: OffsetDateTime
+  ): Boolean =
+    ctx.fetchExists(
+      ctx
+        .selectOne()
+        .from(DATASET_UPLOAD_SESSION)
+        .where(
+          DATASET_UPLOAD_SESSION.DID
+            .eq(did)
+            .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(path))
+            .and(DATASET_UPLOAD_SESSION.CREATED_AT.ge(cutoff))
+        )
+    )
 }
