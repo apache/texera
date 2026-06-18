@@ -30,19 +30,23 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
+import javax.validation.constraints.NotNull
+
 class WaterfallChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "xColumn", required = true)
   @JsonSchemaTitle("X Axis Values")
   @JsonPropertyDescription("The column representing categories or stages")
   @AutofillAttributeName
-  var xColumn: EncodableString = _
+  @NotNull(message = "X Axis Values cannot be empty")
+  var xColumn: EncodableString = ""
 
   @JsonProperty(value = "yColumn", required = true)
   @JsonSchemaTitle("Y Axis Values")
   @JsonPropertyDescription("The column representing numeric values for each stage")
   @AutofillAttributeName
-  var yColumn: EncodableString = _
+  @NotNull(message = "Y Axis Values cannot be empty")
+  var yColumn: EncodableString = ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -60,6 +64,8 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor {
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
+    assert(xColumn.nonEmpty, "X Axis Values cannot be empty")
+    assert(yColumn.nonEmpty, "Y Axis Values cannot be empty")
     pyb"""
        |        x_values = table[$xColumn]
        |        y_values = table[$yColumn]

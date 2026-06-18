@@ -30,6 +30,8 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
+import javax.validation.constraints.NotNull
+
 @JsonPropertyOrder(Array("value", "quartileType", "horizontalOrientation", "violinPlot"))
 @JsonSchemaInject(json = """
 {
@@ -46,6 +48,7 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("Data column for box plot")
   @AutofillAttributeName
+  @NotNull(message = "Value Column cannot be empty")
   var value: EncodableString = ""
 
   @JsonProperty(
@@ -83,7 +86,7 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
     )
 
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(value.nonEmpty)
+    assert(value.nonEmpty, "Value Column cannot be empty")
 
     pyb"""
          |        table = table.dropna(subset = [$value]) #remove missing values

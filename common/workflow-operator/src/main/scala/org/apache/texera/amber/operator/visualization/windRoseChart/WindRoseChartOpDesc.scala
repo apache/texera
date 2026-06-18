@@ -39,14 +39,14 @@ class WindRoseChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("Numeric values representing magnitude (e.g., frequency)")
   @AutofillAttributeName
   @NotNull(message = "Radial Values (r) column must be selected.")
-  var rColumn: EncodableString = _
+  var rColumn: EncodableString = ""
 
   @JsonProperty(value = "thetaColumn", required = true)
   @JsonSchemaTitle("Angular Values (θ)")
   @JsonPropertyDescription("Direction or angle categories (e.g., N, NE, E)")
   @AutofillAttributeName
   @NotNull(message = "Angular Values (θ) column must be selected.")
-  var thetaColumn: EncodableString = _
+  var thetaColumn: EncodableString = ""
 
   @JsonProperty(value = "colorColumn", required = false)
   @JsonSchemaTitle("Color Group")
@@ -72,6 +72,8 @@ class WindRoseChartOpDesc extends PythonOperatorDescriptor {
   }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
+    assert(rColumn.nonEmpty, "Radial Values (r) column must be selected.")
+    assert(thetaColumn.nonEmpty, "Angular Values (θ) column must be selected.")
     val colorArg =
       if (colorColumn != null && colorColumn.nonEmpty)
         pyb"""

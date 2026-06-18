@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling.config
 
-import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,

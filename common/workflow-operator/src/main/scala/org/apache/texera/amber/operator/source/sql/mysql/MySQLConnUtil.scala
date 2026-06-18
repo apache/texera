@@ -22,6 +22,11 @@ package org.apache.texera.amber.operator.source.sql.mysql
 import java.sql.{Connection, DriverManager, SQLException}
 
 object MySQLConnUtil {
+
+  // Builds the JDBC URL.
+  private[mysql] def buildJdbcUrl(host: String, port: String, database: String): String =
+    "jdbc:mysql://" + host + ":" + port + "/" + database + "?autoReconnect=true&useSSL=true"
+
   @throws[SQLException]
   def connect(
       host: String,
@@ -30,8 +35,7 @@ object MySQLConnUtil {
       username: String,
       password: String
   ): Connection = {
-    val url =
-      "jdbc:mysql://" + host + ":" + port + "/" + database + "?autoReconnect=true&useSSL=true"
+    val url = buildJdbcUrl(host, port, database)
     val connection = DriverManager.getConnection(url, username, password)
     // set to readonly to improve efficiency
     connection.setReadOnly(true)

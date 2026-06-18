@@ -292,29 +292,49 @@ describe("OperatorPropertyEditFrameComponent", () => {
     expect(component.operatorVersion).toEqual(mockScanPredicate.operatorVersion);
   });
 
-  describe("inEnum validator expression", () => {
-    it("should pass validation when value is null", () => {
-      const expression = (c: { value: unknown }) =>
-        c.value == null || ["option1", "option2"].includes(c.value as string);
-      expect(expression({ value: null })).toBe(true);
+  describe("operator description truncation", () => {
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          WorkflowActionService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+          DatePipe,
+          ...commonTestProviders,
+        ],
+        imports: [
+          OperatorPropertyEditFrameComponent,
+          BrowserAnimationsModule,
+          FormsModule,
+          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+          FormlyNgZorroAntdModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule,
+        ],
+      }).compileComponents();
+
+      fixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
+      component = fixture.componentInstance;
     });
 
-    it("should pass validation when value is undefined", () => {
-      const expression = (c: { value: unknown }) =>
-        c.value == null || ["option1", "option2"].includes(c.value as string);
-      expect(expression({ value: undefined })).toBe(true);
+    it("should render .operator-description with tooltip when description is set", () => {
+      component.operatorDescription = "A long description that should be truncated after three lines.";
+      component.editingTitle = false;
+      fixture.detectChanges();
+
+      const descEl = fixture.debugElement.query(By.css(".operator-description"));
+      expect(descEl).toBeTruthy();
+      expect(descEl.attributes["nz-tooltip"]).toBeDefined();
     });
 
-    it("should pass validation when value is a valid enum option", () => {
-      const expression = (c: { value: unknown }) =>
-        c.value == null || ["option1", "option2"].includes(c.value as string);
-      expect(expression({ value: "option1" })).toBe(true);
-    });
+    it("should not render .operator-description when description is not set", () => {
+      component.operatorDescription = undefined;
+      component.editingTitle = false;
+      fixture.detectChanges();
 
-    it("should fail validation when value is not in enum", () => {
-      const expression = (c: { value: unknown }) =>
-        c.value == null || ["option1", "option2"].includes(c.value as string);
-      expect(expression({ value: "invalid" })).toBe(false);
+      const descEl = fixture.debugElement.query(By.css(".operator-description"));
+      expect(descEl).toBeNull();
     });
   });
 });
