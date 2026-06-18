@@ -337,4 +337,48 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(descEl).toBeNull();
     });
   });
+
+  describe("onFormChanges null handling", () => {
+    it("should strip null values for optional fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: null });
+
+      expect(emittedEvent).toEqual({ tableName: "table1" });
+    });
+
+    it("should keep null values for required fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: null, optionalField: "value" });
+
+      expect(emittedEvent).toEqual({ tableName: null, optionalField: "value" });
+    });
+
+    it("should keep non-null values regardless of required status", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: "set" });
+
+      expect(emittedEvent).toEqual({ tableName: "table1", optionalField: "set" });
+    });
+  });
 });
