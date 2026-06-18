@@ -19,42 +19,11 @@
 
 package org.apache.texera.amber.operator.source
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.PhysicalOp
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.testsupport.source.{SourceStubs, StubSource}
 import org.scalatest.flatspec.AnyFlatSpec
 
 class SourceOperatorDescriptorSpec extends AnyFlatSpec {
-
-  // ---------------------------------------------------------------------------
-  // Test-only concrete subclass — exposes the abstract `sourceSchema()`
-  // and the inherited LogicalOp abstract members so the contract is
-  // observable end-to-end.
-  // ---------------------------------------------------------------------------
-
-  private val testSchema: Schema =
-    Schema().add(new Attribute("col", AttributeType.STRING))
-
-  private class StubSource extends SourceOperatorDescriptor {
-    override def sourceSchema(): Schema = testSchema
-    override def operatorInfo: OperatorInfo =
-      OperatorInfo(
-        "Stub",
-        "stub source",
-        OperatorGroupConstants.INPUT_GROUP,
-        inputPorts = List.empty,
-        outputPorts = List.empty
-      )
-    override def getPhysicalOp(
-        workflowId: WorkflowIdentity,
-        executionId: ExecutionIdentity
-    ): PhysicalOp =
-      throw new NotImplementedError(
-        "getPhysicalOp is not needed for the SourceOperatorDescriptor contract test"
-      )
-  }
 
   // ---------------------------------------------------------------------------
   // sourceSchema — abstract member is observable
@@ -63,7 +32,7 @@ class SourceOperatorDescriptorSpec extends AnyFlatSpec {
   "SourceOperatorDescriptor (concrete subclass)" should
     "expose the `sourceSchema()` value supplied by the impl" in {
     val s = new StubSource
-    assert(s.sourceSchema() == testSchema)
+    assert(s.sourceSchema() == SourceStubs.testSchema)
   }
 
   // ---------------------------------------------------------------------------

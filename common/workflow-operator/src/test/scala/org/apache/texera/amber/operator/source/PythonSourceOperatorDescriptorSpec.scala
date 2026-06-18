@@ -19,39 +19,11 @@
 
 package org.apache.texera.amber.operator.source
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor}
-import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.testsupport.source.{SourceStubs, StubPythonSource}
 import org.scalatest.flatspec.AnyFlatSpec
 
 class PythonSourceOperatorDescriptorSpec extends AnyFlatSpec {
-
-  // ---------------------------------------------------------------------------
-  // Test-only concrete subclass — implements `sourceSchema` (from
-  // SourceOperatorDescriptor) plus `generatePythonCode` + `getOutputSchemas`
-  // (from PythonOperatorDescriptor), so the composed contract is observable.
-  // ---------------------------------------------------------------------------
-
-  private val testSchema: Schema =
-    Schema().add(new Attribute("col", AttributeType.STRING))
-
-  private class StubPythonSource extends PythonSourceOperatorDescriptor {
-    override def sourceSchema(): Schema = testSchema
-    override def generatePythonCode(): String = "yield {'col': 'value'}"
-    override def getOutputSchemas(
-        inputSchemas: Map[PortIdentity, Schema]
-    ): Map[PortIdentity, Schema] =
-      Map(PortIdentity() -> testSchema)
-    override def operatorInfo: OperatorInfo =
-      OperatorInfo(
-        "StubPySrc",
-        "stub python source",
-        OperatorGroupConstants.INPUT_GROUP,
-        inputPorts = List.empty,
-        outputPorts = List.empty
-      )
-  }
 
   // ---------------------------------------------------------------------------
   // Composition — extends BOTH SourceOperatorDescriptor and
@@ -61,7 +33,7 @@ class PythonSourceOperatorDescriptorSpec extends AnyFlatSpec {
   "PythonSourceOperatorDescriptor (concrete subclass)" should
     "be a SourceOperatorDescriptor (compile-time enforced)" in {
     val s: SourceOperatorDescriptor = new StubPythonSource
-    assert(s.sourceSchema() == testSchema)
+    assert(s.sourceSchema() == SourceStubs.testSchema)
   }
 
   it should "be a PythonOperatorDescriptor (compile-time enforced)" in {
