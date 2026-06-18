@@ -25,11 +25,11 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class ContourPlotOpDesc extends PythonOperatorDescriptor {
+class ContourPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("x")
@@ -114,4 +114,32 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
        |        yield {'html-content': html}
        |""".encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String =
+    s"""import numpy as np
+       |from scipy.interpolate import griddata
+       |
+       |x = in1df["$x"].values
+       |y = in1df["$y"].values
+       |z = in1df["$z"].values
+       |grid_size = int("$gridSize")
+       |connGaps = True if "$connectGaps" == "true" else False
+       |
+       |grid_x, grid_y = np.meshgrid(np.linspace(min(x), max(x), grid_size), np.linspace(min(y), max(y), grid_size))
+       |grid_z = griddata((x, y), z, (grid_x, grid_y), method='cubic')
+       |
+       |fig = go.Figure(data=go.Contour(
+       |    x=np.linspace(min(x), max(x), grid_size),
+       |    y=np.linspace(min(y), max(y), grid_size),
+       |    z=grid_z,
+       |    connectgaps=connGaps,
+       |    contours_coloring='${coloringMethod.getColoringMethod}',
+       |    colorbar_title="$z"
+       |))
+       |fig.update_layout(title='Contour Plot')
+       |fig.write_json("output.json")
+       |fig.write_html("output.html")
+       |print("Contour plot saved to output.json and output.html")""".stripMargin
 }
