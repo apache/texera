@@ -64,7 +64,8 @@ class WorkflowServiceSpec extends AnyFlatSpec with Matchers {
 
     val errorEvents = errorEventsIn(events)
     errorEvents should have size 1
-    errorEvents.head.fatalErrors should contain(err)
+    // Forwards exactly the store's fatal errors -- no more, no less.
+    errorEvents.head.fatalErrors should contain theSameElementsAs Seq(err)
   }
 
   it should "carry every fatal error currently recorded in the store" in {
@@ -78,6 +79,7 @@ class WorkflowServiceSpec extends AnyFlatSpec with Matchers {
 
     val errorEvents = errorEventsIn(events)
     errorEvents should have size 1
-    errorEvents.head.fatalErrors should contain allOf (first, second)
+    // Exactly the two recorded errors -- no extras.
+    errorEvents.head.fatalErrors should contain theSameElementsAs Seq(first, second)
   }
 }
