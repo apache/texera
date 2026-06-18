@@ -83,7 +83,14 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
       OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP
     )
 
+  private def assertRequiredFields(): Unit = {
+    assert(value.nonEmpty)
+    assert(deltaReference.nonEmpty)
+  }
+
   override def generatePythonCode(): String = {
+    assertRequiredFields()
+
     // Convert the Scala list of steps into a list of dictionaries
     val stepsStr = if (steps != null && !steps.isEmpty) {
       val stepsSeq =
@@ -248,6 +255,8 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
+    assertRequiredFields()
+
     val stepsLiteral =
       if (steps != null && !steps.isEmpty)
         steps.asScala
