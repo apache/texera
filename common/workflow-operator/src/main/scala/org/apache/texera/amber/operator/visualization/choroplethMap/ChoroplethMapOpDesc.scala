@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -42,7 +42,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
   }
 }
 """)
-class ChoroplethMapOpDesc extends PythonOperatorDescriptor {
+class ChoroplethMapOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "locations", required = true)
   @JsonSchemaTitle("Locations Column")
@@ -123,4 +123,17 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor {
          |"""
     finalCode.encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String =
+    s"""in1df = in1df.dropna(subset=["$locations", "$color"])
+       |if in1df.empty:
+       |    print("Choropleth map error: No valid rows left")
+       |else:
+       |    fig = px.choropleth(in1df, locations="$locations", color="$color", color_continuous_scale=px.colors.sequential.Plasma)
+       |    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Choropleth map saved to output.json and output.html")""".stripMargin
 }
