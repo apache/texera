@@ -81,7 +81,7 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "dots", required = false)
   var dots: util.List[DumbbellDotConfig] = _
 
-  @JsonProperty(value = "showLegends", required = false)
+  @JsonProperty(value = "showLegends", required = false, defaultValue = "false")
   @JsonSchemaTitle("Show Legends?")
   @JsonPropertyDescription("whether to show legends in the graph")
   var showLegends: Boolean = false
@@ -91,7 +91,6 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
   ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 

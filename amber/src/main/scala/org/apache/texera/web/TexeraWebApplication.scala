@@ -26,7 +26,7 @@ import io.dropwizard.auth.AuthValueFactoryProvider
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
-import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.engine.common.Utils
 import org.apache.texera.amber.util.ObjectMapperUtils
 import org.apache.texera.auth.SessionUser
@@ -160,6 +160,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[AdminSettingsResource])
     environment.jersey.register(classOf[AIAssistantResource])
+    environment.jersey.register(classOf[HuggingFaceModelResource])
 
     AuthResource.createAdminUser()
 

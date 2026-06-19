@@ -20,14 +20,17 @@ package org.apache.texera.service.resource
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
 import jakarta.ws.rs.core._
-import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces}
+import jakarta.ws.rs.{Consumes, DELETE, GET, POST, PUT, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
-import org.apache.texera.config.{GuiConfig, KubernetesConfig, LLMConfig}
+import org.apache.texera.common.config.{GuiConfig, LLMConfig}
+import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -43,6 +46,11 @@ object AccessControlResource extends LazyLogging {
   private val wsapiWorkflowWebsocket: Regex = """.*/wsapi/workflow-websocket.*""".r
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
+  private val pveRoute: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve(?:/.*)?$""".r
+  // Path patterns whose cuid lives in the URL path rather than the query string.
+  private val pvePvesCuidPath: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve/pves/([0-9]+)$""".r
+  private val pvePackagesCuidPath: Regex =
+    """^/?(?:auth/)?(?:api/|wsapi/)?pve/([0-9]+)/[^/]+/packages/.+$""".r
 
   /**
     * Authorize the request based on the path and headers.
@@ -60,7 +68,8 @@ object AccessControlResource extends LazyLogging {
     logger.info(s"Authorizing request for path: $path")
 
     path match {
-      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() =>
+      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() |
+          pveRoute() =>
         checkComputingUnitAccess(uriInfo, headers, bodyOpt)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
@@ -95,7 +104,14 @@ object AccessControlResource extends LazyLogging {
       qToken.orElse(hToken).orElse(bToken).getOrElse("")
     }
     logger.info(s"token extracted from request $token")
-    val cuid = queryParams.getOrElse("cuid", "")
+
+    val cuid = queryParams.get("cuid").filter(_.nonEmpty).getOrElse {
+      uriInfo.getPath match {
+        case pvePvesCuidPath(c)     => c
+        case pvePackagesCuidPath(c) => c
+        case _                      => ""
+      }
+    }
     val cuidInt =
       try {
         cuid.toInt
@@ -122,12 +138,25 @@ object AccessControlResource extends LazyLogging {
     }
 
     // Dynamic Routing Logic
-    val workflowComputingUnitPoolName = KubernetesConfig.computeUnitPoolName
-    val workflowComputingUnitPoolNamespace = KubernetesConfig.computeUnitPoolNamespace
-    val workflowComputingUnitPoolPort = KubernetesConfig.computeUnitPortNumber
+    // Route to the URI recorded for the computing unit (written by the managing
+    // service when the pod is created). This recorded URI is the single source
+    // of truth for where the unit is reachable, allowing units to live anywhere
+    // the gateway can route to. If no URI has been recorded, the unit is not
+    // routable and the connection is refused.
+    val cuDao = new WorkflowComputingUnitDao(
+      SqlServer.getInstance().createDSLContext().configuration()
+    )
+    val unit = cuDao.fetchOneByCuid(cuidInt)
+    val recordedUri = Option(unit).flatMap(u => Option(u.getUri)).map(_.trim).filter(_.nonEmpty)
 
-    val targetHost =
-      s"computing-unit-$cuidInt.$workflowComputingUnitPoolName-svc.$workflowComputingUnitPoolNamespace.svc.cluster.local:$workflowComputingUnitPoolPort"
+    val targetHost = recordedUri match {
+      case Some(uri) =>
+        logger.info(s"Routing CU $cuidInt to recorded host: $uri")
+        uri
+      case None =>
+        logger.warn(s"Refusing CU $cuidInt: no URI recorded for the computing unit")
+        return Response.status(Response.Status.FORBIDDEN).build()
+    }
 
     Response
       .ok()
@@ -190,8 +219,13 @@ object AccessControlResource extends LazyLogging {
       .orElse(extractTokenFromMultipart(body))
   }
 }
+// The routing proxy authenticates each request itself via parseToken in the
+// resource body (returning 403 on missing/invalid tokens), so it must opt
+// out of the filter's eager 401 check. @PermitAll lets requests reach the
+// resource code, which then performs its own auth.
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/auth")
+@PermitAll
 class AccessControlResource extends LazyLogging {
 
   @GET
@@ -213,16 +247,48 @@ class AccessControlResource extends LazyLogging {
     logger.info("Request body: " + body)
     AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
   }
+
+  @PUT
+  @Path("/{path:.*}")
+  def authorizePut(
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders,
+      body: String
+  ): Response = {
+    AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
+  }
+
+  @DELETE
+  @Path("/{path:.*}")
+  def authorizeDelete(
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders
+  ): Response = {
+    AccessControlResource.authorize(uriInfo, headers)
+  }
 }
 
+// Forwards chat completions to LiteLLM with the server's master key, so
+// only authenticated users may call it.
 @Path("/chat")
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
-class LiteLLMProxyResource extends LazyLogging {
+class LiteLLMProxyResource(
+    copilotEnabled: Boolean,
+    litellmBaseUrl: String,
+    litellmApiKey: String
+) extends LazyLogging {
+
+  // No-arg constructor for Jersey reflection. Tests use the param-ful form.
+  def this() =
+    this(
+      GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
+      LLMConfig.baseUrl,
+      LLMConfig.masterKey
+    )
 
   private val client: Client = ClientBuilder.newClient()
-  private val litellmBaseUrl: String = LLMConfig.baseUrl
-  private val litellmApiKey: String = LLMConfig.masterKey
 
   @POST
   @Path("/{path:.*}")
@@ -231,10 +297,10 @@ class LiteLLMProxyResource extends LazyLogging {
       @Context headers: HttpHeaders,
       body: String
   ): Response = {
-    if (!GuiConfig.guiWorkflowWorkspaceCopilotEnabled) {
+    if (!copilotEnabled) {
       return Response
         .status(Response.Status.FORBIDDEN)
-        .entity("""{"error": "Copilot feature is disabled"}""")
+        .entity(LiteLLMProxyResource.CopilotDisabledBody)
         .build()
     }
 
@@ -287,20 +353,35 @@ class LiteLLMProxyResource extends LazyLogging {
   }
 }
 
+object LiteLLMProxyResource {
+  val CopilotDisabledBody: String = """{"error": "Copilot feature is disabled"}"""
+}
+
 @Path("/models")
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
-class LiteLLMModelsResource extends LazyLogging {
+class LiteLLMModelsResource(
+    copilotEnabled: Boolean,
+    litellmBaseUrl: String,
+    litellmApiKey: String
+) extends LazyLogging {
+
+  // No-arg constructor for Jersey reflection. Tests use the param-ful form.
+  def this() =
+    this(
+      GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
+      LLMConfig.baseUrl,
+      LLMConfig.masterKey
+    )
 
   private val client: Client = ClientBuilder.newClient()
-  private val litellmBaseUrl: String = LLMConfig.baseUrl
-  private val litellmApiKey: String = LLMConfig.masterKey
 
   @GET
   def getModels: Response = {
-    if (!GuiConfig.guiWorkflowWorkspaceCopilotEnabled) {
+    if (!copilotEnabled) {
       return Response
         .status(Response.Status.FORBIDDEN)
-        .entity("""{"error": "Copilot feature is disabled"}""")
+        .entity(LiteLLMProxyResource.CopilotDisabledBody)
         .build()
     }
 

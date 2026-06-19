@@ -36,6 +36,7 @@ import { NzUploadFile, NzUploadComponent } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
 import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
+import { CardItemComponent } from "../list-item/card-item/card-item.component";
 import { SearchService } from "../../../service/user/search.service";
 import { SortMethod } from "../../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
@@ -43,7 +44,7 @@ import { UserProjectService } from "../../../service/user/project/user-project.s
 import { map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
-import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
+import { USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
@@ -107,10 +108,12 @@ import { FormsModule } from "@angular/forms";
     NzSelectComponent,
     FormsModule,
     SearchResultsComponent,
+    CardItemComponent,
     NzSpaceCompactComponent,
   ],
 })
 export class UserWorkflowComponent implements AfterViewInit {
+  private static readonly VIEW_MODE_STORAGE_KEY = "texera.userWorkflow.viewMode";
   private _searchResultsComponent?: SearchResultsComponent;
   public isLogin = this.userService.isLogin();
   private includePublic = false;
@@ -141,6 +144,8 @@ export class UserWorkflowComponent implements AfterViewInit {
   @Input() public pid?: number = undefined;
   @Input() public accessLevel?: string = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
+  public viewType: "list" | "card" =
+    localStorage.getItem(UserWorkflowComponent.VIEW_MODE_STORAGE_KEY) === "card" ? "card" : "list";
   lastSortMethod: SortMethod | null = null;
 
   constructor(
@@ -161,6 +166,14 @@ export class UserWorkflowComponent implements AfterViewInit {
         this.isLogin = this.userService.isLogin();
         this.currentUid = this.userService.getCurrentUser()?.uid;
       });
+  }
+
+  public setViewType(viewType: "list" | "card"): void {
+    if (this.viewType === viewType) {
+      return;
+    }
+    this.viewType = viewType;
+    localStorage.setItem(UserWorkflowComponent.VIEW_MODE_STORAGE_KEY, viewType);
   }
 
   public multiWorkflowsOperationButtonEnabled(): boolean {
@@ -293,7 +306,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       .subscribe({
         next: (wid: number | undefined) => {
           // Use the wid here for navigation
-          this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]).then(null);
+          this.router.navigate([USER_WORKSPACE, wid]).then(null);
         },
         error: (err: unknown) => this.notificationService.error("Workflow creation failed"),
       });

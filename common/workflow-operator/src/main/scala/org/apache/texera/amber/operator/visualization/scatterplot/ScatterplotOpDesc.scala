@@ -51,14 +51,14 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("X-Column")
   @JsonPropertyDescription("X Column")
   @AutofillAttributeName
-  @NotNull(message = "X-Column cannot be null")
+  @NotNull(message = "X-Column cannot be empty")
   private val xColumn: EncodableString = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y-Column")
   @JsonPropertyDescription("Y Column")
   @AutofillAttributeName
-  @NotNull(message = "Y-Column cannot be null")
+  @NotNull(message = "Y-Column cannot be empty")
   private val yColumn: EncodableString = ""
 
   @JsonProperty(required = false)
@@ -97,7 +97,6 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -108,7 +107,8 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
     )
 
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(xColumn.nonEmpty && yColumn.nonEmpty)
+    assert(xColumn.nonEmpty, "X-Column cannot be empty")
+    assert(yColumn.nonEmpty, "Y-Column cannot be empty")
     val colorColExpr = if (colorColumn.nonEmpty) {
       pyb"$colorColumn"
     } else {
@@ -122,7 +122,8 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
   }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(xColumn.nonEmpty && yColumn.nonEmpty)
+    assert(xColumn.nonEmpty, "X-Column cannot be empty")
+    assert(yColumn.nonEmpty, "Y-Column cannot be empty")
 
     val args = scala.collection.mutable.ArrayBuffer(
       pyb"x=$xColumn",

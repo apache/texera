@@ -60,7 +60,7 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var color: EncodableString = ""
 
-  @JsonProperty(required = true)
+  @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Split Plot by Line Group")
   @JsonPropertyDescription("Do you want to split the graph")
   var facetColumn: Boolean = false
@@ -77,7 +77,6 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -88,11 +87,11 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(x.nonEmpty)
-    assert(y.nonEmpty)
+    assert(x.nonEmpty, "X-axis Attribute cannot be empty")
+    assert(y.nonEmpty, "Y-axis Attribute cannot be empty")
 
     if (facetColumn) {
-      assert(lineGroup.nonEmpty)
+      assert(lineGroup.nonEmpty, "Line Group cannot be empty")
     }
 
     val colorArg = if (color.nonEmpty) pyb""", color=$color""" else ""

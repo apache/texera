@@ -31,6 +31,7 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new Type(value = classOf[HashPartition], name = "hash"),
     new Type(value = classOf[RangePartition], name = "range"),
     new Type(value = classOf[SinglePartition], name = "single"),
+    new Type(value = classOf[OneToOnePartition], name = "oneToOne"),
     new Type(value = classOf[BroadcastPartition], name = "broadcast"),
     new Type(value = classOf[UnknownPartition], name = "none")
   )

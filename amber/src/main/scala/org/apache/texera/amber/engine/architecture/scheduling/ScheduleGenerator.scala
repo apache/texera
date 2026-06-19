@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
@@ -38,7 +38,8 @@ abstract class ScheduleGenerator(
     new DefaultResourceAllocator(
       physicalPlan,
       executionClusterInfo,
-      workflowContext.workflowSettings
+      workflowContext.workflowSettings,
+      cuid = workflowContext.cuid
     )
 
   def generate(): (Schedule, PhysicalPlan)

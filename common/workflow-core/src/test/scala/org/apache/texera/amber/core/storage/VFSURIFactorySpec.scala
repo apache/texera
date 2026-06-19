@@ -42,23 +42,30 @@ class VFSURIFactorySpec extends AnyFlatSpec {
       input = true
     )
 
-  "VFSURIFactory.createResultURI" should "include workflow, execution, port, and the result resource type" in {
-    val uri = VFSURIFactory.createResultURI(workflowId, executionId, portId)
-    assert(uri.getScheme == VFSURIFactory.VFS_FILE_URI_SCHEME)
-    val path = uri.getPath
+  "VFSURIFactory.createPortBaseURI" should "include workflow, execution, and port segments without a resource type" in {
+    val baseURI = VFSURIFactory.createPortBaseURI(workflowId, executionId, portId)
+    assert(baseURI.getScheme == VFSURIFactory.VFS_FILE_URI_SCHEME)
+    val path = baseURI.getPath
     assert(path.contains("/wid/7"))
     assert(path.contains("/eid/11"))
     assert(path.contains("/globalportid/"))
-    assert(path.endsWith("/result"))
+    assert(!path.endsWith("/result"))
+    assert(!path.endsWith("/state"))
   }
 
-  it should "round-trip through decodeURI" in {
-    val uri = VFSURIFactory.createResultURI(workflowId, executionId, portId)
-    val (wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(uri)
+  "VFSURIFactory.resultURI / stateURI" should "append the resource segment and round-trip through decodeURI" in {
+    val baseURI = VFSURIFactory.createPortBaseURI(workflowId, executionId, portId)
+    val resultURI = VFSURIFactory.resultURI(baseURI)
+    val stateURI = VFSURIFactory.stateURI(baseURI)
+    assert(resultURI.getPath.endsWith("/result"))
+    assert(stateURI.getPath.endsWith("/state"))
+
+    val (wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(resultURI)
     assert(wid == workflowId)
     assert(eid == executionId)
     assert(globalPortIdOpt.contains(portId))
     assert(resourceType == VFSResourceType.RESULT)
+    assert(VFSURIFactory.decodeURI(stateURI)._4 == VFSResourceType.STATE)
   }
 
   "VFSURIFactory.createRuntimeStatisticsURI" should "produce a runtimeStatistics URI without an opid segment" in {

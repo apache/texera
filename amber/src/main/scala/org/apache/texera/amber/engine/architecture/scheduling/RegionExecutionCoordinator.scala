@@ -21,13 +21,14 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.pekko.pattern.gracefulStop
 import com.twitter.util.{Duration => TwitterDuration, Future, JavaTimer, Return, Throw, Timer}
-import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.state.State
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.VFSURIFactory.decodeURI
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
-  AkkaActorRefMappingService,
-  AkkaActorService,
+  PekkoActorRefMappingService,
+  PekkoActorService,
   ExecutorDeployment
 }
 import org.apache.texera.amber.engine.architecture.controller.execution.{
@@ -95,8 +96,8 @@ class RegionExecutionCoordinator(
     workflowExecution: WorkflowExecution,
     asyncRPCClient: AsyncRPCClient,
     controllerConfig: ControllerConfig,
-    actorService: AkkaActorService,
-    actorRefService: AkkaActorRefMappingService
+    actorService: PekkoActorService,
+    actorRefService: PekkoActorRefMappingService
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -374,7 +375,7 @@ class RegionExecutionCoordinator(
   }
 
   private def buildOperator(
-      actorService: AkkaActorService,
+      actorService: PekkoActorService,
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
       operatorExecution: OperatorExecution
@@ -465,7 +466,7 @@ class RegionExecutionCoordinator(
                               opId = physicalOp.id,
                               portId = outputPortId
                             ) =>
-                          cfg.storageURI.toString
+                          cfg.storageURIBase.toString
                       }
                       .getOrElse("")
                     Some(
@@ -568,18 +569,46 @@ class RegionExecutionCoordinator(
   ): Unit = {
     portConfigs.foreach {
       case (outputPortId, portConfig) =>
-        val storageUriToAdd = portConfig.storageURI
-        val (_, eid, _, _) = decodeURI(storageUriToAdd)
+        val portBaseURI = portConfig.storageURIBase
+        val resultURI = VFSURIFactory.resultURI(portBaseURI)
+        val stateURI = VFSURIFactory.stateURI(portBaseURI)
         val schemaOptional =
           region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
         val schema =
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
-        DocumentFactory.createDocument(storageUriToAdd, schema)
+        // An output port whose storage accumulates across region re-executions
+        // (e.g. a LoopEnd port, whose output builds up over the iterations of
+        // its own loop) sets `reuseStorage`. When set, the port's existing
+        // document is kept and reopened on each re-run; when unset, a fresh one
+        // is created. Read per output port -- storage behavior is port-specific.
+        // (The inner LoopEnd of a nested loop additionally drops its output
+        // once per outer iteration on the Python worker side in
+        // MainLoop._process_state_frame, which is orthogonal to this.)
+        val reuseStorage =
+          region
+            .getOperator(outputPortId.opId)
+            .outputPorts(outputPortId.portId)
+            ._1
+            .reuseStorage
+        // Guard: no operator enables reuseStorage in production yet -- it
+        // activates with the loop operators, which aren't on main. Until then
+        // this fails loudly so the dormant reuse path is never silently
+        // exercised. Remove/relax this guard when introducing the loop operators.
+        require(
+          !reuseStorage,
+          s"Output port $outputPortId set reuseStorage, which is not " +
+            "supported in production yet (it activates with the loop operators)."
+        )
+        Seq((resultURI, schema), (stateURI, State.schema)).foreach {
+          case (uri, sch) =>
+            DocumentFactory.createOrReuseDocument(uri, sch, reuseStorage)
+        }
         if (!isRestart) {
+          val (_, eid, _, _) = decodeURI(resultURI)
           WorkflowExecutionsResource.insertOperatorPortResultUri(
             eid = eid,
             globalPortId = outputPortId,
-            uri = storageUriToAdd
+            uri = resultURI
           )
         }
     }

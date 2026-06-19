@@ -96,22 +96,34 @@ class LineChartOpDescSpec extends AnyFlatSpec with Matchers {
     code should not include "Y_LBL_SENT"
   }
 
-  it should "raise NullPointerException when lines is left at its null default" in {
-    // Pin: `var lines: util.List[LineConfig] = _` defaults to null, and
-    // `createPlotlyFigure` calls `lines.asScala.map(...)` without a null
-    // check. Calling `generatePythonCode` on a default-constructed LineChart
-    // therefore throws NPE rather than rendering an empty chart or raising
-    // an AssertionError. Documenting so a future fix that null-guards lines
-    // breaks this spec deliberately.
+  it should "raise AssertionError when lines is left at its default (empty list)" in {
+    // `var lines: util.List[LineConfig]` defaults to an empty ArrayList.
+    // `createPlotlyFigure` asserts nonEmpty on lines before iterating, so a
+    // default-constructed LineChartOpDesc raises AssertionError with a
+    // descriptive message rather than proceeding with no traces.
     val op = new LineChartOpDesc
-    assertThrows[NullPointerException](op.generatePythonCode())
+    val ex = intercept[AssertionError](op.generatePythonCode())
+    ex.getMessage should include("At least one line must be configured")
   }
 
-  it should "render code with an empty lines list (no NPE, no assertion)" in {
+  it should "raise AssertionError when lines is explicitly set to an empty list" in {
+    // `createPlotlyFigure` guards against an empty lines list with an assertion,
+    // matching the fail-fast pattern used by sibling visualizers
+    // (HeatMapOpDesc, BarChartOpDesc).
     val op = configured
     op.lines = new util.ArrayList[LineConfig]()
-    val code = op.generatePythonCode()
-    code should include("plotly")
-    code should include("fig = go.Figure()")
+    assertThrows[AssertionError](op.generatePythonCode())
+  }
+
+  it should "raise AssertionError rather than NullPointerException when lines is set to null" in {
+    // `lines` is a public mutable field; Jackson deserializing an explicit JSON
+    // null or a caller assigning null can set it back to null even after the
+    // non-null default is in place.  `createPlotlyFigure` wraps `lines` in
+    // `Option(...).getOrElse(emptyList)` before asserting nonEmpty, so a null
+    // assignment produces the descriptive AssertionError rather than an NPE.
+    val op = configured
+    op.lines = null
+    val ex = intercept[AssertionError](op.generatePythonCode())
+    ex.getMessage should include("At least one line must be configured")
   }
 }

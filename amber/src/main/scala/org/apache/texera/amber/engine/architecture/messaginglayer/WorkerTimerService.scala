@@ -20,8 +20,8 @@
 package org.apache.texera.amber.engine.architecture.messaginglayer
 
 import org.apache.pekko.actor.Cancellable
-import org.apache.texera.amber.config.ApplicationConfig
-import org.apache.texera.amber.engine.architecture.common.AkkaActorService
+import org.apache.texera.common.config.ApplicationConfig
+import org.apache.texera.amber.engine.architecture.common.PekkoActorService
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest
@@ -33,7 +33,7 @@ import org.apache.texera.amber.engine.common.virtualidentity.util.SELF
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
-class WorkerTimerService(actorService: AkkaActorService) {
+class WorkerTimerService(actorService: PekkoActorService) {
 
   private val enabledAdaptiveBatching = ApplicationConfig.enableAdaptiveNetworkBuffering
   private val adaptiveBatchInterval = ApplicationConfig.adaptiveBufferingTimeoutMs

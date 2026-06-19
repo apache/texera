@@ -31,9 +31,13 @@ sealed trait PortConfig {
   def storageURIs: List[URI]
 }
 
-/** An output port requires exactly one materialization URI. */
-final case class OutputPortConfig(storageURI: URI) extends PortConfig {
-  override val storageURIs: List[URI] = List(storageURI)
+/**
+  * An output port requires exactly one materialization base URI. Result and
+  * state URIs hang off it via `VFSURIFactory.resultURI` / `stateURI`; this
+  * field is *not* a URI you can pass straight to `DocumentFactory`.
+  */
+final case class OutputPortConfig(storageURIBase: URI) extends PortConfig {
+  override val storageURIs: List[URI] = List(storageURIBase)
 }
 
 /**

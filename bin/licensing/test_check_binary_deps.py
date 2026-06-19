@@ -354,5 +354,132 @@ class EndToEndPython(unittest.TestCase):
         self.assertEqual(rc, 0)
 
 
+class CollectNpmReturnsLicenses(unittest.TestCase):
+    """`collect_npm` parses 3rdpartylicenses.json into (items, licenses).
+    The license string is what the failure report quotes back to the user
+    so they can verify ASF compatibility without leaving the CI log."""
+
+    def _write_json(self, payload: list) -> Path:
+        import json as _json
+        p = Path(tempfile.mkstemp(suffix=".json")[1])
+        p.write_text(_json.dumps(payload))
+        return p
+
+    def test_returns_items_and_licenses(self):
+        p = self._write_json([
+            {"name": "react", "version": "18.2.0", "license": "MIT"},
+            {"name": "@angular/core", "version": "18.0.0", "license": "MIT"},
+        ])
+        items, licenses = cbd.collect_npm(p)
+        self.assertEqual(items, {"react@18.2.0", "@angular/core@18.0.0"})
+        self.assertEqual(licenses["react@18.2.0"], "MIT")
+        self.assertEqual(licenses["@angular/core@18.0.0"], "MIT")
+
+    def test_missing_license_field_omitted(self):
+        # No 'license' key — the entry is still bundled (we must surface
+        # it) but no license string is recorded.
+        p = self._write_json([
+            {"name": "obscure", "version": "1.0.0"},
+        ])
+        items, licenses = cbd.collect_npm(p)
+        self.assertEqual(items, {"obscure@1.0.0"})
+        self.assertNotIn("obscure@1.0.0", licenses)
+
+
+class CollectPythonReturnsLicenses(unittest.TestCase):
+    """`collect_python` parses pip-licenses CSV into (items, licenses)."""
+
+    def test_returns_items_and_licenses(self):
+        p = Path(tempfile.mkstemp(suffix=".csv")[1])
+        with p.open("w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["Name", "Version", "License"])
+            w.writerow(["NumPy", "2.1.0", "BSD"])
+            w.writerow(["requests", "2.31.0", "Apache 2.0"])
+        items, licenses = cbd.collect_python(p)
+        self.assertEqual(items, {"numpy==2.1.0", "requests==2.31.0"})
+        self.assertEqual(licenses["numpy==2.1.0"], "BSD")
+        self.assertEqual(licenses["requests==2.31.0"], "Apache 2.0")
+
+
+class ReportRendersLicenseAndTargetFile(unittest.TestCase):
+    """The failure report must include (a) each added bullet's declared
+    license string when available, and (b) the target per-module file in
+    both the per-bullet hint and the ACTION REQUIRED block — that's the
+    actionable info that was missing before."""
+
+    def _capture(self, **kwargs) -> str:
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            cbd.report(**kwargs)
+        return buf.getvalue()
+
+    def test_added_line_includes_license_and_target(self):
+        out = self._capture(
+            added=["new-pkg@1.2.3"],
+            stale=[],
+            drift_direct=[],
+            drift_transitive=[],
+            label="npm packages",
+            kind="npm",
+            ignore_transitive_version=False,
+            licenses={"new-pkg@1.2.3": "MIT"},
+            target_file="frontend/LICENSE-binary",
+        )
+        self.assertIn("+ new-pkg@1.2.3", out)
+        self.assertIn("(license: MIT)", out)
+        self.assertIn("→ add to frontend/LICENSE-binary", out)
+        self.assertIn("frontend/LICENSE-binary", out.split("ACTION REQUIRED", 1)[1])
+
+    def test_added_without_license_still_renders_target(self):
+        # Jar case: no license info available; we still tell the user
+        # which file to update.
+        out = self._capture(
+            added=["foo-1.0.0.jar"],
+            stale=[],
+            drift_direct=[],
+            drift_transitive=[],
+            label="JVM jars",
+            kind="jar",
+            ignore_transitive_version=False,
+            licenses={},
+            target_file="amber/LICENSE-binary-java",
+        )
+        self.assertIn("+ foo-1.0.0.jar", out)
+        self.assertNotIn("(license:", out)
+        self.assertIn("→ add to amber/LICENSE-binary-java", out)
+
+    def test_stale_and_drift_include_target_file_hint(self):
+        out = self._capture(
+            added=[],
+            stale=["gone-pkg==1.0"],
+            drift_direct=[("foo", ["1.0"], ["1.1"])],
+            drift_transitive=[("bar", ["2.0"], ["2.1"])],
+            label="Python packages",
+            kind="python",
+            ignore_transitive_version=False,
+            licenses={},
+            target_file="amber/LICENSE-binary-python",
+        )
+        self.assertIn("- gone-pkg==1.0", out)
+        self.assertIn("→ remove from amber/LICENSE-binary-python", out)
+        self.assertIn("→ update in amber/LICENSE-binary-python", out)
+
+    def test_no_target_file_falls_back_to_generic_text(self):
+        out = self._capture(
+            added=["new-pkg@1.0"],
+            stale=[],
+            drift_direct=[],
+            drift_transitive=[],
+            label="npm packages",
+            kind="npm",
+            ignore_transitive_version=False,
+            licenses={"new-pkg@1.0": "MIT"},
+            target_file=None,
+        )
+        self.assertIn("(license: MIT)", out)
+        self.assertNotIn("→ add to", out)
+
+
 if __name__ == "__main__":
     unittest.main()

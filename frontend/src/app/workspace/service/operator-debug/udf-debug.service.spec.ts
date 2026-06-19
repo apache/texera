@@ -33,12 +33,13 @@ import * as Y from "yjs";
 import { ConsoleUpdateEvent } from "../../types/workflow-common.interface";
 import { TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import type { Mocked } from "vitest";
 describe("UdfDebugServiceSpec", () => {
   let service: UdfDebugService;
   let workflowActionService: WorkflowActionService;
-  let mockWorkflowWebsocketService: any;
-  let mockWorkflowStatusService: any;
-  let mockExecuteWorkflowService: any;
+  let mockWorkflowWebsocketService: Mocked<WorkflowWebsocketService>;
+  let mockWorkflowStatusService: Mocked<WorkflowStatusService>;
+  let mockExecuteWorkflowService: Mocked<ExecuteWorkflowService>;
   let statusUpdateStream: Subject<Record<string, OperatorStatistics>>;
   let consoleUpdateEventStream: Subject<ConsoleUpdateEvent>;
   let texeraGraph: WorkflowGraphReadonly;
@@ -46,9 +47,12 @@ describe("UdfDebugServiceSpec", () => {
 
   beforeEach(() => {
     // Create mock services
-    mockWorkflowWebsocketService = { send: vi.fn(), subscribeToEvent: vi.fn() };
-    mockWorkflowStatusService = { getStatusUpdateStream: vi.fn() };
-    mockExecuteWorkflowService = { getWorkerIds: vi.fn() };
+    mockWorkflowWebsocketService = {
+      send: vi.fn(),
+      subscribeToEvent: vi.fn(),
+    } as unknown as Mocked<WorkflowWebsocketService>;
+    mockWorkflowStatusService = { getStatusUpdateStream: vi.fn() } as unknown as Mocked<WorkflowStatusService>;
+    mockExecuteWorkflowService = { getWorkerIds: vi.fn() } as unknown as Mocked<ExecuteWorkflowService>;
 
     // Initialize the mock streams
     statusUpdateStream = new Subject();

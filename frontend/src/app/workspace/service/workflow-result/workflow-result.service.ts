@@ -49,6 +49,8 @@ export class WorkflowResultService {
   private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
   private resultTableStats = new ReplaySubject<Record<string, Record<string, Record<string, number>>>>(1);
   private resultInitiateStream = new Subject<string>();
+  // emits when clearResults() drops cached results, so the UI can drop stale frames
+  private resultClearedStream = new Subject<void>();
 
   constructor(private wsService: WorkflowWebsocketService) {
     this.wsService.subscribeToEvent("WebResultUpdateEvent").subscribe(event => {
@@ -87,12 +89,32 @@ export class WorkflowResultService {
     return this.resultInitiateStream.asObservable();
   }
 
+  /**
+   * Emits when clearResults() drops cached results, so consumers can tear down
+   * stale frames (clearing the caches alone won't re-render a displayed operator).
+   */
+  public getResultClearedStream(): Observable<void> {
+    return this.resultClearedStream.asObservable();
+  }
+
   public getPaginatedResultService(operatorID: string): OperatorPaginationResultService | undefined {
     return this.paginatedResultServices.get(operatorID);
   }
 
   public getResultService(operatorID: string): OperatorResultService | undefined {
     return this.operatorResultServices.get(operatorID);
+  }
+
+  /**
+   * Drop cached results and reset table stats so a re-entered workflow doesn't show
+   * stale results (resultTableStats is a ReplaySubject, so push an empty snapshot).
+   * Emits resultClearedStream so subscribers tear down already-displayed frames.
+   */
+  public clearResults(): void {
+    this.operatorResultServices.clear();
+    this.paginatedResultServices.clear();
+    this.resultTableStats.next({});
+    this.resultClearedStream.next();
   }
 
   private handleCleanResultCache(event: WorkflowAvailableResultEvent): void {

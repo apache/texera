@@ -29,20 +29,22 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+
+import javax.validation.constraints.NotNull
 class ImageVisualizerOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("image content column")
   @JsonPropertyDescription("The Binary data of the Image")
   @AutofillAttributeName
-  var binaryContent: EncodableString = _
+  @NotNull(message = "image content column cannot be empty")
+  var binaryContent: EncodableString = ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
@@ -54,7 +56,7 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor {
     )
 
   def createBinaryData(): PythonTemplateBuilder = {
-    assert(binaryContent.nonEmpty)
+    assert(binaryContent.nonEmpty, "image content column cannot be empty")
     pyb"""
        |        binary_image_data = tuple_[$binaryContent]
        |"""

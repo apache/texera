@@ -171,12 +171,7 @@ class PartitionInfoSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   "PartitionInfo @JsonSubTypes" should
-    "list the current registration set (omits OneToOnePartition)" in {
-    // Pin: the @JsonSubTypes annotation on PartitionInfo currently registers
-    // HashPartition, RangePartition, SinglePartition, BroadcastPartition,
-    // and UnknownPartition — but NOT OneToOnePartition. The "all" claim is
-    // documented separately in the pendingUntilFixed test below so this
-    // spec only documents the present-day set.
+    "register every concrete PartitionInfo subclass" in {
     val annotation = classOf[PartitionInfo].getAnnotation(classOf[JsonSubTypes])
     val registered = annotation.value().toList.map(_.value().getSimpleName).toSet
     assert(
@@ -184,24 +179,11 @@ class PartitionInfoSpec extends AnyFlatSpec {
         "HashPartition",
         "RangePartition",
         "SinglePartition",
+        "OneToOnePartition",
         "BroadcastPartition",
         "UnknownPartition"
       )
     )
-  }
-
-  it should "eventually register every concrete PartitionInfo subclass (pendingUntilFixed)" in pendingUntilFixed {
-    // Intended contract: every concrete PartitionInfo subtype must be
-    // reachable through the polymorphic dispatch on `type`, otherwise
-    // Jackson cannot deserialize the missing payload (today: OneToOne-
-    // Partition). Asserting `contains "OneToOnePartition"` here flips
-    // this test from Pending to a real pass once the bug is fixed —
-    // pendingUntilFixed inverts that and turns the now-passing
-    // assertion into a failure so the fix has to delete the marker
-    // deliberately.
-    val annotation = classOf[PartitionInfo].getAnnotation(classOf[JsonSubTypes])
-    val registered = annotation.value().toList.map(_.value().getSimpleName).toSet
-    assert(registered.contains("OneToOnePartition"))
   }
 
   // ---------------------------------------------------------------------------

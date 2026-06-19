@@ -42,7 +42,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import scala.concurrent.duration._
 
 class ReconfigurationSpec
-    extends TestKit(ActorSystem("ReconfigurationSpec", AmberRuntime.akkaConfig))
+    extends TestKit(ActorSystem("ReconfigurationSpec", AmberRuntime.pekkoConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll

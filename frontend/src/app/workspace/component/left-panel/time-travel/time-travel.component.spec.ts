@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
@@ -29,20 +29,20 @@ import { ComputingUnitStatusService } from "../../../../common/service/computing
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
-describe("VersionsListDisplayComponent", () => {
+describe("TimeTravelComponent", () => {
   let component: TimeTravelComponent;
   let fixture: ComponentFixture<TimeTravelComponent>;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [TimeTravelComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       providers: [
         WorkflowActionService,
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         ...commonTestProviders,
       ],
       imports: [
+        TimeTravelComponent,
         BrowserAnimationsModule,
         FormsModule,
         FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
@@ -50,9 +50,7 @@ describe("VersionsListDisplayComponent", () => {
         HttpClientTestingModule,
       ],
     }).compileComponents();
-  }));
 
-  beforeEach(() => {
     fixture = TestBed.createComponent(TimeTravelComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);

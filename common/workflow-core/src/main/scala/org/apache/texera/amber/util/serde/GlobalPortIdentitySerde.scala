@@ -23,17 +23,20 @@ import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 
 /**
   * Serialize and deserializes a GlobalPortIdentity object to a string using a custom, human-readable format
-  * to ensure it works with both URI and file path and does not incldue underscore "_" so that it does not
-  * interfere with our own VFS URI parsing.
+  * to ensure it works with both URI and file path and does not include underscore "_" so that it does not
+  * interfere with our own VFS URI parsing. Underscores in `logicalOpId` / `layerName` and negative `portId`
+  * values are rejected with `IllegalArgumentException`.
   */
 object GlobalPortIdentitySerde {
   implicit class SerdeOps(globalPortId: GlobalPortIdentity) {
 
     /**
       * Serializes a GlobalPortIdentity object into a string using our custom, human-readable format
-      * that works with both URI and file path and does not incldue underscore "_" so that it does not
+      * that works with both URI and file path and does not include underscore "_" so that it does not
       * interfere with our own VFS URI parsing.
       *
+      * @throws java.lang.IllegalArgumentException if `logicalOpId` or `layerName` contains an underscore,
+      *                                            or if `portId.id` is negative.
       * @return A serialized string representation of globalPortId
       */
     def serializeAsString: String = {
@@ -42,6 +45,15 @@ object GlobalPortIdentitySerde {
       val portId = globalPortId.portId.id
       val isInternal = globalPortId.portId.internal
       val isInput = globalPortId.input
+      require(
+        !logicalOpId.contains('_'),
+        s"logicalOpId must not contain '_' (VFS URI parsing relies on this): $logicalOpId"
+      )
+      require(
+        !layerName.contains('_'),
+        s"layerName must not contain '_' (VFS URI parsing relies on this): $layerName"
+      )
+      require(portId >= 0, s"portId must be non-negative: $portId")
       s"(logicalOpId=$logicalOpId,layerName=$layerName,portId=$portId,isInternal=$isInternal,isInput=$isInput)"
     }
   }
@@ -58,6 +70,7 @@ object GlobalPortIdentitySerde {
     serializedGlobalPortId match {
       case pattern(logicalOpId, layerName, portIdStr, isInternalStr, isInputStr) =>
         val portIdInt = portIdStr.toInt
+        require(portIdInt >= 0, s"portId must be non-negative: $portIdInt")
         val isInternal = isInternalStr.toBoolean
         val isInput = isInputStr.toBoolean
         val physicalOpId = PhysicalOpIdentity(

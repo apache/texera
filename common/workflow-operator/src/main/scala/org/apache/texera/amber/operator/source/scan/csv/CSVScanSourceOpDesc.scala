@@ -29,6 +29,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpExec
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.{IOException, InputStreamReader}
@@ -89,6 +90,8 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     csvFormat.setLineSeparator("\n")
     val csvSetting = new CsvParserSettings()
     csvSetting.setMaxCharsPerColumn(-1)
+    val maxColumns = CSVScanSourceOpExec.getMaxColumns
+    csvSetting.setMaxColumns(maxColumns)
     csvSetting.setFormat(csvFormat)
     csvSetting.setHeaderExtractionEnabled(hasHeader)
     csvSetting.setNullValue("")
@@ -97,8 +100,8 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     var data: Array[Array[String]] = Array()
     val readLimit = limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
-    for (i <- 0 until readLimit) {
-      val row = parser.parseNext()
+    for (_ <- 0 until readLimit) {
+      val row = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
       if (row != null) {
         data = data :+ row
       }
@@ -117,7 +120,11 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
     header.indices.foldLeft(Schema()) { (schema, i) =>
-      schema.add(header(i), attributeTypeList(i))
+      // Auto-rename blank header positions to `column-N` so empty CSV headers
+      // (e.g. a trailing comma) do not propagate empty attribute names to
+      // downstream Iceberg/Parquet writers, which reject them.
+      val name = Option(header(i)).filter(_.nonEmpty).getOrElse(s"column-${i + 1}")
+      schema.add(name, attributeTypeList(i))
     }
 
   }
