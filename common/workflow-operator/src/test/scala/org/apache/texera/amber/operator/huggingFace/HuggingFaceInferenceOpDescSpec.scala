@@ -288,6 +288,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("_, data = self._fetch_remote_url(audio_input)")
     code should include("_, data = self._fetch_remote_url(val)")
     code should include("raw_content_type, data = self._fetch_remote_url(url)")
+    code should not include "def _audio_url_to_data_url"
     code should not include "requests.get(audio_input"
     code should not include "os.path.exists(audio_input)"
     code should not include "open(audio_input"
@@ -449,7 +450,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     val code = makeDesc(task = "text-to-speech").generatePythonCode()
     code should include("""elif task == "text-to-speech":""")
     code should include("""payload = {"inputs": prompt_value}""")
-    code should include("self._audio_url_to_data_url(")
+    code should include("self._url_to_data_url(")
+    code should include(""""text-to-speech": "audio/mpeg"""")
+    code should not include "_audio_url_to_data_url"
     code should include("data:audio/mpeg;base64")
   }
 

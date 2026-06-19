@@ -917,29 +917,6 @@ object PythonCodegenBase {
        |        _, ext = os.path.splitext(audio_input)
        |        return extension_map.get(ext, "audio/mpeg")
        |
-       |    def _audio_url_to_data_url(self, url):
-       |        resp = requests.get(url, timeout=120)
-       |        resp.raise_for_status()
-       |        content_type = resp.headers.get("Content-Type", "").strip()
-       |        if not content_type or content_type == "application/octet-stream":
-       |            parsed = urlparse(url)
-       |            _, ext = os.path.splitext(parsed.path.lower())
-       |            extension_map = {
-       |                ".mp3": "audio/mpeg",
-       |                ".mpeg": "audio/mpeg",
-       |                ".wav": "audio/wav",
-       |                ".flac": "audio/flac",
-       |                ".ogg": "audio/ogg",
-       |                ".oga": "audio/ogg",
-       |                ".webm": "audio/webm",
-       |                ".opus": "audio/webm;codecs=opus",
-       |                ".amr": "audio/amr",
-       |                ".m4a": "audio/m4a",
-       |            }
-       |            content_type = extension_map.get(ext, "audio/mpeg")
-       |        b64 = base64.b64encode(resp.content).decode("utf-8")
-       |        return f"data:{content_type};base64,{b64}"
-       |
        |    def _url_to_data_url(self, url):
        |        '''Fetch a URL and return a data URL with the correct MIME type.
        |        Fetched via _fetch_remote_url so a malicious/compromised provider
@@ -950,12 +927,12 @@ object PythonCodegenBase {
        |        if not content_type or content_type == "application/octet-stream":
        |            from urllib.parse import urlparse as _urlparse
        |            ext = os.path.splitext(_urlparse(url).path.lower())[1]
-       |            mime_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml", ".mp4": "video/mp4", ".webm": "video/webm"}
+       |            mime_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml", ".mp3": "audio/mpeg", ".mpeg": "audio/mpeg", ".wav": "audio/wav", ".flac": "audio/flac", ".ogg": "audio/ogg", ".oga": "audio/ogg", ".m4a": "audio/mp4", ".mp4": "video/mp4", ".webm": "video/webm"}
        |            guessed = mime_map.get(ext, "")
        |            if guessed:
        |                content_type = guessed
        |            else:
-       |                task_mime = {"image-to-image": "image/png", "text-to-image": "image/png", "text-to-video": "video/mp4"}
+       |                task_mime = {"image-to-image": "image/png", "text-to-image": "image/png", "text-to-video": "video/mp4", "text-to-speech": "audio/mpeg"}
        |                content_type = task_mime.get(self.TASK, "application/octet-stream")
        |        b64 = base64.b64encode(data).decode("utf-8")
        |        return f"data:{content_type};base64,{b64}"

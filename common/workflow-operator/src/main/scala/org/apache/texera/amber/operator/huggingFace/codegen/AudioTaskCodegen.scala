@@ -51,19 +51,19 @@ object AudioTaskCodegen extends TaskCodegen {
       |                        out = body["output"]
       |                        url = out[0] if isinstance(out, list) else out
       |                        if isinstance(url, str) and url.startswith("http"):
-      |                            return self._audio_url_to_data_url(url)
+      |                            return self._url_to_data_url(url)
       |                    if "audio" in body:
       |                        audio = body["audio"]
       |                        if isinstance(audio, dict):
       |                            if "url" in audio:
-      |                                return self._audio_url_to_data_url(audio["url"])
+      |                                return self._url_to_data_url(audio["url"])
       |                            if "b64_json" in audio:
       |                                return f"data:audio/mpeg;base64,{audio['b64_json']}"
       |                    if "data" in body:
       |                        data = body["data"]
       |                        if data and isinstance(data[0], dict):
       |                            if "url" in data[0]:
-      |                                return self._audio_url_to_data_url(data[0]["url"])
+      |                                return self._url_to_data_url(data[0]["url"])
       |                            if "b64_json" in data[0]:
       |                                return f"data:audio/mpeg;base64,{data[0]['b64_json']}"
       |                return json.dumps(body)
