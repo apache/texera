@@ -223,7 +223,7 @@ Python packages:
   - overrides==7.4.0
   - packaging==26.2
   - propcache==0.5.2
-  - pyarrow==21.0.0
+  - pyarrow==23.0.1
   - pyiceberg==0.11.1
   - pympler==1.1
   - python-dateutil==2.8.2
