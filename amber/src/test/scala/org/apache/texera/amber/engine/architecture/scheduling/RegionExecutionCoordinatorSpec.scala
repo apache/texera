@@ -142,7 +142,38 @@ class RegionExecutionCoordinatorSpec
     // schema is stored as a `Left(cause)`. The coordinator must surface that real cause rather
     // than discarding it behind a generic "Schema is missing" message.
     val cause = new RuntimeException("User texera1 has no access to dataset 'iris'")
+    val coordinator = coordinatorWithUnresolvedOutputSchema(cause)
 
+    val thrown = intercept[IllegalStateException] {
+      await(coordinator.syncStatusAndTransitionRegionExecutionPhase())
+    }
+    assert(thrown.getCause eq cause)
+    assert(thrown.getMessage.contains(cause.getMessage))
+  }
+
+  it should "fall back to the throwable's string form when the cause has no message" in {
+    // Some throwables (e.g. NullPointerException) carry a null message; the surfaced text must
+    // not read "...: null".
+    val cause = new NullPointerException()
+    assert(cause.getMessage == null)
+    val coordinator = coordinatorWithUnresolvedOutputSchema(cause)
+
+    val thrown = intercept[IllegalStateException] {
+      await(coordinator.syncStatusAndTransitionRegionExecutionPhase())
+    }
+    assert(thrown.getCause eq cause)
+    assert(thrown.getMessage.contains(cause.toString))
+    assert(!thrown.getMessage.endsWith("null"))
+  }
+
+  /**
+    * Builds a coordinator for a single-source region whose only output port has an unresolved
+    * schema (`Left(cause)`) and a configured output storage, so that the non-dependee phase
+    * reaches `createOutputPortStorageObjects` and attempts to read that schema.
+    */
+  private def coordinatorWithUnresolvedOutputSchema(
+      cause: Throwable
+  ): RegionExecutionCoordinator = {
     val portId = PortIdentity(0)
     val baseOp = createSourceOp("schema-missing-op").withOutputPorts(List(OutputPort(portId)))
     val (outPort, links, _) = baseOp.outputPorts(portId)
@@ -173,7 +204,7 @@ class RegionExecutionCoordinatorSpec
     val controller = createControllerHarness()
     registerLiveWorker(controller.actorRefService, workerId)
 
-    val coordinator = new RegionExecutionCoordinator(
+    new RegionExecutionCoordinator(
       region,
       isRestart = false,
       workflowExecution,
@@ -182,12 +213,6 @@ class RegionExecutionCoordinatorSpec
       controller.actorService,
       controller.actorRefService
     )
-
-    val thrown = intercept[IllegalStateException] {
-      await(coordinator.syncStatusAndTransitionRegionExecutionPhase())
-    }
-    assert(thrown.getCause eq cause)
-    assert(thrown.getMessage.contains(cause.getMessage))
   }
 
   private case class SingleRegionFixture(
