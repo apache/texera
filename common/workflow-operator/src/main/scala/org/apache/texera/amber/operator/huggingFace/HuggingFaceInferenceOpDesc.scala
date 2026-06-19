@@ -26,6 +26,7 @@ import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentit
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.huggingFace.codegen.{
   CodegenContext,
+  ImageTaskCodegen,
   PythonCodegenBase,
   TaskCodegen,
   TextGenCodegen
@@ -83,6 +84,17 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var promptColumn: EncodableString = ""
 
+  @JsonProperty(value = "imageInput", required = false)
+  @JsonSchemaTitle("Image Upload")
+  @JsonPropertyDescription("Upload an image for Hugging Face image tasks")
+  var imageInput: EncodableString = ""
+
+  @JsonProperty(value = "inputImageColumn", required = false)
+  @JsonSchemaTitle("Input Image Column")
+  @JsonPropertyDescription("Column containing image data from the input table")
+  @AutofillAttributeName
+  var inputImageColumn: EncodableString = ""
+
   @JsonProperty(
     value = "systemPrompt",
     required = false,
@@ -122,8 +134,12 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
     * keeps `generatePythonCode` total (it never throws on arbitrary input,
     * which is required by `PythonCodeRawInvalidTextSpec`).
     */
-  private val registeredCodegens: Map[String, TaskCodegen] =
-    Map(TextGenCodegen.task -> TextGenCodegen)
+  private val registeredCodegens: Map[String, TaskCodegen] = {
+    val byTask = scala.collection.mutable.Map.empty[String, TaskCodegen]
+    byTask += (TextGenCodegen.task -> TextGenCodegen)
+    ImageTaskCodegen.tasks.foreach(t => byTask += (t -> ImageTaskCodegen))
+    byTask.toMap
+  }
 
   private def codegenForTask(t: String): TaskCodegen =
     registeredCodegens.getOrElse(t, TextGenCodegen)
@@ -161,6 +177,11 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
     val safeTemp =
       math.max(0.0, math.min(if (temperature != null) temperature.doubleValue else 0.7, 2.0))
 
+    val safeImageInput: EncodableString =
+      if (imageInput == null) "" else imageInput
+    val safeInputImageColumn: EncodableString =
+      if (inputImageColumn == null) "" else inputImageColumn
+
     val ctx = CodegenContext(
       hfApiToken = safeToken,
       modelId = safeModelId,
@@ -169,7 +190,9 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
       task = safeTask,
       systemPrompt = safeSystemPrompt,
       safeMaxTokens = safeMaxTokens,
-      safeTemp = safeTemp
+      safeTemp = safeTemp,
+      imageInput = safeImageInput,
+      inputImageColumn = safeInputImageColumn
     )
 
     PythonCodegenBase.render(ctx, codegenForTask(safeTask))
