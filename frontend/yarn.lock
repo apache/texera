@@ -6165,13 +6165,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/uuid@npm:8.3.4":
-  version: 8.3.4
-  resolution: "@types/uuid@npm:8.3.4"
-  checksum: 10c0/b9ac98f82fcf35962317ef7dc44d9ac9e0f6fdb68121d384c88fe12ea318487d5585d3480fa003cf28be86a3bbe213ca688ba786601dce4a97724765eb5b1cf2
-  languageName: node
-  linkType: hard
-
 "@types/ws@npm:^8.5.10":
   version: 8.18.1
   resolution: "@types/ws@npm:8.18.1"
@@ -10678,7 +10671,6 @@ __metadata:
     "@types/papaparse": "npm:5.3.5"
     "@types/plotly.js-basic-dist-min": "npm:2.12.4"
     "@types/quill": "npm:2.0.9"
-    "@types/uuid": "npm:8.3.4"
     "@typescript-eslint/eslint-plugin": "npm:8.59.0"
     "@typescript-eslint/parser": "npm:8.59.0"
     "@typescript-eslint/types": "npm:8.59.0"
