@@ -21,7 +21,7 @@
 # / NOTICE-binary. Not installed by packaging.
 
 # pytest test runner and plugins.
-pytest==7.4.0
+pytest==9.0.3
 pytest-reraise==2.1.2
 pytest-timeout==2.2.0
 
