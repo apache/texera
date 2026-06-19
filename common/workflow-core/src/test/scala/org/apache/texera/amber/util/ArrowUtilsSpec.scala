@@ -45,14 +45,16 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     ArrowUtils.toAttributeType(new ArrowType.Int(64, true)) shouldBe AttributeType.LONG
   }
 
-  it should "map non-standard Int bit-widths to LONG (current behavior)" in {
-    // Pin: the source code's match is `case 16 | 32 => INTEGER` then
-    // `case 64 | _ => LONG`. The trailing `_` makes the second arm a
-    // catch-all, so Int(8), Int(128) and any other width all surface as
-    // LONG. A future fix that distinguishes those widths will deliberately
-    // break this spec.
-    ArrowUtils.toAttributeType(new ArrowType.Int(8, true)) shouldBe AttributeType.LONG
-    ArrowUtils.toAttributeType(new ArrowType.Int(128, true)) shouldBe AttributeType.LONG
+  it should "throw AttributeTypeException for non-standard Int bit-widths" in {
+    // Only 16/32 (INTEGER) and 64 (LONG) are supported. Other widths used to
+    // be silently coerced to LONG by a `case 64 | _` catch-all; they now
+    // raise rather than masquerade as Int64.
+    assertThrows[AttributeTypeException] {
+      ArrowUtils.toAttributeType(new ArrowType.Int(8, true))
+    }
+    assertThrows[AttributeTypeException] {
+      ArrowUtils.toAttributeType(new ArrowType.Int(128, true))
+    }
   }
 
   it should "map Bool to BOOLEAN" in {
@@ -258,14 +260,26 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "lose the ANY distinction (round-trips as STRING)" in {
-    // Pin: ANY fromAttributeType produces Utf8 with no metadata. toAttributeType
-    // then can only see Utf8, so the recovered type is STRING. Documenting this
-    // information loss so a future fix that round-trips ANY can break the spec.
+  it should "preserve ANY through the metadata-based path" in {
     val original = Schema(List(new Attribute("v", AttributeType.ANY)))
     val recovered = ArrowUtils.toTexeraSchema(ArrowUtils.fromTexeraSchema(original))
     recovered.getAttributes.toList.map(a => (a.getName, a.getType)) shouldBe List(
-      ("v", AttributeType.STRING)
+      ("v", AttributeType.ANY)
     )
+  }
+
+  it should "attach texera_type=ANY metadata to ANY fields and only those" in {
+    val schema = Schema(
+      List(
+        new Attribute("v", AttributeType.ANY),
+        new Attribute("name", AttributeType.STRING)
+      )
+    )
+    val arrow = ArrowUtils.fromTexeraSchema(schema)
+    val fields = arrow.getFields.asScala.toList
+    val any = fields.find(_.getName == "v").get
+    val name = fields.find(_.getName == "name").get
+    any.getMetadata.get("texera_type") shouldBe "ANY"
+    Option(name.getMetadata).map(_.containsKey("texera_type")).getOrElse(false) shouldBe false
   }
 }

@@ -120,9 +120,9 @@ export class DynamicSchemaService {
   /**
    * Sets the dynamic schema of an operator. If the new schema is different, also emit dynamic schema changed event.
    *
-   * The new dynamic schema is validated against the current operator properties.
-   * If the changed new dynamic schema invalidates some property, then the invalid properties fields will be dropped.
-   *
+   * Note: dropping operator property values that the new schema invalidates (e.g. attribute references that no
+   * longer exist after schema propagation) is handled by WorkflowCompilingService.dropInvalidAttributeValues,
+   * which has access to the propagated input attributes.
    */
   public setDynamicSchema(operatorID: string, dynamicSchema: OperatorSchema): void {
     const currentDynamicSchema = this.dynamicSchemaMap.get(operatorID);

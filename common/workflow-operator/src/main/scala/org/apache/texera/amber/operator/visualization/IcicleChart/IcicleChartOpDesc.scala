@@ -49,14 +49,14 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription(
     "hierarchy of attributes from a root (higher-level category) to leaves (lower-level category)"
   )
-  @NotEmpty(message = "Hierarchy path list cannot be empty")
+  @NotEmpty(message = "Hierarchy Path cannot be empty")
   var hierarchy: List[HierarchySection] = List()
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("the value associated with the size of each sector in the chart")
   @AutofillAttributeName
-  @NotNull(message = "Value column cannot be empty")
+  @NotNull(message = "Value Column cannot be empty")
   var value: EncodableString = ""
 
   override def getOutputSchemas(
@@ -64,7 +64,6 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor {
   ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
@@ -79,6 +78,7 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor {
     hierarchy.map(c => pyb"${c.attributeName}").mkString(",")
 
   def manipulateTable(): PythonTemplateBuilder = {
+    assert(value.nonEmpty, "Value Column cannot be empty")
     val attributes = getIcicleAttributesInPython
     pyb"""
        |        table[$value] = table[table[$value] > 0][$value] # remove non-positive numbers from the data
@@ -87,7 +87,7 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor {
   }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(hierarchy.nonEmpty)
+    assert(hierarchy.nonEmpty, "Hierarchy Path cannot be empty")
     val attributes = getIcicleAttributesInPython
     pyb"""
        |        fig = px.icicle(table, path=[$attributes], values=$value,

@@ -30,6 +30,7 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import java.util
+import javax.validation.constraints.NotEmpty
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class LineChartOpDesc extends PythonOperatorDescriptor {
@@ -45,14 +46,14 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
   var xLabel: EncodableString = ""
 
   @JsonProperty(value = "lines", required = true)
-  var lines: util.List[LineConfig] = _
+  @NotEmpty(message = "At least one line must be configured")
+  var lines: util.List[LineConfig] = new util.ArrayList[LineConfig]()
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
@@ -64,6 +65,7 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
+    assert(lines != null && !lines.isEmpty, "At least one line must be configured")
     val linesPart = lines.asScala
       .map { lineConf =>
         val colorPart = if (lineConf.color != "") {

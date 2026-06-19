@@ -19,15 +19,18 @@
 
 package org.apache.texera.amber.operator.source.scan.csv
 
+import com.univocity.parsers.common.TextParsingException
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.{AttributeTypeUtils, Schema, TupleLike}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.dao.SiteSettings
 
 import java.io.InputStreamReader
 import java.net.URI
 import scala.collection.immutable.ArraySeq
+import scala.util.Try
 
 class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperatorExecutor {
   val desc: CSVScanSourceOpDesc = objectMapper.readValue(descString, classOf[CSVScanSourceOpDesc])
@@ -35,6 +38,7 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
   var parser: CsvParser = _
   var nextRow: Array[String] = _
   var numRowGenerated = 0
+  private var maxColumns: Int = CSVScanSourceOpExec.DEFAULT_MAX_COLUMNS
   private val schema: Schema = desc.sourceSchema()
 
   override def produceTuple(): Iterator[TupleLike] = {
@@ -44,7 +48,7 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
         if (nextRow != null) {
           return true
         }
-        nextRow = parser.parseNext()
+        nextRow = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
         nextRow != null
       }
 
@@ -90,6 +94,8 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
     ) // disable skipping lines starting with # (default comment character)
     val csvSetting = new CsvParserSettings()
     csvSetting.setMaxCharsPerColumn(-1)
+    maxColumns = CSVScanSourceOpExec.getMaxColumns
+    csvSetting.setMaxColumns(maxColumns)
     csvSetting.setFormat(csvFormat)
     csvSetting.setHeaderExtractionEnabled(desc.hasHeader)
 
@@ -105,4 +111,42 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
       inputReader.close()
     }
   }
+}
+
+object CSVScanSourceOpExec {
+  val DEFAULT_MAX_COLUMNS = 512
+
+  def getMaxColumns: Int =
+    SiteSettings.getInt("csv_parser_max_columns", DEFAULT_MAX_COLUMNS)
+
+  /**
+    * Wraps `parser.parseNext()` so a column-count overflow is reported to the user
+    * as a clear instruction rather than a deep Univocity stack trace. Other parser
+    * failures are rethrown unchanged.
+    *
+    * The thrown RuntimeException's message bubbles up through DataProcessor.handleExecutorException
+    * and becomes the title of the console message that drives the top-of-page toast.
+    */
+  def parseNextRow(parser: CsvParser, maxColumns: Int): Array[String] = {
+    try parser.parseNext()
+    catch {
+      case e: TextParsingException if isColumnOverflow(e, maxColumns) =>
+        throw new RuntimeException(columnOverflowMessage(maxColumns), e)
+    }
+  }
+
+  private[csv] def isColumnOverflow(e: TextParsingException, maxColumns: Int): Boolean =
+    Option(e.getCause)
+      .collect { case aioobe: ArrayIndexOutOfBoundsException => aioobe }
+      .exists(aioobe => aioobeIndex(aioobe).exists(_ == maxColumns))
+
+  private def aioobeIndex(aioobe: ArrayIndexOutOfBoundsException): Option[Int] = {
+    val msg = Option(aioobe.getMessage).getOrElse("")
+    Try(msg.trim.toInt).toOption.orElse {
+      raw"Index (\d+) out of bounds".r.findFirstMatchIn(msg).map(_.group(1).toInt)
+    }
+  }
+
+  private[csv] def columnOverflowMessage(maxColumns: Int): String =
+    s"Max columns of $maxColumns exceeded."
 }

@@ -81,4 +81,10 @@ to access services in the main namespace using the same service names.
   "externalName" (printf "%s-minio.%s.svc.cluster.local" .Release.Name $namespace)
 ) | nindent 0 }}
 
-
+---
+{{/* Lakekeeper ExternalName */}}
+{{- include "external-name-service" (dict
+    "name" (printf "%s-lakekeeper" .Release.Name)
+    "namespace" $workflowComputingUnitPoolNamespace
+    "externalName" (printf "%s-lakekeeper.%s.svc.cluster.local" .Release.Name $namespace)
+) | nindent 0 }}

@@ -125,7 +125,9 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
       .getOrElse(
         return 0
       )
-    table.newScan().planFiles().iterator().asScala.map(f => f.file().recordCount()).sum
+    Using.resource(table.newScan().planFiles()) { tasks =>
+      tasks.iterator().asScala.map(f => f.file().recordCount()).sum
+    }
   }
 
   /**
@@ -178,8 +180,11 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         // Iterator for usable file scan tasks
         private var usableFileIterator: Iterator[FileScanTask] = seekToUsableFile()
 
-        // Current record iterator for the active file
+        // Active file's records. Closer tracked separately because the
+        // `.drop` call below returns a bare `Iterator[Record]` that loses
+        // the wrapper type.
         private var currentRecordIterator: Iterator[Record] = Iterator.empty
+        private var currentRecordIteratorCloser: AutoCloseable = () => ()
 
         // Util function to load the table's metadata
         private def loadTableMetadata(): Option[Table] = {
@@ -202,38 +207,43 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
             }
             table.foreach(_.refresh())
 
-            // Retrieve and sort the file scan tasks by file sequence number
+            // Retrieve and sort the file scan tasks by file sequence number.
+            // Materialize inside `Using.resource` so the `planFiles()`
+            // CloseableIterable is released after collection.
             val fileScanTasksIterator: Iterator[FileScanTask] = table match {
               case Some(t) =>
                 val currentSnapshotId = Option(t.currentSnapshot()).map(_.snapshotId())
-                val fileScanTasks = (lastSnapshotId, currentSnapshotId) match {
-                  // Read from the start
-                  case (None, Some(_)) =>
-                    val tasks = t.newScan().planFiles().iterator().asScala
-                    lastSnapshotId = currentSnapshotId
-                    tasks
+                val fileScanTasks: Seq[FileScanTask] =
+                  (lastSnapshotId, currentSnapshotId) match {
+                    // Read from the start
+                    case (None, Some(_)) =>
+                      val tasks = Using.resource(t.newScan().planFiles()) { ci =>
+                        ci.iterator().asScala.toSeq
+                      }
+                      lastSnapshotId = currentSnapshotId
+                      tasks
 
-                  // Read incrementally from the last snapshot
-                  case (Some(lastId), Some(currId)) if lastId != currId =>
-                    val tasks = t
-                      .newIncrementalAppendScan()
-                      .fromSnapshotExclusive(lastId)
-                      .toSnapshot(currId)
-                      .planFiles()
-                      .iterator()
-                      .asScala
-                    lastSnapshotId = currentSnapshotId
-                    tasks
+                    // Read incrementally from the last snapshot
+                    case (Some(lastId), Some(currId)) if lastId != currId =>
+                      val tasks = Using.resource(
+                        t
+                          .newIncrementalAppendScan()
+                          .fromSnapshotExclusive(lastId)
+                          .toSnapshot(currId)
+                          .planFiles()
+                      ) { ci => ci.iterator().asScala.toSeq }
+                      lastSnapshotId = currentSnapshotId
+                      tasks
 
-                  // No new data
-                  case (Some(lastId), Some(currId)) if lastId == currId =>
-                    Iterator.empty
+                    // No new data
+                    case (Some(lastId), Some(currId)) if lastId == currId =>
+                      Seq.empty
 
-                  // Default: No data yet
-                  case _ =>
-                    Iterator.empty
-                }
-                fileScanTasks.toSeq.sortBy(_.file().fileSequenceNumber()).iterator
+                    // Default: No data yet
+                    case _ =>
+                      Seq.empty
+                  }
+                fileScanTasks.sortBy(_.file().fileSequenceNumber()).iterator
 
               case None =>
                 Iterator.empty
@@ -255,6 +265,9 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
         override def hasNext: Boolean = {
           if (numOfReturnedRecords >= totalRecordsToReturn) {
+            // Caller-imposed limit reached; release the active file's reader.
+            currentRecordIteratorCloser.close()
+            currentRecordIteratorCloser = () => ()
             return false
           }
 
@@ -274,11 +287,15 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
               case Some(cols) => tableSchema.select(cols.asJava)
               case None       => tableSchema
             }
-            currentRecordIterator = IcebergUtil.readDataFileAsIterator(
+            // Release the prior file's reader before opening the next.
+            currentRecordIteratorCloser.close()
+            val nextIter = IcebergUtil.readDataFileAsIterator(
               nextFile.file(),
               schemaToUse,
               table.get
             )
+            currentRecordIteratorCloser = nextIter
+            currentRecordIterator = nextIter.asScala
 
             // Skip records within the file if necessary
             val recordsToSkipInFile = from - numOfSkippedRecords
@@ -288,7 +305,13 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
             }
           }
 
-          currentRecordIterator.hasNext
+          val hasMore = currentRecordIterator.hasNext
+          if (!hasMore) {
+            // All files exhausted; release the last file's reader.
+            currentRecordIteratorCloser.close()
+            currentRecordIteratorCloser = () => ()
+          }
+          hasMore
         }
 
         override def next(): T = {
@@ -355,83 +378,89 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     }
 
     // Scan table files and aggregate statistics
-    table.newScan().includeColumnStats().planFiles().iterator().asScala.foreach { file =>
-      val fileStats = file.file()
-      // Extract column-level statistics
-      val lowerBounds =
-        Option(fileStats.lowerBounds()).getOrElse(Map.empty[Integer, ByteBuffer].asJava)
-      val upperBounds =
-        Option(fileStats.upperBounds()).getOrElse(Map.empty[Integer, ByteBuffer].asJava)
-      val nullCounts =
-        Option(fileStats.nullValueCounts()).getOrElse(Map.empty[Integer, java.lang.Long].asJava)
-      val nanCounts =
-        Option(fileStats.nanValueCounts()).getOrElse(Map.empty[Integer, java.lang.Long].asJava)
+    Using.resource(table.newScan().includeColumnStats().planFiles()) { tasks =>
+      tasks.iterator().asScala.foreach { file =>
+        val fileStats = file.file()
+        // Extract column-level statistics
+        val lowerBounds =
+          Option(fileStats.lowerBounds()).getOrElse(Map.empty[Integer, ByteBuffer].asJava)
+        val upperBounds =
+          Option(fileStats.upperBounds()).getOrElse(Map.empty[Integer, ByteBuffer].asJava)
+        val nullCounts =
+          Option(fileStats.nullValueCounts()).getOrElse(Map.empty[Integer, java.lang.Long].asJava)
+        val nanCounts =
+          Option(fileStats.nanValueCounts()).getOrElse(Map.empty[Integer, java.lang.Long].asJava)
 
-      fieldTypes.foreach {
-        case (field, (fieldId, fieldType)) =>
-          val lowerBound = Option(lowerBounds.get(fieldId))
-          val upperBound = Option(upperBounds.get(fieldId))
-          val nullCount: Long = Option(nullCounts.get(fieldId)).map(_.toLong).getOrElse(0L)
-          val nanCount: Long = Option(nanCounts.get(fieldId)).map(_.toLong).getOrElse(0L)
-          val fieldStat = fieldStats(field)
+        fieldTypes.foreach {
+          case (field, (fieldId, fieldType)) =>
+            val lowerBound = Option(lowerBounds.get(fieldId))
+            val upperBound = Option(upperBounds.get(fieldId))
+            val nullCount: Long = Option(nullCounts.get(fieldId)).map(_.toLong).getOrElse(0L)
+            val nanCount: Long = Option(nanCounts.get(fieldId)).map(_.toLong).getOrElse(0L)
+            val fieldStat = fieldStats(field)
 
-          // Process min/max values for numerical types
-          if (
-            fieldType == Types.IntegerType.get() || fieldType == Types.LongType
-              .get() || fieldType == Types.DoubleType.get()
-          ) {
-            lowerBound.foreach { buffer =>
-              val minValue =
-                Conversions.fromByteBuffer(fieldType, buffer).asInstanceOf[Number].doubleValue()
-              fieldStat("min") = Math.min(fieldStat("min").asInstanceOf[Double], minValue)
-            }
+            // Process min/max values for numerical types
+            if (
+              fieldType == Types.IntegerType.get() || fieldType == Types.LongType
+                .get() || fieldType == Types.DoubleType.get()
+            ) {
+              lowerBound.foreach { buffer =>
+                val minValue =
+                  Conversions.fromByteBuffer(fieldType, buffer).asInstanceOf[Number].doubleValue()
+                fieldStat("min") = Math.min(fieldStat("min").asInstanceOf[Double], minValue)
+              }
 
-            upperBound.foreach { buffer =>
-              val maxValue =
-                Conversions.fromByteBuffer(fieldType, buffer).asInstanceOf[Number].doubleValue()
-              fieldStat("max") = Math.max(fieldStat("max").asInstanceOf[Double], maxValue)
+              upperBound.foreach { buffer =>
+                val maxValue =
+                  Conversions.fromByteBuffer(fieldType, buffer).asInstanceOf[Number].doubleValue()
+                fieldStat("max") = Math.max(fieldStat("max").asInstanceOf[Double], maxValue)
+              }
             }
-          }
-          // Process min/max values for timestamp types
-          else if (
-            fieldType == Types.TimestampType.withoutZone() || fieldType == Types.TimestampType
-              .withZone()
-          ) {
-            lowerBound.foreach { buffer =>
-              val epochMicros = Conversions
-                .fromByteBuffer(Types.TimestampType.withoutZone(), buffer)
-                .asInstanceOf[Long]
-              val dateValue =
-                Instant.ofEpochMilli(epochMicros / 1000).atZone(ZoneOffset.UTC).toLocalDate
-              fieldStat("min") =
-                if (
-                  dateValue
-                    .isBefore(LocalDate.parse(fieldStat("min").asInstanceOf[String], dateFormatter))
-                )
-                  dateValue.format(dateFormatter)
-                else
-                  fieldStat("min")
-            }
+            // Process min/max values for timestamp types
+            else if (
+              fieldType == Types.TimestampType.withoutZone() || fieldType == Types.TimestampType
+                .withZone()
+            ) {
+              lowerBound.foreach { buffer =>
+                val epochMicros = Conversions
+                  .fromByteBuffer(Types.TimestampType.withoutZone(), buffer)
+                  .asInstanceOf[Long]
+                val dateValue =
+                  Instant.ofEpochMilli(epochMicros / 1000).atZone(ZoneOffset.UTC).toLocalDate
+                fieldStat("min") =
+                  if (
+                    dateValue
+                      .isBefore(
+                        LocalDate.parse(fieldStat("min").asInstanceOf[String], dateFormatter)
+                      )
+                  )
+                    dateValue.format(dateFormatter)
+                  else
+                    fieldStat("min")
+              }
 
-            upperBound.foreach { buffer =>
-              val epochMicros = Conversions
-                .fromByteBuffer(Types.TimestampType.withoutZone(), buffer)
-                .asInstanceOf[Long]
-              val dateValue =
-                Instant.ofEpochMilli(epochMicros / 1000).atZone(ZoneOffset.UTC).toLocalDate
-              fieldStat("max") =
-                if (
-                  dateValue
-                    .isAfter(LocalDate.parse(fieldStat("max").asInstanceOf[String], dateFormatter))
-                )
-                  dateValue.format(dateFormatter)
-                else
-                  fieldStat("max")
+              upperBound.foreach { buffer =>
+                val epochMicros = Conversions
+                  .fromByteBuffer(Types.TimestampType.withoutZone(), buffer)
+                  .asInstanceOf[Long]
+                val dateValue =
+                  Instant.ofEpochMilli(epochMicros / 1000).atZone(ZoneOffset.UTC).toLocalDate
+                fieldStat("max") =
+                  if (
+                    dateValue
+                      .isAfter(
+                        LocalDate.parse(fieldStat("max").asInstanceOf[String], dateFormatter)
+                      )
+                  )
+                    dateValue.format(dateFormatter)
+                  else
+                    fieldStat("max")
+              }
             }
-          }
-          // Update non-null count
-          fieldStat("not_null_count") = fieldStat("not_null_count").asInstanceOf[Long] +
-            (fileStats.recordCount().toLong - nullCount - nanCount)
+            // Update non-null count
+            fieldStat("not_null_count") = fieldStat("not_null_count").asInstanceOf[Long] +
+              (fileStats.recordCount().toLong - nullCount - nanCount)
+        }
       }
     }
     fieldStats.map {
@@ -478,7 +507,9 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val fileScanTasks: Seq[FileScanTask] = {
       val table = this.catalog.loadTable(TableIdentifier.of(this.tableNamespace, this.tableName))
       table.refresh()
-      table.newScan().planFiles().iterator().asScala.toSeq
+      Using.resource(table.newScan().planFiles()) { tasks =>
+        tasks.iterator().asScala.toSeq
+      }
     }
 
     if (fileScanTasks.isEmpty) {

@@ -30,10 +30,10 @@ import { UndoRedoService } from "../undo-redo/undo-redo.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
-import { Observable, of } from "rxjs";
+import { of } from "rxjs";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
-import { HttpClient } from "@angular/common/http";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
 
@@ -45,12 +45,6 @@ import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
-
-class StubHttpClient {
-  public post(): Observable<string> {
-    return of("a");
-  }
-}
 
 describe("ExecuteWorkflowService", () => {
   let service: ExecuteWorkflowService;
@@ -65,6 +59,7 @@ describe("ExecuteWorkflowService", () => {
     } as Document;
 
     TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
       providers: [
         ExecuteWorkflowService,
         WorkflowActionService,
@@ -76,7 +71,6 @@ describe("ExecuteWorkflowService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
-        { provide: HttpClient, useClass: StubHttpClient },
         { provide: DOCUMENT, useValue: mockDocument },
         { provide: AuthService, useClass: StubAuthService },
         { provide: UserService, useClass: StubUserService },
@@ -91,6 +85,21 @@ describe("ExecuteWorkflowService", () => {
   it("should be created", inject([ExecuteWorkflowService], (injectedService: ExecuteWorkflowService) => {
     expect(injectedService).toBeTruthy();
   }));
+
+  it("resetExecutionAndWorkers() clears the execution state and worker assignments", () => {
+    (service as any).currentState = { state: ExecutionState.Running };
+    (service as any).assignedWorkerIds.set("op1", ["w1", "w2"]);
+
+    const emittedStates: ExecutionState[] = [];
+    service.getExecutionStateStream().subscribe(event => emittedStates.push(event.current.state));
+
+    service.resetExecutionAndWorkers();
+
+    expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+    expect(service.getWorkerIds("op1")).toEqual([]);
+    // must broadcast on the stream so subscribers (menu, result panel) drop stale status
+    expect(emittedStates).toContain(ExecutionState.Uninitialized);
+  });
 
   it("should generate a logical plan request based on the workflow graph that is passed to the function", () => {
     const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);

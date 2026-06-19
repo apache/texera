@@ -62,6 +62,13 @@ Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "
 // AMBER_TEST_FILTER env var below routes which tagged subset runs.
 Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "test" / "integration"
 
+// `amber/src/bench` holds performance benchmarks (no pass/fail assertion;
+// emit metrics for the github-action-benchmark CI dashboard). Kept out of
+// `src/test/` so reviewers don't conflate "runs in test suite" with "is a
+// test". Same Test-scope wiring as `integration/` above so scalafmt /
+// scalafix still cover it and `sbt Test/runMain` can invoke benches.
+Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "bench" / "scala"
+
 // Test-filter switch driven by the AMBER_TEST_FILTER env var so the
 // amber and amber-integration CI jobs select disjoint subsets without
 // each invocation having to embed a `set Tests.Argument(...)` prefix.
@@ -179,7 +186,7 @@ libraryDependencies ++= hadoopDependencies
 // protobuf related
 // run the following with sbt to have protobuf codegen
 
-PB.protocVersion := "3.19.4"
+PB.protocVersion := IO.read((ThisBuild / baseDirectory).value / "bin" / "protoc-version.txt").trim
 
 enablePlugins(Fs2Grpc)
 
@@ -199,6 +206,27 @@ libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"
 
 // enable protobuf compilation in Test
 Test / PB.protoSources += PB.externalSourcePath.value
+
+// Regenerate Python betterproto bindings on compile; skipped if protoc is absent.
+val genPythonProto = taskKey[Unit]("Generate Python betterproto bindings from .proto sources.")
+genPythonProto := {
+  val log = streams.value.log
+  val repoRoot = (ThisBuild / baseDirectory).value
+  val script = repoRoot / "bin" / "python-proto-gen.sh"
+  def onPath(bin: String): Boolean =
+    scala.sys.process.Process(Seq("bash", "-c", s"command -v $bin >/dev/null 2>&1")).! == 0
+  if (!onPath("protoc") || !onPath("protoc-gen-python_betterproto")) {
+    log.warn(
+      "protoc or protoc-gen-python_betterproto not found on PATH; skipping Python proto generation. " +
+        "Install protoc and `pip install betterproto[compiler]` before launching a Python worker or running pytest."
+    )
+  } else {
+    val procLogger = scala.sys.process.ProcessLogger(line => log.info(line), line => log.error(line))
+    val exit = scala.sys.process.Process(Seq("bash", script.getAbsolutePath), repoRoot).!(procLogger)
+    if (exit != 0) sys.error(s"python-proto-gen.sh failed with exit code $exit")
+  }
+}
+Compile / compile := (Compile / compile).dependsOn(genPythonProto).value
 
 /////////////////////////////////////////////////////////////////////////////
 // Test related

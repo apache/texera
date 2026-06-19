@@ -16,34 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-// TODO: rewrite skipped tests away from Jasmine done/fail callbacks (#4861).
-// These stubs make the it.skip bodies type-check without running.
-declare function done(): void;
-declare function fail(message?: string): never;
-
-// TODO(vitest): done callbacks need rewrite to async/Promise pattern; these specs are skipped pending follow-up — tracked in #4861.
 
 import { TestBed } from "@angular/core/testing";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { DownloadService } from "./download.service";
 import { DatasetService } from "../dataset/dataset.service";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
-import { of, throwError } from "rxjs";
+import { firstValueFrom, lastValueFrom, of, throwError } from "rxjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
+
 describe("DownloadService", () => {
   let downloadService: DownloadService;
   let datasetServiceSpy: Mocked<DatasetService>;
   let fileSaverServiceSpy: Mocked<FileSaverService>;
   let notificationServiceSpy: Mocked<NotificationService>;
+  let workflowPersistServiceSpy: Mocked<WorkflowPersistService>;
+  let httpMock: HttpTestingController;
 
   beforeEach(() => {
     const datasetSpy = { retrieveDatasetVersionSingleFile: vi.fn(), retrieveDatasetVersionZip: vi.fn() };
     const fileSaverSpy = { saveAs: vi.fn() };
     const notificationSpy = { info: vi.fn(), success: vi.fn(), error: vi.fn() };
-    const workflowPersistSpy = { getWorkflow: vi.fn() };
+    const workflowPersistSpy = { retrieveWorkflow: vi.fn() };
 
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
@@ -61,198 +58,224 @@ describe("DownloadService", () => {
     datasetServiceSpy = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
     fileSaverServiceSpy = TestBed.inject(FileSaverService) as unknown as Mocked<FileSaverService>;
     notificationServiceSpy = TestBed.inject(NotificationService) as unknown as Mocked<NotificationService>;
+    workflowPersistServiceSpy = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
+    httpMock = TestBed.inject(HttpTestingController);
   });
 
-  it.skip("should download a single file successfully", () => {
-    const filePath = "test/file.txt";
-    const mockBlob = new Blob(["test content"], { type: "text/plain" });
+  afterEach(() => {
+    // Catch any test that fires an HTTP request without flushing it; keeps
+    // the suite safe as more specs start using HttpTestingController.
+    httpMock.verify();
+  });
 
+  // ─── downloadSingleFile ───────────────────────────────────────────────────
+
+  it("downloads a single file and saves it under the basename of the path", async () => {
+    const mockBlob = new Blob(["test content"], { type: "text/plain" });
     datasetServiceSpy.retrieveDatasetVersionSingleFile.mockReturnValue(of(mockBlob));
 
-    downloadService.downloadSingleFile(filePath, true).subscribe({
-      next: blob => {
-        expect(blob).toBe(mockBlob);
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download file test/file.txt");
-        expect(datasetServiceSpy.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith(filePath, true);
-        expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "file.txt");
-        expect(notificationServiceSpy.success).toHaveBeenCalledWith("File test/file.txt has been downloaded");
-        done();
-      },
-      error: (error: unknown) => {
-        fail("Should not have thrown an error: " + error);
-      },
-    });
+    const result = await firstValueFrom(downloadService.downloadSingleFile("test/file.txt", true));
+
+    expect(result).toBe(mockBlob);
+    expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download file test/file.txt");
+    expect(datasetServiceSpy.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith("test/file.txt", true);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "file.txt");
+    expect(notificationServiceSpy.success).toHaveBeenCalledWith("File test/file.txt has been downloaded");
   });
 
-  it.skip("should handle download failure correctly", () => {
-    const filePath = "test/file.txt";
-    const errorMessage = "Download failed";
+  it("falls back to a default filename when the path has no basename segment", async () => {
+    const mockBlob = new Blob(["x"], { type: "text/plain" });
+    datasetServiceSpy.retrieveDatasetVersionSingleFile.mockReturnValue(of(mockBlob));
 
-    datasetServiceSpy.retrieveDatasetVersionSingleFile.mockReturnValue(throwError(() => new Error(errorMessage)));
+    await firstValueFrom(downloadService.downloadSingleFile("", true));
 
-    downloadService.downloadSingleFile(filePath, true).subscribe({
-      next: () => {
-        fail("Should have thrown an error");
-      },
-      error: (error: unknown) => {
-        expect(error).toBeTruthy();
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download file test/file.txt");
-        expect(datasetServiceSpy.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith(filePath, true);
-        expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
-        expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading file 'test/file.txt'");
-        done();
-      },
-    });
+    // path.split("/").pop() returns "" for "", which falls through to the default name
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "download");
   });
 
-  it.skip("should download a dataset successfully", () => {
-    const datasetId = 1;
-    const datasetName = "TestDataset";
+  it("propagates errors from downloadSingleFile and emits the error notification", async () => {
+    datasetServiceSpy.retrieveDatasetVersionSingleFile.mockReturnValue(throwError(() => new Error("boom")));
+
+    await expect(firstValueFrom(downloadService.downloadSingleFile("test/file.txt", true))).rejects.toThrow("boom");
+
+    expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download file test/file.txt");
+    expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
+    expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading file 'test/file.txt'");
+  });
+
+  it("passes isLogin=false through to retrieveDatasetVersionSingleFile", async () => {
+    const mockBlob = new Blob(["x"], { type: "text/plain" });
+    datasetServiceSpy.retrieveDatasetVersionSingleFile.mockReturnValue(of(mockBlob));
+
+    await firstValueFrom(downloadService.downloadSingleFile("public/sample.csv", false));
+
+    expect(datasetServiceSpy.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith("public/sample.csv", false);
+  });
+
+  // ─── downloadDataset ──────────────────────────────────────────────────────
+
+  it("downloads the latest dataset version as a zip named after the dataset", async () => {
     const mockBlob = new Blob(["dataset content"], { type: "application/zip" });
-
     datasetServiceSpy.retrieveDatasetVersionZip.mockReturnValue(of(mockBlob));
 
-    downloadService.downloadDataset(datasetId, datasetName).subscribe({
-      next: blob => {
-        expect(blob).toBe(mockBlob);
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith(
-          "Starting to download the latest version of the dataset as ZIP"
-        );
-        expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(datasetId);
-        expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "TestDataset.zip");
-        expect(notificationServiceSpy.success).toHaveBeenCalledWith(
-          "The latest version of the dataset has been downloaded as ZIP"
-        );
-        done();
-      },
-      error: (error: unknown) => {
-        fail("Should not have thrown an error");
-      },
-    });
+    const result = await firstValueFrom(downloadService.downloadDataset(1, "TestDataset"));
+
+    expect(result).toBe(mockBlob);
+    expect(notificationServiceSpy.info).toHaveBeenCalledWith(
+      "Starting to download the latest version of the dataset as ZIP"
+    );
+    expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(1);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "TestDataset.zip");
+    expect(notificationServiceSpy.success).toHaveBeenCalledWith(
+      "The latest version of the dataset has been downloaded as ZIP"
+    );
   });
 
-  it.skip("should handle dataset download failure correctly", () => {
-    const datasetId = 1;
-    const datasetName = "TestDataset";
-    const errorMessage = "Dataset download failed";
+  it("emits the dataset error notification and rethrows on retrieve failure", async () => {
+    datasetServiceSpy.retrieveDatasetVersionZip.mockReturnValue(throwError(() => new Error("fail")));
 
-    datasetServiceSpy.retrieveDatasetVersionZip.mockReturnValue(throwError(() => new Error(errorMessage)));
+    await expect(firstValueFrom(downloadService.downloadDataset(1, "TestDataset"))).rejects.toThrow("fail");
 
-    downloadService.downloadDataset(datasetId, datasetName).subscribe({
-      next: () => {
-        fail("Should have thrown an error");
-      },
-      error: (error: unknown) => {
-        expect(error).toBeTruthy();
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith(
-          "Starting to download the latest version of the dataset as ZIP"
-        );
-        expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(datasetId);
-        expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
-        expect(notificationServiceSpy.error).toHaveBeenCalledWith(
-          "Error downloading the latest version of the dataset as ZIP"
-        );
-        done();
-      },
-    });
+    expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
+    expect(notificationServiceSpy.error).toHaveBeenCalledWith(
+      "Error downloading the latest version of the dataset as ZIP"
+    );
   });
 
-  it.skip("should download a dataset version successfully", () => {
-    const datasetId = 1;
-    const datasetVersionId = 1;
-    const datasetName = "TestDataset";
-    const versionName = "v1.0";
-    const mockBlob = new Blob(["version content"], { type: "application/zip" });
+  // ─── downloadDatasetVersion ───────────────────────────────────────────────
 
+  it("downloads a specific dataset version with composite zip name", async () => {
+    const mockBlob = new Blob(["v1"], { type: "application/zip" });
     datasetServiceSpy.retrieveDatasetVersionZip.mockReturnValue(of(mockBlob));
 
-    downloadService.downloadDatasetVersion(datasetId, datasetVersionId, datasetName, versionName).subscribe({
-      next: blob => {
-        expect(blob).toBe(mockBlob);
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download version v1.0 as ZIP");
-        expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(datasetId, datasetVersionId);
-        expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "TestDataset-v1.0.zip");
-        expect(notificationServiceSpy.success).toHaveBeenCalledWith("Version v1.0 has been downloaded as ZIP");
-        done();
-      },
-      error: (error: unknown) => {
-        fail("Should not have thrown an error");
-      },
-    });
+    const result = await firstValueFrom(downloadService.downloadDatasetVersion(1, 2, "TestDataset", "v1.0"));
+
+    expect(result).toBe(mockBlob);
+    expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download version v1.0 as ZIP");
+    expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(1, 2);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "TestDataset-v1.0.zip");
+    expect(notificationServiceSpy.success).toHaveBeenCalledWith("Version v1.0 has been downloaded as ZIP");
   });
 
-  it.skip("should handle dataset version download failure correctly", () => {
-    const datasetId = 1;
-    const datasetVersionId = 1;
-    const datasetName = "TestDataset";
-    const versionName = "v1.0";
-    const errorMessage = "Dataset version download failed";
+  it("emits the version-specific error notification on retrieve failure", async () => {
+    datasetServiceSpy.retrieveDatasetVersionZip.mockReturnValue(throwError(() => new Error("nope")));
 
-    datasetServiceSpy.retrieveDatasetVersionZip.mockReturnValue(throwError(() => new Error(errorMessage)));
+    await expect(firstValueFrom(downloadService.downloadDatasetVersion(1, 2, "TestDataset", "v1.0"))).rejects.toThrow(
+      "nope"
+    );
 
-    downloadService.downloadDatasetVersion(datasetId, datasetVersionId, datasetName, versionName).subscribe({
-      next: () => {
-        fail("Should have thrown an error");
-      },
-      error: (error: unknown) => {
-        expect(error).toBeTruthy();
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download version v1.0 as ZIP");
-        expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(datasetId, datasetVersionId);
-        expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
-        expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading version 'v1.0' as ZIP");
-        done();
-      },
-    });
+    expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading version 'v1.0' as ZIP");
   });
 
-  it.skip("should download workflows as ZIP successfully", () => {
-    const workflowEntries = [
+  // ─── downloadWorkflow ─────────────────────────────────────────────────────
+
+  it("downloads a workflow as a JSON blob named after the workflow", async () => {
+    const workflowContent = { hello: "world", operators: [] };
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: workflowContent } as any));
+
+    const result = await firstValueFrom(downloadService.downloadWorkflow(42, "MyWorkflow"));
+
+    expect(result.fileName).toBe("MyWorkflow.json");
+    expect(result.blob).toBeInstanceOf(Blob);
+    expect(result.blob.type).toBe("text/plain;charset=utf-8");
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(result.blob, "MyWorkflow.json");
+    // Blob.text() isn't shipped by jsdom, so we don't pin the body content
+    // here; the saveAs assertion above already verifies the path that
+    // produced it.
+  });
+
+  // ─── downloadWorkflowsAsZip ───────────────────────────────────────────────
+
+  it("downloads the workflow ZIP and routes through createWorkflowsZip", async () => {
+    const mockBlob = new Blob(["zip"], { type: "application/zip" });
+    const entries = [
       { id: 1, name: "Workflow1" },
       { id: 2, name: "Workflow2" },
     ];
-    const mockBlob = new Blob(["zip content"], { type: "application/zip" });
-
     vi.spyOn(downloadService as any, "createWorkflowsZip").mockReturnValue(of(mockBlob));
 
-    downloadService.downloadWorkflowsAsZip(workflowEntries).subscribe({
-      next: blob => {
-        expect(blob).toBe(mockBlob);
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download workflows as ZIP");
-        expect((downloadService as any).createWorkflowsZip).toHaveBeenCalledWith(workflowEntries);
-        expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(
-          mockBlob,
-          expect.stringMatching(/^workflowExports-.*\.zip$/)
-        );
-        expect(notificationServiceSpy.success).toHaveBeenCalledWith("Workflows have been downloaded as ZIP");
-        done();
-      },
-      error: (error: unknown) => {
-        fail("Should not have thrown an error");
-      },
-    });
+    const result = await firstValueFrom(downloadService.downloadWorkflowsAsZip(entries));
+
+    expect(result).toBe(mockBlob);
+    expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download workflows as ZIP");
+    expect((downloadService as any).createWorkflowsZip).toHaveBeenCalledWith(entries);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(
+      mockBlob,
+      expect.stringMatching(/^workflowExports-.*\.zip$/)
+    );
+    expect(notificationServiceSpy.success).toHaveBeenCalledWith("Workflows have been downloaded as ZIP");
   });
 
-  it.skip("should handle workflows ZIP download failure correctly", () => {
-    const workflowEntries = [
-      { id: 1, name: "Workflow1" },
-      { id: 2, name: "Workflow2" },
-    ];
-    const errorMessage = "Workflows ZIP download failed";
+  it("propagates errors from createWorkflowsZip with the expected error notification", async () => {
+    vi.spyOn(downloadService as any, "createWorkflowsZip").mockReturnValue(throwError(() => new Error("zip fail")));
 
-    vi.spyOn(downloadService as any, "createWorkflowsZip").mockReturnValue(throwError(() => new Error(errorMessage)));
+    await expect(firstValueFrom(downloadService.downloadWorkflowsAsZip([{ id: 1, name: "W" }]))).rejects.toThrow(
+      "zip fail"
+    );
 
-    downloadService.downloadWorkflowsAsZip(workflowEntries).subscribe({
-      next: () => {
-        fail("Should have thrown an error");
-      },
-      error: (error: unknown) => {
-        expect(error).toBeTruthy();
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download workflows as ZIP");
-        expect((downloadService as any).createWorkflowsZip).toHaveBeenCalledWith(workflowEntries);
-        expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
-        expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading workflows as ZIP");
-        done();
-      },
-    });
+    expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
+    expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading workflows as ZIP");
+  });
+
+  // ─── downloadOperatorsResult ──────────────────────────────────────────────
+
+  it("downloads a single operator file directly when there's exactly one file", async () => {
+    const fileBlob = new Blob(["hello"], { type: "text/plain" });
+    const result = await firstValueFrom(
+      downloadService.downloadOperatorsResult([of([{ filename: "out.csv", blob: fileBlob }])], {
+        wid: 1,
+        name: "W",
+      } as any)
+    );
+
+    expect(result).toBe(fileBlob);
+    expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download operator result");
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(fileBlob, "out.csv");
+    expect(notificationServiceSpy.success).toHaveBeenCalledWith("Operator result has been downloaded");
+  });
+
+  // The multi-file zip path goes through `new JSZip()` against the
+  // `import * as JSZip from "jszip"` namespace, which the build flags as
+  // `Constructing "JSZip" will crash at run-time because it's an import
+  // namespace object`. Vitest reproduces the failure (`__vite_ssr_import_*
+  // is not a constructor`). Tracked as a separate cleanup in the codebase;
+  // the test is here as a placeholder so we re-enable it once the import
+  // is normalised to a default import.
+  it.skip("zips multiple operator files into a workflow-named archive", async () => {
+    const a = new Blob(["a"], { type: "text/plain" });
+    const b = new Blob(["b"], { type: "text/plain" });
+    const result = await firstValueFrom(
+      downloadService.downloadOperatorsResult(
+        [
+          of([
+            { filename: "a.csv", blob: a },
+            { filename: "b.csv", blob: b },
+          ]),
+        ],
+        { wid: 7, name: "TwoFile" } as any
+      )
+    );
+
+    expect(result).toBeInstanceOf(Blob);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(expect.any(Blob), "results_7_TwoFile.zip");
+    expect(notificationServiceSpy.success).toHaveBeenCalledWith("Operator results have been downloaded as ZIP");
+  });
+
+  it("errors out cleanly when no operator result files are provided", async () => {
+    await expect(
+      firstValueFrom(downloadService.downloadOperatorsResult([of([])], { wid: 1, name: "Empty" } as any))
+    ).rejects.toThrow("No files to download");
+  });
+
+  // ─── getWorkflowResultDownloadability ─────────────────────────────────────
+
+  it("hits the downloadability endpoint and returns the operator → labels map", async () => {
+    const promise = lastValueFrom(downloadService.getWorkflowResultDownloadability(99));
+    const req = httpMock.expectOne(r => r.url.includes("/99/result/downloadability"));
+    expect(req.request.method).toBe("GET");
+    req.flush({ "op-1": ["my-dataset"], "op-2": [] });
+
+    const map = await promise;
+    expect(map).toEqual({ "op-1": ["my-dataset"], "op-2": [] });
   });
 });

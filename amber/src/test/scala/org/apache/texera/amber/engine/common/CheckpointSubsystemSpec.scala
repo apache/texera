@@ -35,7 +35,7 @@ class CheckpointSubsystemSpec extends AnyFlatSpec with BeforeAndAfterAll {
   // and AmberRuntime's reference are torn down in afterAll, so no Pekko
   // threads outlive the test (matching ControllerSpec/WorkerSpec hygiene).
   private val testSystem: ActorSystem =
-    ActorSystem("CheckpointSubsystemSpec-test", AmberRuntime.akkaConfig)
+    ActorSystem("CheckpointSubsystemSpec-test", AmberRuntime.pekkoConfig)
   private val testSerde: Serialization = SerializationExtension(testSystem)
 
   private def setAmberRuntimeField(name: String, value: AnyRef): Unit = {

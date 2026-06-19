@@ -18,7 +18,7 @@
 from abc import ABCMeta
 from dataclasses import dataclass
 
-from core.util.protocol.base_protocols import (
+from core.util.base_protocols import (
     Putable,
     Getable,
     EmtpyCheckable,

@@ -269,6 +269,7 @@ Scala/Java jars:
   - com.thesamet.scalapb.scalapb-runtime_2.13-0.11.20.jar
   - com.typesafe.config-1.4.6.jar
   - com.typesafe.scala-logging.scala-logging_2.13-3.9.5.jar
+  - com.zaxxer.HikariCP-5.1.0.jar
   - com.univocity.univocity-parsers-2.9.1.jar
   - commons-beanutils.commons-beanutils-1.9.4.jar
   - commons-cli.commons-cli-1.2.jar
@@ -280,6 +281,7 @@ Scala/Java jars:
   - commons-pool.commons-pool-1.6.jar
   - dev.failsafe.failsafe-3.3.2.jar
   - io.airlift.aircompressor-0.27.jar
+  - io.dropwizard.dropwizard-auth-4.0.7.jar
   - io.dropwizard.dropwizard-configuration-4.0.7.jar
   - io.dropwizard.dropwizard-core-4.0.7.jar
   - io.dropwizard.dropwizard-health-4.0.7.jar
@@ -295,6 +297,7 @@ Scala/Java jars:
   - io.dropwizard.dropwizard-validation-4.0.7.jar
   - io.dropwizard.logback.logback-throttling-appender-1.4.2.jar
   - io.dropwizard.metrics.metrics-annotation-4.2.25.jar
+  - io.dropwizard.metrics.metrics-caffeine-4.2.25.jar
   - io.dropwizard.metrics.metrics-core-4.2.25.jar
   - io.dropwizard.metrics.metrics-healthchecks-4.2.25.jar
   - io.dropwizard.metrics.metrics-jakarta-servlets-4.2.25.jar
@@ -418,6 +421,7 @@ Scala/Java jars:
   - org.apache.yetus.audience-annotations-0.13.0.jar
   - org.apache.zookeeper.zookeeper-3.5.6.jar
   - org.apache.zookeeper.zookeeper-jute-3.5.6.jar
+  - org.bitbucket.b_c.jose4j-0.9.6.jar
   - org.eclipse.jetty.jetty-http-11.0.20.jar
   - org.eclipse.jetty.jetty-io-11.0.20.jar
   - org.eclipse.jetty.jetty-security-11.0.20.jar
@@ -509,7 +513,7 @@ Scala/Java jars:
   - com.konghq.unirest-java-3.14.2.jar
   - io.github.classgraph.classgraph-4.8.157.jar
   - net.sourceforge.argparse4j.argparse4j-0.9.0.jar
-  - org.checkerframework.checker-qual-3.42.0.jar
+  - org.checkerframework.checker-qual-3.52.0.jar
   - org.codehaus.mojo.animal-sniffer-annotations-1.23.jar
   - org.projectlombok.lombok-1.18.24.jar
   - org.reactivestreams.reactive-streams-1.0.4.jar

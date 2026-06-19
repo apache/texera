@@ -16,8 +16,25 @@
 // under the License.
 
 ThisBuild / organization := "org.apache.texera"
-ThisBuild / version      := "1.1.0-incubating"
+ThisBuild / version      := "1.3.0-incubating-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.18"
+
+// Pull JDK 17+ JVM flags from .jvmopts so every JVM the build launches sees the same list.
+import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport.Universal
+ThisBuild / Test / javaOptions ++=
+  JdkOptions.jvmFlags((ThisBuild / baseDirectory).value)
+
+// Fail Java compilation on deprecation warnings so PRs can't reintroduce
+// deprecated-API patterns (e.g. scala.collection.JavaConverters in Java
+// callers — the modern Java entry point is scala.jdk.javaapi.CollectionConverters).
+// -Xlint:deprecation surfaces the per-call-site location, -Werror turns it fatal.
+ThisBuild / Compile / javacOptions ++= Seq("-Xlint:deprecation", "-Werror")
+// Emit one JUnit-XML file per spec under each module's target/test-reports/.
+// Codecov Test Analytics ingests these via `report_type: test_results` to
+// surface failing-test stack traces in PR comments and flag tests that have
+// gone flaky on main. ScalaTest's `-u` argument is additive — module-level
+// testOptions (e.g. amber/build.sbt's filter args) continue to apply.
+ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-u", "target/test-reports")
 
 // sbt-jacoco emits only HTML by default; add XML so Codecov can consume
 // per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
@@ -30,13 +47,18 @@ lazy val coverageReportSettings = Seq(
     .withFormats(JacocoReportFormats.ScalaHTML, JacocoReportFormats.XML)
 )
 
+lazy val universalJvmFlagsSettings = Seq(
+  Universal / javaOptions ++=
+    JdkOptions.jvmFlags((ThisBuild / baseDirectory).value).map("-J" + _)
+)
+
 // Per-module ASF licensing: each jar's META-INF/LICENSE describes only what is in that jar.
 // Modules without vendored code get Apache 2.0 only; workflow-operator includes mbknor attribution.
 // See project/AddMetaInfLicenseFiles.scala.
 // Dist-producing modules additionally override Universal / mappings in their own
 // build.sbt (not here) — see AddMetaInfLicenseFiles.distMappings.
-lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings ++ coverageReportSettings
-lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings ++ coverageReportSettings
+lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
+lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
 
 val jacksonVersion = "2.18.6"
 
@@ -44,7 +66,9 @@ lazy val DAO = (project in file("common/dao")).settings(asfLicensingSettings)
 lazy val Config = (project in file("common/config")).settings(asfLicensingSettings)
 lazy val Auth = (project in file("common/auth"))
   .settings(asfLicensingSettings)
+  .configs(Test)
   .dependsOn(DAO, Config)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val ConfigService = (project in file("config-service"))
   .dependsOn(Auth, Config)
   .settings(asfLicensingSettings)
@@ -103,7 +127,7 @@ lazy val FileService = (project in file("file-service"))
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Config)
+  .dependsOn(WorkflowOperator, Auth, Config)
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -149,15 +173,18 @@ lazy val WorkflowExecutionService = (project in file("amber"))
 // root project definition
 lazy val TexeraProject = (project in file("."))
   .aggregate(
-    DAO,
-    Config,
-    ConfigService,
-    AccessControlService,
+    // common libraries
     Auth,
+    Config,
+    DAO,
+    PyBuilder,
     WorkflowCore,
-    ComputingUnitManagingService,
-    FileService,
     WorkflowOperator,
+    // services
+    AccessControlService,
+    ComputingUnitManagingService,
+    ConfigService,
+    FileService,
     WorkflowCompilingService,
     WorkflowExecutionService
   )

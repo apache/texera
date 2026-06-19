@@ -248,7 +248,7 @@ export class ExecuteWorkflowService {
 
     const workflowExecuteRequest = {
       executionName: executionName,
-      engineVersion: version.hash,
+      engineVersion: version.buildNumber,
       logicalPlan: logicalPlan,
       replayFromExecution: replayExecutionInfo,
       workflowSettings: workflowSettings,
@@ -352,6 +352,16 @@ export class ExecuteWorkflowService {
     this.currentState = {
       state: ExecutionState.Uninitialized,
     };
+  }
+
+  /**
+   * Reset execution status and worker assignments. Unlike resetExecutionState(),
+   * this also clears worker assignments and broadcasts the reset on
+   * executionStateStream so subscribers drop the previous unit's status.
+   */
+  public resetExecutionAndWorkers(): void {
+    this.updateExecutionState({ state: ExecutionState.Uninitialized });
+    this.assignedWorkerIds.clear();
   }
 
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {

@@ -1394,6 +1394,163 @@ class TestMainLoop:
         assert second_output.payload.frame["port"] == 0
 
     @pytest.mark.timeout(2)
+    def test_process_input_state_persists_output_state_to_storage(
+        self,
+        main_loop,
+        mock_data_output_channel,
+        monkeypatch,
+    ):
+        # process_input_state must invoke save_state_to_storage_if_needed
+        # with the freshly emitted output state, so every state that flows
+        # downstream is also durable on the upstream output port.
+        class DummyExecutor:
+            @staticmethod
+            def process_state(state: State, port: int) -> State:
+                return State({"value": state["value"] + 1, "port": port})
+
+        saved_states: list[State] = []
+        main_loop.context.executor_manager.executor = DummyExecutor()
+        monkeypatch.setattr(main_loop, "_check_and_process_control", lambda: None)
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "emit_state",
+            lambda state: [(mock_data_output_channel.to_worker_id, StateFrame(state))],
+        )
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "save_state_to_storage_if_needed",
+            lambda state: saved_states.append(state),
+        )
+
+        def fake_switch_context():
+            current_input_state = (
+                main_loop.context.state_processing_manager.current_input_state
+            )
+            if current_input_state is not None:
+                main_loop.context.state_processing_manager.current_output_state = (
+                    DummyExecutor.process_state(current_input_state, 0)
+                )
+
+        monkeypatch.setattr(main_loop, "_switch_context", fake_switch_context)
+
+        main_loop._process_state(State({"value": 1}))
+        main_loop._process_state(State({"value": 41}))
+
+        # Each input state produced one output state, so both must have
+        # been persisted in order.
+        assert [s["value"] for s in saved_states] == [2, 42]
+        assert all(s["port"] == 0 for s in saved_states)
+
+    @pytest.mark.timeout(2)
+    def test_process_start_channel_persists_produce_state_on_start_output(
+        self,
+        main_loop,
+        mock_data_output_channel,
+        monkeypatch,
+    ):
+        # The state emitted by an executor's `produce_state_on_start` must
+        # also be persisted via `save_state_to_storage_if_needed`, so a
+        # downstream worker in a different region can replay it from the
+        # iceberg state table.
+        #
+        # This is the integration path exercised in real workflows when
+        # users override `produce_state_on_start`. `_process_start_channel`
+        # → `process_input_state` → DataProcessor.process_internal_marker
+        # (StartChannel) → executor.produce_state_on_start → _set_output_state
+        # → MainLoop reads output state → emit + save.
+        on_start_state = State({"flag": True, "loop_counter": 0})
+
+        class DummyExecutor:
+            @staticmethod
+            def produce_state_on_start(port: int) -> State:
+                # Tag with port so we can also assert the right port id
+                # was forwarded.
+                return State({**on_start_state, "port": port})
+
+        saved_states: list[State] = []
+        main_loop.context.executor_manager.executor = DummyExecutor()
+        monkeypatch.setattr(main_loop, "_check_and_process_control", lambda: None)
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "emit_state",
+            lambda state: [(mock_data_output_channel.to_worker_id, StateFrame(state))],
+        )
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "save_state_to_storage_if_needed",
+            lambda state: saved_states.append(state),
+        )
+        # _send_ecm_to_data_channels touches output_manager state we don't
+        # set up here; for this test the ECM forwarding is irrelevant -- the
+        # SAVE path is what we're pinning. Stub it.
+        monkeypatch.setattr(main_loop, "_send_ecm_to_data_channels", lambda *_: None)
+
+        # Simulate the DP-thread side: when MainLoop yields, the DataProcessor
+        # consumes the StartChannel marker and runs produce_state_on_start.
+        def fake_switch_context():
+            from core.models.internal_marker import StartChannel as _StartChannel
+
+            tpm = main_loop.context.tuple_processing_manager
+            if isinstance(tpm.current_internal_marker, _StartChannel):
+                # mimic DataProcessor.process_internal_marker(StartChannel)
+                produced = DummyExecutor.produce_state_on_start(port=0)
+                main_loop.context.state_processing_manager.current_output_state = (
+                    produced
+                )
+                tpm.current_internal_marker = None  # consumed
+
+        monkeypatch.setattr(main_loop, "_switch_context", fake_switch_context)
+
+        # Drive the path: this is exactly what `_process_ecm` calls when a
+        # StartChannel ECM arrives and the start_channel handler has set
+        # the marker.
+        from core.models.internal_marker import StartChannel
+
+        main_loop.context.tuple_processing_manager.current_internal_marker = (
+            StartChannel()
+        )
+        main_loop._process_start_channel()
+
+        # The state produced by produce_state_on_start must be persisted to
+        # iceberg via save_state_to_storage_if_needed. Without this, a
+        # downstream worker in a different region cannot observe the state.
+        assert len(saved_states) == 1, (
+            f"produce_state_on_start emitted a state but it was not persisted "
+            f"to storage. saved_states={saved_states}"
+        )
+        assert saved_states[0]["flag"] is True
+        assert saved_states[0]["loop_counter"] == 0
+        assert saved_states[0]["port"] == 0
+
+    @pytest.mark.timeout(2)
+    def test_process_input_state_does_not_save_when_no_output(
+        self,
+        main_loop,
+        monkeypatch,
+    ):
+        # When the executor returns no output state (process_state returned
+        # None), save_state_to_storage_if_needed must not be called -- no
+        # state means nothing to materialize.
+        save_calls: list[State] = []
+        monkeypatch.setattr(main_loop, "_check_and_process_control", lambda: None)
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "emit_state",
+            lambda state: [],
+        )
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "save_state_to_storage_if_needed",
+            lambda state: save_calls.append(state),
+        )
+        # Pretend DataProc consumed the input but produced no output.
+        monkeypatch.setattr(main_loop, "_switch_context", lambda: None)
+
+        main_loop._process_state(State({"value": 1}))
+
+        assert save_calls == []
+
+    @pytest.mark.timeout(2)
     def test_main_loop_thread_can_process_state(
         self,
         mock_data_output_channel,

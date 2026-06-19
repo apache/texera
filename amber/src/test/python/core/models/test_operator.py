@@ -154,30 +154,7 @@ class TestIsSourceProperty:
         op.is_source = False
         assert op.is_source is False
 
-    def test_source_operator_class_attr_storage_diverges_from_property_read(
-        self,
-    ):
-        # Documents the underlying defect without claiming a contract: the class
-        # attribute is stored under one mangled name, the property reads from
-        # another, so they cannot agree. Asserting the two attributes directly
-        # decouples this from the eventual is_source-on-SourceOperator fix.
-        src = _ConcreteSource()
-        # The mangled attribute SourceOperator set — present but unused:
-        assert getattr(src, "_SourceOperator__internal_is_source") is True
-        # The attribute Operator.is_source actually reads — still the default:
-        assert getattr(src, "_Operator__internal_is_source") is False
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "Known bug: SourceOperator's __internal_is_source class attribute "
-            "is name-mangled to _SourceOperator__internal_is_source, while "
-            "Operator.is_source reads _Operator__internal_is_source. The "
-            "intended contract is is_source=True on SourceOperator instances; "
-            "this xfail flips to XPASS when the bug is fixed."
-        ),
-    )
-    def test_source_operator_subclass_should_report_is_source_true(self):
+    def test_source_operator_subclass_reports_is_source_true(self):
         src = _ConcreteSource()
         assert src.is_source is True
 

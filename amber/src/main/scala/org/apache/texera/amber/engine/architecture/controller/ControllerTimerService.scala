@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.controller
 
 import org.apache.pekko.actor.Cancellable
-import org.apache.texera.amber.engine.architecture.common.AkkaActorService
+import org.apache.texera.amber.engine.architecture.common.PekkoActorService
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   QueryStatisticsRequest,
@@ -34,7 +34,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 class ControllerTimerService(
     controllerConfig: ControllerConfig,
-    akkaActorService: AkkaActorService
+    pekkoActorService: PekkoActorService
 ) {
   var statusUpdateAskHandle: Option[Cancellable] = None
   var runtimeStatisticsAskHandle: Option[Cancellable] = None
@@ -46,7 +46,7 @@ class ControllerTimerService(
   ): Option[Cancellable] = {
     if (intervalMs.nonEmpty && handleOpt.isEmpty) {
       Option(
-        akkaActorService.sendToSelfWithFixedDelay(
+        pekkoActorService.sendToSelfWithFixedDelay(
           0.milliseconds,
           FiniteDuration.apply(intervalMs.get, MILLISECONDS),
           ControlInvocation(

@@ -51,7 +51,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 import scala.concurrent.duration._
 
 class PauseSpec
-    extends TestKit(ActorSystem("PauseSpec", AmberRuntime.akkaConfig))
+    extends TestKit(ActorSystem("PauseSpec", AmberRuntime.pekkoConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll

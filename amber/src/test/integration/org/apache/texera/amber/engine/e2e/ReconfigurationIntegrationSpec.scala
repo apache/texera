@@ -62,7 +62,7 @@ import scala.concurrent.duration._
   */
 @IntegrationTest
 class ReconfigurationIntegrationSpec
-    extends TestKit(ActorSystem("ReconfigurationIntegrationSpec", AmberRuntime.akkaConfig))
+    extends TestKit(ActorSystem("ReconfigurationIntegrationSpec", AmberRuntime.pekkoConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll

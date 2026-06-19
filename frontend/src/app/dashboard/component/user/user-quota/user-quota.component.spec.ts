@@ -17,17 +17,17 @@
  * under the License.
  */
 
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserQuotaComponent } from "./user-quota.component";
 import { UserQuotaService } from "../../../service/user/quota/user-quota.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { of } from "rxjs";
+import type { Mocked } from "vitest";
 describe("UserQuotaComponent", () => {
   let component: UserQuotaComponent;
   let fixture: ComponentFixture<UserQuotaComponent>;
-  let mockUserQuotaService: any;
+  let mockUserQuotaService: Mocked<UserQuotaService>;
 
   beforeEach(() => {
     mockUserQuotaService = {
@@ -36,7 +36,7 @@ describe("UserQuotaComponent", () => {
       getAccessWorkflows: vi.fn(),
       getExecutionQuota: vi.fn(),
       deleteExecutionCollection: vi.fn(),
-    };
+    } as unknown as Mocked<UserQuotaService>;
     mockUserQuotaService.getCreatedDatasets.mockReturnValue(of([]));
     mockUserQuotaService.getCreatedWorkflows.mockReturnValue(of([]));
     mockUserQuotaService.getAccessWorkflows.mockReturnValue(of([]));
@@ -45,7 +45,6 @@ describe("UserQuotaComponent", () => {
     TestBed.configureTestingModule({
       providers: [{ provide: UserQuotaService, useValue: mockUserQuotaService }, ...commonTestProviders],
       imports: [UserQuotaComponent, HttpClientTestingModule],
-      schemas: [NO_ERRORS_SCHEMA],
     });
 
     fixture = TestBed.createComponent(UserQuotaComponent);

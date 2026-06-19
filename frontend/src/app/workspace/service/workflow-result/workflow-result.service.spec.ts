@@ -23,6 +23,7 @@ import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websock
 import { firstValueFrom, of, Subject } from "rxjs";
 import { SchemaAttribute } from "../../types/workflow-compiling.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import type { Mocked } from "vitest";
 describe("WorkflowResultService", () => {
   let service: WorkflowResultService;
 
@@ -36,14 +37,44 @@ describe("WorkflowResultService", () => {
   it("should be created", () => {
     expect(service).toBeTruthy();
   });
+
+  it("clearResults() drops cached operator results", () => {
+    (service as any).operatorResultServices.set("op1", {});
+    (service as any).paginatedResultServices.set("op2", {});
+    expect(service.hasAnyResult("op1")).toBe(true);
+    expect(service.hasAnyResult("op2")).toBe(true);
+
+    service.clearResults();
+
+    expect(service.hasAnyResult("op1")).toBe(false);
+    expect(service.hasAnyResult("op2")).toBe(false);
+  });
+
+  it("clearResults() resets table stats to empty for subscribers", () => {
+    const pairs: [unknown, unknown][] = [];
+    service.getResultTableStats().subscribe(p => pairs.push(p));
+    (service as any).resultTableStats.next({ op1: {} });
+    service.clearResults();
+    expect(pairs[pairs.length - 1][1]).toEqual({});
+  });
+
+  it("clearResults() emits on the cleared stream so the UI tears down stale frames", () => {
+    let clearedCount = 0;
+    service.getResultClearedStream().subscribe(() => clearedCount++);
+    service.clearResults();
+    expect(clearedCount).toBe(1);
+  });
 });
 
 describe("OperatorPaginationResultService", () => {
   let service: OperatorPaginationResultService;
-  let mockWorkflowWebsocketService: any;
+  let mockWorkflowWebsocketService: Mocked<WorkflowWebsocketService>;
 
   beforeEach(() => {
-    mockWorkflowWebsocketService = { subscribeToEvent: vi.fn(), send: vi.fn() };
+    mockWorkflowWebsocketService = {
+      subscribeToEvent: vi.fn(),
+      send: vi.fn(),
+    } as unknown as Mocked<WorkflowWebsocketService>;
     mockWorkflowWebsocketService.subscribeToEvent.mockReturnValue(new Subject());
 
     service = new OperatorPaginationResultService("testOperator", mockWorkflowWebsocketService);

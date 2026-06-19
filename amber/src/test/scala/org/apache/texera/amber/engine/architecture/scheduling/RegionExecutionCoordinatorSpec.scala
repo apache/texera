@@ -24,7 +24,7 @@ import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.core.workflow.PhysicalOp
-import org.apache.texera.amber.engine.architecture.common.AkkaActorRefMappingService
+import org.apache.texera.amber.engine.architecture.common.PekkoActorRefMappingService
 import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns._
@@ -35,6 +35,7 @@ import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic
 
 /**
@@ -51,7 +52,7 @@ import java.util.concurrent.atomic
   *    workers terminated, and allow the next region to start.
   */
 class RegionExecutionCoordinatorSpec
-    extends TestKit(ActorSystem("RegionExecutionCoordinatorSpec", AmberRuntime.akkaConfig))
+    extends TestKit(ActorSystem("RegionExecutionCoordinatorSpec", AmberRuntime.pekkoConfig))
     with AnyFlatSpecLike
     with BeforeAndAfterAll
     with RegionCoordinatorTestSupport {
@@ -84,11 +85,17 @@ class RegionExecutionCoordinatorSpec
 
   it should "retry EndWorker failures and delay gracefulStop until a retry succeeds" in {
     val attempts = new atomic.AtomicInteger(0)
+    // The first EndWorker is sent on the test thread; the retry is sent later from the coordinator's
+    // kill-retry timer thread. Block on this latch — counted down from the probe callback once the
+    // retry's call has been recorded — instead of polling `endWorkerCalls` from the test thread, so
+    // the test never iterates the call buffer while the timer thread is appending to it.
+    val retryAttempted = new CountDownLatch(1)
     val fixture = createSingleRegionFixture(endWorkerResponse =
       _ =>
         if (attempts.incrementAndGet() == 1) {
           Some(transientEndWorkerFailure)
         } else {
+          retryAttempted.countDown()
           None
         }
     )
@@ -96,7 +103,10 @@ class RegionExecutionCoordinatorSpec
     launchRegion(fixture.coordinator)
     val completion = requestRegionCompletion(fixture.coordinator)
 
-    waitUntil(fixture.rpcProbe.endWorkerCalls.size >= 2)
+    assert(
+      retryAttempted.await(testTimeout.inMilliseconds, TimeUnit.MILLISECONDS),
+      "EndWorker was not retried within the deadline"
+    )
     assert(completion.poll.isEmpty)
     assert(!fixture.coordinator.isCompleted)
     assert(fixture.actorRefService.hasActorRef(fixture.workerId))
@@ -117,7 +127,7 @@ class RegionExecutionCoordinatorSpec
       region: Region,
       physicalOp: PhysicalOp,
       workerId: ActorVirtualIdentity,
-      actorRefService: AkkaActorRefMappingService
+      actorRefService: PekkoActorRefMappingService
   )
 
   private def createSingleRegionFixture(

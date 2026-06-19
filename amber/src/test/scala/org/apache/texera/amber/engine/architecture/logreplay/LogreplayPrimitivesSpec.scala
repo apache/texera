@@ -62,7 +62,7 @@ class LogreplayPrimitivesSpec extends AnyFlatSpec with BeforeAndAfterAll {
   // so no Pekko threads outlive the suite. (Same pattern as
   // CheckpointSubsystemSpec.)
   private val testSystem: ActorSystem =
-    ActorSystem("LogreplayPrimitivesSpec-test", AmberRuntime.akkaConfig)
+    ActorSystem("LogreplayPrimitivesSpec-test", AmberRuntime.pekkoConfig)
   private val testSerde: Serialization = SerializationExtension(testSystem)
 
   private def setAmberRuntimeField(name: String, value: AnyRef): Unit = {

@@ -23,7 +23,7 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs._
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.config.ComputingUnitConfig
+import org.apache.texera.common.config.ComputingUnitConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.Tables.COMPUTING_UNIT_USER_ACCESS

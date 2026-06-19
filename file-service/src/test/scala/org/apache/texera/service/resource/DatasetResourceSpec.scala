@@ -29,8 +29,18 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
-import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetUserAccessDao,
+  DatasetVersionDao,
+  UserDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetUserAccess,
+  DatasetVersion,
+  User
+}
 import org.apache.texera.service.MockLakeFS
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.SQLDialect
@@ -41,7 +51,7 @@ import org.scalatest.tagobjects.Slow
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Tag}
 import org.slf4j.LoggerFactory
 
-import java.io.{ByteArrayInputStream, IOException, InputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException, InputStream}
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
@@ -368,6 +378,188 @@ class DatasetResourceSpec
     }
 
     datasetDao.fetchOneByDid(dataset.getDid) should not be null
+  }
+
+  it should "surface a LakeFS 404 as NotFoundException when deleting a dataset whose repo is missing" in {
+    val dataset = new Dataset
+    dataset.setName("delete-ds-no-repo")
+    dataset.setRepositoryName("delete-ds-no-repo")
+    dataset.setDescription("for lakefs 404 mapping test")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    // intentionally no LakeFSStorageClient.initRepo: the repository does not exist in LakeFS
+
+    val ex = intercept[NotFoundException] {
+      datasetResource.deleteDataset(dataset.getDid, sessionUser)
+    }
+    assertStatus(ex, 404)
+  }
+
+  "getDataset" should "return the dashboard dataset including its LakeFS repository size" in {
+    testDatasetVersion // ensures the LakeFS repo for baseDataset exists
+    val dashboardDataset = datasetResource.getDataset(baseDataset.getDid, sessionUser)
+    dashboardDataset.dataset.getDid shouldEqual baseDataset.getDid
+    dashboardDataset.size should be >= 0L
+  }
+
+  it should "surface a LakeFS 404 as NotFoundException when the dataset repo is missing" in {
+    val dataset = new Dataset
+    dataset.setName("get-ds-no-repo")
+    dataset.setRepositoryName("get-ds-no-repo")
+    dataset.setDescription("for lakefs 404 mapping test on getDataset")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    // intentionally no LakeFSStorageClient.initRepo: the repository does not exist in LakeFS
+
+    val ex = intercept[NotFoundException] {
+      datasetResource.getDataset(dataset.getDid, sessionUser)
+    }
+    assertStatus(ex, 404)
+  }
+
+  "uploadOneFileToDataset" should "stream a small file and complete the multipart upload" in {
+    testDatasetVersion // ensures the LakeFS repo for baseDataset exists
+    val payload = tinyBytes(0x5a, 2048)
+    val resp = datasetResource.uploadOneFileToDataset(
+      baseDataset.getDid,
+      urlEnc("upload-one-shot/sample.bin"),
+      "upload via single-file endpoint",
+      new ByteArrayInputStream(payload),
+      mkHeaders(payload.length.toLong),
+      sessionUser
+    )
+    resp.getStatus shouldEqual 200
+  }
+
+  it should "abort and wrap a mid-stream failure in a WebApplicationException" in {
+    testDatasetVersion
+    val payload = tinyBytes(0x33, 4096)
+    val ex = intercept[WebApplicationException] {
+      datasetResource.uploadOneFileToDataset(
+        baseDataset.getDid,
+        urlEnc("upload-one-shot/flaky.bin"),
+        "should fail mid-stream",
+        flakyStream(payload, failAfterBytes = 16),
+        mkHeaders(payload.length.toLong),
+        sessionUser
+      )
+    }
+    assertStatus(ex, 500)
+    ex.getMessage should include("Failed to upload file to dataset")
+  }
+
+  it should "rethrow WebApplicationExceptions unchanged when the user has no write access" in {
+    val ex = intercept[ForbiddenException] {
+      datasetResource.uploadOneFileToDataset(
+        multipartDataset.getDid,
+        urlEnc("upload-one-shot/forbidden.bin"),
+        "no write access",
+        new ByteArrayInputStream(tinyBytes(0x01)),
+        mkHeaders(1L),
+        multipartNoWriteSessionUser
+      )
+    }
+    assertStatus(ex, 403)
+  }
+
+  "getDatasetVersionZip" should "zip all files of a dataset version" in {
+    val version = testDatasetVersion
+    val resp =
+      datasetResource.getDatasetVersionZip(baseDataset.getDid, version.getDvid, null, sessionUser)
+    resp.getStatus shouldEqual 200
+    val out = new ByteArrayOutputStream()
+    resp.getEntity.asInstanceOf[StreamingOutput].write(out)
+    out.size() should be > 0
+  }
+
+  "getPresignedUrl" should "generate a presigned URL for an existing file" in {
+    testDatasetVersion
+    val resp = datasetResource.getPresignedUrl(
+      urlEnc("test-cover.jpg"),
+      baseDataset.getRepositoryName,
+      "main",
+      sessionUser
+    )
+    resp.getStatus shouldEqual 200
+    entityAsScalaMap(resp).get("presignedUrl") should not be None
+  }
+
+  it should "surface a LakeFS 404 as NotFoundException for a nonexistent file" in {
+    testDatasetVersion
+    val ex = intercept[NotFoundException] {
+      datasetResource.getPresignedUrl(
+        urlEnc("does-not-exist.bin"),
+        baseDataset.getRepositoryName,
+        "main",
+        sessionUser
+      )
+    }
+    assertStatus(ex, 404)
+  }
+
+  "listDatasets" should "include a dataset whose LakeFS repo exists" in {
+    val repoName = s"list-ok-${System.nanoTime()}"
+    val dataset = new Dataset
+    dataset.setName(repoName)
+    dataset.setRepositoryName(repoName)
+    dataset.setDescription("list endpoint - healthy dataset")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    LakeFSStorageClient.initRepo(repoName)
+
+    val result = datasetResource.listDatasets(sessionUser)
+
+    result.map(_.dataset.getDid) should contain(dataset.getDid)
+  }
+
+  it should "exclude a dataset whose LakeFS repo has been deleted (orphan DB row)" in {
+    val repoName = s"list-orphan-${System.nanoTime()}"
+    val dataset = new Dataset
+    dataset.setName(repoName)
+    dataset.setRepositoryName(repoName)
+    dataset.setDescription("list endpoint - orphan DB row")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    LakeFSStorageClient.initRepo(repoName)
+    // Simulate the DB/LakeFS mismatch: delete the repo directly, leaving the DB row.
+    LakeFSStorageClient.deleteRepo(repoName)
+
+    val result = datasetResource.listDatasets(sessionUser)
+
+    result.map(_.dataset.getDid) should not contain dataset.getDid
+  }
+
+  it should "deduplicate a dataset accessible via both explicit access and public visibility" in {
+    val repoName = s"list-dedup-${System.nanoTime()}"
+    val dataset = new Dataset
+    dataset.setName(repoName)
+    dataset.setRepositoryName(repoName)
+    dataset.setDescription("list endpoint - dedup")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+    LakeFSStorageClient.initRepo(repoName)
+
+    // Grant explicit READ access so the dataset is fetched by BOTH the explicit-access
+    // path and the public path — exercises the dedup branch in the merge loop.
+    val access = new DatasetUserAccess
+    access.setDid(dataset.getDid)
+    access.setUid(sessionUser.getUid)
+    access.setPrivilege(PrivilegeEnum.READ)
+    new DatasetUserAccessDao(getDSLContext.configuration()).insert(access)
+
+    val result = datasetResource.listDatasets(sessionUser)
+
+    result.count(_.dataset.getDid == dataset.getDid) shouldBe 1
   }
 
   "updateDatasetName" should "rename dataset successfully if user has write access" in {
@@ -2458,6 +2650,50 @@ class DatasetResourceSpec
 
     response.getStatus shouldEqual 307
     response.getHeaderString("Location") should not be null
+  }
+
+  "getDatasetCoverUrl" should "return presigned url for owner of private dataset" in {
+    testDatasetVersion
+
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setIsPublic(false)
+    dataset.setCoverImage(testCoverImagePath)
+    datasetDao.update(dataset)
+
+    val response = datasetResource.getDatasetCoverUrl(
+      baseDataset.getDid,
+      Optional.of(sessionUser)
+    )
+
+    response.getStatus shouldEqual 200
+    Option(entityAsScalaMap(response)("url")) shouldBe defined
+  }
+
+  it should "reject private dataset cover for users without access" in {
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(false)
+    dataset.setCoverImage("v1/cover.jpg")
+    datasetDao.update(dataset)
+
+    assertThrows[ForbiddenException] {
+      datasetResource.getDatasetCoverUrl(baseDataset.getDid, Optional.of(sessionUser2))
+    }
+  }
+
+  it should "return null url when no cover image is set" in {
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setCoverImage(null)
+    dataset.setIsPublic(true)
+    datasetDao.update(dataset)
+
+    val response = datasetResource.getDatasetCoverUrl(
+      baseDataset.getDid,
+      Optional.of(sessionUser)
+    )
+
+    response.getStatus shouldEqual 200
+    Option(entityAsScalaMap(response)("url")) shouldBe empty
   }
 
   "LakeFS error handling" should "return 500 when ETag is invalid, with the message included in the error response body" in {

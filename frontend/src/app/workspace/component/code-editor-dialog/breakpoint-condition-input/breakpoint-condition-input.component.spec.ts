@@ -24,14 +24,19 @@ import { BreakpointConditionInputComponent } from "./breakpoint-condition-input.
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
 import { SimpleChanges } from "@angular/core";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import type { Mocked } from "vitest";
+import type { editor } from "monaco-editor";
 describe("BreakpointConditionInputComponent", () => {
   let component: BreakpointConditionInputComponent;
   let fixture: ComponentFixture<BreakpointConditionInputComponent>;
-  let mockUdfDebugService: any;
+  let mockUdfDebugService: Mocked<UdfDebugService>;
 
   beforeEach(async () => {
     // Create a mock UdfDebugService
-    mockUdfDebugService = { getCondition: vi.fn(), doUpdateBreakpointCondition: vi.fn() };
+    mockUdfDebugService = {
+      getCondition: vi.fn(),
+      doUpdateBreakpointCondition: vi.fn(),
+    } as unknown as Mocked<UdfDebugService>;
 
     await TestBed.configureTestingModule({
       imports: [BreakpointConditionInputComponent, CommonModule, FormsModule],
@@ -51,7 +56,7 @@ describe("BreakpointConditionInputComponent", () => {
       getScrollTop: () => 5,
       getScrollLeft: () => 0,
       dispose: vi.fn(),
-    } as any;
+    } as unknown as editor.IStandaloneCodeEditor;
 
     // Set required inputs
     component.operatorId = "test-operator";

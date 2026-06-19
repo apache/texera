@@ -114,10 +114,24 @@ class ExecutorManager:
     def close(self) -> None:
         """
         Close the tmp fs and release all resources created within it.
+        This also evicts the loaded operator module from ``sys.modules``
+        and removes the tmp fs path from ``sys.path`` so a single call
+        fully reverses every global side-effect performed by ``fs`` and
+        ``load_executor_definition``.
         :return:
         """
+        if "fs" not in self.__dict__:
+            # fs was never materialized; nothing to clean up.
+            return
+        root = self.fs.getsyspath("/")
         self.fs.close()
-        logger.debug(f"Tmp directory {self.fs.getsyspath('/')} is closed and cleared.")
+        try:
+            sys.path.remove(str(Path(root)))
+        except ValueError:
+            pass
+        if self.operator_module_name is not None:
+            sys.modules.pop(self.operator_module_name, None)
+        logger.debug(f"Tmp directory {root} is closed and cleared.")
 
     @staticmethod
     def is_concrete_operator(cls: type) -> bool:

@@ -35,14 +35,16 @@ import { ValidationWorkflowService } from "src/app/workspace/service/validation/
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { commonTestProviders } from "../../../../../common/testing/test-utils"; // Import NzModalModule and NzModalService
 import type { Mocked } from "vitest";
+import { JointGraphWrapper } from "src/app/workspace/service/workflow-graph/model/joint-graph-wrapper";
+import { WorkflowGraph } from "src/app/workspace/service/workflow-graph/model/workflow-graph";
 describe("ContextMenuComponent", () => {
   let component: ContextMenuComponent;
   let fixture: ComponentFixture<ContextMenuComponent>;
   let workflowActionService: Mocked<WorkflowActionService>;
   let workflowResultService: Mocked<WorkflowResultService>;
   let workflowResultExportService: Mocked<WorkflowResultExportService>;
-  let operatorMenuService: any; // We'll define this more precisely below
-  let jointGraphWrapperSpy: any;
+  let operatorMenuService: Mocked<OperatorMenuService>;
+  let jointGraphWrapperSpy: Mocked<JointGraphWrapper>;
   let validationWorkflowService: Mocked<ValidationWorkflowService>;
 
   beforeEach(async () => {
@@ -51,7 +53,7 @@ describe("ContextMenuComponent", () => {
       getCurrentHighlightedOperatorIDs: vi.fn(),
       getCurrentHighlightedCommentBoxIDs: vi.fn(),
       getCurrentHighlightedLinkIDs: vi.fn(),
-    };
+    } as unknown as Mocked<JointGraphWrapper>;
 
     jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue([]);
     jointGraphWrapperSpy.getCurrentHighlightedCommentBoxIDs.mockReturnValue([]);
@@ -99,7 +101,7 @@ describe("ContextMenuComponent", () => {
       viewResultHighlightedOperators: vi.fn(),
       reuseResultHighlightedOperator: vi.fn(),
       executeUpToOperator: vi.fn(),
-    };
+    } as unknown as Mocked<OperatorMenuService>;
 
     const validationWorkflowServiceSpy = { validateOperator: vi.fn() };
 
@@ -188,10 +190,10 @@ describe("ContextMenuComponent", () => {
   });
 
   describe("canExecuteOperator", () => {
-    let texeraGraphSpy: any;
+    let texeraGraphSpy: Mocked<WorkflowGraph>;
 
     beforeEach(() => {
-      texeraGraphSpy = workflowActionService.getTexeraGraph() as any;
+      texeraGraphSpy = workflowActionService.getTexeraGraph() as unknown as Mocked<WorkflowGraph>;
       jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1"]);
       component.isWorkflowModifiable = true;
       validationWorkflowService.validateOperator.mockReturnValue({ isValid: true });

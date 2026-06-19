@@ -78,37 +78,68 @@ class VirtualIdentityUtilsSpec extends AnyFlatSpec with Matchers {
     opId.layerName shouldBe "main"
   }
 
-  it should "misparse layer names that contain hyphens (current behavior)" in {
-    // The layer capture group is `(\w+)`, which does not allow `-`. When the
-    // real layer name contains hyphens (e.g. "1st-physical-op", as seen in
-    // amber WorkerSpec), the greedy operator group eats most of the layer:
-    // operator becomes "myOp-1st-physical" and layer becomes "op". This pins
-    // the current bug so a future fix that broadens `workerNamePattern` to
-    // accept hyphenated layers will surface here and force this spec to be
-    // updated alongside the implementation.
-    val actor = ActorVirtualIdentity("Worker:WF1-myOp-1st-physical-op-3")
-    val opId = VirtualIdentityUtils.getPhysicalOpId(actor)
-    opId.logicalOpId.id shouldBe "myOp-1st-physical"
-    opId.layerName shouldBe "op"
+  "createWorkerIdentity" should "reject layer names containing '-'" in {
+    // The worker-name format `Worker:WF<id>-<op>-<layer>-<workerId>` is
+    // inherently ambiguous when both `op` and `layer` may contain `-`, and
+    // production operator IDs (e.g. `<className>-<UUID>`) structurally must.
+    // We therefore enforce that layer names do not contain `-` at creation
+    // time so the bad state can never be constructed.
+    assertThrows[IllegalArgumentException] {
+      VirtualIdentityUtils.createWorkerIdentity(
+        WorkflowIdentity(1),
+        operator = "myOp",
+        layerName = "1st-physical-op",
+        workerId = 3
+      )
+    }
+  }
+
+  // ----- getLogicalOpId -----
+
+  "getLogicalOpId" should "return the logical operator id from a worker actor name" in {
+    val actor = ActorVirtualIdentity("Worker:WF7-myOp-main-3")
+    VirtualIdentityUtils.getLogicalOpId(actor) shouldBe "myOp"
+  }
+
+  it should "match getPhysicalOpId(...).logicalOpId.id for worker actor names" in {
+    // Pin the helper as a thin wrapper — `getLogicalOpId(workerId)` and
+    // `getPhysicalOpId(workerId).logicalOpId.id` must always agree, so
+    // call sites that migrate to the helper are guaranteed to keep
+    // identical behavior.
+    val actor = ActorVirtualIdentity("Worker:WF1-multi-part-op-main-0")
+    VirtualIdentityUtils.getLogicalOpId(actor) shouldBe
+      VirtualIdentityUtils.getPhysicalOpId(actor).logicalOpId.id
+  }
+
+  it should "fall back to the __DummyOperator sentinel for non-worker actor names" in {
+    // The Python sibling raises ValueError on a non-match; the Scala
+    // helper preserves the existing __DummyOperator sentinel so it
+    // stays a drop-in replacement for the inline pattern at call sites
+    // (see VirtualIdentityUtils.getLogicalOpId docstring).
+    val controller = ActorVirtualIdentity("CONTROLLER")
+    VirtualIdentityUtils.getLogicalOpId(controller) shouldBe "__DummyOperator"
+    val self = ActorVirtualIdentity("SELF")
+    VirtualIdentityUtils.getLogicalOpId(self) shouldBe "__DummyOperator"
   }
 
   // ----- getWorkerIndex -----
 
   "getWorkerIndex" should "return the trailing numeric workerId from a worker actor name" in {
     val actor = ActorVirtualIdentity("Worker:WF7-myOp-main-42")
-    VirtualIdentityUtils.getWorkerIndex(actor) shouldBe 42
+    VirtualIdentityUtils.getWorkerIndex(actor) shouldBe Some(42)
   }
 
-  it should "throw MatchError on non-worker actor names (current behavior)" in {
-    // getWorkerIndex pattern-matches on workerNamePattern with no fallback,
-    // so passing a special ActorVirtualIdentity like CONTROLLER or SELF
-    // yields scala.MatchError. Pinning this behavior here means a future
-    // change that adds a fallback (or a different exception) breaks this
-    // spec on purpose so the new contract is reviewed.
+  it should "return None for non-worker actor names" in {
+    // Special ActorVirtualIdentity values like CONTROLLER or SELF do not
+    // match workerNamePattern. getWorkerIndex returns None rather than
+    // throwing scala.MatchError, mirroring the graceful handling in
+    // getPhysicalOpId and toShorterString. Returning Option forces each
+    // caller to explicitly acknowledge the non-worker case rather than
+    // silently propagating a sentinel value.
     val controller = ActorVirtualIdentity("CONTROLLER")
-    assertThrows[scala.MatchError] {
-      VirtualIdentityUtils.getWorkerIndex(controller)
-    }
+    VirtualIdentityUtils.getWorkerIndex(controller) shouldBe None
+    val self = ActorVirtualIdentity("SELF")
+    VirtualIdentityUtils.getWorkerIndex(self) shouldBe None
   }
 
   // ----- toShorterString -----

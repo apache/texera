@@ -23,7 +23,7 @@ from typing import List, Optional, Generic, TypeVar, MutableMapping
 
 from core.util.customized_queue.inner import inner
 from core.util.customized_queue.queue_base import IKeyedQueue
-from core.util.thread.atomic import AtomicInteger
+from core.util.atomic import AtomicInteger
 
 K = TypeVar("K")
 T = TypeVar("T")
