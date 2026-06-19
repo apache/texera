@@ -427,7 +427,13 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("raw_binary_headers = audio_headers")
     code should include("self._read_audio_input()")
     code should include(
+      """"Content-Type": "application/octet-stream" if use_audio_column else self._get_audio_content_type()"""
+    )
+    code should include(
       """audio_content_type = raw_binary_headers.get("Content-Type", "audio/mpeg")"""
+    )
+    code should include(
+      """elif task in ("automatic-speech-recognition", "audio-classification") and img_b64:"""
     )
     code should not include "data:audio/wav;base64"
     code should include(
@@ -458,6 +464,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
   "media generation task family" should
     "route text-to-image through MediaGenCodegen and parse URL or b64 responses as data URLs" in {
     val code = makeDesc(task = "text-to-image").generatePythonCode()
+    code should include("if task not in image_tasks and task not in audio_only_tasks:")
     code should include("""payload = {"inputs": prompt_value}""")
     code should include("""if task == "text-to-image":""")
     code should include("self._url_to_data_url(")

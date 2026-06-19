@@ -294,7 +294,7 @@ object PythonCodegenBase {
        |                inp = {"text": prompt_value}
        |            elif task in ("text-to-image", "text-to-video"):
        |                inp = {"prompt": prompt_value}
-       |            elif task == "automatic-speech-recognition" and img_b64:
+       |            elif task in ("automatic-speech-recognition", "audio-classification") and img_b64:
        |                audio_content_type = raw_binary_headers.get("Content-Type", "audio/mpeg")
        |                inp = {"audio": f"data:{audio_content_type};base64,{img_b64}"}
        |            elif task == "image-to-image" and img_b64:
@@ -506,11 +506,6 @@ object PythonCodegenBase {
        |            "Authorization": f"Bearer {token}",
        |            "Content-Type": "application/octet-stream",
        |        }
-       |        audio_headers = {
-       |            "Authorization": f"Bearer {token}",
-       |            "Content-Type": self._get_audio_content_type(),
-       |        }
-       |
        |        # --- resolve image source (upload or column) for image tasks ---
        |        has_image_upload = bool(self.IMAGE_INPUT) and bool(str(self.IMAGE_INPUT).strip())
        |        use_image_column = not has_image_upload and bool(self.INPUT_IMAGE_COLUMN) and self.INPUT_IMAGE_COLUMN in table.columns
@@ -518,6 +513,10 @@ object PythonCodegenBase {
        |        image_error = None
        |        has_audio_upload = bool(self.AUDIO_INPUT) and bool(str(self.AUDIO_INPUT).strip())
        |        use_audio_column = not has_audio_upload and bool(self.INPUT_AUDIO_COLUMN) and self.INPUT_AUDIO_COLUMN in table.columns
+       |        audio_headers = {
+       |            "Authorization": f"Bearer {token}",
+       |            "Content-Type": "application/octet-stream" if use_audio_column else self._get_audio_content_type(),
+       |        }
        |        audio_bytes = None
        |        audio_error = None
        |        if task in image_tasks and not use_image_column:
