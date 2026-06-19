@@ -23,8 +23,6 @@
 # The CI never sends a review request on its own.
 name: Suggest reviewers
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   pull_request_target:
     types: [opened, synchronize, reopened]
 
