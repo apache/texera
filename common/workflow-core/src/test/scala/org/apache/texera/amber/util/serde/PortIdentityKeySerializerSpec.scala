@@ -27,8 +27,10 @@ import org.scalatest.matchers.should.Matchers
 class PortIdentityKeySerializerSpec extends AnyFlatSpec with Matchers {
 
   "PortIdentityKeySerializer.portIdToString" should "format PortIdentity as id_internal" in {
-    PortIdentityKeySerializer.portIdToString(PortIdentity(3, internal = false)) shouldBe "3_false"
-    PortIdentityKeySerializer.portIdToString(PortIdentity(0, internal = true)) shouldBe "0_true"
+    PortIdentityKeySerializer
+      .portIdToString(PortIdentity(3, internal = false)) shouldBe "3_false"
+    PortIdentityKeySerializer
+      .portIdToString(PortIdentity(0, internal = true)) shouldBe "0_true"
   }
 
   it should "preserve zero, large, negative, internal, and external ports in the key string" in {
@@ -41,8 +43,9 @@ class PortIdentityKeySerializerSpec extends AnyFlatSpec with Matchers {
       PortIdentity(-1, internal = true) -> "-1_true"
     )
 
-    cases.foreach { case (portIdentity, expected) =>
-      PortIdentityKeySerializer.portIdToString(portIdentity) shouldBe expected
+    cases.foreach {
+      case (portIdentity, expected) =>
+        PortIdentityKeySerializer.portIdToString(portIdentity) shouldBe expected
     }
   }
 
