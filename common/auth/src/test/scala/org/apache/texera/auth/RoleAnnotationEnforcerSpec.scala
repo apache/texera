@@ -20,7 +20,7 @@
 package org.apache.texera.auth
 
 import jakarta.annotation.security.{DenyAll, PermitAll, RolesAllowed}
-import jakarta.ws.rs.{DELETE, GET, POST}
+import jakarta.ws.rs.{DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -60,6 +60,58 @@ class RoleAnnotationEnforcerSpec extends AnyFlatSpec with Matchers {
     ) shouldBe empty
   }
 
+  it should "return nothing when given no resources" in {
+    RoleAnnotationEnforcer.findUnannotatedEndpoints(Seq.empty) shouldBe empty
+  }
+
+  it should "report every hole across multiple resources as fully-qualified Class#method" in {
+    val violations = RoleAnnotationEnforcer.findUnannotatedEndpoints(
+      Seq(
+        classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource],
+        classOf[RoleAnnotationEnforcerSpec.MultiHoleResource]
+      )
+    )
+    violations should contain allOf (
+      s"${classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource].getName}#openEndpoint",
+      s"${classOf[RoleAnnotationEnforcerSpec.MultiHoleResource].getName}#put",
+      s"${classOf[RoleAnnotationEnforcerSpec.MultiHoleResource].getName}#patch"
+    )
+  }
+
+  it should "detect verbs beyond GET/POST/DELETE via the @HttpMethod meta-annotation" in {
+    val violations = RoleAnnotationEnforcer.findUnannotatedEndpoints(
+      Seq(classOf[RoleAnnotationEnforcerSpec.AllVerbsUnannotatedResource])
+    )
+    violations.map(_.split("#").last) should contain theSameElementsAs
+      Seq("put", "patch", "head", "options")
+  }
+
+  it should "treat a security annotation inherited from a superclass method as covering it" in {
+    RoleAnnotationEnforcer.findUnannotatedEndpoints(
+      Seq(classOf[RoleAnnotationEnforcerSpec.InheritsAnnotatedEndpoint])
+    ) shouldBe empty
+  }
+
+  it should "let a subclass class-level annotation cover an inherited unannotated endpoint" in {
+    RoleAnnotationEnforcer.findUnannotatedEndpoints(
+      Seq(classOf[RoleAnnotationEnforcerSpec.SecuredSubclass])
+    ) shouldBe empty
+  }
+
+  it should "flag an inherited unannotated endpoint against the scanned subclass" in {
+    RoleAnnotationEnforcer.findUnannotatedEndpoints(
+      Seq(classOf[RoleAnnotationEnforcerSpec.UnsecuredSubclass])
+    ) should contain(
+      s"${classOf[RoleAnnotationEnforcerSpec.UnsecuredSubclass].getName}#inheritedWrite"
+    )
+  }
+
+  it should "deduplicate when the same resource is scanned more than once" in {
+    RoleAnnotationEnforcer.findUnannotatedEndpoints(
+      Seq.fill(3)(classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource])
+    ) should have size 1
+  }
+
   "enforce" should "throw when an endpoint is unannotated" in {
     val ex = intercept[IllegalStateException] {
       RoleAnnotationEnforcer.enforce(
@@ -76,6 +128,21 @@ class RoleAnnotationEnforcerSpec extends AnyFlatSpec with Matchers {
       Seq(classOf[RoleAnnotationEnforcerSpec.FullyAnnotatedResource]),
       "TestService"
     )
+  }
+
+  it should "list every offending endpoint in the thrown message" in {
+    val ex = intercept[IllegalStateException] {
+      RoleAnnotationEnforcer.enforce(
+        Seq(classOf[RoleAnnotationEnforcerSpec.MultiHoleResource]),
+        "TestService"
+      )
+    }
+    ex.getMessage should include("#put")
+    ex.getMessage should include("#patch")
+  }
+
+  it should "not throw when given no resources" in {
+    noException should be thrownBy RoleAnnotationEnforcer.enforce(Seq.empty, "TestService")
   }
 }
 
@@ -106,4 +173,34 @@ object RoleAnnotationEnforcerSpec {
     @GET @RolesAllowed(Array("REGULAR")) def read: String = ""
     def helper: String = ""
   }
+
+  // One secured endpoint plus two holes on distinct verbs.
+  class MultiHoleResource {
+    @GET @RolesAllowed(Array("ADMIN")) def get: String = ""
+    @PUT def put: String = ""
+    @PATCH def patch: String = ""
+  }
+
+  // Every method maps to a verb that is not GET/POST/DELETE; all are holes.
+  class AllVerbsUnannotatedResource {
+    @PUT def put: String = ""
+    @PATCH def patch: String = ""
+    @HEAD def head: String = ""
+    @OPTIONS def options: String = ""
+  }
+
+  class AnnotatedBaseResource {
+    @GET @PermitAll def inheritedOpen: String = ""
+  }
+  // Inherits an endpoint whose annotation lives on the superclass method.
+  class InheritsAnnotatedEndpoint extends AnnotatedBaseResource
+
+  class UnannotatedBaseResource {
+    @PUT def inheritedWrite: String = ""
+  }
+  // Class-level annotation on the subclass covers the inherited unannotated endpoint.
+  @RolesAllowed(Array("ADMIN"))
+  class SecuredSubclass extends UnannotatedBaseResource
+  // No annotation anywhere: the inherited endpoint is a hole.
+  class UnsecuredSubclass extends UnannotatedBaseResource
 }
