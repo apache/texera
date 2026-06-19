@@ -151,28 +151,21 @@ jobs:
             const MARKER = '<!-- texera-reviewer-suggestion -->';
 
             let body = `${MARKER}\n`;
-            body += `**Suggested reviewers** (based on \`git blame\` of changed files):\n\n`;
+            body += `### Automated Reviewer Suggestions\n\n`;
+            body += `Based on the \`git blame\` history of the changed files, we recommend the following reviewers:\n\n`;
 
             if (committers.length) {
-              body += `**Committers** — can be formally requested: ${committers.map(l => `\`@${l}\``).join(', ')}\n\n`;
-            } else {
-              body += `**Committers** — none identified\n\n`;
+              body += `- **Committers with relevant context:** ${committers.map(l => `\`@${l}\``).join(', ')}\n`;
+              body += `  You can request their reviews formally with \`/request-review ${committers.map(l => `@${l}`).join(' ')}\`.\n\n`;
             }
 
             if (nonCommitters.length) {
-              body += `**Non-committer contributors** — cc to notify: ${nonCommitters.map(l => `\`@${l}\``).join(', ')}\n\n`;
+              body += `- **Contributors with relevant context:** ${nonCommitters.map(l => `\`@${l}\``).join(', ')}\n`;
+              body += `  You can notify them by mentioning ${nonCommitters.map(l => `\`@${l}\``).join(', ')} in a comment.\n`;
             }
 
-            if (committers.length) {
-              body += `Use \`/request-review @${committers[0]}\` to request a review`;
-              if (nonCommitters.length) {
-                body += `, or cc ${nonCommitters.map(l => `\`@${l}\``).join(' ')} to notify them`;
-              }
-              body += '.';
-            } else if (nonCommitters.length) {
-              body += `Cc ${nonCommitters.map(l => `\`@${l}\``).join(' ')} to notify them.`;
-            } else {
-              body += `No candidates found from blame history.`;
+            if (!committers.length && !nonCommitters.length) {
+              body += `- No candidates found from \`git blame\` history.\n`;
             }
 
             // Update existing suggestion comment rather than posting a new one.
