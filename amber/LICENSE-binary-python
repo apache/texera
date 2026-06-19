@@ -254,7 +254,7 @@ Python packages:
   - cachetools==6.2.6
   - charset-normalizer==3.4.7
   - deprecated==1.2.14
-  - filelock==3.29.3
+  - filelock==3.29.4
   - fonttools==4.63.0
   - fs==2.4.16
   - greenlet==3.5.1
