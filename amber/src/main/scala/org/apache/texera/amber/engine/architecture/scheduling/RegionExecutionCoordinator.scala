@@ -572,10 +572,21 @@ class RegionExecutionCoordinator(
         val portBaseURI = portConfig.storageURIBase
         val resultURI = VFSURIFactory.resultURI(portBaseURI)
         val stateURI = VFSURIFactory.stateURI(portBaseURI)
-        val schemaOptional =
-          region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
         val schema =
-          schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
+          region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3 match {
+            case Right(resolvedSchema) => resolvedSchema
+            case Left(cause)           =>
+              // The output port schema failed to resolve during compilation. A common cause is
+              // that a dataset used by this workflow has not been shared with the running user,
+              // which makes its file (and thus the inferred schema) unavailable. Surface the
+              // underlying cause instead of a generic "Schema is missing" message (issue #3546).
+              throw new IllegalStateException(
+                s"Output schema for port $outputPortId is unavailable. A common cause is that a " +
+                  "dataset used by this workflow has not been shared with you. Underlying error: " +
+                  cause.getMessage,
+                cause
+              )
+          }
         // An output port whose storage accumulates across region re-executions
         // (e.g. a LoopEnd port, whose output builds up over the iterations of
         // its own loop) sets `reuseStorage`. When set, the port's existing
