@@ -60,6 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download bench-results artifact
+        id: artifact
         uses: actions/github-script@v8
         with:
           script: |
@@ -74,6 +75,7 @@ jobs:
             const match = data.artifacts.find((a) => a.name.startsWith("bench-results-"));
             if (!match) {
               core.warning(`no bench-results-* artifact on run ${runId}; nothing to comment.`);
+              core.setOutput("found", "false");
               return;
             }
             const zip = await github.rest.actions.downloadArtifact({
@@ -84,15 +86,18 @@ jobs:
             });
             fs.mkdirSync("bench-results-zip", { recursive: true });
             fs.writeFileSync(path.join("bench-results-zip", "artifact.zip"), Buffer.from(zip.data));
+            core.setOutput("found", "true");
             core.info(`downloaded artifact ${match.name} (${match.size_in_bytes} bytes)`);
 
       - name: Unzip artifact
+        if: steps.artifact.outputs.found == 'true'
         run: |
           mkdir -p bench-results
           unzip -o bench-results-zip/artifact.zip -d bench-results
           ls -la bench-results/
 
       - name: Read PR number from artifact
+        if: steps.artifact.outputs.found == 'true'
         id: pr
         # Read + strictly validate (digits only) before using in API calls.
         # The artifact comes from a fork-triggered workflow whose contents
