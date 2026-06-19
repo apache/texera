@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.bulletChart
 
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -77,9 +77,18 @@ class BulletChartStepDefinitionSpec extends AnyFlatSpec {
   // field, unless `@(JsonProperty @meta.field)` is used).
   // ---------------------------------------------------------------------------
 
+  // Select the @JsonCreator-annotated constructor by its annotation rather than
+  // by reflection order (`getDeclaredConstructors.head`), so the test stays
+  // deterministic if an auxiliary constructor is ever added.
+  private val jsonCreatorCtor =
+    classOf[BulletChartStepDefinition].getDeclaredConstructors
+      .find(_.isAnnotationPresent(classOf[JsonCreator]))
+      .getOrElse(
+        fail("expected a @JsonCreator constructor on BulletChartStepDefinition")
+      )
+
   private def ctorParamJsonProperty(paramIndex: Int): JsonProperty = {
-    val ctor = classOf[BulletChartStepDefinition].getDeclaredConstructors.head
-    val annotations = ctor.getParameterAnnotations()(paramIndex)
+    val annotations = jsonCreatorCtor.getParameterAnnotations()(paramIndex)
     annotations.collectFirst { case jp: JsonProperty => jp }.orNull
   }
 
