@@ -98,7 +98,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # stop the data processing thread
         self.data_processor.stop()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
-        self.context.statistics_manager.update_total_execution_time(time.time_ns())
+        self.context.statistics_manager.update_total_execution_time(time.monotonic_ns())
         controller_interface = self._async_rpc_client.controller_stub()
         controller_interface.worker_execution_completed(EmptyRequest())
         self.context.close()
@@ -130,7 +130,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def pre_start(self) -> None:
         self.context.state_manager.assert_state(WorkerState.UNINITIALIZED)
         self.context.state_manager.transit_to(WorkerState.READY)
-        self.context.statistics_manager.initialize_worker_start_time(time.time_ns())
+        self.context.statistics_manager.initialize_worker_start_time(time.monotonic_ns())
 
     @overrides
     def receive(self, next_entry: QueueElement) -> None:
@@ -226,7 +226,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param dcm_element: DirectControlMessageElement to be handled.
         """
-        start_time = time.time_ns()
+        start_time = time.monotonic_ns()
         match(
             (dcm_element.tag, get_one_of(dcm_element.payload, sealed=False)),
             typing.Tuple[ChannelIdentity, ControlInvocation],
@@ -234,7 +234,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             typing.Tuple[ChannelIdentity, ReturnInvocation],
             self._async_rpc_client.receive,
         )
-        end_time = time.time_ns()
+        end_time = time.monotonic_ns()
         self.context.statistics_manager.increase_control_processing_time(
             end_time - start_time
         )
@@ -431,12 +431,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         Notify the DataProcessor thread and wait here until being switched back.
         """
-        start_time = time.time_ns()
+        start_time = time.monotonic_ns()
         with self.context.tuple_processing_manager.context_switch_condition:
             self.context.tuple_processing_manager.context_switch_condition.notify()
             self.context.tuple_processing_manager.context_switch_condition.wait()
         self._post_switch_context_checks()
-        end_time = time.time_ns()
+        end_time = time.monotonic_ns()
         self.context.statistics_manager.increase_data_processing_time(
             end_time - start_time
         )

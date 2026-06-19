@@ -101,13 +101,20 @@ class TestStatisticsManagerProcessingTime:
         assert stats.control_processing_time == 0
 
     @pytest.mark.parametrize(
-        "method",
-        ["increase_data_processing_time", "increase_control_processing_time"],
+        "method, attr",
+        [
+            ("increase_data_processing_time", "_data_processing_time"),
+            ("increase_control_processing_time", "_control_processing_time"),
+        ],
     )
-    def test_negative_time_raises(self, method):
+    def test_negative_time_is_clamped_to_zero(self, method, attr):
+        # Negative elapsed times can arise from non-monotonic wall-clock reads
+        # (e.g. NTP adjustment). The manager should absorb them silently rather
+        # than raise and potentially hang the worker thread.
         mgr = StatisticsManager()
-        with pytest.raises(ValueError, match="Time must be non-negative"):
-            getattr(mgr, method)(-1)
+        getattr(mgr, method)(100)  # prime the accumulator
+        getattr(mgr, method)(-1)   # must not raise
+        assert getattr(mgr, attr) == 100  # accumulator unchanged
 
 
 class TestStatisticsManagerExecutionTime:

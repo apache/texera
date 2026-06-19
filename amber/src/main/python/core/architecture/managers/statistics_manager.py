@@ -77,12 +77,22 @@ class StatisticsManager:
 
     def increase_data_processing_time(self, time: int) -> None:
         if time < 0:
-            raise ValueError("Time must be non-negative")
+            logger.warning(
+                f"increase_data_processing_time called with negative elapsed time "
+                f"({time}ns); ignoring. Use time.monotonic_ns() at call sites to "
+                "prevent clock-skew from producing negative durations."
+            )
+            return
         self._data_processing_time += time
 
     def increase_control_processing_time(self, time: int) -> None:
         if time < 0:
-            raise ValueError("Time must be non-negative")
+            logger.warning(
+                f"increase_control_processing_time called with negative elapsed time "
+                f"({time}ns); ignoring. Use time.monotonic_ns() at call sites to "
+                "prevent clock-skew from producing negative durations."
+            )
+            return
         self._control_processing_time += time
 
     def update_total_execution_time(self, time: int) -> None:
