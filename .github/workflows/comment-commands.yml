@@ -24,17 +24,8 @@
 #
 # On pull requests, the author can request or cancel reviewer requests
 # via `/request-review @user [@user ...]` and `/unrequest-review @user
-# [@user ...]`. We avoid the `/review` namespace so it stays free for 
+# [@user ...]`. We avoid the `/review` namespace so it stays free for
 # future use (e.g. self-review).
-#
-# On PR open/update, the `suggest-reviewers` job automatically runs
-# `git blame` on every changed file and posts (or edits) a single
-# comment that splits candidates into two buckets:
-#   • Committers — collaborators who can be formally review-requested.
-#     The author uses `/request-review @login` to act on these.
-#   • Non-committer contributors — have context but cannot be review-
-#     requested; the author can @-mention them to notify.
-# The CI never sends a review request on its own.
 #
 # Sub-issue linking can be driven from either end of the relationship:
 # `/sub-issue #N [#M ...]` on a parent links those issues as children;
@@ -47,171 +38,12 @@ name: Comment commands
 on:
   issue_comment:
     types: [created]
-  pull_request_target:
-    types: [opened, synchronize, reopened]
 
 permissions:
-  contents: read
   issues: write
   pull-requests: write
 
 jobs:
-  suggest-reviewers:
-    if: github.event_name == 'pull_request_target'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - uses: actions/github-script@v8
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { execFileSync } = require('node:child_process');
-            const pull_number = context.payload.pull_request.number;
-            const author = context.payload.pull_request.user.login;
-            const { owner, repo } = context.repo;
-
-            const { data: pull } = await github.rest.pulls.get({ owner, repo, pull_number });
-
-            try {
-              execFileSync('git', ['fetch', 'origin', pull.base.ref], { encoding: 'utf8' });
-            } catch (e) {
-              core.warning(`git fetch for base ref ${pull.base.ref} failed: ${e.message}`);
-            }
-
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner, repo, pull_number, per_page: 100,
-            });
-
-            // Parse `git blame -p` output to find the most-recent commit per file.
-            function latestBlameCommit(blameOutput) {
-              let latest = null;
-              let current = null;
-
-              function finalizeCurrent() {
-                if (!current || current.authorTime == null) return;
-                if (!latest || current.authorTime > latest.authorTime) latest = current;
-              }
-
-              for (const line of blameOutput.split(/\r?\n/)) {
-                const header = line.match(/^([0-9a-f^]+)\s+\d+\s+\d+\s+\d+$/);
-                if (header) {
-                  finalizeCurrent();
-                  current = { sha: header[1].replace(/^\^/, ''), authorTime: null };
-                  continue;
-                }
-                const authorTime = line.match(/^author-time\s+(\d+)$/);
-                if (authorTime && current) current.authorTime = Number(authorTime[1]);
-              }
-
-              finalizeCurrent();
-              return latest;
-            }
-
-            // Count changed files touched per login; track collaborator status.
-            const committerCounts = new Map();    // collaborators
-            const nonCommitterCounts = new Map(); // non-collaborators with a GitHub login
-
-            for (const { filename, status, previous_filename } of files) {
-              if (status === 'removed' || status === 'added') continue;
-              const blamePath = status === 'renamed' ? previous_filename : filename;
-
-              let blameOutput;
-              try {
-                blameOutput = execFileSync(
-                  'git', ['blame', '-p', pull.base.sha, '--', blamePath],
-                  { encoding: 'utf8' },
-                );
-              } catch (e) {
-                core.warning(`git blame on ${filename} failed: ${e.message}`);
-                continue;
-              }
-
-              const latest = latestBlameCommit(blameOutput);
-              if (!latest) continue;
-
-              let commit;
-              try {
-                ({ data: commit } = await github.rest.repos.getCommit({ owner, repo, ref: latest.sha }));
-              } catch (e) {
-                core.warning(`Commit lookup for ${latest.sha} failed: ${e.message}`);
-                continue;
-              }
-
-              const login = commit.author?.login ?? commit.committer?.login;
-              if (!login) continue;
-              if (login.toLowerCase() === author.toLowerCase()) continue;
-
-              const loginSource = commit.author?.login ? commit.author : commit.committer;
-              if (loginSource?.type === 'Bot') continue;
-
-              let isCollaborator = false;
-              try {
-                await github.rest.repos.checkCollaborator({ owner, repo, username: login });
-                isCollaborator = true;
-              } catch (_) { /* not a collaborator */ }
-
-              if (isCollaborator) {
-                committerCounts.set(login, (committerCounts.get(login) ?? 0) + 1);
-              } else {
-                nonCommitterCounts.set(login, (nonCommitterCounts.get(login) ?? 0) + 1);
-              }
-            }
-
-            const MAX_EACH = 3;
-
-            const committers = [...committerCounts.entries()]
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, MAX_EACH)
-              .map(([l]) => l);
-
-            const nonCommitters = [...nonCommitterCounts.entries()]
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, MAX_EACH)
-              .map(([l]) => l);
-
-            const MARKER = '<!-- texera-reviewer-suggestion -->';
-
-            let body = `${MARKER}\n`;
-            body += `**Suggested reviewers** (based on \`git blame\` of changed files):\n\n`;
-
-            if (committers.length) {
-              body += `**Committers** — can be formally requested: ${committers.map(l => `\`@${l}\``).join(', ')}\n\n`;
-            } else {
-              body += `**Committers** — none identified\n\n`;
-            }
-
-            if (nonCommitters.length) {
-              body += `**Non-committer contributors** — cc to notify: ${nonCommitters.map(l => `\`@${l}\``).join(', ')}\n\n`;
-            }
-
-            if (committers.length) {
-              body += `Use \`/request-review @${committers[0]}\` to request a review`;
-              if (nonCommitters.length) {
-                body += `, or cc ${nonCommitters.map(l => `\`@${l}\``).join(' ')} to notify them`;
-              }
-              body += '.';
-            } else if (nonCommitters.length) {
-              body += `Cc ${nonCommitters.map(l => `\`@${l}\``).join(' ')} to notify them.`;
-            } else {
-              body += `No candidates found from blame history.`;
-            }
-
-            // Update existing suggestion comment rather than posting a new one.
-            const allComments = await github.paginate(github.rest.issues.listComments, {
-              owner, repo, issue_number: pull_number, per_page: 100,
-            });
-            const existing = allComments.find(c => c.body?.includes(MARKER));
-
-            if (existing) {
-              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-              core.info(`Updated reviewer suggestion comment on #${pull_number}`);
-            } else {
-              await github.rest.issues.createComment({ owner, repo, issue_number: pull_number, body });
-              core.info(`Posted reviewer suggestion comment on #${pull_number}`);
-            }
-
   take:
     # The startsWith filter at the job level keeps unrelated comments
     # from allocating a runner; the regex inside the script enforces an
