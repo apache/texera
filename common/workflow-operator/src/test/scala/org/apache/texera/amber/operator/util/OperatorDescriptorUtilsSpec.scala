@@ -65,7 +65,7 @@ class OperatorDescriptorUtilsSpec extends AnyFlatSpec {
   it should "handle the case where goal < totalNumWorkers" in {
     // 3 = 5*0 + 3 → first 3 slots get 1
     assert(OperatorDescriptorUtils.equallyPartitionGoal(3, 5) == List(1, 1, 1, 0, 0))
-    // 1 worker should get everything
+    // 1 = 4*0 + 1 → only the first slot gets the single unit
     assert(OperatorDescriptorUtils.equallyPartitionGoal(1, 4) == List(1, 0, 0, 0))
   }
 

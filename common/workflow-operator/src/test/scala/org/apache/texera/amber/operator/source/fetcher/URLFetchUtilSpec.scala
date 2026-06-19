@@ -21,13 +21,16 @@ package org.apache.texera.amber.operator.source.fetcher
 
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.io.{ByteArrayInputStream, IOException, InputStream}
+import java.net.{URL, URLConnection, URLStreamHandler}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import java.util.concurrent.atomic.AtomicInteger
 
 class URLFetchUtilSpec extends AnyFlatSpec {
 
   // ---------------------------------------------------------------------------
-  // Fixtures — temp files reachable via the JVM's built-in `file:` URL handler
+  // Fixtures
   // ---------------------------------------------------------------------------
 
   private def freshTempFile(contents: String): Path = {
@@ -37,7 +40,37 @@ class URLFetchUtilSpec extends AnyFlatSpec {
     path
   }
 
-  private def fileUrl(path: Path): java.net.URL = path.toUri.toURL
+  private def fileUrl(path: Path): URL = path.toUri.toURL
+
+  /**
+    * A URLStreamHandler that counts how many times the URL is opened (one
+    * `openConnection` per retry attempt in `getInputStreamFromURL`) and either
+    * yields a fixed byte payload or always fails the stream fetch.
+    *
+    * Counting the `openConnection` calls lets the tests assert the EXACT number
+    * of attempts the retry loop makes — a stronger contract than only checking
+    * the final Option, and it does not depend on Scala's synthetic default-arg
+    * accessor name (which is compiler/version-specific).
+    */
+  private class CountingStreamHandler(succeedWithBytes: Option[Array[Byte]])
+      extends URLStreamHandler {
+    val openConnectionCount = new AtomicInteger(0)
+
+    override def openConnection(u: URL): URLConnection = {
+      openConnectionCount.incrementAndGet()
+      new URLConnection(u) {
+        override def connect(): Unit = ()
+        override def getInputStream: InputStream =
+          succeedWithBytes match {
+            case Some(bytes) => new ByteArrayInputStream(bytes)
+            case None        => throw new IOException("simulated fetch failure")
+          }
+      }
+    }
+  }
+
+  private def countingUrl(handler: CountingStreamHandler): URL =
+    new URL(null, "counting://retry-test", handler)
 
   // ---------------------------------------------------------------------------
   // Success path
@@ -56,61 +89,50 @@ class URLFetchUtilSpec extends AnyFlatSpec {
     }
   }
 
-  it should "return Some(stream) when explicit retries is supplied (>= 1)" in {
-    val path = freshTempFile("with-retries")
-    val result = URLFetchUtil.getInputStreamFromURL(fileUrl(path), retries = 3)
+  it should "stop after the first successful attempt (no extra connections)" in {
+    val handler =
+      new CountingStreamHandler(Some("ok".getBytes(StandardCharsets.UTF_8)))
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler), retries = 5)
     assert(result.isDefined)
     try {
-      val bytes = result.get.readAllBytes()
-      assert(new String(bytes, StandardCharsets.UTF_8) == "with-retries")
+      assert(new String(result.get.readAllBytes(), StandardCharsets.UTF_8) == "ok")
     } finally {
       result.foreach(_.close())
     }
+    // First attempt succeeds, so the loop returns immediately.
+    assert(handler.openConnectionCount.get() == 1)
   }
 
   // ---------------------------------------------------------------------------
-  // Failure path — non-existent file URL exhausts retries and returns None
+  // Failure path — exact attempt counts via the counting handler
   // ---------------------------------------------------------------------------
 
-  it should "return None when the URL never produces an input stream (default retries)" in {
-    val missing = new java.io.File(
-      System.getProperty("java.io.tmpdir"),
-      "this-file-must-not-exist-" + System.nanoTime()
-    )
-    val url = missing.toURI.toURL
-    val result = URLFetchUtil.getInputStreamFromURL(url)
+  it should "return None and attempt exactly 5 connections at the default retry count" in {
+    val handler = new CountingStreamHandler(None)
+    // No `retries` argument supplied → exercises the default value at runtime.
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler))
     assert(result.isEmpty)
+    assert(handler.openConnectionCount.get() == 5)
   }
 
-  it should "return None immediately when retries is 0 (loop iterates zero times)" in {
-    val missing = new java.io.File(
-      System.getProperty("java.io.tmpdir"),
-      "still-must-not-exist-" + System.nanoTime()
-    )
-    val url = missing.toURI.toURL
-    val result = URLFetchUtil.getInputStreamFromURL(url, retries = 0)
+  it should "never open a connection when retries is 0 (loop body runs zero times)" in {
+    val handler = new CountingStreamHandler(None)
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler), retries = 0)
     assert(result.isEmpty)
+    assert(handler.openConnectionCount.get() == 0)
   }
 
-  it should "return None after the requested number of retries on persistent failure" in {
-    val missing = new java.io.File(
-      System.getProperty("java.io.tmpdir"),
-      "absent-" + System.nanoTime()
-    )
-    val url = missing.toURI.toURL
-    val result = URLFetchUtil.getInputStreamFromURL(url, retries = 2)
+  it should "attempt exactly 1 connection when retries is 1" in {
+    val handler = new CountingStreamHandler(None)
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler), retries = 1)
     assert(result.isEmpty)
+    assert(handler.openConnectionCount.get() == 1)
   }
 
-  // ---------------------------------------------------------------------------
-  // Default-arg shape — exposed via Scala's synthetic accessor
-  // ---------------------------------------------------------------------------
-
-  "URLFetchUtil.getInputStreamFromURL$default$2" should "default retries to 5" in {
-    val cls = URLFetchUtil.getClass
-    val accessor = cls.getDeclaredMethod("getInputStreamFromURL$default$2")
-    accessor.setAccessible(true)
-    val default = accessor.invoke(URLFetchUtil)
-    assert(default == Integer.valueOf(5))
+  it should "attempt exactly N connections on persistent failure (N = retries)" in {
+    val handler = new CountingStreamHandler(None)
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler), retries = 2)
+    assert(result.isEmpty)
+    assert(handler.openConnectionCount.get() == 2)
   }
 }
