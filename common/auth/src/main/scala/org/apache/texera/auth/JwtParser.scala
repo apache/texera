@@ -38,13 +38,26 @@ object JwtParser extends LazyLogging {
   /** Verify and parse a Bearer token string. */
   def parseToken(token: String): Optional[SessionUser] = {
     try {
-      Optional.of(claimsToSessionUser(JwtAuth.jwtConsumer.processToClaims(token)))
+      claimsToOptionalSessionUser(JwtAuth.jwtConsumer.processToClaims(token))
     } catch {
       case _: UnresolvableKeyException =>
         logger.error("Invalid JWT Signature")
         Optional.empty()
       case e: Exception =>
         logger.error(s"Failed to parse JWT: ${e.getMessage}")
+        Optional.empty()
+    }
+  }
+
+  /** Convert already-verified claims to a [[SessionUser]], returning empty when
+    * the required Texera custom claims are missing or malformed.
+    */
+  def claimsToOptionalSessionUser(claims: JwtClaims): Optional[SessionUser] = {
+    try {
+      Optional.of(claimsToSessionUser(claims))
+    } catch {
+      case e: IllegalArgumentException =>
+        logger.error(s"Invalid JWT claims: ${e.getMessage}")
         Optional.empty()
     }
   }
@@ -59,8 +72,12 @@ object JwtParser extends LazyLogging {
     val email = claims.getClaimValue("email", classOf[String])
     // jose4j returns Long after JSON round-trip but the original setClaim
     // call writes Integer; widen via Number to handle both cases.
-    val userId = claims.getClaimValue("userId", classOf[Number]).intValue()
-    val role = UserRoleEnum.valueOf(claims.getClaimValue("role").asInstanceOf[String])
+    val userId = Option(claims.getClaimValue("userId", classOf[Number]))
+      .map(_.intValue())
+      .getOrElse(throw new IllegalArgumentException("JWT claim 'userId' is required."))
+    val roleName = Option(claims.getClaimValue("role", classOf[String]))
+      .getOrElse(throw new IllegalArgumentException("JWT claim 'role' is required."))
+    val role = UserRoleEnum.valueOf(roleName)
     val googleId = claims.getClaimValue("googleId", classOf[String])
     val googleAvatar = claims.getClaimValue("googleAvatar", classOf[String])
     val user = new User(

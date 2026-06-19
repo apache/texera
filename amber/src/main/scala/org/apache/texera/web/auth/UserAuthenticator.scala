@@ -35,7 +35,7 @@ import java.util.Optional
 object UserAuthenticator extends Authenticator[JwtContext, SessionUser] with LazyLogging {
   override def authenticate(context: JwtContext): Optional[SessionUser] = {
     try {
-      Optional.of(JwtParser.claimsToSessionUser(context.getJwtClaims))
+      JwtParser.claimsToOptionalSessionUser(context.getJwtClaims)
     } catch {
       case e: Exception =>
         logger.error("Failed to authenticate the JwtContext", e)
