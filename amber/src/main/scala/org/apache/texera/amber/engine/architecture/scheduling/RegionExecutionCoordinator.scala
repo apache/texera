@@ -576,14 +576,11 @@ class RegionExecutionCoordinator(
           region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3 match {
             case Right(resolvedSchema) => resolvedSchema
             case Left(cause)           =>
-              // The output port schema failed to resolve during compilation. A common cause is
-              // that a dataset used by this workflow has not been shared with the running user,
-              // which makes its file (and thus the inferred schema) unavailable. Surface the
-              // underlying cause instead of a generic "Schema is missing" message (issue #3546).
+              // The output port schema failed to resolve (e.g. a dataset the workflow reads is not
+              // shared with the running user, making its file and inferred schema unavailable).
+              // Surface the underlying cause instead of a generic "Schema is missing" (issue #3546).
               throw new IllegalStateException(
-                s"Output schema for port $outputPortId is unavailable. A common cause is that a " +
-                  "dataset used by this workflow has not been shared with you. Underlying error: " +
-                  cause.getMessage,
+                s"Failed to resolve the output schema: ${cause.getMessage}",
                 cause
               )
           }
