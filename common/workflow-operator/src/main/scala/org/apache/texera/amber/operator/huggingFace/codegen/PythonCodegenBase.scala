@@ -766,15 +766,15 @@ object PythonCodegenBase {
        |            _, encoded = audio_input.split(",", 1)
        |            return base64.b64decode(encoded)
        |        if audio_input.startswith("http://") or audio_input.startswith("https://"):
-       |            resp = requests.get(audio_input, timeout=120)
-       |            resp.raise_for_status()
-       |            return resp.content
-       |        if not os.path.exists(audio_input):
-       |            raise FileNotFoundError(f"Audio file not found at path: {audio_input}")
-       |        if not os.path.isfile(audio_input):
-       |            raise ValueError(f"Audio input path is not a file: {audio_input}")
-       |        with open(audio_input, "rb") as audio_file:
-       |            return audio_file.read()
+       |            _, data = self._fetch_remote_url(audio_input)
+       |            return data
+       |        # Reading arbitrary worker-filesystem paths is intentionally NOT
+       |        # supported: uploaded audio arrives as a data URL and remote audio
+       |        # must be fetched through the hardened https-only helper above.
+       |        raise ValueError(
+       |            "Unsupported audio input. Upload an audio file (sent as a data URL) "
+       |            "or provide a public https audio URL."
+       |        )
        |
        |    def _read_binary_value(self, value):
        |        if value is None:

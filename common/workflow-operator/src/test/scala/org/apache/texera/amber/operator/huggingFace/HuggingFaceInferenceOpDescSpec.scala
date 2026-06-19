@@ -283,10 +283,14 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     // size cap
     code should include("MAX_REMOTE_FETCH_BYTES")
     code should include("Remote file exceeds the")
-    // all three fetch sites route through the helper (no raw requests.get on these URLs)
+    // all remote fetch sites route through the helper (no raw requests.get on these URLs)
     code should include("_, data = self._fetch_remote_url(image_input)")
+    code should include("_, data = self._fetch_remote_url(audio_input)")
     code should include("_, data = self._fetch_remote_url(val)")
     code should include("raw_content_type, data = self._fetch_remote_url(url)")
+    code should not include "requests.get(audio_input"
+    code should not include "os.path.exists(audio_input)"
+    code should not include "open(audio_input"
   }
 
   it should "treat pandas NA sentinels (NaN, pd.NA, NaT) as missing in _read_binary_value" in {
