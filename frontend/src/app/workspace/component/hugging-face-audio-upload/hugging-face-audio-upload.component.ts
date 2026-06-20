@@ -87,7 +87,8 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
       return;
     }
     this.revokePreviewUrl();
-    this.localPreviewUrl = URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(file);
+    this.localPreviewUrl = previewUrl;
     this.isUploading = true;
 
     try {
@@ -102,6 +103,9 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
           }
         )
       );
+      // If the user clicked Clear while the upload was in flight,
+      // localPreviewUrl will have been revoked/reset — discard the stale response.
+      if (this.localPreviewUrl !== previewUrl) return;
       this.fileName = response.fileName || file.name;
       this.formControl.setValue(response.path);
       if (typeof this.key === "string" && this.model) {
@@ -111,6 +115,7 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
       this.formControl.markAsTouched();
       this.formControl.updateValueAndValidity();
     } catch {
+      if (this.localPreviewUrl !== previewUrl) return;
       this.clearAudio(input, false);
       this.errorMessage = "Could not upload this audio file.";
     } finally {
