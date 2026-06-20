@@ -60,8 +60,9 @@ class RegexOpDescSpec extends AnyFlatSpec with Matchers {
         descString should not be empty
       case other => fail(s"expected OpExecWithClassName, got $other")
     }
-    physical.inputPorts.size shouldBe op.operatorInfo.inputPorts.size
-    physical.outputPorts.size shouldBe op.operatorInfo.outputPorts.size
+    // Pin the actual port identities (not just counts).
+    physical.inputPorts.keySet shouldBe op.operatorInfo.inputPorts.map(_.id).toSet
+    physical.outputPorts.keySet shouldBe op.operatorInfo.outputPorts.map(_.id).toSet
   }
 
   "RegexOpDesc JSON round-trip" should

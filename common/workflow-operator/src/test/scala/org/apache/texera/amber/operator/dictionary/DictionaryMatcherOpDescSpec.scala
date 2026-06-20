@@ -59,16 +59,19 @@ class DictionaryMatcherOpDescSpec extends AnyFlatSpec with Matchers {
     info.supportReconfiguration shouldBe true
   }
 
-  "DictionaryMatcherOpDesc.getPhysicalOp" should "wire the DictionaryMatcherOpExec class name" in {
-    val physical =
-      newDesc("a,b,c", "word", "matched", MatchingType.SCANBASED)
-        .getPhysicalOp(workflowId, executionId)
+  "DictionaryMatcherOpDesc.getPhysicalOp" should
+    "wire the DictionaryMatcherOpExec class name and carry forward the operatorInfo port identities" in {
+    val op = newDesc("a,b,c", "word", "matched", MatchingType.SCANBASED)
+    val physical = op.getPhysicalOp(workflowId, executionId)
     physical.opExecInitInfo match {
       case OpExecWithClassName(className, descString) =>
         className shouldBe "org.apache.texera.amber.operator.dictionary.DictionaryMatcherOpExec"
         descString should not be empty
       case other => fail(s"expected OpExecWithClassName, got $other")
     }
+    // Pin the actual port identities (not just counts).
+    physical.inputPorts.keySet shouldBe op.operatorInfo.inputPorts.map(_.id).toSet
+    physical.outputPorts.keySet shouldBe op.operatorInfo.outputPorts.map(_.id).toSet
   }
 
   "DictionaryMatcherOpDesc schema propagation" should

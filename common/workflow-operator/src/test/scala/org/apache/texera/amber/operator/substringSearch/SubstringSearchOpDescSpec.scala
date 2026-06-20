@@ -55,17 +55,19 @@ class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
     (new SubstringSearchOpDesc).isCaseSensitive shouldBe false
   }
 
-  "SubstringSearchOpDesc.getPhysicalOp" should "wire the SubstringSearchOpExec class name" in {
-    val physical =
-      newDesc("col", "ub", caseSensitive = false).getPhysicalOp(workflowId, executionId)
+  "SubstringSearchOpDesc.getPhysicalOp" should
+    "wire the SubstringSearchOpExec class name and carry forward the operatorInfo port identities" in {
+    val op = newDesc("col", "ub", caseSensitive = false)
+    val physical = op.getPhysicalOp(workflowId, executionId)
     physical.opExecInitInfo match {
       case OpExecWithClassName(className, descString) =>
         className shouldBe "org.apache.texera.amber.operator.substringSearch.SubstringSearchOpExec"
         descString should not be empty
       case other => fail(s"expected OpExecWithClassName, got $other")
     }
-    physical.inputPorts.size shouldBe 1
-    physical.outputPorts.size shouldBe 1
+    // Pin the actual port identities (not just counts).
+    physical.inputPorts.keySet shouldBe op.operatorInfo.inputPorts.map(_.id).toSet
+    physical.outputPorts.keySet shouldBe op.operatorInfo.outputPorts.map(_.id).toSet
   }
 
   "SubstringSearchOpDesc JSON round-trip" should

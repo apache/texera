@@ -70,11 +70,13 @@ class KeywordSearchOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "carry forward the operatorInfo input/output ports" in {
+  it should "carry forward the operatorInfo input/output port identities" in {
     val op = newDesc("col", "needle", caseSensitive = false)
     val physical = op.getPhysicalOp(workflowId, executionId)
-    physical.inputPorts.size shouldBe op.operatorInfo.inputPorts.size
-    physical.outputPorts.size shouldBe op.operatorInfo.outputPorts.size
+    // Pin the actual port identities (not just counts), so a drift in port
+    // wiring is caught even when the number of ports is unchanged.
+    physical.inputPorts.keySet shouldBe op.operatorInfo.inputPorts.map(_.id).toSet
+    physical.outputPorts.keySet shouldBe op.operatorInfo.outputPorts.map(_.id).toSet
   }
 
   "KeywordSearchOpDesc JSON round-trip" should
