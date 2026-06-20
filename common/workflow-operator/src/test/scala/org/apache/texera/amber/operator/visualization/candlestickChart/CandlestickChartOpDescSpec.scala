@@ -20,7 +20,6 @@
 package org.apache.texera.amber.operator.visualization.candlestickChart
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -58,10 +57,12 @@ class CandlestickChartOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "CandlestickChartOpDesc.getOutputSchemas" should
-    "produce a single html-content STRING column" in {
-    val out =
-      (new CandlestickChartOpDesc).getOutputSchemas(Map(PortIdentity() -> Schema())).values.head
-    out shouldBe Schema().add("html-content", AttributeType.STRING)
+    "produce a single html-content STRING column keyed by the declared output port" in {
+    val op = new CandlestickChartOpDesc
+    val out = op.getOutputSchemas(Map(op.operatorInfo.inputPorts.head.id -> Schema()))
+    out shouldBe Map(
+      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
+    )
   }
 
   "CandlestickChartOpDesc.generatePythonCode" should "emit a Plotly Candlestick figure" in {

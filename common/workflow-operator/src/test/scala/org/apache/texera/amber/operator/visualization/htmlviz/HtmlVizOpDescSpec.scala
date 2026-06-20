@@ -22,7 +22,6 @@ package org.apache.texera.amber.operator.visualization.htmlviz
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -59,11 +58,13 @@ class HtmlVizOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "HtmlVizOpDesc schema propagation" should
-    "emit a single html-content STRING column regardless of input" in {
+    "emit a single html-content STRING column keyed by the declared output port" in {
     val op = new HtmlVizOpDesc
     op.htmlContentAttrName = "html"
     val input = Schema().add(new Attribute("html", AttributeType.STRING))
-    val out = op.getExternalOutputSchemas(Map(PortIdentity() -> input)).values.head
-    out shouldBe Schema().add("html-content", AttributeType.STRING)
+    val out = op.getExternalOutputSchemas(Map(op.operatorInfo.inputPorts.head.id -> input))
+    out shouldBe Map(
+      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
+    )
   }
 }

@@ -20,7 +20,6 @@
 package org.apache.texera.amber.operator.visualization.histogram2d
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -54,10 +53,13 @@ class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
     d.yColumn shouldBe ""
   }
 
-  "Histogram2DOpDesc.getOutputSchemas" should "produce a single html-content STRING column" in {
-    val out =
-      (new Histogram2DOpDesc).getOutputSchemas(Map(PortIdentity() -> Schema())).values.head
-    out shouldBe Schema().add("html-content", AttributeType.STRING)
+  "Histogram2DOpDesc.getOutputSchemas" should
+    "produce a single html-content STRING column keyed by the declared output port" in {
+    val op = new Histogram2DOpDesc
+    val out = op.getOutputSchemas(Map(op.operatorInfo.inputPorts.head.id -> Schema()))
+    out shouldBe Map(
+      op.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
+    )
   }
 
   "Histogram2DOpDesc.generatePythonCode" should "reject a non-positive bin count" in {
