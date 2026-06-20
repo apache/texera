@@ -28,6 +28,7 @@
     type="file"
     accept="audio/*"
     class="hf-audio-upload-input"
+    [disabled]="isUploading"
     (change)="onFileSelected($event)" />
 
   <div
@@ -47,6 +48,7 @@
         nz-button
         nzSize="small"
         type="button"
+        [disabled]="isUploading"
         (click)="clearAudio(fileInput)">
         Clear
       </button>
