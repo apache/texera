@@ -19,10 +19,15 @@
 
 package org.apache.texera.amber.operator.visualization.htmlviz
 
+import com.fasterxml.jackson.annotation.JsonProperty
+import javax.validation.constraints.NotNull
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -41,6 +46,25 @@ class HtmlVizOpDescSpec extends AnyFlatSpec with Matchers {
 
   "HtmlVizOpDesc.htmlContentAttrName" should "default to the empty string" in {
     (new HtmlVizOpDesc).htmlContentAttrName shouldBe ""
+  }
+
+  it should "carry @JsonProperty(required = true) + @AutofillAttributeName + @NotNull" in {
+    val field = classOf[HtmlVizOpDesc].getDeclaredField("htmlContentAttrName")
+    val jp = field.getAnnotation(classOf[JsonProperty])
+    jp should not be null
+    jp.required shouldBe true
+    field.getAnnotation(classOf[AutofillAttributeName]) should not be null
+    val notNull = field.getAnnotation(classOf[NotNull])
+    notNull should not be null
+    notNull.message shouldBe "HTML content cannot be empty"
+  }
+
+  "HtmlVizOpDesc" should "round-trip htmlContentAttrName through the polymorphic base" in {
+    val op = new HtmlVizOpDesc
+    op.htmlContentAttrName = "myCol"
+    val restored = objectMapper.readValue(objectMapper.writeValueAsString(op), classOf[LogicalOp])
+    restored shouldBe a[HtmlVizOpDesc]
+    restored.asInstanceOf[HtmlVizOpDesc].htmlContentAttrName shouldBe "myCol"
   }
 
   "HtmlVizOpDesc.getPhysicalOp" should "wire HtmlVizOpExec and carry port identities" in {
