@@ -223,17 +223,25 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     // Another component instance already has a fetch in flight — wait for it
     if (tasksFetchSubscription !== null) {
       this.tasksLoading = true;
-      // Poll for completion (the module-level cache will be set when done)
-      this.taskPollInterval = setInterval(() => {
+      if (this.taskPollInterval !== null) clearInterval(this.taskPollInterval);
+      const poll = setInterval(() => {
         if (cachedTaskOptions !== null || tasksFetchError !== null) {
-          clearInterval(this.taskPollInterval!);
+          clearInterval(poll);
           this.taskPollInterval = null;
           this.tasksLoading = false;
           this.taskOptions = cachedTaskOptions ?? STATIC_TASK_OPTIONS;
           if (tasksFetchError) this.tasksError = tasksFetchError;
           this.cdr.detectChanges();
+        } else if (tasksFetchSubscription === null) {
+          // Fetch was canceled before populating caches; stop polling and fall back.
+          clearInterval(poll);
+          this.taskPollInterval = null;
+          this.tasksLoading = false;
+          this.taskOptions = STATIC_TASK_OPTIONS;
+          this.cdr.detectChanges();
         }
       }, 200);
+      this.taskPollInterval = poll;
       return;
     }
 
