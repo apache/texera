@@ -498,7 +498,8 @@ object PythonCodegenBase {
        |                f"Available columns: {list(table.columns)}"
        |            )
        |        if task == "zero-shot-classification":
-       |            assert self.CANDIDATE_LABELS and self.CANDIDATE_LABELS.strip(), (
+       |            labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split(",") if l.strip()]
+       |            assert labels, (
        |                "Candidate Labels are required for zero-shot-classification. "
        |                "Provide a comma-separated list of labels."
        |            )

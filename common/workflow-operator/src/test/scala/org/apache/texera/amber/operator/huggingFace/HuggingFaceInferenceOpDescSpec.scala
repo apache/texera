@@ -536,6 +536,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
         .generatePythonCode()
     code should include("self.CANDIDATE_LABELS = ")
     code should include("""if task == "zero-shot-classification":""")
+    code should include(
+      "labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split"
+    )
     code should include("Candidate Labels are required for zero-shot-classification.")
     code should include("""elif task == "zero-shot-classification":""")
     code should include("labels = [l.strip() for l in self.CANDIDATE_LABELS.split")
