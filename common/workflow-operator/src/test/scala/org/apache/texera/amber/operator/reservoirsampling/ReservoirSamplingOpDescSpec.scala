@@ -70,7 +70,7 @@ class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
         descString should not be empty
       case other => fail(s"expected OpExecWithClassName, got $other")
     }
-    physical.inputPorts.size shouldBe d.operatorInfo.inputPorts.size
-    physical.outputPorts.size shouldBe d.operatorInfo.outputPorts.size
+    physical.inputPorts.keySet shouldBe d.operatorInfo.inputPorts.map(_.id).toSet
+    physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
   }
 }

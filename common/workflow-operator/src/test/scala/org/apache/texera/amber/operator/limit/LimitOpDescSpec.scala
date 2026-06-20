@@ -67,11 +67,12 @@ class LimitOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "carry forward the operatorInfo input/output ports" in {
+  it should "carry forward the operatorInfo input/output port identities" in {
     val op = limitDesc(10)
     val physical = op.getPhysicalOp(workflowId, executionId)
-    physical.inputPorts.size shouldBe op.operatorInfo.inputPorts.size
-    physical.outputPorts.size shouldBe op.operatorInfo.outputPorts.size
+    // Pin the actual port identities (not just counts).
+    physical.inputPorts.keySet shouldBe op.operatorInfo.inputPorts.map(_.id).toSet
+    physical.outputPorts.keySet shouldBe op.operatorInfo.outputPorts.map(_.id).toSet
   }
 
   "LimitOpDesc.runtimeReconfiguration" should
