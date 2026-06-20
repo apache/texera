@@ -29,6 +29,8 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+
+import javax.validation.constraints.NotNull
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -41,18 +43,21 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("X Column")
   @JsonPropertyDescription("Data column for the x-axis")
   @AutofillAttributeName
+  @NotNull(message = "X Column cannot be empty")
   var x: EncodableString = ""
 
   @JsonProperty(value = "y", required = true)
   @JsonSchemaTitle("Y Column")
   @JsonPropertyDescription("Data column for the y-axis")
   @AutofillAttributeName
+  @NotNull(message = "Y Column cannot be empty")
   var y: EncodableString = ""
 
   @JsonProperty(value = "z", required = true)
   @JsonSchemaTitle("Z Column")
   @JsonPropertyDescription("Data column for the z-axis")
   @AutofillAttributeName
+  @NotNull(message = "Z Column cannot be empty")
   var z: EncodableString = ""
 
   override def getOutputSchemas(
@@ -71,9 +76,9 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor {
     )
 
   private def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(x.nonEmpty)
-    assert(y.nonEmpty)
-    assert(z.nonEmpty)
+    assert(x.nonEmpty, "X Column cannot be empty")
+    assert(y.nonEmpty, "Y Column cannot be empty")
+    assert(z.nonEmpty, "Z Column cannot be empty")
     pyb"""
          |        fig = go.Figure(data=[go.Scatter3d(
          |            x=table[$x],

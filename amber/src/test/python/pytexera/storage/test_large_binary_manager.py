@@ -15,34 +15,44 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import re
+
 import pytest
 from unittest.mock import patch, MagicMock
-from pytexera.storage import large_binary_manager
+from pytexera.storage.large_binary_manager import LargeBinaryManager
 from core.storage.storage_config import StorageConfig
+
+# The manager is a singleton; bind the shared instance for the tests.
+large_binary_manager = LargeBinaryManager()
+
+# Execution-scoped base URI the controller hands down; create() appends a unique suffix.
+TEST_BASE_URI = "s3://texera-large-binaries/objects/1/"
+
+
+@pytest.fixture(autouse=True)
+def _init_storage_config():
+    """Initialize StorageConfig (incl. the large-binaries base URI) for every test."""
+    if not StorageConfig._initialized:
+        StorageConfig.initialize(
+            catalog_type="postgres",
+            postgres_uri_without_scheme="localhost:5432/test",
+            postgres_username="test",
+            postgres_password="test",
+            rest_catalog_uri="http://localhost:8181/catalog/",
+            rest_catalog_warehouse_name="texera",
+            table_result_namespace="test",
+            table_state_namespace="test-state",
+            directory_path="/tmp/test",
+            commit_batch_size=1000,
+            s3_endpoint="http://localhost:9000",
+            s3_region="us-east-1",
+            s3_auth_username="minioadmin",
+            s3_auth_password="minioadmin",
+            s3_large_binaries_base_uri=TEST_BASE_URI,
+        )
 
 
 class TestLargeBinaryManager:
-    @pytest.fixture(autouse=True)
-    def setup_storage_config(self):
-        """Initialize StorageConfig for tests."""
-        if not StorageConfig._initialized:
-            StorageConfig.initialize(
-                catalog_type="postgres",
-                postgres_uri_without_scheme="localhost:5432/test",
-                postgres_username="test",
-                postgres_password="test",
-                rest_catalog_uri="http://localhost:8181/catalog/",
-                rest_catalog_warehouse_name="texera",
-                table_result_namespace="test",
-                table_state_namespace="test-state",
-                directory_path="/tmp/test",
-                commit_batch_size=1000,
-                s3_endpoint="http://localhost:9000",
-                s3_region="us-east-1",
-                s3_auth_username="minioadmin",
-                s3_auth_password="minioadmin",
-            )
-
     def test_get_s3_client_initializes_once(self):
         """Test that S3 client is initialized and cached."""
         # Reset the client
@@ -118,37 +128,48 @@ class TestLargeBinaryManager:
             mock_client.head_bucket.assert_called_once_with(Bucket="test-bucket")
             mock_client.create_bucket.assert_called_once_with(Bucket="test-bucket")
 
-    def test_create_generates_unique_uri(self):
-        """Test that create() generates a unique S3 URI."""
-        large_binary_manager._s3_client = None
+    def test_create_appends_unique_suffix_to_base_uri(self):
+        """create() returns the configured base URI plus a unique suffix (no S3 call)."""
+        base = StorageConfig.S3_LARGE_BINARIES_BASE_URI
 
-        with patch("boto3.client") as mock_boto3_client:
-            mock_client = MagicMock()
-            mock_boto3_client.return_value = mock_client
-            mock_client.head_bucket.return_value = None
-            mock_client.exceptions.NoSuchBucket = type("NoSuchBucket", (Exception,), {})
+        uri1 = large_binary_manager.create()
+        uri2 = large_binary_manager.create()
 
-            uri = large_binary_manager.create()
+        assert uri1.startswith(base)
+        assert uri2.startswith(base)
+        # A non-empty, unique suffix follows the base URI.
+        assert uri1 != base
+        assert uri1 != uri2
 
-            # Check URI format
-            assert uri.startswith("s3://")
-            assert uri.startswith(f"s3://{large_binary_manager.DEFAULT_BUCKET}/")
-            assert "objects/" in uri
 
-            # Verify bucket was checked/created
-            mock_client.head_bucket.assert_called_once_with(
-                Bucket=large_binary_manager.DEFAULT_BUCKET
-            )
+def test_create_matches_execution_scoped_key_shape(monkeypatch):
+    # The base URI is execution-scoped (controller-named); create() only appends a uuid.
+    monkeypatch.setattr(
+        StorageConfig,
+        "S3_LARGE_BINARIES_BASE_URI",
+        "s3://texera-large-binaries/objects/42/",
+    )
+    uri = large_binary_manager.create()
+    assert re.fullmatch(r"s3://texera-large-binaries/objects/42/[0-9a-fA-F-]+", uri)
 
-    def test_create_uses_default_bucket(self):
-        """Test that create() uses the default bucket."""
-        large_binary_manager._s3_client = None
 
-        with patch("boto3.client") as mock_boto3_client:
-            mock_client = MagicMock()
-            mock_boto3_client.return_value = mock_client
-            mock_client.head_bucket.return_value = None
-            mock_client.exceptions.NoSuchBucket = type("NoSuchBucket", (Exception,), {})
+def test_create_without_base_uri_raises(monkeypatch):
+    # An unconfigured base URI should fail with a clear error, not a cryptic S3 one.
+    monkeypatch.setattr(StorageConfig, "S3_LARGE_BINARIES_BASE_URI", None)
+    with pytest.raises(RuntimeError):
+        large_binary_manager.create()
 
-            uri = large_binary_manager.create()
-            assert large_binary_manager.DEFAULT_BUCKET in uri
+
+def test_largebinarymanager_is_a_singleton():
+    # Constructing the manager always returns the same shared instance.
+    assert LargeBinaryManager() is LargeBinaryManager()
+
+    # State (the cached S3 client) is shared across handles (same instance).
+    mgr = LargeBinaryManager()
+    original = mgr._s3_client
+    sentinel = object()
+    mgr._s3_client = sentinel
+    try:
+        assert LargeBinaryManager()._s3_client is sentinel
+    finally:
+        mgr._s3_client = original

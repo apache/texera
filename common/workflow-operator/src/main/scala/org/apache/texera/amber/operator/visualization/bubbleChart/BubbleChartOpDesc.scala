@@ -45,21 +45,21 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("X-Column")
   @JsonPropertyDescription("Data column for the x-axis")
   @AutofillAttributeName
-  @NotNull(message = "xValue column cannot be empty")
+  @NotNull(message = "X-Column cannot be empty")
   var xValue: EncodableString = ""
 
   @JsonProperty(value = "yValue", required = true)
   @JsonSchemaTitle("Y-Column")
   @JsonPropertyDescription("Data column for the y-axis")
   @AutofillAttributeName
-  @NotNull(message = "yValue column cannot be empty")
+  @NotNull(message = "Y-Column cannot be empty")
   var yValue: EncodableString = ""
 
   @JsonProperty(value = "zValue", required = true)
   @JsonSchemaTitle("Z-Column")
   @JsonPropertyDescription("Data column to determine bubble size")
   @AutofillAttributeName
-  @NotNull(message = "zValue column cannot be empty")
+  @NotNull(message = "Z-Column cannot be empty")
   var zValue: EncodableString = ""
 
   @JsonProperty(value = "enableColor", defaultValue = "false")
@@ -71,7 +71,7 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Color-Column")
   @JsonPropertyDescription("Picks data column to color bubbles with if color is enabled")
   @AutofillAttributeName
-  @NotNull(message = "colorCategory column cannot be empty")
+  @NotNull(message = "Color-Column cannot be empty")
   var colorCategory: EncodableString = ""
 
   override def getOutputSchemas(
@@ -90,7 +90,9 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
     )
 
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(xValue.nonEmpty && yValue.nonEmpty && zValue.nonEmpty)
+    assert(xValue.nonEmpty, "X-Column cannot be empty")
+    assert(yValue.nonEmpty, "Y-Column cannot be empty")
+    assert(zValue.nonEmpty, "Z-Column cannot be empty")
     pyb"""
        |        # drops rows with missing values pertaining to relevant columns
        |        table.dropna(subset=[$xValue, $yValue, $zValue], inplace = True)
@@ -99,7 +101,9 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(xValue.nonEmpty && yValue.nonEmpty && zValue.nonEmpty)
+    assert(xValue.nonEmpty, "X-Column cannot be empty")
+    assert(yValue.nonEmpty, "Y-Column cannot be empty")
+    assert(zValue.nonEmpty, "Z-Column cannot be empty")
     pyb"""
          |        if '$enableColor' == 'true':
          |            fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue, size_max=100, color=$colorCategory))

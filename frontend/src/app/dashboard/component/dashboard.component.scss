@@ -54,6 +54,8 @@ button {
 
 .page-content-layout {
   border-left: 1px solid #f0f0f0;
+  height: 100%;
+  min-height: 0;
 }
 
 .ant-layout-sider-has-trigger {
@@ -92,6 +94,8 @@ nz-content {
 .page-container {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
   width: 100%;
 }
 

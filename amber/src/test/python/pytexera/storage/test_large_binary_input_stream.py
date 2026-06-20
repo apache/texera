@@ -20,7 +20,10 @@ from unittest.mock import patch, MagicMock
 from io import BytesIO
 from core.models.type.large_binary import largebinary
 from pytexera.storage.large_binary_input_stream import LargeBinaryInputStream
-from pytexera.storage import large_binary_manager
+from pytexera.storage.large_binary_manager import LargeBinaryManager
+
+# The manager is a singleton; bind the shared instance for the tests.
+large_binary_manager = LargeBinaryManager()
 
 
 class TestLargeBinaryInputStream:

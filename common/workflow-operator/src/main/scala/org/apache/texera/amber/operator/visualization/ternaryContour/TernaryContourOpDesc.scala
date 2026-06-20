@@ -31,6 +31,8 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
+import javax.validation.constraints.NotNull
+
 /**
   * Visualization Operator for Ternary Plots.
   *
@@ -44,25 +46,33 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "firstVariable", required = true)
   @JsonSchemaTitle("Variable 1")
   @JsonPropertyDescription("First variable data field")
-  @AutofillAttributeName var firstVariable: EncodableString = ""
+  @AutofillAttributeName
+  @NotNull(message = "Variable 1 cannot be empty")
+  var firstVariable: EncodableString = ""
 
   // Add annotations for the second variable
   @JsonProperty(value = "secondVariable", required = true)
   @JsonSchemaTitle("Variable 2")
   @JsonPropertyDescription("Second variable data field")
-  @AutofillAttributeName var secondVariable: EncodableString = ""
+  @AutofillAttributeName
+  @NotNull(message = "Variable 2 cannot be empty")
+  var secondVariable: EncodableString = ""
 
   // Add annotations for the third variable
   @JsonProperty(value = "thirdVariable", required = true)
   @JsonSchemaTitle("Variable 3")
   @JsonPropertyDescription("Third variable data field")
-  @AutofillAttributeName var thirdVariable: EncodableString = ""
+  @AutofillAttributeName
+  @NotNull(message = "Variable 3 cannot be empty")
+  var thirdVariable: EncodableString = ""
 
   // Add annotations for the fourth variable
   @JsonProperty(value = "fourthVariable", required = true)
   @JsonSchemaTitle("Measured Value")
   @JsonPropertyDescription("Measured value data field")
-  @AutofillAttributeName var fourthVariable: EncodableString = ""
+  @AutofillAttributeName
+  @NotNull(message = "Measured Value cannot be empty")
+  var fourthVariable: EncodableString = ""
 
   // OperatorInfo instance describing ternary plot
   override def operatorInfo: OperatorInfo =
@@ -86,9 +96,10 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor {
   /** Returns a Python string that drops any tuples with missing values */
   def manipulateTable(): PythonTemplateBuilder = {
     // Check for any empty data field names
-    assert(
-      firstVariable.nonEmpty && secondVariable.nonEmpty && thirdVariable.nonEmpty && fourthVariable.nonEmpty
-    )
+    assert(firstVariable.nonEmpty, "Variable 1 cannot be empty")
+    assert(secondVariable.nonEmpty, "Variable 2 cannot be empty")
+    assert(thirdVariable.nonEmpty, "Variable 3 cannot be empty")
+    assert(fourthVariable.nonEmpty, "Measured Value cannot be empty")
     pyb"""
        |        # Remove any tuples that contain missing values
        |        table.dropna(subset=[$firstVariable, $secondVariable, $thirdVariable, $fourthVariable], inplace = True)

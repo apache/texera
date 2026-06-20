@@ -32,14 +32,14 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonPropertyDescription("List of columns to include in the table chart")
   @JsonProperty(value = "add attribute", required = true)
-  @NotEmpty(message = "Included columns list cannot be empty")
+  @NotEmpty(message = "Included Columns cannot be empty")
   var includedColumns: List[TablesConfig] = List()
 
   private def getAttributes: String =
     includedColumns.map(c => pyb"""${c.attributeName}""").mkString("','")
 
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(includedColumns.nonEmpty)
+    assert(includedColumns.nonEmpty, "Included Columns cannot be empty")
     val attributes = getAttributes
     pyb"""
        |        # drops rows with missing values pertaining to relevant columns
@@ -49,7 +49,7 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(includedColumns.nonEmpty)
+    assert(includedColumns.nonEmpty, "Included Columns cannot be empty")
     val attributes = getAttributes
     pyb"""
          |

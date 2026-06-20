@@ -1,0 +1,9 @@
+👋 Thanks for opening this {{kind}}, @{{author}}!
+
+It looks like the {{kind}} description doesn't quite follow our template yet:
+
+{{details}}
+
+Filling out the template helps reviewers understand and triage your contribution faster. Please edit the description to complete it. This message will disappear automatically once the template is followed.
+
+You can find the template prompts by editing the description, or see [CONTRIBUTING.md](https://github.com/{{owner}}/{{repo}}/blob/main/CONTRIBUTING.md) for the full contribution flow.
