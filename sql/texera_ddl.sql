@@ -472,14 +472,23 @@ CREATE TABLE IF NOT EXISTS workflow_notebook_mapping
 );
 
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
-CREATE EXTENSION IF NOT EXISTS pgroonga;
-
 DO $$
 DECLARE
   r RECORD;
   stem_filter TEXT := '';
   plugin_status TEXT;
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_available_extensions
+    WHERE name = 'pgroonga'
+  ) THEN
+    RAISE NOTICE 'PGroonga not available; skipping fulltext search index creation';
+    RETURN;
+  END IF;
+
+  CREATE EXTENSION IF NOT EXISTS pgroonga;
+
   -- Drop all GIN and PGroonga indexes
   FOR r IN
     SELECT indexname FROM pg_indexes
