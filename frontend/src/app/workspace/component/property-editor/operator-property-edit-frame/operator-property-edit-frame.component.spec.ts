@@ -28,7 +28,7 @@ import { DatePipe } from "@angular/common";
 import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
-import { FormlyModule } from "@ngx-formly/core";
+import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import {
@@ -431,5 +431,134 @@ describe("OperatorPropertyEditFrameComponent", () => {
     });
     fixture.detectChanges();
     expect(component.huggingFaceTaskPreview).toBeNull();
+  });
+
+  // ── HuggingFace field visibility and validator tests ──
+
+  function getHfField(key: string): FormlyFieldConfig | undefined {
+    return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+  }
+
+  let currentTask: string = "";
+
+  let hfOperatorCounter = 0;
+
+  function initHfOperator(task: string): void {
+    currentTask = task;
+    hfOperatorCounter++;
+    const pred = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorID: `hf-test-${hfOperatorCounter}`,
+      operatorProperties: { task, modelId: "org/model" },
+    };
+    workflowActionService.addOperator(pred, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, pred.operatorID, true),
+    });
+    fixture.detectChanges();
+  }
+
+  function evalHide(field: FormlyFieldConfig | undefined): boolean {
+    if (!field || !field.expressions) return false;
+    const hideFn = (field.expressions as Record<string, Function>)["hide"];
+    if (!hideFn) return !!field.hide;
+    // Provide model context so getSelectedTask can find the task
+    const fieldWithModel = { ...field, model: { task: currentTask } } as FormlyFieldConfig;
+    return hideFn(fieldWithModel);
+  }
+
+  it("should hide imageInput for text-generation task", () => {
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("imageInput"))).toBe(true);
+  });
+
+  it("should show imageInput for image-classification task", () => {
+    initHfOperator("image-classification");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  it("should hide audioInput for text-generation task", () => {
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("audioInput"))).toBe(true);
+  });
+
+  it("should show audioInput for automatic-speech-recognition task", () => {
+    initHfOperator("automatic-speech-recognition");
+    expect(evalHide(getHfField("audioInput"))).toBe(false);
+  });
+
+  it("should hide promptColumn for image-only tasks", () => {
+    initHfOperator("image-classification");
+    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+  });
+
+  it("should hide promptColumn for audio-only tasks", () => {
+    initHfOperator("automatic-speech-recognition");
+    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+  });
+
+  it("should show promptColumn for text-generation task", () => {
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show systemPrompt only for text-generation", () => {
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("systemPrompt"))).toBe(false);
+
+    initHfOperator("image-classification");
+    expect(evalHide(getHfField("systemPrompt"))).toBe(true);
+  });
+
+  it("should show contextColumn only for question-answering", () => {
+    initHfOperator("question-answering");
+    expect(evalHide(getHfField("contextColumn"))).toBe(false);
+
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("contextColumn"))).toBe(true);
+  });
+
+  it("should show candidateLabels only for classification tasks", () => {
+    initHfOperator("zero-shot-classification");
+    expect(evalHide(getHfField("candidateLabels"))).toBe(false);
+
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("candidateLabels"))).toBe(true);
+  });
+
+  it("requiredPromptColumn validator should pass when not a prompt-required task", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("promptColumn");
+    const validator = field?.validators?.["requiredPromptColumn"];
+    expect(validator).toBeDefined();
+    const mockField = { ...field, model: { task: "image-classification", promptColumn: "" } } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredPromptColumn validator should fail when prompt-required task has no column", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("promptColumn");
+    const validator = field?.validators?.["requiredPromptColumn"];
+    expect(validator).toBeDefined();
+    const mockField = { ...field, model: { task: "text-generation", promptColumn: "" } } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  it("requiredImageInput validator should pass when not an image task", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    expect(validator).toBeDefined();
+    const mockField = { ...field, model: { task: "text-generation", imageInput: "" } } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredAudioInput validator should pass when not an audio task", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("audioInput");
+    const validator = field?.validators?.["requiredAudioInput"];
+    expect(validator).toBeDefined();
+    const mockField = { ...field, model: { task: "text-generation", audioInput: "" } } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
   });
 });
