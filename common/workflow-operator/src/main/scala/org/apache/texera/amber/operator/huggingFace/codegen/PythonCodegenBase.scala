@@ -914,7 +914,9 @@ object PythonCodegenBase {
        |            ".amr": "audio/amr",
        |            ".m4a": "audio/m4a",
        |        }
-       |        _, ext = os.path.splitext(audio_input)
+       |        from urllib.parse import urlparse as _urlparse
+       |        path = _urlparse(audio_input).path if audio_input.startswith("http") else audio_input
+       |        _, ext = os.path.splitext(path)
        |        return extension_map.get(ext, "audio/mpeg")
        |
        |    def _url_to_data_url(self, url):
@@ -927,7 +929,7 @@ object PythonCodegenBase {
        |        if not content_type or content_type == "application/octet-stream":
        |            from urllib.parse import urlparse as _urlparse
        |            ext = os.path.splitext(_urlparse(url).path.lower())[1]
-       |            mime_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml", ".mp3": "audio/mpeg", ".mpeg": "audio/mpeg", ".wav": "audio/wav", ".flac": "audio/flac", ".ogg": "audio/ogg", ".oga": "audio/ogg", ".m4a": "audio/mp4", ".mp4": "video/mp4", ".webm": "video/webm"}
+       |            mime_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml", ".mp3": "audio/mpeg", ".mpeg": "audio/mpeg", ".wav": "audio/wav", ".flac": "audio/flac", ".ogg": "audio/ogg", ".oga": "audio/ogg", ".m4a": "audio/m4a", ".mp4": "video/mp4", ".webm": "video/webm"}
        |            guessed = mime_map.get(ext, "")
        |            if guessed:
        |                content_type = guessed

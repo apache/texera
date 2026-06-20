@@ -435,6 +435,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       """"Content-Type": "application/octet-stream" if use_audio_column else self._get_audio_content_type()"""
     )
     code should include(
+      """path = _urlparse(audio_input).path if audio_input.startswith("http") else audio_input"""
+    )
+    code should include(
       """audio_content_type = raw_binary_headers.get("Content-Type", "audio/mpeg")"""
     )
     code should include(
@@ -452,6 +455,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("""payload = {"inputs": prompt_value}""")
     code should include("self._url_to_data_url(")
     code should include(""""text-to-speech": "audio/mpeg"""")
+    code should include("""".m4a": "audio/m4a"""")
     code should not include "_audio_url_to_data_url"
     code should include("data:audio/mpeg;base64")
   }

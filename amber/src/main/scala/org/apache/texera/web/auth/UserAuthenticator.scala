@@ -28,9 +28,10 @@ import java.util.Optional
 
 /** Adapter for the toastshaman Dropwizard JWT filter. The filter has already
   * verified the signature by the time this is invoked, so the work here is
-  * pure claim extraction — delegated to [[JwtParser.claimsToSessionUser]]
-  * so amber and the microservices produce identical [[SessionUser]] objects
-  * from the same token.
+  * pure claim extraction — delegated to
+  * [[JwtParser.claimsToOptionalSessionUser]] so amber and the microservices
+  * produce identical [[SessionUser]] objects from the same token and return
+  * empty when required claims are missing or malformed.
   */
 object UserAuthenticator extends Authenticator[JwtContext, SessionUser] with LazyLogging {
   override def authenticate(context: JwtContext): Optional[SessionUser] = {
