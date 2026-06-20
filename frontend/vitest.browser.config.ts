@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 
-const uuidBrowser = fileURLToPath(new URL("./node_modules/uuid/dist/esm-browser/index.js", import.meta.url));
+const uuidBrowser = fileURLToPath(new URL("./node_modules/uuid/dist/index.js", import.meta.url));
 const lib0Webcrypto = fileURLToPath(new URL("./node_modules/lib0/webcrypto.js", import.meta.url));
 
 // Browser-mode config for specs that need real DOM/SVG geometry
