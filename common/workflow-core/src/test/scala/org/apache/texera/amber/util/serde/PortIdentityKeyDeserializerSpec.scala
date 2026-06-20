@@ -69,6 +69,17 @@ class PortIdentityKeyDeserializerSpec extends AnyFlatSpec with Matchers {
     restored.asScala.toMap shouldBe original
   }
 
+  it should "round-trip an empty Map[PortIdentity, String] through JSONUtils.objectMapper" in {
+    val original = Map.empty[PortIdentity, String]
+    val json = objectMapper.writeValueAsString(original)
+    val mapType = objectMapper.getTypeFactory
+      .constructMapType(classOf[java.util.HashMap[_, _]], classOf[PortIdentity], classOf[String])
+
+    val restored: java.util.Map[PortIdentity, String] = objectMapper.readValue(json, mapType)
+
+    restored.asScala.toMap shouldBe original
+  }
+
   it should "throw NumberFormatException for a non-integer id" in {
     intercept[NumberFormatException] {
       deserializer.deserializeKey("notAnInt_false", null)
@@ -101,5 +112,18 @@ class PortIdentityKeyDeserializerSpec extends AnyFlatSpec with Matchers {
 
   it should "ignore extra trailing underscore-separated segments" in {
     deserializer.deserializeKey("1_true_extra", null) shouldBe PortIdentity(1, internal = true)
+  }
+
+  it should "eventually reject keys with extra trailing segments (pendingUntilFixed)" in pendingUntilFixed {
+    // Documented contract: a `PortIdentityKeySerializer` output is exactly
+    // `id_internal` — two underscore-separated segments. Anything else is
+    // corrupt JSON and should be rejected, not silently truncated. The
+    // current implementation is lenient (see characterization test above);
+    // this pendingUntilFixed flips to passing once the parser is hardened,
+    // then `pendingUntilFixed` inverts that into a deliberate failure forcing
+    // the marker to be removed.
+    intercept[IllegalArgumentException] {
+      deserializer.deserializeKey("1_true_extra", null)
+    }
   }
 }
