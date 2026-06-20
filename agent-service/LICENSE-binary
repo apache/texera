@@ -219,7 +219,7 @@ Agent service npm packages:
   - @vercel/oidc@3.0.5
   - ai@5.0.108
   - rxjs@7.8.2
-  - typescript@5.9.3
+  - typescript@6.0.3
 
 --------------------------------------------------------------------------------
 Dependencies under the MIT License
