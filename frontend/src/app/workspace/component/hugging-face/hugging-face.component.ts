@@ -332,9 +332,10 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     // Another instance is already fetching this task — wait for it
     if (inFlightByTag.has(tag)) {
       this.loading = true;
-      this.modelPollInterval = setInterval(() => {
+      if (this.modelPollInterval !== null) clearInterval(this.modelPollInterval);
+      const poll = setInterval(() => {
         if (allModelsByTag.has(tag) || errorByTag.has(tag)) {
-          clearInterval(this.modelPollInterval!);
+          clearInterval(poll);
           this.modelPollInterval = null;
           this.loading = false;
           if (allModelsByTag.has(tag)) {
@@ -345,8 +346,15 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
             this.errorMessage = errorByTag.get(tag)!;
             this.cdr.detectChanges();
           }
+        } else if (!inFlightByTag.has(tag)) {
+          // Fetch was canceled before populating caches; stop polling and fall back.
+          clearInterval(poll);
+          this.modelPollInterval = null;
+          this.loading = false;
+          this.cdr.detectChanges();
         }
       }, 200);
+      this.modelPollInterval = poll;
       return;
     }
 

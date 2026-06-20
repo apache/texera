@@ -17,12 +17,7 @@
  * under the License.
  */
 
-import {
-  HuggingFaceComponent,
-  HuggingFaceModelOption,
-  STATIC_TASK_OPTIONS,
-  invalidateHuggingFaceModelCache,
-} from "./hugging-face.component";
+import { STATIC_TASK_OPTIONS, invalidateHuggingFaceModelCache } from "./hugging-face.component";
 
 describe("HuggingFaceComponent (unit)", () => {
   beforeEach(() => {
