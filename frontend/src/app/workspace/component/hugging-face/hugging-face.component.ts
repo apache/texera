@@ -28,8 +28,8 @@ import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { AppSettings } from "../../../common/app-setting";
-import { Subject, Subscription } from "rxjs";
-import { debounceTime, finalize, switchMap, takeUntil } from "rxjs/operators";
+import { of, Subject, Subscription } from "rxjs";
+import { catchError, debounceTime, finalize, switchMap, takeUntil } from "rxjs/operators";
 
 export interface HuggingFaceModelOption {
   id: string;
@@ -460,22 +460,27 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           const tag = this.selectedTaskTag || "text-generation";
           this.searchLoading = true;
           this.cdr.detectChanges();
-          return this.http.get<HuggingFaceModelOption[]>(
-            `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}&search=${encodeURIComponent(query)}`
-          );
+          return this.http
+            .get<HuggingFaceModelOption[]>(
+              `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}&search=${encodeURIComponent(query)}`
+            )
+            .pipe(
+              catchError((err: unknown) => {
+                console.error("Server-side search failed:", err);
+                this.searchLoading = false;
+                this.cdr.detectChanges();
+                return of(null);
+              })
+            );
         }),
         takeUntil(this.destroy$)
       )
       .subscribe({
         next: models => {
+          if (models === null) return;
           this.searchLoading = false;
           this.filteredModels = models;
           this.goToPage(0);
-        },
-        error: (err: unknown) => {
-          console.error("Server-side search failed:", err);
-          this.searchLoading = false;
-          this.cdr.detectChanges();
         },
       });
   }
