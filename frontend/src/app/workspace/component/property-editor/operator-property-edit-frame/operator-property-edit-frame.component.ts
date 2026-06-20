@@ -509,8 +509,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   private isHuggingFaceOperator(): boolean {
     if (!this.currentOperatorId) return false;
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
-    return operator.operatorType === "HuggingFace";
+    const graph = this.workflowActionService.getTexeraGraph();
+    if (!graph.hasOperator(this.currentOperatorId)) return false;
+    return graph.getOperator(this.currentOperatorId).operatorType === "HuggingFace";
   }
 
   private formatTaskTitle(task: string): string {
