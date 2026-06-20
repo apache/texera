@@ -461,9 +461,9 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           this.searchLoading = true;
           this.cdr.detectChanges();
           return this.http
-            .get<HuggingFaceModelOption[]>(
-              `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}&search=${encodeURIComponent(query)}`
-            )
+            .get<
+              HuggingFaceModelOption[]
+            >(`${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}&search=${encodeURIComponent(query)}`)
             .pipe(
               catchError((err: unknown) => {
                 console.error("Server-side search failed:", err);
