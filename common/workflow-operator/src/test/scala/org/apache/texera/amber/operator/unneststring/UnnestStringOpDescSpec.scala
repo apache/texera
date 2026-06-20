@@ -22,7 +22,6 @@ package org.apache.texera.amber.operator.unneststring
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -68,8 +67,10 @@ class UnnestStringOpDescSpec extends AnyFlatSpec with Matchers {
     val op = newDesc(",", "tags", "tag")
     val physical = op.getPhysicalOp(workflowId, executionId)
     val input = Schema().add(new Attribute("tags", AttributeType.STRING))
-    val out = physical.propagateSchema.func(Map(PortIdentity() -> input)).values.head
-    out shouldBe input.add(new Attribute("tag", AttributeType.STRING))
+    val out = physical.propagateSchema.func(Map(op.operatorInfo.inputPorts.head.id -> input))
+    out shouldBe Map(
+      op.operatorInfo.outputPorts.head.id -> input.add(new Attribute("tag", AttributeType.STRING))
+    )
   }
 
   it should "throw when resultAttribute is blank" in {
@@ -77,7 +78,7 @@ class UnnestStringOpDescSpec extends AnyFlatSpec with Matchers {
     val physical = op.getPhysicalOp(workflowId, executionId)
     val input = Schema().add(new Attribute("tags", AttributeType.STRING))
     intercept[RuntimeException] {
-      physical.propagateSchema.func(Map(PortIdentity() -> input))
+      physical.propagateSchema.func(Map(op.operatorInfo.inputPorts.head.id -> input))
     }
   }
 

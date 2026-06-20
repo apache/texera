@@ -22,7 +22,6 @@ package org.apache.texera.amber.operator.typecasting
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -64,18 +63,20 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
 
   "TypeCastingOpDesc schema propagation" should
     "leave the schema unchanged when there are no casting units" in {
+    val op = new TypeCastingOpDesc
     val input = Schema().add(new Attribute("n", AttributeType.INTEGER))
-    val out =
-      (new TypeCastingOpDesc).getExternalOutputSchemas(Map(PortIdentity() -> input)).values.head
-    out shouldBe input
+    val out = op.getExternalOutputSchemas(Map(op.operatorInfo.inputPorts.head.id -> input))
+    out shouldBe Map(op.operatorInfo.outputPorts.head.id -> input)
   }
 
   it should "change the target column's type for a casting unit" in {
     val op = new TypeCastingOpDesc
     op.typeCastingUnits = List(castUnit("n", AttributeType.STRING))
     val input = Schema().add(new Attribute("n", AttributeType.INTEGER))
-    val out = op.getExternalOutputSchemas(Map(PortIdentity() -> input)).values.head
-    out shouldBe Schema().add(new Attribute("n", AttributeType.STRING))
+    val out = op.getExternalOutputSchemas(Map(op.operatorInfo.inputPorts.head.id -> input))
+    out shouldBe Map(
+      op.operatorInfo.outputPorts.head.id -> Schema().add(new Attribute("n", AttributeType.STRING))
+    )
   }
 
   "TypeCastingOpDesc" should "round-trip its casting units through the polymorphic base" in {
