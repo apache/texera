@@ -312,7 +312,7 @@ Angular / npm packages:
   - style-loader@3.3.4
   - theme-defaults@1.0.0
   - underscore@1.13.8
-  - uuid@8.3.2
+  - uuid@14.0.0
   - vscode-jsonrpc@8.2.0
   - vscode-languageclient@9.0.1
   - vscode-languageserver-protocol@3.17.5
