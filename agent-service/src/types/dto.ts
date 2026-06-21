@@ -17,8 +17,8 @@
  * under the License.
  */
 
-// Wire DTOs: request/response bodies exchanged with backend services. Distinct
-// from domain types (workflow.ts, execution.ts, agent.ts) which model in-memory
+// DTOs: request/response bodies exchanged with backend services. Distinct from
+// domain types (workflow.ts, execution.ts, agent.ts) which model in-memory
 // state, and from ws.ts which carries this service's own WebSocket frames.
 
 import type { WorkflowContent, OperatorPortSchemaMap } from "./workflow";

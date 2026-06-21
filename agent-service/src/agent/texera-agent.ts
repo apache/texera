@@ -49,7 +49,7 @@ import {
 } from "./tools/workflow-execution-tools";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync } from "../api/compile-api";
-import type { WorkflowCompilationResponse } from "../types/wire";
+import type { WorkflowCompilationResponse } from "../types/dto";
 import { createLogger } from "../logger";
 import type { Logger } from "pino";
 

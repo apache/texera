@@ -20,7 +20,7 @@
 import { getBackendConfig } from "./backend-api";
 import { createAuthHeaders } from "../auth/jwt";
 import type { WorkflowContent } from "../types/workflow";
-import type { Workflow, WorkflowPersistRequest } from "../types/wire";
+import type { Workflow, WorkflowPersistRequest } from "../types/dto";
 
 const WORKFLOW_BASE_URL = "workflow";
 

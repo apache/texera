@@ -19,7 +19,7 @@
 
 import { getBackendConfig } from "./backend-api";
 import type { LogicalPlan } from "../types/workflow";
-import type { WorkflowCompilationResponse } from "../types/wire";
+import type { WorkflowCompilationResponse } from "../types/dto";
 import { createLogger } from "../logger";
 
 const log = createLogger("CompileAPI");
