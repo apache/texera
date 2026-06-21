@@ -48,15 +48,15 @@ export interface ReActStep {
   toolCalls?: Array<{
     toolName: string;
     toolCallId: string;
-    input: any;
+    input: unknown;
   }>;
   toolResults?: Array<{
     toolCallId: string;
-    output: any;
+    output: unknown;
     isError?: boolean;
   }>;
   usage?: TokenUsage;
-  inputMessages?: any[];
+  inputMessages?: unknown[];
   messageSource?: "chat" | "feedback";
   beforeWorkflowContent?: WorkflowContent;
   afterWorkflowContent?: WorkflowContent;

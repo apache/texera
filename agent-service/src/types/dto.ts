@@ -56,7 +56,7 @@ export interface WorkflowFatalError {
 }
 
 export interface WorkflowCompilationResponse {
-  physicalPlan?: any;
+  physicalPlan?: unknown;
   operatorOutputSchemas: Record<string, OperatorPortSchemaMap>;
   operatorErrors: Record<string, WorkflowFatalError>;
 }

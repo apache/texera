@@ -34,7 +34,7 @@ export interface OperatorInfo {
   outputTuples: number;
   inputPortShapes?: PortShape[];
   resultMode: string;
-  result?: Record<string, any>[];
+  result?: Record<string, unknown>[];
   totalRowCount?: number;
   displayedRows?: number;
   truncated?: boolean;

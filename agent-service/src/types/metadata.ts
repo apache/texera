@@ -45,7 +45,7 @@ export interface OperatorAdditionalMetadata {
 
 export interface OperatorSchema {
   operatorType: string;
-  jsonSchema: any;
+  jsonSchema: Record<string, unknown>;
   additionalMetadata: OperatorAdditionalMetadata;
   operatorVersion: string;
 }
@@ -62,13 +62,13 @@ export interface OperatorMetadata {
 
 /** Full per-operator schema slice surfaced to debugging/inspection callers. */
 export interface OperatorSchemaInfo {
-  properties: any;
-  required: any;
-  definitions: any;
+  properties: Record<string, unknown>;
+  required: string[];
+  definitions: Record<string, unknown>;
 }
 
 /** Reduced operator schema (refs inlined, noise stripped) used in prompts and errors. */
 export interface CompactOperatorSchema {
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
   required: string[];
 }
