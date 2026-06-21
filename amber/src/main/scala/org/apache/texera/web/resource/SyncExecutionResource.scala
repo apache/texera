@@ -387,33 +387,24 @@ class SyncExecutionResource extends LazyLogging {
       timeoutMillis: Long = 2000L,
       pollIntervalMillis: Long = 25L
   ): Unit = {
-    // Expected row count for the default external output port, from the stats store.
     def expectedOutputCount(opId: String): Long =
-      executionService.executionStateStore.statsStore.getState.operatorInfo
-        .get(opId)
-        .flatMap { metrics =>
-          metrics.operatorStatistics.outputMetrics
-            .find(_.portId == PortIdentity())
-            .map(_.tupleMetrics.count)
-        }
-        .getOrElse(0L)
+      expectedDefaultPortOutputCount(
+        executionService.executionStateStore.statsStore.getState,
+        opId
+      )
 
-    // Rows committed to the operator's default external result storage; None when the operator has
-    // no result storage. A registered but not-yet-openable document reports 0.
     def committedCount(opId: String): Option[Long] =
-      WorkflowExecutionsResource
-        .getResultUriByLogicalPortId(executionId, OperatorIdentity(opId), PortIdentity())
-        .map { uri =>
-          try {
-            DocumentFactory
-              .openDocument(uri)
-              ._1
-              .asInstanceOf[VirtualDocument[Tuple]]
-              .getCount
-          } catch {
-            case _: Exception => 0L
-          }
-        }
+      committedDefaultPortCount(
+        op =>
+          WorkflowExecutionsResource
+            .getResultUriByLogicalPortId(executionId, OperatorIdentity(op), PortIdentity()),
+        uri =>
+          DocumentFactory
+            .openDocument(uri)
+            ._1
+            .asInstanceOf[VirtualDocument[Tuple]]
+            .getCount
+      )(opId)
 
     awaitUntil(
       targetOperatorIds,
@@ -425,6 +416,33 @@ class SyncExecutionResource extends LazyLogging {
       Thread.sleep
     )
   }
+
+  // Default external output port (PortIdentity()) row count from stats; 0 if absent.
+  private[resource] def expectedDefaultPortOutputCount(
+      stats: ExecutionStatsStore,
+      opId: String
+  ): Long =
+    stats.operatorInfo
+      .get(opId)
+      .flatMap { metrics =>
+        metrics.operatorStatistics.outputMetrics
+          .find(_.portId == PortIdentity())
+          .map(_.tupleMetrics.count)
+      }
+      .getOrElse(0L)
+
+  // Committed rows for the default result port; None when no storage, 0 when countOf throws.
+  private[resource] def committedDefaultPortCount(
+      resultUriOf: String => Option[URI],
+      countOf: URI => Long
+  )(opId: String): Option[Long] =
+    resultUriOf(opId).map { uri =>
+      try {
+        countOf(uri)
+      } catch {
+        case _: Exception => 0L
+      }
+    }
 
   /**
     * Blocks until every target operator is ready or `timeoutMillis` elapses, sleeping

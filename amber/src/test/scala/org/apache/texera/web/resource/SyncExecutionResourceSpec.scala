@@ -19,8 +19,21 @@
 
 package org.apache.texera.web.resource
 
+import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import org.apache.texera.amber.engine.architecture.worker.statistics.{
+  PortTupleMetricsMapping,
+  TupleMetrics
+}
+import org.apache.texera.amber.engine.common.executionruntimestate.{
+  ExecutionStatsStore,
+  OperatorMetrics,
+  OperatorStatistics
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.net.URI
 
 class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers {
 
@@ -182,5 +195,65 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers {
     // Polls at t=0,25,50,75 then the t=100 check fails the deadline guard.
     clock.sleepCount shouldBe 4
     clock.nowMillis shouldBe 100L
+  }
+
+  // Stats store with one operator whose output ports are the given (port, count) pairs.
+  private def statsWith(opId: String, ports: (PortIdentity, Long)*): ExecutionStatsStore = {
+    val outputMetrics = ports.map {
+      case (portId, count) =>
+        PortTupleMetricsMapping(portId, TupleMetrics(count = count, size = 0L))
+    }
+    ExecutionStatsStore(operatorInfo =
+      Map(
+        opId -> OperatorMetrics(
+          operatorState = WorkflowAggregatedState.COMPLETED,
+          operatorStatistics = OperatorStatistics(outputMetrics = outputMetrics)
+        )
+      )
+    )
+  }
+
+  "expectedDefaultPortOutputCount" should "return the count of the default external output port" in {
+    val stats = statsWith("op", PortIdentity() -> 42L)
+    resource.expectedDefaultPortOutputCount(stats, "op") shouldBe 42L
+  }
+
+  it should "return 0 when the operator has no stats entry" in {
+    val stats = statsWith("op", PortIdentity() -> 42L)
+    resource.expectedDefaultPortOutputCount(stats, "missing") shouldBe 0L
+  }
+
+  it should "return 0 when the operator reports no default external output port" in {
+    val stats = statsWith("op", PortIdentity(1) -> 7L, PortIdentity(0, internal = true) -> 9L)
+    resource.expectedDefaultPortOutputCount(stats, "op") shouldBe 0L
+  }
+
+  it should "pick the default external port when several output ports are reported" in {
+    val stats = statsWith("op", PortIdentity(1) -> 7L, PortIdentity() -> 5L)
+    resource.expectedDefaultPortOutputCount(stats, "op") shouldBe 5L
+  }
+
+  "committedDefaultPortCount" should "return None when the operator has no result storage" in {
+    val committed = resource.committedDefaultPortCount(
+      resultUriOf = _ => None,
+      countOf = _ => fail("count should not be read when there is no result URI")
+    ) _
+    committed("op") shouldBe None
+  }
+
+  it should "return the committed row count when the result document is readable" in {
+    val committed = resource.committedDefaultPortCount(
+      resultUriOf = _ => Some(URI.create("mock://results/op")),
+      countOf = _ => 123L
+    ) _
+    committed("op") shouldBe Some(123L)
+  }
+
+  it should "report 0 when the registered result document cannot be opened" in {
+    val committed = resource.committedDefaultPortCount(
+      resultUriOf = _ => Some(URI.create("mock://results/op")),
+      countOf = _ => throw new RuntimeException("document not yet openable")
+    ) _
+    committed("op") shouldBe Some(0L)
   }
 }
