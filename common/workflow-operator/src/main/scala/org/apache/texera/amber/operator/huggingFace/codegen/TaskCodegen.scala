@@ -37,7 +37,9 @@ final case class CodegenContext(
     task: EncodableString,
     systemPrompt: EncodableString,
     safeMaxTokens: Int,
-    safeTemp: Double
+    safeTemp: Double,
+    imageInput: EncodableString = "",
+    inputImageColumn: EncodableString = ""
 )
 
 /**
@@ -59,8 +61,18 @@ final case class CodegenContext(
   */
 trait TaskCodegen {
 
-  /** Canonical Hugging Face pipeline task string, e.g. "text-generation". */
+  /** Canonical Hugging Face pipeline task string used as the primary key for
+    * registration, e.g. "text-generation". Codegens that handle multiple
+    * task strings (image, audio, …) override [[tasks]] to enumerate all of
+    * them — the operator's dispatcher registers an entry per task.
+    */
   def task: String
+
+  /** All Hugging Face pipeline task strings handled by this codegen.
+    * Defaults to the singleton `Set(task)` for codegens that handle one
+    * task; multi-task codegens override this.
+    */
+  def tasks: Set[String] = Set(task)
 
   /** Python text that assigns `payload = …` for one row inside
     * `process_table`'s per-row loop. The snippet supplies its own leading

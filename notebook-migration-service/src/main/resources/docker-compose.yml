@@ -1,0 +1,44 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: texera-jupyter
+services:
+
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: texera-jupyter
+    restart: unless-stopped
+    ports:
+      - "9100:8888"
+    environment:
+      # Texera app origin, used for the iframe CSP frame-ancestors and the
+      # postMessage origin checks in custom.js. Override for non-local deployments.
+      - TEXERA_ORIGIN=http://localhost:4200
+      # Weak default token so the server is not fully open. The Texera-side iframe
+      # URL must pass this through ?token=<value>.
+      - JUPYTER_TOKEN=texera
+    command: ["start-texera-jupyter.sh"]
+    healthcheck:
+      # /api returns the server version without requiring the token, so it is a
+      # reliable liveness probe even with auth enabled.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8888/api')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
