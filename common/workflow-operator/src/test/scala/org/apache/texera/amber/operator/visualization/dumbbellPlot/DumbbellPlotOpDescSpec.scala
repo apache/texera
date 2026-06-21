@@ -72,6 +72,8 @@ class DumbbellPlotOpDescSpec extends AnyFlatSpec with Matchers {
     d.categoryColumnName = "entity"
     d.measurementColumnName = "metric"
     d.comparedColumnName = "phase"
+    d.dumbbellStartValue = "before"
+    d.dumbbellEndValue = "after"
     d.showLegends = true
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[DumbbellPlotOpDesc]
@@ -79,6 +81,8 @@ class DumbbellPlotOpDescSpec extends AnyFlatSpec with Matchers {
     dp.categoryColumnName shouldBe "entity"
     dp.measurementColumnName shouldBe "metric"
     dp.comparedColumnName shouldBe "phase"
+    dp.dumbbellStartValue shouldBe "before"
+    dp.dumbbellEndValue shouldBe "after"
     dp.showLegends shouldBe true
   }
 }
