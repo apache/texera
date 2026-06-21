@@ -19,6 +19,8 @@
 
 import { Component } from "@angular/core";
 import { GuiConfigService } from "./common/service/gui-config.service";
+import { DeploymentVersionService } from "./common/service/deployment-version/deployment-version.service";
+import { Version } from "../environments/version";
 import { UntilDestroy } from "@ngneat/until-destroy";
 
 @UntilDestroy()
@@ -40,7 +42,10 @@ import { UntilDestroy } from "@ngneat/until-destroy";
 export class AppComponent {
   configLoaded = false;
 
-  constructor(private config: GuiConfigService) {
+  constructor(
+    private config: GuiConfigService,
+    private deploymentVersion: DeploymentVersionService
+  ) {
     // determine whether configuration was successfully loaded by APP_INITIALIZER
     try {
       // accessing env will throw if not loaded
@@ -48,6 +53,11 @@ export class AppComponent {
       this.configLoaded = true;
     } catch {
       this.configLoaded = false;
+    }
+
+    // Skip the "dev" placeholder build, where no deployments occur.
+    if (Version.buildNumber !== "dev") {
+      this.deploymentVersion.start();
     }
   }
 

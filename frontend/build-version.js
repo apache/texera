@@ -38,4 +38,10 @@ export const Version = {
 };
 `,
 );
+
+// Served at /assets/version.json so the running app can poll for the
+// deployed build number and detect a new deployment at runtime.
+const manifest = resolve(__dirname, "src", "assets", "version.json");
+writeFileSync(manifest, JSON.stringify({ buildNumber, version }) + "\n");
+
 console.log(`build-version: ${buildNumber}`);
