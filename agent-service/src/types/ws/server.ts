@@ -18,46 +18,84 @@
  */
 
 // Server -> client WebSocket frames for this service's protocol
-// (`/agents/:id/react`). Each frame is a class whose `type` discriminator
-// equals its class name, so `new WsServerStatusEvent(...)` sets the wire tag
-// for you. `WsServerEvent` is their discriminated union.
+// (/agents/:id/react). Modeled as a discriminated union on `type` so each
+// message kind declares exactly the fields it sends.
 
-import type { AgentState, ReActStep } from "../agent";
+import type { ReActStep } from "../agent";
+import type { WorkflowContent } from "../workflow";
 
-/**
- * Full state pushed once when a client connects: the agent's current lifecycle
- * state, the complete step list, and the HEAD pointer. Operator results are not
- * included — they are pulled on demand via `GET /agents/:id/operator-results`.
- */
-export class WsServerSnapshotEvent {
-  readonly type = "WsServerSnapshotEvent";
-  constructor(
-    readonly state: AgentState,
-    readonly steps: ReActStep[],
-    readonly headId: string
-  ) {}
+// Wire projection of an operator's execution result, summarized for the client
+// (counts instead of full payloads; only a sample of records).
+export interface OperatorResultSummaryWs {
+  state: string;
+  inputTuples: number;
+  outputTuples: number;
+  inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
+  outputColumns?: number;
+  error?: string;
+  warnings?: string[];
+  consoleLogCount?: number;
+  totalRowCount?: number;
+  sampleRecords?: Record<string, unknown>[];
+  resultStatistics?: Record<string, string>;
 }
 
-/** A single ReAct step, streamed live as the agent runs. */
-export class WsServerStepEvent {
-  readonly type = "WsServerStepEvent";
-  constructor(readonly step: ReActStep) {}
+type OperatorResults = Record<string, OperatorResultSummaryWs>;
+
+interface WsServerMessageBase {
+  type: "init" | "step" | "state" | "complete" | "error" | "headChange";
 }
 
-/**
- * An agent lifecycle transition (e.g. GENERATING when a run starts, the resting
- * state when it ends, STOPPING on stop).
- */
-export class WsServerStatusEvent {
-  readonly type = "WsServerStatusEvent";
-  constructor(readonly state: AgentState) {}
+// Sent once on connect: a snapshot of the agent's current state and steps.
+export interface WsServerInitMessage extends WsServerMessageBase {
+  type: "init";
+  state: string;
+  steps: ReActStep[];
+  headId: string;
+  operatorResults: OperatorResults;
 }
 
-/** An error surfaced to the client (agent not found, bad request, failed run). */
-export class WsServerErrorEvent {
-  readonly type = "WsServerErrorEvent";
-  constructor(readonly error: string) {}
+// A single ReAct step streamed as the agent runs. Operator results accompany
+// steps that ran tools.
+export interface WsServerStepMessage extends WsServerMessageBase {
+  type: "step";
+  step: ReActStep;
+  operatorResults?: OperatorResults;
 }
 
-/** Discriminated union of every server -> client frame. */
-export type WsServerEvent = WsServerSnapshotEvent | WsServerStepEvent | WsServerStatusEvent | WsServerErrorEvent;
+// An agent lifecycle transition (e.g. GENERATING, STOPPING).
+export interface WsServerStateMessage extends WsServerMessageBase {
+  type: "state";
+  state: string;
+}
+
+// Terminal message for a finished run.
+export interface WsServerCompleteMessage extends WsServerMessageBase {
+  type: "complete";
+  state: string;
+  operatorResults: OperatorResults;
+}
+
+// An error surfaced to the client.
+export interface WsServerErrorMessage extends WsServerMessageBase {
+  type: "error";
+  error: string;
+}
+
+// Emitted after a checkout: the head moved, carrying the full step list and the
+// workflow snapshot at the new head.
+export interface WsServerHeadChangeMessage extends WsServerMessageBase {
+  type: "headChange";
+  headId: string;
+  steps: ReActStep[];
+  workflowContent?: WorkflowContent;
+  operatorResults: OperatorResults;
+}
+
+export type WsServerMessage =
+  | WsServerInitMessage
+  | WsServerStepMessage
+  | WsServerStateMessage
+  | WsServerCompleteMessage
+  | WsServerErrorMessage
+  | WsServerHeadChangeMessage;

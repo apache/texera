@@ -18,23 +18,26 @@
  */
 
 // Client -> server WebSocket frames for this service's protocol
-// (`/agents/:id/react`). Each frame is a class whose `type` discriminator
-// equals its class name, so `new WsClientPromptCommand(...)` sets the wire tag
-// for you. `WsClientCommand` is their discriminated union.
+// (/agents/:id/react). Modeled as a discriminated union on `type` so each
+// request kind carries only its own fields, rather than one interface with
+// everything optional.
 
-/** Send a prompt to the agent to start (or continue) its ReAct loop. */
-export class WsClientPromptCommand {
-  readonly type = "WsClientPromptCommand";
-  constructor(
-    readonly content: string,
-    readonly messageSource?: "chat" | "feedback"
-  ) {}
+interface WsClientRequestBase {
+  type: "prompt" | "command";
 }
 
-/** Stop the agent's in-flight ReAct loop. Carries no payload. */
-export class WsClientStopCommand {
-  readonly type = "WsClientStopCommand";
+// A user prompt to run through the agent.
+export interface WsClientRequestPrompt extends WsClientRequestBase {
+  type: "prompt";
+  content: string;
+  messageSource?: "chat" | "feedback";
 }
 
-/** Discriminated union of every client -> server frame. */
-export type WsClientCommand = WsClientPromptCommand | WsClientStopCommand;
+// A control command. Today the only command stops the in-flight run; the
+// `commandType` discriminator leaves room for additional commands later.
+export interface WsClientRequestStopCommand extends WsClientRequestBase {
+  type: "command";
+  commandType: "stop";
+}
+
+export type WsClientRequest = WsClientRequestPrompt | WsClientRequestStopCommand;

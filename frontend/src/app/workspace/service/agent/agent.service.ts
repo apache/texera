@@ -449,7 +449,7 @@ export class AgentService {
    */
   private handleWebSocketMessage(agentId: string, tracking: AgentStateTracking, message: any): void {
     switch (message.type) {
-      case "WsServerSnapshotEvent":
+      case "init":
         // Initial state and steps
         if (message.state) {
           tracking.stateSubject.next(this.mapStateToAgentState(message.state));
@@ -471,9 +471,13 @@ export class AgentService {
           };
           tracking.workflowSubject.next(workflow as Workflow);
         }
+        // Handle initial operator results
+        if (message.operatorResults) {
+          this.updateOperatorResultSummaries(message.operatorResults);
+        }
         break;
 
-      case "WsServerStepEvent":
+      case "step":
         // New step received - update existing step or append new one
         if (message.step) {
           const convertedStep = this.convertApiReActStep(message.step);
@@ -512,14 +516,49 @@ export class AgentService {
         }
         break;
 
-      case "WsServerStatusEvent":
+      case "state":
         // State update
         if (message.state) {
           tracking.stateSubject.next(this.mapStateToAgentState(message.state));
         }
         break;
 
-      case "WsServerErrorEvent":
+      case "complete":
+        // Message processing complete
+        if (message.state) {
+          tracking.stateSubject.next(this.mapStateToAgentState(message.state));
+        }
+        // Update operator results on completion
+        if (message.operatorResults) {
+          this.updateOperatorResultSummaries(message.operatorResults);
+        }
+        break;
+
+      case "headChange":
+        // HEAD moved (checkout) — update HEAD, visible steps, and workflow
+        if (message.headId !== undefined) {
+          tracking.headIdSubject.next(message.headId);
+        }
+        if (message.steps && Array.isArray(message.steps)) {
+          const steps = message.steps.map((s: any) => this.convertApiReActStep(s));
+          tracking.reActStepsSubject.next(steps);
+        }
+        // Update workflow content from agent service (ground truth)
+        if (message.workflowContent) {
+          tracking.wsWorkflowActive = true;
+          const workflow: Workflow = {
+            ...(message.workflowMetadata || tracking.workflowSubject.getValue() || {}),
+            content: message.workflowContent,
+          };
+          tracking.workflowSubject.next(workflow as Workflow);
+        }
+        // Update operator results on HEAD change
+        if (message.operatorResults) {
+          this.updateOperatorResultSummaries(message.operatorResults);
+        }
+        break;
+
+      case "error":
         // Error occurred
         console.error(`Agent ${agentId} error:`, message.error);
 
@@ -870,7 +909,7 @@ export class AgentService {
     }
 
     const wsMessage = {
-      type: "WsClientPromptCommand",
+      type: "prompt",
       content: message,
       messageSource,
     };
@@ -928,7 +967,7 @@ export class AgentService {
     if (tracking?.websocket && tracking.websocket.readyState === WebSocket.OPEN) {
       // Send stop via WebSocket for immediate effect
       try {
-        tracking.websocket.send(JSON.stringify({ type: "WsClientStopCommand" }));
+        tracking.websocket.send(JSON.stringify({ type: "command", commandType: "stop" }));
       } catch (error) {
         console.error("Failed to send stop command:", error);
       }
@@ -984,6 +1023,14 @@ export class AgentService {
   public getHeadId(agentId: string): string | null {
     const tracking = this.agentStateTracking.get(agentId);
     return tracking ? tracking.headIdSubject.getValue() : null;
+  }
+
+  /**
+   * Checkout to a specific step (move HEAD, restore workflow).
+   * The backend broadcasts headChange + visible steps via WebSocket to all clients.
+   */
+  public checkoutStep(agentId: string, stepId: string): Observable<any> {
+    return this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/checkout`, { stepId });
   }
 
   /**
@@ -1226,12 +1273,34 @@ export class AgentService {
   // Operator Result Annotation Methods
   // ============================================================================
 
+  /** Whether operator result annotations are currently visible */
+  private resultAnnotationsVisibleSubject = new BehaviorSubject<boolean>(false);
+  public resultAnnotationsVisible$ = this.resultAnnotationsVisibleSubject.asObservable();
+
   /** Current operator result summaries (operatorId → summary) */
   private operatorResultSummariesSubject = new BehaviorSubject<Map<string, OperatorResultSummary>>(new Map());
   public operatorResultSummaries$ = this.operatorResultSummariesSubject.asObservable();
 
   /**
-   * Update operator result summaries from an API response.
+   * Toggle operator result annotations on/off.
+   * When toggling on, fetches the latest results from the active agent.
+   */
+  public toggleResultAnnotations(agentId?: string): void {
+    const newState = !this.resultAnnotationsVisibleSubject.getValue();
+    if (newState) {
+      const id = agentId ?? this.getActivelyConnectedAgentIds()[0];
+      if (!id) {
+        // No active agent — nothing to fetch
+        return;
+      }
+      this.fetchOperatorResults(id);
+    } else {
+      this.resultAnnotationsVisibleSubject.next(false);
+    }
+  }
+
+  /**
+   * Update operator result summaries from a WebSocket or API response.
    */
   private updateOperatorResultSummaries(results: Record<string, OperatorResultSummary>): void {
     const summaries = new Map<string, OperatorResultSummary>();
@@ -1242,10 +1311,7 @@ export class AgentService {
   }
 
   /**
-   * Pull the agent's latest operator result summaries from the backend and push
-   * them to `operatorResultSummaries$`. Called on demand when the UI needs to
-   * show results (e.g. opening an operator's popover); results are no longer
-   * pushed over the WebSocket.
+   * Fetch operator results from the backend (fallback if WebSocket data not available).
    */
   public fetchOperatorResults(agentId: string): void {
     this.http
@@ -1256,6 +1322,14 @@ export class AgentService {
       .pipe(catchError(() => of({ results: {} as Record<string, OperatorResultSummary> })))
       .subscribe(response => {
         this.updateOperatorResultSummaries(response.results);
+        this.resultAnnotationsVisibleSubject.next(true);
       });
+  }
+
+  /**
+   * Get current result annotations visibility.
+   */
+  public getResultAnnotationsVisible(): boolean {
+    return this.resultAnnotationsVisibleSubject.getValue();
   }
 }
