@@ -576,8 +576,33 @@ class RegionExecutionCoordinator(
           region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
         val schema =
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
-        DocumentFactory.createDocument(resultURI, schema)
-        DocumentFactory.createDocument(stateURI, State.schema)
+        // An output port whose storage accumulates across region re-executions
+        // (e.g. a LoopEnd port, whose output builds up over the iterations of
+        // its own loop) sets `reuseStorage`. When set, the port's existing
+        // document is kept and reopened on each re-run; when unset, a fresh one
+        // is created. Read per output port -- storage behavior is port-specific.
+        // (The inner LoopEnd of a nested loop additionally drops its output
+        // once per outer iteration on the Python worker side in
+        // MainLoop._process_state_frame, which is orthogonal to this.)
+        val reuseStorage =
+          region
+            .getOperator(outputPortId.opId)
+            .outputPorts(outputPortId.portId)
+            ._1
+            .reuseStorage
+        // Guard: no operator enables reuseStorage in production yet -- it
+        // activates with the loop operators, which aren't on main. Until then
+        // this fails loudly so the dormant reuse path is never silently
+        // exercised. Remove/relax this guard when introducing the loop operators.
+        require(
+          !reuseStorage,
+          s"Output port $outputPortId set reuseStorage, which is not " +
+            "supported in production yet (it activates with the loop operators)."
+        )
+        Seq((resultURI, schema), (stateURI, State.schema)).foreach {
+          case (uri, sch) =>
+            DocumentFactory.createOrReuseDocument(uri, sch, reuseStorage)
+        }
         if (!isRestart) {
           val (_, eid, _, _) = decodeURI(resultURI)
           WorkflowExecutionsResource.insertOperatorPortResultUri(
