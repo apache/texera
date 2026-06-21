@@ -38,15 +38,13 @@ export class DeploymentVersionService {
 
   // True when the deployed build's buildNumber differs from the running one.
   checkForUpdate(): Observable<boolean> {
-    return this.http
-      .get<{ buildNumber?: string }>(VERSION_MANIFEST_URL, { params: { t: Date.now().toString() } })
-      .pipe(
-        map(manifest => {
-          const deployed = manifest?.buildNumber;
-          return typeof deployed === "string" && deployed.length > 0 && deployed !== Version.buildNumber;
-        }),
-        catchError(() => of(false))
-      );
+    return this.http.get<{ buildNumber?: string }>(VERSION_MANIFEST_URL, { params: { t: Date.now().toString() } }).pipe(
+      map(manifest => {
+        const deployed = manifest?.buildNumber;
+        return typeof deployed === "string" && deployed.length > 0 && deployed !== Version.buildNumber;
+      }),
+      catchError(() => of(false))
+    );
   }
 
   // Poll until a new deployment is detected, then prompt once.
