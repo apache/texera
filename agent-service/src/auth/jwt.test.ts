@@ -18,10 +18,11 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { extractUserFromToken, validateToken, createAuthHeaders } from "./jwt";
+import { extractUserFromToken, validateToken, extractBearerToken, createAuthHeaders } from "./jwt";
 
+// Encode segments as base64url (no padding, `-`/`_` alphabet) to match real JWTs.
 function makeToken(payload: Record<string, unknown>): string {
-  const encode = (o: Record<string, unknown>) => Buffer.from(JSON.stringify(o)).toString("base64");
+  const encode = (o: Record<string, unknown>) => Buffer.from(JSON.stringify(o)).toString("base64url");
   return `${encode({ alg: "none", typ: "JWT" })}.${encode(payload)}.signature`;
 }
 
@@ -41,6 +42,13 @@ describe("extractUserFromToken", () => {
   test("throws on a malformed token", () => {
     expect(() => extractUserFromToken("not-a-jwt")).toThrow("Failed to decode JWT");
   });
+
+  test("decodes a token whose base64url payload contains -/_ characters", () => {
+    const token = makeToken({ userId: 9, sub: "a~?>>", email: "x@y.z" });
+    // Guard that this case stays meaningful: the payload segment must use the url-safe alphabet.
+    expect(token.split(".")[1]).toMatch(/[-_]/);
+    expect(extractUserFromToken(token)).toEqual({ uid: 9, name: "a~?>>", email: "x@y.z", role: "REGULAR" });
+  });
 });
 
 describe("validateToken", () => {
@@ -58,6 +66,28 @@ describe("validateToken", () => {
 
   test("rejects a malformed token", () => {
     expect(validateToken("garbage")).toBe(false);
+  });
+});
+
+describe("extractBearerToken", () => {
+  test("extracts the token from a Bearer header", () => {
+    expect(extractBearerToken("Bearer abc.def.ghi")).toBe("abc.def.ghi");
+  });
+
+  test("is case-insensitive on the scheme", () => {
+    expect(extractBearerToken("bearer xyz")).toBe("xyz");
+  });
+
+  test("returns undefined for a non-Bearer scheme", () => {
+    expect(extractBearerToken("Basic abc")).toBeUndefined();
+  });
+
+  test("returns undefined when the token is missing", () => {
+    expect(extractBearerToken("Bearer")).toBeUndefined();
+  });
+
+  test("returns undefined for an absent header", () => {
+    expect(extractBearerToken(undefined)).toBeUndefined();
   });
 });
 
