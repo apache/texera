@@ -35,7 +35,9 @@ describe("BlobErrorHttpInterceptor", () => {
   let interceptor: BlobErrorHttpInterceptor;
   const req = new HttpRequest("GET", "/test");
 
-  const handlerReturning = (obs: Observable<HttpEvent<any>>): HttpHandler => ({ handle: (_req: HttpRequest<any>) => obs });
+  const handlerReturning = (obs: Observable<HttpEvent<any>>): HttpHandler => ({
+    handle: (_req: HttpRequest<any>) => obs,
+  });
 
   // Run the interceptor and resolve to the emitted value or, on error, the error.
   const run = (next: HttpHandler): Promise<any> => firstValueFrom(interceptor.intercept(req, next)).catch(e => e);
@@ -86,6 +88,21 @@ describe("BlobErrorHttpInterceptor", () => {
     expect(rejected.status).toBe(502);
     expect(rejected.statusText).toBe("Bad Gateway");
     expect(rejected.url).toBe("http://example.com/api");
+  });
+
+  it("normalizes a null url to undefined when building the structured error", async () => {
+    const err = new HttpErrorResponse({
+      error: new Blob([JSON.stringify({ message: "Boom" })], { type: "application/json" }),
+      status: 500,
+      // url omitted → HttpErrorResponse defaults it to null, exercising the
+      // `err.url !== null ? err.url : undefined` false branch.
+    });
+
+    const rejected = await run(handlerReturning(throwError(() => err)));
+
+    expect(rejected).toBeInstanceOf(HttpErrorResponse);
+    expect(rejected.error).toEqual({ message: "Boom" });
+    expect(rejected.url).toBeNull();
   });
 
   it("re-throws the original error when the Blob contains malformed JSON", async () => {
