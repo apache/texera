@@ -19,19 +19,22 @@
 
 package org.apache.texera.service
 
+import io.dropwizard.core.setup.Environment
+import io.dropwizard.jersey.DropwizardResourceConfig
+import io.dropwizard.jersey.setup.JerseyEnvironment
 import org.apache.texera.auth.RoleAnnotationEnforcer
 import org.apache.texera.service.resource.{
   DatasetAccessResource,
   DatasetResource,
   HealthCheckResource
 }
+import org.mockito.Mockito.{mock, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class FileServiceRunSpec extends AnyFlatSpec with Matchers {
 
-  // Guards the actual endpoints this service registers: every HTTP method must
-  // carry @RolesAllowed/@PermitAll/@DenyAll, the regression the startup check exists for.
+  // Every endpoint this service registers declares @RolesAllowed/@PermitAll/@DenyAll.
   "FileService's registered resources" should "all declare access control" in {
     RoleAnnotationEnforcer.findUnannotatedEndpoints(
       Seq(
@@ -40,5 +43,15 @@ class FileServiceRunSpec extends AnyFlatSpec with Matchers {
         classOf[HealthCheckResource]
       )
     ) shouldBe empty
+  }
+
+  // Runs the enforcer over the Jersey resource config; a default config has no holes.
+  "FileService.enforceRoleAnnotations" should "pass for a resource config with no unannotated endpoints" in {
+    val jersey = mock(classOf[JerseyEnvironment])
+    val env = mock(classOf[Environment])
+    when(env.jersey).thenReturn(jersey)
+    when(jersey.getResourceConfig).thenReturn(DropwizardResourceConfig.forTesting())
+
+    noException should be thrownBy FileService.enforceRoleAnnotations(env)
   }
 }

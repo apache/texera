@@ -60,8 +60,7 @@ class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
     verify(jersey).setUrlPattern("/api/*")
   }
 
-  // Guards the actual endpoints this service registers: every HTTP method must
-  // carry @RolesAllowed/@PermitAll/@DenyAll, the regression the startup check exists for.
+  // Every endpoint this service registers declares @RolesAllowed/@PermitAll/@DenyAll.
   "AccessControlService's registered resources" should "all declare access control" in {
     RoleAnnotationEnforcer.findUnannotatedEndpoints(
       Seq(

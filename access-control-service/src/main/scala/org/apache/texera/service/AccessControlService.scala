@@ -103,8 +103,7 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
   }
 }
 object AccessControlService {
-  // Fail fast at startup if any registered endpoint is missing an
-  // @RolesAllowed/@PermitAll/@DenyAll annotation.
+  // Throws if any registered endpoint lacks @RolesAllowed/@PermitAll/@DenyAll.
   def enforceRoleAnnotations(environment: Environment): Unit = {
     val resourceConfig = environment.jersey.getResourceConfig
     RoleAnnotationEnforcer.enforce(

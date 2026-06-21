@@ -25,14 +25,8 @@ import jakarta.ws.rs.HttpMethod
 
 import java.lang.reflect.Method
 
-/** Startup-time guard that asserts every HTTP-mapped resource method carries an
-  * access-control annotation.
-  *
-  * `RolesAllowedDynamicFeature` enforces `@RolesAllowed` only where it is
-  * present; a method with no `@RolesAllowed`/`@PermitAll`/`@DenyAll` (and no
-  * class-level equivalent) is silently public. This enforcer scans the
-  * registered Jersey resources at boot and fails fast so a forgotten annotation
-  * becomes a startup error instead of an open hole.
+/** Scans Jersey resource classes and fails if any HTTP-mapped method lacks an
+  * @RolesAllowed/@PermitAll/@DenyAll annotation at the method or class level.
   */
 object RoleAnnotationEnforcer extends LazyLogging {
 
