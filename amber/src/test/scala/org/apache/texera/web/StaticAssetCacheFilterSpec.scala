@@ -94,11 +94,16 @@ class StaticAssetCacheFilterSpec extends AnyFlatSpec with Matchers {
   // --- doFilter wiring, exercised via dependency-free dynamic-proxy doubles ---
 
   // A proxy that answers the handled methods and returns nulls/zeros for everything else.
-  private def proxy[T](cls: Class[T])(handler: PartialFunction[(String, Seq[AnyRef]), AnyRef]): T = {
+  private def proxy[T](
+      cls: Class[T]
+  )(handler: PartialFunction[(String, Seq[AnyRef]), AnyRef]): T = {
     val h = new InvocationHandler {
       override def invoke(p: Any, m: Method, args: Array[AnyRef]): AnyRef = {
         val a = if (args == null) Seq.empty[AnyRef] else args.toSeq
-        handler.applyOrElse((m.getName, a), (_: (String, Seq[AnyRef])) => defaultValue(m.getReturnType))
+        handler.applyOrElse(
+          (m.getName, a),
+          (_: (String, Seq[AnyRef])) => defaultValue(m.getReturnType)
+        )
       }
     }
     Proxy.newProxyInstance(cls.getClassLoader, Array[Class[_]](cls), h).asInstanceOf[T]
@@ -125,7 +130,11 @@ class StaticAssetCacheFilterSpec extends AnyFlatSpec with Matchers {
     val headers = mutable.Map.empty[String, String]
     val chained = new AtomicBoolean(false)
     new StaticAssetCacheFilter()
-      .doFilter(httpRequest("/main.138cf96bab6ef6d9.js"), httpResponse(headers), recordingChain(chained))
+      .doFilter(
+        httpRequest("/main.138cf96bab6ef6d9.js"),
+        httpResponse(headers),
+        recordingChain(chained)
+      )
     headers.get("Cache-Control") shouldBe Some(ImmutableCacheControl)
     chained.get() shouldBe true
   }
