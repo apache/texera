@@ -412,7 +412,8 @@ class SyncExecutionResource extends LazyLogging {
       committedCount,
       timeoutMillis,
       pollIntervalMillis,
-      () => System.currentTimeMillis(),
+      // monotonic clock in millis: nanoTime never steps backwards under NTP adjustments
+      () => TimeUnit.NANOSECONDS.toMillis(System.nanoTime()),
       Thread.sleep
     )
   }
@@ -440,7 +441,11 @@ class SyncExecutionResource extends LazyLogging {
       try {
         countOf(uri)
       } catch {
-        case _: Exception => 0L
+        // Expected while the result doc is still being created (keep polling); a genuine
+        // storage error also lands here, so log at debug to keep the stall diagnosable.
+        case e: Exception =>
+          logger.debug(s"Committed count not readable yet for operator $opId at $uri", e)
+          0L
       }
     }
 
