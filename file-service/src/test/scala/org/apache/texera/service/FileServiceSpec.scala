@@ -131,4 +131,59 @@ class FileServiceSpec extends AnyFlatSpec {
     assert(ex.getMessage.contains("Interrupted while waiting for dep"))
     assert(ex.getCause.isInstanceOf[InterruptedException])
   }
+
+  it should "succeed on the final allowed attempt without giving up one try too early" in {
+    // Boundary for `attempt >= maxAttempts`: the operation only succeeds on the very last
+    // attempt, so the loop must not give up prematurely. Expect maxAttempts - 1 backoff waits.
+    var attempts = 0
+    val delays = ListBuffer.empty[Long]
+    service.awaitDependency("dep", 3, 200L, delays += _) {
+      attempts += 1
+      if (attempts < 3) throw new RuntimeException("not reachable yet")
+    }
+    assert(attempts == 3)
+    assert(delays.toList == List(200L, 400L))
+  }
+
+  it should "honor a custom initial delay when computing the backoff progression" in {
+    // Guards against the initial delay being hardcoded: starting from 50ms the geometric
+    // progression must be 50, 100, 200 rather than the default 200-based sequence.
+    var attempts = 0
+    val delays = ListBuffer.empty[Long]
+    val ex = intercept[RuntimeException] {
+      service.awaitDependency("dep", 4, 50L, delays += _) {
+        attempts += 1
+        throw new RuntimeException("down")
+      }
+    }
+    assert(attempts == 4)
+    assert(delays.toList == List(50L, 100L, 200L))
+    assert(ex.getMessage.contains("after 4 attempts"))
+  }
+
+  it should "include the underlying failure message when giving up" in {
+    val ex = intercept[RuntimeException] {
+      service.awaitDependency("dataset bucket", 2, 200L, _ => ()) {
+        throw new RuntimeException("connection refused")
+      }
+    }
+    assert(ex.getMessage.contains("dataset bucket not ready after 2 attempts"))
+    assert(ex.getMessage.contains("connection refused"))
+  }
+
+  it should "propagate a non-Exception Throwable immediately without retrying or wrapping it" in {
+    // The catch clause only matches Exception, so an Error must escape on the first attempt:
+    // it is neither retried nor wrapped in the \"not ready after N attempts\" RuntimeException.
+    var attempts = 0
+    val delays = ListBuffer.empty[Long]
+    val err = intercept[StackOverflowError] {
+      service.awaitDependency("dep", 6, 200L, delays += _) {
+        attempts += 1
+        throw new StackOverflowError("boom")
+      }
+    }
+    assert(attempts == 1)
+    assert(delays.isEmpty)
+    assert(err.getMessage == "boom")
+  }
 }
