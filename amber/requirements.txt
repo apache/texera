@@ -20,7 +20,7 @@ numpy==2.1.0
 pandas==2.2.3
 ruff==0.14.7
 loguru==0.7.0
-pyarrow==21.0.0
+pyarrow==23.0.1
 python-dateutil==2.8.2
 protobuf==7.34.1
 betterproto==2.0.0b7
