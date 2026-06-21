@@ -61,14 +61,17 @@ class RangeSliderOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("go.Scatter(")
   }
 
-  "RangeSliderOpDesc" should "round-trip xAxis and yAxis through the polymorphic base" in {
+  "RangeSliderOpDesc" should
+    "round-trip xAxis, yAxis, and duplicateType through the polymorphic base" in {
     val d = new RangeSliderOpDesc
     d.xAxis = "month"
     d.yAxis = "sales"
+    d.duplicateType = RangeSliderHandleDuplicateFunction.MEAN
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[RangeSliderOpDesc]
     val r = restored.asInstanceOf[RangeSliderOpDesc]
     r.xAxis shouldBe "month"
     r.yAxis shouldBe "sales"
+    r.duplicateType shouldBe RangeSliderHandleDuplicateFunction.MEAN
   }
 }

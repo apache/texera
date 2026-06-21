@@ -62,16 +62,24 @@ class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("go.Indicator(")
   }
 
-  "GaugeChartOpDesc" should "round-trip value/delta/threshold through the polymorphic base" in {
+  "GaugeChartOpDesc" should
+    "round-trip value/delta/threshold and steps through the polymorphic base" in {
     val d = new GaugeChartOpDesc
     d.value = "v"
     d.delta = "dl"
     d.threshold = "th"
+    val step = new GaugeChartSteps
+    step.start = "0"
+    step.end = "50"
+    d.steps = List(step)
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[GaugeChartOpDesc]
     val g = restored.asInstanceOf[GaugeChartOpDesc]
     g.value shouldBe "v"
     g.delta shouldBe "dl"
     g.threshold shouldBe "th"
+    g.steps should have length 1
+    g.steps.head.start shouldBe "0"
+    g.steps.head.end shouldBe "50"
   }
 }
