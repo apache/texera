@@ -52,7 +52,7 @@ function toFiniteNonNegative(value: number | undefined): number {
 /**
  * Project a single raw {@link OperatorStatistics} into the flat performance model,
  * defaulting every optional/missing field to 0. Data and control processing time
- * are kept as separate fields.
+ * are kept as separate fields so consumers can choose how to combine them.
  */
 export function toPerformanceMetrics(operatorId: string, stats: OperatorStatistics): OperatorPerformanceMetrics {
   return {
