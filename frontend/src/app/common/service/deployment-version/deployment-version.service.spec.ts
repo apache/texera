@@ -179,5 +179,53 @@ describe("DeploymentVersionService", () => {
     it("uses a 5 minute default poll interval", () => {
       expect(VERSION_POLL_INTERVAL_MS).toBe(5 * 60 * 1000);
     });
+
+    it("does not poll before the default 5 minute interval elapses", fakeAsync(() => {
+      const sub = service.start();
+      tick(VERSION_POLL_INTERVAL_MS - 1);
+      httpMock.expectNone(req => req.url === VERSION_MANIFEST_URL);
+      sub.unsubscribe();
+    }));
+
+    it("keeps polling and still prompts after a transient request failure", fakeAsync(() => {
+      const sub = service.start(1000);
+      tick(1000);
+      // First poll fails at the transport level: the stream must survive it.
+      takeManifestRequest().error(new ProgressEvent("error"));
+      expect(notification.blankCalls.length).toBe(0);
+      tick(1000);
+      takeManifestRequest().flush({ buildNumber: "new-build" });
+      expect(notification.blankCalls.length).toBe(1);
+      sub.unsubscribe();
+    }));
+  });
+
+  describe("start (idempotency)", () => {
+    it("returns the in-flight subscription instead of stacking a second poller", fakeAsync(() => {
+      const first = service.start(1000);
+      const second = service.start(1000);
+      expect(second).toBe(first);
+      tick(1000);
+      // Only one poller is active, so only one manifest request is issued.
+      takeManifestRequest().flush({ buildNumber: "new-build" });
+      expect(notification.blankCalls.length).toBe(1);
+      first.unsubscribe();
+    }));
+
+    it("starts a fresh poller once the previous run has completed", fakeAsync(() => {
+      const first = service.start(1000);
+      tick(1000);
+      // take(1) completes the first run after the update is detected.
+      takeManifestRequest().flush({ buildNumber: "new-build" });
+      expect(notification.blankCalls.length).toBe(1);
+
+      // A subsequent start() is no longer a no-op: the prior run is closed.
+      const second = service.start(1000);
+      expect(second).not.toBe(first);
+      tick(1000);
+      takeManifestRequest().flush({ buildNumber: "another-new-build" });
+      expect(notification.blankCalls.length).toBe(2);
+      second.unsubscribe();
+    }));
   });
 });

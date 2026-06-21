@@ -31,6 +31,8 @@ export const VERSION_POLL_INTERVAL_MS = 5 * 60 * 1000;
   providedIn: "root",
 })
 export class DeploymentVersionService {
+  private polling?: Subscription;
+
   constructor(
     private http: HttpClient,
     private notification: NotificationService
@@ -47,15 +49,21 @@ export class DeploymentVersionService {
     );
   }
 
-  // Poll until a new deployment is detected, then prompt once.
+  // Poll until a new deployment is detected, then prompt once. Idempotent:
+  // a second call while already polling returns the in-flight subscription
+  // rather than stacking a duplicate poller (and a duplicate prompt).
   start(intervalMs: number = VERSION_POLL_INTERVAL_MS): Subscription {
-    return timer(intervalMs, intervalMs)
+    if (this.polling && !this.polling.closed) {
+      return this.polling;
+    }
+    this.polling = timer(intervalMs, intervalMs)
       .pipe(
         switchMap(() => this.checkForUpdate()),
         filter(updated => updated),
         take(1)
       )
       .subscribe(() => this.promptReload());
+    return this.polling;
   }
 
   promptReload(): void {
