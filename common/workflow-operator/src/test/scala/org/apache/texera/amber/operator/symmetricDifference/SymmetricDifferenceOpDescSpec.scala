@@ -23,7 +23,9 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{HashPartition, PortIdentity}
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -75,5 +77,13 @@ class SymmetricDifferenceOpDescSpec extends AnyFlatSpec with Matchers {
     intercept[IllegalArgumentException] {
       physical.propagateSchema.func(mismatched)
     }
+  }
+
+  "SymmetricDifferenceOpDesc" should
+    "round-trip through the polymorphic base (pins the SymmetricDifference discriminator)" in {
+    // The operator has no config fields, so this pins the @JsonSubTypes
+    // discriminator + type resolution, on par with the other specs in this PR.
+    val json = objectMapper.writeValueAsString(new SymmetricDifferenceOpDesc)
+    objectMapper.readValue(json, classOf[LogicalOp]) shouldBe a[SymmetricDifferenceOpDesc]
   }
 }
