@@ -26,8 +26,9 @@ class OperatorGroupConstantsSpec extends AnyFlatSpec with Matchers {
 
   import OperatorGroupConstants._
 
-  "OperatorGroupConstants" should "pin the canonical group-name string values" in {
+  "OperatorGroupConstants" should "pin the canonical group-name string value of every constant" in {
     INPUT_GROUP shouldBe "Data Input"
+    DATABASE_GROUP shouldBe "Database Connector"
     SEARCH_GROUP shouldBe "Search"
     CLEANING_GROUP shouldBe "Data Cleaning"
     JOIN_GROUP shouldBe "Join"
@@ -35,10 +36,24 @@ class OperatorGroupConstantsSpec extends AnyFlatSpec with Matchers {
     AGGREGATE_GROUP shouldBe "Aggregate"
     SORT_GROUP shouldBe "Sort"
     UTILITY_GROUP shouldBe "Utilities"
+    API_GROUP shouldBe "External API"
     VISUALIZATION_GROUP shouldBe "Visualization"
     VISUALIZATION_BASIC_GROUP shouldBe "Basic"
+    VISUALIZATION_STATISTICAL_GROUP shouldBe "Statistical"
     VISUALIZATION_SCIENTIFIC_GROUP shouldBe "Scientific"
     VISUALIZATION_FINANCIAL_GROUP shouldBe "Financial"
+    VISUALIZATION_MEDIA_GROUP shouldBe "Media"
+    VISUALIZATION_ADVANCED_GROUP shouldBe "Advanced"
+    MACHINE_LEARNING_GROUP shouldBe "Machine Learning"
+    ADVANCED_SKLEARN_GROUP shouldBe "Advanced Sklearn"
+    HUGGINGFACE_GROUP shouldBe "Hugging Face"
+    SKLEARN_GROUP shouldBe "Sklearn"
+    SKLEARN_TRAINING_GROUP shouldBe "Sklearn Training"
+    UDF_GROUP shouldBe "User-defined Functions"
+    PYTHON_GROUP shouldBe "Python"
+    JAVA_GROUP shouldBe "Java"
+    R_GROUP shouldBe "R"
+    MACHINE_LEARNING_GENERAL_GROUP shouldBe "Machine Learning General"
     CONTROL_GROUP shouldBe "Control Block"
   }
 
