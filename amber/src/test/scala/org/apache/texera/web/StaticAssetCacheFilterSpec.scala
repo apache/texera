@@ -23,6 +23,12 @@ import org.apache.texera.web.StaticAssetCacheFilter.{ImmutableCacheControl, Reva
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.lang.reflect.{InvocationHandler, Method, Proxy}
+import java.util.concurrent.atomic.AtomicBoolean
+import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
+import javax.servlet.{FilterChain, ServletRequest, ServletResponse}
+import scala.collection.mutable
+
 class StaticAssetCacheFilterSpec extends AnyFlatSpec with Matchers {
 
   private def cc(path: String) = StaticAssetCacheFilter.cacheControlFor(path)
@@ -69,5 +75,94 @@ class StaticAssetCacheFilterSpec extends AnyFlatSpec with Matchers {
     // date or version stamp and must not be cached immutably for a year.
     cc("/report.20240101.csv") shouldBe Some(RevalidateCacheControl)
     cc("/photo.20240101120000.jpg") shouldBe Some(RevalidateCacheControl)
+  }
+
+  it should "fingerprint assets in nested directories and multi-dot chunk names" in {
+    cc("/assets/fonts/roboto.abcdef12.woff2") shouldBe Some(ImmutableCacheControl)
+    cc("/vendor.es2015.8a9b0c1d2e3f4a5b.js") shouldBe Some(ImmutableCacheControl)
+  }
+
+  it should "only match lowercase hex hashes, as emitted by the Angular build" in {
+    cc("/main.ABCDEF1234567890.js") shouldBe Some(RevalidateCacheControl)
+  }
+
+  it should "only exclude the /api/ prefix, not paths merely starting with 'api'" in {
+    cc("/api") shouldBe Some(RevalidateCacheControl)
+    cc("/api-docs.html") shouldBe Some(RevalidateCacheControl)
+  }
+
+  // --- doFilter wiring, exercised via dependency-free dynamic-proxy doubles ---
+
+  // A proxy that answers the handled methods and returns nulls/zeros for everything else.
+  private def proxy[T](cls: Class[T])(handler: PartialFunction[(String, Seq[AnyRef]), AnyRef]): T = {
+    val h = new InvocationHandler {
+      override def invoke(p: Any, m: Method, args: Array[AnyRef]): AnyRef = {
+        val a = if (args == null) Seq.empty[AnyRef] else args.toSeq
+        handler.applyOrElse((m.getName, a), (_: (String, Seq[AnyRef])) => defaultValue(m.getReturnType))
+      }
+    }
+    Proxy.newProxyInstance(cls.getClassLoader, Array[Class[_]](cls), h).asInstanceOf[T]
+  }
+
+  private def defaultValue(t: Class[_]): AnyRef =
+    if (t == java.lang.Boolean.TYPE) java.lang.Boolean.FALSE
+    else if (t == java.lang.Integer.TYPE) java.lang.Integer.valueOf(0)
+    else if (t == java.lang.Long.TYPE) java.lang.Long.valueOf(0L)
+    else null
+
+  private def httpRequest(uri: String): HttpServletRequest =
+    proxy(classOf[HttpServletRequest]) { case ("getRequestURI", _) => uri }
+
+  private def httpResponse(into: mutable.Map[String, String]): HttpServletResponse =
+    proxy(classOf[HttpServletResponse]) {
+      case ("setHeader", Seq(name, value)) => into.update(name.toString, value.toString); null
+    }
+
+  private def recordingChain(invoked: AtomicBoolean): FilterChain =
+    (_: ServletRequest, _: ServletResponse) => invoked.set(true)
+
+  "doFilter" should "set immutable Cache-Control on a fingerprinted asset and continue the chain" in {
+    val headers = mutable.Map.empty[String, String]
+    val chained = new AtomicBoolean(false)
+    new StaticAssetCacheFilter()
+      .doFilter(httpRequest("/main.138cf96bab6ef6d9.js"), httpResponse(headers), recordingChain(chained))
+    headers.get("Cache-Control") shouldBe Some(ImmutableCacheControl)
+    chained.get() shouldBe true
+  }
+
+  it should "set revalidate Cache-Control on a non-fingerprinted asset" in {
+    val headers = mutable.Map.empty[String, String]
+    val chained = new AtomicBoolean(false)
+    new StaticAssetCacheFilter()
+      .doFilter(httpRequest("/index.html"), httpResponse(headers), recordingChain(chained))
+    headers.get("Cache-Control") shouldBe Some(RevalidateCacheControl)
+    chained.get() shouldBe true
+  }
+
+  it should "leave /api/* responses untouched but still continue the chain" in {
+    val headers = mutable.Map.empty[String, String]
+    val chained = new AtomicBoolean(false)
+    new StaticAssetCacheFilter()
+      .doFilter(httpRequest("/api/workflow/1"), httpResponse(headers), recordingChain(chained))
+    headers shouldBe empty
+    chained.get() shouldBe true
+  }
+
+  it should "ignore non-HTTP request/response pairs but still continue the chain" in {
+    val chained = new AtomicBoolean(false)
+    new StaticAssetCacheFilter().doFilter(
+      proxy(classOf[ServletRequest])(PartialFunction.empty),
+      proxy(classOf[ServletResponse])(PartialFunction.empty),
+      recordingChain(chained)
+    )
+    chained.get() shouldBe true
+  }
+
+  "init and destroy" should "be no-ops that do not throw" in {
+    val filter = new StaticAssetCacheFilter()
+    noException should be thrownBy {
+      filter.init(null)
+      filter.destroy()
+    }
   }
 }
