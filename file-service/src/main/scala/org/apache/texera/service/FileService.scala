@@ -121,6 +121,13 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
       initialDelayMillis: Long = 200L,
       sleep: Long => Unit = Thread.sleep
   )(operation: => Unit): Unit = {
+    // Restore the interrupt status and fail fast rather than retrying, whether the
+    // interrupt arrives while running `operation` or while sleeping between attempts.
+    def failInterrupted(ie: InterruptedException): Nothing = {
+      Thread.currentThread().interrupt()
+      throw new RuntimeException(s"Interrupted while waiting for $description", ie)
+    }
+
     var attempt = 1
     var delayMillis = initialDelayMillis
     while (true) {
@@ -128,10 +135,7 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
         operation
         return
       } catch {
-        case ie: InterruptedException =>
-          // Restore the interrupt status and fail fast rather than retrying.
-          Thread.currentThread().interrupt()
-          throw new RuntimeException(s"Interrupted while waiting for $description", ie)
+        case ie: InterruptedException => failInterrupted(ie)
         case e: Exception =>
           if (attempt >= maxAttempts) {
             throw new RuntimeException(
@@ -143,7 +147,11 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
             s"$description not ready (attempt $attempt/$maxAttempts): ${e.getMessage}. " +
               s"Retrying in ${delayMillis}ms..."
           )
-          sleep(delayMillis)
+          try {
+            sleep(delayMillis)
+          } catch {
+            case ie: InterruptedException => failInterrupted(ie)
+          }
           attempt += 1
           delayMillis *= 2
       }
