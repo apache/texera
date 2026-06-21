@@ -35,7 +35,7 @@ describe("BlobErrorHttpInterceptor", () => {
   let interceptor: BlobErrorHttpInterceptor;
   const req = new HttpRequest("GET", "/test");
 
-  const handlerReturning = (obs: Observable<HttpEvent<any>>): HttpHandler => ({ handle: () => obs }) as HttpHandler;
+  const handlerReturning = (obs: Observable<HttpEvent<any>>): HttpHandler => ({ handle: (_req: HttpRequest<any>) => obs });
 
   // Run the interceptor and resolve to the emitted value or, on error, the error.
   const run = (next: HttpHandler): Promise<any> => firstValueFrom(interceptor.intercept(req, next)).catch(e => e);
