@@ -62,6 +62,12 @@ message OutputPort {
   string displayName = 2;
   bool blocking = 3;
   OutputMode mode = 4;
+  // Whether storage at this port persists across the owning operator's region
+  // re-executions: when set, the existing document is kept and appended to on
+  // each re-run; when unset, it is recreated. Set e.g. on a LoopEnd port whose
+  // output accumulates across the iterations of its own loop. The region
+  // scheduler reads this when provisioning the port's output document.
+  bool reuseStorage = 5;
 }
 
 
