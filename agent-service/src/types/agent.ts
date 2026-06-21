@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import type { ModelMessage } from "ai";
 import type { WorkflowContent } from "./workflow";
 
 export enum AgentState {
@@ -48,15 +49,15 @@ export interface ReActStep {
   toolCalls?: Array<{
     toolName: string;
     toolCallId: string;
-    input: unknown;
+    input: Record<string, unknown>;
   }>;
   toolResults?: Array<{
     toolCallId: string;
-    output: unknown;
+    output: string;
     isError?: boolean;
   }>;
   usage?: TokenUsage;
-  inputMessages?: unknown[];
+  inputMessages?: ModelMessage[];
   messageSource?: "chat" | "feedback";
   beforeWorkflowContent?: WorkflowContent;
   afterWorkflowContent?: WorkflowContent;
