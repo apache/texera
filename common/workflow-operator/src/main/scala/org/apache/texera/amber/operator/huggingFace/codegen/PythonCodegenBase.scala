@@ -55,9 +55,12 @@ object PythonCodegenBase {
     val systemPrompt = ctx.systemPrompt
     val maxNewTokens = ctx.safeMaxTokens
     val temperature = ctx.safeTemp
+    val imageInput = ctx.imageInput
+    val inputImageColumn = ctx.inputImageColumn
     pyb"""import os
        |import re
        |import json
+       |import base64
        |import requests
        |import pandas as pd
        |from pytexera import *
@@ -117,6 +120,9 @@ object PythonCodegenBase {
        |        "ovhcloud", "publicai", "scaleway", "baseten",
        |    )
        |
+       |    # Hard cap on bytes pulled from an external (user/response-provided) URL.
+       |    MAX_REMOTE_FETCH_BYTES = 25 * 1024 * 1024
+       |
        |    def open(self):
        |        # User-provided strings reach the operator via base64-encoded
        |        # decode expressions so they cannot break Python syntax or
@@ -129,6 +135,8 @@ object PythonCodegenBase {
        |        self.SYSTEM_PROMPT = $systemPrompt
        |        self.MAX_NEW_TOKENS = $maxNewTokens
        |        self.TEMPERATURE = $temperature
+       |        self.IMAGE_INPUT = $imageInput
+       |        self.INPUT_IMAGE_COLUMN = $inputImageColumn
        |
        |    def _resolve_providers(self, token):
        |        '''Query the HF Hub API for inference providers serving this model.
@@ -168,7 +176,7 @@ object PythonCodegenBase {
        |            pass
        |        return [{"name": "hf-inference", "providerId": self.MODEL_ID}]
        |
-       |    def _post_with_fallback(self, providers, json_headers, pipeline_payload, prompt_value):
+       |    def _post_with_fallback(self, providers, json_headers, raw_binary_headers, pipeline_payload, use_raw_binary_body, prompt_value):
        |        '''Try providers in order, using the correct API route for each.
        |        Returns (response, provider_summary). provider_summary is None on
        |        success or a string describing what failed.
@@ -179,16 +187,38 @@ object PythonCodegenBase {
        |        for prov in providers:
        |            provider_name = prov["name"]
        |            provider_id = prov["providerId"]
+       |            is_model_author = prov.get("isModelAuthor", False)
+       |            prov_task = prov.get("task", "")
        |            try:
-       |                if self.TASK == "text-generation":
+       |                if self.TASK in ("text-generation", "image-text-to-text"):
        |                    route = self.CHAT_ROUTES.get(provider_name, "v1/chat/completions")
        |                    url = f"https://router.huggingface.co/{provider_name}/{route}"
        |                    resp = requests.post(url, headers=json_headers, json=pipeline_payload, timeout=120)
+       |                elif is_model_author and prov_task in ("image-to-text", "image-text-to-text") and provider_name not in ("zai-org",):
+       |                    url = f"https://router.huggingface.co/{provider_name}/v1/chat/completions"
+       |                    img_b64 = ""
+       |                    if use_raw_binary_body and isinstance(pipeline_payload, bytes):
+       |                        img_b64 = base64.b64encode(pipeline_payload).decode("utf-8")
+       |                    chat_payload = {
+       |                        "model": provider_id,
+       |                        "messages": [{
+       |                            "role": "user",
+       |                            "content": [
+       |                                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}} if img_b64 else None,
+       |                                {"type": "text", "text": prompt_value if prompt_value else "What is in this image?"},
+       |                            ],
+       |                        }],
+       |                    }
+       |                    chat_payload["messages"][0]["content"] = [c for c in chat_payload["messages"][0]["content"] if c is not None]
+       |                    resp = requests.post(url, headers=json_headers, json=chat_payload, timeout=120)
        |                elif provider_name == "hf-inference":
        |                    url = f"https://router.huggingface.co/hf-inference/models/{self.MODEL_ID}"
-       |                    resp = requests.post(url, headers=json_headers, json=pipeline_payload, timeout=120)
+       |                    if use_raw_binary_body:
+       |                        resp = requests.post(url, headers=raw_binary_headers, data=pipeline_payload, timeout=120)
+       |                    else:
+       |                        resp = requests.post(url, headers=json_headers, json=pipeline_payload, timeout=120)
        |                else:
-       |                    resp = self._call_provider(provider_name, provider_id, json_headers, pipeline_payload, prompt_value)
+       |                    resp = self._call_provider(provider_name, provider_id, json_headers, raw_binary_headers, pipeline_payload, use_raw_binary_body, prompt_value)
        |            except Exception as e:
        |                errors.append(f"{provider_name}: {type(e).__name__}")
        |                continue
@@ -207,18 +237,174 @@ object PythonCodegenBase {
        |        summary = "; ".join(errors) if errors else "no providers available"
        |        return last_resp, summary
        |
-       |    def _call_provider(self, provider_name, provider_id, json_headers, pipeline_payload, prompt_value):
+       |    def _call_provider(self, provider_name, provider_id, json_headers, raw_binary_headers, pipeline_payload, use_raw_binary_body, prompt_value):
        |        '''Route to a third-party provider using its native API format.
-       |        For the text-gen-only build this covers the OpenAI-compatible chat
-       |        providers and an unknown-provider fallback that tries the pipeline
-       |        format then chat completions. Image / audio / media routing will
-       |        be added in subsequent PRs alongside the corresponding task
-       |        codegens.
+       |        Handles OpenAI-compatible chat providers for text-gen, zai-org's
+       |        custom API, Replicate / Fal-ai / Wavespeed for media-generation
+       |        and image-to-image, and an unknown-provider fallback that tries
+       |        the pipeline format then chat completions.
        |        '''
        |        base = f"https://router.huggingface.co/{provider_name}"
+       |        task = self.TASK
+       |        img_b64 = ""
+       |        if use_raw_binary_body and isinstance(pipeline_payload, bytes):
+       |            img_b64 = base64.b64encode(pipeline_payload).decode("utf-8")
+       |        elif isinstance(pipeline_payload, dict):
+       |            # Image+prompt tasks (visual-question-answering, document-question-
+       |            # answering, zero-shot-image-classification) build dict payloads
+       |            # with use_raw_binary_body=False, so the raw-bytes extraction above
+       |            # doesn't fire. Without this branch, when one of those tasks routes
+       |            # to a third-party provider (replicate / fal-ai / wavespeed /
+       |            # OpenAI-compatible / unknown-fallback) the image is silently
+       |            # dropped and only prompt_value is sent — they happen to work only
+       |            # on hf-inference, where the dict goes through as JSON. Surfacing
+       |            # img_b64 here keeps the provider-specific branches below image-
+       |            # aware without each branch needing to know the dict shape.
+       |            inputs = pipeline_payload.get("inputs")
+       |            if isinstance(inputs, dict) and isinstance(inputs.get("image"), str):
+       |                img_b64 = inputs["image"]
+       |            elif task == "zero-shot-image-classification" and isinstance(inputs, str):
+       |                img_b64 = inputs
+       |
+       |        # zai-org: custom /api/paas/v4/ surface.
+       |        if provider_name == "zai-org":
+       |            zai_headers = {**json_headers, "x-source-channel": "hugging_face", "accept-language": "en-US,en"}
+       |            if task in ("image-to-text", "image-text-to-text"):
+       |                url = f"{base}/api/paas/v4/layout_parsing"
+       |                file_data = f"data:image/png;base64,{img_b64}" if img_b64 else ""
+       |                return requests.post(url, headers=zai_headers, json={"model": provider_id, "file": file_data}, timeout=120)
+       |            url = f"{base}/api/paas/v4/chat/completions"
+       |            messages = [{"role": "user", "content": prompt_value}]
+       |            if img_b64:
+       |                messages = [{"role": "user", "content": [
+       |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
+       |                    {"type": "text", "text": prompt_value if prompt_value else "What is in this image?"},
+       |                ]}]
+       |            return requests.post(url, headers=zai_headers, json={"model": provider_id, "messages": messages}, timeout=120)
+       |
+       |        # Replicate: synchronous predictions endpoint with polling fallback.
+       |        if provider_name == "replicate":
+       |            url = f"{base}/v1/models/{provider_id}/predictions"
+       |            hdrs = {**json_headers, "Prefer": "wait"}
+       |            if task == "image-to-image" and img_b64:
+       |                data_url = f"data:image/png;base64,{img_b64}"
+       |                inp = {"image": data_url, "images": [data_url], "input_image": data_url, "prompt": prompt_value}
+       |            elif img_b64:
+       |                inp = {"image": f"data:image/png;base64,{img_b64}", "prompt": prompt_value}
+       |            else:
+       |                inp = {"prompt": prompt_value}
+       |            resp = requests.post(url, headers=hdrs, json={"input": inp}, timeout=120)
+       |            if resp.status_code == 202:
+       |                import time as _time
+       |                pred = resp.json()
+       |                poll_url = pred.get("urls", {}).get("get", "")
+       |                if not poll_url:
+       |                    return resp
+       |                from urllib.parse import urlparse as _urlparse
+       |                poll_path = _urlparse(poll_url).path
+       |                poll_url = f"{base}{poll_path}"
+       |                # Worst case: 300 polls × 2s = ~10 minutes per row before we give
+       |                # up. Sized for text-to-video which legitimately takes minutes on
+       |                # Replicate. process_table is synchronous, so emit a progress
+       |                # line every 30 polls (~1 min) to distinguish slow work from a
+       |                # hang in the worker log.
+       |                for poll_idx in range(300):
+       |                    _time.sleep(2)
+       |                    poll_resp = requests.get(poll_url, headers=json_headers, timeout=30)
+       |                    if poll_resp.status_code != 200:
+       |                        continue
+       |                    status = poll_resp.json().get("status", "")
+       |                    if status == "succeeded":
+       |                        return poll_resp
+       |                    if status in ("failed", "canceled"):
+       |                        # The polling HTTP request itself returned 200, but the
+       |                        # Replicate prediction terminally failed. Without this
+       |                        # branch, process_table would treat the 200 as success
+       |                        # and emit json.dumps(body) (raw error JSON) into the
+       |                        # output cell. Convert to a synthetic 502 so
+       |                        # _post_with_fallback's non-200 handler surfaces the
+       |                        # actual failure detail via _format_error.
+       |                        body_json = poll_resp.json() if poll_resp.text else {}
+       |                        detail = (body_json.get("error") or body_json.get("logs") or status) \
+       |                            if isinstance(body_json, dict) else status
+       |                        poll_resp.status_code = 502
+       |                        poll_resp._content = json.dumps({
+       |                            "error": f"Replicate prediction {status}: {detail}"
+       |                        }).encode("utf-8")
+       |                        return poll_resp
+       |                    if (poll_idx + 1) % 30 == 0:
+       |                        print(f"[hf] Replicate still running for model '{self.MODEL_ID}' after {(poll_idx + 1) * 2}s; will wait up to 600s.")
+       |                return poll_resp
+       |            return resp
+       |
+       |        # Fal-ai: per-model endpoint.
+       |        if provider_name == "fal-ai":
+       |            url = f"{base}/{provider_id}"
+       |            if task == "image-to-image" and img_b64:
+       |                data_url = f"data:image/png;base64,{img_b64}"
+       |                return requests.post(url, headers=json_headers, json={"image_url": data_url, "image_urls": [data_url], "prompt": prompt_value}, timeout=120)
+       |            if img_b64:
+       |                return requests.post(url, headers=json_headers, json={"image_url": f"data:image/png;base64,{img_b64}", "prompt": prompt_value}, timeout=120)
+       |            return requests.post(url, headers=json_headers, json={"prompt": prompt_value}, timeout=120)
+       |
+       |        # Wavespeed: async submit + poll.
+       |        if provider_name == "wavespeed":
+       |            url = f"{base}/api/v3/{provider_id}"
+       |            payload = {"prompt": prompt_value}
+       |            if img_b64:
+       |                payload["image"] = img_b64
+       |                payload["images"] = [img_b64]
+       |            submit_resp = requests.post(url, headers=json_headers, json=payload, timeout=120)
+       |            if submit_resp.status_code not in (200, 201):
+       |                return submit_resp
+       |            get_path = submit_resp.json().get("data", {}).get("urls", {}).get("get", "")
+       |            if not get_path:
+       |                return submit_resp
+       |            from urllib.parse import urlparse as _urlparse
+       |            result_url = f"{base}{_urlparse(get_path).path}"
+       |            import time as _time
+       |            poll_resp = submit_resp
+       |            # Worst case: 120 polls × 1s = ~2 minutes per row. Emit a progress
+       |            # line every 30 polls (~30 s) so the worker log distinguishes slow
+       |            # work from a hang.
+       |            for poll_idx in range(120):
+       |                _time.sleep(1)
+       |                poll_resp = requests.get(result_url, headers=json_headers, timeout=30)
+       |                if poll_resp.status_code != 200:
+       |                    continue
+       |                body_json = poll_resp.json() if poll_resp.text else {}
+       |                data_obj = body_json.get("data", {}) if isinstance(body_json, dict) else {}
+       |                status = data_obj.get("status", "") if isinstance(data_obj, dict) else ""
+       |                if status == "completed":
+       |                    return poll_resp
+       |                if status == "failed":
+       |                    # Same shape as Replicate: HTTP 200 + body says "failed".
+       |                    # Synthesize a 502 so _post_with_fallback's non-200 handler
+       |                    # reports the actual reason instead of process_table
+       |                    # parsing the success-shaped body and writing raw error
+       |                    # JSON into the result cell.
+       |                    detail = (
+       |                        (data_obj.get("error") if isinstance(data_obj, dict) else None)
+       |                        or (body_json.get("error") if isinstance(body_json, dict) else None)
+       |                        or "failed"
+       |                    )
+       |                    poll_resp.status_code = 502
+       |                    poll_resp._content = json.dumps({
+       |                        "error": f"Wavespeed job failed: {detail}"
+       |                    }).encode("utf-8")
+       |                    return poll_resp
+       |                if (poll_idx + 1) % 30 == 0:
+       |                    print(f"[hf] Wavespeed still running for model '{self.MODEL_ID}' after {poll_idx + 1}s; will wait up to 120s.")
+       |            return poll_resp
+       |
        |        if provider_name in self.OPENAI_COMPATIBLE_PROVIDERS:
        |            url = f"{base}/{self.CHAT_ROUTES.get(provider_name, 'v1/chat/completions')}"
        |            messages = [{"role": "user", "content": prompt_value}]
+       |            if img_b64:
+       |                messages = [{"role": "user", "content": [
+       |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
+       |                    {"type": "text", "text": prompt_value if prompt_value else "What is in this image?"},
+       |                ]}]
        |            return requests.post(
        |                url,
        |                headers=json_headers,
@@ -228,10 +414,18 @@ object PythonCodegenBase {
        |
        |        # Unknown provider: try pipeline format, then chat completions.
        |        url = f"{base}/{provider_id}"
-       |        resp = requests.post(url, headers=json_headers, json=pipeline_payload, timeout=120)
+       |        if use_raw_binary_body:
+       |            resp = requests.post(url, headers=raw_binary_headers, data=pipeline_payload, timeout=120)
+       |        else:
+       |            resp = requests.post(url, headers=json_headers, json=pipeline_payload, timeout=120)
        |        if resp.status_code in (400, 404, 422):
        |            url = f"{base}/v1/chat/completions"
        |            messages = [{"role": "user", "content": prompt_value}]
+       |            if img_b64:
+       |                messages = [{"role": "user", "content": [
+       |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
+       |                    {"type": "text", "text": prompt_value if prompt_value else "Describe this image."},
+       |                ]}]
        |            resp2 = requests.post(
        |                url,
        |                headers=json_headers,
@@ -247,6 +441,9 @@ object PythonCodegenBase {
        |        prompt_col = self.PROMPT_COLUMN
        |        result_col = self.RESULT_COLUMN
        |        task = self.TASK
+       |        image_only_tasks = ("image-classification", "object-detection", "image-segmentation", "image-to-text")
+       |        image_prompt_tasks = ("visual-question-answering", "document-question-answering", "zero-shot-image-classification", "image-text-to-text", "image-to-image")
+       |        image_tasks = image_only_tasks + image_prompt_tasks
        |
        |        # --- validate MODEL_ID format before any HF URL is built ---
        |        if not _HF_MODEL_ID_PATTERN.match(self.MODEL_ID or ""):
@@ -266,11 +463,12 @@ object PythonCodegenBase {
        |        # --- resolve all available inference providers for this model (tried in order) ---
        |        providers = self._resolve_providers(token)
        |
-       |        # --- validate prompt column exists ---
-       |        assert prompt_col in table.columns, (
-       |            f"Prompt column '{prompt_col}' not found in input table. "
-       |            f"Available columns: {list(table.columns)}"
-       |        )
+       |        # --- validate prompt column exists (required for non-image tasks) ---
+       |        if task not in image_tasks:
+       |            assert prompt_col in table.columns, (
+       |                f"Prompt column '{prompt_col}' not found in input table. "
+       |                f"Available columns: {list(table.columns)}"
+       |            )
        |
        |        # --- handle empty table ---
        |        if table.empty:
@@ -282,21 +480,63 @@ object PythonCodegenBase {
        |            "Authorization": f"Bearer {token}",
        |            "Content-Type": "application/json",
        |        }
+       |        image_headers = {
+       |            "Authorization": f"Bearer {token}",
+       |            "Content-Type": "application/octet-stream",
+       |        }
+       |
+       |        # --- resolve image source (upload or column) for image tasks ---
+       |        has_image_upload = bool(self.IMAGE_INPUT) and bool(str(self.IMAGE_INPUT).strip())
+       |        use_image_column = not has_image_upload and bool(self.INPUT_IMAGE_COLUMN) and self.INPUT_IMAGE_COLUMN in table.columns
+       |        image_bytes = None
+       |        image_error = None
+       |        if task in image_tasks and not use_image_column:
+       |            if not has_image_upload:
+       |                image_error = "No image source. Set an Input Image Column or upload an image."
+       |            else:
+       |                try:
+       |                    image_bytes = self._read_image_input()
+       |                except Exception as e:
+       |                    image_error = f"Could not read image input ({type(e).__name__}: {e})"
        |
        |        results = []
        |        for idx, row in table.iterrows():
-       |            prompt_value = row[prompt_col]
-       |            if pd.isna(prompt_value):
+       |            if image_error is not None:
+       |                results.append(self._format_error("Image task configuration error", image_error))
+       |                continue
+       |
+       |            if task in image_only_tasks:
        |                prompt_value = ""
+       |            elif task in image_prompt_tasks and prompt_col not in table.columns:
+       |                prompt_value = "What is shown in this image?"
        |            else:
-       |                prompt_value = str(prompt_value)
+       |                prompt_value = row[prompt_col]
+       |                if pd.isna(prompt_value):
+       |                    prompt_value = ""
+       |                else:
+       |                    prompt_value = str(prompt_value)
+       |
+       |            # --- resolve per-row image bytes from column ---
+       |            current_image_bytes = image_bytes
+       |            if task in image_tasks and use_image_column:
+       |                try:
+       |                    raw = self._read_binary_value(row[self.INPUT_IMAGE_COLUMN])
+       |                    if raw is None:
+       |                        results.append(self._format_error("Image data error", f"Row {idx}: image column is empty"))
+       |                        continue
+       |                    current_image_bytes = self._compress_image_bytes(raw)
+       |                except Exception as e:
+       |                    results.append(self._format_error("Image data error", f"Row {idx}: {type(e).__name__}: {e}"))
+       |                    continue
        |
        |            # --- build task-specific payload (provided by per-task codegen) ---
+       |            use_raw_binary_body = False
+       |            raw_binary_headers = image_headers
        |${payload}
        |
        |            try:
        |                resp, provider_summary = self._post_with_fallback(
-       |                    providers, json_headers, payload, prompt_value
+       |                    providers, json_headers, raw_binary_headers, payload, use_raw_binary_body, prompt_value
        |                )
        |
        |                if resp is None:
@@ -331,6 +571,12 @@ object PythonCodegenBase {
        |                    )
        |                    continue
        |
+       |                content_type = resp.headers.get("Content-Type", "")
+       |                if content_type.startswith("image/"):
+       |                    b64 = base64.b64encode(resp.content).decode("utf-8")
+       |                    results.append(f"data:{content_type};base64,{b64}")
+       |                    continue
+       |
        |                try:
        |                    body = resp.json()
        |                except ValueError:
@@ -360,6 +606,240 @@ object PythonCodegenBase {
        |        if not detail:
        |            detail = "<empty response>"
        |        return f"{title} [status={status_code}] response={detail}"
+       |
+       |    # ──────────────────────────────────────────────────────────────────
+       |    # Image-task helpers (used by ImageTaskCodegen and image-related
+       |    # branches of _call_provider).
+       |    # ──────────────────────────────────────────────────────────────────
+       |
+       |    def _fetch_remote_url(self, url):
+       |        '''Fetch an external URL with SSRF hardening. Returns (content_type, data).
+       |        Enforces https-only, rejects private/loopback/link-local/reserved
+       |        addresses (covers the 169.254.169.254 cloud-metadata endpoint), and
+       |        caps the response at MAX_REMOTE_FETCH_BYTES. The address check runs
+       |        before the request, so it mitigates but does not fully prevent DNS
+       |        rebinding (requests re-resolves on connect).
+       |        '''
+       |        import ipaddress
+       |        import socket
+       |        from urllib.parse import urlparse as _urlparse
+       |        parsed = _urlparse(url)
+       |        if parsed.scheme != "https":
+       |            raise ValueError(f"Only https URLs are allowed (got scheme '{parsed.scheme}').")
+       |        host = parsed.hostname
+       |        if not host:
+       |            raise ValueError("Remote URL has no host.")
+       |        try:
+       |            addrinfos = socket.getaddrinfo(host, parsed.port or 443, proto=socket.IPPROTO_TCP)
+       |        except socket.gaierror as e:
+       |            raise ValueError(f"Could not resolve host '{host}': {e}")
+       |        for info in addrinfos:
+       |            ip = ipaddress.ip_address(info[4][0])
+       |            if (ip.is_private or ip.is_loopback or ip.is_link_local
+       |                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+       |                raise ValueError(f"Refusing to fetch from non-public address {ip}.")
+       |        resp = requests.get(url, timeout=120, stream=True)
+       |        resp.raise_for_status()
+       |        content_type = resp.headers.get("Content-Type", "")
+       |        total = 0
+       |        chunks = []
+       |        for chunk in resp.iter_content(65536):
+       |            total += len(chunk)
+       |            if total > self.MAX_REMOTE_FETCH_BYTES:
+       |                resp.close()
+       |                raise ValueError(
+       |                    f"Remote file exceeds the {self.MAX_REMOTE_FETCH_BYTES} byte limit."
+       |                )
+       |            chunks.append(chunk)
+       |        return content_type, b"".join(chunks)
+       |
+       |    def _read_image_input(self):
+       |        image_input = str(self.IMAGE_INPUT or "").strip()
+       |        if image_input.startswith("data:"):
+       |            _, encoded = image_input.split(",", 1)
+       |            return base64.b64decode(encoded)
+       |        if image_input.startswith("http://") or image_input.startswith("https://"):
+       |            _, data = self._fetch_remote_url(image_input)
+       |            return data
+       |        # Reading arbitrary worker-filesystem paths is intentionally NOT
+       |        # supported: a workflow could otherwise point this at any file on the
+       |        # worker (e.g. /etc/passwd) and exfiltrate it via the inference call.
+       |        # Uploaded images arrive as data URLs; remote images as https URLs.
+       |        raise ValueError(
+       |            "Unsupported image input. Upload an image (sent as a data URL) "
+       |            "or provide a public https image URL."
+       |        )
+       |
+       |    def _compress_image_bytes(self, image_bytes, max_bytes=33000):
+       |        from io import BytesIO
+       |        from PIL import Image as PILImage
+       |        if len(image_bytes) <= max_bytes:
+       |            return image_bytes
+       |        try:
+       |            img = PILImage.open(BytesIO(image_bytes))
+       |            img = img.convert("RGB")
+       |            max_dim = 512
+       |            quality = 75
+       |            while max_dim >= 160:
+       |                scale = min(1, max_dim / max(img.width, img.height))
+       |                w = max(1, round(img.width * scale))
+       |                h = max(1, round(img.height * scale))
+       |                resized = img.resize((w, h), PILImage.LANCZOS)
+       |                q = quality
+       |                while q >= 35:
+       |                    buf = BytesIO()
+       |                    resized.save(buf, format="JPEG", quality=q)
+       |                    if buf.tell() <= max_bytes:
+       |                        return buf.getvalue()
+       |                    q -= 10
+       |                max_dim = int(max_dim * 0.75)
+       |            buf = BytesIO()
+       |            resized.save(buf, format="JPEG", quality=35)
+       |            return buf.getvalue()
+       |        except Exception:
+       |            return image_bytes
+       |
+       |    def _image_input_as_base64(self, image_bytes):
+       |        return base64.b64encode(image_bytes).decode("utf-8")
+       |
+       |    def _read_binary_value(self, value):
+       |        if value is None:
+       |            return None
+       |        if isinstance(value, bytes):
+       |            return value
+       |        # Treat scalar pandas/numpy missing sentinels (NaN, pd.NA, NaT) as empty.
+       |        # isinstance(value, float) only catches float('nan'); pd.NA / NaT are not
+       |        # floats and would otherwise be str()-ified into "<NA>"/"NaT" bytes. Guard
+       |        # pd.isna against non-scalar inputs, where it returns an array and `if`
+       |        # raises on an ambiguous truth value.
+       |        try:
+       |            if pd.isna(value):
+       |                return None
+       |        except (TypeError, ValueError):
+       |            pass
+       |        val = str(value).strip()
+       |        if not val:
+       |            return None
+       |        if self._looks_like_html(val):
+       |            return self._html_to_image_bytes(val)
+       |        if val.startswith("data:"):
+       |            _, encoded = val.split(",", 1)
+       |            return base64.b64decode(encoded)
+       |        if val.startswith("http://") or val.startswith("https://"):
+       |            _, data = self._fetch_remote_url(val)
+       |            return data
+       |        # No worker-filesystem path reads here either (see _read_image_input):
+       |        # a column value must be a data URL, http(s) URL, rendered HTML, or
+       |        # base64-encoded bytes. Anything else is treated as raw bytes, never
+       |        # as a path to open.
+       |        try:
+       |            return base64.b64decode(val)
+       |        except Exception:
+       |            return val.encode("utf-8")
+       |
+       |    def _looks_like_html(self, val):
+       |        s = val.lstrip()[:200].lower()
+       |        if s.startswith("<!doctype html") or s.startswith("<html"):
+       |            return True
+       |        if "plotly.newplot" in val[:5000].lower() or "plotly.react" in val[:5000].lower():
+       |            return True
+       |        if "<img" in s and "base64," in s:
+       |            return True
+       |        return False
+       |
+       |    def _html_to_image_bytes(self, html_string):
+       |        match = re.search(r"data:image/[^;]+;base64,([A-Za-z0-9+/\n\r =]+)", html_string)
+       |        if match:
+       |            b64 = match.group(1).replace("\n", "").replace("\r", "").replace(" ", "")
+       |            return base64.b64decode(b64)
+       |        if "Plotly." in html_string:
+       |            try:
+       |                import plotly.graph_objects as go
+       |                import plotly.io as pio
+       |                plotly_match = re.search(r"Plotly\.(?:newPlot|react)\s*\(\s*", html_string)
+       |                if plotly_match:
+       |                    pos = plotly_match.end()
+       |                    if pos < len(html_string) and html_string[pos] in ('"', "'"):
+       |                        q = html_string[pos]
+       |                        pos += 1
+       |                        while pos < len(html_string) and html_string[pos] != q:
+       |                            if html_string[pos] == "\\":
+       |                                pos += 1
+       |                            pos += 1
+       |                        pos += 1
+       |                    while pos < len(html_string) and html_string[pos] in " ,\n\r\t":
+       |                        pos += 1
+       |                    data_json, pos = self._extract_json_arg(html_string, pos)
+       |                    while pos < len(html_string) and html_string[pos] in " ,\n\r\t":
+       |                        pos += 1
+       |                    layout_json, _ = self._extract_json_arg(html_string, pos)
+       |                    if data_json:
+       |                        data = json.loads(data_json)
+       |                        layout = json.loads(layout_json) if layout_json else {}
+       |                        fig = go.Figure(data=data, layout=layout)
+       |                        return pio.to_image(fig, format="png", width=800, height=600)
+       |            except ImportError as ie:
+       |                raise ValueError(
+       |                    f"Plotly chart detected but cannot render to image: {ie}. "
+       |                    f"Install kaleido: pip install kaleido"
+       |                )
+       |            except json.JSONDecodeError:
+       |                pass
+       |        raise ValueError(
+       |            "Cannot convert HTML to image. The HTML does not contain "
+       |            "an extractable base64 image or a parseable Plotly chart."
+       |        )
+       |
+       |    def _extract_json_arg(self, text, start_pos):
+       |        if start_pos >= len(text):
+       |            return None, start_pos
+       |        ch = text[start_pos]
+       |        openers = {"[": "]", "{": "}"}
+       |        if ch not in openers:
+       |            return None, start_pos
+       |        closer = openers[ch]
+       |        depth = 1
+       |        pos = start_pos + 1
+       |        in_string = False
+       |        while pos < len(text) and depth > 0:
+       |            c = text[pos]
+       |            if in_string:
+       |                if c == "\\":
+       |                    pos += 2
+       |                    continue
+       |                if c == '"':
+       |                    in_string = False
+       |            else:
+       |                if c == '"':
+       |                    in_string = True
+       |                elif c == ch:
+       |                    depth += 1
+       |                elif c == closer:
+       |                    depth -= 1
+       |            pos += 1
+       |        if depth == 0:
+       |            return text[start_pos:pos], pos
+       |        return None, start_pos
+       |
+       |    def _url_to_data_url(self, url):
+       |        '''Fetch a URL and return a data URL with the correct MIME type.
+       |        Fetched via _fetch_remote_url so a malicious/compromised provider
+       |        cannot redirect this to an internal address or oversized payload.
+       |        '''
+       |        raw_content_type, data = self._fetch_remote_url(url)
+       |        content_type = raw_content_type.split(";")[0].strip()
+       |        if not content_type or content_type == "application/octet-stream":
+       |            from urllib.parse import urlparse as _urlparse
+       |            ext = os.path.splitext(_urlparse(url).path.lower())[1]
+       |            mime_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml", ".mp4": "video/mp4", ".webm": "video/webm"}
+       |            guessed = mime_map.get(ext, "")
+       |            if guessed:
+       |                content_type = guessed
+       |            else:
+       |                task_mime = {"image-to-image": "image/png"}
+       |                content_type = task_mime.get(self.TASK, "application/octet-stream")
+       |        b64 = base64.b64encode(data).decode("utf-8")
+       |        return f"data:{content_type};base64,{b64}"
        |
        |    def _parse_response(self, body):
        |        task = self.TASK
