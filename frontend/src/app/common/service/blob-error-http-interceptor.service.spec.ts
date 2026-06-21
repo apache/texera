@@ -17,7 +17,14 @@
  * under the License.
  */
 
-import { HttpErrorResponse, HttpEvent, HttpHandler, HttpRequest, HttpResponse } from "@angular/common/http";
+import {
+  HttpErrorResponse,
+  HttpEvent,
+  HttpHandler,
+  HttpHeaders,
+  HttpRequest,
+  HttpResponse,
+} from "@angular/common/http";
 import { Observable, firstValueFrom, of, throwError } from "rxjs";
 
 import { BlobErrorHttpInterceptor } from "./blob-error-http-interceptor.service";
@@ -73,24 +80,27 @@ describe("BlobErrorHttpInterceptor", () => {
     expect(await run(handlerReturning(throwError(() => err)))).toBe(err);
   });
 
-  it("parses an application/json Blob error into a structured HttpErrorResponse", async () => {
+  it("parses an application/json Blob error into a new HttpErrorResponse, preserving status/headers/url", async () => {
     const err = new HttpErrorResponse({
       error: new Blob([JSON.stringify({ message: "Boom" })], { type: "application/json" }),
       status: 502,
       statusText: "Bad Gateway",
       url: "http://example.com/api",
+      headers: new HttpHeaders({ "x-request-id": "trace-123" }),
     });
 
     const rejected = await run(handlerReturning(throwError(() => err)));
 
     expect(rejected).toBeInstanceOf(HttpErrorResponse);
+    expect(rejected).not.toBe(err); // a new instance was constructed, not the original
     expect(rejected.error).toEqual({ message: "Boom" });
     expect(rejected.status).toBe(502);
     expect(rejected.statusText).toBe("Bad Gateway");
     expect(rejected.url).toBe("http://example.com/api");
+    expect(rejected.headers.get("x-request-id")).toBe("trace-123");
   });
 
-  it("normalizes a null url to undefined when building the structured error", async () => {
+  it("builds a new error with a null url when the original error has no url", async () => {
     const err = new HttpErrorResponse({
       error: new Blob([JSON.stringify({ message: "Boom" })], { type: "application/json" }),
       status: 500,
@@ -101,6 +111,7 @@ describe("BlobErrorHttpInterceptor", () => {
     const rejected = await run(handlerReturning(throwError(() => err)));
 
     expect(rejected).toBeInstanceOf(HttpErrorResponse);
+    expect(rejected).not.toBe(err); // a new instance was constructed, not the original
     expect(rejected.error).toEqual({ message: "Boom" });
     expect(rejected.url).toBeNull();
   });
