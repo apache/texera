@@ -281,10 +281,8 @@ class SyncExecutionResource extends LazyLogging {
             killExecution(executionService)
             (executionService.executionStateStore.metadataStore.getState, true, false)
           case TargetResultsReady(_) =>
-            // RegionExecutionCoordinator caches upstream results asynchronously after operators
-            // complete; sleep gives that caching a chance to finish before we shut down the client.
-            // TODO: replace with a synchronous signal from the engine.
-            Thread.sleep(500)
+            // Targets have reached COMPLETED, so their result storage is already durably
+            // committed (see the note below). Safe to shut the client down before reading.
             killExecution(executionService)
             // Override to COMPLETED — we have everything we asked for, even though the engine
             // sees this as a kill.
@@ -294,8 +292,13 @@ class SyncExecutionResource extends LazyLogging {
             (executionService.executionStateStore.metadataStore.getState, false, true)
         }
 
-      // Let the result writer flush before we read storage.
-      Thread.sleep(500)
+      // No wait is needed before reading results. The engine commits each operator's result
+      // storage synchronously: OutputManager.closeOutputStorageWriterIfNeeded joins the per-port
+      // writer thread (forcing IcebergTableWriter.close()/commit()) BEFORE the worker emits
+      // PortCompleted and transitions to COMPLETED. Both termination paths above are gated on
+      // COMPLETED, so every target's output is durably committed by the time we reach here, and
+      // DocumentFactory.openDocument reloads fresh catalog metadata on each read. A failed commit
+      // surfaces as a FatalError (KILLED/FAILED), not COMPLETED, so it never reads partial data.
 
       // Console DB writes lag the in-memory store; pass the latter so error extraction
       // can fall back when the row hasn't landed yet.
