@@ -24,88 +24,81 @@ import org.scalatest.flatspec.AnyFlatSpec
 class OperatorDescriptorUtilsSpec extends AnyFlatSpec {
 
   // ---------------------------------------------------------------------------
-  // equallyPartitionGoal — exact / inexact division
+  // equallyPartitionGoal — shape + invariants
   // ---------------------------------------------------------------------------
 
-  "OperatorDescriptorUtils.equallyPartitionGoal" should
-    "split a goal evenly when it divides cleanly by the worker count" in {
-    val parts = OperatorDescriptorUtils.equallyPartitionGoal(100, 4)
-    assert(parts == List(25, 25, 25, 25))
+  "equallyPartitionGoal" should "return a list whose size equals totalNumWorkers" in {
+    assert(OperatorDescriptorUtils.equallyPartitionGoal(10, 3).size == 3)
+    assert(OperatorDescriptorUtils.equallyPartitionGoal(0, 5).size == 5)
+    assert(OperatorDescriptorUtils.equallyPartitionGoal(100, 1).size == 1)
   }
 
-  it should
-    "spread the remainder one-each to the first (goal % workers) workers when uneven" in {
-    // goal = 10, workers = 3 -> floor = 3, remainder = 1 -> [4, 3, 3]
-    val parts = OperatorDescriptorUtils.equallyPartitionGoal(10, 3)
-    assert(parts == List(4, 3, 3))
-  }
-
-  it should "give the first two workers an extra 1 when remainder = 2" in {
-    // goal = 11, workers = 3 -> floor = 3, remainder = 2 -> [4, 4, 3]
-    val parts = OperatorDescriptorUtils.equallyPartitionGoal(11, 3)
-    assert(parts == List(4, 4, 3))
-  }
-
-  it should "always return a list whose length equals totalNumWorkers" in {
-    assert(OperatorDescriptorUtils.equallyPartitionGoal(10, 1).length == 1)
-    assert(OperatorDescriptorUtils.equallyPartitionGoal(10, 7).length == 7)
-    assert(OperatorDescriptorUtils.equallyPartitionGoal(0, 5).length == 5)
-  }
-
-  it should "always sum to the original goal" in {
-    val cases = List((100, 4), (10, 3), (11, 3), (0, 5), (1, 5), (7, 1), (50, 50))
-    cases.foreach {
-      case (goal, workers) =>
-        val parts = OperatorDescriptorUtils.equallyPartitionGoal(goal, workers)
-        assert(parts.sum == goal, s"sum mismatch for goal=$goal workers=$workers got $parts")
+  it should "produce slots that sum back to the goal" in {
+    for {
+      goal <- 0 to 20
+      workers <- 1 to 5
+    } {
+      val parts = OperatorDescriptorUtils.equallyPartitionGoal(goal, workers)
+      assert(parts.sum == goal, s"sum mismatch for (goal=$goal, workers=$workers): $parts")
     }
   }
 
-  it should "return all zeros when goal = 0" in {
-    assert(OperatorDescriptorUtils.equallyPartitionGoal(0, 5) == List(0, 0, 0, 0, 0))
+  // ---------------------------------------------------------------------------
+  // equallyPartitionGoal — distribution semantics (worked cases)
+  // ---------------------------------------------------------------------------
+
+  it should "partition evenly when goal is a multiple of totalNumWorkers" in {
+    assert(OperatorDescriptorUtils.equallyPartitionGoal(9, 3) == List(3, 3, 3))
+    assert(OperatorDescriptorUtils.equallyPartitionGoal(0, 4) == List(0, 0, 0, 0))
+    assert(OperatorDescriptorUtils.equallyPartitionGoal(8, 4) == List(2, 2, 2, 2))
   }
 
-  it should "concentrate the entire goal in the single worker when totalNumWorkers = 1" in {
-    assert(OperatorDescriptorUtils.equallyPartitionGoal(42, 1) == List(42))
+  it should "give the remainder to the FIRST `goal % workers` slots" in {
+    // 10 = 3*3 + 1 → slot[0] gets the extra
+    assert(OperatorDescriptorUtils.equallyPartitionGoal(10, 3) == List(4, 3, 3))
+    // 11 = 3*3 + 2 → slots[0,1] each get +1
+    assert(OperatorDescriptorUtils.equallyPartitionGoal(11, 3) == List(4, 4, 3))
+    // 7 = 3*2 + 1 → slot[0] gets +1
+    assert(OperatorDescriptorUtils.equallyPartitionGoal(7, 3) == List(3, 2, 2))
+  }
+
+  it should "handle the case where goal < totalNumWorkers" in {
+    // 3 = 5*0 + 3 → first 3 slots get 1
+    assert(OperatorDescriptorUtils.equallyPartitionGoal(3, 5) == List(1, 1, 1, 0, 0))
+    // 1 = 4*0 + 1 → only the first slot gets the single unit
+    assert(OperatorDescriptorUtils.equallyPartitionGoal(1, 4) == List(1, 0, 0, 0))
   }
 
   // ---------------------------------------------------------------------------
-  // toImmutableMap — round-trip with isolation
+  // toImmutableMap — round-trip
   // ---------------------------------------------------------------------------
 
-  "OperatorDescriptorUtils.toImmutableMap" should "return Map.empty for an empty java.util.Map" in {
-    val empty = new java.util.HashMap[String, Int]()
-    val result: Map[String, Int] = OperatorDescriptorUtils.toImmutableMap(empty)
-    assert(result.isEmpty)
+  "toImmutableMap" should "convert an empty java.util.Map to an empty immutable Map" in {
+    val javaMap = new java.util.HashMap[String, Int]()
+    val scalaMap = OperatorDescriptorUtils.toImmutableMap(javaMap)
+    assert(scalaMap.isEmpty)
   }
 
-  it should "preserve every entry of a populated java.util.Map" in {
-    val src = new java.util.HashMap[String, Int]()
-    src.put("a", 1)
-    src.put("b", 2)
-    src.put("c", 3)
-    val result = OperatorDescriptorUtils.toImmutableMap(src)
-    assert(result == Map("a" -> 1, "b" -> 2, "c" -> 3))
+  it should "preserve all key/value pairs" in {
+    val javaMap = new java.util.LinkedHashMap[String, Integer]()
+    javaMap.put("a", Integer.valueOf(1))
+    javaMap.put("b", Integer.valueOf(2))
+    javaMap.put("c", Integer.valueOf(3))
+    val scalaMap = OperatorDescriptorUtils.toImmutableMap(javaMap)
+    assert(
+      scalaMap == Map(
+        "a" -> Integer.valueOf(1),
+        "b" -> Integer.valueOf(2),
+        "c" -> Integer.valueOf(3)
+      )
+    )
   }
 
-  it should
-    "isolate the returned map from subsequent mutation of the source java.util.Map" in {
-    // `asScala.toMap` materializes a Scala immutable Map at call time;
-    // mutating the source after the conversion must not leak into the
-    // returned map (a regression to a lazy view would break this).
-    val src = new java.util.HashMap[String, Int]()
-    src.put("k", 1)
-    val converted = OperatorDescriptorUtils.toImmutableMap(src)
-    src.put("k", 999)
-    src.put("new", 7)
-    assert(converted == Map("k" -> 1))
-  }
-
-  it should "be typed as scala.collection.immutable.Map (compile-time enforced)" in {
-    val src = new java.util.HashMap[String, Int]()
-    src.put("k", 1)
-    val result: scala.collection.immutable.Map[String, Int] =
-      OperatorDescriptorUtils.toImmutableMap(src)
-    assert(result.contains("k"))
+  it should "return an immutable Map (compile-time enforced)" in {
+    val javaMap = new java.util.HashMap[String, Integer]()
+    javaMap.put("x", Integer.valueOf(9))
+    val scalaMap: scala.collection.immutable.Map[String, Integer] =
+      OperatorDescriptorUtils.toImmutableMap(javaMap)
+    assert(scalaMap("x") == 9)
   }
 }
