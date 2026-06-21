@@ -17,12 +17,11 @@
  * under the License.
  */
 
-// Wire DTOs: request/response bodies exchanged with backend services and the
-// WebSocket frames this service sends to its own clients. Distinct from domain
-// types (workflow.ts, execution.ts, agent.ts) which model in-memory state.
+// Wire DTOs: request/response bodies exchanged with backend services. Distinct
+// from domain types (workflow.ts, execution.ts, agent.ts) which model in-memory
+// state, and from ws.ts which carries this service's own WebSocket frames.
 
 import type { WorkflowContent, OperatorPortSchemaMap } from "./workflow";
-import type { ReActStep } from "./agent";
 
 // --- Dashboard Service: workflow persistence ---
 
@@ -47,49 +46,17 @@ export interface WorkflowPersistRequest {
 // --- Workflow Compiling Service ---
 
 export interface WorkflowFatalError {
+  // FatalErrorType enum name, e.g. "COMPILATION_ERROR" | "EXECUTION_FAILURE".
+  type: string;
   message: string;
-  details: string;
-  operatorId: string;
-  workerId: string;
-  type: { name: string };
-  timestamp: { nanos: number; seconds: number };
+  details?: string;
+  operatorId?: string;
+  workerId?: string;
+  timestamp?: { seconds: number; nanos: number };
 }
 
 export interface WorkflowCompilationResponse {
   physicalPlan?: any;
   operatorOutputSchemas: Record<string, OperatorPortSchemaMap>;
   operatorErrors: Record<string, WorkflowFatalError>;
-}
-
-// --- This service's WebSocket protocol (/agents/:id/react) ---
-
-export interface WsMessage {
-  type: "message" | "stop";
-  content?: string;
-  messageSource?: "chat" | "feedback";
-}
-
-export interface OperatorResultSummaryWs {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
-  outputColumns?: number;
-  error?: string;
-  warnings?: string[];
-  consoleLogCount?: number;
-  totalRowCount?: number;
-  sampleRecords?: Record<string, any>[];
-  resultStatistics?: Record<string, string>;
-}
-
-export interface WsOutgoingMessage {
-  type: "step" | "state" | "error" | "complete" | "init" | "headChange";
-  step?: ReActStep;
-  state?: string;
-  error?: string;
-  steps?: ReActStep[];
-  headId?: string;
-  operatorResults?: Record<string, OperatorResultSummaryWs>;
-  workflowContent?: any;
 }

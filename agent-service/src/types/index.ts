@@ -21,5 +21,5 @@ export * from "./workflow";
 export * from "./execution";
 export * from "./metadata";
 export * from "./agent";
+export * from "./wire";
 export * from "./ws";
-export * from "./api";

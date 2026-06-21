@@ -18,7 +18,8 @@
  */
 
 import { getBackendConfig } from "./backend-api";
-import type { LogicalPlan, OperatorPortSchemaMap } from "../types/workflow";
+import type { LogicalPlan } from "../types/workflow";
+import type { WorkflowCompilationResponse } from "../types/wire";
 import { createLogger } from "../logger";
 
 const log = createLogger("CompileAPI");
@@ -29,18 +30,6 @@ export interface SchemaAttribute {
 }
 
 export type PortSchema = ReadonlyArray<SchemaAttribute>;
-
-export interface WorkflowFatalError {
-  type: string;
-  message: string;
-  operatorId?: string;
-}
-
-export interface WorkflowCompilationResponse {
-  physicalPlan?: any;
-  operatorOutputSchemas: Record<string, OperatorPortSchemaMap>;
-  operatorErrors: Record<string, WorkflowFatalError>;
-}
 
 export async function compileWorkflowAsync(logicalPlan: LogicalPlan): Promise<WorkflowCompilationResponse | null> {
   const config = getBackendConfig();

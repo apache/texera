@@ -48,7 +48,8 @@ import {
   type ExecutionConfig,
 } from "./tools/workflow-execution-tools";
 import { assembleContext } from "./util/context-utils";
-import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
+import { compileWorkflowAsync } from "../api/compile-api";
+import type { WorkflowCompilationResponse } from "../types/wire";
 import { createLogger } from "../logger";
 import type { Logger } from "pino";
 

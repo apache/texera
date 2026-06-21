@@ -25,7 +25,7 @@ import type { ModelMessage } from "ai";
 import type { WorkflowState } from "../workflow-state";
 import type { OperatorPredicate, OperatorPortSchemaMap, PortSchema } from "../../types/workflow";
 import type { ReActStep } from "../../types/agent";
-import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../api/compile-api";
+import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../types/wire";
 import { extractOperatorInputPortSchemaMap } from "./workflow-utils";
 import { createLogger } from "../../logger";
 
