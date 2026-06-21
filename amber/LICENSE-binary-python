@@ -275,9 +275,9 @@ Python packages:
   - pydantic-core==2.46.4
   - pyparsing==3.3.2
   - pyroaring==1.1.0
-  - pytest==7.4.0
+  - pytest==9.0.3
   - pytest-reraise==2.1.2
-  - pytest-timeout==2.2.0
+  - pytest-timeout==2.4.0
   - pytz==2026.2
   - pyyaml==6.0.3
   - readerwriterlock==1.0.9

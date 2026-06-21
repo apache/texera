@@ -22,7 +22,7 @@
 
 # Coverage instrumentation for pytest; emits coverage.xml consumed by
 # Codecov's Phase 1 upload.
-pytest-cov==5.0.0
+pytest-cov==7.1.0
 
 # protoc plugin for bin/python-proto-gen.sh; runtime needs only the
 # base `betterproto` in requirements.txt.

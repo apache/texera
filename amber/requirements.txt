@@ -22,9 +22,9 @@ ruff==0.14.7
 iniconfig==1.1.1
 loguru==0.7.0
 pyarrow==23.0.1
-pytest==7.4.0
+pytest==9.0.3
 python-dateutil==2.8.2
-pytest-timeout==2.2.0
+pytest-timeout==2.4.0
 protobuf==7.34.1
 betterproto==2.0.0b7
 pampy==0.3.0
