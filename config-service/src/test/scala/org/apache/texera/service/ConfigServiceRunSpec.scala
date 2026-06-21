@@ -23,6 +23,7 @@ import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.core.setup.Environment
 import io.dropwizard.jersey.DropwizardResourceConfig
 import io.dropwizard.jersey.setup.JerseyEnvironment
+import jakarta.ws.rs.GET
 import org.apache.texera.auth.{RoleAnnotationEnforcer, UnauthorizedExceptionMapper}
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
@@ -65,5 +66,25 @@ class ConfigServiceRunSpec extends AnyFlatSpec with Matchers {
     when(jersey.getResourceConfig).thenReturn(DropwizardResourceConfig.forTesting())
 
     noException should be thrownBy ConfigService.enforceRoleAnnotations(env)
+  }
+
+  // A resource registered as an instance (not a class) exercises the getInstances
+  // branch of the helper; an unannotated endpoint on it must fail the boot check.
+  "ConfigService.enforceRoleAnnotations" should "throw when a registered resource instance has an unannotated endpoint" in {
+    val resourceConfig = DropwizardResourceConfig.forTesting()
+    resourceConfig.register(new ConfigServiceRunSpec.UnannotatedResource)
+    val jersey = mock(classOf[JerseyEnvironment])
+    val env = mock(classOf[Environment])
+    when(env.jersey).thenReturn(jersey)
+    when(jersey.getResourceConfig).thenReturn(resourceConfig)
+
+    an[IllegalStateException] should be thrownBy ConfigService.enforceRoleAnnotations(env)
+  }
+}
+
+object ConfigServiceRunSpec {
+  // A JAX-RS resource with an HTTP endpoint but no access-control annotation.
+  class UnannotatedResource {
+    @GET def open: String = ""
   }
 }
