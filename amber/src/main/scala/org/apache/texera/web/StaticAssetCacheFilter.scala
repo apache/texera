@@ -24,20 +24,25 @@ import javax.servlet.{Filter, FilterChain, FilterConfig, ServletRequest, Servlet
 
 object StaticAssetCacheFilter {
 
-  // Matches `name.<contenthash>.ext` file names.
-  private val FingerprintedAsset = """.*\.[0-9a-f]{8,}\.[A-Za-z0-9]+""".r
+  // `name.<hash>.ext`, capturing the hash segment.
+  private val FingerprintedAsset = """.*\.([0-9a-f]{8,})\.[A-Za-z0-9]+""".r
 
   val ImmutableCacheControl = "public, max-age=31536000, immutable"
   val RevalidateCacheControl = "no-cache, must-revalidate"
 
+  // Require a hex letter so all-numeric segments (dates, versions) aren't frozen as a hash.
+  private def isFingerprinted(fileName: String): Boolean =
+    fileName match {
+      case FingerprintedAsset(hash) => hash.exists(c => c >= 'a' && c <= 'f')
+      case _                        => false
+    }
+
   // None for /api/*; immutable for fingerprinted assets; revalidate otherwise.
   def cacheControlFor(path: String): Option[String] = {
     if (path.startsWith("/api/")) None
-    else
-      path.substring(path.lastIndexOf('/') + 1) match {
-        case FingerprintedAsset() => Some(ImmutableCacheControl)
-        case _                    => Some(RevalidateCacheControl)
-      }
+    else if (isFingerprinted(path.substring(path.lastIndexOf('/') + 1)))
+      Some(ImmutableCacheControl)
+    else Some(RevalidateCacheControl)
   }
 }
 

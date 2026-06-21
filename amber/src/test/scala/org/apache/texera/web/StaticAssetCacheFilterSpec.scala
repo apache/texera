@@ -63,4 +63,11 @@ class StaticAssetCacheFilterSpec extends AnyFlatSpec with Matchers {
     cc("/app.v2.js") shouldBe Some(RevalidateCacheControl)
     cc("/data.12345.json") shouldBe Some(RevalidateCacheControl)
   }
+
+  it should "not freeze long purely-numeric segments (dates, version numbers)" in {
+    // A real content hash contains hex letters; an all-digit segment is more likely a
+    // date or version stamp and must not be cached immutably for a year.
+    cc("/report.20240101.csv") shouldBe Some(RevalidateCacheControl)
+    cc("/photo.20240101120000.jpg") shouldBe Some(RevalidateCacheControl)
+  }
 }
