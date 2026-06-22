@@ -91,6 +91,34 @@ class StaticAssetCacheFilterSpec extends AnyFlatSpec with Matchers {
     cc("/api-docs.html") shouldBe Some(RevalidateCacheControl)
   }
 
+  it should "require at least eight hex characters for a fingerprint" in {
+    // Seven hex chars is one short of an Angular content hash and must not be frozen.
+    cc("/main.abcdef1.js") shouldBe Some(RevalidateCacheControl)
+    // Eight is the minimum that qualifies.
+    cc("/main.abcdef12.js") shouldBe Some(ImmutableCacheControl)
+  }
+
+  it should "not freeze an all-digit segment even at fingerprint length" in {
+    // Eight digits is long enough for the regex but contains no hex letter, so it is
+    // treated as a version/date stamp rather than a content hash.
+    cc("/main.12345678.js") shouldBe Some(RevalidateCacheControl)
+  }
+
+  it should "not treat non-hex letters as a content hash" in {
+    cc("/main.ghijklmn.js") shouldBe Some(RevalidateCacheControl)
+    cc("/main.zzzzzzzz.js") shouldBe Some(RevalidateCacheControl)
+  }
+
+  it should "fingerprint assets regardless of the file extension's case" in {
+    cc("/main.138cf96bab6ef6d9.JS") shouldBe Some(ImmutableCacheControl)
+    cc("/styles.266ff0ada80cd80a.CSS") shouldBe Some(ImmutableCacheControl)
+  }
+
+  it should "force revalidation of directory paths ending in a slash" in {
+    cc("/assets/") shouldBe Some(RevalidateCacheControl)
+    cc("/dashboard/") shouldBe Some(RevalidateCacheControl)
+  }
+
   // --- doFilter wiring, exercised via dependency-free dynamic-proxy doubles ---
 
   // A proxy that answers the handled methods and returns nulls/zeros for everything else.
