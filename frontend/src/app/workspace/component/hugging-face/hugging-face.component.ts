@@ -252,10 +252,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     tasksFetchSubscription = this.http
       .get<HuggingFaceTaskOption[]>(`${AppSettings.getApiEndpoint()}/huggingface/tasks`)
       .pipe(
-        takeUntil(this.destroy$),
         finalize(() => {
-          // If takeUntil fires before next/error, reset the module-level guard
-          // so the next component instance can start a fresh fetch.
           if (cachedTaskOptions === null && tasksFetchError === null) {
             tasksFetchSubscription = null;
           }
