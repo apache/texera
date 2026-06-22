@@ -258,32 +258,37 @@ export class AdminUserComponent implements OnInit {
     this.listOfDisplayUser = [...this.userList];
   }
 
-  private normalizeSearchValue(value: string | null | undefined): string {
-    return (value ?? "").trim().toLowerCase();
+  private trimSearchValue(value: string | null | undefined): string {
+    return (value ?? "").trim();
   }
 
   searchByName(): void {
     this.nameSearchVisible = false;
+    this.nameSearchValue = this.trimSearchValue(this.nameSearchValue);
     this.emailSearchValue = "";
     this.commentSearchValue = "";
-    const q = (this.nameSearchValue ?? "").trim().toLowerCase();
+
+    const q = this.nameSearchValue.toLowerCase();
     this.listOfDisplayUser = this.userList.filter(user => (user.name ?? "").toLowerCase().includes(q));
   }
 
   searchByEmail(): void {
     this.emailSearchVisible = false;
+    this.emailSearchValue = this.trimSearchValue(this.emailSearchValue);
     this.nameSearchValue = "";
     this.commentSearchValue = "";
 
-    const q = (this.emailSearchValue ?? "").trim().toLowerCase();
+    const q = this.emailSearchValue.toLowerCase();
     this.listOfDisplayUser = this.userList.filter(user => (user.email ?? "").toLowerCase().includes(q));
   }
 
   searchByComment(): void {
     this.commentSearchVisible = false;
+    this.commentSearchValue = this.trimSearchValue(this.commentSearchValue);
     this.nameSearchValue = "";
     this.emailSearchValue = "";
-    const q = (this.commentSearchValue ?? "").trim().toLowerCase();
+
+    const q = this.commentSearchValue.toLowerCase();
     this.listOfDisplayUser = this.userList.filter(user => (user.comment ?? "").toLowerCase().includes(q));
   }
 
