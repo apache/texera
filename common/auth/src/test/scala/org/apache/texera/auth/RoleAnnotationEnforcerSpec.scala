@@ -19,11 +19,13 @@
 
 package org.apache.texera.auth
 
+import ch.qos.logback.classic.{Level, Logger => LogbackLogger}
 import jakarta.annotation.security.{DenyAll, PermitAll, RolesAllowed}
 import jakarta.ws.rs.{DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT}
 import org.glassfish.jersey.server.ResourceConfig
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.slf4j.LoggerFactory
 
 class RoleAnnotationEnforcerSpec extends AnyFlatSpec with Matchers {
 
@@ -167,6 +169,26 @@ class RoleAnnotationEnforcerSpec extends AnyFlatSpec with Matchers {
     resourceConfig.register(new RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource)
     an[IllegalStateException] should be thrownBy
       RoleAnnotationEnforcer.enforce(resourceConfig, "TestService")
+  }
+
+  it should "still fail closed when error logging is disabled" in {
+    // enforce logs the violation at error level before throwing. With error
+    // logging suppressed, the scala-logging `isErrorEnabled` guard takes its
+    // disabled branch; enforcement must still throw rather than silently pass.
+    val backendLogger = LoggerFactory
+      .getLogger(RoleAnnotationEnforcer.getClass.getName)
+      .asInstanceOf[LogbackLogger]
+    val previousLevel = backendLogger.getLevel
+    backendLogger.setLevel(Level.OFF)
+    try {
+      an[IllegalStateException] should be thrownBy
+        RoleAnnotationEnforcer.enforce(
+          Seq(classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource]),
+          "TestService"
+        )
+    } finally {
+      backendLogger.setLevel(previousLevel)
+    }
   }
 }
 
