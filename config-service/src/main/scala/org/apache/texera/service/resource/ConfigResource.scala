@@ -49,6 +49,7 @@ class ConfigResource {
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
       ),
       "attributionEnabled" -> GuiConfig.guiAttributionEnabled,
+      "deploymentVersionCheckEnabled" -> GuiConfig.guiDeploymentVersionCheckEnabled,
       "inviteOnly" -> UserSystemConfig.inviteOnly
     )
 

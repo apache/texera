@@ -29,11 +29,12 @@ import { Version } from "../environments/version";
 // mirroring "config loaded" vs "config failed to load by APP_INITIALIZER".
 class StubGuiConfigService {
   shouldThrow = false;
+  deploymentVersionCheckEnabled = true;
   get env(): unknown {
     if (this.shouldThrow) {
       throw new Error("config not loaded");
     }
-    return {};
+    return { deploymentVersionCheckEnabled: this.deploymentVersionCheckEnabled };
   }
 }
 
@@ -106,12 +107,28 @@ describe("AppComponent", () => {
 
   describe("deployment-version polling guard", () => {
     it("does not start polling for the 'dev' placeholder build", () => {
+      config.deploymentVersionCheckEnabled = true;
       Version.buildNumber = "dev";
       create();
       expect(deployment.startCalls).toBe(0);
     });
 
-    it("starts polling for a real (non-'dev') build", () => {
+    it("does not start polling when the config flag is disabled", () => {
+      config.deploymentVersionCheckEnabled = false;
+      Version.buildNumber = "prod-build-123";
+      create();
+      expect(deployment.startCalls).toBe(0);
+    });
+
+    it("does not start polling when config failed to load", () => {
+      config.shouldThrow = true;
+      Version.buildNumber = "prod-build-123";
+      create();
+      expect(deployment.startCalls).toBe(0);
+    });
+
+    it("starts polling for a real build when the config flag is enabled", () => {
+      config.deploymentVersionCheckEnabled = true;
       Version.buildNumber = "prod-build-123";
       create();
       expect(deployment.startCalls).toBe(1);
@@ -121,8 +138,10 @@ describe("AppComponent", () => {
   describe("retry", () => {
     it("reloads the page", () => {
       const reload = vi.fn();
-      // location.reload itself is non-configurable, so swap the whole
-      // location object for the duration of the test.
+      // location.reload is a non-writable, non-configurable own property (and is
+      // absent from Location.prototype) under this jsdom build, so it cannot be
+      // spied or reassigned directly. window.location itself is configurable,
+      // so swap the whole object for the test, then restore it.
       const original = window.location;
       Object.defineProperty(window, "location", {
         configurable: true,

@@ -55,8 +55,10 @@ export class AppComponent {
       this.configLoaded = false;
     }
 
-    // Skip the "dev" placeholder build, where no deployments occur.
-    if (Version.buildNumber !== "dev") {
+    // Poll for new deployments only when the config opts in (off by default),
+    // config actually loaded, and this isn't the "dev" placeholder build where
+    // no deployments occur.
+    if (this.configLoaded && this.config.env.deploymentVersionCheckEnabled && Version.buildNumber !== "dev") {
       this.deploymentVersion.start();
     }
   }
