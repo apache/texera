@@ -50,13 +50,15 @@ class RUDFSourceOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "RUDFSourceOpDesc.getPhysicalOp" should
-    "wire OpExecWithCode as a source op with one output port" in {
+    "wire OpExecWithCode(code, \"r-table\") as a source op with one output port" in {
     val d = new RUDFSourceOpDesc
     d.code = "data.frame(a=1)"
     val physical = d.getPhysicalOp(workflowId, executionId)
     physical.opExecInitInfo match {
-      case OpExecWithCode(code, _) => code shouldBe "data.frame(a=1)"
-      case other                   => fail(s"expected OpExecWithCode, got $other")
+      case OpExecWithCode(code, language) =>
+        language shouldBe "r-table"
+        code shouldBe "data.frame(a=1)"
+      case other => fail(s"expected OpExecWithCode, got $other")
     }
     physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
   }
@@ -73,11 +75,13 @@ class RUDFSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.code = "f"
     d.workers = 2
     d.useTupleAPI = true
+    d.columns = List(new Attribute("a", AttributeType.STRING))
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[RUDFSourceOpDesc]
     val r = restored.asInstanceOf[RUDFSourceOpDesc]
     r.code shouldBe "f"
     r.workers shouldBe 2
     r.useTupleAPI shouldBe true
+    r.columns shouldBe List(new Attribute("a", AttributeType.STRING))
   }
 }

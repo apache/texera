@@ -50,13 +50,16 @@ class RUDFOpDescSpec extends AnyFlatSpec with Matchers {
     d.retainInputColumns shouldBe false
   }
 
-  "RUDFOpDesc.getPhysicalOp" should "wire OpExecWithCode and carry port identities" in {
+  "RUDFOpDesc.getPhysicalOp" should
+    "wire OpExecWithCode(code, \"r-table\") and carry port identities" in {
     val d = new RUDFOpDesc
     d.code = "function(t) t"
     val physical = d.getPhysicalOp(workflowId, executionId)
     physical.opExecInitInfo match {
-      case OpExecWithCode(code, _) => code shouldBe "function(t) t"
-      case other                   => fail(s"expected OpExecWithCode, got $other")
+      case OpExecWithCode(code, language) =>
+        language shouldBe "r-table"
+        code shouldBe "function(t) t"
+      case other => fail(s"expected OpExecWithCode, got $other")
     }
     physical.inputPorts.keySet shouldBe d.operatorInfo.inputPorts.map(_.id).toSet
     physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
@@ -77,6 +80,18 @@ class RUDFOpDescSpec extends AnyFlatSpec with Matchers {
       d.operatorInfo.outputPorts.head.id -> Schema().add(
         new Attribute("res", AttributeType.INTEGER)
       )
+    )
+  }
+
+  it should "retain input columns plus the output columns when retainInputColumns is true" in {
+    val d = new RUDFOpDesc
+    d.retainInputColumns = true
+    d.outputColumns = List(new Attribute("res", AttributeType.INTEGER))
+    val input = Schema().add(new Attribute("in", AttributeType.STRING))
+    d.getExternalOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> input)) shouldBe Map(
+      d.operatorInfo.outputPorts.head.id -> Schema()
+        .add(new Attribute("in", AttributeType.STRING))
+        .add(new Attribute("res", AttributeType.INTEGER))
     )
   }
 
