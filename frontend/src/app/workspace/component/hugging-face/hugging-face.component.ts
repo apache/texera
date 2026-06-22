@@ -372,9 +372,11 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.cdr.detectChanges();
 
     this.subscription = this.http
-      .get<
-        HuggingFaceModelOption[]
-      >(`${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`)
+      .get<HuggingFaceModelOption[]>(
+        `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`,
+        { observe: "response" }
+      )
+      .pipe(finalize(() => inFlightByTag.delete(tag)))
       .subscribe({
         next: resp => {
           const models = resp.body ?? [];
@@ -382,7 +384,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
             truncatedByTag.add(tag);
           }
           allModelsByTag.set(tag, models);
-          inFlightByTag.delete(tag);
           this.loading = false;
           this.truncated = truncatedByTag.has(tag);
           this.allModels = models;
@@ -392,7 +393,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           console.error(`Failed to load HuggingFace models for task '${tag}':`, err);
           const msg = "Failed to load models. Click retry to try again.";
           errorByTag.set(tag, msg);
-          inFlightByTag.delete(tag);
           this.loading = false;
           this.errorMessage = msg;
           this.cdr.detectChanges();
