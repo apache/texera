@@ -78,9 +78,14 @@ class AggregateOpDesc extends LogicalOp {
           val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
           val outputSchema = Schema(
             groupByKeys.map(key => inputSchema.getAttribute(key)) ++
-              localAggregations.map(agg =>
-                agg.getAggregationAttribute(inputSchema.getAttribute(agg.attribute).getType)
-              )
+              localAggregations.map { agg =>
+                // A blank attribute (COUNT(*)) has no input column to look up
+                // so a null attrType is safe here.
+                val attrType =
+                  if (agg.attribute == null || agg.attribute.trim.isEmpty) null
+                  else inputSchema.getAttribute(agg.attribute).getType
+                agg.getAggregationAttribute(attrType)
+              }
           )
           Map(PortIdentity(internal = true) -> outputSchema)
         })

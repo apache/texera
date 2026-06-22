@@ -27,6 +27,8 @@ public enum AggregationFunction {
 
     COUNT("count"),
 
+    COUNT_STAR("count(*)"),
+
     AVERAGE("average"),
 
     MIN("min"),

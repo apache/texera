@@ -545,6 +545,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.type = "datasetversionselector";
       }
 
+      // Aggregate: the attribute is required for every function except count(*), which counts all rows.
+      // For count(*) the attribute is irrelevant, so disable the field (keeping the row layout consistent),
+      // drop the required marker, and clear any previously-selected column so it isn't shown greyed-out as if used.
+      // All react to the sibling aggFunction within the same row.
+      if (this.currentOperatorSchema?.operatorType === "Aggregate" && mappedField.key === "attribute") {
+        mappedField.expressions = {
+          ...mappedField.expressions,
+          "props.required": (field: FormlyFieldConfig) => field.parent?.model?.aggFunction !== "count(*)",
+          "props.disabled": (field: FormlyFieldConfig) => field.parent?.model?.aggFunction === "count(*)",
+          "model.attribute": (field: FormlyFieldConfig) =>
+            field.parent?.model?.aggFunction === "count(*)" ? "" : field.formControl?.value,
+        };
+      }
+
       if (this.currentOperatorSchema?.operatorType === "FileScanOp" && mappedField.key === "outputFileName") {
         mappedField.expressions = {
           ...mappedField.expressions,

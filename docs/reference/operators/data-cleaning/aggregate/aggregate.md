@@ -13,10 +13,12 @@ tags: [data-cleaning, aggregate]
 | Property | Requirement | Type | Default | Description |
 |----------|-------------|------|---------|-------------|
 | Aggregations | ✓ | List<Aggregation> | - | Multiple aggregation functions (min: 1,<br>aggregations cannot be empty) |
-| ↳ Aggregate Func | ✓ | sum, count, average, min, max, concat | - | Sum, count, average, min, max, or concat |
-| ↳ Attribute | ✓ | String | - | Column to calculate average value |
-| ↳ Result Attribute | ✓ | String | - | Column name of average result |
+| ↳ Aggregate Func | ✓ | sum, count, count(*), average, min, max, concat | - | Sum, count, count(*), average, min, max, or concat |
+| ↳ Attribute | ✓ (disabled for `count(*)`) | String | - | Column to aggregate on. Required for every function except `count(*)`, which counts all rows and disables this field |
+| ↳ Result Attribute | ✓ | String | - | Column name of the aggregation result |
 | Group By Keys |  | List | - | Group by columns |
+
+> **Counting rows**: use `count(*)` to count every row (including rows with nulls) without selecting a column. Use `count` with a column to count only that column's non-null values.
 
 ### Output Ports
 
