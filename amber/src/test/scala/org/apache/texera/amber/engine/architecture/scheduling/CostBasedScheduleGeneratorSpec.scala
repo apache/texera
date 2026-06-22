@@ -21,6 +21,7 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.texera.amber.core.workflow.{
   ExecutionMode,
+  PhysicalPlan,
   PortIdentity,
   WorkflowContext,
   WorkflowSettings
@@ -512,6 +513,42 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     assert(
       numRegionLinks == numPhysicalLinks,
       s"Expected $numPhysicalLinks region links, got $numRegionLinks"
+    )
+  }
+
+  "CostBasedScheduleGenerator.effectiveExecutionMode" should
+    "force MATERIALIZED when an operator requires it, even if PIPELINED is requested" in {
+    val workflow = buildWorkflow(
+      List(TestOperators.headerlessSmallCsvScanOpDesc()),
+      List(),
+      new WorkflowContext()
+    )
+    val planRequiringMaterialization = PhysicalPlan(
+      workflow.physicalPlan.operators.map(_.withRequiresMaterializedExecution(true)),
+      workflow.physicalPlan.links
+    )
+    assert(
+      CostBasedScheduleGenerator.effectiveExecutionMode(
+        planRequiringMaterialization,
+        ExecutionMode.PIPELINED
+      ) == ExecutionMode.MATERIALIZED
+    )
+  }
+
+  it should "keep the requested mode when no operator requires materialization" in {
+    val workflow = buildWorkflow(
+      List(TestOperators.headerlessSmallCsvScanOpDesc()),
+      List(),
+      new WorkflowContext()
+    )
+    val plan = workflow.physicalPlan
+    assert(
+      CostBasedScheduleGenerator.effectiveExecutionMode(plan, ExecutionMode.PIPELINED) ==
+        ExecutionMode.PIPELINED
+    )
+    assert(
+      CostBasedScheduleGenerator.effectiveExecutionMode(plan, ExecutionMode.MATERIALIZED) ==
+        ExecutionMode.MATERIALIZED
     )
   }
 
