@@ -200,8 +200,13 @@ case class PhysicalOp(
     isOneToManyOp: Boolean = false,
     // Whether this operator can only run correctly under a fully-materialized
     // schedule (e.g. a loop operator, whose back-edge is a cross-region
-    // materialized state channel). The schedule generator forces materialized
-    // region boundaries when any operator sets this. Default false.
+    // materialized state channel that requires region-based re-execution).
+    // When ANY operator in the plan sets this, the schedule generator runs the
+    // WHOLE workflow fully materialized -- every link materialized, nothing
+    // pipelined -- not just this operator's own region boundaries. Whole-plan
+    // materialization is the minimal correct behavior for loops today;
+    // restricting it to only the requiring operator's regions is a possible
+    // future optimization. Default false.
     requiresMaterializedExecution: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None,
