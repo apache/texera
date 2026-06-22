@@ -258,6 +258,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           }
         })
       )
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
       .subscribe({
         next: tasks => {
           tasksFetchSubscription = null;
@@ -373,7 +374,10 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
         `${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}`,
         { observe: "response" }
       )
-      .pipe(finalize(() => inFlightByTag.delete(tag)))
+      .pipe(
+        finalize(() => inFlightByTag.delete(tag)),
+        takeUntil(this.destroy$)
+      )
       .subscribe({
         next: resp => {
           const models = resp.body ?? [];
