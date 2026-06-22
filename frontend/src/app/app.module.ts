@@ -20,7 +20,7 @@
 import { DatePipe, registerLocaleData } from "@angular/common";
 import { HTTP_INTERCEPTORS, HttpClientModule } from "@angular/common/http";
 import en from "@angular/common/locales/en";
-import { APP_INITIALIZER, CUSTOM_ELEMENTS_SCHEMA, NgModule } from "@angular/core";
+import { APP_INITIALIZER, CUSTOM_ELEMENTS_SCHEMA, ErrorHandler, NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -53,6 +53,7 @@ import { NullTypeComponent } from "./common/formly/null.type";
 import { ObjectTypeComponent } from "./common/formly/object.type";
 import { UserService } from "./common/service/user/user.service";
 import { GuiConfigService } from "./common/service/gui-config.service";
+import { GlobalErrorHandler } from "./common/service/global-error-handler/global-error-handler.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { ShareAccessComponent } from "./dashboard/component/user/share-access/share-access.component";
@@ -369,6 +370,7 @@ registerLocaleData(en);
     UserVenvComponent,
   ],
   providers: [
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideNzI18n(en_US),
     AuthGuardService,
     AdminGuardService,
