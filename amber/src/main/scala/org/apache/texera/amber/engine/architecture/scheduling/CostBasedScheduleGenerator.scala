@@ -321,9 +321,6 @@ class CostBasedScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResultFuture: Future[SearchResult] = Future {
-      // An operator may require a fully-materialized schedule (e.g. a loop,
-      // whose back-edge is a cross-region materialized state channel). When any
-      // does, materialize fully regardless of the requested execution mode.
       val effectiveMode = CostBasedScheduleGenerator.effectiveExecutionMode(
         physicalPlan,
         workflowContext.workflowSettings.executionMode
