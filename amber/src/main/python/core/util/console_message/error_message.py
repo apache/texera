@@ -39,9 +39,14 @@ def create_error_console_message(
     queueing the returned message, and flushing/pausing as appropriate.
     """
     tb = traceback.extract_tb(exc_info[2])
-    filename, line_number, func_name, _ = tb[-1]
-    base_name = os.path.basename(filename)
-    module_name, _ = os.path.splitext(base_name)
+    if tb:
+        filename, line_number, func_name, _ = tb[-1]
+        module_name, _ = os.path.splitext(os.path.basename(filename))
+        source = f"{module_name}:{func_name}:{line_number}"
+    else:
+        # No traceback frames (e.g. an exception object that was never raised).
+        # Still report it -- an error reporter must not itself throw.
+        source = ""
     formatted_exception = traceback.format_exception(*exc_info)
     title: str = formatted_exception[-1].strip()
     message: str = "\n".join(formatted_exception)
@@ -50,7 +55,7 @@ def create_error_console_message(
         worker_id=worker_id,
         timestamp=current_time_in_local_timezone(),
         msg_type=ConsoleMessageType.ERROR,
-        source=f"{module_name}:{func_name}:{line_number}",
+        source=source,
         title=title,
         message=message,
     )
