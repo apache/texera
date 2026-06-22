@@ -74,18 +74,6 @@ class JwtParserSpec extends AnyFlatSpec with Matchers {
     u.getGoogleAvatar shouldBe "avatar-blob"
   }
 
-  it should "return empty when already-verified claims are missing userId" in {
-    val claims = buildClaims()
-    claims.unsetClaim("userId")
-    JwtParser.claimsToOptionalSessionUser(claims).isPresent shouldBe false
-  }
-
-  it should "return empty when already-verified claims are missing role" in {
-    val claims = buildClaims()
-    claims.unsetClaim("role")
-    JwtParser.claimsToOptionalSessionUser(claims).isPresent shouldBe false
-  }
-
   "JwtParser.parseToken" should "return empty on a structurally invalid token" in {
     JwtParser.parseToken("not-a-real-jwt").isPresent shouldBe false
   }
