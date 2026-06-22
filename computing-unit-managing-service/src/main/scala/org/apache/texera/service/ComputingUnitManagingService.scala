@@ -40,7 +40,6 @@ import org.apache.texera.service.resource.{
 }
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
-import scala.jdk.CollectionConverters._
 
 class ComputingUnitManagingService extends Application[ComputingUnitManagingServiceConfiguration] {
 
@@ -76,7 +75,10 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
     environment.jersey().register(new ComputingUnitManagingResource)
     environment.jersey().register(new ComputingUnitAccessResource)
 
-    ComputingUnitManagingService.enforceRoleAnnotations(environment)
+    RoleAnnotationEnforcer.enforce(
+      environment.jersey.getResourceConfig,
+      "ComputingUnitManagingService"
+    )
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)
@@ -97,16 +99,6 @@ object ComputingUnitManagingService {
 
     // Enforce @RolesAllowed annotations on resource methods
     environment.jersey.register(classOf[RolesAllowedDynamicFeature])
-  }
-
-  // Throws if any registered endpoint lacks @RolesAllowed/@PermitAll/@DenyAll.
-  def enforceRoleAnnotations(environment: Environment): Unit = {
-    val resourceConfig = environment.jersey.getResourceConfig
-    RoleAnnotationEnforcer.enforce(
-      resourceConfig.getClasses.asScala.toSet ++ resourceConfig.getInstances.asScala
-        .map(_.getClass),
-      "ComputingUnitManagingService"
-    )
   }
 
   def main(args: Array[String]): Unit = {

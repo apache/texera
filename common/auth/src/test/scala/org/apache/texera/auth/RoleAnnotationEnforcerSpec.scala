@@ -21,6 +21,7 @@ package org.apache.texera.auth
 
 import jakarta.annotation.security.{DenyAll, PermitAll, RolesAllowed}
 import jakarta.ws.rs.{DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT}
+import org.glassfish.jersey.server.ResourceConfig
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -143,6 +144,29 @@ class RoleAnnotationEnforcerSpec extends AnyFlatSpec with Matchers {
 
   it should "not throw when given no resources" in {
     noException should be thrownBy RoleAnnotationEnforcer.enforce(Seq.empty, "TestService")
+  }
+
+  "enforce(ResourceConfig)" should "pass when every registered resource is annotated" in {
+    val resourceConfig = new ResourceConfig()
+    resourceConfig.register(classOf[RoleAnnotationEnforcerSpec.FullyAnnotatedResource])
+    noException should be thrownBy RoleAnnotationEnforcer.enforce(resourceConfig, "TestService")
+  }
+
+  it should "throw when a registered resource class has an unannotated endpoint" in {
+    val resourceConfig = new ResourceConfig()
+    resourceConfig.register(classOf[RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource])
+    val ex = intercept[IllegalStateException] {
+      RoleAnnotationEnforcer.enforce(resourceConfig, "TestService")
+    }
+    ex.getMessage should include("TestService")
+    ex.getMessage should include("openEndpoint")
+  }
+
+  it should "throw when a resource registered as an instance has an unannotated endpoint" in {
+    val resourceConfig = new ResourceConfig()
+    resourceConfig.register(new RoleAnnotationEnforcerSpec.PartiallyAnnotatedResource)
+    an[IllegalStateException] should be thrownBy
+      RoleAnnotationEnforcer.enforce(resourceConfig, "TestService")
   }
 }
 

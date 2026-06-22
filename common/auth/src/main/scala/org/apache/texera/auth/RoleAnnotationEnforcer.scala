@@ -22,8 +22,10 @@ package org.apache.texera.auth
 import com.typesafe.scalalogging.LazyLogging
 import jakarta.annotation.security.{DenyAll, PermitAll, RolesAllowed}
 import jakarta.ws.rs.HttpMethod
+import org.glassfish.jersey.server.ResourceConfig
 
 import java.lang.reflect.Method
+import scala.jdk.CollectionConverters._
 
 /** Scans Jersey resource classes and fails if any HTTP-mapped method lacks an
   * @RolesAllowed/@PermitAll/@DenyAll annotation at the method or class level.
@@ -32,6 +34,16 @@ object RoleAnnotationEnforcer extends LazyLogging {
 
   private val securityAnnotations: Seq[Class[_ <: java.lang.annotation.Annotation]] =
     Seq(classOf[RolesAllowed], classOf[PermitAll], classOf[DenyAll])
+
+  /** Enforce over every resource registered on `resourceConfig`, both
+    * `getClasses` and singleton `getInstances`.
+    */
+  def enforce(resourceConfig: ResourceConfig, serviceName: String): Unit =
+    enforce(
+      resourceConfig.getClasses.asScala.toSet ++
+        resourceConfig.getInstances.asScala.map(_.getClass),
+      serviceName
+    )
 
   /** Scans `resourceClasses` and throws if any HTTP-mapped method is missing an
     * access-control annotation, after logging the offending methods.

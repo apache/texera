@@ -48,7 +48,6 @@ import org.apache.texera.service.util.LargeBinaryManager
 import org.eclipse.jetty.server.session.SessionHandler
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
-import scala.jdk.CollectionConverters._
 
 class FileService extends Application[FileServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[FileServiceConfiguration]): Unit = {
@@ -104,7 +103,7 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
 
-    FileService.enforceRoleAnnotations(environment)
+    RoleAnnotationEnforcer.enforce(environment.jersey.getResourceConfig, "FileService")
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)
@@ -112,16 +111,6 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 }
 
 object FileService {
-  // Throws if any registered endpoint lacks @RolesAllowed/@PermitAll/@DenyAll.
-  def enforceRoleAnnotations(environment: Environment): Unit = {
-    val resourceConfig = environment.jersey.getResourceConfig
-    RoleAnnotationEnforcer.enforce(
-      resourceConfig.getClasses.asScala.toSet ++ resourceConfig.getInstances.asScala
-        .map(_.getClass),
-      "FileService"
-    )
-  }
-
   def main(args: Array[String]): Unit = {
     // Set the configuration file's path
     val configFilePath = Path

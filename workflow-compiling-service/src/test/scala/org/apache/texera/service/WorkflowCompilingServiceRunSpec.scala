@@ -21,7 +21,6 @@ package org.apache.texera.service
 
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.core.setup.Environment
-import io.dropwizard.jersey.DropwizardResourceConfig
 import io.dropwizard.jersey.setup.JerseyEnvironment
 import org.apache.texera.auth.{RoleAnnotationEnforcer, UnauthorizedExceptionMapper}
 import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
@@ -55,15 +54,5 @@ class WorkflowCompilingServiceRunSpec extends AnyFlatSpec with Matchers {
     RoleAnnotationEnforcer.findUnannotatedEndpoints(
       Seq(classOf[WorkflowCompilationResource], classOf[HealthCheckResource])
     ) shouldBe empty
-  }
-
-  // Runs the enforcer over the Jersey resource config; a default config has no holes.
-  "WorkflowCompilingService.enforceRoleAnnotations" should "pass for a resource config with no unannotated endpoints" in {
-    val jersey = mock(classOf[JerseyEnvironment])
-    val env = mock(classOf[Environment])
-    when(env.jersey).thenReturn(jersey)
-    when(jersey.getResourceConfig).thenReturn(DropwizardResourceConfig.forTesting())
-
-    noException should be thrownBy WorkflowCompilingService.enforceRoleAnnotations(env)
   }
 }

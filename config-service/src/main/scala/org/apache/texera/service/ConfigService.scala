@@ -40,7 +40,6 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.jooq.impl.DSL
 
 import java.nio.file.Path
-import scala.jdk.CollectionConverters._
 
 class ConfigService extends Application[ConfigServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[ConfigServiceConfiguration]): Unit = {
@@ -74,7 +73,7 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
 
     environment.jersey.register(new ConfigResource)
 
-    ConfigService.enforceRoleAnnotations(environment)
+    RoleAnnotationEnforcer.enforce(environment.jersey.getResourceConfig, "ConfigService")
 
     // Preload default.conf into site_setting tables
     try {
@@ -128,16 +127,6 @@ object ConfigService {
 
     // Enforce @RolesAllowed annotations on resource methods
     environment.jersey.register(classOf[RolesAllowedDynamicFeature])
-  }
-
-  // Throws if any registered endpoint lacks @RolesAllowed/@PermitAll/@DenyAll.
-  def enforceRoleAnnotations(environment: Environment): Unit = {
-    val resourceConfig = environment.jersey.getResourceConfig
-    RoleAnnotationEnforcer.enforce(
-      resourceConfig.getClasses.asScala.toSet ++ resourceConfig.getInstances.asScala
-        .map(_.getClass),
-      "ConfigService"
-    )
   }
 
   def main(args: Array[String]): Unit = {

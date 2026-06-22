@@ -38,7 +38,6 @@ import org.eclipse.jetty.servlet.FilterHolder
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 import java.nio.file.Path
-import scala.jdk.CollectionConverters._
 
 class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfiguration] {
   override def initialize(bootstrap: Bootstrap[WorkflowCompilingServiceConfiguration]): Unit = {
@@ -75,7 +74,10 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
 
-    WorkflowCompilingService.enforceRoleAnnotations(environment)
+    RoleAnnotationEnforcer.enforce(
+      environment.jersey.getResourceConfig,
+      "WorkflowCompilingService"
+    )
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     val requestLogger = org.slf4j.LoggerFactory.getLogger("org.eclipse.jetty.server.RequestLog")
@@ -116,16 +118,6 @@ object WorkflowCompilingService {
 
     // Enforce @RolesAllowed annotations on resource methods
     environment.jersey.register(classOf[RolesAllowedDynamicFeature])
-  }
-
-  // Throws if any registered endpoint lacks @RolesAllowed/@PermitAll/@DenyAll.
-  def enforceRoleAnnotations(environment: Environment): Unit = {
-    val resourceConfig = environment.jersey.getResourceConfig
-    RoleAnnotationEnforcer.enforce(
-      resourceConfig.getClasses.asScala.toSet ++ resourceConfig.getInstances.asScala
-        .map(_.getClass),
-      "WorkflowCompilingService"
-    )
   }
 
   def main(args: Array[String]): Unit = {
