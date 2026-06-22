@@ -26,6 +26,9 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
 class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
 
   "MachineLearningScorerOpDesc.operatorInfo" should
@@ -72,6 +75,9 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     val code = d.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator)")
     code should include("from sklearn.metrics import")
+    // actualValueColumn/predictValueColumn are EncodableString: base64-encoded into the emitted code.
+    code should include(Base64.getEncoder.encodeToString("y".getBytes(StandardCharsets.UTF_8)))
+    code should include(Base64.getEncoder.encodeToString("yhat".getBytes(StandardCharsets.UTF_8)))
   }
 
   "MachineLearningScorerOpDesc" should "round-trip its config fields through the polymorphic base" in {

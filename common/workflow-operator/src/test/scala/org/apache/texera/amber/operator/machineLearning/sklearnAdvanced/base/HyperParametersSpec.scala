@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -47,15 +46,13 @@ class HyperParametersSpec extends AnyFlatSpec with Matchers {
     h.parametersSource shouldBe true
   }
 
-  "HyperParameters" should "expose attribute and value under their @JsonProperty wire-keys" in {
-    classOf[HyperParameters[_]]
-      .getDeclaredField("attribute")
-      .getAnnotation(classOf[JsonProperty])
-      .value shouldBe "attribute"
-    classOf[HyperParameters[_]]
-      .getDeclaredField("value")
-      .getAnnotation(classOf[JsonProperty])
-      .value shouldBe "value"
+  "HyperParameters" should "serialize attribute and value under their wire-keys" in {
+    val h = new HyperParameters[String]
+    h.attribute = "colA"
+    h.value = "0.5"
+    val tree = objectMapper.readTree(objectMapper.writeValueAsString(h))
+    tree.get("attribute").asText shouldBe "colA"
+    tree.get("value").asText shouldBe "0.5"
   }
 
   "HyperParameters JSON" should "omit null fields (Include.NON_NULL) for a fresh instance" in {
