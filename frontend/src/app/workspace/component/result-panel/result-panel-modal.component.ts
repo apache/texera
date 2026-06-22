@@ -25,7 +25,6 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
-import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { isAudioUrl, isVideoUrl, isImageUrl } from "src/app/common/util/media-type.util";
 import { AppSettings } from "../../../common/app-setting";
@@ -48,7 +47,7 @@ import { AppSettings } from "../../../common/app-setting";
   selector: "texera-row-modal-content",
   templateUrl: "./result-panel-modal.component.html",
   styleUrls: ["./result-panel-model.component.scss"],
-  imports: [CommonModule, NzButtonModule, NzIconModule, NgxJsonViewerModule],
+  imports: [CommonModule, NzButtonModule, NzIconModule],
 })
 export class RowModalComponent implements OnChanges {
   rowEntries: { key: string; value: string; mediaSrc: string; isVideo: boolean; isImage: boolean; isAudio: boolean }[] =

@@ -99,7 +99,7 @@ describe("isVideoUrl", () => {
   it("should return true for common video file extensions", () => {
     expect(isVideoUrl("https://example.com/clip.mp4")).toBe(true);
     expect(isVideoUrl("https://example.com/clip.webm")).toBe(true);
-    expect(isVideoUrl("https://example.com/clip.ogg")).toBe(true);
+    expect(isVideoUrl("https://example.com/clip.ogv")).toBe(true);
   });
 
   it("should return true for fal.media CDN URLs", () => {

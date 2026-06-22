@@ -20,7 +20,7 @@
 export function isVideoUrl(value: string): boolean {
   if (typeof value !== "string") return false;
   return (
-    value.match(/\.(mp4|webm|ogg)(\?.*)?$/i) !== null ||
+    value.match(/\.(mp4|webm|ogv)(\?.*)?$/i) !== null ||
     value.startsWith("data:video/") ||
     value.startsWith("https://v3b.fal.media/files/")
   );
