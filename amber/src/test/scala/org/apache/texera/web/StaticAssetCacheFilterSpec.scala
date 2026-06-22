@@ -195,6 +195,28 @@ class StaticAssetCacheFilterSpec extends AnyFlatSpec with Matchers {
     chained.get() shouldBe true
   }
 
+  it should "ignore an HTTP request paired with a non-HTTP response but still continue the chain" in {
+    val chained = new AtomicBoolean(false)
+    new StaticAssetCacheFilter().doFilter(
+      httpRequest("/main.138cf96bab6ef6d9.js"),
+      proxy(classOf[ServletResponse])(PartialFunction.empty),
+      recordingChain(chained)
+    )
+    chained.get() shouldBe true
+  }
+
+  it should "ignore a non-HTTP request paired with an HTTP response but still continue the chain" in {
+    val headers = mutable.Map.empty[String, String]
+    val chained = new AtomicBoolean(false)
+    new StaticAssetCacheFilter().doFilter(
+      proxy(classOf[ServletRequest])(PartialFunction.empty),
+      httpResponse(headers),
+      recordingChain(chained)
+    )
+    headers shouldBe empty
+    chained.get() shouldBe true
+  }
+
   "init and destroy" should "be no-ops that do not throw" in {
     val filter = new StaticAssetCacheFilter()
     noException should be thrownBy {
