@@ -29,7 +29,9 @@ import { AppSettings } from "../app-setting";
 const ACCESS_TOKEN_KEY = "access_token";
 
 type PreLoginConfig = Pick<GuiConfig, "localLogin" | "googleLogin" | "defaultLocalUser" | "attributionEnabled">;
-type GuiOnlyConfig = Omit<GuiConfig, keyof PreLoginConfig | "inviteOnly">;
+// Fields served by /config/amber.
+type AmberConfig = Pick<GuiConfig, "defaultDataTransferBatchSize">;
+type GuiOnlyConfig = Omit<GuiConfig, keyof PreLoginConfig | keyof AmberConfig | "inviteOnly">;
 type UserSystemConfig = Pick<GuiConfig, "inviteOnly">;
 
 @Injectable({ providedIn: "root" })
@@ -83,10 +85,11 @@ export class GuiConfigService {
    */
   loadPostLogin(): Observable<Partial<GuiConfig>> {
     const guiConfig$ = this.http.get<GuiOnlyConfig>(`${AppSettings.getApiEndpoint()}/config/gui`);
+    const amberConfig$ = this.http.get<AmberConfig>(`${AppSettings.getApiEndpoint()}/config/amber`);
     const userSystemConfig$ = this.http.get<UserSystemConfig>(`${AppSettings.getApiEndpoint()}/config/user-system`);
-    return forkJoin([guiConfig$, userSystemConfig$]).pipe(
-      tap(([guiConfig, userSystemConfig]) => {
-        this.config = { ...this.config, ...guiConfig, ...userSystemConfig };
+    return forkJoin([guiConfig$, amberConfig$, userSystemConfig$]).pipe(
+      tap(([guiConfig, amberConfig, userSystemConfig]) => {
+        this.config = { ...this.config, ...guiConfig, ...amberConfig, ...userSystemConfig };
       }),
       map(() => this.config)
     );

@@ -153,7 +153,15 @@ jobs:
                 reviewers.push(h);
             }
             if (!reviewers.length && !team_reviewers.length) {
-              core.warning(`No valid @mentions in '${action}'; skipping.`);
+              // Explicit @mentions are required — the suggest-reviewers CI job
+              // already posted a suggestion comment on this PR, so the author
+              // has candidates to choose from.
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: pull_number,
+                body:
+                  `Please specify at least one reviewer: \`/${action} @user\`.\n` +
+                  `Check the suggestion comment on this PR for candidates.`,
+              });
               return;
             }
 
