@@ -158,6 +158,66 @@ class RegionExecutionCoordinatorSpec
     assert(fixture.rpcProbe.endWorkerCalls.size == 1)
   }
 
+  it should "complete when EndWorker finally succeeds on the last permitted attempt" in {
+    // Fail every attempt but the last permitted one. The give-up branch only fires when an attempt
+    // both fails AND is the final one, so a success on attempt == budget must still complete the
+    // region rather than report it as un-terminable. This pins the off-by-one boundary.
+    val attempts = new atomic.AtomicInteger(0)
+    val fixture = createSingleRegionFixture(
+      endWorkerResponse = _ =>
+        if (attempts.incrementAndGet() < 2) {
+          Some(transientEndWorkerFailure)
+        } else {
+          Some(EmptyReturn())
+        },
+      maxTerminationAttempts = 2,
+      killRetryDelay = TwitterDuration.fromMilliseconds(5)
+    )
+
+    launchRegion(fixture.coordinator)
+    val completion = requestRegionCompletion(fixture.coordinator)
+
+    await(completion)
+    assert(fixture.coordinator.isCompleted)
+    assert(fixture.rpcProbe.endWorkerCalls.size == 2)
+    assert(!fixture.actorRefService.hasActorRef(fixture.workerId))
+    assert(workerState(fixture) == WorkerState.TERMINATED)
+  }
+
+  it should "list every still-running worker and preserve the cause when giving up" in {
+    // A region with several workers, all of which never finish draining. The give-up error must
+    // name each stuck worker (so the user can act on it) and chain the underlying failure as cause.
+    val fixture = createMultiWorkerGiveUpFixture(
+      workerCount = 3,
+      maxTerminationAttempts = 2,
+      killRetryDelay = TwitterDuration.fromMilliseconds(5)
+    )
+
+    launchRegion(fixture.coordinator)
+    val completion = requestRegionCompletion(fixture.coordinator)
+
+    val failure = intercept[IllegalStateException] {
+      await(completion)
+    }
+    assert(failure.getMessage.contains("could not be terminated after 2 attempts"))
+    fixture.workerIds.foreach { workerId =>
+      assert(failure.getMessage.contains(workerId.toString))
+    }
+    assert(failure.getCause != null)
+    assert(!fixture.coordinator.isCompleted)
+    // EndWorker is sent to every worker on every attempt.
+    assert(fixture.rpcProbe.endWorkerCalls.size == fixture.workerIds.size * 2)
+  }
+
+  it should "default to a bounded ~30s termination budget" in {
+    // 150 attempts * 200 ms ≈ 30 s. These defaults are the documented contract for how long a
+    // stuck region blocks before failing loudly; pin them so changes are deliberate.
+    assert(RegionExecutionCoordinator.DefaultMaxTerminationAttempts == 150)
+    assert(
+      RegionExecutionCoordinator.DefaultKillRetryDelay == TwitterDuration.fromMilliseconds(200)
+    )
+  }
+
   private case class SingleRegionFixture(
       coordinator: RegionExecutionCoordinator,
       rpcProbe: ControllerRpcProbe,
@@ -212,6 +272,46 @@ class RegionExecutionCoordinatorSpec
       workerId = workerId,
       actorRefService = controller.actorRefService
     )
+  }
+
+  private case class MultiWorkerFixture(
+      coordinator: RegionExecutionCoordinator,
+      rpcProbe: ControllerRpcProbe,
+      workerIds: Seq[ActorVirtualIdentity]
+  )
+
+  // A region whose workers all fail EndWorker forever, used to exercise the give-up path's
+  // aggregation over multiple workers.
+  private def createMultiWorkerGiveUpFixture(
+      workerCount: Int,
+      maxTerminationAttempts: Int,
+      killRetryDelay: TwitterDuration
+  ): MultiWorkerFixture = {
+    val physicalOp = createSourceOp("multi-op")
+    val workerIds = createWorkerIds(physicalOp, workerCount)
+    val region = createWorkerRegion(1, physicalOp, workerIds)
+
+    val workflowExecution = WorkflowExecution()
+    seedReusableWorkerExecutions(workflowExecution, seedRegionId = 0, physicalOp, workerIds)
+    workflowExecution.initRegionExecution(region)
+
+    val rpcProbe = new ControllerRpcProbe(_ => Some(transientEndWorkerFailure))
+    val controller = createControllerHarness()
+    workerIds.foreach(registerLiveWorker(controller.actorRefService, _))
+
+    val coordinator = new RegionExecutionCoordinator(
+      region,
+      isRestart = false,
+      workflowExecution,
+      rpcProbe.asyncRPCClient,
+      ControllerConfig(None, None, None, None),
+      controller.actorService,
+      controller.actorRefService,
+      maxTerminationAttempts,
+      killRetryDelay
+    )
+
+    MultiWorkerFixture(coordinator, rpcProbe, workerIds)
   }
 
   private def launchRegion(coordinator: RegionExecutionCoordinator): Unit = {
