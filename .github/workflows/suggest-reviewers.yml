@@ -1,0 +1,181 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# On PR open/update, runs `git blame` on every changed file and posts (or
+# edits) a single reviewer-suggestion comment split into two buckets:
+#   • Committers — collaborators who can be formally review-requested.
+#     The author uses `/request-review @login` to act on these.
+#   • Non-committer contributors — have context but cannot be review-
+#     requested; the author can @-mention them to notify.
+# The CI never sends a review request on its own.
+name: Suggest reviewers
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  suggest-reviewers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { execFileSync } = require('node:child_process');
+            const pull_number = context.payload.pull_request.number;
+            const author = context.payload.pull_request.user.login;
+            const { owner, repo } = context.repo;
+
+            const { data: pull } = await github.rest.pulls.get({ owner, repo, pull_number });
+
+            try {
+              execFileSync('git', ['fetch', 'origin', pull.base.ref], { encoding: 'utf8' });
+            } catch (e) {
+              core.warning(`git fetch for base ref ${pull.base.ref} failed: ${e.message}`);
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner, repo, pull_number, per_page: 100,
+            });
+
+            // Parse `git blame -p` output to find the most-recent commit per file.
+            function latestBlameCommit(blameOutput) {
+              let latest = null;
+              let current = null;
+
+              function finalizeCurrent() {
+                if (!current || current.authorTime == null) return;
+                if (!latest || current.authorTime > latest.authorTime) latest = current;
+              }
+
+              for (const line of blameOutput.split(/\r?\n/)) {
+                const header = line.match(/^([0-9a-f^]+)\s+\d+\s+\d+\s+\d+$/);
+                if (header) {
+                  finalizeCurrent();
+                  current = { sha: header[1].replace(/^\^/, ''), authorTime: null };
+                  continue;
+                }
+                const authorTime = line.match(/^author-time\s+(\d+)$/);
+                if (authorTime && current) current.authorTime = Number(authorTime[1]);
+              }
+
+              finalizeCurrent();
+              return latest;
+            }
+
+            // Count changed files touched per login; track collaborator status.
+            const committerCounts = new Map();    // collaborators
+            const nonCommitterCounts = new Map(); // non-collaborators with a GitHub login
+
+            for (const { filename, status, previous_filename } of files) {
+              if (status === 'removed' || status === 'added') continue;
+              const blamePath = status === 'renamed' ? previous_filename : filename;
+
+              let blameOutput;
+              try {
+                blameOutput = execFileSync(
+                  'git', ['blame', '-p', pull.base.sha, '--', blamePath],
+                  { encoding: 'utf8' },
+                );
+              } catch (e) {
+                core.warning(`git blame on ${filename} failed: ${e.message}`);
+                continue;
+              }
+
+              const latest = latestBlameCommit(blameOutput);
+              if (!latest) continue;
+
+              let commit;
+              try {
+                ({ data: commit } = await github.rest.repos.getCommit({ owner, repo, ref: latest.sha }));
+              } catch (e) {
+                core.warning(`Commit lookup for ${latest.sha} failed: ${e.message}`);
+                continue;
+              }
+
+              const login = commit.author?.login ?? commit.committer?.login;
+              if (!login) continue;
+              if (login.toLowerCase() === author.toLowerCase()) continue;
+
+              const loginSource = commit.author?.login ? commit.author : commit.committer;
+              if (loginSource?.type === 'Bot') continue;
+
+              let isCollaborator = false;
+              try {
+                await github.rest.repos.checkCollaborator({ owner, repo, username: login });
+                isCollaborator = true;
+              } catch (_) { /* not a collaborator */ }
+
+              if (isCollaborator) {
+                committerCounts.set(login, (committerCounts.get(login) ?? 0) + 1);
+              } else {
+                nonCommitterCounts.set(login, (nonCommitterCounts.get(login) ?? 0) + 1);
+              }
+            }
+
+            const MAX_EACH = 3;
+
+            const committers = [...committerCounts.entries()]
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, MAX_EACH)
+              .map(([l]) => l);
+
+            const nonCommitters = [...nonCommitterCounts.entries()]
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, MAX_EACH)
+              .map(([l]) => l);
+
+            const MARKER = '<!-- texera-reviewer-suggestion -->';
+
+            let body = `${MARKER}\n`;
+            body += `### Automated Reviewer Suggestions\n\n`;
+            body += `Based on the \`git blame\` history of the changed files, we recommend the following reviewers:\n\n`;
+
+            if (committers.length) {
+              body += `- **Committers with relevant context:** ${committers.map(l => `\`@${l}\``).join(', ')}\n`;
+              body += `  You can request their reviews formally with \`/request-review ${committers.map(l => `@${l}`).join(' ')}\`.\n\n`;
+            }
+
+            if (nonCommitters.length) {
+              body += `- **Contributors with relevant context:** ${nonCommitters.map(l => `\`@${l}\``).join(', ')}\n`;
+              body += `  You can notify them by mentioning ${nonCommitters.map(l => `\`@${l}\``).join(', ')} in a comment.\n`;
+            }
+
+            if (!committers.length && !nonCommitters.length) {
+              body += `- No candidates found from \`git blame\` history.\n`;
+            }
+
+            // Update existing suggestion comment rather than posting a new one.
+            const allComments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number: pull_number, per_page: 100,
+            });
+            const existing = allComments.find(c => c.body?.includes(MARKER));
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+              core.info(`Updated reviewer suggestion comment on #${pull_number}`);
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: pull_number, body });
+              core.info(`Posted reviewer suggestion comment on #${pull_number}`);
+            }

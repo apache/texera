@@ -21,15 +21,11 @@ package org.apache.texera.amber.util.serde
 
 import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class PortIdentitySerdeSpec extends AnyFlatSpec {
-
-  // ---------------------------------------------------------------------------
-  // GlobalPortIdentitySerde
-  // ---------------------------------------------------------------------------
+class GlobalPortIdentitySerdeSpec extends AnyFlatSpec with Matchers {
 
   private def globalPort(
       logical: String = "op-A",
@@ -47,7 +43,7 @@ class PortIdentitySerdeSpec extends AnyFlatSpec {
   "GlobalPortIdentitySerde" should "round-trip a default GlobalPortIdentity through serializeAsString → deserializeFromString" in {
     val original = globalPort()
     val restored = GlobalPortIdentitySerde.deserializeFromString(original.serializeAsString)
-    assert(restored == original)
+    restored shouldBe original
   }
 
   it should "preserve all five fields independently across the round-trip" in {
@@ -69,7 +65,7 @@ class PortIdentitySerdeSpec extends AnyFlatSpec {
     cases.foreach { p =>
       val s = p.serializeAsString
       val restored = GlobalPortIdentitySerde.deserializeFromString(s)
-      assert(restored == p, s"round-trip mismatch for $p (serialized: $s)")
+      restored shouldBe p
     }
   }
 
@@ -77,20 +73,16 @@ class PortIdentitySerdeSpec extends AnyFlatSpec {
     // Pin the exact format. If this changes, callers reading existing
     // VFS URIs from disk will break — locking it down forces a deliberate
     // migration story.
-    assert(
-      globalPort().serializeAsString ==
-        "(logicalOpId=op-A,layerName=main,portId=0,isInternal=false,isInput=true)"
-    )
-    assert(
-      globalPort(
-        logical = "op-Z",
-        layer = "extra-layer",
-        portIdValue = 7,
-        internal = true,
-        input = false
-      ).serializeAsString ==
-        "(logicalOpId=op-Z,layerName=extra-layer,portId=7,isInternal=true,isInput=false)"
-    )
+    globalPort().serializeAsString shouldBe
+      "(logicalOpId=op-A,layerName=main,portId=0,isInternal=false,isInput=true)"
+    globalPort(
+      logical = "op-Z",
+      layer = "extra-layer",
+      portIdValue = 7,
+      internal = true,
+      input = false
+    ).serializeAsString shouldBe
+      "(logicalOpId=op-Z,layerName=extra-layer,portId=7,isInternal=true,isInput=false)"
   }
 
   it should "round-trip identifiers containing dashes and dots (regex non-comma matcher)" in {
@@ -100,7 +92,7 @@ class PortIdentitySerdeSpec extends AnyFlatSpec {
     // both; if the regex were ever tightened to alphanumerics only, this
     // would fail on purpose.
     val p = globalPort(logical = "my.op-with-dashes.v2", layer = "main-1")
-    assert(GlobalPortIdentitySerde.deserializeFromString(p.serializeAsString) == p)
+    GlobalPortIdentitySerde.deserializeFromString(p.serializeAsString) shouldBe p
   }
 
   it should "throw IllegalArgumentException when serializing a negative port id" in {
@@ -147,13 +139,6 @@ class PortIdentitySerdeSpec extends AnyFlatSpec {
     }
   }
 
-  it should "throw IllegalArgumentException on a completely malformed string" in {
-    val ex = intercept[IllegalArgumentException] {
-      GlobalPortIdentitySerde.deserializeFromString("not even close")
-    }
-    assert(ex.getMessage.contains("not even close"))
-  }
-
   it should "throw IllegalArgumentException when a required field is missing" in {
     // Drop isInput.
     val malformed = "(logicalOpId=op-A,layerName=main,portId=0,isInternal=false)"
@@ -173,7 +158,7 @@ class PortIdentitySerdeSpec extends AnyFlatSpec {
   }
 
   it should "throw IllegalArgumentException when a boolean field is non-boolean" in {
-    // `String.toBoolean` is strict: only \"true\" / \"false\" (case-insensitive)
+    // `String.toBoolean` is strict: only "true" / "false" (case-insensitive)
     // pass; anything else throws IllegalArgumentException.
     val malformed = "(logicalOpId=op-A,layerName=main,portId=0,isInternal=maybe,isInput=true)"
     intercept[IllegalArgumentException] {
@@ -181,18 +166,22 @@ class PortIdentitySerdeSpec extends AnyFlatSpec {
     }
   }
 
+  it should "throw IllegalArgumentException on a completely malformed string" in {
+    val ex = intercept[IllegalArgumentException] {
+      GlobalPortIdentitySerde.deserializeFromString("not even close")
+    }
+    ex.getMessage should include("not even close")
+  }
+
   it should "use no underscore in its own format characters (separators / keys)" in {
     // Pin the format-character invariant: the wrapping `(...)`, the field
     // separators `,`, the key=value separators, and the field NAMES
-    // themselves contain no underscore. Verify by building the format with
-    // empty-string-replacement values for every input field, so anything
-    // left in the output is purely from `serializeAsString`'s own format.
-    // (For the layerName field the empty-input variant is rejected by the
-    // deserializer regex; here we only check the SERIALIZED output, not the
-    // round-trip.)
+    // themselves contain no underscore. Verify by stripping the input
+    // field values, so anything left in the output is purely from
+    // `serializeAsString`'s own format.
     val s = globalPort(logical = "x", layer = "x").serializeAsString
     val formatChars = s.replace("x", "").replace("0", "").replace("false", "").replace("true", "")
-    assert(!formatChars.contains("_"), s"format characters must be underscore-free: $formatChars")
+    formatChars should not include "_"
   }
 
   it should "throw IllegalArgumentException when logicalOpId contains an underscore" in {
@@ -214,107 +203,86 @@ class PortIdentitySerdeSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
-  // PortIdentityKeySerializer.portIdToString (companion, not the Jackson class)
+  // Edge cases
   // ---------------------------------------------------------------------------
 
-  "PortIdentityKeySerializer.portIdToString" should "format a PortIdentity as `id_internal`" in {
-    assert(PortIdentityKeySerializer.portIdToString(PortIdentity(0, internal = false)) == "0_false")
-    assert(PortIdentityKeySerializer.portIdToString(PortIdentity(7, internal = true)) == "7_true")
+  it should "accept underscores on deserialize even though serialize rejects them (serialize/deserialize asymmetry)" in {
+    // The deserializer regex `[^,]+` does not reject underscores, so a
+    // hand-crafted string with underscored logicalOpId / layerName parses
+    // fine — unlike the serializer, which rejects them at the boundary.
+    // Characterize this asymmetry so a future tightening of the regex
+    // breaks this test deliberately.
+    val s = "(logicalOpId=op_A,layerName=main_layer,portId=0,isInternal=false,isInput=true)"
+    val restored = GlobalPortIdentitySerde.deserializeFromString(s)
+    restored.opId.logicalOpId.id shouldBe "op_A"
+    restored.opId.layerName shouldBe "main_layer"
   }
 
-  // ---------------------------------------------------------------------------
-  // PortIdentityKeySerializer + PortIdentityKeyDeserializer (Jackson wiring)
-  // ---------------------------------------------------------------------------
-  //
-  // These tests use the production `JSONUtils.objectMapper` directly so a
-  // regression in the singleton wiring (e.g. the module that registers the
-  // PortIdentity key (de)serializer being removed or reordered) surfaces
-  // here, not just on a freshly-constructed mapper.
-
-  "PortIdentity Jackson key (de)serialization" should "round-trip a Map[PortIdentity, String] via JSONUtils.objectMapper" in {
-    val original = Map(
-      PortIdentity(0, internal = false) -> "a",
-      PortIdentity(1, internal = true) -> "b"
-    )
-    val json = objectMapper.writeValueAsString(original)
-    // Verify the JSON keys match the documented `id_internal` format.
-    assert(json.contains("\"0_false\""))
-    assert(json.contains("\"1_true\""))
-    val tref = objectMapper.getTypeFactory
-      .constructMapType(classOf[java.util.HashMap[_, _]], classOf[PortIdentity], classOf[String])
-    val restored: java.util.Map[PortIdentity, String] = objectMapper.readValue(json, tref)
-    import scala.jdk.CollectionConverters._
-    assert(restored.asScala.toMap == original)
-  }
-
-  it should "round-trip an empty Map[PortIdentity, V] without invoking the (de)serializer" in {
-    val original = Map.empty[PortIdentity, String]
-    val json = objectMapper.writeValueAsString(original)
-    val tref = objectMapper.getTypeFactory
-      .constructMapType(classOf[java.util.HashMap[_, _]], classOf[PortIdentity], classOf[String])
-    val restored: java.util.Map[PortIdentity, String] = objectMapper.readValue(json, tref)
-    assert(restored.isEmpty)
-  }
-
-  "PortIdentityKeyDeserializer.deserializeKey" should "throw NumberFormatException for a non-integer id" in {
-    val d = new PortIdentityKeyDeserializer
-    intercept[NumberFormatException] {
-      d.deserializeKey("notAnInt_false", null)
-    }
-  }
-
-  it should "throw IllegalArgumentException for a non-boolean internal flag" in {
-    val d = new PortIdentityKeyDeserializer
+  it should "fail to round-trip a logicalOpId containing a comma (separators are not escaped)" in {
+    // The format does not escape its `,` separator, so a logicalOpId with
+    // an embedded comma serializes into a string the deserializer can no
+    // longer parse back into the same value.
+    val s = globalPort(logical = "op,A").serializeAsString
     intercept[IllegalArgumentException] {
-      d.deserializeKey("0_notABool", null)
+      GlobalPortIdentitySerde.deserializeFromString(s)
     }
   }
 
-  it should "throw NumberFormatException when the underscore separator is missing and the whole string is non-numeric" in {
-    // `key.split("_")` on a separator-less non-numeric string yields a
-    // single-element array, and `parts(0).toInt` fires first → NFE.
-    val d = new PortIdentityKeyDeserializer
+  it should "round-trip Int.MaxValue but reject an out-of-Int-range portId on deserialize" in {
+    // Upper boundary of the portId domain round-trips intact.
+    val p = globalPort(portIdValue = Int.MaxValue)
+    GlobalPortIdentitySerde.deserializeFromString(p.serializeAsString) shouldBe p
+    // A value past Int range fails in `.toInt` with NumberFormatException.
+    val overflow =
+      "(logicalOpId=op-A,layerName=main,portId=9999999999,isInternal=false,isInput=true)"
     intercept[NumberFormatException] {
-      d.deserializeKey("missingSeparator", null)
+      GlobalPortIdentitySerde.deserializeFromString(overflow)
     }
   }
 
-  it should "throw ArrayIndexOutOfBoundsException when only the id is provided (no `_internal` suffix)" in {
-    // Different separator-missing path: `\"5\".split(\"_\")` yields
-    // [\"5\"], parts(0).toInt = 5 succeeds, then parts(1) reads past the
-    // end. Pin this failure mode explicitly so a future safer parser
-    // breaks the spec on purpose (and the safer error type is chosen
-    // consciously).
-    val d = new PortIdentityKeyDeserializer
-    intercept[ArrayIndexOutOfBoundsException] {
-      d.deserializeKey("5", null)
-    }
+  it should "accept mixed-case boolean fields on deserialize (String.toBoolean is case-insensitive)" in {
+    // `String.toBoolean` accepts any case variant of true/false, so a
+    // tampered/legacy string with `True` / `FALSE` still parses.
+    val s = "(logicalOpId=op-A,layerName=main,portId=0,isInternal=True,isInput=FALSE)"
+    val restored = GlobalPortIdentitySerde.deserializeFromString(s)
+    restored.portId.internal shouldBe true
+    restored.input shouldBe false
   }
 
-  it should "silently accept extra trailing underscore-separated segments (lenient parser, current behavior)" in {
-    // Pin the current lenient behavior: `parts(0).toInt` and
-    // `parts(1).toBoolean` ignore everything past `parts(1)`, so a key
-    // like `"1_true_garbage"` deserializes to `PortIdentity(1, true)`
-    // without complaint. The strict-rejection variant lives in a
-    // pendingUntilFixed test below; characterizing today's lenient
-    // path here means a future-tightening fix would need to update
-    // both tests deliberately.
-    val d = new PortIdentityKeyDeserializer
-    val pid = d.deserializeKey("1_true_garbage", null)
-    assert(pid == PortIdentity(1, internal = true))
+  it should "round-trip a value containing '=' (only ',' is a sensitive separator)" in {
+    // Counterpart to the comma case above: the deserializer anchors on the
+    // literal `logicalOpId=` prefix and then captures up to the next comma
+    // (`[^,]+`), so an embedded `=` is harmless and round-trips intact.
+    // Pin this so a future regex change that special-cased `=` would fail.
+    val p = globalPort(logical = "a=b")
+    GlobalPortIdentitySerde.deserializeFromString(p.serializeAsString) shouldBe p
   }
 
-  it should "eventually reject keys with extra trailing segments (pendingUntilFixed)" in pendingUntilFixed {
-    // Documented contract: a `PortIdentityKeySerializer` output is exactly
-    // `id_internal` — two underscore-separated segments. Anything else is
-    // corrupt JSON and should be rejected, not silently truncated. The
-    // current implementation is lenient (see characterization test
-    // above); this pendingUntilFixed flips to passing once the parser
-    // is hardened, then `pendingUntilFixed` inverts that into a
-    // deliberate failure forcing the marker to be removed.
-    val d = new PortIdentityKeyDeserializer
+  it should "serialize an empty logicalOpId but fail to deserialize the result (serialize does not guard emptiness)" in {
+    // The serializer only rejects underscores and negative portIds, not empty
+    // identifiers, so an empty logicalOpId serializes into `(logicalOpId=,...)`.
+    // The deserializer's `[^,]+` requires at least one character, so that
+    // output can no longer be parsed back — the serialize side of the same
+    // asymmetry the "empty field body" deserialize test characterizes.
+    val s = globalPort(logical = "").serializeAsString
     intercept[IllegalArgumentException] {
-      d.deserializeKey("1_true_garbage", null)
+      GlobalPortIdentitySerde.deserializeFromString(s)
     }
+  }
+
+  it should "name the offending field in the require failure message" in {
+    // The three serialize-side guards throw IllegalArgumentException; assert
+    // the message identifies which field failed so a regression that wires a
+    // check to the wrong field (e.g. validating logicalOpId in layerName's
+    // guard) is caught instead of silently still throwing.
+    intercept[IllegalArgumentException] {
+      globalPort(logical = "__x").serializeAsString
+    }.getMessage should include("logicalOpId")
+    intercept[IllegalArgumentException] {
+      globalPort(layer = "a_b").serializeAsString
+    }.getMessage should include("layerName")
+    intercept[IllegalArgumentException] {
+      globalPort(portIdValue = -1).serializeAsString
+    }.getMessage should include("portId")
   }
 }

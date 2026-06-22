@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import sys
 from loguru import logger
 
@@ -49,54 +50,103 @@ def init_loguru_logger(stream_log_level) -> None:
     logger.add(sys.stderr, level=stream_log_level)
 
 
-if __name__ == "__main__":
-    (
-        _,
-        worker_id,
-        output_port,
-        logger_level,
-        r_path,
-        iceberg_catalog_type,
-        iceberg_postgres_catalog_uri_without_scheme,
-        iceberg_postgres_catalog_username,
-        iceberg_postgres_catalog_password,
-        iceberg_rest_catalog_uri,
-        iceberg_rest_catalog_warehouse_name,
-        iceberg_table_namespace,
-        iceberg_table_state_namespace,
-        iceberg_file_storage_directory_path,
-        iceberg_table_commit_batch_size,
-        s3_endpoint,
-        s3_region,
-        s3_auth_username,
-        s3_auth_password,
-        s3_large_binaries_base_uri,
-    ) = sys.argv
-    init_loguru_logger(logger_level)
+# Keys the JVM side (PythonWorkflowWorker) sends in the startup-config JSON.
+# Declared here so any drift between the two sides fails loudly instead of being
+# silently misassigned, as could happen with the previous positional unpacking.
+EXPECTED_CONFIG_KEYS = frozenset(
+    {
+        "workerId",
+        "outputPort",
+        "loggerLevel",
+        "rPath",
+        "icebergCatalogType",
+        "icebergPostgresCatalogUriWithoutScheme",
+        "icebergPostgresCatalogUsername",
+        "icebergPostgresCatalogPassword",
+        "icebergRestCatalogUri",
+        "icebergRestCatalogWarehouseName",
+        "icebergTableNamespace",
+        "icebergTableStateNamespace",
+        "icebergFileStorageDirectoryPath",
+        "icebergTableCommitBatchSize",
+        "s3Endpoint",
+        "s3Region",
+        "s3AuthUsername",
+        "s3AuthPassword",
+        "s3LargeBinariesBaseUri",
+    }
+)
+
+
+def parse_startup_config(raw_config: str) -> dict:
+    """Parse and validate the JSON startup configuration.
+
+    The configuration is passed by name (see PythonWorkflowWorker on the JVM
+    side), so the two sides must agree on an exact key set. Key order is
+    irrelevant since it is a JSON object. Any drift fails loudly:
+      - a missing or unexpected key raises ValueError;
+      - a non-string value raises TypeError.
+    """
+    config = json.loads(raw_config)
+    if not isinstance(config, dict):
+        raise TypeError(
+            f"startup config must be a JSON object, got {type(config).__name__}"
+        )
+
+    actual_keys = set(config)
+    missing = EXPECTED_CONFIG_KEYS - actual_keys
+    unexpected = actual_keys - EXPECTED_CONFIG_KEYS
+    if missing or unexpected:
+        raise ValueError(
+            f"startup config key mismatch: missing={sorted(missing)}, "
+            f"unexpected={sorted(unexpected)}"
+        )
+
+    non_string_keys = sorted(k for k, v in config.items() if not isinstance(v, str))
+    if non_string_keys:
+        raise TypeError(
+            f"startup config values must be strings; non-string keys: {non_string_keys}"
+        )
+
+    return config
+
+
+def main(raw_config: str) -> None:
+    """Start a Python worker from its validated JSON startup configuration."""
+    config = parse_startup_config(raw_config)
+
+    init_loguru_logger(config["loggerLevel"])
     StorageConfig.initialize(
-        iceberg_catalog_type,
-        iceberg_postgres_catalog_uri_without_scheme,
-        iceberg_postgres_catalog_username,
-        iceberg_postgres_catalog_password,
-        iceberg_rest_catalog_uri,
-        iceberg_rest_catalog_warehouse_name,
-        iceberg_table_namespace,
-        iceberg_table_state_namespace,
-        iceberg_file_storage_directory_path,
-        iceberg_table_commit_batch_size,
-        s3_endpoint,
-        s3_region,
-        s3_auth_username,
-        s3_auth_password,
-        s3_large_binaries_base_uri,
+        config["icebergCatalogType"],
+        config["icebergPostgresCatalogUriWithoutScheme"],
+        config["icebergPostgresCatalogUsername"],
+        config["icebergPostgresCatalogPassword"],
+        config["icebergRestCatalogUri"],
+        config["icebergRestCatalogWarehouseName"],
+        config["icebergTableNamespace"],
+        config["icebergTableStateNamespace"],
+        config["icebergFileStorageDirectoryPath"],
+        config["icebergTableCommitBatchSize"],
+        config["s3Endpoint"],
+        config["s3Region"],
+        config["s3AuthUsername"],
+        config["s3AuthPassword"],
+        config["s3LargeBinariesBaseUri"],
     )
 
     # Setting R_HOME environment variable for R-UDF usage
+    r_path = config["rPath"]
     if r_path:
         import os
 
         os.environ["R_HOME"] = r_path
 
     PythonWorker(
-        worker_id=worker_id, host="localhost", output_port=int(output_port)
+        worker_id=config["workerId"],
+        host="localhost",
+        output_port=int(config["outputPort"]),
     ).run()
+
+
+if __name__ == "__main__":
+    main(sys.argv[1])

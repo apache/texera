@@ -84,7 +84,10 @@
 
 <div
   *ngIf="operatorDescription && !editingTitle"
-  class="operator-description">
+  class="operator-description"
+  nz-tooltip
+  [nzTooltipTitle]="operatorDescription"
+  nzTooltipPlacement="bottom">
   <p>{{ operatorDescription }}</p>
 </div>
 
