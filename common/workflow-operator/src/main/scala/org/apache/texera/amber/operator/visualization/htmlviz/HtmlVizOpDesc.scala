@@ -30,6 +30,8 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
+import javax.validation.constraints.NotNull
+
 /**
   * HTML Visualization operator to render any given HTML code
   * This is the description of the operator
@@ -37,7 +39,9 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 class HtmlVizOpDesc extends LogicalOp {
   @JsonProperty(required = true)
   @JsonSchemaTitle("HTML content")
-  @AutofillAttributeName var htmlContentAttrName: String = _
+  @AutofillAttributeName
+  @NotNull(message = "HTML content cannot be empty")
+  var htmlContentAttrName: String = ""
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,

@@ -91,6 +91,29 @@ class PieChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     assertThrows[AssertionError](opDesc.generatePythonCode())
   }
 
+  it should "throw AssertionError naming the Value Column when value is left empty (manipulateTable)" in {
+    val ex = intercept[AssertionError](opDesc.manipulateTable())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    ex.getMessage.toLowerCase should include("value")
+  }
+
+  it should "throw AssertionError naming the Value Column when value is left empty (createPlotlyFigure)" in {
+    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    ex.getMessage.toLowerCase should include("value")
+  }
+
+  it should "render both configured columns in manipulateTable when value and name are set" in {
+    opDesc.value = "pie_value_col"
+    opDesc.name = "pie_name_col"
+    val plain = opDesc.manipulateTable().plain
+    plain should include("pie_value_col")
+    plain should include("pie_name_col")
+    plain should include("dropna")
+  }
+
   it should "render successfully when only name is empty (asymmetric guard, current behavior)" in {
     // Pin: name has no assert guard. With value set and name empty, the
     // generated Python still renders — only the runtime call site receives
