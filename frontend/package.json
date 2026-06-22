@@ -125,7 +125,6 @@
     "eslint": "8.57.0",
     "eslint-plugin-rxjs": "5.0.3",
     "eslint-plugin-rxjs-angular": "2.0.1",
-    "fs-extra": "10.0.1",
     "jsdom": "25.0.1",
     "nodecat": "2.0.0",
     "nx": "23.0.0",

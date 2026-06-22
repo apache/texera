@@ -18,10 +18,10 @@
 import io
 
 import pytest
+import requests
 from unittest.mock import patch, MagicMock
 
 from pytexera.storage.dataset_file_document import DatasetFileDocument
-
 
 DEFAULT_ENDPOINT = "http://localhost:9092/api/dataset/presign-download"
 CUSTOM_ENDPOINT = "https://example.test/api/presign"
@@ -95,7 +95,9 @@ class TestGetPresignedUrl:
 
     def test_returns_presigned_url_field_from_json_body(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.return_value = make_response(
                 200, body={"presignedUrl": "https://signed.test/x"}
             )
@@ -103,7 +105,9 @@ class TestGetPresignedUrl:
 
     def test_sends_bearer_authorization_header_with_jwt(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.return_value = make_response(200, body={"presignedUrl": "u"})
             doc.get_presigned_url()
             _, kwargs = mock_get.call_args
@@ -113,7 +117,9 @@ class TestGetPresignedUrl:
         # urllib.parse.quote keeps "/" as safe by default, but encodes "@"
         # and " " — pin both pieces so the contract is explicit.
         doc = self._make_doc(monkeypatch, path="/bob@x.com/ds/v1/data file.csv")
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.return_value = make_response(200, body={"presignedUrl": "u"})
             doc.get_presigned_url()
             _, kwargs = mock_get.call_args
@@ -124,7 +130,9 @@ class TestGetPresignedUrl:
 
     def test_calls_configured_endpoint(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.return_value = make_response(200, body={"presignedUrl": "u"})
             doc.get_presigned_url()
             args, _ = mock_get.call_args
@@ -132,21 +140,27 @@ class TestGetPresignedUrl:
 
     def test_raises_runtime_error_with_status_and_body_on_failure(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.return_value = make_response(403, body="forbidden")
             with pytest.raises(RuntimeError, match=r"403.*forbidden"):
                 doc.get_presigned_url()
 
     def test_raises_when_response_body_lacks_presigned_url_key(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.return_value = make_response(200, body={"other": "value"})
             with pytest.raises(RuntimeError, match="'presignedUrl' missing"):
                 doc.get_presigned_url()
 
     def test_raises_when_response_body_is_not_valid_json(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             response = MagicMock()
             response.status_code = 200
             response.json.side_effect = ValueError("Expecting value")
@@ -157,14 +171,18 @@ class TestGetPresignedUrl:
 
     def test_raises_when_presigned_url_is_empty_string(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.return_value = make_response(200, body={"presignedUrl": ""})
             with pytest.raises(RuntimeError, match="'presignedUrl' missing"):
                 doc.get_presigned_url()
 
     def test_raises_when_presigned_url_is_not_a_string(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.return_value = make_response(200, body={"presignedUrl": None})
             with pytest.raises(RuntimeError, match="'presignedUrl' missing"):
                 doc.get_presigned_url()
@@ -178,7 +196,9 @@ class TestReadFile:
 
     def test_returns_bytesio_with_downloaded_content(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.side_effect = [
                 make_response(200, body={"presignedUrl": "https://signed.test/x"}),
                 make_response(200, content=b"hello-bytes"),
@@ -189,14 +209,18 @@ class TestReadFile:
 
     def test_propagates_presigned_url_failure(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.return_value = make_response(500, body="upstream down")
             with pytest.raises(RuntimeError, match=r"500.*upstream down"):
                 doc.read_file()
 
     def test_raises_runtime_error_when_download_fails(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.side_effect = [
                 make_response(200, body={"presignedUrl": "https://signed.test/x"}),
                 make_response(404, body="missing"),
@@ -206,7 +230,9 @@ class TestReadFile:
 
     def test_downloads_from_presigned_url_returned_by_first_call(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
-        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
             mock_get.side_effect = [
                 make_response(200, body={"presignedUrl": "https://signed.test/x"}),
                 make_response(200, content=b""),
@@ -214,3 +240,72 @@ class TestReadFile:
             doc.read_file()
             second_call_args, _ = mock_get.call_args_list[1]
             assert second_call_args[0] == "https://signed.test/x"
+
+
+class TestTimeoutsAndRetries:
+    def _make_doc(self, monkeypatch):
+        monkeypatch.setenv("USER_JWT_TOKEN", "test-jwt-token")
+        monkeypatch.setenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
+        return DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
+
+    def test_presigned_url_request_passes_request_timeout(self, monkeypatch):
+        doc = self._make_doc(monkeypatch)
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
+            mock_get.return_value = make_response(200, body={"presignedUrl": "u"})
+            doc.get_presigned_url()
+            _, kwargs = mock_get.call_args
+            assert kwargs["timeout"] == DatasetFileDocument._REQUEST_TIMEOUT
+
+    def test_download_request_passes_request_timeout(self, monkeypatch):
+        doc = self._make_doc(monkeypatch)
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
+            mock_get.side_effect = [
+                make_response(200, body={"presignedUrl": "https://signed.test/x"}),
+                make_response(200, content=b"data"),
+            ]
+            doc.read_file()
+            _, download_kwargs = mock_get.call_args_list[1]
+            assert download_kwargs["timeout"] == DatasetFileDocument._REQUEST_TIMEOUT
+
+    def test_session_mounts_retry_adapter_for_http_and_https(self):
+        session = DatasetFileDocument._retry_session()
+        try:
+            for prefix in ("http://", "https://"):
+                retry = session.get_adapter(prefix).max_retries
+                assert retry.total == DatasetFileDocument._MAX_RETRIES
+                assert retry.connect == DatasetFileDocument._MAX_RETRIES
+                assert retry.read == DatasetFileDocument._MAX_RETRIES
+                assert set(retry.status_forcelist) == set(
+                    DatasetFileDocument._RETRY_STATUS_FORCELIST
+                )
+                # Only idempotent GETs should be retried.
+                assert retry.allowed_methods == frozenset({"GET"})
+        finally:
+            session.close()
+
+    def test_presigned_url_request_timeout_is_wrapped_in_runtime_error(
+        self, monkeypatch
+    ):
+        doc = self._make_doc(monkeypatch)
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
+            mock_get.side_effect = requests.exceptions.ReadTimeout("timed out")
+            with pytest.raises(RuntimeError, match="request failed"):
+                doc.get_presigned_url()
+
+    def test_download_request_timeout_is_wrapped_in_runtime_error(self, monkeypatch):
+        doc = self._make_doc(monkeypatch)
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
+            mock_get.side_effect = [
+                make_response(200, body={"presignedUrl": "https://signed.test/x"}),
+                requests.exceptions.ConnectionError("connection reset"),
+            ]
+            with pytest.raises(RuntimeError, match="Failed to retrieve file content"):
+                doc.read_file()
