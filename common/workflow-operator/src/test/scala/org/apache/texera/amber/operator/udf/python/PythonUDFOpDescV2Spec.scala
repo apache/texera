@@ -73,6 +73,13 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     intercept[IllegalArgumentException] { d.getPhysicalOp(workflowId, executionId) }
   }
 
+  it should "reject a blank virtual-environment name when the default env is disabled" in {
+    val d = new PythonUDFOpDescV2
+    d.defaultEnv = false
+    d.envName = "   "
+    intercept[RuntimeException] { d.getPhysicalOp(workflowId, executionId) }
+  }
+
   "PythonUDFOpDescV2 schema propagation" should
     "emit only the output columns when input columns are not retained (default)" in {
     val d = new PythonUDFOpDescV2
@@ -99,6 +106,16 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     )
   }
 
+  it should "reject an output column that collides with a retained input column" in {
+    val d = new PythonUDFOpDescV2
+    d.retainInputColumns = true
+    d.outputColumns = List(new Attribute("dup", AttributeType.INTEGER))
+    val input = Schema().add(new Attribute("dup", AttributeType.STRING))
+    intercept[RuntimeException] {
+      d.getExternalOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> input))
+    }
+  }
+
   "PythonUDFOpDescV2" should "round-trip its config fields through the polymorphic base" in {
     val d = new PythonUDFOpDescV2
     d.code = "print(1)"
@@ -106,6 +123,7 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     d.retainInputColumns = true
     d.defaultEnv = false
     d.envName = "myenv"
+    d.outputColumns = List(new Attribute("res", AttributeType.INTEGER))
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[PythonUDFOpDescV2]
     val p = restored.asInstanceOf[PythonUDFOpDescV2]
@@ -114,5 +132,6 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     p.retainInputColumns shouldBe true
     p.defaultEnv shouldBe false
     p.envName shouldBe "myenv"
+    p.outputColumns shouldBe List(new Attribute("res", AttributeType.INTEGER))
   }
 }

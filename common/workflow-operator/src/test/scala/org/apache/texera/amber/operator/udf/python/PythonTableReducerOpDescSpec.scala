@@ -69,12 +69,15 @@ class PythonTableReducerOpDescSpec extends AnyFlatSpec with Matchers {
 
   "PythonTableReducerOpDesc" should "round-trip its lambda units through the polymorphic base" in {
     val d = new PythonTableReducerOpDesc
-    d.lambdaAttributeUnits = List(unit("score", "1 + 1", AttributeType.INTEGER))
+    d.lambdaAttributeUnits =
+      List(new LambdaAttributeUnit("score", "1 + 1", "scoreOut", AttributeType.INTEGER))
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[PythonTableReducerOpDesc]
     val r = restored.asInstanceOf[PythonTableReducerOpDesc]
     r.lambdaAttributeUnits should have length 1
     r.lambdaAttributeUnits.head.attributeName shouldBe "score"
+    r.lambdaAttributeUnits.head.expression shouldBe "1 + 1"
+    r.lambdaAttributeUnits.head.newAttributeName shouldBe "scoreOut"
     r.lambdaAttributeUnits.head.attributeType shouldBe AttributeType.INTEGER
   }
 }

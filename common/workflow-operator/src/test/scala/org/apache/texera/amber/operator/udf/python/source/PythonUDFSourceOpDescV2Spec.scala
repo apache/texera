@@ -76,6 +76,7 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     d.workers = 2
     d.defaultEnv = false
     d.envName = "venv"
+    d.columns = List(new Attribute("a", AttributeType.STRING))
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[PythonUDFSourceOpDescV2]
     val p = restored.asInstanceOf[PythonUDFSourceOpDescV2]
@@ -83,5 +84,6 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     p.workers shouldBe 2
     p.defaultEnv shouldBe false
     p.envName shouldBe "venv"
+    p.columns shouldBe List(new Attribute("a", AttributeType.STRING))
   }
 }
