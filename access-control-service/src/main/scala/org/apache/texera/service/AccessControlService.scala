@@ -19,18 +19,11 @@ package org.apache.texera.service
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.auth.{
-  JwtAuthFilter,
-  RequestLoggingFilter,
-  RoleAnnotationEnforcer,
-  SessionUser,
-  UnauthorizedExceptionMapper
-}
+import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.activity.UserActivityEventListener
 import org.apache.texera.service.resource.{
@@ -40,9 +33,7 @@ import org.apache.texera.service.resource.{
   LiteLLMProxyResource
 }
 import org.eclipse.jetty.server.session.SessionHandler
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
-import scala.jdk.CollectionConverters._
 
 class AccessControlService extends Application[AccessControlServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[AccessControlServiceConfiguration]): Unit = {
@@ -78,17 +69,7 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
     environment.jersey.register(classOf[LiteLLMProxyResource])
     environment.jersey.register(classOf[LiteLLMModelsResource])
 
-    // Register JWT authentication filter
-    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
-    environment.jersey.register(classOf[UnauthorizedExceptionMapper])
-
-    // Enable @Auth annotation for injecting SessionUser
-    environment.jersey.register(
-      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
-    )
-
-    // Required for @RolesAllowed on resources to be enforced.
-    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
+    AuthFeatures.register(environment)
 
     // Record USER_LAST_ACTIVE_TIME on every matched, completed request.
     // Lives only in this service because authenticated client sessions
@@ -96,23 +77,13 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
     // with high recall.
     environment.jersey.register(new UserActivityEventListener())
 
-    AccessControlService.enforceRoleAnnotations(environment)
+    RoleAnnotationEnforcer.enforce(environment.jersey.getResourceConfig, "AccessControlService")
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)
   }
 }
 object AccessControlService {
-  // Throws if any registered endpoint lacks @RolesAllowed/@PermitAll/@DenyAll.
-  def enforceRoleAnnotations(environment: Environment): Unit = {
-    val resourceConfig = environment.jersey.getResourceConfig
-    RoleAnnotationEnforcer.enforce(
-      resourceConfig.getClasses.asScala.toSet ++ resourceConfig.getInstances.asScala
-        .map(_.getClass),
-      "AccessControlService"
-    )
-  }
-
   def main(args: Array[String]): Unit = {
     val accessControlPath = Path
       .of(sys.env.getOrElse("TEXERA_HOME", "."))
