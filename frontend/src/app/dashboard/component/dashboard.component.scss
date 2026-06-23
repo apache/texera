@@ -19,6 +19,10 @@
 
 #nav {
   height: 70px;
+  // Pin the header height: it is a flex child of the page-content column, so
+  // without this it gets compressed when the content area is tall.
+  flex-shrink: 0;
+  max-width: 100%;
   padding: 10px 15px;
   display: flex;
   align-items: center;
@@ -137,10 +141,4 @@ nz-content {
 
 .hidden {
   display: none;
-}
-
-#nav {
-  max-width: 100%;
-  max-height: 100%;
-  overflow: hidden;
 }

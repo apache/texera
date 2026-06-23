@@ -156,6 +156,29 @@ object ResponseParsers extends LazyLogging {
     }
   }
 
+  /** Parse VictoriaLogs `/select/logsql/field_values` output into the
+    *  distinct numeric values of a field. Used for the texera.*.id
+    *  autofill dropdowns: those ids are record fields (not stream
+    *  labels) on OTel-bridged JVM logs, so `/streams` never lists them.
+    *  VL reports records lacking the field as an empty-string value;
+    *  those (and any non-numeric value) are dropped.
+    */
+  def parseFieldValueLongs(body: String): Either[GatewayError, Seq[Long]] = {
+    Try(mapper.readTree(body)) match {
+      case Failure(e) => Left(bad(s"VictoriaLogs/field_values: ${e.getMessage}"))
+      case Success(root) =>
+        val values = root.path("values")
+        val out = scala.collection.mutable.LinkedHashSet.empty[Long]
+        if (values.isArray) {
+          values.iterator().asScala.foreach { n =>
+            val v = n.path("value").asText("")
+            if (v.nonEmpty) Try(v.toLong).toOption.foreach(out += _)
+          }
+        }
+        Right(out.toSeq)
+    }
+  }
+
   /** Per-entry redaction. Replaces the whole-body sanitize that used
     *  to run before parsing — that approach stripped '\n' from the
     *  NDJSON stream and collapsed every record into a single blob.

@@ -106,10 +106,10 @@
       formControlName="userId"
       nzAllowClear
       nzShowSearch
-      nzPlaceHolder="User id (any)">
+      nzPlaceHolder="User (any)">
       <nz-option
         *ngFor="let id of sources.userIds"
-        [nzLabel]="'User #' + id"
+        [nzLabel]="sources.userNames?.[id] || 'User #' + id"
         [nzValue]="id"></nz-option>
     </nz-select>
 
@@ -178,6 +178,13 @@
 </form>
 
 <div class="results">
+  <div
+    *ngIf="loading"
+    class="loading-indicator">
+    <nz-spin nzSimple></nz-spin>
+    <span>Loading logs…</span>
+  </div>
+
   <div
     class="meta"
     *ngIf="entries.length > 0">

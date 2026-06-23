@@ -138,8 +138,12 @@ object LogsQLBuilder {
     appendId("texera.user.id", req.userId)
     req.level.foreach(l => pipes.append(s" | filter severity_text:${l.name}"))
     req.query.foreach { ft =>
+      // Phrase filter on the message body. `contains_str(...)` is not
+      // valid LogsQL (VictoriaLogs rejects it); a quoted phrase against
+      // _msg is the correct form. escapeForLogsQL handles the \ and "
+      // that the phrase literal needs.
       val escaped = escapeForLogsQL(ft.value)
-      pipes.append(s""" | filter contains_str("$escaped")""")
+      pipes.append(s""" | filter _msg:"$escaped"""")
     }
 
     // Workflow filter — applied only when the user explicitly picks a

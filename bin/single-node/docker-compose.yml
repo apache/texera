@@ -515,7 +515,7 @@ services:
     security_opt:
       - no-new-privileges:true
     volumes:
-      - ../observability/otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - ../observability/otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro,z
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     # Local dev override: publish OTLP receiver ports on the host
     # loopback so a Scala backend running outside docker (sbt /
@@ -615,7 +615,7 @@ services:
     security_opt:
       - no-new-privileges:true
     volumes:
-      - ../observability/parca/parca.yaml:/parca.yaml:ro
+      - ../observability/parca/parca.yaml:/parca.yaml:ro,z
       - parca_data:/var/lib/parca
     command:
       - "/parca"
@@ -634,7 +634,7 @@ services:
   # observability service that requires elevated permissions; the
   # surface is documented and reviewed.
   parca-agent:
-    image: ghcr.io/parca-dev/parca-agent:v0.47.1
+    image: ghcr.io/parca-dev/parca-agent:v0.48.0
     container_name: texera-parca-agent
     profiles: [observability-profiles]
     restart: always
