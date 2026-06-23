@@ -179,6 +179,13 @@
 
 <div class="results">
   <div
+    *ngIf="loading"
+    class="loading-indicator">
+    <nz-spin nzSimple></nz-spin>
+    <span>Loading logs…</span>
+  </div>
+
+  <div
     class="meta"
     *ngIf="entries.length > 0">
     <span class="count">{{ entries.length }} entries</span>
