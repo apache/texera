@@ -26,16 +26,16 @@ these subdirectories are purely organizational — they do not change rendering.
 
 | Folder | Contains | Renders when |
 |--------|----------|--------------|
-| `common/` | Resources every deployment needs: the Texera micro-service Deployments/Services, the Envoy Gateway + routes, Postgres/LakeFS/Lakekeeper wiring, the computing-unit pool, RBAC and namespaces. | Always. |
-| `onprem/` | Resources only used by a self-hosted / local deployment, e.g. the in-cluster MinIO persistence. | Gated on the relevant on-prem value (e.g. `minio.enabled`). |
+| `base/` | Resources every deployment needs: the Texera micro-service Deployments/Services, the Envoy Gateway + routes, Postgres/LakeFS/Lakekeeper wiring, the computing-unit pool, RBAC and namespaces. | Always. |
+| `on-prem/` | Resources only used by a self-hosted / local deployment, e.g. the in-cluster MinIO persistence. | Gated on the relevant on-prem value (e.g. `minio.enabled`). |
 | `aws/` | Resources only used on AWS/EKS, e.g. the external-S3 credentials Secret, the AWS NLB/EIP `EnvoyProxy`, and the autoscaler warm-pool placeholder. | Gated so they render to nothing off AWS (empty by default). |
 
-Within `common/`, templates are further grouped into one subfolder per
+Within `base/`, templates are further grouped into one subfolder per
 component, named after the service it belongs to, so every manifest for a given
 piece sits together:
 
 ```
-common/
+base/
   access-control-service/   # access-control-service Deployment + Service
   agent-service/            # agent-service Deployment + Service + Secret + traffic policy
   config-service/
@@ -59,10 +59,10 @@ This nesting is also purely organizational — Helm still renders every file
 recursively.
 
 Guidelines for adding a template:
-- Default to `common/`, in the subfolder for the component it belongs to (create
+- Default to `base/`, in the subfolder for the component it belongs to (create
   a new one if it is a new component). Most resources are shared; only move a
-  file out to `aws/`/`onprem/` when it is genuinely specific to one hosting
+  file out to `aws/`/`on-prem/` when it is genuinely specific to one hosting
   environment.
-- Anything under `aws/` or `onprem/` **must** be guarded by an `{{- if ... }}`
+- Anything under `aws/` or `on-prem/` **must** be guarded by an `{{- if ... }}`
   on an opt-in value so that the default (on-prem) install is unaffected and an
   AWS install does not pick up on-prem-only resources.
