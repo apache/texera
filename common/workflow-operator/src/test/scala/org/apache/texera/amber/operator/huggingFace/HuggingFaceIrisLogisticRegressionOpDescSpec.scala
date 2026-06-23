@@ -19,7 +19,9 @@
 
 package org.apache.texera.amber.operator.huggingFace
 
+import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -30,6 +32,9 @@ import java.nio.charset.StandardCharsets
 import java.util.Base64
 
 class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val workflowId = WorkflowIdentity(1L)
+  private val executionId = ExecutionIdentity(1L)
 
   private def b64(s: String): String =
     Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
@@ -98,6 +103,18 @@ class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Match
     code should include("self.decode_python_template(")
     carries(code, "petalLength") shouldBe true
     carries(code, "species") shouldBe true
+  }
+
+  "HuggingFaceIrisLogisticRegressionOpDesc.getPhysicalOp" should
+    "wire an OpExecWithCode python executor carrying the operator's ports" in {
+    val d = configured()
+    val physical = d.getPhysicalOp(workflowId, executionId)
+    physical.opExecInitInfo match {
+      case OpExecWithCode(_, language) => language shouldBe "python"
+      case other                       => fail(s"expected OpExecWithCode, got $other")
+    }
+    physical.inputPorts.keySet shouldBe d.operatorInfo.inputPorts.map(_.id).toSet
+    physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
   }
 
   "HuggingFaceIrisLogisticRegressionOpDesc" should
