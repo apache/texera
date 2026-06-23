@@ -387,7 +387,7 @@ class MetricsResource(ctx: GatewayContext) extends LazyLogging {
 
   @POST
   @Path("/query")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @RolesAllowed(Array("ADMIN"))
   def query(
       request: RawMetricsQueryRequest,
       @Auth user: SessionUser,
@@ -399,14 +399,23 @@ class MetricsResource(ctx: GatewayContext) extends LazyLogging {
       case Right(scope) =>
         validate(request) match {
           case Invalid(err) => Respond.err(err)
+          case Valid(valid) if valid.metric.dbBacked =>
+            queryDbBacked(valid, scope, user, httpReq)
           case Valid(valid) =>
             val q = MetricsQLBuilder.build(valid)
             logger.debug(
-              s"metrics query '${valid.metric.name}' step=${valid.stepSec}s — MetricsQL: $q"
+              s"metrics query '${valid.metric.name}' step=${valid.stepSec}s, MetricsQL: $q"
             )
-            val path = s"/api/v1/query_range?query=${java.net.URLEncoder.encode(q, "UTF-8")}" +
-              s"&start=${valid.window.from.getEpochSecond}&end=${valid.window.to.getEpochSecond}" +
-              s"&step=${valid.stepSec}"
+            val encoded = java.net.URLEncoder.encode(q, "UTF-8")
+            // Window-wide scalars (e.g. totalRuns) are one instant query at
+            // the window end. Per-step series use query_range with the step.
+            val path =
+              if (valid.metric.instant)
+                s"/api/v1/query?query=$encoded&time=${valid.window.to.getEpochSecond}"
+              else
+                s"/api/v1/query_range?query=$encoded" +
+                  s"&start=${valid.window.from.getEpochSecond}&end=${valid.window.to.getEpochSecond}" +
+                  s"&step=${valid.stepSec}"
             ctx.metricsClient.get(path, scope, "metrics") match {
               case Left(err) => Respond.err(err)
               case Right(resp) if !resp.isOk =>
@@ -445,15 +454,71 @@ class MetricsResource(ctx: GatewayContext) extends LazyLogging {
     }
   }
 
+  /** Answer a DB-backed metric (e.g. totalRuns) from the execution table as
+    *  an exact count, returned as a single window-end point so the UI hero
+    *  stat renders unchanged. No metrics-backend call is made.
+    */
+  private def queryDbBacked(
+      valid: ValidatedMetricsRequest,
+      scope: GatewayScope,
+      user: SessionUser,
+      httpReq: HttpServletRequest
+  ): Response = {
+    Try(ctx.runCounter.countRuns(valid.window, valid.userId)) match {
+      case scala.util.Failure(ex) =>
+        logger.error(s"metrics count '${valid.metric.name}' DB query failed", ex)
+        Respond.err(GatewayError.BackendError("metrics", 500))
+      case scala.util.Success(count) =>
+        val parsed = MetricsQueryResponse(
+          metric = valid.metric.name,
+          points = Seq(MetricPoint(valid.window.to.toEpochMilli, count.toDouble))
+        )
+        logger.info(
+          s"metrics count '${valid.metric.name}' ok for user ${user.getUid}: $count run(s)" +
+            valid.userId.map(u => s" (filtered to user $u)").getOrElse("")
+        )
+        AuditLogger.record(
+          AuditLogger.Entry(
+            userId = user.getUid.longValue(),
+            remoteIp = Option(httpReq.getRemoteAddr).getOrElse("unknown"),
+            endpoint = "/observability/metrics/query",
+            signal = "metrics",
+            scope = scope,
+            query =
+              s"db:count(workflow_executions) user=${valid.userId.map(_.toString).getOrElse("*")}",
+            fromMs = valid.window.from.toEpochMilli,
+            toMs = valid.window.to.toEpochMilli,
+            hits = count
+          )
+        )
+        Respond.json(parsed)
+    }
+  }
+
   private def validate(raw: RawMetricsQueryRequest): ValidationResult[ValidatedMetricsRequest] = {
     NamedMetric.parse(raw.name) match {
       case None => Invalid(GatewayError("bad_metric_name", "unknown metric name", 400))
       case Some(metric) =>
-        TimeWindow.validate(Signal.Metrics, raw.fromMs, raw.toMs) match {
-          case Invalid(e) => Invalid(e)
+        TimeWindow.validate(raw.fromMs, raw.toMs) match {
+          case Invalid(e)    => Invalid(e)
           case Valid(window) =>
-            val step = raw.stepSec.getOrElse(60).max(1).min(3600) // clamp 1s..1h
-            Valid(ValidatedMetricsRequest(metric, window, step))
+            // Launder through Number to dodge the Jackson Integer/Long unbox
+            // trap (see ScopeResolver.assertWorkflowAllowed). A negative id is
+            // never a real user, so reject it outright.
+            val rawUid = raw.userId.asInstanceOf[Option[Any]].map {
+              case n: Number => n.longValue()
+              case other     => other.toString.toLong
+            }
+            if (rawUid.exists(_ < 0))
+              Invalid(GatewayError("bad_user_id", "userId must be non-negative", 400))
+            else {
+              // Floor at 1s; no ceiling. The client auto-raises the step for
+              // large windows to fit the points-per-series cap, and a larger
+              // step only means fewer (cheaper) points, so there is nothing to
+              // clamp from above.
+              val step = raw.stepSec.getOrElse(60).max(1)
+              Valid(ValidatedMetricsRequest(metric, window, step, rawUid))
+            }
         }
     }
   }

@@ -218,9 +218,13 @@ object MetricsQLBuilder {
     *  client to supply raw MetricsQL.
     */
   def build(req: ValidatedMetricsRequest): String = {
-    // Per-bucket lookback window for the rate()/increase() family. Tied
-    // to the caller's step so each plotted point summarises its own bucket.
-    val w = s"${req.stepSec}s"
+    // Aggregate-stat window: ratios (success/failure rate) and the duration
+    // stats use the full selected range, not a per-step bucket, so a sparse
+    // or aged completion stays visible instead of collapsing to an empty
+    // per-step series. Floored at one step.
+    val rangeSec =
+      math.max(req.window.to.getEpochSecond - req.window.from.getEpochSecond, req.stepSec.toLong)
+    val agg = s"${rangeSec}s"
     // The completions counter carries texera_outcome={success|failure|…};
     // there is NO texera_workflow_failures_total series. Failure rate is
     // therefore derived as non-success ÷ all completions.
@@ -233,32 +237,36 @@ object MetricsQLBuilder {
         // template used and so reported a value ~86400× too small.
         "sum(increase(texera_workflow_starts_total[1d]))"
       case NamedMetric.TotalRuns =>
-        // Starts within each step bucket. The UI sums the series to show
-        // the absolute run count over the whole selected window.
-        s"sum(increase(texera_workflow_starts_total[$w]))"
+        // NOTE: the live path for totalRuns is the exact DB count in
+        // WorkflowRunCounter (the metric is dbBacked), so this template is
+        // not used in production. It is retained for match-exhaustiveness and
+        // as a metrics-only estimate: ONE increase() over the full range
+        // (not a sum of per-step buckets, which stacked one extrapolation
+        // error per bucket).
+        s"sum(increase(texera_workflow_starts_total[$agg]))"
       case NamedMetric.ActiveWorkflows =>
         // Live up-down gauge, summed across computing units.
         "sum(texera_workflow_active)"
       case NamedMetric.SuccessRate =>
         // % of completions that succeeded. `or vector(0)` so a window with
         // completions but zero successes reports 0%, not an empty series.
-        s"""100 * (sum(rate($completions{texera_outcome="success"}[$w])) or vector(0)) / sum(rate($completions[$w]))"""
+        s"""100 * (sum(rate($completions{texera_outcome="success"}[$agg])) or vector(0)) / sum(rate($completions[$agg]))"""
       case NamedMetric.FailureRate =>
         // % of completions that did NOT succeed (errored/killed/…). The
         // complement of success rate; `or vector(0)` for the no-failures case.
-        s"""100 * (sum(rate($completions{texera_outcome!="success"}[$w])) or vector(0)) / sum(rate($completions[$w]))"""
+        s"""100 * (sum(rate($completions{texera_outcome!="success"}[$agg])) or vector(0)) / sum(rate($completions[$agg]))"""
       case NamedMetric.AvgDuration =>
         // Mean run duration (s): Σduration ÷ Σcount over the bucket.
-        s"sum(rate(texera_workflow_duration_seconds_sum[$w])) / sum(rate(texera_workflow_duration_seconds_count[$w]))"
+        s"sum(rate(texera_workflow_duration_seconds_sum[$agg])) / sum(rate(texera_workflow_duration_seconds_count[$agg]))"
       case NamedMetric.P50Duration =>
-        s"histogram_quantile(0.50, sum(rate($durBucket[$w])) by (le))"
+        s"histogram_quantile(0.50, sum(rate($durBucket[$agg])) by (le))"
       case NamedMetric.P95Duration =>
         // `sum(...) by (le)` is required: histogram_quantile needs the
         // bucket counts aggregated by the `le` label. The earlier template
         // omitted it, which is undefined across multiple bucket series.
-        s"histogram_quantile(0.95, sum(rate($durBucket[$w])) by (le))"
+        s"histogram_quantile(0.95, sum(rate($durBucket[$agg])) by (le))"
       case NamedMetric.P99Duration =>
-        s"histogram_quantile(0.99, sum(rate($durBucket[$w])) by (le))"
+        s"histogram_quantile(0.99, sum(rate($durBucket[$agg])) by (le))"
     }
   }
 }

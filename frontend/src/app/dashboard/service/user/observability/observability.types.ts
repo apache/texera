@@ -143,6 +143,9 @@ export interface MetricsQueryRequest {
   readonly fromMs: number;
   readonly toMs: number;
   readonly stepSec?: number;
+  // Optional filter for DB-backed counts (e.g. totalRuns): restrict to runs
+  // launched by this user. Ignored by metrics-backend series.
+  readonly userId?: number;
 }
 
 export interface MetricPoint {

@@ -26,7 +26,11 @@ import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzDatePickerComponent, NzRangePickerComponent } from "ng-zorro-antd/date-picker";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
+import { NzSelectModule } from "ng-zorro-antd/select";
+import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { NzTooltipModule } from "ng-zorro-antd/tooltip";
+import { loadPanelPrefs, savePanelPrefs } from "../../../../service/user/observability/observability-prefs";
+import { AdminUserService } from "../../../../service/admin/user/admin-user.service";
 import { NgxEchartsDirective, provideEchartsCore } from "ngx-echarts";
 import * as echarts from "echarts/core";
 import { LineChart, GaugeChart } from "echarts/charts";
@@ -39,6 +43,11 @@ import { MetricsQueryResponse, NamedMetric } from "../../../../service/user/obse
 // Register the minimum set of ECharts components we use. Tree-shaking
 // keeps the bundle reasonable.
 echarts.use([LineChart, GaugeChart, GridComponent, TitleComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
+
+// VictoriaMetrics rejects a query_range that would return more than
+// ~30k points per series (-search.maxPointsPerTimeseries). We target a
+// margin below that so off-by-one / step-alignment never trips the limit.
+const SAFE_MAX_POINTS = 28_000;
 
 /**
  * Workflow stats panel.
@@ -71,6 +80,8 @@ echarts.use([LineChart, GaugeChart, GridComponent, TitleComponent, TooltipCompon
     NzDatePickerComponent,
     NzRangePickerComponent,
     NzInputDirective,
+    NzSelectModule,
+    NzSpinComponent,
     NzTooltipModule,
     NgxEchartsDirective,
   ],
@@ -79,14 +90,16 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
   // Static labels + descriptions shown for each chart. Source:
   // server-side closed enum; the values here are presentation only.
   // `aggregate` controls the hero stat: "latest" = last sample (default),
-  // "sum" = total of all points over the window (for count-per-bucket
-  // series like totalRuns).
+  // "sum" = window total. `instant` metrics (e.g. totalRuns) come back as
+  // a single window-wide scalar, so they render a hero number only, no
+  // trend chart.
   readonly chartDescriptors: ReadonlyArray<{
     name: NamedMetric;
     title: string;
     unit: string;
     description: string;
     aggregate?: "latest" | "sum";
+    instant?: boolean;
   }> = [
     {
       name: "runsPerDay",
@@ -101,9 +114,10 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
       title: "Total runs in window",
       unit: "runs",
       aggregate: "sum",
+      instant: true,
       description:
-        "Workflow executions started within the selected time range. The chart shows starts per step interval; " +
-        "the headline value is the total across the whole window.",
+        "Workflow executions started within the selected time range. An exact, system-wide count read from the " +
+        "execution records (not the sampled metrics counter). Use the user filter to scope it to one user.",
     },
     {
       name: "activeWorkflows",
@@ -169,12 +183,20 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
       [new Date(Date.now() - 30 * 24 * 3600 * 1000), new Date()],
       Validators.required
     ),
-    // 1h step pairs with the 30-day default window: 30d / 1h = 720 points
-    // per series, well under VictoriaMetrics' 30k-points-per-series cap.
-    // A 60s step over 30 days would be ~43k points and the backend would
-    // reject the query outright.
+    // The user's PREFERRED resolution, in [1s, 1h]. The effective step sent
+    // to the backend is auto-raised above this when the window is large, so
+    // points-per-series stays under VictoriaMetrics' cap (see
+    // computeEffectiveStep). With no window maximum any more, a fixed step
+    // alone could otherwise blow that cap and get the query rejected.
     stepSec: new FormControl<number>(3600, [Validators.min(1), Validators.max(3600)]),
+    // Optional per-user filter for DB-backed counts (totalRuns). null = all
+    // users. Other (metrics-backend) cards ignore it.
+    userId: new FormControl<number | null>(null),
   });
+
+  /** Users for the run-count filter dropdown. Populated once on init from
+   *  the admin user list (this panel is admin-only). */
+  users: ReadonlyArray<{ uid: number; name: string }> = [];
 
   /** Per-chart option, keyed by metric name. The template binds
    *  each card to `chartOptions[name]` so missing data renders an
@@ -189,11 +211,36 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
   loading = false;
   errorMessage: string | null = null;
 
+  /** Set when the effective step was auto-raised above the preferred step to
+   *  fit the points budget; shown as an inline hint. null when not relaxed. */
+  stepHint: string | null = null;
+
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private observabilityService: ObservabilityService) {}
+  constructor(
+    private observabilityService: ObservabilityService,
+    private adminUserService: AdminUserService
+  ) {}
 
   ngOnInit(): void {
+    // Restore the operator's last step / user filter. The time range is
+    // intentionally not persisted and keeps its fresh default window.
+    const prefs = loadPanelPrefs<typeof this.form.value>("metrics");
+    if (prefs) this.form.patchValue(prefs);
+    this.form.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(v => savePanelPrefs("metrics", v, ["range"]));
+
+    // Load the user list for the run-count filter. Best-effort: a failure
+    // just leaves the dropdown empty (the panel still works for "all users").
+    this.adminUserService
+      .getUserList()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: list => (this.users = list.map(u => ({ uid: u.uid, name: u.name }))),
+        error: (err: unknown) => {
+          // eslint-disable-next-line no-console
+          console.warn("[observability] failed to load user list for run-count filter", err);
+        },
+      });
     this.refresh();
   }
 
@@ -212,6 +259,18 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
     this.chartOptions = {};
     this.summaries = {};
 
+    const fromMs = range[0].getTime();
+    const toMs = range[1].getTime();
+    const preferredStep = v.stepSec ?? 60;
+    // Auto-relax: a fixed step over a now-unbounded window can exceed the
+    // points-per-series cap. Raise the step just enough to stay under it.
+    const effectiveStep = this.computeEffectiveStep(fromMs, toMs, preferredStep);
+    this.stepHint =
+      effectiveStep > preferredStep
+        ? `Step auto-raised to ${this.formatStep(effectiveStep)} (from ${this.formatStep(preferredStep)}) ` +
+          `to keep the series under ${SAFE_MAX_POINTS.toLocaleString()} points for this window.`
+        : null;
+
     // Fan out one request per chart, independent so one failure doesn't
     // kill the others. Clear `loading` only once all requests settle.
     let pending = this.chartDescriptors.length;
@@ -223,9 +282,10 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
         this.observabilityService
           .queryMetrics({
             name: desc.name,
-            fromMs: range[0].getTime(),
-            toMs: range[1].getTime(),
-            stepSec: v.stepSec ?? 60,
+            fromMs,
+            toMs,
+            stepSec: effectiveStep,
+            userId: v.userId ?? undefined,
           })
           .pipe(takeUntil(this.destroy$))
           .subscribe({
@@ -255,6 +315,26 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
         settle();
       }
     });
+  }
+
+  /**
+   * Smallest step (seconds) that keeps a series under SAFE_MAX_POINTS for the
+   * given window, but never below the user's preferred step. With the window
+   * maximum removed, this is what stops a large range from exceeding the
+   * backend's points-per-series cap. DB-backed cards ignore the step, so the
+   * relaxed value is harmless for them.
+   */
+  private computeEffectiveStep(fromMs: number, toMs: number, preferredStep: number): number {
+    const windowSec = Math.max(1, Math.round((toMs - fromMs) / 1000));
+    const minStep = Math.ceil(windowSec / SAFE_MAX_POINTS);
+    return Math.max(preferredStep, minStep, 1);
+  }
+
+  /** Human-friendly step label: seconds, minutes, or hours. */
+  private formatStep(sec: number): string {
+    if (sec < 60) return `${sec}s`;
+    if (sec < 3600) return `${Math.round(sec / 60)}m`;
+    return `${Math.round((sec / 3600) * 10) / 10}h`;
   }
 
   /**
@@ -332,8 +412,11 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
       return { latest: 0, deltaPct: 0, trend: "flat" };
     }
     if (aggregate === "sum") {
+      // Count metrics arrive as a single window-wide value (defensively, we
+      // still sum in case more than one point comes back). A run count is an
+      // integer, so round off the fractional residue increase() can leave.
       const total = resp.points.reduce((acc, p) => acc + p.value, 0);
-      return { latest: total, deltaPct: 0, trend: "flat" };
+      return { latest: Math.round(total), deltaPct: 0, trend: "flat" };
     }
     const first = resp.points[0].value;
     const latest = resp.points[resp.points.length - 1].value;

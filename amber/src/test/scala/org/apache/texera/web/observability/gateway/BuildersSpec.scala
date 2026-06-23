@@ -302,4 +302,17 @@ class BuildersSpec extends AnyFlatSpec with Matchers {
     MetricsQLBuilder.build(validated) shouldBe "sum(increase(texera_workflow_starts_total[1d]))"
   }
 
+  it should "mark TotalRuns dbBacked and keep a single-window increase() fallback template" in {
+    // Live path is the exact DB count (dbBacked) in WorkflowRunCounter. The
+    // MetricsQL template is retained as a metrics-only estimate: ONE
+    // increase() over the whole window (anyWindow spans 60s, step floors the
+    // range to 60s), never a sum of per-step buckets.
+    val validated = ValidatedMetricsRequest(NamedMetric.TotalRuns, anyWindow, stepSec = 60)
+    MetricsQLBuilder.build(validated) shouldBe "sum(increase(texera_workflow_starts_total[60s]))"
+    NamedMetric.TotalRuns.dbBacked shouldBe true
+    NamedMetric.TotalRuns.instant shouldBe true
+    NamedMetric.RunsPerDay.dbBacked shouldBe false
+    NamedMetric.RunsPerDay.instant shouldBe false
+  }
+
 }
