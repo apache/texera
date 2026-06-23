@@ -44,8 +44,15 @@
 </form>
 
 <div
+  *ngIf="loading"
+  class="loading-indicator">
+  <nz-spin nzSimple></nz-spin>
+  <span>Loading trace…</span>
+</div>
+
+<div
   class="tree"
-  *ngIf="trace; else noTrace">
+  *ngIf="!loading && trace; else noTrace">
   <p class="trace-header">Trace <span class="mono">{{ trace.traceId }}</span> — {{ trace.spans.length }} span(s)</p>
 
   <ng-container *ngTemplateOutlet="nodeTpl; context: { nodes: spanTree, depth: 0 }"> </ng-container>

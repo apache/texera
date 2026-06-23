@@ -25,6 +25,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { MetricsPanelComponent } from "./metrics-panel.component";
 import { ObservabilityService } from "../../../../service/user/observability/observability.service";
+import { AdminUserService } from "../../../../service/admin/user/admin-user.service";
 import { MetricsQueryResponse, NamedMetric } from "../../../../service/user/observability/observability.types";
 
 // The unit-test bundler rewrites `__dirname` to the bundle root, so the
@@ -41,15 +42,20 @@ describe("MetricsPanelComponent", () => {
   let mockService: {
     queryMetrics: ReturnType<typeof vi.fn>;
   };
+  let mockAdminUserService: { getUserList: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     mockService = { queryMetrics: vi.fn() };
     // Default: return empty points so the component can construct
     // chart options without exploding.
     mockService.queryMetrics.mockReturnValue(of<MetricsQueryResponse>({ metric: "stub", points: [] }));
+    mockAdminUserService = { getUserList: vi.fn().mockReturnValue(of([])) };
     await TestBed.configureTestingModule({
       imports: [MetricsPanelComponent, HttpClientTestingModule, NoopAnimationsModule],
-      providers: [{ provide: ObservabilityService, useValue: mockService }],
+      providers: [
+        { provide: ObservabilityService, useValue: mockService },
+        { provide: AdminUserService, useValue: mockAdminUserService },
+      ],
     }).compileComponents();
     fixture = TestBed.createComponent(MetricsPanelComponent);
     component = fixture.componentInstance;
@@ -209,6 +215,60 @@ describe("MetricsPanelComponent", () => {
     const s = component.summaries.failureRate!;
     expect(Number.isFinite(s.deltaPct)).toBe(true);
     expect(s.trend).toBe("up");
+  });
+
+  it("forwards the selected userId on every metrics request", () => {
+    fixture.detectChanges(); // initial refresh with no user filter
+    expect(mockService.queryMetrics.mock.calls.every(c => (c[0] as { userId?: number }).userId === undefined)).toBe(
+      true
+    );
+
+    mockService.queryMetrics.mockClear();
+    component.form.controls.userId.setValue(42);
+    component.refresh();
+    expect(mockService.queryMetrics.mock.calls.length).toBeGreaterThan(0);
+    expect(mockService.queryMetrics.mock.calls.every(c => (c[0] as { userId?: number }).userId === 42)).toBe(true);
+  });
+
+  it("auto-raises the step for a large window so points stay under the cap", () => {
+    // ~10 years with a 60s preferred step would be ~5.3M points per series.
+    const from = new Date(Date.UTC(2015, 0, 1));
+    const to = new Date(Date.UTC(2025, 0, 1));
+    component.form.controls.range.setValue([from, to]);
+    component.form.controls.stepSec.setValue(60);
+    component.refresh();
+
+    const steps = mockService.queryMetrics.mock.calls.map(c => (c[0] as { stepSec: number }).stepSec);
+    const windowSec = Math.round((to.getTime() - from.getTime()) / 1000);
+    expect(steps.length).toBeGreaterThan(0);
+    steps.forEach(s => {
+      expect(s).toBeGreaterThan(60); // raised above the preferred step
+      expect(windowSec / s).toBeLessThanOrEqual(28_000); // under the points budget
+    });
+    expect(component.stepHint).toContain("auto-raised");
+  });
+
+  it("leaves the step untouched and sets no hint when the window is small", () => {
+    component.form.controls.range.setValue([new Date(Date.UTC(2025, 0, 1)), new Date(Date.UTC(2025, 0, 2))]);
+    component.form.controls.stepSec.setValue(3600);
+    component.refresh();
+    const steps = mockService.queryMetrics.mock.calls.map(c => (c[0] as { stepSec: number }).stepSec);
+    steps.forEach(s => expect(s).toBe(3600));
+    expect(component.stepHint).toBeNull();
+  });
+
+  it("rounds the totalRuns count and reports a flat trend (window total, instant query)", () => {
+    // increase() can leave a fractional residue on an integer counter; the
+    // hero must read as a whole run count.
+    const resp: MetricsQueryResponse = {
+      metric: "totalRuns",
+      points: [{ timestampMs: 1, value: 40.9998 }],
+    };
+    mockService.queryMetrics.mockReturnValue(of(resp));
+    fixture.detectChanges();
+    const s = component.summaries.totalRuns!;
+    expect(s.latest).toBe(41);
+    expect(s.trend).toBe("flat");
   });
 
   it("returns a placeholder summary for an empty response", () => {

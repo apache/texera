@@ -25,6 +25,17 @@
   min-height: 0;
 }
 
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
 .metrics-panel {
   display: flex;
   flex-direction: column;

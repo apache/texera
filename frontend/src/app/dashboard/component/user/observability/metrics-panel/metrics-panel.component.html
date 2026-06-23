@@ -29,6 +29,18 @@
       type="number"
       formControlName="stepSec"
       placeholder="Step (s)" />
+    <nz-select
+      formControlName="userId"
+      nzAllowClear
+      nzShowSearch
+      nzPlaceHolder="All users"
+      nz-tooltip="Filter the run count to one user"
+      style="min-width: 180px">
+      <nz-option
+        *ngFor="let u of users"
+        [nzValue]="u.uid"
+        [nzLabel]="u.name + ' (#' + u.uid + ')'"></nz-option>
+    </nz-select>
     <button
       nz-button
       nzType="primary"
@@ -44,7 +56,20 @@
     nzType="error"
     [nzMessage]="errorMessage"
     nzShowIcon></nz-alert>
+
+  <nz-alert
+    *ngIf="stepHint"
+    nzType="info"
+    [nzMessage]="stepHint"
+    nzShowIcon></nz-alert>
 </form>
+
+<div
+  *ngIf="loading"
+  class="loading-indicator">
+  <nz-spin nzSimple></nz-spin>
+  <span>Loading metrics…</span>
+</div>
 
 <div class="charts">
   <nz-card
@@ -67,7 +92,9 @@
       <div class="hero">
         <span class="value">{{ s.latest | number: "1.0-2" }}</span>
         <span class="unit">{{ desc.unit }}</span>
+        <!-- A window total has no trend vs. a baseline, so skip the marker. -->
         <span
+          *ngIf="!desc.instant"
           class="delta"
           [class.up]="s.trend === 'up'"
           [class.down]="s.trend === 'down'"
@@ -83,14 +110,18 @@
       </div>
     </ng-template>
 
-    <div
-      *ngIf="chartOptions[desc.name] as opt; else emptyChart"
-      class="chart"
-      echarts
-      [options]="opt"
-      [autoResize]="true"></div>
-    <ng-template #emptyChart>
-      <div class="chart empty">No data for the selected window.</div>
-    </ng-template>
+    <!-- Instant metrics are a single window-wide scalar: hero number only,
+         no trend chart to draw. -->
+    <ng-container *ngIf="!desc.instant">
+      <div
+        *ngIf="chartOptions[desc.name] as opt; else emptyChart"
+        class="chart"
+        echarts
+        [options]="opt"
+        [autoResize]="true"></div>
+      <ng-template #emptyChart>
+        <div class="chart empty">No data for the selected window.</div>
+      </ng-template>
+    </ng-container>
   </nz-card>
 </div>

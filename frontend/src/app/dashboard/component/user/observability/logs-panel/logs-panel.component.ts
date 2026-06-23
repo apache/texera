@@ -27,7 +27,9 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzDatePickerComponent, NzRangePickerComponent } from "ng-zorro-antd/date-picker";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzOptionComponent, NzSelectComponent } from "ng-zorro-antd/select";
+import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { ObservabilityService, ValidationError } from "../../../../service/user/observability/observability.service";
+import { loadPanelPrefs, savePanelPrefs } from "../../../../service/user/observability/observability-prefs";
 import { TracesPivotService } from "../../../../service/user/observability/traces-pivot.service";
 import {
   LOG_LEVELS,
@@ -78,6 +80,7 @@ import {
     NzInputDirective,
     NzOptionComponent,
     NzSelectComponent,
+    NzSpinComponent,
   ],
 })
 export class LogsPanelComponent implements OnInit, OnDestroy {
@@ -135,7 +138,7 @@ export class LogsPanelComponent implements OnInit, OnDestroy {
 
   /** Autofill options populated from `/observability/logs/sources` on
    *  init. Empty arrays render the dropdowns as "no data yet". */
-  sources: LogSourcesResponse = { services: [], workflowIds: [], computingUnitIds: [], userIds: [] };
+  sources: LogSourcesResponse = { services: [], workflowIds: [], computingUnitIds: [], userIds: [], userNames: {} };
 
   entries: ReadonlyArray<LogEntry> = [];
   total = 0;
@@ -152,6 +155,13 @@ export class LogsPanelComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // Restore the operator's last filters (service scope, level, sort, page
+    // size, auto-refresh, etc.). The time range is intentionally not persisted
+    // and keeps its fresh default window.
+    const prefs = loadPanelPrefs<typeof this.form.value>("logs");
+    if (prefs) this.form.patchValue(prefs);
+    this.form.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(v => savePanelPrefs("logs", v, ["range"]));
+
     this.refreshSources();
     this.search();
 
@@ -198,6 +208,7 @@ export class LogsPanelComponent implements OnInit, OnDestroy {
             workflowIds: s?.workflowIds ?? [],
             computingUnitIds: s?.computingUnitIds ?? [],
             userIds: s?.userIds ?? [],
+            userNames: s?.userNames ?? {},
           };
           // One concise console line so an operator can confirm autofill
           // really did load — helps diagnose "empty dropdowns" without
@@ -349,8 +360,8 @@ export class LogsPanelComponent implements OnInit, OnDestroy {
 }
 
 function defaultFrom(): Date {
-  // Default window: last hour.
-  return new Date(Date.now() - 60 * 60 * 1000);
+  // Default window: last 7 days.
+  return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 }
 
 function nullToUndefined<T>(v: T | null | undefined): T | undefined {

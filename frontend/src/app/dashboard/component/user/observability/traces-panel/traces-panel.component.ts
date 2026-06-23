@@ -24,6 +24,7 @@ import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzEmptyComponent } from "ng-zorro-antd/empty";
 import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { Subject, takeUntil } from "rxjs";
 import { ObservabilityService, ValidationError } from "../../../../service/user/observability/observability.service";
 import { TracesPivotService } from "../../../../service/user/observability/traces-pivot.service";
@@ -52,7 +53,15 @@ import { TRACE_ID_RE, TraceSpan, TracesGetResponse } from "../../../../service/u
   selector: "texera-observability-traces-panel",
   templateUrl: "./traces-panel.component.html",
   styleUrls: ["./traces-panel.component.scss"],
-  imports: [CommonModule, ReactiveFormsModule, NzAlertComponent, NzButtonComponent, NzEmptyComponent, NzInputDirective],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    NzAlertComponent,
+    NzButtonComponent,
+    NzEmptyComponent,
+    NzInputDirective,
+    NzSpinComponent,
+  ],
 })
 export class TracesPanelComponent implements OnInit, OnChanges, OnDestroy {
   /** Set by the shell after a logs→traces pivot. Changes here

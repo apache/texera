@@ -73,6 +73,9 @@ export interface LogSourcesResponse {
   readonly workflowIds: ReadonlyArray<number>;
   readonly computingUnitIds: ReadonlyArray<number>;
   readonly userIds: ReadonlyArray<number>;
+  /** id -> display name for the user-id dropdown; ids without a name
+   *  are absent and the UI falls back to the id. */
+  readonly userNames?: Readonly<Record<number, string>>;
 }
 
 export interface LogEntry {
@@ -140,6 +143,9 @@ export interface MetricsQueryRequest {
   readonly fromMs: number;
   readonly toMs: number;
   readonly stepSec?: number;
+  // Optional filter for DB-backed counts (e.g. totalRuns): restrict to runs
+  // launched by this user. Ignored by metrics-backend series.
+  readonly userId?: number;
 }
 
 export interface MetricPoint {

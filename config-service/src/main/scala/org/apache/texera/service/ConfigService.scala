@@ -60,6 +60,8 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
   }
 
   override def run(configuration: ConfigServiceConfiguration, environment: Environment): Unit = {
+    // Bridge this service's logs to the OTel collector under its own service.name.
+    org.apache.texera.observability.OtelInit.init("config-service")
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 

@@ -19,6 +19,10 @@
 
 #nav {
   height: 70px;
+  // Pin the header height: it is a flex child of the page-content column, so
+  // without this it gets compressed when the content area is tall.
+  flex-shrink: 0;
+  max-width: 100%;
   padding: 10px 15px;
   display: flex;
   align-items: center;
@@ -54,6 +58,8 @@ button {
 
 .page-content-layout {
   border-left: 1px solid #f0f0f0;
+  height: 100%;
+  min-height: 0;
 }
 
 .ant-layout-sider-has-trigger {
@@ -92,6 +98,8 @@ nz-content {
 .page-container {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
   width: 100%;
 }
 
@@ -133,10 +141,4 @@ nz-content {
 
 .hidden {
   display: none;
-}
-
-#nav {
-  max-width: 100%;
-  max-height: 100%;
-  overflow: hidden;
 }

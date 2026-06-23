@@ -27,30 +27,22 @@ class DtoValidationSpec extends AnyFlatSpec with Matchers {
 
   // ----- TimeWindow ----------------------------------------------------
 
-  "TimeWindow.validate" should "accept a 1-hour window for logs" in {
+  "TimeWindow.validate" should "accept a 1-hour window" in {
     val hourMs = 3_600_000L
-    TimeWindow.validate(Signal.Logs, 0L, hourMs) shouldBe a[Valid[_]]
+    TimeWindow.validate(0L, hourMs) shouldBe a[Valid[_]]
   }
 
-  it should "reject a window > 7 days for logs" in {
-    val eightDaysMs = 8L * 24L * 3_600_000L
-    val result = TimeWindow.validate(Signal.Logs, 0L, eightDaysMs)
-    result shouldBe an[Invalid]
-  }
-
-  it should "accept a 30-day window for metrics" in {
-    val thirtyDaysMs = 30L * 24L * 3_600_000L
-    TimeWindow.validate(Signal.Metrics, 0L, thirtyDaysMs) shouldBe a[Valid[_]]
-  }
-
-  it should "reject a 25-hour window for traces" in {
-    val twentyFiveHrMs = 25L * 3_600_000L
-    TimeWindow.validate(Signal.Traces, 0L, twentyFiveHrMs) shouldBe an[Invalid]
+  it should "accept arbitrarily large windows (no maximum)" in {
+    // A 10-year span: there is no upper bound on the window any more. The
+    // backends return whatever they retain; the DB-backed count is exact
+    // over any range.
+    val tenYearsMs = 10L * 365L * 24L * 3_600_000L
+    TimeWindow.validate(0L, tenYearsMs) shouldBe a[Valid[_]]
   }
 
   it should "reject zero and negative windows" in {
-    TimeWindow.validate(Signal.Logs, 0L, 0L) shouldBe an[Invalid]
-    TimeWindow.validate(Signal.Logs, 100L, 50L) shouldBe an[Invalid]
+    TimeWindow.validate(0L, 0L) shouldBe an[Invalid]
+    TimeWindow.validate(100L, 50L) shouldBe an[Invalid]
   }
 
   // ----- PageSize ------------------------------------------------------

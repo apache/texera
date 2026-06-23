@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.core.storage.util
 
+import com.typesafe.scalalogging.LazyLogging
 import io.lakefs.clients.sdk._
 import io.lakefs.clients.sdk.model.ResetCreation.TypeEnum
 import io.lakefs.clients.sdk.model._
@@ -33,10 +34,15 @@ import scala.jdk.CollectionConverters._
   * LakeFSFileStorage provides high-level file storage operations using LakeFS,
   * similar to Git operations for version control and file management.
   */
-object LakeFSStorageClient {
+object LakeFSStorageClient extends LazyLogging {
 
   // Maximum number of results per LakeFS API request (pagination page size)
   private val PageSize = 1000
+
+  // Health-check retry settings: retry with exponential backoff before giving up.
+  // 5 attempts starting at 200ms (200, 400, 800, 1600ms) caps total wait at ~3s.
+  private val HealthCheckMaxAttempts = 5
+  private val HealthCheckInitialDelayMillis = 200L
 
   private lazy val apiClient: ApiClient = {
     val client = new ApiClient()
@@ -69,11 +75,50 @@ object LakeFSStorageClient {
   private val branchName: String = "main"
 
   def healthCheck(): Unit = {
-    try {
+    retryWithBackoff(HealthCheckMaxAttempts, HealthCheckInitialDelayMillis) {
       this.healthCheckApi.healthCheck().execute()
-    } catch {
-      case e: Exception =>
-        throw new RuntimeException(s"Failed to connect to lake fs server: ${e.getMessage}")
+    }
+  }
+
+  /**
+    * Runs `operation`, retrying on failure with exponential backoff (the delay
+    * doubles after each failed attempt) until it succeeds or `maxAttempts` is
+    * reached. The final failure is rethrown with the last exception as its cause.
+    * If interrupted while waiting, restores the interrupt status and fails fast.
+    *
+    * `sleep` is injectable so the backoff can be exercised in tests without real waiting.
+    */
+  private[util] def retryWithBackoff(
+      maxAttempts: Int,
+      initialDelayMillis: Long,
+      sleep: Long => Unit = Thread.sleep
+  )(operation: => Unit): Unit = {
+    var attempt = 1
+    var delayMillis = initialDelayMillis
+    while (true) {
+      try {
+        operation
+        return
+      } catch {
+        case ie: InterruptedException =>
+          // Restore the interrupt status and fail fast rather than retrying.
+          Thread.currentThread().interrupt()
+          throw new RuntimeException("Interrupted while waiting to retry lake fs health check", ie)
+        case e: Exception =>
+          if (attempt >= maxAttempts) {
+            throw new RuntimeException(
+              s"Failed to connect to lake fs server after $maxAttempts attempts: ${e.getMessage}",
+              e
+            )
+          }
+          logger.warn(
+            s"LakeFS not reachable (attempt $attempt/$maxAttempts): ${e.getMessage}. " +
+              s"Retrying in ${delayMillis}ms..."
+          )
+          sleep(delayMillis)
+          attempt += 1
+          delayMillis *= 2
+      }
     }
   }
 
