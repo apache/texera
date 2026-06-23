@@ -46,12 +46,12 @@ object QaRankingCodegen extends TaskCodegen {
       |            elif task == "table-question-answering":
       |                payload = {"inputs": {"query": prompt_value, "table": table_dict}}
       |            elif task == "zero-shot-classification":
-      |                labels = [l.strip() for l in self.CANDIDATE_LABELS.split(",") if l.strip()]
+      |                labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split(",") if l.strip()]
       |                payload = {
       |                    "inputs": prompt_value,
       |                    "parameters": {"candidate_labels": labels},
       |                }
-      |            elif task in ("sentence-similarity", "text-ranking"):
+      |            elif task == "sentence-similarity":
       |                sent_val = row[self.SENTENCES_COLUMN]
       |                sent_val = "" if pd.isna(sent_val) else str(sent_val)
       |                sentences_list = [s.strip() for s in sent_val.split(",") if s.strip()]
@@ -59,6 +59,16 @@ object QaRankingCodegen extends TaskCodegen {
       |                    "inputs": {
       |                        "source_sentence": prompt_value,
       |                        "sentences": sentences_list,
+      |                    }
+      |                }
+      |            elif task == "text-ranking":
+      |                sent_val = row[self.SENTENCES_COLUMN]
+      |                sent_val = "" if pd.isna(sent_val) else str(sent_val)
+      |                sentences_list = [s.strip() for s in sent_val.split(",") if s.strip()]
+      |                payload = {
+      |                    "inputs": {
+      |                        "query": prompt_value,
+      |                        "texts": sentences_list,
       |                    }
       |                }
       |            else:

@@ -541,7 +541,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     )
     code should include("Candidate Labels are required for zero-shot-classification.")
     code should include("""elif task == "zero-shot-classification":""")
-    code should include("labels = [l.strip() for l in self.CANDIDATE_LABELS.split")
+    code should include("labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split")
     code should include(""""parameters": {"candidate_labels": labels}""")
   }
 
@@ -549,11 +549,17 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     Seq("sentence-similarity", "text-ranking").foreach { taskName =>
       val code = makeDesc(task = taskName, sentencesColumn = "sentences").generatePythonCode()
       code should include("self.SENTENCES_COLUMN = ")
-      code should include("""elif task in ("sentence-similarity", "text-ranking"):""")
       code should include("sent_col = self.SENTENCES_COLUMN")
       code should include("Sentences column")
-      code should include(""""source_sentence": prompt_value""")
-      code should include(""""sentences": sentences_list""")
+      if (taskName == "sentence-similarity") {
+        code should include("""elif task == "sentence-similarity":""")
+        code should include(""""source_sentence": prompt_value""")
+        code should include(""""sentences": sentences_list""")
+      } else {
+        code should include("""elif task == "text-ranking":""")
+        code should include(""""query": prompt_value""")
+        code should include(""""texts": sentences_list""")
+      }
     }
   }
 
