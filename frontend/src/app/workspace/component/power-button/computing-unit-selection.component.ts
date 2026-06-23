@@ -760,20 +760,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
-  addEnvironment(): void {
-    this.pves.push({
-      name: "",
-      userPackages: [],
-      newPackages: [],
-      deletingPackages: [],
-      pipOutput: "",
-      prettyPipOutput: "",
-      expanded: true,
-      isInstalling: false,
-      isLocked: false,
-    });
-  }
-
   showPVEmodalVisible(): void {
     this.pveModalVisible = true;
     this.getPVEs();
