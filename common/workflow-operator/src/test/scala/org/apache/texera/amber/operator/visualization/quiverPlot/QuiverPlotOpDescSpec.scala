@@ -34,10 +34,11 @@ class QuiverPlotOpDescSpec extends AnyFlatSpec with Matchers {
   private def b64(s: String): String =
     Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
 
-  // EncodableString columns render as self.decode_python_template('<base64>'),
-  // so the raw column name may be absent from the emitted (encoded) code.
+  // EncodableString columns are always base64-wrapped in .encode mode
+  // (self.decode_python_template('<base64>')), so assert on the base64 form only rather than
+  // the raw column name, which could appear in the generated Python for unrelated reasons.
   private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
+    output.contains(b64(name))
 
   "QuiverPlotOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group with a 1-in/1-out shape" in {
