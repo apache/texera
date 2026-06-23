@@ -23,7 +23,7 @@ import org.apache.pekko.actor.{ActorSystem, Address, Cancellable, DeadLetter, Pr
 import org.apache.pekko.serialization.{Serialization, SerializationExtension}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.texera.amber.clustering.ClusterListener
-import org.apache.texera.amber.config.PekkoConfig
+import org.apache.texera.common.config.PekkoConfig
 import org.apache.texera.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
 
 import java.io.{BufferedReader, InputStreamReader}

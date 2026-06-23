@@ -22,6 +22,11 @@ package org.apache.texera.amber.operator.source.sql.postgresql
 import java.sql.{Connection, DriverManager, SQLException}
 
 object PostgreSQLConnUtil {
+
+  // Builds the JDBC URL.
+  private[postgresql] def buildJdbcUrl(host: String, port: String, database: String): String =
+    "jdbc:postgresql://" + host + ":" + port + "/" + database
+
   @throws[SQLException]
   def connect(
       host: String,
@@ -30,7 +35,7 @@ object PostgreSQLConnUtil {
       username: String,
       password: String
   ): Connection = {
-    val url = "jdbc:postgresql://" + host + ":" + port + "/" + database
+    val url = buildJdbcUrl(host, port, database)
     val connection = DriverManager.getConnection(url, username, password)
     // set to readonly to improve efficiency
     connection.setReadOnly(true)
