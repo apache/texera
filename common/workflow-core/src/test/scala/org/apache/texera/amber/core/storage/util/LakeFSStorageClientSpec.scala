@@ -45,9 +45,8 @@ import java.nio.charset.StandardCharsets
   * Spec for [[LakeFSStorageClient.getStagedObjectMtime]].
   *
   * The method is a thin LakeFS-SDK passthrough (statObject -> mtime), so it can only be
-  * exercised against a real LakeFS. This spins up the same MinIO + LakeFS stack the
-  * file-service tests use, but with a local KV store instead of a Postgres sidecar, since a
-  * single ephemeral LakeFS node does not need an external metadata DB.
+  * exercised against a real LakeFS. This spins up the same Postgres + MinIO + LakeFS stack
+  * the file-service tests use, with Postgres backing the LakeFS metadata store.
   */
 class LakeFSStorageClientSpec
     extends AnyFlatSpec
