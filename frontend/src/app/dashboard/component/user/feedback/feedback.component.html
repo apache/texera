@@ -1,0 +1,73 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+  -->
+
+<div class="feedback-container">
+  <!-- Submit box: only when the user is viewing their own feedback -->
+  <nz-card
+    *ngIf="!isAdminView"
+    class="feedback-submit-card"
+    nzTitle="Send us your feedback">
+    <p class="feedback-hint">
+      Tell us what you like, what is broken, or what you would like to see next. Your feedback goes straight to the
+      Texera admins.
+    </p>
+    <textarea
+      nz-input
+      [(ngModel)]="newFeedback"
+      [disabled]="submitting"
+      placeholder="Type your feedback here..."
+      rows="4"
+      class="feedback-textarea"></textarea>
+    <button
+      nz-button
+      nzType="primary"
+      class="feedback-submit-button"
+      [nzLoading]="submitting"
+      [disabled]="newFeedback.trim().length === 0"
+      (click)="submitFeedback()">
+      <span
+        nz-icon
+        nzType="send"></span>
+      Submit Feedback
+    </button>
+  </nz-card>
+
+  <!-- Previous feedback table -->
+  <nz-card [nzTitle]="isAdminView ? 'User feedback' : 'Your previous feedback'">
+    <nz-table
+      #feedbackTable
+      [nzData]="[...feedbackList]"
+      [nzShowPagination]="feedbackList.length > 10"
+      [nzPageSize]="10"
+      nzSize="small">
+      <thead>
+        <tr>
+          <th nzWidth="220px">Submitted</th>
+          <th>Feedback</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let feedback of feedbackTable.data">
+          <td>{{ feedback.creationTime | date: "MM/dd/y, h:mm a" }}</td>
+          <td class="feedback-message">{{ feedback.message }}</td>
+        </tr>
+      </tbody>
+    </nz-table>
+  </nz-card>
+</div>

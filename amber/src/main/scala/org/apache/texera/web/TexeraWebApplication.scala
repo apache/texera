@@ -144,6 +144,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AuthResource])
     environment.jersey.register(classOf[GoogleAuthResource])
     environment.jersey.register(classOf[UserConfigResource])
+    environment.jersey.register(classOf[FeedbackResource])
     environment.jersey.register(classOf[AdminUserResource])
     environment.jersey.register(classOf[PublicProjectResource])
     environment.jersey.register(classOf[WorkflowAccessResource])

@@ -1,0 +1,131 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.operator.huggingFace
+
+import org.apache.texera.amber.core.executor.OpExecWithCode
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
+class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val workflowId = WorkflowIdentity(1L)
+  private val executionId = ExecutionIdentity(1L)
+
+  private def b64(s: String): String =
+    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
+
+  // EncodableString fields are always base64-wrapped in .encode mode
+  // (self.decode_python_template('<base64>')), so assert on the base64 form only rather than
+  // the raw column name, which could appear in the generated Python for unrelated reasons.
+  private def carries(output: String, name: String): Boolean =
+    output.contains(b64(name))
+
+  private def configured(): HuggingFaceIrisLogisticRegressionOpDesc = {
+    val d = new HuggingFaceIrisLogisticRegressionOpDesc
+    d.petalLengthCmAttribute = "petalLength"
+    d.petalWidthCmAttribute = "petalWidth"
+    d.predictionClassName = "species"
+    d.predictionProbabilityName = "probability"
+    d
+  }
+
+  "HuggingFaceIrisLogisticRegressionOpDesc.operatorInfo" should
+    "advertise the name, Hugging Face group, and a 1-in/1-out shape" in {
+    val info = (new HuggingFaceIrisLogisticRegressionOpDesc).operatorInfo
+    info.userFriendlyName shouldBe "Hugging Face Iris Logistic Regression"
+    info.operatorDescription shouldBe
+      "Predict whether an iris is an Iris-setosa using a pre-trained logistic regression model"
+    info.operatorGroupName shouldBe OperatorGroupConstants.HUGGINGFACE_GROUP
+    info.inputPorts should have length 1
+    info.outputPorts should have length 1
+  }
+
+  "HuggingFaceIrisLogisticRegressionOpDesc" should "default all column fields to null" in {
+    val d = new HuggingFaceIrisLogisticRegressionOpDesc
+    d.petalLengthCmAttribute shouldBe null
+    d.petalWidthCmAttribute shouldBe null
+    d.predictionClassName shouldBe null
+    d.predictionProbabilityName shouldBe null
+  }
+
+  "HuggingFaceIrisLogisticRegressionOpDesc.getOutputSchemas" should
+    "reject a blank prediction result name" in {
+    val d = new HuggingFaceIrisLogisticRegressionOpDesc
+    val in = Schema().add("sepal", AttributeType.STRING)
+    val ex = intercept[RuntimeException] {
+      d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
+    }
+    ex.getMessage shouldBe "Result attribute name should not be empty"
+  }
+
+  it should "append a STRING class column and a DOUBLE probability column, keyed by the output port" in {
+    val d = configured()
+    val in = Schema().add("sepal", AttributeType.STRING)
+    val out = d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
+    val schema = out(d.operatorInfo.outputPorts.head.id)
+    schema.getAttribute("sepal").getType shouldBe AttributeType.STRING
+    schema.getAttribute("species").getType shouldBe AttributeType.STRING
+    schema.getAttribute("probability").getType shouldBe AttributeType.DOUBLE
+  }
+
+  "HuggingFaceIrisLogisticRegressionOpDesc.generatePythonCode" should
+    "emit the logistic-regression operator carrying the configured columns (encoded)" in {
+    val d = configured()
+    val code = d.generatePythonCode()
+    code should include("class ProcessTupleOperator(UDFOperatorV2)")
+    code should include("LinearModel.from_pretrained")
+    code should include("sadhaklal/logistic-regression-iris")
+    code should include("self.decode_python_template(")
+    carries(code, "petalLength") shouldBe true
+    carries(code, "species") shouldBe true
+  }
+
+  "HuggingFaceIrisLogisticRegressionOpDesc.getPhysicalOp" should
+    "wire an OpExecWithCode python executor carrying the operator's ports" in {
+    val d = configured()
+    val physical = d.getPhysicalOp(workflowId, executionId)
+    physical.opExecInitInfo match {
+      case OpExecWithCode(_, language) => language shouldBe "python"
+      case other                       => fail(s"expected OpExecWithCode, got $other")
+    }
+    physical.inputPorts.keySet shouldBe d.operatorInfo.inputPorts.map(_.id).toSet
+    physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
+  }
+
+  "HuggingFaceIrisLogisticRegressionOpDesc" should
+    "round-trip its config fields through the polymorphic base" in {
+    val d = configured()
+    val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
+    restored shouldBe a[HuggingFaceIrisLogisticRegressionOpDesc]
+    val h = restored.asInstanceOf[HuggingFaceIrisLogisticRegressionOpDesc]
+    h.petalLengthCmAttribute shouldBe "petalLength"
+    h.petalWidthCmAttribute shouldBe "petalWidth"
+    h.predictionClassName shouldBe "species"
+    h.predictionProbabilityName shouldBe "probability"
+  }
+}
