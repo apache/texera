@@ -60,24 +60,6 @@ object dtos {
       Option(raw).flatMap(s => all.find(_.name.equalsIgnoreCase(s.trim)))
   }
 
-  /** Signal kind, used by metric/audit code to discriminate. */
-  sealed trait Signal
-  object Signal {
-    case object Logs extends Signal
-    case object Metrics extends Signal
-    case object Traces extends Signal
-    case object Profiles extends Signal
-  }
-
-  /** Maximum time window per signal, in seconds. */
-  def maxWindowSeconds(signal: Signal): Long =
-    signal match {
-      case Signal.Logs     => 7L * 24L * 3600L
-      case Signal.Metrics  => 90L * 24L * 3600L
-      case Signal.Traces   => 24L * 3600L
-      case Signal.Profiles => 7L * 24L * 3600L
-    }
-
   // ---- typed unions for validator results -------------------------------
 
   /** Result of validating an inbound request. Either a clean
@@ -95,8 +77,12 @@ object dtos {
   case class GatewayError(code: String, message: String, status: Int)
 
   object GatewayError {
-    val BadTimeWindow: (Long => GatewayError) = (maxSec: Long) =>
-      GatewayError("bad_time_window", s"time window must be > 0 and <= ${maxSec}s", 400)
+    // No upper bound on the window: the DB-backed count has no retention
+    // limit, and the metrics/logs/traces/profiles backends simply return
+    // whatever they still retain for the requested range. The only invalid
+    // window is an empty or inverted one (to must be after from).
+    val BadTimeWindow: GatewayError =
+      GatewayError("bad_time_window", "time window must be > 0 (end must be after start)", 400)
     val BadPageSize: GatewayError =
       GatewayError("bad_page_size", s"pageSize must be in [1, ${MaxPageSize}]", 400)
     val BadLevel: GatewayError =
@@ -132,15 +118,14 @@ object dtos {
 
   object TimeWindow {
     def validate(
-        signal: Signal,
         fromMs: Long,
         toMs: Long
     ): ValidationResult[TimeWindow] = {
       val from = Instant.ofEpochMilli(fromMs)
       val to = Instant.ofEpochMilli(toMs)
       val seconds = Duration.between(from, to).toSeconds
-      if (seconds <= 0 || seconds > maxWindowSeconds(signal))
-        Invalid(GatewayError.BadTimeWindow(maxWindowSeconds(signal)))
+      // No maximum: only reject an empty or inverted window.
+      if (seconds <= 0) Invalid(GatewayError.BadTimeWindow)
       else Valid(TimeWindow(from, to))
     }
   }
@@ -287,7 +272,10 @@ object dtos {
       services: Seq[String],
       workflowIds: Seq[Long],
       computingUnitIds: Seq[Long],
-      userIds: Seq[Long]
+      userIds: Seq[Long],
+      // id -> display name for the user-id dropdown; ids without a
+      // resolved name are absent and the UI falls back to the id.
+      userNames: Map[Long, String] = Map.empty
   )
 
   // ---- metrics ---------------------------------------------------------
@@ -295,10 +283,29 @@ object dtos {
   /** Named server-side metric query. We do not let the client send
     *  raw MetricsQL — they pick from a fixed enum.
     */
-  sealed abstract class NamedMetric(val name: String)
+  sealed abstract class NamedMetric(val name: String) {
+
+    /** True when this metric is a single window-wide scalar, evaluated as
+      *  one instant query at the window end, rather than a per-step time
+      *  series. Counting metrics use this so the total is computed once
+      *  over the whole window instead of summing per-step buckets in the
+      *  UI (which stacked one extrapolation/boundary error per bucket).
+      */
+    def instant: Boolean = false
+
+    /** True when this metric is read from the relational store (an exact
+      *  COUNT) instead of the metrics backend. The execution table has one
+      *  row per run, so it is authoritative; the sampled counter can only
+      *  estimate. See [[WorkflowRunCounter]].
+      */
+    def dbBacked: Boolean = false
+  }
   object NamedMetric {
     case object RunsPerDay extends NamedMetric("runsPerDay")
-    case object TotalRuns extends NamedMetric("totalRuns")
+    case object TotalRuns extends NamedMetric("totalRuns") {
+      override val instant: Boolean = true
+      override val dbBacked: Boolean = true
+    }
     case object ActiveWorkflows extends NamedMetric("activeWorkflows")
     case object SuccessRate extends NamedMetric("successRate")
     case object FailureRate extends NamedMetric("failureRate")
@@ -327,13 +334,17 @@ object dtos {
       name: String,
       fromMs: Long,
       toMs: Long,
-      stepSec: Option[Int]
+      stepSec: Option[Int],
+      // Optional filter for DB-backed counts: restrict to runs launched by
+      // this user. Ignored by the metrics-backend templates.
+      userId: Option[Long] = None
   )
 
   case class ValidatedMetricsRequest(
       metric: NamedMetric,
       window: TimeWindow,
-      stepSec: Int
+      stepSec: Int,
+      userId: Option[Long] = None
   )
 
   case class MetricPoint(timestampMs: Long, value: Double)
