@@ -38,6 +38,7 @@ export const USER_COMPUTING_UNIT = `${USER}/compute`;
 export const USER_PYTHON_VENV = `${USER}/python-venv`;
 export const USER_QUOTA = `${USER}/quota`;
 export const USER_DISCUSSION = `${USER}/discussion`;
+export const USER_FEEDBACK = `${USER}/feedback`;
 
 export const ADMIN = "/admin";
 export const ADMIN_USER = `${ADMIN}/user`;
