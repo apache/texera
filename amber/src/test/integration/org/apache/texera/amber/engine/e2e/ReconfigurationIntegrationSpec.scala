@@ -167,7 +167,8 @@ class ReconfigurationIntegrationSpec
     TestUtils.shouldReconfigure(system, ctx, operators, links, targetOps, newOpExecInitInfo)
 
   "Engine" should "be able to modify a python UDF worker in workflow" in {
-    val sourceOpDesc = TestOperators.smallCsvScanOpDesc()
+    // Medium source keeps the run in flight long enough to pause before it completes.
+    val sourceOpDesc = TestOperators.mediumCsvScanOpDesc()
     val udfOpDesc = TestOperators.pythonOpDesc()
     val code = """
                  |from pytexera import *
@@ -228,7 +229,8 @@ class ReconfigurationIntegrationSpec
   }
 
   "Engine" should "be able to modify two python UDFs in workflow" in {
-    val sourceOpDesc = TestOperators.smallCsvScanOpDesc()
+    // Medium source keeps the run in flight long enough to pause before it completes.
+    val sourceOpDesc = TestOperators.mediumCsvScanOpDesc()
     val udfOpDesc1 = TestOperators.pythonOpDesc()
     val udfOpDesc2 = TestOperators.pythonOpDesc()
     val code = """
