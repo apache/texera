@@ -25,13 +25,41 @@ from .tuple import Tuple
 
 class State(dict):
     CONTENT = "content"
-    SCHEMA = Schema(raw_schema={CONTENT: "STRING"})
+    # Loop-control bookkeeping owned by the worker runtime, NOT user state -- it
+    # never appears in the content JSON. In memory it rides on the StateFrame
+    # envelope; it is materialized/serialized as its own column (parallel to
+    # content) by to_tuple(...). from_tuple() returns the bare State; callers
+    # that need these values read the corresponding columns off the tuple.
+    LOOP_COUNTER = "loop_counter"
+    LOOP_START_ID = "loop_start_id"
+    LOOP_START_STATE_URI = "loop_start_state_uri"
+    SCHEMA = Schema(
+        raw_schema={
+            CONTENT: "STRING",
+            LOOP_COUNTER: "LONG",
+            LOOP_START_ID: "STRING",
+            LOOP_START_STATE_URI: "STRING",
+        }
+    )
 
     def to_json(self) -> str:
         return json.dumps(_to_json_value(self), separators=(",", ":"))
 
-    def to_tuple(self) -> Tuple:
-        return Tuple({State.CONTENT: self.to_json()}, schema=State.SCHEMA)
+    def to_tuple(
+        self,
+        loop_counter: int = 0,
+        loop_start_id: str = "",
+        loop_start_state_uri: str = "",
+    ) -> Tuple:
+        return Tuple(
+            {
+                State.CONTENT: self.to_json(),
+                State.LOOP_COUNTER: int(loop_counter),
+                State.LOOP_START_ID: loop_start_id,
+                State.LOOP_START_STATE_URI: loop_start_state_uri,
+            },
+            schema=State.SCHEMA,
+        )
 
     @classmethod
     def from_json(cls, payload: str) -> "State":

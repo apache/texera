@@ -19,8 +19,11 @@
 
 package org.apache.texera.amber.util
 
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.types.{FloatingPointPrecision, TimeUnit}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
+import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.AttributeTypeException
 import org.scalatest.flatspec.AnyFlatSpec
@@ -281,5 +284,49 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     val name = fields.find(_.getName == "name").get
     any.getMetadata.get("texera_type") shouldBe "ANY"
     Option(name.getMetadata).map(_.containsKey("texera_type")).getOrElse(false) shouldBe false
+  }
+
+  // ----- Tuple <-> Arrow data round-trip (the State wire-hop contract) -----
+
+  "tuple round-trip through Arrow vectors" should "preserve every column of a multi-column State tuple" in {
+    // The Python<->Scala state wire hop goes Tuple -> setTexeraTuple -> Arrow
+    // (PythonProxyClient.writeArrowStream) on one side and
+    // Arrow -> getTexeraTuple -> Tuple (PythonProxyServer) on the other.
+    // The schema-only round-trip tests above don't exercise the per-row data
+    // encode/decode, so a column dropped or mistyped there would slip through.
+    // Pin that the full multi-column State tuple (content STRING + the
+    // loop-control columns loop_counter LONG, loop_start_id / loop_start_state_uri
+    // STRING) survives a real setTexeraTuple -> Arrow vectors -> getTexeraTuple
+    // round-trip with every column intact -- the property the wire hop relies on.
+    val original =
+      State(Map("i" -> 5L, "label" -> "outer")).toTuple(3L, "outer-loop", "vfs:///outer")
+
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(original.getSchema), allocator)
+    try {
+      root.allocateNew()
+      ArrowUtils.setTexeraTuple(original, 0, root)
+      root.setRowCount(1)
+
+      val recovered = ArrowUtils.getTexeraTuple(0, root)
+
+      // Every column survives the encode/decode, with names and types intact.
+      recovered.getSchema.getAttributes.toList.map(a => (a.getName, a.getType)) shouldBe
+        List(
+          ("content", AttributeType.STRING),
+          ("loop_counter", AttributeType.LONG),
+          ("loop_start_id", AttributeType.STRING),
+          ("loop_start_state_uri", AttributeType.STRING)
+        )
+      // content (the user State JSON) round-trips...
+      State.fromTuple(recovered).values shouldBe Map("i" -> 5L, "label" -> "outer")
+      // ...and so do the loop-control columns.
+      recovered.getField[java.lang.Long]("loop_counter").toLong shouldBe 3L
+      recovered.getField[String]("loop_start_id") shouldBe "outer-loop"
+      recovered.getField[String]("loop_start_state_uri") shouldBe "vfs:///outer"
+    } finally {
+      root.close()
+      allocator.close()
+    }
   }
 }
