@@ -25,7 +25,7 @@ import org.apache.pekko.util.Timeout
 import com.twitter.util.{Await, Duration, Promise}
 import com.typesafe.scalalogging.Logger
 import org.apache.texera.amber.clustering.SingleNodeListener
-import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.engine.architecture.controller.{
   ControllerConfig,
   ExecutionStateUpdate
@@ -70,12 +70,14 @@ class PauseSpec
 
   val logger = Logger("PauseSpecLogger")
 
+  private val specId = 2
+
   override protected def beforeEach(): Unit = {
-    setUpWorkflowExecutionData()
+    setUpWorkflowExecutionData(specId)
   }
 
   override protected def afterEach(): Unit = {
-    cleanupWorkflowExecutionData()
+    cleanupWorkflowExecutionData(specId)
   }
 
   override def beforeAll(): Unit = {
@@ -95,7 +97,7 @@ class PauseSpec
       links: List[LogicalLink]
   ): Unit = {
     val workflow =
-      TestUtils.buildWorkflow(operators, links, new WorkflowContext())
+      TestUtils.buildWorkflow(operators, links, TestUtils.workflowContext(specId))
     val client =
       new AmberClient(
         system,

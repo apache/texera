@@ -28,7 +28,7 @@ import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
-import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.engine.architecture.controller.{
   ControllerConfig,
   ExecutionStateUpdate
@@ -80,14 +80,15 @@ class ReconfigurationIntegrationSpec
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   val logger = Logger("ReconfigurationIntegrationSpecLogger")
-  val ctx = new WorkflowContext()
+  private val specId = 4
+  val ctx = TestUtils.workflowContext(specId)
 
   override protected def beforeEach(): Unit = {
-    setUpWorkflowExecutionData()
+    setUpWorkflowExecutionData(specId)
   }
 
   override protected def afterEach(): Unit = {
-    cleanupWorkflowExecutionData()
+    cleanupWorkflowExecutionData(specId)
   }
 
   override def beforeAll(): Unit = {
@@ -117,12 +118,12 @@ class ReconfigurationIntegrationSpec
     */
   private def warmupOnce(): Unit = {
     val warmupCap = Duration.fromSeconds(10)
-    setUpWorkflowExecutionData()
+    setUpWorkflowExecutionData(specId)
     var client: AmberClient = null
     try {
       val src = new TextInputSourceOpDesc()
       src.textInput = "warmup"
-      val warmupCtx = new WorkflowContext()
+      val warmupCtx = TestUtils.workflowContext(specId)
       val workflow = buildWorkflow(List(src), List.empty, warmupCtx)
       client = new AmberClient(
         system,
@@ -150,7 +151,7 @@ class ReconfigurationIntegrationSpec
         try client.shutdown()
         catch { case _: Throwable => () }
       }
-      cleanupWorkflowExecutionData()
+      cleanupWorkflowExecutionData(specId)
     }
   }
 
