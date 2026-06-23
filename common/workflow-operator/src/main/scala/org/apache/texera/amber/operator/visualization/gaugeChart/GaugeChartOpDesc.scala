@@ -30,11 +30,14 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 class GaugeChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Gauge Value")
   @JsonPropertyDescription("The primary value displayed on the gauge chart")
   @AutofillAttributeName
+  @NotNull(message = "Gauge Value cannot be empty")
   var value: EncodableString = ""
 
   @JsonProperty(value = "delta", required = false)
