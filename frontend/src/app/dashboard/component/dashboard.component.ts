@@ -32,12 +32,12 @@ import {
   ABOUT,
   ADMIN_EXECUTION,
   ADMIN_GMAIL,
+  ADMIN_OBSERVABILITY,
   ADMIN_SETTINGS,
   ADMIN_USER,
   USER_COMPUTING_UNIT,
   USER_DATASET,
   USER_DISCUSSION,
-  USER_OBSERVABILITY,
   USER_PROJECT,
   USER_PYTHON_VENV,
   USER_QUOTA,
@@ -114,11 +114,11 @@ export class DashboardComponent implements OnInit {
   protected readonly USER_PYTHON_VENV = USER_PYTHON_VENV;
   protected readonly USER_QUOTA = USER_QUOTA;
   protected readonly USER_DISCUSSION = USER_DISCUSSION;
-  protected readonly USER_OBSERVABILITY = USER_OBSERVABILITY;
   protected readonly ADMIN_USER = ADMIN_USER;
   protected readonly ADMIN_GMAIL = ADMIN_GMAIL;
   protected readonly ADMIN_EXECUTION = ADMIN_EXECUTION;
   protected readonly ADMIN_SETTINGS = ADMIN_SETTINGS;
+  protected readonly ADMIN_OBSERVABILITY = ADMIN_OBSERVABILITY;
   protected readonly ABOUT = ABOUT;
   protected readonly String = String;
 
