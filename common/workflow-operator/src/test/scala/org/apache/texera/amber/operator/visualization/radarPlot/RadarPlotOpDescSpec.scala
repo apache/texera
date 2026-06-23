@@ -71,12 +71,11 @@ class RadarPlotOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "RadarPlotOpDesc.generatePythonCode" should
-    "require linePattern to be set (it is dereferenced without a null guard)" in {
-    intercept[NullPointerException] {
-      val d = new RadarPlotOpDesc
-      d.selectedAttributes = List("m1", "m2")
-      d.generatePythonCode()
-    }
+    "reject a missing line pattern with a clear error" in {
+    val d = new RadarPlotOpDesc
+    d.selectedAttributes = List("m1", "m2")
+    val ex = intercept[IllegalArgumentException](d.generatePythonCode())
+    ex.getMessage should include("Line pattern must be specified")
   }
 
   it should "emit a Plotly Scatterpolar figure carrying the configured axes" in {
