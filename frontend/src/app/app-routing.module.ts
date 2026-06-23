@@ -142,10 +142,6 @@ routes.push({
           path: "discussion",
           component: FlarumComponent,
         },
-        {
-          path: "observability",
-          component: ObservabilityComponent,
-        },
       ],
     },
     {
@@ -167,6 +163,10 @@ routes.push({
         {
           path: "settings",
           component: AdminSettingsComponent,
+        },
+        {
+          path: "observability",
+          component: ObservabilityComponent,
         },
       ],
     },
