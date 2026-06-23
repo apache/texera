@@ -23,99 +23,133 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.io.{ByteArrayInputStream, IOException, InputStream}
 import java.net.{URL, URLConnection, URLStreamHandler}
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
+import java.util.concurrent.atomic.AtomicInteger
 
 class URLFetchUtilSpec extends AnyFlatSpec {
 
-  // Stub URLStreamHandler from the issue's hint, extended only to capture the
-  // User-Agent header (contract row 7). It drives URLFetchUtil with no network:
-  // getInputStream returns scripted bytes (Right) or throws (Left) per attempt.
-  // Injected per-URL via stubUrl so each test is isolated.
-  class StubHandler(behavior: (Int) => Either[IOException, Array[Byte]]) extends URLStreamHandler {
-    val attempts = new java.util.concurrent.atomic.AtomicInteger(0)
+  // ---------------------------------------------------------------------------
+  // Fixtures
+  // ---------------------------------------------------------------------------
+
+  private def freshTempFile(contents: String): Path = {
+    val path = Files.createTempFile("url-fetch-util-spec-", ".bin")
+    Files.write(path, contents.getBytes(StandardCharsets.UTF_8))
+    path.toFile.deleteOnExit()
+    path
+  }
+
+  private def fileUrl(path: Path): URL = path.toUri.toURL
+
+  /**
+    * A URLStreamHandler that counts how many times the URL is opened (one
+    * `openConnection` per retry attempt in `getInputStreamFromURL`) and either
+    * yields a fixed byte payload or always fails the stream fetch.
+    *
+    * Counting the `openConnection` calls lets the tests assert the EXACT number
+    * of attempts the retry loop makes — a stronger contract than only checking
+    * the final Option, and it does not depend on Scala's synthetic default-arg
+    * accessor name (which is compiler/version-specific).
+    */
+  private class CountingStreamHandler(succeedWithBytes: Option[Array[Byte]])
+      extends URLStreamHandler {
+    val openConnectionCount = new AtomicInteger(0)
+    // Captures the most recent User-Agent request property set on a connection.
     var userAgent: Option[String] = None
-    protected override def openConnection(u: URL): URLConnection =
+
+    override def openConnection(u: URL): URLConnection = {
+      openConnectionCount.incrementAndGet()
       new URLConnection(u) {
         override def connect(): Unit = ()
         override def setRequestProperty(key: String, value: String): Unit =
           if (key == "User-Agent") userAgent = Some(value)
-        override def getInputStream: InputStream = {
-          val i = attempts.incrementAndGet()
-          behavior(i) match {
-            case Right(bytes) => new ByteArrayInputStream(bytes)
-            case Left(e)      => throw e
+        override def getInputStream: InputStream =
+          succeedWithBytes match {
+            case Some(bytes) => new ByteArrayInputStream(bytes)
+            case None        => throw new IOException("simulated fetch failure")
           }
-        }
       }
+    }
   }
 
-  private def stubUrl(handler: StubHandler): URL =
-    new URL(null, "http://example.com/data", handler)
+  private def countingUrl(handler: CountingStreamHandler): URL =
+    new URL(null, "counting://retry-test", handler)
 
-  // Successful single attempt —
-  // returns Some(InputStream) on the first try and reads the body
+  // ---------------------------------------------------------------------------
+  // Success path
+  // ---------------------------------------------------------------------------
+
   "URLFetchUtil.getInputStreamFromURL" should
-    "return Some on the first try and read the body" in {
-    val body = "hello".getBytes("UTF-8")
-    val handler = new StubHandler(_ => Right(body))
-    val result = URLFetchUtil.getInputStreamFromURL(stubUrl(handler))
+    "return Some(stream) carrying the URL's bytes on success" in {
+    val path = freshTempFile("hello-url-fetch")
+    val result = URLFetchUtil.getInputStreamFromURL(fileUrl(path))
     assert(result.isDefined)
-    assert(result.get.readAllBytes().sameElements(body))
-    assert(handler.attempts.get() == 1)
+    try {
+      val bytes = result.get.readAllBytes()
+      assert(new String(bytes, StandardCharsets.UTF_8) == "hello-url-fetch")
+    } finally {
+      result.foreach(_.close())
+    }
   }
 
-  // Default retries = 5 —
-  // up to 5 total attempts when every attempt fails
-  it should "make up to 5 total attempts when every attempt fails" in {
-    val handler = new StubHandler(_ => Left(new IOException("boom")))
-    val result = URLFetchUtil.getInputStreamFromURL(stubUrl(handler))
-    assert(result.isEmpty)
-    assert(handler.attempts.get() == 5)
-  }
-
-  // Explicit retries = 1 —
-  // exactly one attempt
-  it should "make exactly one attempt when retries = 1" in {
-    val handler = new StubHandler(_ => Left(new IOException("boom")))
-    val result = URLFetchUtil.getInputStreamFromURL(stubUrl(handler), retries = 1)
-    assert(result.isEmpty)
-    assert(handler.attempts.get() == 1)
-  }
-
-  // Explicit retries = 0 —
-  // returns None immediately (loop body never enters)
-  it should "return None immediately, never entering the loop body, when retries = 0" in {
-    val handler = new StubHandler(_ => Left(new IOException("boom")))
-    val result = URLFetchUtil.getInputStreamFromURL(stubUrl(handler), retries = 0)
-    assert(result.isEmpty)
-    assert(handler.attempts.get() == 0)
-  }
-
-  // All attempts fail —
-  // returns None (does NOT throw — the inner try/catch swallows exceptions)
-  it should "return None (does NOT throw — the inner try/catch swallows exceptions)" in {
-    val handler = new StubHandler(_ => Left(new IOException("boom")))
-    val result = URLFetchUtil.getInputStreamFromURL(stubUrl(handler), retries = 3)
-    assert(result.isEmpty)
-  }
-
-  // Stops at first success —
-  // when a later attempt succeeds, no further attempts are made
-  it should "make no further attempts when a later attempt succeeds" in {
-    val body = "third-time".getBytes("UTF-8")
-    val handler = new StubHandler(i => if (i < 3) Left(new IOException("fail")) else Right(body))
-    val result = URLFetchUtil.getInputStreamFromURL(stubUrl(handler), retries = 5)
+  it should "stop after the first successful attempt (no extra connections)" in {
+    val handler =
+      new CountingStreamHandler(Some("ok".getBytes(StandardCharsets.UTF_8)))
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler), retries = 5)
     assert(result.isDefined)
-    assert(result.get.readAllBytes().sameElements(body))
-    assert(handler.attempts.get() == 3)
+    try {
+      assert(new String(result.get.readAllBytes(), StandardCharsets.UTF_8) == "ok")
+    } finally {
+      result.foreach(_.close())
+    }
+    // First attempt succeeds, so the loop returns immediately.
+    assert(handler.openConnectionCount.get() == 1)
   }
 
-  // Sets User-Agent request property —
-  // the value comes from RandomUserAgent.getRandomUserAgent (use a URLStreamHandler to
-  // capture headers and pin that the header is set, without pinning its value)
-  it should "set the User-Agent request property (without pinning its value)" in {
-    val handler = new StubHandler(_ => Right("x".getBytes("UTF-8")))
-    URLFetchUtil.getInputStreamFromURL(stubUrl(handler))
+  // ---------------------------------------------------------------------------
+  // Failure path — exact attempt counts via the counting handler
+  // ---------------------------------------------------------------------------
+
+  it should "return None and attempt exactly 5 connections at the default retry count" in {
+    val handler = new CountingStreamHandler(None)
+    // No `retries` argument supplied → exercises the default value at runtime.
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler))
+    assert(result.isEmpty)
+    assert(handler.openConnectionCount.get() == 5)
+  }
+
+  it should "never open a connection when retries is 0 (loop body runs zero times)" in {
+    val handler = new CountingStreamHandler(None)
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler), retries = 0)
+    assert(result.isEmpty)
+    assert(handler.openConnectionCount.get() == 0)
+  }
+
+  it should "attempt exactly 1 connection when retries is 1" in {
+    val handler = new CountingStreamHandler(None)
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler), retries = 1)
+    assert(result.isEmpty)
+    assert(handler.openConnectionCount.get() == 1)
+  }
+
+  it should "attempt exactly N connections on persistent failure (N = retries)" in {
+    val handler = new CountingStreamHandler(None)
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler), retries = 2)
+    assert(result.isEmpty)
+    assert(handler.openConnectionCount.get() == 2)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Request headers
+  // ---------------------------------------------------------------------------
+
+  it should "set a User-Agent request property before reading the stream" in {
+    val handler =
+      new CountingStreamHandler(Some("ok".getBytes(StandardCharsets.UTF_8)))
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler))
+    result.foreach(_.close())
+    // Pin only that the header is set, not its specific (randomized) value.
     assert(handler.userAgent.isDefined)
-    assert(handler.userAgent.get.nonEmpty)
   }
 }

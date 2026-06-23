@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.core.storage.result.iceberg
 
-import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog

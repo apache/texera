@@ -22,7 +22,13 @@ package org.apache.texera.service.resource
 import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
-import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, UserSystemConfig}
+import org.apache.texera.common.config.{
+  ApplicationConfig,
+  AuthConfig,
+  ComputingUnitConfig,
+  GuiConfig,
+  UserSystemConfig
+}
 
 @Path("/config")
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -62,7 +68,6 @@ class ConfigResource {
       "asyncRenderingEnabled" -> GuiConfig.guiWorkflowWorkspaceAsyncRenderingEnabled,
       "timetravelEnabled" -> GuiConfig.guiWorkflowWorkspaceTimetravelEnabled,
       "productionSharedEditingServer" -> GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer,
-      "defaultDataTransferBatchSize" -> GuiConfig.guiWorkflowWorkspaceDefaultDataTransferBatchSize,
       "defaultExecutionMode" -> GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
       "sharingComputingUnitEnabled" -> ComputingUnitConfig.sharingComputingUnitEnabled,
@@ -74,6 +79,15 @@ class ConfigResource {
       "pythonNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled,
       // flags from the auth.conf if needed
       "expirationTimeInMinutes" -> AuthConfig.jwtExpirationMinutes
+    )
+
+  // Engine configs.
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/amber")
+  def getAmberConfig: Map[String, Any] =
+    Map(
+      "defaultDataTransferBatchSize" -> ApplicationConfig.defaultDataTransferBatchSize
     )
 
   @GET

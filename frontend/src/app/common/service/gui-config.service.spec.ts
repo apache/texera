@@ -40,6 +40,10 @@ const GUI_PAYLOAD = {
   defaultExecutionMode: "PIPELINED",
 };
 
+const AMBER_PAYLOAD = {
+  defaultDataTransferBatchSize: 400,
+};
+
 const USER_SYSTEM_PAYLOAD = {
   inviteOnly: true,
 };
@@ -91,20 +95,24 @@ describe("GuiConfigService", () => {
 
   // ─── loadPostLogin ────────────────────────────────────────────────────────
 
-  it("loadPostLogin fetches /config/gui and /config/user-system in parallel and merges", async () => {
+  it("loadPostLogin fetches /config/gui, /config/amber and /config/user-system in parallel and merges", async () => {
     const pending = firstValueFrom(service.loadPostLogin());
 
     const gui = http.expectOne(`${API}/config/gui`);
+    const amber = http.expectOne(`${API}/config/amber`);
     const userSystem = http.expectOne(`${API}/config/user-system`);
     expect(gui.request.method).toBe("GET");
+    expect(amber.request.method).toBe("GET");
     expect(userSystem.request.method).toBe("GET");
 
     gui.flush(GUI_PAYLOAD);
+    amber.flush(AMBER_PAYLOAD);
     userSystem.flush(USER_SYSTEM_PAYLOAD);
 
     await pending;
     expect(service.env.copilotEnabled).toBe(true);
     expect(service.env.limitColumns).toBe(42);
+    expect(service.env.defaultDataTransferBatchSize).toBe(400);
     expect(service.env.inviteOnly).toBe(true);
   });
 
@@ -118,6 +126,7 @@ describe("GuiConfigService", () => {
 
     const postLoginPending = firstValueFrom(service.loadPostLogin());
     http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
     http.expectOne(`${API}/config/user-system`).flush(USER_SYSTEM_PAYLOAD);
     await postLoginPending;
 
@@ -132,21 +141,23 @@ describe("GuiConfigService", () => {
   it("load() only hits /config/pre-login when no access token is in localStorage", async () => {
     const pending = firstValueFrom(service.load());
     http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
-    // /config/gui and /config/user-system must not be requested when anonymous;
+    // post-login endpoints must not be requested when anonymous;
     // the no-Authorization-header request would 403 and pollute network logs.
     http.expectNone(`${API}/config/gui`);
+    http.expectNone(`${API}/config/amber`);
     http.expectNone(`${API}/config/user-system`);
     await pending;
     expect(service.env.localLogin).toBe(true);
   });
 
-  it("load() chains /config/gui + /config/user-system when a token is stored", async () => {
+  it("load() chains /config/gui + /config/amber + /config/user-system when a token is stored", async () => {
     localStorage.setItem(TOKEN_KEY, "stored-token");
     const pending = firstValueFrom(service.load());
 
     http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
-    // forkJoin fires both requests in parallel after pre-login resolves.
+    // forkJoin fires all requests in parallel after pre-login resolves.
     http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
     http.expectOne(`${API}/config/user-system`).flush(USER_SYSTEM_PAYLOAD);
 
     await pending;
@@ -164,11 +175,15 @@ describe("GuiConfigService", () => {
 
     http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
     const guiReq = http.expectOne(`${API}/config/gui`);
+    const amberReq = http.expectOne(`${API}/config/amber`);
     const userSystemReq = http.expectOne(`${API}/config/user-system`);
     guiReq.flush({}, { status: 403, statusText: "Forbidden" });
-    // forkJoin tears down the sibling observable on first error, so the
-    // user-system request is already cancelled by the time we get here.
-    // Flushing a cancelled TestRequest throws.
+    // forkJoin tears down the sibling observables on first error, so the
+    // amber and user-system requests are already cancelled by the time we get
+    // here. Flushing a cancelled TestRequest throws.
+    if (!amberReq.cancelled) {
+      amberReq.flush({}, { status: 403, statusText: "Forbidden" });
+    }
     if (!userSystemReq.cancelled) {
       userSystemReq.flush({}, { status: 403, statusText: "Forbidden" });
     }
@@ -185,9 +200,10 @@ describe("GuiConfigService", () => {
     localStorage.setItem(TOKEN_KEY, "stored-token");
     const pending = firstValueFrom(service.load());
     http.expectOne(`${API}/config/pre-login`).error(new ProgressEvent("offline"));
-    // /config/gui must NOT be attempted if pre-login fails — the catchError on
-    // the inner pipe must not catch the outer pre-login rejection.
+    // post-login endpoints must NOT be attempted if pre-login fails: the
+    // catchError on the inner pipe must not catch the outer pre-login rejection.
     http.expectNone(`${API}/config/gui`);
+    http.expectNone(`${API}/config/amber`);
     http.expectNone(`${API}/config/user-system`);
     await expect(pending).rejects.toThrow(/pre-login configuration/);
   });

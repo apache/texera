@@ -30,6 +30,8 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
+import javax.validation.constraints.NotNull
+
 /**
   * Visualization Operator for Ternary Plots.
   *
@@ -43,19 +45,25 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "firstVariable", required = true)
   @JsonSchemaTitle("Variable 1")
   @JsonPropertyDescription("First variable data field")
-  @AutofillAttributeName var firstVariable: EncodableString = ""
+  @AutofillAttributeName
+  @NotNull(message = "Variable 1 cannot be empty")
+  var firstVariable: EncodableString = ""
 
   // Add annotations for the second variable
   @JsonProperty(value = "secondVariable", required = true)
   @JsonSchemaTitle("Variable 2")
   @JsonPropertyDescription("Second variable data field")
-  @AutofillAttributeName var secondVariable: EncodableString = ""
+  @AutofillAttributeName
+  @NotNull(message = "Variable 2 cannot be empty")
+  var secondVariable: EncodableString = ""
 
   // Add annotations for the third variable
   @JsonProperty(value = "thirdVariable", required = true)
   @JsonSchemaTitle("Variable 3")
   @JsonPropertyDescription("Third variable data field")
-  @AutofillAttributeName var thirdVariable: EncodableString = ""
+  @AutofillAttributeName
+  @NotNull(message = "Variable 3 cannot be empty")
+  var thirdVariable: EncodableString = ""
 
   // Add annotations for enabling color and selecting its associated data field
   @JsonProperty(value = "colorEnabled", defaultValue = "false")
@@ -87,7 +95,9 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
   /** Returns a Python string that drops any tuples with missing values */
   def manipulateTable(): PythonTemplateBuilder = {
     // Check for any empty data field names
-    assert(firstVariable.nonEmpty && secondVariable.nonEmpty && thirdVariable.nonEmpty)
+    assert(firstVariable.nonEmpty, "Variable 1 cannot be empty")
+    assert(secondVariable.nonEmpty, "Variable 2 cannot be empty")
+    assert(thirdVariable.nonEmpty, "Variable 3 cannot be empty")
     pyb"""
          |        # Remove any tuples that contain missing values
          |        table.dropna(subset=[$firstVariable, $secondVariable, $thirdVariable], inplace = True)

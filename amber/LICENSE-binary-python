@@ -223,12 +223,12 @@ Python packages:
   - overrides==7.4.0
   - packaging==26.2
   - propcache==0.5.2
-  - pyarrow==21.0.0
+  - pyarrow==23.0.1
   - pyiceberg==0.11.1
   - pympler==1.1
   - python-dateutil==2.8.2
   - regex==2026.5.9
-  - requests==2.34.2
+  - requests==2.34.0
   - s3transfer==0.14.0
   - safetensors==0.8.0
   - tenacity==8.5.0
@@ -254,7 +254,7 @@ Python packages:
   - cachetools==6.2.6
   - charset-normalizer==3.4.7
   - deprecated==1.2.14
-  - filelock==3.29.3
+  - filelock==3.29.4
   - fonttools==4.63.0
   - fs==2.4.16
   - greenlet==3.5.1
@@ -262,7 +262,6 @@ Python packages:
   - h2==4.3.0
   - hpack==4.1.0
   - hyperframe==6.1.0
-  - iniconfig==1.1.1
   - jmespath==1.1.0
   - loguru==0.7.0
   - markdown-it-py==4.2.0
@@ -270,14 +269,10 @@ Python packages:
   - mmh3==5.2.1
   - pampy==0.3.0
   - plotly==5.24.1
-  - pluggy==1.6.0
   - pydantic==2.13.4
   - pydantic-core==2.46.4
   - pyparsing==3.3.2
   - pyroaring==1.1.0
-  - pytest==7.4.0
-  - pytest-reraise==2.1.2
-  - pytest-timeout==2.2.0
   - pytz==2026.2
   - pyyaml==6.0.3
   - readerwriterlock==1.0.9
@@ -327,7 +322,7 @@ Python packages:
   - sympy==1.14.0
   - threadpoolctl==3.6.0
   - tifffile==2026.6.1
-  - torch==2.8.0
+  - torch==2.12.0
   - zstandard==0.25.0
 
 --------------------------------------------------------------------------------
