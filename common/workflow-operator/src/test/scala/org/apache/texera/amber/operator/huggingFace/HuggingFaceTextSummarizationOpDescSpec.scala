@@ -39,8 +39,12 @@ class HuggingFaceTextSummarizationOpDescSpec extends AnyFlatSpec with Matchers {
   private def b64(s: String): String =
     Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
 
+  // EncodableString fields are always base64-wrapped in .encode mode
+  // (self.decode_python_template('<base64>')), so assert on the base64 form only: the raw
+  // column name can appear in the generated Python for unrelated reasons (e.g. the local
+  // variables "text"/"summary"), which would mask a missing splice.
   private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
+    output.contains(b64(name))
 
   private def configured(): HuggingFaceTextSummarizationOpDesc = {
     val d = new HuggingFaceTextSummarizationOpDesc

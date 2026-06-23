@@ -34,8 +34,11 @@ class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Match
   private def b64(s: String): String =
     Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
 
+  // EncodableString fields are always base64-wrapped in .encode mode
+  // (self.decode_python_template('<base64>')), so assert on the base64 form only rather than
+  // the raw column name, which could appear in the generated Python for unrelated reasons.
   private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
+    output.contains(b64(name))
 
   private def configured(): HuggingFaceIrisLogisticRegressionOpDesc = {
     val d = new HuggingFaceIrisLogisticRegressionOpDesc
