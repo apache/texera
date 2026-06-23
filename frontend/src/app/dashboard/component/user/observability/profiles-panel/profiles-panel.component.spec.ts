@@ -23,7 +23,9 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { of, throwError } from "rxjs";
 import { ProfilesPanelComponent } from "./profiles-panel.component";
 import { ObservabilityService } from "../../../../service/user/observability/observability.service";
-import { FlameFrame, ProfilesQueryResponse } from "../../../../service/user/observability/observability.types";
+import { ProfilesQueryResponse } from "../../../../service/user/observability/observability.types";
+
+const EMPTY: ProfilesQueryResponse = { totalSamples: 0, top: [], timeline: [] };
 
 describe("ProfilesPanelComponent", () => {
   let component: ProfilesPanelComponent;
@@ -32,7 +34,7 @@ describe("ProfilesPanelComponent", () => {
 
   beforeEach(async () => {
     mockService = { queryProfiles: vi.fn() };
-    mockService.queryProfiles.mockReturnValue(of({ root: null, totalSamples: 0 } as ProfilesQueryResponse));
+    mockService.queryProfiles.mockReturnValue(of(EMPTY));
     await TestBed.configureTestingModule({
       imports: [ProfilesPanelComponent, HttpClientTestingModule, NoopAnimationsModule],
       providers: [{ provide: ObservabilityService, useValue: mockService }],
@@ -46,23 +48,34 @@ describe("ProfilesPanelComponent", () => {
     expect(mockService.queryProfiles).toHaveBeenCalledOnce();
   });
 
-  it("populates root + totalSamples when the response has samples", () => {
-    const root: FlameFrame = {
-      name: "root",
-      value: 100,
-      children: [{ name: "f", value: 100, children: [] }],
+  it("populates top + timeline + totalSamples when the response has samples", () => {
+    const resp: ProfilesQueryResponse = {
+      totalSamples: 150,
+      top: [
+        { name: "(unsymbolized)", flat: 120 },
+        { name: "foo", flat: 30 },
+      ],
+      timeline: [
+        { timestampMs: 1000, value: 10 },
+        { timestampMs: 2000, value: 20 },
+      ],
     };
-    mockService.queryProfiles.mockReturnValue(of({ root, totalSamples: 100 } as ProfilesQueryResponse));
+    mockService.queryProfiles.mockReturnValue(of(resp));
     fixture.detectChanges();
-    expect(component.root).toBe(root);
-    expect(component.totalSamples).toBe(100);
+    expect(component.totalSamples).toBe(150);
+    expect(component.top.length).toBe(2);
+    expect(component.timeline.length).toBe(2);
+    expect(component.topConsumer).toBe("(unsymbolized)");
+    expect(component.hasData).toBe(true);
+    expect(component.timelinePoints).not.toBe("");
   });
 
-  it("leaves root null when the response has no samples (disabled-state branch)", () => {
-    mockService.queryProfiles.mockReturnValue(of({ root: null, totalSamples: 0 } as ProfilesQueryResponse));
+  it("has no data when the response is empty (disabled-state branch)", () => {
+    mockService.queryProfiles.mockReturnValue(of(EMPTY));
     fixture.detectChanges();
-    expect(component.root).toBeNull();
     expect(component.totalSamples).toBe(0);
+    expect(component.top.length).toBe(0);
+    expect(component.hasData).toBe(false);
   });
 
   it("surfaces a human error message on HTTP failure", () => {
@@ -75,10 +88,10 @@ describe("ProfilesPanelComponent", () => {
 
   it("clears stale results before refreshing", () => {
     fixture.detectChanges();
-    component.root = { name: "stale", value: 1, children: [] };
     component.totalSamples = 99;
+    component.top = [{ name: "stale", flat: 1 }];
     component.refresh();
-    expect(component.root).toBeNull();
     expect(component.totalSamples).toBe(0);
+    expect(component.top.length).toBe(0);
   });
 });

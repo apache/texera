@@ -285,9 +285,10 @@ object ParcaQueryBuilder {
 
   /** Parca profile-type that the eBPF agent emits. Format:
     *  ``<name>:<sample-type>:<sample-unit>:<period-type>:<period-unit>:delta``.
-    *  Discovered via ProfileTypes RPC; the previous string
-    *  "parca_agent_cpu" was a Prometheus-style metric name that
-    *  Parca's query layer does not accept.
+    *  parca-agent (v0.47/v0.48, the bundled image) emits CPU samples under
+    *  the `parca_agent` name -- verified against Parca's QueryService
+    *  ProfileTypes API. Querying any other name (e.g. `process_cpu`) returns
+    *  gRPC NOT_FOUND and the profiles panel shows a backend error.
     */
   private val CpuProfileType = "parca_agent:samples:count:cpu:nanoseconds:delta"
 
@@ -299,13 +300,14 @@ object ParcaQueryBuilder {
   def build(req: ValidatedProfilesRequest, scope: GatewayScope): String = {
     val selectors = scala.collection.mutable.ArrayBuffer[String]()
     selectors += """deployment="texera""""
-    // Launder through Option[Any]: Option[Long]#foreach unboxes the
-    // Integer Jackson stores and crashes. See LogsQLBuilder.appendId.
-    req.workflowId.asInstanceOf[Option[Any]].foreach { id =>
-      selectors += s"""texera_workflow_id="$id""""
-    }
-    req.executionId.asInstanceOf[Option[Any]].foreach { id =>
-      selectors += s"""texera_execution_id="$id""""
+    // Optional process filter. `comm` is the only per-process label the eBPF
+    // agent emits that maps to something a user recognizes (e.g. "java" to
+    // focus on the Texera JVMs, "postgres" for the DB). It is validated
+    // against CommPattern before reaching here, so interpolation is safe.
+    // Per-workflow/execution selectors were removed: the agent emits no such
+    // labels, so they only ever produced a NOT_FOUND.
+    req.comm.foreach { c =>
+      selectors += s"""comm="$c""""
     }
     val selectorBody = selectors.mkString(",")
     s"""$CpuProfileType{$selectorBody}"""

@@ -26,14 +26,9 @@
       formControlName="range"></nz-range-picker>
     <input
       nz-input
-      type="number"
-      formControlName="workflowId"
-      placeholder="Workflow id (optional)" />
-    <input
-      nz-input
-      type="number"
-      formControlName="executionId"
-      placeholder="Execution id (optional)" />
+      type="text"
+      formControlName="comm"
+      placeholder="Process name / comm (optional, e.g. java)" />
     <button
       nz-button
       nzType="primary"
@@ -52,15 +47,75 @@
 </form>
 
 <div class="result">
-  <p
-    *ngIf="root"
-    class="summary">
-    Total samples: {{ totalSamples }}
-  </p>
+  <div
+    *ngIf="loading"
+    class="loading-indicator">
+    <nz-spin nzSimple></nz-spin>
+    <span>Loading profile…</span>
+  </div>
 
-  <texera-flame-chart
-    *ngIf="root; else noSamples"
-    [root]="root"></texera-flame-chart>
+  <div class="overview-header">
+    <div
+      *ngIf="hasData"
+      class="overview-stats">
+      <span class="stat"><span class="stat-label">CPU samples:</span> {{ totalSamples }}</span>
+      <span class="stat"><span class="stat-label">Filter:</span> {{ filterLabel }}</span>
+      <span class="stat"><span class="stat-label">Top:</span> {{ topConsumer }}</span>
+    </div>
+    <a
+      class="parca-link"
+      [href]="parcaDeepLink"
+      target="_blank"
+      rel="noopener noreferrer">
+      Open in Parca for the full flame graph ↗
+    </a>
+  </div>
+
+  <ng-container *ngIf="hasData; else noSamples">
+    <!-- CPU over time. Symbolization-independent, so it is useful even when
+         function names are missing. -->
+    <div
+      *ngIf="timeline.length > 0"
+      class="timeline">
+      <p class="section-label">CPU over time</p>
+      <svg
+        class="timeline-svg"
+        [attr.viewBox]="'0 0 ' + timelineWidth + ' ' + timelineHeight"
+        preserveAspectRatio="none">
+        <polyline
+          [attr.points]="timelinePoints"
+          fill="none"
+          stroke="#1d39c4"
+          stroke-width="1.5"></polyline>
+      </svg>
+    </div>
+
+    <!-- Top functions by self CPU (the function as the leaf of a sample). -->
+    <p class="section-label">Top functions (by self CPU)</p>
+    <table class="top-table">
+      <thead>
+        <tr>
+          <th class="fn">Function</th>
+          <th class="num">Self</th>
+          <th class="num">% total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let e of top">
+          <td
+            class="fn"
+            [title]="e.name">
+            <span
+              class="bar"
+              [style.width.%]="barPct(e)"></span>
+            <span class="fn-name">{{ e.name }}</span>
+          </td>
+          <td class="num">{{ e.flat }}</td>
+          <td class="num">{{ pct(e.flat) | number: "1.0-1" }}%</td>
+        </tr>
+      </tbody>
+    </table>
+  </ng-container>
 
   <ng-template #noSamples>
     <nz-empty

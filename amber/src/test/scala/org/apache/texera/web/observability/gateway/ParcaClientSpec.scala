@@ -19,148 +19,134 @@
 
 package org.apache.texera.web.observability.gateway
 
-import org.scalatest.OptionValues
+import java.io.ByteArrayOutputStream
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class ParcaClientSpec extends AnyFlatSpec with Matchers with OptionValues {
+class ParcaClientSpec extends AnyFlatSpec with Matchers {
 
-  // ----- ParcaSummary.toProfilesResponse ------------------------------
+  // ----- ProtoEncode round-trips --------------------------------------
 
-  "ParcaSummary.toProfilesResponse" should "return empty for a zero-series summary" in {
-    val s = ParcaQueryRangeSummary(seriesCount = 0, totalSampleCount = 0L, series = Seq.empty)
-    val r = ParcaSummary.toProfilesResponse(s)
-    r.root shouldBe None
-    r.totalSamples shouldBe 0L
-  }
-
-  it should "return empty when series exist but no samples were observed" in {
-    val s = ParcaQueryRangeSummary(
-      seriesCount = 2,
-      totalSampleCount = 0L,
-      series = Seq(ParcaSeriesSummary("a=1", 0L, 0L), ParcaSeriesSummary("a=2", 0L, 0L))
-    )
-    ParcaSummary.toProfilesResponse(s).root shouldBe None
-  }
-
-  it should "render one child per series under a labelled root" in {
-    val s = ParcaQueryRangeSummary(
-      seriesCount = 2,
-      totalSampleCount = 42L,
-      series = Seq(
-        ParcaSeriesSummary("node=texera-dev", 30L, 120L),
-        ParcaSeriesSummary("node=ci", 12L, 50L)
-      )
-    )
-    val r = ParcaSummary.toProfilesResponse(s)
-    r.totalSamples shouldBe 42L
-    val root = r.root.value
-    root.value shouldBe 42L
-    root.name should include("parca_agent")
-    root.name should include("2 series")
-    root.children should have size 2
-    root.children.head.name shouldBe "node=texera-dev"
-    root.children.head.value shouldBe 30L
-    root.children(1).name shouldBe "node=ci"
-  }
-
-  // ----- Protobuf round-trip (encode then decode our own output) -----
-
-  "ProtoEncode + Proto" should "round-trip a QueryRangeRequest through the wire format" in {
-    // The encoder is private[gateway], but reachable from the same
-    // package. The reader walks top-level fields.
-    val payload = TestAccess.encodeQueryRange(
+  "ProtoEncode.queryMergeRequest" should "encode mode, merge{query,start,end}, report_type" in {
+    val payload = TestAccess.encodeQueryMerge(
       "parca_agent:samples:count:cpu:nanoseconds:delta",
       startMs = 1_700_000_000_000L,
       endMs = 1_700_000_600_000L,
-      limit = 100
+      mode = 2L,
+      reportType = 2L
     )
-
-    val collected = scala.collection.mutable.Map.empty[Int, Any]
+    var mode = -1L
+    var reportType = -1L
+    var query = ""
+    var startSec = -1L
+    var endSec = -1L
     TestAccess.walk(payload) {
-      case (1, TestAccess.LD(b)) => collected += 1 -> new String(b, "UTF-8")
-      case (2, TestAccess.LD(b)) =>
-        // Timestamp{seconds=1, nanos=2}
-        var seconds = -1L
-        TestAccess.walk(b) {
-          case (1, TestAccess.V(v)) => seconds = v
-          case _                    => ()
-        }
-        collected += 2 -> seconds
-      case (3, TestAccess.LD(b)) =>
-        var seconds = -1L
-        TestAccess.walk(b) {
-          case (1, TestAccess.V(v)) => seconds = v
-          case _                    => ()
-        }
-        collected += 3 -> seconds
-      case (4, TestAccess.V(v)) => collected += 4 -> v
-      case _                    => ()
-    }
-
-    collected(1) shouldBe "parca_agent:samples:count:cpu:nanoseconds:delta"
-    collected(2) shouldBe 1_700_000_000L // seconds
-    collected(3) shouldBe 1_700_000_600L
-    collected(4) shouldBe 100L
-  }
-
-  it should "encode multi-byte varints correctly (>= 128)" in {
-    // Field 4 (limit) = 300 should encode as: tag=0x20, then varint 300 = 0xac 0x02
-    val payload = TestAccess.encodeQueryRange("x", 0L, 0L, 300)
-    payload should not be empty
-    // Walk to confirm we get 300 back.
-    var got = -1L
-    TestAccess.walk(payload) {
-      case (4, TestAccess.V(v)) => got = v
-      case _                    => ()
-    }
-    got shouldBe 300L
-  }
-
-  it should "split a sub-second epoch into seconds + nanos in the Timestamp message" in {
-    // 1_700_000_000_456L ms → seconds=1_700_000_000, nanos=456_000_000.
-    val payload = TestAccess.encodeQueryRange("q", 1_700_000_000_456L, 1_700_000_001_789L, 1)
-    var startSec = -1L; var startNanos = -1L
-    var endSec = -1L; var endNanos = -1L
-    TestAccess.walk(payload) {
-      case (2, TestAccess.LD(b)) =>
-        TestAccess.walk(b) {
-          case (1, TestAccess.V(v)) => startSec = v
-          case (2, TestAccess.V(v)) => startNanos = v
-          case _                    => ()
-        }
+      case (1, TestAccess.V(v)) => mode = v
+      case (5, TestAccess.V(v)) => reportType = v
       case (3, TestAccess.LD(b)) =>
         TestAccess.walk(b) {
-          case (1, TestAccess.V(v)) => endSec = v
-          case (2, TestAccess.V(v)) => endNanos = v
-          case _                    => ()
+          case (1, TestAccess.LD(qb)) => query = new String(qb, "UTF-8")
+          case (2, TestAccess.LD(ts)) =>
+            TestAccess.walk(ts) { case (1, TestAccess.V(v)) => startSec = v }
+          case (3, TestAccess.LD(ts)) =>
+            TestAccess.walk(ts) { case (1, TestAccess.V(v)) => endSec = v }
         }
-      case _ => ()
     }
+    mode shouldBe 2L // MODE_MERGE
+    reportType shouldBe 2L // REPORT_TYPE_TOP
+    query shouldBe "parca_agent:samples:count:cpu:nanoseconds:delta"
     startSec shouldBe 1_700_000_000L
-    startNanos shouldBe 456_000_000L
-    endSec shouldBe 1_700_000_001L
-    endNanos shouldBe 789_000_000L
+    endSec shouldBe 1_700_000_600L
   }
 
-  it should "omit the nanos sub-field entirely when timestamp is an exact second" in {
-    // 1_700_000_000_000L → seconds = 1_700_000_000, nanos = 0 → skipped.
-    val payload = TestAccess.encodeQueryRange("q", 1_700_000_000_000L, 1_700_000_000_000L, 1)
-    var sawNanos = false
+  "ProtoEncode.queryRangeRequest" should "encode query, start, end, limit, step" in {
+    val payload = TestAccess.encodeQueryRange("q", 1_700_000_000_000L, 1_700_000_600_000L, 500, 30L)
+    var query = ""
+    var startSec = -1L
+    var limit = -1L
+    var stepSec = -1L
     TestAccess.walk(payload) {
-      case (2, TestAccess.LD(b)) =>
-        TestAccess.walk(b) {
-          case (2, _) => sawNanos = true
-          case _      => ()
-        }
-      case _ => ()
+      case (1, TestAccess.LD(b))  => query = new String(b, "UTF-8")
+      case (2, TestAccess.LD(ts)) => TestAccess.walk(ts) { case (1, TestAccess.V(v)) => startSec = v }
+      case (4, TestAccess.V(v))   => limit = v
+      case (5, TestAccess.LD(d))  => TestAccess.walk(d) { case (1, TestAccess.V(v)) => stepSec = v }
     }
-    sawNanos shouldBe false
+    query shouldBe "q"
+    startSec shouldBe 1_700_000_000L
+    limit shouldBe 500L
+    stepSec shouldBe 30L
+  }
+
+  // ----- parseTop: Parca TOP report -> ranked self-CPU table ----------
+
+  "ParcaClient.parseTop" should "rank by flat, bucket unsymbolized, sum total" in {
+    val body = TopFixture.framed(
+      Seq(
+        Some("foo") -> 100L,
+        None -> 50L, // unsymbolized
+        None -> 30L, // unsymbolized
+        Some("bar") -> 20L
+      )
+    )
+    val Right((total, entries)) = ParcaClient.parseTop(body, 25)
+    total shouldBe 200L
+    entries.map(_.name) shouldBe Seq("foo", "(unsymbolized)", "bar")
+    entries.map(_.flat) shouldBe Seq(100L, 80L, 20L) // two unsymbolized merge to 80
+  }
+
+  it should "cap the number of returned entries" in {
+    val nodes = (1 to 30).map(i => Some(s"fn$i") -> i.toLong)
+    val Right((_, entries)) = ParcaClient.parseTop(TopFixture.framed(nodes), 5)
+    entries should have size 5
+    entries.head.name shouldBe "fn30" // highest flat first
+  }
+
+  it should "return empty for a response with no top nodes" in {
+    val Right((total, entries)) = ParcaClient.parseTop(TopFixture.framed(Seq.empty), 25)
+    total shouldBe 0L
+    entries shouldBe empty
   }
 }
 
-/** Package-private hooks so the spec can poke at the private encoder/decoder
-  *  without exposing them to the rest of the codebase.
+/** Builds a gRPC-Web-framed QueryResponse carrying a TOP report, for parseTop.
+  *  QueryResponse{ top=7: Top{ list=1: repeated TopNode{ meta=1:
+  *  TopNodeMeta{ function=3: Function{ name=3 } }, flat=3 } } }.
+  */
+private[gateway] object TopFixture {
+  private def varint(n: Long): Array[Byte] = {
+    val out = new ByteArrayOutputStream()
+    var v = n
+    while ((v & ~0x7fL) != 0) { out.write(((v & 0x7f) | 0x80).toInt); v >>>= 7 }
+    out.write((v & 0x7f).toInt)
+    out.toByteArray
+  }
+  private def tag(field: Int, wire: Int): Array[Byte] = varint((field.toLong << 3) | wire.toLong)
+  private def ld(field: Int, payload: Array[Byte]): Array[Byte] =
+    tag(field, 2) ++ varint(payload.length.toLong) ++ payload
+  private def vf(field: Int, v: Long): Array[Byte] = tag(field, 0) ++ varint(v)
+  private def str(field: Int, s: String): Array[Byte] = ld(field, s.getBytes("UTF-8"))
+
+  /** Build the framed response. Each node is (optional function name, flat). */
+  def framed(nodes: Seq[(Option[String], Long)]): Array[Byte] = {
+    val topBody = nodes.foldLeft(Array.emptyByteArray) { case (acc, (name, flat)) =>
+      val meta = name.map(n => ld(3 /*function*/, str(3 /*name*/, n))).getOrElse(Array.emptyByteArray)
+      val node = ld(1 /*meta*/, meta) ++ vf(3 /*flat*/, flat)
+      acc ++ ld(1 /*list*/, node)
+    }
+    val queryResponse = ld(7 /*top*/, topBody)
+    // gRPC-Web frame: flag byte + 4-byte big-endian length + payload.
+    val len = queryResponse.length
+    Array[Byte](0) ++ Array[Byte](
+      ((len >> 24) & 0xff).toByte,
+      ((len >> 16) & 0xff).toByte,
+      ((len >> 8) & 0xff).toByte,
+      (len & 0xff).toByte
+    ) ++ queryResponse
+  }
+}
+
+/** Package-private hooks so the spec can poke at the private encoders without
+  *  exposing them to the rest of the codebase.
   */
 private[gateway] object TestAccess {
   type V = Proto.VarInt
@@ -168,8 +154,23 @@ private[gateway] object TestAccess {
   type LD = Proto.LengthDelimited
   val LD = Proto.LengthDelimited
 
-  def encodeQueryRange(query: String, startMs: Long, endMs: Long, limit: Int): Array[Byte] =
-    ProtoEncode.queryRangeRequest(query, startMs, endMs, limit)
+  def encodeQueryMerge(
+      query: String,
+      startMs: Long,
+      endMs: Long,
+      mode: Long,
+      reportType: Long
+  ): Array[Byte] =
+    ProtoEncode.queryMergeRequest(query, startMs, endMs, mode, reportType)
+
+  def encodeQueryRange(
+      query: String,
+      startMs: Long,
+      endMs: Long,
+      limit: Int,
+      stepSeconds: Long
+  ): Array[Byte] =
+    ProtoEncode.queryRangeRequest(query, startMs, endMs, limit, stepSeconds)
 
   def walk(bytes: Array[Byte])(f: PartialFunction[(Int, Proto.Value), Unit]): Unit =
     Proto.foreachField(bytes)(f)

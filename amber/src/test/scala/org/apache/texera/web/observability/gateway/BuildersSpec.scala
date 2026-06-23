@@ -325,13 +325,13 @@ class BuildersSpec extends AnyFlatSpec with Matchers {
   // ----- ParcaQueryBuilder ---------------------------------------------
 
   "ParcaQueryBuilder" should "always include the deployment=texera selector" in {
-    val req = ValidatedProfilesRequest(workflowId = None, executionId = None, window = anyWindow)
+    val req = ValidatedProfilesRequest(comm = None, window = anyWindow)
     val q = ParcaQueryBuilder.build(req, scope)
     q should include("""deployment="texera"""")
   }
 
   it should "lead with Parca's profile-type identifier, not a Prometheus metric name" in {
-    val req = ValidatedProfilesRequest(workflowId = None, executionId = None, window = anyWindow)
+    val req = ValidatedProfilesRequest(comm = None, window = anyWindow)
     val q = ParcaQueryBuilder.build(req, scope)
     // Empirical: Parca's QueryService validates the profile selector
     // against `<name>:<sample-type>:<sample-unit>:<period-type>:<period-unit>:delta`.
@@ -339,14 +339,15 @@ class BuildersSpec extends AnyFlatSpec with Matchers {
     q should startWith("parca_agent:samples:count:cpu:nanoseconds:delta{")
   }
 
-  it should "type-fence numeric workflow and execution ids into the label value" in {
-    val req = ValidatedProfilesRequest(
-      workflowId = Some(42L),
-      executionId = Some(7L),
-      window = anyWindow
-    )
+  it should "include a comm selector when one is provided" in {
+    val req = ValidatedProfilesRequest(comm = Some("java"), window = anyWindow)
     val q = ParcaQueryBuilder.build(req, scope)
-    q should include("""texera_workflow_id="42"""")
-    q should include("""texera_execution_id="7"""")
+    q should include("""comm="java"""")
+  }
+
+  it should "omit the comm selector when none is provided" in {
+    val req = ValidatedProfilesRequest(comm = None, window = anyWindow)
+    val q = ParcaQueryBuilder.build(req, scope)
+    q should not include "comm="
   }
 }

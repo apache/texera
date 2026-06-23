@@ -587,7 +587,7 @@ class ProfilesResource(ctx: GatewayContext) extends LazyLogging {
 
   @POST
   @Path("/query")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @RolesAllowed(Array("ADMIN"))
   def query(
       request: RawProfilesQueryRequest,
       @Auth user: SessionUser,
@@ -600,59 +600,56 @@ class ProfilesResource(ctx: GatewayContext) extends LazyLogging {
         validate(request) match {
           case Invalid(err) => Respond.err(err)
           case Valid(valid) =>
-            if (!ctx.scopeResolver.assertWorkflowAllowed(scope, valid.workflowId)) {
-              logger.warn(
-                s"profiles query DENIED: user ${user.getUid} requested workflow " +
-                  s"${valid.workflowId.getOrElse("<none>")} outside their allowed scope"
-              )
-              Respond.err(GatewayError.Forbidden)
-            } else {
-              val q = ParcaQueryBuilder.build(valid, scope)
-              // Parca v0.28 only ships a gRPC API — no JSON gateway. We
-              // talk to it over gRPC-Web with the BaseUrl from
-              // GatewayContext (so test overrides still work). The
-              // QueryRange RPC returns a real per-series sample
-              // histogram, which we summarise into a one-deep flame
-              // tree so the dashboard panel reflects live Parca data.
-              // Full nested flamegraph parsing requires the Function /
-              // Location / Mapping schema and is a separate PR.
-              ParcaClient.queryRange(
-                baseUrl = ctx.profilesBaseUrl,
-                profileQuery = q,
-                startMs = valid.window.from.toEpochMilli,
-                endMs = valid.window.to.toEpochMilli
-              ) match {
-                case Left(err) => Respond.err(err)
-                case Right(summary) =>
-                  val parsed = ParcaSummary.toProfilesResponse(summary)
-                  logger.info(
-                    s"profiles query ok for user ${user.getUid}: ${parsed.totalSamples} sample(s)"
+            // No workflow-scope guard: profiles are host-wide (no per-workflow
+            // label exists in Parca) and this endpoint is ADMIN-only.
+            val q = ParcaQueryBuilder.build(valid, scope)
+            val fromMs = valid.window.from.toEpochMilli
+            val toMs = valid.window.to.toEpochMilli
+            // The merged top-functions report is the primary result (and the
+            // heavy call). The CPU-over-time timeline is a fast, secondary
+            // metrics query: if it fails we still return the top table.
+            ParcaClient.queryTop(ctx.profilesBaseUrl, q, fromMs, toMs) match {
+              case Left(err) => Respond.err(err)
+              case Right((total, top)) =>
+                val timeline = ParcaClient.queryTimeline(ctx.profilesBaseUrl, q, fromMs, toMs) match {
+                  case Right(points) => points
+                  case Left(e) =>
+                    logger.warn(s"profiles timeline unavailable: ${e.code}")
+                    Seq.empty
+                }
+                val parsed = ProfilesQueryResponse(totalSamples = total, top = top, timeline = timeline)
+                logger.info(
+                  s"profiles query ok for user ${user.getUid}: ${total} sample(s), " +
+                    s"${top.size} top entries, ${timeline.size} timeline points"
+                )
+                AuditLogger.record(
+                  AuditLogger.Entry(
+                    userId = user.getUid.longValue(),
+                    remoteIp = Option(httpReq.getRemoteAddr).getOrElse("unknown"),
+                    endpoint = "/observability/profiles/query",
+                    signal = "profiles",
+                    scope = scope,
+                    query = q,
+                    fromMs = fromMs,
+                    toMs = toMs,
+                    hits = total
                   )
-                  AuditLogger.record(
-                    AuditLogger.Entry(
-                      userId = user.getUid.longValue(),
-                      remoteIp = Option(httpReq.getRemoteAddr).getOrElse("unknown"),
-                      endpoint = "/observability/profiles/query",
-                      signal = "profiles",
-                      scope = scope,
-                      query = q,
-                      fromMs = valid.window.from.toEpochMilli,
-                      toMs = valid.window.to.toEpochMilli,
-                      hits = parsed.totalSamples
-                    )
-                  )
-                  Respond.json(parsed)
-              }
+                )
+                Respond.json(parsed)
             }
         }
     }
   }
 
   private def validate(raw: RawProfilesQueryRequest): ValidationResult[ValidatedProfilesRequest] = {
-    TimeWindow.validate(Signal.Profiles, raw.fromMs, raw.toMs) match {
-      case Invalid(e) => Invalid(e)
-      case Valid(window) =>
-        Valid(ValidatedProfilesRequest(raw.workflowId, raw.executionId, window))
+    val commOpt = raw.comm.map(_.trim).filter(_.nonEmpty)
+    if (commOpt.exists(c => ValidatedProfilesRequest.CommPattern.findFirstIn(c).isEmpty)) {
+      Invalid(GatewayError.BadComm)
+    } else {
+      TimeWindow.validate(raw.fromMs, raw.toMs) match {
+        case Invalid(e) => Invalid(e)
+        case Valid(window) => Valid(ValidatedProfilesRequest(commOpt, window))
+      }
     }
   }
 }
@@ -662,7 +659,7 @@ class ProfilesResource(ctx: GatewayContext) extends LazyLogging {
 class ObservabilityHealthResource(ctx: GatewayContext) extends LazyLogging {
 
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @RolesAllowed(Array("ADMIN"))
   def health(@Auth user: SessionUser): Response = {
     // Light-touch reachability — used by the dashboard to render
     // "Disabled" / "Unreachable" panels. No backend query; just a

@@ -182,22 +182,34 @@ export interface TracesGetResponse {
 // ---- Profiles (PR 11) -------------------------------------------------
 
 export interface ProfilesQueryRequest {
-  readonly workflowId?: number;
-  readonly executionId?: number;
+  // Optional process filter (Parca `comm` label), e.g. "java" to focus on the
+  // Texera JVMs. Per-workflow/execution filters were removed: the profiling
+  // agent emits no such labels.
+  readonly comm?: string;
   readonly fromMs: number;
   readonly toMs: number;
 }
 
-/** Recursive flame-graph frame. value is the sample count (or any
- *  positive measure) at this node; children's values sum to <= value
- *  per pprof convention. */
-export interface FlameFrame {
+
+/** One row of the "top functions" table. `flat` is the self CPU spent in the
+ *  function; flat sums to the total across rows. Unsymbolized frames are
+ *  bucketed under a single "(unsymbolized)" name. */
+export interface ProfileTopEntry {
   readonly name: string;
-  readonly value: number;
-  readonly children: ReadonlyArray<FlameFrame>;
+  readonly flat: number;
 }
 
+/** One point of the CPU-over-time timeline. */
+export interface ProfileTimelinePoint {
+  readonly timestampMs: number;
+  readonly value: number;
+}
+
+/** High-level profile stats: a CPU timeline + a ranked top-functions table.
+ *  The full flame graph lives in Parca (linked from the panel) to keep browser
+ *  memory bounded. */
 export interface ProfilesQueryResponse {
-  readonly root: FlameFrame | null;
   readonly totalSamples: number;
+  readonly top: ReadonlyArray<ProfileTopEntry>;
+  readonly timeline: ReadonlyArray<ProfileTimelinePoint>;
 }
