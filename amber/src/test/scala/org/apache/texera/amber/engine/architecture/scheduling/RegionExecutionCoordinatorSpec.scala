@@ -153,7 +153,7 @@ class RegionExecutionCoordinatorSpec
     val failure = intercept[IllegalStateException] {
       await(completion)
     }
-    assert(failure.getMessage.contains("could not be terminated after 1 attempts"))
+    assert(failure.getMessage.contains("could not be terminated after 1 attempt"))
     assert(failure.getMessage.contains(fixture.workerId.toString))
     assert(fixture.rpcProbe.endWorkerCalls.size == 1)
   }

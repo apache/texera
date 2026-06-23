@@ -230,14 +230,15 @@ class RegionExecutionCoordinator(
         val workerIds = regionExecution.getAllOperatorExecutions.flatMap {
           case (_, opExec) => opExec.getWorkerIds
         }.toSeq
+        val attemptsLabel = if (attempt == 1) "1 attempt" else s"$attempt attempts"
         logger.error(
-          s"Region ${region.id.id} could not be terminated after $attempt attempts; giving up. " +
+          s"Region ${region.id.id} could not be terminated after $attemptsLabel; giving up. " +
             s"Workers still not terminated: ${workerIds.mkString(", ")}.",
           err
         )
         Future.exception(
           new IllegalStateException(
-            s"Region ${region.id.id} could not be terminated after $attempt attempts " +
+            s"Region ${region.id.id} could not be terminated after $attemptsLabel " +
               s"(workers still not terminated: ${workerIds.mkString(", ")}).",
             err
           )
