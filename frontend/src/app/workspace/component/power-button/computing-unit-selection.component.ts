@@ -139,8 +139,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
   // variables for creating a virtual environment
   pves: PveDraft[] = [];
   systemPackages: { name: string; version: string }[] = [];
-  // True while the first /pve/system response is in flight. The server resolves
-  // the full pinned set with a one-time `pip freeze` against a throwaway venv,
+  // True while a /pve/system response is in flight. The server resolves
+  // the full pinned set with a `pip freeze` against a throwaway venv,
   // which can take 30–60s on the first request after a server restart.
   systemPackagesLoading = false;
   pveModalVisible = false;
@@ -786,6 +786,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getPVEs(): void {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
+    this.systemPackagesLoading = true;
 
     this.workflowPveService
       .fetchPVEs(cuId)
@@ -804,7 +805,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
             isLocked: true,
           }));
 
-          this.systemPackagesLoading = true;
           this.workflowPveService
             .getSystemPackages(cuId)
             .pipe(untilDestroyed(this))
@@ -830,6 +830,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           console.error("Failed to fetch PVEs:", err);
           this.pves = [];
           this.systemPackages = [];
+          this.systemPackagesLoading = false;
         },
       });
   }
