@@ -138,7 +138,7 @@ export class LogsPanelComponent implements OnInit, OnDestroy {
 
   /** Autofill options populated from `/observability/logs/sources` on
    *  init. Empty arrays render the dropdowns as "no data yet". */
-  sources: LogSourcesResponse = { services: [], workflowIds: [], computingUnitIds: [], userIds: [] };
+  sources: LogSourcesResponse = { services: [], workflowIds: [], computingUnitIds: [], userIds: [], userNames: {} };
 
   entries: ReadonlyArray<LogEntry> = [];
   total = 0;
@@ -208,6 +208,7 @@ export class LogsPanelComponent implements OnInit, OnDestroy {
             workflowIds: s?.workflowIds ?? [],
             computingUnitIds: s?.computingUnitIds ?? [],
             userIds: s?.userIds ?? [],
+            userNames: s?.userNames ?? {},
           };
           // One concise console line so an operator can confirm autofill
           // really did load — helps diagnose "empty dropdowns" without
@@ -359,8 +360,8 @@ export class LogsPanelComponent implements OnInit, OnDestroy {
 }
 
 function defaultFrom(): Date {
-  // Default window: last hour.
-  return new Date(Date.now() - 60 * 60 * 1000);
+  // Default window: last 7 days.
+  return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 }
 
 function nullToUndefined<T>(v: T | null | undefined): T | undefined {

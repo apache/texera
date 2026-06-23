@@ -26,7 +26,12 @@ import javax.ws.rs._
 import javax.ws.rs.core.{Context, MediaType, Response}
 import javax.servlet.http.HttpServletRequest
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.web.observability.gateway.dtos._
+
+import scala.jdk.CollectionConverters._
+import scala.util.Try
 
 /**
   * Dropwizard resources for the observability gateway.
@@ -138,7 +143,7 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
 
   @POST
   @Path("/search")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @RolesAllowed(Array("ADMIN"))
   def search(
       request: RawLogsSearchRequest,
       @Auth user: SessionUser,
@@ -246,7 +251,7 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
     */
   @GET
   @Path("/sources")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @RolesAllowed(Array("ADMIN"))
   def sources(
       @Auth user: SessionUser,
       @Context httpReq: HttpServletRequest
@@ -254,8 +259,11 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
     Preflight.run(ctx, user, httpReq) match {
       case Left(err)    => Respond.err(err)
       case Right(scope) =>
-        // 7-day window is plenty for autofill — older streams aren't
-        // useful to operators debugging "right now".
+        // 7-day window is plenty for autofill. Services come from
+        // /streams (service / service.name ARE stream fields). The
+        // texera.*.id fields are record fields, NOT stream labels, on
+        // OTel-bridged JVM logs, so /streams never lists them; pull each
+        // id field's distinct values from /field_values instead.
         val path = "/select/logsql/streams?query=*&start=7d"
         ctx.logsClient.get(path, scope, "logs") match {
           case Left(err) => Respond.err(err)
@@ -263,8 +271,34 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
             Respond.err(GatewayError.BackendError("logs", resp.status))
           case Right(resp) =>
             ResponseParsers.parseLogSources(resp.body, scope.allowedWorkflowIds) match {
-              case Left(err) => Respond.err(err)
-              case Right(parsed) =>
+              case Left(err)          => Respond.err(err)
+              case Right(fromStreams) =>
+                // Best-effort: a field_values hiccup must not blank the
+                // whole autofill, so failures fall back to empty.
+                // 30-day window: ids like computing_unit.id only appear
+                // in workflow-execution logs and are sparse, so a 7-day
+                // window often leaves their dropdown empty.
+                def idValues(field: String): Seq[Long] =
+                  ctx.logsClient.get(
+                    s"/select/logsql/field_values?query=*&field=$field&start=30d",
+                    scope,
+                    "logs"
+                  ) match {
+                    case Right(r) if r.isOk =>
+                      ResponseParsers.parseFieldValueLongs(r.body).getOrElse(Seq.empty)
+                    case _ => Seq.empty
+                  }
+                val workflowIds =
+                  idValues("texera.workflow.id").filter(scope.allowedWorkflowIds.contains)
+                val cuIds = idValues("texera.computing_unit.id")
+                val finalUserIds =
+                  (fromStreams.userIds ++ idValues("texera.user.id")).distinct.sorted
+                val parsed = fromStreams.copy(
+                  workflowIds = (fromStreams.workflowIds ++ workflowIds).distinct.sorted,
+                  computingUnitIds = (fromStreams.computingUnitIds ++ cuIds).distinct.sorted,
+                  userIds = finalUserIds,
+                  userNames = resolveUserNames(finalUserIds)
+                )
                 logger.debug(
                   s"log sources for user ${user.getUid}: ${parsed.services.size} service(s), " +
                     s"${parsed.workflowIds.size} workflow(s), ${parsed.computingUnitIds.size} CU(s), " +
@@ -298,8 +332,29 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
     }
   }
 
+  /** Resolve log user ids to display names via the user table, for the
+    *  autofill dropdown. Best-effort: a single batched query, and any
+    *  failure (or unresolved id) just yields no name so the UI falls
+    *  back to "User #id".
+    */
+  private def resolveUserNames(userIds: Seq[Long]): Map[Long, String] = {
+    if (userIds.isEmpty) return Map.empty
+    Try {
+      val dao = new UserDao(SqlServer.getInstance().createDSLContext().configuration())
+      val boxed = userIds.map(id => Integer.valueOf(id.toInt))
+      dao
+        .fetchByUid(boxed: _*)
+        .asScala
+        .iterator
+        .flatMap { u =>
+          Option(u.getUid).flatMap(uid => Option(u.getName).map(name => uid.longValue() -> name))
+        }
+        .toMap
+    }.getOrElse(Map.empty)
+  }
+
   private def validate(raw: RawLogsSearchRequest): ValidationResult[ValidatedLogsRequest] = {
-    TimeWindow.validate(Signal.Logs, raw.fromMs, raw.toMs) match {
+    TimeWindow.validate(raw.fromMs, raw.toMs) match {
       case Invalid(e) => Invalid(e)
       case Valid(window) =>
         PageSize.validate(raw.pageSize) match {
