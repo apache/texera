@@ -62,7 +62,7 @@ services:
   postgres:
     image: groonga/pgroonga:4.0.1-debian-15
     container_name: texera-postgres
-    restart: always
+    restart: unless-stopped
     env_file:
       - .env
     healthcheck:
@@ -79,7 +79,7 @@ services:
   lakefs:
     image: treeverse/lakefs:1.51
     container_name: texera-lakefs
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -122,7 +122,7 @@ services:
   lakekeeper:
     image: vakamo/lakekeeper:v0.11.0
     container_name: texera-lakekeeper
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -269,7 +269,7 @@ services:
   file-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-file-service:${IMAGE_TAG:-latest}
     container_name: file-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       minio:
         condition: service_started
@@ -287,7 +287,7 @@ services:
   config-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-config-service:${IMAGE_TAG:-latest}
     container_name: config-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -303,7 +303,7 @@ services:
   access-control-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-access-control-service:${IMAGE_TAG:-latest}
     container_name: access-control-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -319,7 +319,7 @@ services:
   workflow-computing-unit-managing-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-computing-unit-managing-service:${IMAGE_TAG:-latest}
     container_name: workflow-computing-unit-managing-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -335,7 +335,7 @@ services:
   workflow-compiling-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-compiling-service:${IMAGE_TAG:-latest}
     container_name: workflow-compiling-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       file-service:
         condition: service_started
@@ -351,7 +351,7 @@ services:
   workflow-runtime-coordinator-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-execution-coordinator:${IMAGE_TAG:-latest}
     container_name: workflow-runtime-coordinator-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       workflow-compiling-service:
         condition: service_started
@@ -368,7 +368,7 @@ services:
   dashboard-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-dashboard-service:${IMAGE_TAG:-latest}
     container_name: dashboard-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       workflow-runtime-coordinator-service:
         condition: service_started
@@ -390,7 +390,7 @@ services:
   litellm:
     image: ghcr.io/berriai/litellm:v1.83.10-stable
     container_name: litellm
-    restart: always
+    restart: unless-stopped
     # Keys read from shell first, falling back to .env.
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -411,7 +411,7 @@ services:
   agent-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-agent-service:${IMAGE_TAG:-latest}
     container_name: agent-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       dashboard-service:
         condition: service_healthy
