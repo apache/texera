@@ -25,8 +25,10 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.huggingFace.codegen.{
+  AudioTaskCodegen,
   CodegenContext,
   ImageTaskCodegen,
+  MediaGenCodegen,
   PythonCodegenBase,
   TaskCodegen,
   TextGenCodegen
@@ -95,6 +97,17 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var inputImageColumn: EncodableString = ""
 
+  @JsonProperty(value = "audioInput", required = false)
+  @JsonSchemaTitle("Audio Upload")
+  @JsonPropertyDescription("Upload audio for Hugging Face audio tasks")
+  var audioInput: EncodableString = ""
+
+  @JsonProperty(value = "inputAudioColumn", required = false)
+  @JsonSchemaTitle("Input Audio Column")
+  @JsonPropertyDescription("Column containing audio data from the input table")
+  @AutofillAttributeName
+  var inputAudioColumn: EncodableString = ""
+
   @JsonProperty(
     value = "systemPrompt",
     required = false,
@@ -138,6 +151,8 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
     val byTask = scala.collection.mutable.Map.empty[String, TaskCodegen]
     byTask += (TextGenCodegen.task -> TextGenCodegen)
     ImageTaskCodegen.tasks.foreach(t => byTask += (t -> ImageTaskCodegen))
+    AudioTaskCodegen.tasks.foreach(t => byTask += (t -> AudioTaskCodegen))
+    MediaGenCodegen.tasks.foreach(t => byTask += (t -> MediaGenCodegen))
     byTask.toMap
   }
 
@@ -181,6 +196,10 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
       if (imageInput == null) "" else imageInput
     val safeInputImageColumn: EncodableString =
       if (inputImageColumn == null) "" else inputImageColumn
+    val safeAudioInput: EncodableString =
+      if (audioInput == null) "" else audioInput
+    val safeInputAudioColumn: EncodableString =
+      if (inputAudioColumn == null) "" else inputAudioColumn
 
     val ctx = CodegenContext(
       hfApiToken = safeToken,
@@ -192,7 +211,9 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
       safeMaxTokens = safeMaxTokens,
       safeTemp = safeTemp,
       imageInput = safeImageInput,
-      inputImageColumn = safeInputImageColumn
+      inputImageColumn = safeInputImageColumn,
+      audioInput = safeAudioInput,
+      inputAudioColumn = safeInputAudioColumn
     )
 
     PythonCodegenBase.render(ctx, codegenForTask(safeTask))
