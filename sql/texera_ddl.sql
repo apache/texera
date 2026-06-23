@@ -123,6 +123,16 @@ CREATE TABLE IF NOT EXISTS user_config
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
 
+-- feedback
+CREATE TABLE IF NOT EXISTS feedback
+(
+    fid           SERIAL PRIMARY KEY,
+    uid           INT NOT NULL,
+    message       TEXT NOT NULL,
+    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+    );
+
 -- workflow
 CREATE TABLE IF NOT EXISTS workflow
 (
