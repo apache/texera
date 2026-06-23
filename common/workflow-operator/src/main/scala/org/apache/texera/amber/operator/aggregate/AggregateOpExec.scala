@@ -48,10 +48,11 @@ class AggregateOpExec(descString: String) extends OperatorExecutor {
     // Initialize distributedAggregations if it's not yet initialized
     if (distributedAggregations == null) {
       distributedAggregations = desc.aggregations.map { agg =>
-        // COUNT(*) has a blank attribute and no input column to look up; pass a null
-        // type since its result type does not depend on any input attribute.
+        // COUNT(*) ignores the attribute entirely, so never look up an input column for
+        // it (a stale/leaked attribute may not exist in the schema). Its result type
+        // does not depend on any input attribute.
         val attrType =
-          if (agg.attribute == null || agg.attribute.trim.isEmpty) null
+          if (agg.aggFunction == AggregationFunction.COUNT_STAR) null
           else tuple.getSchema.getAttribute(agg.attribute).getType
         agg.getAggFunc(attrType)
       }

@@ -576,8 +576,9 @@ class AggregateOpSpec extends AnyFunSuite {
   }
 
   test("AggregateOpExec computes COUNT(*) over every row (including nulls) end-to-end") {
-    // region (ignored), revenue (one null). COUNT(*) carries a blank attribute, so the
-    // executor must skip the input-column lookup and still count all 3 rows.
+    // region (ignored), revenue (one null). COUNT(*) ignores its attribute, so even a
+    // stale attribute that is absent from the schema must not be looked up; the
+    // executor still counts all 3 rows.
     val schema = makeSchema(
       "region" -> AttributeType.STRING,
       "revenue" -> AttributeType.INTEGER
@@ -588,7 +589,8 @@ class AggregateOpSpec extends AnyFunSuite {
     val tuple3 = makeTuple(schema, "west", 50)
 
     val desc = new AggregateOpDesc()
-    desc.aggregations = List(makeAggregationOp(AggregationFunction.COUNT_STAR, "", "row_count"))
+    desc.aggregations =
+      List(makeAggregationOp(AggregationFunction.COUNT_STAR, "ghost", "row_count"))
     desc.groupByKeys = List() // global aggregation
 
     val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc))
