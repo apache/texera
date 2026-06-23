@@ -57,6 +57,8 @@ object PythonCodegenBase {
     val temperature = ctx.safeTemp
     val imageInput = ctx.imageInput
     val inputImageColumn = ctx.inputImageColumn
+    val audioInput = ctx.audioInput
+    val inputAudioColumn = ctx.inputAudioColumn
     pyb"""import os
        |import re
        |import json
@@ -137,6 +139,8 @@ object PythonCodegenBase {
        |        self.TEMPERATURE = $temperature
        |        self.IMAGE_INPUT = $imageInput
        |        self.INPUT_IMAGE_COLUMN = $inputImageColumn
+       |        self.AUDIO_INPUT = $audioInput
+       |        self.INPUT_AUDIO_COLUMN = $inputAudioColumn
        |
        |    def _resolve_providers(self, token):
        |        '''Query the HF Hub API for inference providers serving this model.
@@ -286,7 +290,14 @@ object PythonCodegenBase {
        |        if provider_name == "replicate":
        |            url = f"{base}/v1/models/{provider_id}/predictions"
        |            hdrs = {**json_headers, "Prefer": "wait"}
-       |            if task == "image-to-image" and img_b64:
+       |            if task == "text-to-speech":
+       |                inp = {"text": prompt_value}
+       |            elif task in ("text-to-image", "text-to-video"):
+       |                inp = {"prompt": prompt_value}
+       |            elif task in ("automatic-speech-recognition", "audio-classification") and img_b64:
+       |                audio_content_type = raw_binary_headers.get("Content-Type", "audio/mpeg")
+       |                inp = {"audio": f"data:{audio_content_type};base64,{img_b64}"}
+       |            elif task == "image-to-image" and img_b64:
        |                data_url = f"data:image/png;base64,{img_b64}"
        |                inp = {"image": data_url, "images": [data_url], "input_image": data_url, "prompt": prompt_value}
        |            elif img_b64:
@@ -340,6 +351,10 @@ object PythonCodegenBase {
        |        # Fal-ai: per-model endpoint.
        |        if provider_name == "fal-ai":
        |            url = f"{base}/{provider_id}"
+       |            if task == "text-to-speech":
+       |                return requests.post(url, headers=json_headers, json={"text": prompt_value}, timeout=120)
+       |            if task in ("text-to-image", "text-to-video"):
+       |                return requests.post(url, headers=json_headers, json={"prompt": prompt_value}, timeout=120)
        |            if task == "image-to-image" and img_b64:
        |                data_url = f"data:image/png;base64,{img_b64}"
        |                return requests.post(url, headers=json_headers, json={"image_url": data_url, "image_urls": [data_url], "prompt": prompt_value}, timeout=120)
@@ -398,6 +413,12 @@ object PythonCodegenBase {
        |            return poll_resp
        |
        |        if provider_name in self.OPENAI_COMPATIBLE_PROVIDERS:
+       |            if task == "text-to-image":
+       |                url = f"{base}/v1/images/generations"
+       |                return requests.post(url, headers=json_headers, json={"model": provider_id, "prompt": prompt_value}, timeout=120)
+       |            if task == "text-to-speech":
+       |                url = f"{base}/v1/audio/speech"
+       |                return requests.post(url, headers=json_headers, json={"model": provider_id, "input": prompt_value}, timeout=120)
        |            url = f"{base}/{self.CHAT_ROUTES.get(provider_name, 'v1/chat/completions')}"
        |            messages = [{"role": "user", "content": prompt_value}]
        |            if img_b64:
@@ -444,6 +465,7 @@ object PythonCodegenBase {
        |        image_only_tasks = ("image-classification", "object-detection", "image-segmentation", "image-to-text")
        |        image_prompt_tasks = ("visual-question-answering", "document-question-answering", "zero-shot-image-classification", "image-text-to-text", "image-to-image")
        |        image_tasks = image_only_tasks + image_prompt_tasks
+       |        audio_only_tasks = ("automatic-speech-recognition", "audio-classification")
        |
        |        # --- validate MODEL_ID format before any HF URL is built ---
        |        if not _HF_MODEL_ID_PATTERN.match(self.MODEL_ID or ""):
@@ -463,8 +485,8 @@ object PythonCodegenBase {
        |        # --- resolve all available inference providers for this model (tried in order) ---
        |        providers = self._resolve_providers(token)
        |
-       |        # --- validate prompt column exists (required for non-image tasks) ---
-       |        if task not in image_tasks:
+       |        # --- validate prompt column exists (skipped for image tasks and binary-only audio tasks) ---
+       |        if task not in image_tasks and task not in audio_only_tasks:
        |            assert prompt_col in table.columns, (
        |                f"Prompt column '{prompt_col}' not found in input table. "
        |                f"Available columns: {list(table.columns)}"
@@ -484,12 +506,19 @@ object PythonCodegenBase {
        |            "Authorization": f"Bearer {token}",
        |            "Content-Type": "application/octet-stream",
        |        }
-       |
        |        # --- resolve image source (upload or column) for image tasks ---
        |        has_image_upload = bool(self.IMAGE_INPUT) and bool(str(self.IMAGE_INPUT).strip())
        |        use_image_column = not has_image_upload and bool(self.INPUT_IMAGE_COLUMN) and self.INPUT_IMAGE_COLUMN in table.columns
        |        image_bytes = None
        |        image_error = None
+       |        has_audio_upload = bool(self.AUDIO_INPUT) and bool(str(self.AUDIO_INPUT).strip())
+       |        use_audio_column = not has_audio_upload and bool(self.INPUT_AUDIO_COLUMN) and self.INPUT_AUDIO_COLUMN in table.columns
+       |        audio_headers = {
+       |            "Authorization": f"Bearer {token}",
+       |            "Content-Type": "application/octet-stream" if use_audio_column else self._get_audio_content_type(),
+       |        }
+       |        audio_bytes = None
+       |        audio_error = None
        |        if task in image_tasks and not use_image_column:
        |            if not has_image_upload:
        |                image_error = "No image source. Set an Input Image Column or upload an image."
@@ -498,14 +527,27 @@ object PythonCodegenBase {
        |                    image_bytes = self._read_image_input()
        |                except Exception as e:
        |                    image_error = f"Could not read image input ({type(e).__name__}: {e})"
+       |        if task in audio_only_tasks and not use_audio_column:
+       |            if not has_audio_upload:
+       |                audio_error = "No audio source. Set an Input Audio Column or upload audio."
+       |            else:
+       |                try:
+       |                    audio_bytes = self._read_audio_input()
+       |                except Exception as e:
+       |                    audio_error = f"Could not read audio input ({type(e).__name__}: {e})"
        |
        |        results = []
        |        for idx, row in table.iterrows():
        |            if image_error is not None:
        |                results.append(self._format_error("Image task configuration error", image_error))
        |                continue
+       |            if audio_error is not None:
+       |                results.append(self._format_error("Audio task configuration error", audio_error))
+       |                continue
        |
        |            if task in image_only_tasks:
+       |                prompt_value = ""
+       |            elif task in audio_only_tasks:
        |                prompt_value = ""
        |            elif task in image_prompt_tasks and prompt_col not in table.columns:
        |                prompt_value = "What is shown in this image?"
@@ -527,6 +569,18 @@ object PythonCodegenBase {
        |                    current_image_bytes = self._compress_image_bytes(raw)
        |                except Exception as e:
        |                    results.append(self._format_error("Image data error", f"Row {idx}: {type(e).__name__}: {e}"))
+       |                    continue
+       |
+       |            # --- resolve per-row audio bytes from column ---
+       |            current_audio_bytes = audio_bytes
+       |            if task in audio_only_tasks and use_audio_column:
+       |                try:
+       |                    current_audio_bytes = self._read_binary_value(row[self.INPUT_AUDIO_COLUMN])
+       |                    if current_audio_bytes is None:
+       |                        results.append(self._format_error("Audio data error", f"Row {idx}: audio column is empty"))
+       |                        continue
+       |                except Exception as e:
+       |                    results.append(self._format_error("Audio data error", f"Row {idx}: {type(e).__name__}: {e}"))
        |                    continue
        |
        |            # --- build task-specific payload (provided by per-task codegen) ---
@@ -573,6 +627,10 @@ object PythonCodegenBase {
        |
        |                content_type = resp.headers.get("Content-Type", "")
        |                if content_type.startswith("image/"):
+       |                    b64 = base64.b64encode(resp.content).decode("utf-8")
+       |                    results.append(f"data:{content_type};base64,{b64}")
+       |                    continue
+       |                if content_type.startswith("audio/") or content_type.startswith("video/"):
        |                    b64 = base64.b64encode(resp.content).decode("utf-8")
        |                    results.append(f"data:{content_type};base64,{b64}")
        |                    continue
@@ -702,6 +760,22 @@ object PythonCodegenBase {
        |    def _image_input_as_base64(self, image_bytes):
        |        return base64.b64encode(image_bytes).decode("utf-8")
        |
+       |    def _read_audio_input(self):
+       |        audio_input = str(self.AUDIO_INPUT or "").strip()
+       |        if audio_input.startswith("data:"):
+       |            _, encoded = audio_input.split(",", 1)
+       |            return base64.b64decode(encoded)
+       |        if audio_input.startswith("http://") or audio_input.startswith("https://"):
+       |            _, data = self._fetch_remote_url(audio_input)
+       |            return data
+       |        # Reading arbitrary worker-filesystem paths is intentionally NOT
+       |        # supported: uploaded audio arrives as a data URL and remote audio
+       |        # must be fetched through the hardened https-only helper above.
+       |        raise ValueError(
+       |            "Unsupported audio input. Upload an audio file (sent as a data URL) "
+       |            "or provide a public https audio URL."
+       |        )
+       |
        |    def _read_binary_value(self, value):
        |        if value is None:
        |            return None
@@ -821,6 +895,30 @@ object PythonCodegenBase {
        |            return text[start_pos:pos], pos
        |        return None, start_pos
        |
+       |    def _get_audio_content_type(self):
+       |        audio_input = str(self.AUDIO_INPUT or "").strip().lower()
+       |        if audio_input.startswith("data:"):
+       |            header = audio_input.split(",", 1)[0]
+       |            if ";" in header:
+       |                return header[5:header.index(";")]
+       |            return header[5:]
+       |        extension_map = {
+       |            ".mp3": "audio/mpeg",
+       |            ".mpeg": "audio/mpeg",
+       |            ".wav": "audio/wav",
+       |            ".flac": "audio/flac",
+       |            ".ogg": "audio/ogg",
+       |            ".oga": "audio/ogg",
+       |            ".webm": "audio/webm",
+       |            ".opus": "audio/webm;codecs=opus",
+       |            ".amr": "audio/amr",
+       |            ".m4a": "audio/m4a",
+       |        }
+       |        from urllib.parse import urlparse as _urlparse
+       |        path = _urlparse(audio_input).path if audio_input.startswith("http") else audio_input
+       |        _, ext = os.path.splitext(path)
+       |        return extension_map.get(ext, "audio/mpeg")
+       |
        |    def _url_to_data_url(self, url):
        |        '''Fetch a URL and return a data URL with the correct MIME type.
        |        Fetched via _fetch_remote_url so a malicious/compromised provider
@@ -831,12 +929,12 @@ object PythonCodegenBase {
        |        if not content_type or content_type == "application/octet-stream":
        |            from urllib.parse import urlparse as _urlparse
        |            ext = os.path.splitext(_urlparse(url).path.lower())[1]
-       |            mime_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml", ".mp4": "video/mp4", ".webm": "video/webm"}
+       |            mime_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml", ".mp3": "audio/mpeg", ".mpeg": "audio/mpeg", ".wav": "audio/wav", ".flac": "audio/flac", ".ogg": "audio/ogg", ".oga": "audio/ogg", ".m4a": "audio/m4a", ".mp4": "video/mp4", ".webm": "video/webm"}
        |            guessed = mime_map.get(ext, "")
        |            if guessed:
        |                content_type = guessed
        |            else:
-       |                task_mime = {"image-to-image": "image/png"}
+       |                task_mime = {"image-to-image": "image/png", "text-to-image": "image/png", "text-to-video": "video/mp4", "text-to-speech": "audio/mpeg"}
        |                content_type = task_mime.get(self.TASK, "application/octet-stream")
        |        b64 = base64.b64encode(data).decode("utf-8")
        |        return f"data:{content_type};base64,{b64}"
