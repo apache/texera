@@ -307,6 +307,19 @@ describe("WorkflowEditorComponent", () => {
       expect(fetchSpy).toHaveBeenCalledWith("agent-1");
     });
 
+    it("does not pull operator results when no agent is connected", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      const agentService = TestBed.inject(AgentService);
+      vi.spyOn(agentService, "getActivelyConnectedAgentIds").mockReturnValue([]);
+      const fetchSpy = vi.spyOn(agentService, "fetchOperatorResults").mockImplementation(() => {});
+
+      (component.paper as any).trigger("element:chat", jointCellView, new Event("click"), 0, 0);
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
     it("should react to operator validation and change the color of operator box if the operator is valid ", () => {
       workflowActionService.getJointGraphWrapper();
       workflowActionService.addOperator(mockScanPredicate, mockPoint);

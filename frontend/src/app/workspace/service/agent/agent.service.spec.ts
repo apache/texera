@@ -124,4 +124,29 @@ describe("AgentService", () => {
       expect(latest?.size).toBe(0);
     });
   });
+
+  describe("stopGeneration", () => {
+    it("sends a stop command over the websocket when one is open", () => {
+      const send = vi.fn();
+      (service as any).agentStateTracking.set("agent-1", {
+        websocket: { readyState: WebSocket.OPEN, send },
+      });
+
+      service.stopGeneration("agent-1");
+
+      expect(send).toHaveBeenCalledWith(JSON.stringify({ type: "command", commandType: "stop" }));
+    });
+
+    it("falls back to the REST stop endpoint when no websocket is open", () => {
+      (service as any).agentStateTracking.set("agent-1", {
+        websocket: { readyState: WebSocket.CLOSED, send: vi.fn() },
+      });
+
+      service.stopGeneration("agent-1");
+
+      httpMock
+        .expectOne(r => r.method === "POST" && r.url === "/api/agents/agent-1/stop")
+        .flush({ status: "stopping" });
+    });
+  });
 });
