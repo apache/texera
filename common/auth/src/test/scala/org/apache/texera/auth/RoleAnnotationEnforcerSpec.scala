@@ -172,9 +172,8 @@ class RoleAnnotationEnforcerSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "still fail closed when error logging is disabled" in {
-    // enforce logs the violation at error level before throwing. With error
-    // logging suppressed, the scala-logging `isErrorEnabled` guard takes its
-    // disabled branch; enforcement must still throw rather than silently pass.
+    // enforce logs the violation at error level before throwing. Even with error
+    // logging suppressed, enforcement must still throw rather than silently pass.
     val backendLogger = LoggerFactory
       .getLogger(RoleAnnotationEnforcer.getClass.getName)
       .asInstanceOf[LogbackLogger]
