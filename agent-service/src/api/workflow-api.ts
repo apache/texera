@@ -18,26 +18,9 @@
  */
 
 import { getBackendConfig } from "./backend-api";
-import { createAuthHeaders } from "./auth-api";
+import { createAuthHeaders } from "../auth/jwt";
 import type { WorkflowContent } from "../types/workflow";
-
-export interface Workflow {
-  wid: number;
-  name: string;
-  description?: string;
-  content: WorkflowContent;
-  creationTime?: number;
-  lastModifiedTime?: number;
-  isPublished?: boolean;
-}
-
-interface WorkflowPersistRequest {
-  wid?: number;
-  name: string;
-  description?: string;
-  content: string;
-  isPublic?: boolean;
-}
+import type { Workflow, WorkflowPersistRequest } from "../types/dto";
 
 const WORKFLOW_BASE_URL = "workflow";
 

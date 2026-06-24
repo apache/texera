@@ -48,7 +48,8 @@ import {
   type ExecutionConfig,
 } from "./tools/workflow-execution-tools";
 import { assembleContext } from "./util/context-utils";
-import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
+import { compileWorkflowAsync } from "../api/compile-api";
+import type { WorkflowCompilationResponse } from "../types/dto";
 import { createLogger } from "../logger";
 import type { Logger } from "pino";
 
@@ -560,15 +561,18 @@ export class TexeraAgent {
         onStepFinish: async ({ text, toolCalls, toolResults, usage }) => {
           stepIndex++;
 
+          // The AI SDK types tc.input / tr.output as `unknown` for dynamically
+          // registered tools; narrow to the shapes our tools actually produce
+          // (object args, string results — see tools/*).
           const formattedToolCalls = toolCalls?.map(tc => ({
             toolName: tc.toolName,
             toolCallId: tc.toolCallId,
-            input: tc.input,
+            input: tc.input as Record<string, unknown>,
           }));
 
           const formattedToolResults = toolResults?.map(tr => ({
             toolCallId: tr.toolCallId,
-            output: tr.output,
+            output: tr.output as string,
             isError: !!(tr.output as any)?.error,
           }));
 

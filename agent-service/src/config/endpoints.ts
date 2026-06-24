@@ -17,8 +17,23 @@
  * under the License.
  */
 
-export * from "./backend-api";
-export * from "./execution-api";
-export * from "./workflow-api";
-export * from "../auth/jwt";
-export * from "./compile-api";
+import { env } from "./env";
+
+/** Base URLs of the backend services this agent service talks to. */
+export interface ServiceEndpoints {
+  apiEndpoint: string;
+  modelsEndpoint: string;
+  compileEndpoint: string;
+  executionEndpoint: string;
+}
+
+const endpoints: ServiceEndpoints = {
+  apiEndpoint: env.TEXERA_DASHBOARD_SERVICE_ENDPOINT,
+  modelsEndpoint: env.LLM_ENDPOINT,
+  compileEndpoint: env.WORKFLOW_COMPILING_SERVICE_ENDPOINT,
+  executionEndpoint: env.WORKFLOW_EXECUTION_SERVICE_ENDPOINT,
+};
+
+export function getServiceEndpoints(): ServiceEndpoints {
+  return { ...endpoints };
+}

@@ -20,22 +20,12 @@
 import Ajv from "ajv";
 import { fetchOperatorMetadata, type OperatorSchema, type OperatorMetadata } from "../../api/backend-api";
 import type { ValidationError, Validation } from "../../types/workflow";
+import type { OperatorSchemaInfo, CompactOperatorSchema } from "../../types/metadata";
 import { createLogger } from "../../logger";
 
 const log = createLogger("WorkflowSystemMetadata");
 
 export type { ValidationError, Validation } from "../../types/workflow";
-
-interface OperatorSchemaInfo {
-  properties: any;
-  required: any;
-  definitions: any;
-}
-
-interface CompactOperatorSchema {
-  properties: Record<string, any>;
-  required: string[];
-}
 
 const FILTERED_PROPERTY_KEYS = ["dummyPropertyList"];
 
