@@ -77,7 +77,7 @@ case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 class AggregationOperation {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Aggregate Func")
-  @JsonPropertyDescription("sum, count, count(*), average, min, max, or concat")
+  @JsonPropertyDescription("sum, count, average, min, max, or concat")
   var aggFunction: AggregationFunction = _
 
   @JsonProperty(value = "attribute")
@@ -109,8 +109,8 @@ class AggregationOperation {
   def getAggFunc(attrType: AttributeType): DistributedAggregation[Object] = {
     val aggFunc = aggFunction match {
       case AggregationFunction.AVERAGE    => averageAgg()
-      case AggregationFunction.COUNT      => countAgg()
-      case AggregationFunction.COUNT_STAR => countStarAgg()
+      case AggregationFunction.COUNT      => countAgg(countAllRows = false)
+      case AggregationFunction.COUNT_STAR => countAgg(countAllRows = true)
       case AggregationFunction.MAX        => maxAgg(attrType)
       case AggregationFunction.MIN        => minAgg(attrType)
       case AggregationFunction.SUM        => sumAgg(attrType)
@@ -158,21 +158,12 @@ class AggregationOperation {
     )
   }
 
-  private def countAgg(): DistributedAggregation[Integer] = {
-    // COUNT(column): count only the rows whose attribute value is non-null.
+  private def countAgg(countAllRows: Boolean): DistributedAggregation[Integer] = {
+    // COUNT(*) counts every row; COUNT(column) counts only rows with a non-null attribute.
     new DistributedAggregation[Integer](
       () => 0,
-      (partial, tuple) => partial + (if (tuple.getField(attribute) != null) 1 else 0),
-      (partial1, partial2) => partial1 + partial2,
-      partial => partial
-    )
-  }
-
-  private def countStarAgg(): DistributedAggregation[Integer] = {
-    // COUNT(*): count every row regardless of nulls; the attribute is ignored.
-    new DistributedAggregation[Integer](
-      () => 0,
-      (partial, _) => partial + 1,
+      (partial, tuple) =>
+        partial + (if (countAllRows || tuple.getField(attribute) != null) 1 else 0),
       (partial1, partial2) => partial1 + partial2,
       partial => partial
     )

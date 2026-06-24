@@ -14,7 +14,7 @@ tags: [data-cleaning, aggregate]
 |----------|-------------|------|---------|-------------|
 | Aggregations | ✓ | List<Aggregation> | - | Multiple aggregation functions (min: 1,<br>aggregations cannot be empty) |
 | ↳ Aggregate Func | ✓ | sum, count, count(*), average, min, max, concat | - | Sum, count, count(*), average, min, max, or concat |
-| ↳ Attribute | ✓ (disabled for `count(*)`) | String | - | Column to aggregate on. Required for every function except `count(*)`, which counts all rows and disables this field |
+| ↳ Attribute | ✓ (hidden for `count(*)`) | String | - | Column to aggregate on. Required for every function except `count(*)`, which counts all rows and hides this field |
 | ↳ Result Attribute | ✓ | String | - | Column name of the aggregation result |
 | Group By Keys |  | List | - | Group by columns |
 

@@ -77,6 +77,9 @@ import { map, switchMap, take } from "rxjs/operators";
 
 Quill.register("modules/cursors", QuillCursors);
 
+// The Aggregate "count(*)" function: counts all rows and takes no attribute.
+export const COUNT_STAR = "count(*)";
+
 /**
  * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
  * For example, the JSON Schema of Sentiment Analysis could be:
@@ -546,16 +549,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
 
       // Aggregate: the attribute is required for every function except count(*), which counts all rows.
-      // For count(*) the attribute is irrelevant, so disable the field (keeping the row layout consistent),
-      // drop the required marker, and clear any previously-selected column so it isn't shown greyed-out as if used.
-      // All react to the sibling aggFunction within the same row.
+      // For count(*) the attribute is irrelevant, so hide the field and drop the required marker.
+      // Both react to the sibling aggFunction within the same row.
       if (this.currentOperatorSchema?.operatorType === "Aggregate" && mappedField.key === "attribute") {
         mappedField.expressions = {
           ...mappedField.expressions,
-          "props.required": (field: FormlyFieldConfig) => field.parent?.model?.aggFunction !== "count(*)",
-          "props.disabled": (field: FormlyFieldConfig) => field.parent?.model?.aggFunction === "count(*)",
-          "model.attribute": (field: FormlyFieldConfig) =>
-            field.parent?.model?.aggFunction === "count(*)" ? "" : field.formControl?.value,
+          "props.required": (field: FormlyFieldConfig) => field.parent?.model?.aggFunction !== COUNT_STAR,
+          hide: (field: FormlyFieldConfig) => field.parent?.model?.aggFunction === COUNT_STAR,
         };
       }
 
