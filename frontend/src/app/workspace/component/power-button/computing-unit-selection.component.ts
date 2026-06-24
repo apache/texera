@@ -789,19 +789,23 @@ export class ComputingUnitSelectionComponent implements OnInit {
     const saved = this.availableDbPves.find(p => p.veid === veid);
     if (!saved) return;
 
-    const newPackages: PveUserPackageRow[] = Object.entries(saved.packages ?? {}).map(([name, raw]) => {
-      const match = raw?.match?.(/^(==|>=|<=)(.*)$/);
-      return {
-        name,
-        versionOp: (match ? match[1] : "==") as "==" | ">=" | "<=",
-        version: match ? match[2] : raw ?? "",
-      };
-    });
+    const trimmedName = saved.name.trim();
+    const dbRows = this.parseDbPackages(saved.packages);
+
+    // If this PVE is already installed in the current CU, fold the saved
+    // record's changes into the existing locked card instead of pushing a
+    // duplicate. We compute the package diff vs. the CU's current state and
+    // route through the locked-card update path (delete then install).
+    const existingIndex = this.pves.findIndex(p => p.isLocked && p.name.trim() === trimmedName);
+    if (existingIndex !== -1) {
+      this.applySavedPveAsUpdate(existingIndex, saved.name, dbRows);
+      return;
+    }
 
     this.pves.push({
       name: saved.name,
       userPackages: [],
-      newPackages,
+      newPackages: dbRows,
       deletingPackages: [],
       pipOutput: "",
       prettyPipOutput: "",
@@ -814,6 +818,62 @@ export class ComputingUnitSelectionComponent implements OnInit {
     // Let Angular render the new card so its pip-output element exists before
     // we start streaming.
     setTimeout(() => this.createVirtualEnvironment(newIndex), 0);
+  }
+
+  private parseDbPackages(packages: Record<string, string> | null | undefined): PveUserPackageRow[] {
+    return Object.entries(packages ?? {}).map(([name, raw]) => {
+      const match = raw?.match?.(/^(==|>=|<=)(.*)$/);
+      return {
+        name,
+        versionOp: (match ? match[1] : "==") as "==" | ">=" | "<=",
+        version: match ? match[2] : raw ?? "",
+      };
+    });
+  }
+
+  // Computes the diff between the saved DB record and the locked card's
+  // current user packages, then triggers the existing update path
+  // (delete-then-install) on that card.
+  private applySavedPveAsUpdate(index: number, displayName: string, dbRows: PveUserPackageRow[]): void {
+    const existing = this.pves[index];
+
+    const dbByName = new Map(dbRows.map(p => [p.name.trim().toLowerCase(), p]));
+    const existingByName = new Map(existing.userPackages.map(p => [p.name.trim().toLowerCase(), p]));
+
+    const toInstall: PveUserPackageRow[] = [];
+    const toDelete: { name: string; version: string }[] = [];
+
+    dbByName.forEach((db, key) => {
+      const cur = existingByName.get(key);
+      if (!cur) {
+        toInstall.push({ name: db.name, versionOp: db.versionOp, version: db.version });
+      } else if ((cur.version ?? "").trim() !== (db.version ?? "").trim()) {
+        toDelete.push({ name: cur.name, version: (cur.version ?? "").trim() });
+        toInstall.push({ name: db.name, versionOp: db.versionOp, version: db.version });
+      }
+    });
+
+    existingByName.forEach((cur, key) => {
+      if (!dbByName.has(key)) {
+        toDelete.push({ name: cur.name, version: (cur.version ?? "").trim() });
+      }
+    });
+
+    if (toInstall.length === 0 && toDelete.length === 0) {
+      this.notificationService.success(`"${displayName}" is already up to date in this computing unit.`);
+      return;
+    }
+
+    // installUserPackages skips by name against env.userPackages; drop the
+    // entries we are about to remove so version bumps aren't filtered out as
+    // "already installed".
+    const deletingKeys = new Set(toDelete.map(p => p.name.trim().toLowerCase()));
+    existing.userPackages = existing.userPackages.filter(p => !deletingKeys.has(p.name.trim().toLowerCase()));
+    existing.newPackages = toInstall;
+    existing.deletingPackages = toDelete;
+    existing.expanded = true;
+
+    setTimeout(() => this.createVirtualEnvironment(index), 0);
   }
 
   closePveModal(): void {

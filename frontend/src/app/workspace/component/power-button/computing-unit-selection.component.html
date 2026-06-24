@@ -530,7 +530,14 @@
         <!-- Custom header -->
         <ng-template #headerTpl>
           <div class="env-header">
-            <span class="env-title"> {{ pve.name }} </span>
+            <span class="env-title">
+              {{ pve.name }}
+              <span
+                *ngIf="pve.isLocked"
+                class="env-unsynced-note">
+                Manual changes here won’t update the saved environment.
+              </span>
+            </span>
             <span
               class="env-actions"
               (click)="$event.stopPropagation()">
