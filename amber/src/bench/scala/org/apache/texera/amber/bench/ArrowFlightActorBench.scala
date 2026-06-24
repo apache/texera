@@ -92,9 +92,14 @@ object ArrowFlightActorBench {
 
   // Sweep grid + iteration counts switch on BENCH_MODE so PR / post-merge
   // checks stay around 5 min while scheduled / manual runs do the full
-  // 36-config grid that the gh-pages dashboard tracks long-term.
+  // 27-config grid that the gh-pages dashboard tracks long-term.
   //   pr   — 3 configs × 20 batches, warmup 5  (~4-5 min in CI)
-  //   full — 36 configs × 200 batches, warmup 20  (~50-60 min in CI)
+  //   full — 27 configs × 200 batches, warmup 20  (~40 min in CI)
+  // The batchSize=10000 row was dropped from the full grid: its 9 configs
+  // (3 schemaWidths x 3 stringLens) ran 30-70 min EACH, pushing the daily
+  // run past GitHub's 6 h job ceiling so it timed out before publishing to
+  // gh-pages. The remaining 10/100/1000 rows are ~10-1000x cheaper per
+  // batch, keeping the full sweep well under an hour.
   // BENCH_NUM_BATCHES, if set, overrides numBatches for the current mode
   // (useful for local smoke).
   private val BenchMode: String = sys.env.getOrElse("BENCH_MODE", "full").toLowerCase
@@ -118,7 +123,7 @@ object ArrowFlightActorBench {
       )
     case _ =>
       GridSpec(
-        batchSizes = Seq(10, 100, 1000, 10000),
+        batchSizes = Seq(10, 100, 1000),
         schemaWidths = Seq(1, 10, 50),
         stringLens = Seq(8, 64, 512),
         numBatches = sys.env.get("BENCH_NUM_BATCHES").map(_.toInt).getOrElse(200),

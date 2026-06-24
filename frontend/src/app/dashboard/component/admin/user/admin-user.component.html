@@ -106,6 +106,7 @@
         User Role
       </th>
       <th>Quota</th>
+      <th>Feedbacks</th>
       <th
         [nzSortFn]="sortByAccountCreation"
         [nzSortDirections]="['ascend', 'descend']">
@@ -312,6 +313,24 @@
             nz-icon
             nzTheme="outline"
             nzType="dashboard"></i>
+        </button>
+      </td>
+      <td>
+        <button
+          (click)="clickToViewFeedbacks(user.uid)"
+          [disabled]="getFeedbackCount(user.uid) === 0"
+          nz-button
+          [nz-tooltip]="getFeedbackCount(user.uid) === 0 ? 'no feedback submitted' : 'view feedback'"
+          type="button">
+          <nz-badge
+            [nzCount]="getFeedbackCount(user.uid)"
+            [nzOverflowCount]="99"
+            nzSize="small">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="message"></i>
+          </nz-badge>
         </button>
       </td>
       <td>

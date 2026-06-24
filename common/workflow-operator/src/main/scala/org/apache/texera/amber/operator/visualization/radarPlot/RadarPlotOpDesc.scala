@@ -122,6 +122,7 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor {
     }
 
   def generateRadarPlotCode(): PythonTemplateBuilder = {
+    require(linePattern != null, "Line pattern must be specified")
     val attributes = Option(selectedAttributes).getOrElse(Nil)
     val attrList = attributes.map(attr => pyb"$attr").mkString(", ")
     val traceNameCol = optionalColumnExpr(traceNameAttribute)
