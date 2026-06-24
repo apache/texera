@@ -479,7 +479,6 @@ export function buildApp() {
           state: agent.getState(),
           steps: agent.getAllSteps(),
           headId: agent.getHead(),
-          operatorResults: getOperatorResultSummaries(agent),
         };
         ws.send(JSON.stringify(snapshotMessage));
       },
@@ -518,12 +517,7 @@ export function buildApp() {
           wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received message");
 
           agent.setStepCallback((step: ReActStep) => {
-            const hasToolCalls = step.toolCalls && step.toolCalls.length > 0;
-            broadcastToAgent(agentId, {
-              type: "step",
-              step,
-              ...(hasToolCalls ? { operatorResults: getOperatorResultSummaries(agent) } : {}),
-            });
+            broadcastToAgent(agentId, { type: "step", step });
           });
 
           broadcastToAgent(agentId, { type: "status", state: AgentState.GENERATING });
@@ -539,11 +533,6 @@ export function buildApp() {
               broadcastToAgent(agentId, { type: "step", step: lastStep });
             }
 
-            broadcastToAgent(agentId, {
-              type: "completion",
-              operatorResults: getOperatorResultSummaries(agent),
-            });
-
             wsLog.info({ agentId, steps: result.messages.length }, "agent run complete");
           } catch (error: any) {
             agent.setStepCallback(null);
@@ -551,8 +540,8 @@ export function buildApp() {
           } finally {
             // The run is over (success or failure) and TexeraAgent.sendMessage has
             // reset the agent to its resting state (AVAILABLE) in its own finally.
-            // Announce it via a status frame so `completion` stays purely about
-            // results — this also unsticks the client from GENERATING after errors.
+            // This status frame is the run-end signal (it also unsticks the client
+            // from GENERATING after errors).
             broadcastToAgent(agentId, { type: "status", state: agent.getState() });
           }
         }
@@ -609,7 +598,7 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
     }
     console.log("         Send: { type: 'prompt', content: '...' }");
     console.log("         Send: { type: 'command', commandType: 'stop' }");
-    console.log("         Recv: { type: 'snapshot' | 'step' | 'status' | 'completion' | 'error' | 'headChange', ... }");
+    console.log("         Recv: { type: 'snapshot' | 'step' | 'status' | 'error' | 'headChange', ... }");
   }
 
   console.log("");

@@ -47,30 +47,27 @@ type OperatorResults = Record<string, OperatorResultSummaryWs>;
 
 /** Shared discriminator base; every server frame sets a unique `type`. */
 interface WsServerMessageBase {
-  type: "snapshot" | "step" | "status" | "completion" | "error" | "headChange";
+  type: "snapshot" | "step" | "status" | "error" | "headChange";
 }
 
 /**
  * Full state pushed once when a client connects: the agent's current lifecycle
- * state, the complete step list, the HEAD pointer, and the latest operator
- * results.
+ * state, the complete step list, and the HEAD pointer. Operator results are not
+ * included — they are pulled on demand via `GET /operator-results`.
  */
 export interface WsServerSnapshotMessage extends WsServerMessageBase {
   type: "snapshot";
   state: AgentState;
   steps: ReActStep[];
   headId: string;
-  operatorResults: OperatorResults;
 }
 
 /**
- * A single ReAct step, streamed live as the agent runs. Carries operator
- * results when the step ran tools.
+ * A single ReAct step, streamed live as the agent runs.
  */
 export interface WsServerStepMessage extends WsServerMessageBase {
   type: "step";
   step: ReActStep;
-  operatorResults?: OperatorResults;
 }
 
 /**
@@ -80,16 +77,6 @@ export interface WsServerStepMessage extends WsServerMessageBase {
 export interface WsServerStatusMessage extends WsServerMessageBase {
   type: "status";
   state: AgentState;
-}
-
-/**
- * Terminal frame for a finished run: the final authoritative operator-results
- * snapshot. The agent's resting state is delivered separately via a `status`
- * frame emitted at end-of-run, so completion is purely about results.
- */
-export interface WsServerCompletionMessage extends WsServerMessageBase {
-  type: "completion";
-  operatorResults: OperatorResults;
 }
 
 /** An error surfaced to the client (agent not found, bad request, failed run). */
@@ -119,6 +106,5 @@ export type WsServerMessage =
   | WsServerSnapshotMessage
   | WsServerStepMessage
   | WsServerStatusMessage
-  | WsServerCompletionMessage
   | WsServerErrorMessage
   | WsServerHeadChangeMessage;

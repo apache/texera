@@ -471,10 +471,6 @@ export class AgentService {
           };
           tracking.workflowSubject.next(workflow as Workflow);
         }
-        // Handle initial operator results
-        if (message.operatorResults) {
-          this.updateOperatorResultSummaries(message.operatorResults);
-        }
         break;
 
       case "step":
@@ -520,14 +516,6 @@ export class AgentService {
         // State update
         if (message.state) {
           tracking.stateSubject.next(this.mapStateToAgentState(message.state));
-        }
-        break;
-
-      case "completion":
-        // Run finished — apply the final authoritative operator-results snapshot.
-        // The agent's resting state arrives via a separate `status` frame.
-        if (message.operatorResults) {
-          this.updateOperatorResultSummaries(message.operatorResults);
         }
         break;
 
@@ -1270,34 +1258,12 @@ export class AgentService {
   // Operator Result Annotation Methods
   // ============================================================================
 
-  /** Whether operator result annotations are currently visible */
-  private resultAnnotationsVisibleSubject = new BehaviorSubject<boolean>(false);
-  public resultAnnotationsVisible$ = this.resultAnnotationsVisibleSubject.asObservable();
-
   /** Current operator result summaries (operatorId → summary) */
   private operatorResultSummariesSubject = new BehaviorSubject<Map<string, OperatorResultSummary>>(new Map());
   public operatorResultSummaries$ = this.operatorResultSummariesSubject.asObservable();
 
   /**
-   * Toggle operator result annotations on/off.
-   * When toggling on, fetches the latest results from the active agent.
-   */
-  public toggleResultAnnotations(agentId?: string): void {
-    const newState = !this.resultAnnotationsVisibleSubject.getValue();
-    if (newState) {
-      const id = agentId ?? this.getActivelyConnectedAgentIds()[0];
-      if (!id) {
-        // No active agent — nothing to fetch
-        return;
-      }
-      this.fetchOperatorResults(id);
-    } else {
-      this.resultAnnotationsVisibleSubject.next(false);
-    }
-  }
-
-  /**
-   * Update operator result summaries from a WebSocket or API response.
+   * Update operator result summaries from an API response.
    */
   private updateOperatorResultSummaries(results: Record<string, OperatorResultSummary>): void {
     const summaries = new Map<string, OperatorResultSummary>();
@@ -1308,7 +1274,10 @@ export class AgentService {
   }
 
   /**
-   * Fetch operator results from the backend (fallback if WebSocket data not available).
+   * Pull the agent's latest operator result summaries from the backend and push
+   * them to `operatorResultSummaries$`. Called on demand when the UI needs to
+   * show results (e.g. opening an operator's popover); results are no longer
+   * pushed over the WebSocket.
    */
   public fetchOperatorResults(agentId: string): void {
     this.http
@@ -1319,14 +1288,6 @@ export class AgentService {
       .pipe(catchError(() => of({ results: {} as Record<string, OperatorResultSummary> })))
       .subscribe(response => {
         this.updateOperatorResultSummaries(response.results);
-        this.resultAnnotationsVisibleSubject.next(true);
       });
-  }
-
-  /**
-   * Get current result annotations visibility.
-   */
-  public getResultAnnotationsVisible(): boolean {
-    return this.resultAnnotationsVisibleSubject.getValue();
   }
 }
