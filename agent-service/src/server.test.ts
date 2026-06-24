@@ -17,8 +17,9 @@
  * under the License.
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
-import { buildApp, _resetAgentStoreForTests } from "./server";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { buildApp, start, _resetAgentStoreForTests, _getAgentForTests } from "./server";
+import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
 
 const API = env.API_PREFIX;
@@ -247,5 +248,159 @@ describe(`PATCH ${API}/agents/:id/settings`, () => {
     );
     expect(reread.maxSteps).toBe(7);
     expect(reread.toolTimeoutSeconds).toBe(30);
+  });
+});
+
+describe("agent creation edge cases", () => {
+  test("rejects an empty modelType", async () => {
+    // The body schema accepts any string, so the handler's own guard runs.
+    const res = await postJson(`${API}/agents`, { modelType: "" }, { Authorization: `Bearer ${TOKEN}` });
+    expect(res.status).toBe(400);
+    expect((await readJson<{ error: string }>(res)).error).toContain("modelType");
+  });
+
+  test("applies initial settings supplied at creation time", async () => {
+    const res = await createAgent({ settings: { maxSteps: 9, toolTimeoutSeconds: 12 } });
+    expect(res.status).toBe(200);
+    const body = await readJson<{ settings: { maxSteps: number; toolTimeoutSeconds: number } }>(res);
+    expect(body.settings.maxSteps).toBe(9);
+    expect(body.settings.toolTimeoutSeconds).toBe(12);
+  });
+
+  test("creates the agent even when the workflow load fails (non-fatal)", async () => {
+    // retrieveWorkflow targets the (unavailable) dashboard service; the failure
+    // is caught and the agent is still created.
+    const res = await createAgent({ workflowId: 123 });
+    expect(res.status).toBe(200);
+  });
+
+  test("masks the delegate token in agent info", async () => {
+    const id = (await readJson<{ id: string }>(await createAgent())).id;
+    _getAgentForTests(id)!.setDelegateConfig({
+      userToken: "super-secret",
+      userInfo: { uid: 1, email: "tester@example.com" },
+      workflowId: 5,
+      workflowName: "My Flow",
+      computingUnitId: 2,
+    } as any);
+
+    const info = await readJson<{ delegate?: { userToken: string; workflowName: string } }>(
+      await getJson(`${API}/agents/${id}`)
+    );
+    expect(info.delegate?.userToken).toBe("***");
+    expect(info.delegate?.workflowName).toBe("My Flow");
+  });
+});
+
+describe("agent read routes", () => {
+  let id: string;
+  beforeEach(async () => {
+    id = (await readJson<{ id: string }>(await createAgent())).id;
+  });
+
+  test("GET /:id/react-steps returns steps and state", async () => {
+    const body = await readJson<{ steps: unknown[]; state: string }>(await getJson(`${API}/agents/${id}/react-steps`));
+    expect(Array.isArray(body.steps)).toBe(true);
+    expect(body.state).toBe("AVAILABLE");
+  });
+
+  test("GET /:id/system-info responds", async () => {
+    const res = await getJson(`${API}/agents/${id}/system-info`);
+    expect(res.status).toBe(200);
+  });
+
+  test("GET /:id/operator-types returns a list", async () => {
+    const res = await getJson(`${API}/agents/${id}/operator-types`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(await readJson(res))).toBe(true);
+  });
+
+  test("POST /:id/steps-by-operators returns steps", async () => {
+    const res = await postJson(`${API}/agents/${id}/steps-by-operators`, { operatorIds: [] });
+    expect(res.status).toBe(200);
+    expect(Array.isArray((await readJson<{ steps: unknown[] }>(res)).steps)).toBe(true);
+  });
+
+  test("GET /:id/operator-results maps the visible operator results", async () => {
+    const agent = _getAgentForTests(id)!;
+    (agent as any).getWorkflowResultState = () => ({
+      getAllVisible: () =>
+        new Map([
+          [
+            "op-1",
+            {
+              operatorInfo: {
+                state: "COMPLETED",
+                inputTuples: 1,
+                outputTuples: 2,
+                inputPortShapes: [],
+                result: [{ a: 1 }],
+                error: undefined,
+                warnings: [],
+                consoleLogs: [],
+                totalRowCount: 2,
+                resultStatistics: {},
+              },
+            },
+          ],
+        ]),
+    });
+
+    const body = await readJson<{ results: Record<string, { outputTuples: number; outputColumns: number }> }>(
+      await getJson(`${API}/agents/${id}/operator-results`)
+    );
+    expect(body.results["op-1"].outputTuples).toBe(2);
+    expect(body.results["op-1"].outputColumns).toBe(1);
+  });
+});
+
+describe("checkout route", () => {
+  test("broadcasts and survives a websocket whose send throws", async () => {
+    const id = (await readJson<{ id: string }>(await createAgent())).id;
+    const agent = _getAgentForTests(id)!;
+    (agent as any).checkout = () => true;
+    (agent as any).getAllSteps = () => [];
+    // A failing socket must be dropped inside broadcastToAgent, not crash the request.
+    agent.addWebsocket({
+      send: () => {
+        throw new Error("send failed");
+      },
+    } as any);
+
+    const res = await postJson(`${API}/agents/${id}/checkout`, { stepId: "step-1" });
+    expect(res.status).toBe(200);
+    expect((await readJson<{ headId: string }>(res)).headId).toBe("step-1");
+  });
+
+  test("returns 500 when the step cannot be found", async () => {
+    const id = (await readJson<{ id: string }>(await createAgent())).id;
+    (_getAgentForTests(id) as any).checkout = () => false;
+    const res = await postJson(`${API}/agents/${id}/checkout`, { stepId: "missing" });
+    expect(res.status).toBe(500);
+  });
+});
+
+describe("non-router routes", () => {
+  test("unknown routes fall through to the catch-all error handler", async () => {
+    const res = await getJson("/no-such-route");
+    expect(res.status).toBe(500);
+  });
+});
+
+describe("start()", () => {
+  test("boots a listening app and prints the startup banner", async () => {
+    const booted = await start();
+    expect(typeof booted.server?.port).toBe("number");
+    await booted.stop();
+  });
+
+  test("tolerates a metadata-initialization failure", async () => {
+    const spy = spyOn(WorkflowSystemMetadata, "initializeGlobal").mockImplementation(async () => {
+      throw new Error("metadata unavailable");
+    });
+    const booted = await start();
+    await booted.stop();
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

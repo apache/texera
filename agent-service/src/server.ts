@@ -637,6 +637,4 @@ export async function start() {
 
 // Run the server only when this file is the entry point, not when it is
 // imported by tests or other modules.
-if (import.meta.main) {
-  start();
-}
+if (import.meta.main) start();

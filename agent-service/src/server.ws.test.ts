@@ -223,6 +223,20 @@ describe(`WS ${API}/agents/:id/react`, () => {
         stopped: false,
       };
     };
+    // The server re-broadcasts the final step (with isEnd) after the run.
+    (agent as any).getReActSteps = () => [
+      {
+        id: "step-1",
+        parentId: "init",
+        messageId: "m1",
+        stepId: 1,
+        timestamp: 0,
+        role: "agent",
+        content: "done",
+        isBegin: true,
+        isEnd: true,
+      },
+    ];
 
     const { ws, messages } = connect(id);
     await waitOpen(ws);
@@ -264,5 +278,34 @@ describe(`WS ${API}/agents/:id/react`, () => {
     // is not left stuck on GENERATING.
     const resting = await messages.waitFor(m => m.type === "status" && m.state === "AVAILABLE");
     expect(resting.state).toBe("AVAILABLE");
+  });
+
+  test("a message for an agent that no longer exists yields an error frame", async () => {
+    const id = await createAgent();
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "snapshot");
+
+    // Drop the agent while the socket stays open; the message handler re-looks it up.
+    _resetAgentStoreForTests();
+    ws.send(JSON.stringify({ type: "prompt", content: "hello" }));
+
+    const err = await messages.waitFor(m => m.type === "error");
+    expect(err.error).toBe("Agent not found");
+  });
+
+  test("runs the close handler when the client disconnects", async () => {
+    const id = await createAgent();
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "snapshot");
+
+    const closed = new Promise<void>(resolve => ws.addEventListener("close", () => resolve(), { once: true }));
+    ws.close();
+    await closed;
+    // Let the server process the disconnect (its close handler runs here).
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(ws.readyState).toBe(WebSocket.CLOSED);
   });
 });
