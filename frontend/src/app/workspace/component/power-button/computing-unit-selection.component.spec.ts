@@ -29,6 +29,8 @@ import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { UserPveRecord } from "../../service/virtual-environment/virtual-environment.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 
 describe("PowerButtonComponent", () => {
   let component: ComputingUnitSelectionComponent;
@@ -81,5 +83,184 @@ describe("PowerButtonComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  describe("isSavedPveInstalledInCu", () => {
+    it("returns true when a locked card with the same trimmed name exists", () => {
+      component.pves = [
+        { name: "  scanpy_env ", isLocked: true, userPackages: [] } as any,
+        { name: "other", isLocked: false, userPackages: [] } as any,
+      ];
+      expect(component.isSavedPveInstalledInCu("scanpy_env")).toBe(true);
+    });
+
+    it("returns false when the same-name card is not locked (draft only)", () => {
+      component.pves = [{ name: "scanpy_env", isLocked: false, userPackages: [] } as any];
+      expect(component.isSavedPveInstalledInCu("scanpy_env")).toBe(false);
+    });
+
+    it("returns false when no card matches", () => {
+      component.pves = [{ name: "other", isLocked: true, userPackages: [] } as any];
+      expect(component.isSavedPveInstalledInCu("scanpy_env")).toBe(false);
+    });
+  });
+
+  describe("installFromSavedPve", () => {
+    const SAVED_VEID = 42;
+
+    function makeSaved(packages: Record<string, string>, name = "scanpy_env"): UserPveRecord {
+      return { veid: SAVED_VEID, name, packages };
+    }
+
+    beforeEach(() => {
+      // Avoid triggering the real create/install pipeline; we only care about
+      // routing + the state the method writes onto the cards.
+      vi.spyOn(component, "createVirtualEnvironment").mockImplementation(() => {});
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("pushes a new unlocked card and schedules create when no matching locked card exists", () => {
+      component.pves = [];
+      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" })];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      expect(component.pves.length).toBe(1);
+      const card = component.pves[0];
+      expect(card.isLocked).toBe(false);
+      expect(card.name).toBe("scanpy_env");
+      expect(card.newPackages).toEqual([
+        { name: "pandas", versionOp: "==", version: "2.0.0" },
+      ]);
+      expect(card.deletingPackages).toEqual([]);
+
+      vi.runAllTimers();
+      expect(component.createVirtualEnvironment).toHaveBeenCalledWith(0);
+    });
+
+    it("routes to the locked card and installs only packages that are new in the DB", () => {
+      component.pves = [
+        {
+          name: "scanpy_env",
+          isLocked: true,
+          userPackages: [{ name: "numpy", versionOp: "==", version: "1.26.0" }],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          isInstalling: false,
+        } as any,
+      ];
+      component.availableDbPves = [makeSaved({ numpy: "==1.26.0", pandas: "==2.0.0" })];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      const locked = component.pves[0];
+      expect(locked.newPackages).toEqual([
+        { name: "pandas", versionOp: "==", version: "2.0.0" },
+      ]);
+      expect(locked.deletingPackages).toEqual([]);
+      expect(locked.userPackages).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
+      expect(locked.expanded).toBe(true);
+
+      vi.runAllTimers();
+      expect(component.createVirtualEnvironment).toHaveBeenCalledWith(0);
+    });
+
+    it("routes to the locked card and deletes packages that were removed from the DB", () => {
+      component.pves = [
+        {
+          name: "scanpy_env",
+          isLocked: true,
+          userPackages: [
+            { name: "numpy", versionOp: "==", version: "1.26.0" },
+            { name: "pandas", versionOp: "==", version: "2.0.0" },
+          ],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          isInstalling: false,
+        } as any,
+      ];
+      component.availableDbPves = [makeSaved({ numpy: "==1.26.0" })];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      const locked = component.pves[0];
+      expect(locked.newPackages).toEqual([]);
+      expect(locked.deletingPackages).toEqual([{ name: "pandas", version: "2.0.0" }]);
+      // pandas should be dropped from userPackages so the install step won't
+      // skip it later as "already installed".
+      expect(locked.userPackages).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
+
+      vi.runAllTimers();
+      expect(component.createVirtualEnvironment).toHaveBeenCalledWith(0);
+    });
+
+    it("treats a version change as delete-then-install on the locked card", () => {
+      component.pves = [
+        {
+          name: "scanpy_env",
+          isLocked: true,
+          userPackages: [{ name: "scanpy", versionOp: "==", version: "1.11.1" }],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          isInstalling: false,
+        } as any,
+      ];
+      component.availableDbPves = [makeSaved({ scanpy: "==1.12.0" })];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      const locked = component.pves[0];
+      expect(locked.deletingPackages).toEqual([{ name: "scanpy", version: "1.11.1" }]);
+      expect(locked.newPackages).toEqual([{ name: "scanpy", versionOp: "==", version: "1.12.0" }]);
+      // userPackages no longer contains scanpy so the install step won't drop it.
+      expect(locked.userPackages).toEqual([]);
+
+      vi.runAllTimers();
+      expect(component.createVirtualEnvironment).toHaveBeenCalledWith(0);
+    });
+
+    it("is a no-op (with a success toast) when DB and CU contents match exactly", () => {
+      const notificationService = TestBed.inject(NotificationService);
+      const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+
+      component.pves = [
+        {
+          name: "scanpy_env",
+          isLocked: true,
+          userPackages: [{ name: "numpy", versionOp: "==", version: "1.26.0" }],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          isInstalling: false,
+        } as any,
+      ];
+      component.availableDbPves = [makeSaved({ numpy: "==1.26.0" })];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      const locked = component.pves[0];
+      expect(locked.newPackages).toEqual([]);
+      expect(locked.deletingPackages).toEqual([]);
+      expect(locked.userPackages).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
+      expect(successSpy).toHaveBeenCalled();
+
+      vi.runAllTimers();
+      expect(component.createVirtualEnvironment).not.toHaveBeenCalled();
+    });
   });
 });
