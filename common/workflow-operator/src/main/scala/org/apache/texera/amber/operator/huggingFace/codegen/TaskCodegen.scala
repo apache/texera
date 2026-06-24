@@ -41,7 +41,10 @@ final case class CodegenContext(
     imageInput: EncodableString = "",
     inputImageColumn: EncodableString = "",
     audioInput: EncodableString = "",
-    inputAudioColumn: EncodableString = ""
+    inputAudioColumn: EncodableString = "",
+    contextColumn: EncodableString = "",
+    candidateLabels: EncodableString = "",
+    sentencesColumn: EncodableString = ""
 )
 
 /**
