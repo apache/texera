@@ -787,9 +787,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   // Triggered when the user picks a saved PVE in the picker. Builds a new
-  // env card from its name + packages and immediately kicks off the existing
-  // CU install flow (createVirtualEnvironment), so pip output streams into
-  // the same panel.
+  // env card from its name + packages and starts CU install flow
+  // (createVirtualEnvironment), so pip output streams into the same panel.
   installFromSavedPve(veid: number): void {
     const saved = this.availableDbPves.find(p => p.veid === veid);
     if (!saved) return;
@@ -797,10 +796,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     const trimmedName = saved.name.trim();
     const dbRows = this.parseDbPackages(saved.packages);
 
-    // If this PVE is already installed in the current CU, fold the saved
-    // record's changes into the existing locked card instead of pushing a
-    // duplicate. We compute the package diff vs. the CU's current state and
-    // route through the locked-card update path (delete then install).
     const existingIndex = this.pves.findIndex(p => p.isLocked && p.name.trim() === trimmedName);
     if (existingIndex !== -1) {
       this.applySavedPveAsUpdate(existingIndex, saved.name, dbRows);
@@ -820,8 +815,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     });
 
     const newIndex = this.pves.length - 1;
-    // Let Angular render the new card so its pip-output element exists before
-    // we start streaming.
+
     setTimeout(() => this.createVirtualEnvironment(newIndex), 0);
   }
 
@@ -838,7 +832,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   // Computes the diff between the saved DB record and the locked card's
   // current user packages, then triggers the existing update path
-  // (delete-then-install) on that card.
   private applySavedPveAsUpdate(index: number, displayName: string, dbRows: PveUserPackageRow[]): void {
     const existing = this.pves[index];
 
@@ -869,9 +862,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
       return;
     }
 
-    // installUserPackages skips by name against env.userPackages; drop the
-    // entries we are about to remove so version bumps aren't filtered out as
-    // "already installed".
     const deletingKeys = new Set(toDelete.map(p => p.name.trim().toLowerCase()));
     existing.userPackages = existing.userPackages.filter(p => !deletingKeys.has(p.name.trim().toLowerCase()));
     existing.newPackages = toInstall;
