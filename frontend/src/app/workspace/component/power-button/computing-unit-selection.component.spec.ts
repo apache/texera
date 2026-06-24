@@ -133,9 +133,7 @@ describe("PowerButtonComponent", () => {
       const card = component.pves[0];
       expect(card.isLocked).toBe(false);
       expect(card.name).toBe("scanpy_env");
-      expect(card.newPackages).toEqual([
-        { name: "pandas", versionOp: "==", version: "2.0.0" },
-      ]);
+      expect(card.newPackages).toEqual([{ name: "pandas", versionOp: "==", version: "2.0.0" }]);
       expect(card.deletingPackages).toEqual([]);
 
       vi.runAllTimers();
@@ -161,9 +159,7 @@ describe("PowerButtonComponent", () => {
       component.installFromSavedPve(SAVED_VEID);
 
       const locked = component.pves[0];
-      expect(locked.newPackages).toEqual([
-        { name: "pandas", versionOp: "==", version: "2.0.0" },
-      ]);
+      expect(locked.newPackages).toEqual([{ name: "pandas", versionOp: "==", version: "2.0.0" }]);
       expect(locked.deletingPackages).toEqual([]);
       expect(locked.userPackages).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
       expect(locked.expanded).toBe(true);
