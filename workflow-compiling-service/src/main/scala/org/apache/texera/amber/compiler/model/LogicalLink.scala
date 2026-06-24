@@ -49,7 +49,7 @@ object LogicalLink {
       }
     } else {
       throw new IllegalArgumentException(
-        s"LogicalLink $fieldName must be a string or an object with an id field, but was ${node.getNodeType}"
+        s"LogicalLink $fieldName must be a string or an object, but was ${node.getNodeType}"
       )
     }
   }

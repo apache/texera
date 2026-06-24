@@ -237,7 +237,7 @@ class LogicalLinkSpec extends AnyFlatSpec {
     assert(link.fromOpId == OperatorIdentity(null))
   }
 
-  it should "throw IllegalArgumentException when an opId is a numeric value instead of text or object" in {
+  it should "wrap IllegalArgumentException in ValueInstantiationException when an opId is a numeric value instead of text or object" in {
     // A number is not a valid shape for fromOpId regardless of leniency —
     // readOperatorIdentity explicitly throws for non-text, non-object nodes.
     val node = objectMapper.createObjectNode()
