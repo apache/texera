@@ -34,6 +34,7 @@ import org.apache.texera.amber.operator.visualization.carpetPlot.CarpetPlotOpDes
 import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
 import org.apache.texera.amber.operator.visualization.continuousErrorBands.ContinuousErrorBandsOpDesc
 import org.apache.texera.amber.operator.visualization.contourPlot.ContourPlotOpDesc
+import org.apache.texera.amber.operator.visualization.dendrogram.DendrogramOpDesc
 import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -56,6 +57,7 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     disposition(classOf[ChoroplethMapOpDesc]) shouldBe Runnable("visualization")
     disposition(classOf[ContinuousErrorBandsOpDesc]) shouldBe Runnable("visualization")
     disposition(classOf[ContourPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[DendrogramOpDesc]) shouldBe Runnable("visualization")
     disposition(classOf[DotPlotOpDesc]) shouldBe Runnable("visualization")
     disposition(classOf[IcicleChartOpDesc]) shouldBe Runnable("visualization")
     disposition(classOf[BubbleChartOpDesc]) shouldBe Runnable("visualization")
@@ -114,6 +116,10 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
 
   it should "verify ContourPlotOpDesc end-to-end via Plotly JSON comparison" in {
     TransformVerificationRunner.run(classOf[ContourPlotOpDesc])
+  }
+
+  it should "verify DendrogramOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[DendrogramOpDesc])
   }
 
   it should "verify IcicleChartOpDesc end-to-end via Plotly JSON comparison" in {

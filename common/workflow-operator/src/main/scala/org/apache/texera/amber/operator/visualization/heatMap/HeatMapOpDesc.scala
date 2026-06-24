@@ -25,11 +25,11 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
-class HeatMapOpDesc extends PythonOperatorDescriptor {
+class HeatMapOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("Value X Column")
@@ -104,6 +104,27 @@ class HeatMapOpDesc extends PythonOperatorDescriptor {
          |
          |"""
     finalcode.encode
+  }
+
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    s"""def render_error(error_msg):
+       |    return '''<h1>Chart is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    heatmap = go.Heatmap(z=in1df["$value"], x=in1df["$x"], y=in1df["$y"])
+       |    layout = go.Layout(margin=dict(l=0, r=0, b=0, t=0))
+       |    fig = go.Figure(data=[heatmap], layout=layout)
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Heatmap saved to output.html")""".stripMargin
   }
 
 }

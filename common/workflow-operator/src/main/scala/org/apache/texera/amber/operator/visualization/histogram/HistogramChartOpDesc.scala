@@ -25,11 +25,11 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
-class HistogramChartOpDesc extends PythonOperatorDescriptor {
+class HistogramChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("Column for counting values.")
@@ -119,6 +119,30 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
+  }
+
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val colorParam = if (color.nonEmpty) s""", color="$color"""" else ""
+    val categoryParam = if (separateBy.nonEmpty) s""", facet_col="$separateBy"""" else ""
+    val marginalParam = if (marginal.nonEmpty) s""", marginal="$marginal"""" else ""
+    val patternParam = if (pattern.nonEmpty) s""", pattern_shape="$pattern"""" else ""
+    s"""def render_error(error_msg):
+       |    return '''<h1>Histogram chart is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    fig = px.histogram(in1df, x="$value", text_auto=True$colorParam$categoryParam$marginalParam$patternParam)
+       |    fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Histogram saved to output.html")""".stripMargin
   }
 
 }

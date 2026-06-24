@@ -25,12 +25,12 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
-class WaterfallChartOpDesc extends PythonOperatorDescriptor {
+class WaterfallChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "xColumn", required = true)
   @JsonSchemaTitle("X Axis Values")
@@ -104,6 +104,39 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    s"""def render_error(error_msg) -> str:
+       |    return '''<h1>Waterfall chart is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    table = in1df
+       |    x_values = table["$xColumn"]
+       |    y_values = table["$yColumn"].astype(float)
+       |
+       |    fig = go.Figure(go.Waterfall(
+       |        name="Waterfall", orientation="v",
+       |        measure=["relative"] * (len(y_values) - 1) + ["total"],
+       |        x=x_values,
+       |        y=y_values,
+       |        textposition="outside",
+       |        text=[f"{v:+}" for v in y_values],
+       |        connector={"line": {"color": "rgb(63, 63, 63)"}}
+       |    ))
+       |
+       |    fig.update_layout(showlegend=True, waterfallgap=0.3)
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Waterfall chart saved to output.html")""".stripMargin
   }
 
 }

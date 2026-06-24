@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -44,7 +44,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class GanttChartOpDesc extends PythonOperatorDescriptor {
+class GanttChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "start", required = true)
   @JsonSchemaTitle("Start Datetime Column")
@@ -145,4 +145,35 @@ class GanttChartOpDesc extends PythonOperatorDescriptor {
          |"""
     finalCode.encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val optionalFilter =
+      if (color.nonEmpty) s""" & (in1df["$color"].notnull())""" else ""
+    val colorSetting = if (color.nonEmpty) s""", color="$color"""" else ""
+    val patternSetting = if (pattern.nonEmpty) s""", pattern_shape="$pattern"""" else ""
+
+    s"""def render_error(error_msg):
+       |    return '''<h1>Gantt Chart is not available.</h1>
+       |              <p>Reason: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    table = in1df[(in1df["$start"].notnull()) & (in1df["$finish"].notnull())$optionalFilter].copy()
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("One or more of your input columns have all missing values"))
+       |    else:
+       |        fig = px.timeline(table, x_start="$start", x_end="$finish", y="$task"$colorSetting$patternSetting)
+       |        fig.update_yaxes(autorange='reversed')
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Gantt chart saved to output.html")""".stripMargin
+  }
+
 }

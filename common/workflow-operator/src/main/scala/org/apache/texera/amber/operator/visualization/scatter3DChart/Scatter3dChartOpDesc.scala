@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -36,7 +36,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
   }
 }
 """)
-class Scatter3dChartOpDesc extends PythonOperatorDescriptor {
+class Scatter3dChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("X Column")
   @JsonPropertyDescription("Data column for the x-axis")
@@ -128,4 +128,43 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor {
          |"""
     finalcode.encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    s"""def render_error(error_msg):
+       |    return '''<h1>Chart is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    table = in1df
+       |    fig = go.Figure(data=[go.Scatter3d(
+       |        x=table["$x"],
+       |        y=table["$y"],
+       |        z=table["$z"],
+       |        mode='markers',
+       |        marker=dict(
+       |            size=12,
+       |            colorscale='Viridis',
+       |            opacity=0.8
+       |        )
+       |    )])
+       |    fig.update_traces(marker=dict(size=5, opacity=0.8))
+       |    fig.update_layout(
+       |        scene=dict(
+       |            xaxis_title='X:' + "$x",
+       |            yaxis_title='Y:' + "$y",
+       |            zaxis_title='Z:' + "$z"
+       |        ),
+       |        margin=dict(t=0, b=0, l=0, r=0)
+       |    )
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Scatter3D chart saved to output.html")""".stripMargin
+  }
+
 }

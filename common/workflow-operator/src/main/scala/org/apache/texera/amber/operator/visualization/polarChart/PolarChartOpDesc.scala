@@ -24,13 +24,13 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
-class PolarChartOpDesc extends PythonOperatorDescriptor {
+class PolarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "r", required = true)
   @JsonSchemaTitle("r")
@@ -110,4 +110,27 @@ class PolarChartOpDesc extends PythonOperatorDescriptor {
        |"""
     finalCode.encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    s"""if in1df is None or in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write('<h3>No data available for Polar Chart</h3>')
+       |elif "$r" not in in1df.columns or "$theta" not in in1df.columns:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write('<h3>Selected columns not found in input table</h3>')
+       |else:
+       |    fig = go.Figure(data=go.Scatterpolargl(
+       |        r=in1df["$r"].values,
+       |        theta=in1df["$theta"].values,
+       |        mode='markers',
+       |        marker=dict(size=10, opacity=0.7, line=dict(color='white'))
+       |    ))
+       |    fig.update_layout(title='Polar Chart', showlegend=False)
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Polar chart saved to output.html")""".stripMargin
+  }
+
 }

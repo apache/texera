@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -45,7 +45,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class RadarChartOpDesc extends PythonOperatorDescriptor {
+class RadarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "nameColumn", required = true)
   @JsonSchemaTitle("Name Column")
@@ -160,4 +160,60 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
          |"""
     finalcode.encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val valueColsList = valueColumns.map(col => "\"" + col + "\"").mkString("[", ", ", "]")
+    val requiredCols =
+      (Seq("\"" + nameColumn + "\"") ++ valueColumns.map(col => "\"" + col + "\""))
+        .mkString("[", ", ", "]")
+    s"""def render_error(error_msg):
+       |    return '''<h1>RadarChart is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    table = in1df.copy()
+       |    required_cols = $requiredCols
+       |    table.dropna(subset=required_cols, inplace=True)
+       |    value_cols = $valueColsList
+       |    for col in value_cols:
+       |        table[col] = pd.to_numeric(table[col], errors='coerce')
+       |    table.dropna(subset=value_cols, inplace=True)
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("input table is empty after removing missing values."))
+       |    else:
+       |        fig = go.Figure()
+       |        categories = $valueColsList
+       |        for idx, row in table.iterrows():
+       |            values = [row[col] for col in categories]
+       |            values.append(values[0])
+       |            categories_closed = categories + [categories[0]]
+       |            fig.add_trace(go.Scatterpolar(
+       |                r=values,
+       |                theta=categories_closed,
+       |                fill='toself',
+       |                name=str(row["$nameColumn"]),
+       |                opacity=$fillOpacity
+       |            ))
+       |        fig.update_layout(
+       |            polar=dict(
+       |                radialaxis=dict(
+       |                    visible=True,
+       |                    range=[0, None]
+       |                )
+       |            ),
+       |            showlegend=True,
+       |            margin=dict(t=40, b=40, l=40, r=40)
+       |        )
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Radar chart saved to output.html")""".stripMargin
+  }
+
 }

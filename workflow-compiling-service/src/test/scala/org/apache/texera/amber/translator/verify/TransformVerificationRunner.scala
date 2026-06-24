@@ -50,6 +50,7 @@ import org.apache.texera.amber.operator.visualization.carpetPlot.CarpetPlotOpDes
 import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
 import org.apache.texera.amber.operator.visualization.continuousErrorBands.ContinuousErrorBandsOpDesc
 import org.apache.texera.amber.operator.visualization.contourPlot.ContourPlotOpDesc
+import org.apache.texera.amber.operator.visualization.dendrogram.DendrogramOpDesc
 import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 
 import java.nio.file.{Files, Path}
@@ -92,6 +93,7 @@ object TransformVerificationRunner {
     classOf[ChoroplethMapOpDesc],
     classOf[ContinuousErrorBandsOpDesc],
     classOf[ContourPlotOpDesc],
+    classOf[DendrogramOpDesc],
     classOf[DotPlotOpDesc],
     classOf[IcicleChartOpDesc],
     classOf[BubbleChartOpDesc],

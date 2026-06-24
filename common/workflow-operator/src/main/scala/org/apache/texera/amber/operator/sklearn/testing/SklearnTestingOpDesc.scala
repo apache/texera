@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -32,7 +32,7 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
-class SklearnTestingOpDesc extends PythonOperatorDescriptor {
+class SklearnTestingOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Regression")
   @JsonPropertyDescription(
@@ -111,4 +111,25 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor {
             _.add(_, AttributeType.DOUBLE)
           )
     )
+
+  override def generateStandaloneCode(): String = {
+    val isRegressionStr = if (isRegression) "True" else "False"
+    s"""from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, root_mean_squared_error, mean_absolute_error, r2_score
+       |
+       |model = in1df["$model"].iloc[0]
+       |out1df = in1df.copy()
+       |Y = in2df["$target"]
+       |X = in2df.drop("$target", axis=1)
+       |predictions = model.predict(X.squeeze())
+       |if $isRegressionStr:
+       |    out1df["R2"] = r2_score(Y, predictions)
+       |    out1df["RMSE"] = root_mean_squared_error(Y, predictions)
+       |    out1df["MAE"] = mean_absolute_error(Y, predictions)
+       |else:
+       |    out1df["accuracy"] = round(accuracy_score(Y, predictions), 4)
+       |    out1df["f1"] = f1_score(Y, predictions, average="weighted")
+       |    out1df["precision"] = precision_score(Y, predictions, average="weighted")
+       |    out1df["recall"] = recall_score(Y, predictions, average="weighted")""".stripMargin
+  }
+
 }

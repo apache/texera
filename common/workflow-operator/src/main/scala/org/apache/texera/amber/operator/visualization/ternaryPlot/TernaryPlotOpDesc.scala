@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -37,7 +37,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
   * The points can optionally be color coded using a data field.
   */
 
-class TernaryPlotOpDesc extends PythonOperatorDescriptor {
+class TernaryPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
@@ -136,6 +136,32 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content':html}
          |"""
     finalCode.encode
+  }
+
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val colorArg =
+      if (colorEnabled && colorDataField.nonEmpty) s""", color="$colorDataField"""" else ""
+    s"""def render_error(error_msg):
+       |    return '''<h1>TernaryPlot is not available.</h1>
+       |              <p>Reasons are: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    table = in1df.dropna(subset=["$firstVariable", "$secondVariable", "$thirdVariable"]).copy()
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |    else:
+       |        fig = px.scatter_ternary(table, a="$firstVariable", b="$secondVariable", c="$thirdVariable"$colorArg)
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Ternary plot saved to output.html")""".stripMargin
   }
 
 }

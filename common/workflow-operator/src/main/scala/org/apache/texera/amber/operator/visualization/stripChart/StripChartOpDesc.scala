@@ -25,11 +25,11 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class StripChartOpDesc extends PythonOperatorDescriptor {
+class StripChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("X-Axis Column")
@@ -117,4 +117,32 @@ class StripChartOpDesc extends PythonOperatorDescriptor {
        |        yield {'html-content': html}
        |""".encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val colorByParam = if (colorBy != null && colorBy.nonEmpty) s""", color="$colorBy"""" else ""
+    val facetColParam =
+      if (facetColumn != null && facetColumn.nonEmpty) s""", facet_col="$facetColumn"""" else ""
+    s"""data = {
+       |    "$x": in1df["$x"],
+       |    "$y": in1df["$y"]
+       |}
+       |if "$colorBy":
+       |    data["$colorBy"] = in1df["$colorBy"]
+       |if "$facetColumn":
+       |    data["$facetColumn"] = in1df["$facetColumn"]
+       |
+       |fig = px.strip(data, x="$x", y="$y"$colorByParam$facetColParam)
+       |fig.update_traces(marker=dict(size=8, line=dict(width=0.5, color='DarkSlateGrey')))
+       |fig.update_layout(
+       |    xaxis_title="$x",
+       |    yaxis_title="$y",
+       |    hovermode='closest'
+       |)
+       |fig.write_json("output.json")
+       |fig.write_html("output.html")
+       |print("Strip chart saved to output.html")""".stripMargin
+  }
+
 }

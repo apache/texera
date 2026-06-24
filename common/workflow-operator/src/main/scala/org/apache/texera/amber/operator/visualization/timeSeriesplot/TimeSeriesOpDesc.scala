@@ -24,13 +24,13 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 import javax.validation.constraints.{NotBlank, NotNull}
 
-class TimeSeriesOpDesc extends PythonOperatorDescriptor {
+class TimeSeriesOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "timeColumn", required = true)
   @JsonSchemaTitle("Time Column")
@@ -140,4 +140,50 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
        |            yield {'html-content': self.render_error(str(e))}
        |""".encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val dropnaCols = List(timeColumn, valueColumn) ++
+      (if (CategoryColumn != "No Selection") Some(CategoryColumn) else None) ++
+      (if (facetColumn != "No Selection") Some(facetColumn) else None)
+    val dropnaStr = dropnaCols.map(c => s""""$c"""").mkString("[", ", ", "]")
+    val colorArg = if (CategoryColumn != "No Selection") s""", color="$CategoryColumn"""" else ""
+    val facetArg = if (facetColumn != "No Selection") s""", facet_col="$facetColumn"""" else ""
+    val plotFunc = if (plotType == "area") "px.area" else "px.line"
+    val showSlider = if (showRangeSlider) "True" else "False"
+
+    s"""def render_error(msg):
+       |    return f"<h1>Time Series Plot is not available.</h1><p>Reason: {msg}</p>"
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    try:
+       |        table = in1df.copy()
+       |        table["$timeColumn"] = pd.to_datetime(table["$timeColumn"], errors='coerce')
+       |        table = table.dropna(subset=$dropnaStr).sort_values(by="$timeColumn")
+       |        if table.empty:
+       |            with open("output.html", "w", encoding="utf-8") as output:
+       |                output.write(render_error("Table became empty after filtering."))
+       |        else:
+       |            fig = $plotFunc(table, x="$timeColumn", y="$valueColumn"$colorArg$facetArg)
+       |            if $showSlider:
+       |                fig.update_xaxes(rangeslider_visible=True)
+       |            fig.update_layout(
+       |                margin=dict(l=0, r=0, t=30, b=0),
+       |                title=dict(text="Time Series Plot", x=0.5),
+       |                xaxis_title="$timeColumn",
+       |                yaxis_title="$valueColumn",
+       |                template="plotly_white"
+       |            )
+       |            fig.write_json("output.json")
+       |            fig.write_html("output.html")
+       |            print("Time series plot saved to output.html")
+       |    except Exception as e:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error(str(e)))""".stripMargin
+  }
+
 }

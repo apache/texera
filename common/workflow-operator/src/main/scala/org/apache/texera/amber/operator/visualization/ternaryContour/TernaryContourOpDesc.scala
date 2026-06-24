@@ -26,7 +26,7 @@ import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -38,7 +38,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
   * The points can optionally be color coded using a data field.
   */
 
-class TernaryContourOpDesc extends PythonOperatorDescriptor {
+class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
@@ -146,6 +146,47 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content':html}
          |"""
     finalCode.encode
+  }
+
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    s"""import plotly.figure_factory as ff
+       |import numpy as np
+       |
+       |def render_error(error_msg):
+       |    return '''<h1>TernaryContour is not available.</h1>
+       |              <p>Reasons are: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    table = in1df.copy()
+       |    table.dropna(subset=["$firstVariable", "$secondVariable", "$thirdVariable", "$fourthVariable"], inplace=True)
+       |    table[["$firstVariable", "$secondVariable", "$thirdVariable", "$fourthVariable"]] = table[["$firstVariable", "$secondVariable", "$thirdVariable", "$fourthVariable"]].astype(float).round(12)
+       |    table = table[(table[["$firstVariable", "$secondVariable", "$thirdVariable"]] >= 0).all(axis=1)]
+       |    s = table["$firstVariable"] + table["$secondVariable"] + table["$thirdVariable"]
+       |    table = table[s > 0]
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |    else:
+       |        A = table["$firstVariable"].to_numpy()
+       |        B = table["$secondVariable"].to_numpy()
+       |        C = table["$thirdVariable"].to_numpy()
+       |        Z = table["$fourthVariable"].to_numpy()
+       |        fig = ff.create_ternary_contour(
+       |            np.array([A, B, C]),
+       |            Z,
+       |            pole_labels=["$firstVariable", "$secondVariable", "$thirdVariable"],
+       |            interp_mode='cartesian'
+       |        )
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Ternary contour saved to output.html")""".stripMargin
   }
 
 }

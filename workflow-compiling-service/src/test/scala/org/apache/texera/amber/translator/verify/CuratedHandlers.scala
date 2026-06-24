@@ -61,6 +61,7 @@ import org.apache.texera.amber.operator.visualization.contourPlot.{
   ContourPlotColoringFunction,
   ContourPlotOpDesc
 }
+import org.apache.texera.amber.operator.visualization.dendrogram.DendrogramOpDesc
 import org.apache.texera.amber.operator.visualization.lineChart.LineMode
 import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 import org.apache.texera.amber.operator.visualization.hierarchychart.HierarchySection
@@ -107,7 +108,8 @@ object CuratedHandlers {
     BubbleChartVisualizationHandler,
     BoxViolinPlotVisualizationHandler,
     ImageVisualizerVisualizationHandler,
-    ScatterMatrixVisualizationHandler
+    ScatterMatrixVisualizationHandler,
+    DendrogramVisualizationHandler
   )
 
   val byClass: Map[Class[_ <: LogicalOp], TransformHandler] =
@@ -878,6 +880,44 @@ object ScatterMatrixVisualizationHandler extends TransformHandler {
     val desc = new ScatterMatrixChartOpDesc()
     desc.selectedAttributes = List("x", "y", "z")
     desc.color = "group"
+
+    (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
+/** Dendrogram visualization fixture. Four 2-D points in two tight pairs give
+  * scipy linkage a stable, non-degenerate hierarchy for Plotly JSON parity. */
+object DendrogramVisualizationHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[DendrogramOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val schema = new Schema(
+      new Attribute("x", AttributeType.DOUBLE),
+      new Attribute("y", AttributeType.DOUBLE),
+      new Attribute("label", AttributeType.STRING)
+    )
+
+    def tup(x: Double, y: Double, label: String): Tuple = {
+      val builder = Tuple.builder(schema)
+      builder.add(schema.getAttribute("x"), x)
+      builder.add(schema.getAttribute("y"), y)
+      builder.add(schema.getAttribute("label"), label)
+      builder.build()
+    }
+
+    val rows = Seq(
+      tup(1.0, 1.0, "alpha"),
+      tup(1.1, 1.2, "beta"),
+      tup(4.0, 4.0, "gamma"),
+      tup(4.2, 4.1, "delta")
+    )
+    val inputPath = testRoot.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(inputPath, rows.iterator, schema)
+
+    val desc = new DendrogramOpDesc()
+    desc.xVal = "x"
+    desc.yVal = "y"
+    desc.labels = "label"
 
     (desc, Map(PortIdentity(0) -> inputPath))
   }

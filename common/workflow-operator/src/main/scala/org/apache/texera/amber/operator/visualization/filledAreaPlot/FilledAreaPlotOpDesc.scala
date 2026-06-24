@@ -25,14 +25,14 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
-class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
+class FilledAreaPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X-axis Attribute")
@@ -168,6 +168,51 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
          |            yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val colorArg = if (color.nonEmpty) s""", color="$color"""" else ""
+    val facetColumnArg = if (facetColumn) s""", facet_col="$lineGroup"""" else ""
+    val lineGroupArg = if (lineGroup.nonEmpty) s""", line_group="$lineGroup"""" else ""
+    val patternParam = if (pattern.nonEmpty) s""", pattern_shape="$pattern"""" else ""
+    s"""columns = list(in1df.columns)
+       |error = ""
+       |if "$x" not in columns or "$y" not in columns:
+       |    error = "missing attributes"
+       |elif "$lineGroup" != "":
+       |    grouped = in1df.groupby("$lineGroup")
+       |    x_values = None
+       |    tolerance = (len(grouped) // 100) * 5
+       |    count = 0
+       |    for _, group in grouped:
+       |        if x_values == None:
+       |            x_values = set(group["$x"].unique())
+       |        elif set(group["$x"].unique()).intersection(x_values):
+       |            x_values = x_values.union(set(group["$x"].unique()))
+       |        elif not set(group["$x"].unique()).intersection(x_values):
+       |            count += 1
+       |            if count > tolerance:
+       |                error = "X attributes not shared across groups"
+       |
+       |if error == "":
+       |    fig = px.area(in1df, x="$x", y="$y"$colorArg$facetColumnArg$lineGroupArg$patternParam)
+       |    fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Filled area plot saved to output.html")
+       |elif error == "X attributes not shared across groups":
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write('''<h1>Plot is not available, because:</h1>
+       |                      <li>X attribute is not shared across all line groups</li>
+       |                      </ul>''')
+       |elif error == "missing attributes":
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write('''<h1>Plot is not available, because:</h1>
+       |                      <li>X or Y attribute does not exist</li>
+       |                      </ul>''')""".stripMargin
   }
 
 }

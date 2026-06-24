@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -45,7 +45,7 @@ import javax.validation.constraints.{NotNull, Size}
   }
 }
 """)
-class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
+class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "dimensions", required = true)
   @JsonSchemaTitle("Dimensions")
@@ -129,4 +129,37 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
          |"""
     finalcode.encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val dimCols = dimensions.map(c => "\"" + c + "\"").mkString("[", ", ", "]")
+    val colorFilter =
+      if (color != null && color.nonEmpty) s""" & (in1df["$color"].notnull())""" else ""
+    val colorArg =
+      if (color != null && color.nonEmpty) s""", color="$color"""" else ""
+
+    s"""def render_error(error_msg):
+       |    return '''<h1>Parallel coordinates plot is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    table = in1df[in1df[$dimCols].notnull().all(axis=1)$colorFilter].copy()
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("No valid rows after filtering."))
+       |    else:
+       |        fig = px.parallel_coordinates(
+       |            table,
+       |            dimensions=$dimCols$colorArg
+       |        )
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Parallel coordinates plot saved to output.html")""".stripMargin
+  }
+
 }
