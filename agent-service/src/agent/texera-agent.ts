@@ -75,7 +75,7 @@ type ReActStepCallback = (step: ReActStep) => void;
 /**
  * A single Texera agent instance.
  *
- * Owns the conversation (ReAct step tree with HEAD/checkout semantics), the
+ * Owns the conversation (ReAct step tree with HEAD tracking), the
  * workflow being edited (`WorkflowState`), cached operator execution results
  * (`WorkflowResultState`), and the tool surface exposed to the LLM. Each call
  * to `sendMessage` drives one multi-step generation via the Vercel AI SDK,
@@ -296,16 +296,6 @@ export class TexeraAgent {
 
   getAllSteps(): ReActStep[] {
     return Array.from(this.stepsById.values()).filter(s => s.id !== INITIAL_STEP_ID);
-  }
-
-  checkout(stepId: string): boolean {
-    const step = this.stepsById.get(stepId);
-    if (!step && stepId !== INITIAL_STEP_ID) return false;
-    this.head = stepId;
-    if (step?.afterWorkflowContent) {
-      this.workflowState.setWorkflowContent(step.afterWorkflowContent);
-    }
-    return true;
   }
 
   setStepCallback(callback: ReActStepCallback | null): void {

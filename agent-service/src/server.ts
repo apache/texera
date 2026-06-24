@@ -41,13 +41,7 @@ import type {
 } from "./types/agent";
 import { AgentState, OperatorResultSerializationMode } from "./types/agent";
 import type { WsClientCommand, WsServerEvent } from "./types/ws";
-import {
-  WsServerSnapshotEvent,
-  WsServerStepEvent,
-  WsServerStatusEvent,
-  WsServerErrorEvent,
-  WsServerHeadChangeEvent,
-} from "./types/ws";
+import { WsServerSnapshotEvent, WsServerStepEvent, WsServerStatusEvent, WsServerErrorEvent } from "./types/ws";
 import type { OperatorResultSummary } from "./types/execution";
 
 const agentStore = new Map<string, TexeraAgent>();
@@ -315,25 +309,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     const agent = getAgent(id);
     agent.clearHistory();
     return { status: "cleared" };
-  })
-
-  .post("/:id/checkout", ({ params: { id }, body }) => {
-    const agent = getAgent(id);
-    const { stepId } = body as { stepId: string };
-    if (!stepId) throw new Error("stepId is required");
-
-    const success = agent.checkout(stepId);
-    if (!success) throw new Error(`Step ${stepId} not found or checkout failed`);
-
-    const allSteps = agent.getAllSteps();
-    const workflowContent = agent.getWorkflowState().getWorkflowContent();
-
-    broadcastToAgentClients(id, new WsServerHeadChangeEvent(stepId, allSteps, workflowContent));
-
-    return {
-      status: "checked out",
-      headId: stepId,
-    };
   })
 
   .get("/:id/operator-types", ({ params: { id } }) => {
@@ -614,7 +589,7 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
     console.log("         Send: { type: 'WsClientPromptCommand', content: '...' }");
     console.log("         Send: { type: 'WsClientStopCommand' }");
     console.log(
-      "         Recv: { type: 'WsServerSnapshotEvent' | 'WsServerStepEvent' | 'WsServerStatusEvent' | 'WsServerErrorEvent' | 'WsServerHeadChangeEvent', ... }"
+      "         Recv: { type: 'WsServerSnapshotEvent' | 'WsServerStepEvent' | 'WsServerStatusEvent' | 'WsServerErrorEvent', ... }"
     );
   }
 
