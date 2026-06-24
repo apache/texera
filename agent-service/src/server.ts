@@ -541,7 +541,6 @@ export function buildApp() {
 
             broadcastToAgent(agentId, {
               type: "completion",
-              state: agent.getState(),
               operatorResults: getOperatorResultSummaries(agent),
             });
 
@@ -549,6 +548,12 @@ export function buildApp() {
           } catch (error: any) {
             agent.setStepCallback(null);
             broadcastToAgent(agentId, { type: "error", error: error.message });
+          } finally {
+            // The run is over (success or failure) and TexeraAgent.sendMessage has
+            // reset the agent to its resting state (AVAILABLE) in its own finally.
+            // Announce it via a status frame so `completion` stays purely about
+            // results — this also unsticks the client from GENERATING after errors.
+            broadcastToAgent(agentId, { type: "status", state: agent.getState() });
           }
         }
       },

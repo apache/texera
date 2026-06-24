@@ -69,10 +69,11 @@ export interface WsServerStatusMessage extends WsServerMessageBase {
   state: AgentState;
 }
 
-// Terminal message for a finished run.
+// Terminal frame for a finished run: the final authoritative operator-results
+// snapshot. The agent's resting state is delivered separately via a `status`
+// frame emitted at end-of-run, so completion is purely about results.
 export interface WsServerCompletionMessage extends WsServerMessageBase {
   type: "completion";
-  state: AgentState;
   operatorResults: OperatorResults;
 }
 

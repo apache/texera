@@ -524,11 +524,8 @@ export class AgentService {
         break;
 
       case "completion":
-        // Message processing complete
-        if (message.state) {
-          tracking.stateSubject.next(this.mapStateToAgentState(message.state));
-        }
-        // Update operator results on completion
+        // Run finished — apply the final authoritative operator-results snapshot.
+        // The agent's resting state arrives via a separate `status` frame.
         if (message.operatorResults) {
           this.updateOperatorResultSummaries(message.operatorResults);
         }
