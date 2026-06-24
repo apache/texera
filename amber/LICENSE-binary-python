@@ -246,7 +246,7 @@ Python packages:
   - aioitertools==0.13.0
   - annotated-doc==0.0.4
   - annotated-types==0.7.0
-  - anyio==4.14.0
+  - anyio==4.14.1
   - appdirs==1.4.4
   - asn1crypto==1.5.1
   - attrs==26.1.0
