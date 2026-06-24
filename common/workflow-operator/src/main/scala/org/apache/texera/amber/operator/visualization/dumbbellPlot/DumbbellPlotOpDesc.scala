@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -43,7 +43,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
   }
 }
 """)
-class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
+class DumbbellPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "categoryColumnName", required = true)
   @JsonSchemaTitle("Category Column Name")
@@ -191,5 +191,45 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
        |        yield {'html-content': html}
        |
        |""".encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val showLegendsOption = if (showLegends) "showlegend=True" else "showlegend=False"
+    s"""import plotly.graph_objects as go
+       |
+       |def render_error(error_msg):
+       |    return '''<h1>DumbbellPlot is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |else:
+       |    table = in1df
+       |    entityNames = list(table["$comparedColumnName"].unique())
+       |    entityNames = sorted(entityNames, reverse=True)
+       |    categoryValues = ["$dumbbellStartValue", "$dumbbellEndValue"]
+       |    filtered_table = table[(table["$comparedColumnName"].isin(entityNames)) &
+       |                (table["$categoryColumnName"].isin(categoryValues))]
+       |    fig = go.Figure()
+       |    color = 'black'
+       |    for entity in entityNames:
+       |        entity_data = filtered_table[filtered_table["$comparedColumnName"] == entity]
+       |        fig.add_trace(go.Scatter(x=entity_data["$measurementColumnName"],
+       |                                 y=[entity] * len(entity_data),
+       |                                 mode='lines',
+       |                                 name=entity,
+       |                                 line=dict(color=color)))
+       |    fig.update_layout(xaxis_title="$measurementColumnName",
+       |                      yaxis_title="$comparedColumnName",
+       |                      yaxis=dict(categoryorder='array', categoryarray=entityNames),
+       |                      $showLegendsOption,
+       |                      margin=dict(l=0, r=0, b=60, t=0))
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Dumbbell plot saved to output.html")""".stripMargin
   }
 }

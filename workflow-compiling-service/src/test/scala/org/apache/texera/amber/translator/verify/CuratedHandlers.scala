@@ -62,6 +62,16 @@ import org.apache.texera.amber.operator.visualization.contourPlot.{
   ContourPlotOpDesc
 }
 import org.apache.texera.amber.operator.visualization.dendrogram.DendrogramOpDesc
+import org.apache.texera.amber.operator.visualization.dumbbellPlot.DumbbellPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ecdfPlot.ECDFPlotOpDesc
+import org.apache.texera.amber.operator.visualization.figureFactoryTable.{
+  FigureFactoryTableConfig,
+  FigureFactoryTableOpDesc
+}
+import org.apache.texera.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
+import org.apache.texera.amber.operator.visualization.funnelPlot.FunnelPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ganttChart.GanttChartOpDesc
+import org.apache.texera.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
 import org.apache.texera.amber.operator.visualization.lineChart.LineMode
 import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 import org.apache.texera.amber.operator.visualization.hierarchychart.HierarchySection
@@ -109,6 +119,13 @@ object CuratedHandlers {
     BoxViolinPlotVisualizationHandler,
     ImageVisualizerVisualizationHandler,
     ScatterMatrixVisualizationHandler,
+    DumbbellPlotVisualizationHandler,
+    ECDFPlotVisualizationHandler,
+    FigureFactoryTableVisualizationHandler,
+    FilledAreaPlotVisualizationHandler,
+    FunnelPlotVisualizationHandler,
+    GanttChartVisualizationHandler,
+    GaugeChartVisualizationHandler,
     DendrogramVisualizationHandler
   )
 
@@ -880,6 +897,225 @@ object ScatterMatrixVisualizationHandler extends TransformHandler {
     val desc = new ScatterMatrixChartOpDesc()
     desc.selectedAttributes = List("x", "y", "z")
     desc.color = "group"
+
+    (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
+/** DumbbellPlot visualization fixture with two entities and start/end periods. */
+object DumbbellPlotVisualizationHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[DumbbellPlotOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val schema = new Schema(
+      new Attribute("entity", AttributeType.STRING),
+      new Attribute("period", AttributeType.STRING),
+      new Attribute("value", AttributeType.DOUBLE)
+    )
+
+    def tup(entity: String, period: String, value: Double): Tuple = {
+      val builder = Tuple.builder(schema)
+      builder.add(schema.getAttribute("entity"), entity)
+      builder.add(schema.getAttribute("period"), period)
+      builder.add(schema.getAttribute("value"), value)
+      builder.build()
+    }
+
+    val rows = Seq(
+      tup("Alpha", "start", 10.0),
+      tup("Alpha", "end", 20.0),
+      tup("Beta", "start", 15.0),
+      tup("Beta", "end", 25.0)
+    )
+    val inputPath = testRoot.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(inputPath, rows.iterator, schema)
+
+    val desc = new DumbbellPlotOpDesc()
+    desc.categoryColumnName = "period"
+    desc.dumbbellStartValue = "start"
+    desc.dumbbellEndValue = "end"
+    desc.measurementColumnName = "value"
+    desc.comparedColumnName = "entity"
+
+    (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
+/** ECDFPlot visualization fixture with a stable numeric sample. */
+object ECDFPlotVisualizationHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[ECDFPlotOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val schema = new Schema(new Attribute("value", AttributeType.DOUBLE))
+
+    def tup(value: Double): Tuple = {
+      val builder = Tuple.builder(schema)
+      builder.add(schema.getAttribute("value"), value)
+      builder.build()
+    }
+
+    val rows = Seq(tup(1.0), tup(2.0), tup(3.0), tup(4.0), tup(5.0))
+    val inputPath = testRoot.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(inputPath, rows.iterator, schema)
+
+    val desc = new ECDFPlotOpDesc()
+    desc.valueColumn = "value"
+
+    (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
+/** FigureFactoryTable visualization fixture with two text columns. */
+object FigureFactoryTableVisualizationHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[FigureFactoryTableOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val schema = new Schema(
+      new Attribute("name", AttributeType.STRING),
+      new Attribute("score", AttributeType.INTEGER)
+    )
+
+    def tup(name: String, score: Int): Tuple = {
+      val builder = Tuple.builder(schema)
+      builder.add(schema.getAttribute("name"), name)
+      builder.add(schema.getAttribute("score"), Int.box(score))
+      builder.build()
+    }
+
+    val rows = Seq(tup("alpha", 10), tup("beta", 20), tup("gamma", 30))
+    val inputPath = testRoot.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(inputPath, rows.iterator, schema)
+
+    val nameCol = new FigureFactoryTableConfig()
+    nameCol.attributeName = "name"
+    val scoreCol = new FigureFactoryTableConfig()
+    scoreCol.attributeName = "score"
+
+    val desc = new FigureFactoryTableOpDesc()
+    desc.columns = List(nameCol, scoreCol)
+    desc.fontSize = 12
+    desc.rowHeight = 30
+    desc.fontColor = "#000000"
+
+    (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
+/** FilledAreaPlot visualization fixture with a simple monotonic series. */
+object FilledAreaPlotVisualizationHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[FilledAreaPlotOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val schema = new Schema(
+      new Attribute("x", AttributeType.INTEGER),
+      new Attribute("y", AttributeType.INTEGER)
+    )
+
+    def tup(x: Int, y: Int): Tuple = {
+      val builder = Tuple.builder(schema)
+      builder.add(schema.getAttribute("x"), Int.box(x))
+      builder.add(schema.getAttribute("y"), Int.box(y))
+      builder.build()
+    }
+
+    val rows = Seq(tup(1, 2), tup(2, 4), tup(3, 3), tup(4, 5))
+    val inputPath = testRoot.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(inputPath, rows.iterator, schema)
+
+    val desc = new FilledAreaPlotOpDesc()
+    desc.x = "x"
+    desc.y = "y"
+    desc.facetColumn = false
+
+    (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
+/** FunnelPlot visualization fixture with decreasing stage counts. */
+object FunnelPlotVisualizationHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[FunnelPlotOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val schema = new Schema(
+      new Attribute("stage", AttributeType.STRING),
+      new Attribute("count", AttributeType.INTEGER)
+    )
+
+    def tup(stage: String, count: Int): Tuple = {
+      val builder = Tuple.builder(schema)
+      builder.add(schema.getAttribute("stage"), stage)
+      builder.add(schema.getAttribute("count"), Int.box(count))
+      builder.build()
+    }
+
+    val rows = Seq(tup("Visit", 100), tup("Signup", 60), tup("Purchase", 30))
+    val inputPath = testRoot.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(inputPath, rows.iterator, schema)
+
+    val desc = new FunnelPlotOpDesc()
+    desc.x = "count"
+    desc.y = "stage"
+
+    (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
+/** GanttChart visualization fixture with two non-overlapping tasks. */
+object GanttChartVisualizationHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[GanttChartOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    // TupleIO MVP writes STRING/INT/DOUBLE only; ISO datetime strings are
+    // sufficient for px.timeline on both the Texera and standalone paths.
+    val schema = new Schema(
+      new Attribute("task", AttributeType.STRING),
+      new Attribute("start", AttributeType.STRING),
+      new Attribute("finish", AttributeType.STRING)
+    )
+
+    def tup(task: String, start: String, finish: String): Tuple = {
+      val builder = Tuple.builder(schema)
+      builder.add(schema.getAttribute("task"), task)
+      builder.add(schema.getAttribute("start"), start)
+      builder.add(schema.getAttribute("finish"), finish)
+      builder.build()
+    }
+
+    val rows = Seq(
+      tup("Design", "2024-01-01 09:00:00", "2024-01-01 11:00:00"),
+      tup("Build", "2024-01-01 11:00:00", "2024-01-01 15:00:00")
+    )
+    val inputPath = testRoot.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(inputPath, rows.iterator, schema)
+
+    val desc = new GanttChartOpDesc()
+    desc.task = "task"
+    desc.start = "start"
+    desc.finish = "finish"
+
+    (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
+/** GaugeChart visualization fixture with a single numeric reading. */
+object GaugeChartVisualizationHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[GaugeChartOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val schema = new Schema(new Attribute("score", AttributeType.DOUBLE))
+
+    def tup(score: Double): Tuple = {
+      val builder = Tuple.builder(schema)
+      builder.add(schema.getAttribute("score"), score)
+      builder.build()
+    }
+
+    val rows = Seq(tup(72.5))
+    val inputPath = testRoot.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(inputPath, rows.iterator, schema)
+
+    val desc = new GaugeChartOpDesc()
+    desc.value = "score"
 
     (desc, Map(PortIdentity(0) -> inputPath))
   }

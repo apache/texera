@@ -35,6 +35,13 @@ import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMa
 import org.apache.texera.amber.operator.visualization.continuousErrorBands.ContinuousErrorBandsOpDesc
 import org.apache.texera.amber.operator.visualization.contourPlot.ContourPlotOpDesc
 import org.apache.texera.amber.operator.visualization.dendrogram.DendrogramOpDesc
+import org.apache.texera.amber.operator.visualization.dumbbellPlot.DumbbellPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ecdfPlot.ECDFPlotOpDesc
+import org.apache.texera.amber.operator.visualization.figureFactoryTable.FigureFactoryTableOpDesc
+import org.apache.texera.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
+import org.apache.texera.amber.operator.visualization.funnelPlot.FunnelPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ganttChart.GanttChartOpDesc
+import org.apache.texera.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
 import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -58,6 +65,13 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     disposition(classOf[ContinuousErrorBandsOpDesc]) shouldBe Runnable("visualization")
     disposition(classOf[ContourPlotOpDesc]) shouldBe Runnable("visualization")
     disposition(classOf[DendrogramOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[DumbbellPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[ECDFPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[FigureFactoryTableOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[FilledAreaPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[FunnelPlotOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[GanttChartOpDesc]) shouldBe Runnable("visualization")
+    disposition(classOf[GaugeChartOpDesc]) shouldBe Runnable("visualization")
     disposition(classOf[DotPlotOpDesc]) shouldBe Runnable("visualization")
     disposition(classOf[IcicleChartOpDesc]) shouldBe Runnable("visualization")
     disposition(classOf[BubbleChartOpDesc]) shouldBe Runnable("visualization")
@@ -120,6 +134,34 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
 
   it should "verify DendrogramOpDesc end-to-end via Plotly JSON comparison" in {
     TransformVerificationRunner.run(classOf[DendrogramOpDesc])
+  }
+
+  it should "verify DumbbellPlotOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[DumbbellPlotOpDesc])
+  }
+
+  it should "verify ECDFPlotOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[ECDFPlotOpDesc])
+  }
+
+  it should "verify FigureFactoryTableOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[FigureFactoryTableOpDesc])
+  }
+
+  it should "verify FilledAreaPlotOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[FilledAreaPlotOpDesc])
+  }
+
+  it should "verify FunnelPlotOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[FunnelPlotOpDesc])
+  }
+
+  it should "verify GanttChartOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[GanttChartOpDesc])
+  }
+
+  it should "verify GaugeChartOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[GaugeChartOpDesc])
   }
 
   it should "verify IcicleChartOpDesc end-to-end via Plotly JSON comparison" in {

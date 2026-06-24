@@ -26,11 +26,11 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class GaugeChartOpDesc extends PythonOperatorDescriptor {
+class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Gauge Value")
   @JsonPropertyDescription("The primary value displayed on the gauge chart")
@@ -184,5 +184,91 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
          |        except Exception as e:
          |            yield {'html-content': self.render_error(f"General error: {str(e)}")}
          |""".encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val stepsStr: EncodableString = serializeSteps(steps)
+    s"""import plotly.graph_objects as go
+       |import json
+       |
+       |def render_error(error_msg):
+       |    return '''<h1>Gauge chart is not available.</h1>
+       |              <p>Reason: {} </p>'''.format(error_msg)
+       |
+       |def generate_gray_gradient(step_count):
+       |    colors = []
+       |    for i in range(step_count):
+       |        lightness = 90 - (i * (60 / max(1, step_count - 1)))
+       |        colors.append(f"hsl(0, 0%, {lightness}%)")
+       |    return colors
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    gauge_value = "$value"
+       |    try:
+       |        delta_ref = float("$delta") if "$delta".strip() else None
+       |    except ValueError:
+       |        delta_ref = None
+       |    try:
+       |        threshold_val = float("$threshold") if "$threshold".strip() else None
+       |    except ValueError:
+       |        threshold_val = None
+       |    table = in1df.dropna(subset=[gauge_value])
+       |    if table.empty:
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write(render_error("No non-null rows found for the value column."))
+       |    else:
+       |        try:
+       |            valid_steps = json.loads('''$stepsStr''')
+       |            step_colors = generate_gray_gradient(len(valid_steps))
+       |            steps_list = []
+       |            for index, step_data in enumerate(valid_steps):
+       |                color = step_colors[index]
+       |                steps_list.append({
+       |                    "range": [float(step_data["start"]), float(step_data["end"])],
+       |                    "color": color
+       |                })
+       |        except Exception:
+       |            steps_list = []
+       |        row = table.iloc[0]
+       |        actual = float(row[gauge_value])
+       |        max_val = actual
+       |        if delta_ref is not None:
+       |            max_val = max(max_val, delta_ref)
+       |        if threshold_val is not None:
+       |            max_val = max(max_val, threshold_val)
+       |        if steps_list:
+       |            for r in steps_list:
+       |                max_val = max(max_val, r["range"][1])
+       |        gauge_config = {'axis': {'range': [None, max_val * 1.2]}}
+       |        if steps_list:
+       |            gauge_config['steps'] = steps_list
+       |        if threshold_val is not None:
+       |            gauge_config['threshold'] = {
+       |                "value": threshold_val,
+       |                "line": {"color": "red", "width": 3},
+       |                "thickness": 0.75
+       |            }
+       |        mode_parts = ["number", "gauge"]
+       |        if delta_ref is not None:
+       |            mode_parts.append("delta")
+       |        mode = "+".join(mode_parts)
+       |        delta_config = {"reference": delta_ref} if delta_ref is not None else None
+       |        fig = go.Figure(go.Indicator(
+       |            mode=mode,
+       |            value=actual,
+       |            delta=delta_config,
+       |            gauge=gauge_config,
+       |            domain={"x": [0, 1], "y": [0, 1]},
+       |            title={"text": gauge_value}
+       |        ))
+       |        fig.update_layout(margin=dict(l=20, r=20, b=40, t=60), height=250)
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Gauge chart saved to output.html")""".stripMargin
   }
 }

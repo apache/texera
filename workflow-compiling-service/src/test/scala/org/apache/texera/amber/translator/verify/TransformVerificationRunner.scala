@@ -51,6 +51,13 @@ import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMa
 import org.apache.texera.amber.operator.visualization.continuousErrorBands.ContinuousErrorBandsOpDesc
 import org.apache.texera.amber.operator.visualization.contourPlot.ContourPlotOpDesc
 import org.apache.texera.amber.operator.visualization.dendrogram.DendrogramOpDesc
+import org.apache.texera.amber.operator.visualization.dumbbellPlot.DumbbellPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ecdfPlot.ECDFPlotOpDesc
+import org.apache.texera.amber.operator.visualization.figureFactoryTable.FigureFactoryTableOpDesc
+import org.apache.texera.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
+import org.apache.texera.amber.operator.visualization.funnelPlot.FunnelPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ganttChart.GanttChartOpDesc
+import org.apache.texera.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
 import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 
 import java.nio.file.{Files, Path}
@@ -94,6 +101,13 @@ object TransformVerificationRunner {
     classOf[ContinuousErrorBandsOpDesc],
     classOf[ContourPlotOpDesc],
     classOf[DendrogramOpDesc],
+    classOf[DumbbellPlotOpDesc],
+    classOf[ECDFPlotOpDesc],
+    classOf[FigureFactoryTableOpDesc],
+    classOf[FilledAreaPlotOpDesc],
+    classOf[FunnelPlotOpDesc],
+    classOf[GanttChartOpDesc],
+    classOf[GaugeChartOpDesc],
     classOf[DotPlotOpDesc],
     classOf[IcicleChartOpDesc],
     classOf[BubbleChartOpDesc],
