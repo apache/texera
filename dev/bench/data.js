@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781394720113,
+  "lastUpdate": 1782308015667,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -1206,6 +1206,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=10 sl=64",
             "value": 929.5848463771631,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "1c580e59eb69bc45205298606c3980c67a05803f",
+          "message": "fix(execution-service): surface init-time fatal errors to the websocket (#5781)\n\n### What changes were proposed in this PR?\n\nWhen workflow execution initialization fails, the error was recorded\ninto the execution metadata store but never pushed to the websocket, so\nconnected frontend clients saw nothing — particularly for failures\nduring `WorkflowExecutionService` construction, which happens *before*\nthe execution is published to subscribers.\n\n`WorkflowService.initExecutionService`'s catch arm now, after\n`errorHandler(e)` records the fatal error, pushes a `WorkflowErrorEvent`\n(carrying the recorded fatal errors) to `errorSubject` — the\nworkflow-level channel that `connect()` subscribers listen on — so\ninit-time failures surface in the UI.\n\n| init failure | before | after |\n|---|---|---|\n| during `WorkflowExecutionService` construction (pre-publish) | logged\n+ stored, invisible to the UI | `WorkflowErrorEvent` delivered to the\nfrontend |\n| during `executeWorkflow()` | recorded; UI delivery depended on\nsubscription timing | `WorkflowErrorEvent` delivered to the frontend |\n\nThe push is extracted into a small `reportFatalErrorsToSubscribers`\nmethod so it can be unit-tested without a database (the init path itself\nis DB-bound).\n\n### Any related issues, documentation, discussions?\n\nResolves #5782. Discovered while splitting #5700 (loop operators) into\nsmaller PRs; this fix is independent of that feature and applies to\n`main` on its own.\n\n### How was this PR tested?\n\nNew `WorkflowServiceSpec` (TDD, red → green): pins that\n`reportFatalErrorsToSubscribers` delivers a `WorkflowErrorEvent` to a\n`connect()` subscriber carrying exactly the fatal errors recorded in the\nexecution state store (single error, and all errors when several are\npresent). `sbt \"WorkflowExecutionService/testOnly *WorkflowServiceSpec\"`\npasses (2/2); scalafmt + scalafix clean.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nCo-authored with Claude Opus 4.8 in compliance with ASF.",
+          "timestamp": "2026-06-24T02:45:12Z",
+          "url": "https://github.com/apache/texera/commit/1c580e59eb69bc45205298606c3980c67a05803f"
+        },
+        "date": 1782308015128,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 650.4837531886355,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1287.5991093248963,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1436.9147097894797,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 831.5202916863423,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1357.723035471166,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1433.19306222954,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 866.5715022106941,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1360.2078935161044,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1415.5968699209252,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 726.9270055469568,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1066.155601084265,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1128.9386124527498,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 799.6982169242415,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1068.5158034731887,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1113.6476343352147,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 788.2748197519269,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1041.7613219142518,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1103.0001561273777,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 478.8542612687155,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 587.0580209295506,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 595.2581678307049,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 473.5436054480575,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 580.5323390138135,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 587.4811430192561,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 457.91222640313714,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 559.0628391186693,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 564.6111496289036,
             "unit": "tuples/sec"
           }
         ]
