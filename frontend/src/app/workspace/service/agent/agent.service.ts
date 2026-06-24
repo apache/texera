@@ -449,7 +449,7 @@ export class AgentService {
    */
   private handleWebSocketMessage(agentId: string, tracking: AgentStateTracking, message: any): void {
     switch (message.type) {
-      case "init":
+      case "snapshot":
         // Initial state and steps
         if (message.state) {
           tracking.stateSubject.next(this.mapStateToAgentState(message.state));
@@ -516,14 +516,14 @@ export class AgentService {
         }
         break;
 
-      case "state":
+      case "status":
         // State update
         if (message.state) {
           tracking.stateSubject.next(this.mapStateToAgentState(message.state));
         }
         break;
 
-      case "complete":
+      case "completion":
         // Message processing complete
         if (message.state) {
           tracking.stateSubject.next(this.mapStateToAgentState(message.state));
@@ -909,7 +909,7 @@ export class AgentService {
     }
 
     const wsMessage = {
-      type: "message",
+      type: "prompt",
       content: message,
       messageSource,
     };
@@ -967,7 +967,7 @@ export class AgentService {
     if (tracking?.websocket && tracking.websocket.readyState === WebSocket.OPEN) {
       // Send stop via WebSocket for immediate effect
       try {
-        tracking.websocket.send(JSON.stringify({ type: "stop" }));
+        tracking.websocket.send(JSON.stringify({ type: "command", commandType: "stop" }));
       } catch (error) {
         console.error("Failed to send stop command:", error);
       }

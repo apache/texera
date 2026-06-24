@@ -17,7 +17,8 @@
  * under the License.
  */
 
-export * from "./workflow";
-export * from "./execution";
-export * from "./agent";
-export * from "./ws";
+// WebSocket frames for this service's own protocol (/agents/:id/react):
+// inbound client requests and the outbound server messages it pushes back.
+
+export * from "./client";
+export * from "./server";

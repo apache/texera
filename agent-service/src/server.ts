@@ -39,7 +39,8 @@ import type {
   AgentSettingsApi,
   ReActStep,
 } from "./types/agent";
-import { OperatorResultSerializationMode } from "./types/agent";
+import { AgentState, OperatorResultSerializationMode } from "./types/agent";
+import type { WsClientRequest, WsServerMessage, WsServerSnapshotMessage, OperatorResultSummaryWs } from "./types/ws";
 
 const agentStore = new Map<string, TexeraAgent>();
 let agentCounter = 0;
@@ -410,37 +411,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   );
 
-interface WsMessage {
-  type: "message" | "stop";
-  content?: string;
-  messageSource?: "chat" | "feedback";
-}
-
-interface OperatorResultSummaryWs {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
-  outputColumns?: number;
-  error?: string;
-  warnings?: string[];
-  consoleLogCount?: number;
-  totalRowCount?: number;
-  sampleRecords?: Record<string, any>[];
-  resultStatistics?: Record<string, string>;
-}
-
-interface WsOutgoingMessage {
-  type: "step" | "state" | "error" | "complete" | "init" | "headChange";
-  step?: ReActStep;
-  state?: string;
-  error?: string;
-  steps?: ReActStep[];
-  headId?: string;
-  operatorResults?: Record<string, OperatorResultSummaryWs>;
-  workflowContent?: any;
-}
-
 function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummaryWs> {
   const resultState = agent.getWorkflowResultState();
   const visible = resultState.getAllVisible();
@@ -464,7 +434,7 @@ function getOperatorResultSummaries(agent: TexeraAgent): Record<string, Operator
   return results;
 }
 
-function broadcastToAgent(agentId: string, message: WsOutgoingMessage): void {
+function broadcastToAgent(agentId: string, message: WsServerMessage): void {
   const agent = agentStore.get(agentId);
   if (!agent) return;
 
@@ -504,14 +474,14 @@ export function buildApp() {
 
         agent.addWebsocket(ws);
 
-        const initMessage: WsOutgoingMessage = {
-          type: "init",
+        const snapshotMessage: WsServerSnapshotMessage = {
+          type: "snapshot",
           state: agent.getState(),
           steps: agent.getAllSteps(),
           headId: agent.getHead(),
           operatorResults: getOperatorResultSummaries(agent),
         };
-        ws.send(JSON.stringify(initMessage));
+        ws.send(JSON.stringify(snapshotMessage));
       },
 
       async message(ws, messageData) {
@@ -523,21 +493,23 @@ export function buildApp() {
           return;
         }
 
-        let msg: WsMessage;
+        let msg: WsClientRequest;
         try {
-          msg = typeof messageData === "string" ? JSON.parse(messageData) : (messageData as WsMessage);
+          msg = typeof messageData === "string" ? JSON.parse(messageData) : (messageData as WsClientRequest);
         } catch {
           ws.send(JSON.stringify({ type: "error", error: "Invalid message format" }));
           return;
         }
 
-        if (msg.type === "stop") {
-          agent.stop();
-          broadcastToAgent(agentId, { type: "state", state: "STOPPING" });
+        if (msg.type === "command") {
+          if (msg.commandType === "stop") {
+            agent.stop();
+            broadcastToAgent(agentId, { type: "status", state: AgentState.STOPPING });
+          }
           return;
         }
 
-        if (msg.type === "message") {
+        if (msg.type === "prompt") {
           if (!msg.content || typeof msg.content !== "string") {
             ws.send(JSON.stringify({ type: "error", error: "Message content is required" }));
             return;
@@ -554,7 +526,7 @@ export function buildApp() {
             });
           });
 
-          broadcastToAgent(agentId, { type: "state", state: "GENERATING" });
+          broadcastToAgent(agentId, { type: "status", state: AgentState.GENERATING });
 
           try {
             const result = await agent.sendMessage(msg.content, msg.messageSource);
@@ -568,7 +540,7 @@ export function buildApp() {
             }
 
             broadcastToAgent(agentId, {
-              type: "complete",
+              type: "completion",
               state: agent.getState(),
               operatorResults: getOperatorResultSummaries(agent),
             });
@@ -630,9 +602,9 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
     for (const route of wsRoutes) {
       console.log(`  WS     ${route.path}`);
     }
-    console.log("         Send: { type: 'message', content: '...' }");
-    console.log("         Send: { type: 'stop' }");
-    console.log("         Recv: { type: 'step' | 'state' | 'complete' | 'error' | 'init', ... }");
+    console.log("         Send: { type: 'prompt', content: '...' }");
+    console.log("         Send: { type: 'command', commandType: 'stop' }");
+    console.log("         Recv: { type: 'snapshot' | 'step' | 'status' | 'completion' | 'error' | 'headChange', ... }");
   }
 
   console.log("");
