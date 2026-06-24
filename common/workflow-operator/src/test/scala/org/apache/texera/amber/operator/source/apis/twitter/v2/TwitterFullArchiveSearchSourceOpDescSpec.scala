@@ -85,5 +85,6 @@ class TwitterFullArchiveSearchSourceOpDescSpec extends AnyFlatSpec with Matchers
     r.toDateTime shouldBe "2021-05-01T00:00:00Z"
     r.limit shouldBe 50
     r.apiKey shouldBe "k"
+    r.apiSecretKey shouldBe "s"
   }
 }

@@ -79,8 +79,16 @@ class RedditSearchSourceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("subreddit('all').search")
   }
 
-  it should "throw when generated without the required credentials" in {
-    intercept[NullPointerException](new RedditSearchSourceOpDesc().generatePythonCode())
+  it should "embed runtime ValueError guards for the required fields" in {
+    val d = new RedditSearchSourceOpDesc
+    d.clientId = "id"
+    d.clientSecret = "secret"
+    d.query = "texera"
+    d.sorting = RedditSourceOperatorFunction.Hot
+    val code = d.generatePythonCode()
+    code should include("raise ValueError('Client Id cannot be None.')")
+    code should include("raise ValueError('Client Secret cannot be None.')")
+    code should include("raise ValueError('Query cannot be None.')")
   }
 
   "RedditSearchSourceOpDesc" should "round-trip its config fields through the polymorphic base" in {
@@ -96,6 +104,7 @@ class RedditSearchSourceOpDescSpec extends AnyFlatSpec with Matchers {
     restored shouldBe a[RedditSearchSourceOpDesc]
     val r = restored.asInstanceOf[RedditSearchSourceOpDesc]
     r.clientId shouldBe "id"
+    r.clientSecret shouldBe "secret"
     r.query shouldBe "texera"
     r.limit.intValue shouldBe 50
     r.sorting shouldBe RedditSourceOperatorFunction.New
