@@ -38,8 +38,10 @@ import {
   USER_DATASET,
   USER_DISCUSSION,
   USER_PROJECT,
+  USER_PYTHON_VENV,
   USER_QUOTA,
   USER_WORKFLOW,
+  USER_FEEDBACK,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
@@ -109,8 +111,10 @@ export class DashboardComponent implements OnInit {
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
   protected readonly USER_DATASET = USER_DATASET;
   protected readonly USER_COMPUTING_UNIT = USER_COMPUTING_UNIT;
+  protected readonly USER_PYTHON_VENV = USER_PYTHON_VENV;
   protected readonly USER_QUOTA = USER_QUOTA;
   protected readonly USER_DISCUSSION = USER_DISCUSSION;
+  protected readonly USER_FEEDBACK = USER_FEEDBACK;
   protected readonly ADMIN_USER = ADMIN_USER;
   protected readonly ADMIN_GMAIL = ADMIN_GMAIL;
   protected readonly ADMIN_EXECUTION = ADMIN_EXECUTION;

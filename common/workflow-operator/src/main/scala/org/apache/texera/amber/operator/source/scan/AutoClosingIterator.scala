@@ -35,8 +35,8 @@ class AutoClosingIterator[T](iter: Iterator[T], onClose: () => Unit) extends Ite
   override def hasNext: Boolean = {
     val hn = iter.hasNext
     if (!hn && !alreadyClosed) {
-      onClose()
       alreadyClosed = true
+      onClose()
     }
     hn
   }

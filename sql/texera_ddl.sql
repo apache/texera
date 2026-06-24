@@ -76,6 +76,7 @@ DROP TABLE IF EXISTS site_settings CASCADE;
 DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
 DROP TABLE IF EXISTS notebook CASCADE;
 DROP TABLE IF EXISTS workflow_notebook_mapping CASCADE;
+DROP TABLE IF EXISTS virtual_environments CASCADE;
 
 -- ============================================
 -- 4. Create PostgreSQL enum types
@@ -119,6 +120,16 @@ CREATE TABLE IF NOT EXISTS user_config
     key   VARCHAR(256) NOT NULL,
     value TEXT NOT NULL,
     PRIMARY KEY (uid, key),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+    );
+
+-- feedback
+CREATE TABLE IF NOT EXISTS feedback
+(
+    fid           SERIAL PRIMARY KEY,
+    uid           INT NOT NULL,
+    message       TEXT NOT NULL,
+    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
 
@@ -211,6 +222,17 @@ CREATE TABLE IF NOT EXISTS workflow_computing_unit
     uri                TEXT NOT NULL DEFAULT '',
     resource           TEXT DEFAULT '',
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
+
+-- virtual_environments table
+CREATE TABLE IF NOT EXISTS virtual_environments
+(
+    veid     SERIAL PRIMARY KEY,
+    uid      INT           NOT NULL,
+    name     VARCHAR(128)  NOT NULL,
+    packages JSONB         NOT NULL DEFAULT '{}'::jsonb,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    UNIQUE (uid, name)
 );
 
 -- workflow_executions

@@ -23,7 +23,7 @@ import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
 import io.dropwizard.auth.Auth
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.config.UserSystemConfig
+import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_VERSION
 import org.apache.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}

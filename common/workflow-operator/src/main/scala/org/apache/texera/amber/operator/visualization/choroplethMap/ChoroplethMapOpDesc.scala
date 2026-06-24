@@ -30,6 +30,8 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
+import javax.validation.constraints.NotNull
+
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -50,6 +52,7 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor {
     "Column used to describe location. Currently only supports countries and needs to be three-letter ISO country code"
   )
   @AutofillAttributeName
+  @NotNull(message = "Locations Column cannot be empty")
   var locations: EncodableString = ""
 
   @JsonProperty(value = "color", required = true)
@@ -58,6 +61,7 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor {
     "Column used to determine intensity of color of the region"
   )
   @AutofillAttributeName
+  @NotNull(message = "Color Column cannot be empty")
   var color: EncodableString = ""
 
   override def getOutputSchemas(
@@ -76,15 +80,16 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor {
     )
 
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(locations.nonEmpty)
-    assert(color.nonEmpty)
+    assert(locations.nonEmpty, "Locations Column cannot be empty")
+    assert(color.nonEmpty, "Color Column cannot be empty")
     pyb"""
        |        table.dropna(subset=[$locations, $color], inplace = True)
        |"""
   }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(locations.nonEmpty && color.nonEmpty)
+    assert(locations.nonEmpty, "Locations Column cannot be empty")
+    assert(color.nonEmpty, "Color Column cannot be empty")
     pyb"""
          |        fig = px.choropleth(table, locations=$locations, color=$color, color_continuous_scale=px.colors.sequential.Plasma)
          |        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})

@@ -33,6 +33,8 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
+import javax.validation.constraints.NotEmpty
+
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -47,6 +49,7 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Axes")
   @JsonPropertyDescription("Numeric columns to use as radar axes")
   @AutofillAttributeNameList
+  @NotEmpty(message = "Axes cannot be empty")
   var selectedAttributes: List[EncodableString] = _
 
   @JsonProperty(value = "traceNameAttribute", defaultValue = "No Selection", required = false)
@@ -119,6 +122,7 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor {
     }
 
   def generateRadarPlotCode(): PythonTemplateBuilder = {
+    require(linePattern != null, "Line pattern must be specified")
     val attributes = Option(selectedAttributes).getOrElse(Nil)
     val attrList = attributes.map(attr => pyb"$attr").mkString(", ")
     val traceNameCol = optionalColumnExpr(traceNameAttribute)

@@ -25,6 +25,7 @@ import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-q
 import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
 import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
+import { UserVenvComponent } from "./dashboard/component/user/user-venv/user-venv.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { AboutComponent } from "./hub/component/about/about.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
@@ -33,6 +34,7 @@ import { AdminExecutionComponent } from "./dashboard/component/admin/execution/a
 import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
 import { SearchComponent } from "./dashboard/component/user/search/search.component";
 import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
+import { FeedbackComponent } from "./dashboard/component/user/feedback/feedback.component";
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
@@ -129,12 +131,20 @@ routes.push({
           component: UserComputingUnitComponent,
         },
         {
+          path: "python-venv",
+          component: UserVenvComponent,
+        },
+        {
           path: "quota",
           component: UserQuotaComponent,
         },
         {
           path: "discussion",
           component: FlarumComponent,
+        },
+        {
+          path: "feedback",
+          component: FeedbackComponent,
         },
       ],
     },

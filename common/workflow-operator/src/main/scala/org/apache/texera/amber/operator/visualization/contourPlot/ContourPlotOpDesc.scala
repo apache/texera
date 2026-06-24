@@ -29,24 +29,29 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 class ContourPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("x")
   @JsonPropertyDescription("The column name of X-axis")
   @AutofillAttributeName
+  @NotNull(message = "x cannot be empty")
   var x: EncodableString = ""
 
   @JsonProperty(value = "y", required = true)
   @JsonSchemaTitle("y")
   @JsonPropertyDescription("The column name of Y-axis")
   @AutofillAttributeName
+  @NotNull(message = "y cannot be empty")
   var y: EncodableString = ""
 
   @JsonProperty(value = "z", required = true)
   @JsonSchemaTitle("z")
   @JsonPropertyDescription("The column name of color bar")
   @AutofillAttributeName
+  @NotNull(message = "z cannot be empty")
   var z: EncodableString = ""
 
   @JsonProperty(required = false, defaultValue = "10")
