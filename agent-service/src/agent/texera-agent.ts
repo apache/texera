@@ -722,7 +722,7 @@ export class TexeraAgent {
     const result = new Map<string, string>();
     const visible = this.workflowResultState.getAllVisible();
     for (const [operatorId, entry] of visible) {
-      result.set(operatorId, formatOperatorResult(operatorId, entry.operatorInfo, this.workflowState));
+      result.set(operatorId, formatOperatorResult(operatorId, entry.operatorInfo));
     }
     return result;
   }

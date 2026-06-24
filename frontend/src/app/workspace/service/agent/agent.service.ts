@@ -103,7 +103,7 @@ export interface OperatorResultSummary {
   state: string;
   inputTuples: number;
   outputTuples: number;
-  inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
+  inputPortShapes?: { portIndex: number; rows: number }[];
   outputColumns?: number;
   error?: string;
   warnings?: string[];
@@ -111,6 +111,24 @@ export interface OperatorResultSummary {
   totalRowCount?: number;
   sampleRecords?: Record<string, any>[];
   resultStatistics?: Record<string, string>;
+}
+
+/**
+ * Per-operator execution summary as sent by the agent-service over the
+ * WebSocket / operator-results endpoint (mirror of its OperatorExecutionSummary).
+ * The flat OperatorResultSummary above is derived from this for display.
+ */
+interface WireOperatorExecutionSummary {
+  state: string;
+  errorMessages?: { type: string; message: string }[];
+  resultSummary?: {
+    resultMode: string;
+    sampleTuples: { rowIndex: number; tuple: Record<string, any> }[];
+    totalRowCount: number;
+  };
+  consoleLogsSummary?: {
+    messages: { msgType: string; title: string; message: string }[];
+  };
 }
 
 interface ApiAgentInfo {
@@ -1302,10 +1320,24 @@ export class AgentService {
   /**
    * Update operator result summaries from a WebSocket or API response.
    */
-  private updateOperatorResultSummaries(results: Record<string, OperatorResultSummary>): void {
+  private updateOperatorResultSummaries(results: Record<string, WireOperatorExecutionSummary>): void {
     const summaries = new Map<string, OperatorResultSummary>();
     for (const [opId, data] of Object.entries(results)) {
-      summaries.set(opId, data);
+      summaries.set(opId, {
+        state: data.state,
+        // Tuple counts are no longer carried per-port; output rows come from the
+        // result summary, input shapes are derivable from the DAG when needed.
+        inputTuples: 0,
+        outputTuples: data.resultSummary?.totalRowCount ?? 0,
+        error: data.errorMessages?.map(e => e.message).join("; ") || undefined,
+        warnings: (data.consoleLogsSummary?.messages ?? [])
+          .filter(m => m.title.startsWith("WARNING: "))
+          .map(m => m.title),
+        consoleLogCount: data.consoleLogsSummary?.messages.length,
+        totalRowCount: data.resultSummary?.totalRowCount,
+        // Flatten back to embedded __row_index__ so the display components are unchanged.
+        sampleRecords: data.resultSummary?.sampleTuples?.map(r => ({ __row_index__: r.rowIndex, ...r.tuple })),
+      });
     }
     this.operatorResultSummariesSubject.next(summaries);
   }
@@ -1315,11 +1347,11 @@ export class AgentService {
    */
   public fetchOperatorResults(agentId: string): void {
     this.http
-      .get<{ results: Record<string, OperatorResultSummary> }>(
+      .get<{ results: Record<string, WireOperatorExecutionSummary> }>(
         `${this.AGENT_API_BASE}/agents/${agentId}/operator-results`,
         this.agentHeaders(agentId)
       )
-      .pipe(catchError(() => of({ results: {} as Record<string, OperatorResultSummary> })))
+      .pipe(catchError(() => of({ results: {} as Record<string, WireOperatorExecutionSummary> })))
       .subscribe(response => {
         this.updateOperatorResultSummaries(response.results);
         this.resultAnnotationsVisibleSubject.next(true);

@@ -22,25 +22,12 @@
 // message kind declares exactly the fields it sends.
 
 import type { ReActStep } from "../agent";
+import type { OperatorExecutionSummary } from "../execution";
 import type { WorkflowContent } from "../workflow";
 
-// Wire projection of an operator's execution result, summarized for the client
-// (counts instead of full payloads; only a sample of records).
-export interface OperatorResultSummaryWs {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
-  outputColumns?: number;
-  error?: string;
-  warnings?: string[];
-  consoleLogCount?: number;
-  totalRowCount?: number;
-  sampleRecords?: Record<string, unknown>[];
-  resultStatistics?: Record<string, string>;
-}
-
-type OperatorResults = Record<string, OperatorResultSummaryWs>;
+// The server streams the canonical per-operator execution summaries straight to
+// the client, keyed by operator id.
+type OperatorResults = Record<string, OperatorExecutionSummary>;
 
 interface WsServerMessageBase {
   type: "init" | "step" | "state" | "complete" | "error" | "headChange";

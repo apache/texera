@@ -44,6 +44,9 @@ import org.apache.texera.amber.engine.common.executionruntimestate.{
   ExecutionMetadataStore,
   ExecutionStatsStore
 }
+import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import com.google.protobuf.timestamp.Timestamp
 import io.reactivex.rxjava3.core.Observable
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
@@ -55,12 +58,12 @@ import org.apache.texera.web.service.{ExecutionResultService, WorkflowService}
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 
 import java.net.URI
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 import com.fasterxml.jackson.databind.ObjectMapper
 
 case class SyncExecutionRequest(
@@ -79,32 +82,41 @@ case class ConsoleMessageInfo(
     message: String
 )
 
-case class PortShape(
-    portIndex: Int,
-    rows: Long
+// One sampled output row: the original row position plus the row's columns as a
+// processed/truncated JSON object (not a raw engine Tuple, which would serialize
+// as {schema, fields[]} and bypass the type-aware conversion + cell truncation).
+// The index is carried explicitly rather than embedded in the tuple.
+case class SampleRow(
+    rowIndex: Int,
+    tuple: ObjectNode
 )
 
-case class OperatorInfo(
-    state: String,
-    inputTuples: Long,
-    outputTuples: Long,
-    inputPortShapes: Option[List[PortShape]],
+case class OperatorResultSummary(
     resultMode: String, // "table" or "visualization"
-    result: Option[Any], // JSON array (List[ObjectNode])
-    totalRowCount: Option[Int],
-    displayedRows: Option[Int],
-    truncated: Option[Boolean],
-    consoleLogs: Option[List[ConsoleMessageInfo]],
-    error: Option[String],
-    warnings: Option[List[String]]
+    sampleTuples: List[SampleRow],
+    totalRowCount: Int
 )
 
-case class SyncExecutionResult(
+case class OperatorConsoleLogsSummary(
+    messages: List[ConsoleMessageInfo]
+)
+
+// Per-operator execution summary. Orthogonal sub-summaries replace the previous
+// flat OperatorInfo; must stay in sync with agent-service's OperatorExecutionSummary.
+// `errorMessages` reuses the engine's WorkflowFatalError, the same type the
+// compiling service returns for compilation errors, for one consistent wire shape.
+case class OperatorExecutionSummary(
+    state: String,
+    errorMessages: List[WorkflowFatalError], // empty means the operator did not fail
+    resultSummary: Option[OperatorResultSummary],
+    consoleLogsSummary: Option[OperatorConsoleLogsSummary]
+)
+
+case class WorkflowExecutionSummary(
     success: Boolean,
     state: String,
-    operators: Map[String, OperatorInfo],
-    compilationErrors: Option[Map[String, String]],
-    errors: Option[List[String]]
+    operators: Map[String, OperatorExecutionSummary],
+    errors: List[String] // empty means none
 )
 
 sealed trait TerminationReason
@@ -129,7 +141,7 @@ class SyncExecutionResource extends LazyLogging {
       @PathParam("cuid") computingUnitId: Int,
       request: SyncExecutionRequest,
       @Auth user: SessionUser
-  ): SyncExecutionResult = {
+  ): WorkflowExecutionSummary = {
     val timeoutSeconds = request.timeoutSeconds
 
     val maxOperatorResultCharLimit =
@@ -176,12 +188,11 @@ class SyncExecutionResource extends LazyLogging {
 
       val executionService = workflowService.executionService.getValue
       if (executionService == null) {
-        return SyncExecutionResult(
+        return WorkflowExecutionSummary(
           success = false,
           state = "Error",
           operators = Map.empty,
-          compilationErrors = None,
-          errors = Some(List("Failed to initialize execution service"))
+          errors = List("Failed to initialize execution service")
         )
       }
 
@@ -254,21 +265,19 @@ class SyncExecutionResource extends LazyLogging {
           } catch {
             case _: java.util.concurrent.TimeoutException =>
               killExecution(executionService)
-              return SyncExecutionResult(
+              return WorkflowExecutionSummary(
                 success = false,
                 state = "Killed",
                 operators = Map.empty,
-                compilationErrors = None,
-                errors = Some(List(s"Timeout after $timeoutSeconds seconds"))
+                errors = List(s"Timeout after $timeoutSeconds seconds")
               )
             case e: Exception =>
               logger.error(s"Error waiting for execution: ${e.getMessage}", e)
-              return SyncExecutionResult(
+              return WorkflowExecutionSummary(
                 success = false,
                 state = "Error",
                 operators = Map.empty,
-                compilationErrors = None,
-                errors = Some(List(e.getMessage))
+                errors = List(e.getMessage)
               )
           }
         }
@@ -318,7 +327,7 @@ class SyncExecutionResource extends LazyLogging {
         .map(err => s"${err.`type`}: ${err.message}")
         .toList
 
-      val hasOperatorConsoleError = operatorInfos.values.exists(_.error.isDefined)
+      val hasOperatorConsoleError = operatorInfos.values.exists(_.errorMessages.nonEmpty)
 
       val stateString =
         if (terminatedByConsoleError) "Failed"
@@ -328,12 +337,11 @@ class SyncExecutionResource extends LazyLogging {
       val isSuccess = (finalState.state == COMPLETED || terminatedByTargetResults) &&
         !hasOperatorConsoleError && !terminatedByConsoleError
 
-      SyncExecutionResult(
+      WorkflowExecutionSummary(
         success = isSuccess,
         state = stateString,
         operators = operatorInfos,
-        compilationErrors = None,
-        errors = if (fatalErrors.nonEmpty) Some(fatalErrors) else None
+        errors = fatalErrors
       )
 
     } catch {
@@ -382,8 +390,8 @@ class SyncExecutionResource extends LazyLogging {
       maxOperatorResultCharLimit: Int,
       maxOperatorResultCellCharLimit: Int,
       inMemoryConsoleState: Option[ExecutionConsoleStore] = None
-  ): Map[String, OperatorInfo] = {
-    val operatorInfos = mutable.Map[String, OperatorInfo]()
+  ): Map[String, OperatorExecutionSummary] = {
+    val operatorInfos = mutable.Map[String, OperatorExecutionSummary]()
 
     val statsState = executionService.executionStateStore.statsStore.getState
     val operatorStats = statsState.operatorInfo
@@ -406,23 +414,9 @@ class SyncExecutionResource extends LazyLogging {
 
     for (opId <- targetOps) {
       val stats = operatorStats.get(opId)
-      val (state, inputTuples, outputTuples): (String, Long, Long) = stats match {
-        case Some(s) =>
-          val inputCount = s.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum
-          val outputCount = s.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum
-          (stateToString(s.operatorState), inputCount, outputCount)
-        case None => ("Unknown", 0L, 0L)
-      }
+      val state = stats.map(s => stateToString(s.operatorState)).getOrElse("Unknown")
 
-      val inputPortShapes: Option[List[PortShape]] = stats
-        .map { s =>
-          s.operatorStatistics.inputMetrics.map { pm =>
-            PortShape(pm.portId.id, pm.tupleMetrics.count)
-          }.toList
-        }
-        .filter(_.nonEmpty)
-
-      val (resultMode, result, totalRowCount, displayedRows, truncated) =
+      val (resultMode, result, totalRowCount, _, _) =
         collectOperatorResult(
           executionId,
           opId,
@@ -459,31 +453,40 @@ class SyncExecutionResource extends LazyLogging {
         }
       )
 
-      // Convention: PRINT messages prefixed with "WARNING: " surface as warnings.
-      val warningMsgs = consoleLogs
-        .map(_.filter(_.title.startsWith("WARNING: ")).map(_.title))
-        .filter(_.nonEmpty)
 
-      operatorInfos(opId) = OperatorInfo(
+      // Absent when the operator produced no materialized result. `result` and
+      // `totalRowCount` are populated together, so map over the former.
+      val resultSummary = result.map { tuples =>
+        OperatorResultSummary(
+          resultMode = resultMode,
+          sampleTuples = tuples,
+          totalRowCount = totalRowCount.getOrElse(0)
+        )
+      }
+
+      val consoleLogsSummary = consoleLogs.map { logs =>
+        OperatorConsoleLogsSummary(messages = logs)
+      }
+
+      // Per-operator runtime errors come from console ERROR logs; surface them as
+      // EXECUTION_FAILURE WorkflowFatalErrors (same type the compiler emits for
+      // COMPILATION_ERRORs). Empty list means the operator did not fail.
+      val errorMessages = errorMsg
+        .map(msg => List(WorkflowFatalError(EXECUTION_FAILURE, Timestamp(Instant.now), msg, "", opId)))
+        .getOrElse(List.empty)
+
+      operatorInfos(opId) = OperatorExecutionSummary(
         state = state,
-        inputTuples = inputTuples,
-        outputTuples = outputTuples,
-        inputPortShapes = inputPortShapes,
-        resultMode = resultMode,
-        result = result,
-        totalRowCount = totalRowCount,
-        displayedRows = displayedRows,
-        truncated = truncated,
-        consoleLogs = consoleLogs,
-        error = errorMsg,
-        warnings = warningMsgs
+        errorMessages = errorMessages,
+        resultSummary = resultSummary,
+        consoleLogsSummary = consoleLogsSummary
       )
     }
 
     operatorInfos.toMap
   }
 
-  private def handleExecutionError(e: Exception): SyncExecutionResult = {
+  private def handleExecutionError(e: Exception): WorkflowExecutionSummary = {
     val errorMsg = e.getMessage
     val isCompilationError = errorMsg != null && (
       errorMsg.contains("compilation") ||
@@ -493,20 +496,18 @@ class SyncExecutionResource extends LazyLogging {
     )
 
     if (isCompilationError) {
-      SyncExecutionResult(
+      WorkflowExecutionSummary(
         success = false,
         state = "CompilationFailed",
         operators = Map.empty,
-        compilationErrors = Some(Map("error" -> errorMsg)),
-        errors = Some(List(errorMsg))
+        errors = List(errorMsg)
       )
     } else {
-      SyncExecutionResult(
+      WorkflowExecutionSummary(
         success = false,
         state = "Error",
         operators = Map.empty,
-        compilationErrors = None,
-        errors = Some(List(Option(e.getMessage).getOrElse("Unknown error")))
+        errors = List(Option(e.getMessage).getOrElse("Unknown error"))
       )
     }
   }
@@ -521,9 +522,7 @@ class SyncExecutionResource extends LazyLogging {
       opId: String,
       maxOperatorResultCharLimit: Int,
       maxOperatorResultCellCharLimit: Int
-  ): (String, Option[Any], Option[Int], Option[Int], Option[Boolean]) = {
-    import com.fasterxml.jackson.databind.node.ObjectNode
-
+  ): (String, Option[List[SampleRow]], Option[Int], Option[Int], Option[Boolean]) = {
     try {
       val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
         executionId,
@@ -543,13 +542,7 @@ class SyncExecutionResource extends LazyLogging {
           val tupleIterator = document.get()
 
           if (totalCount == 0 || !tupleIterator.hasNext) {
-            return (
-              "table",
-              Some(List.empty[ObjectNode].asJava),
-              Some(0),
-              Some(0),
-              Some(false)
-            )
+            return ("table", Some(List.empty[SampleRow]), Some(0), Some(0), Some(false))
           }
 
           // A single tuple with html-content / json-content is a visualization payload —
@@ -558,71 +551,53 @@ class SyncExecutionResource extends LazyLogging {
           if (totalCount == 1 && isVisualizationTuple(firstTuple)) {
             val jsonResults =
               ExecutionResultService.convertTuplesToJson(List(firstTuple), isVisualization = true)
-            jsonResults.foreach(
-              _.asInstanceOf[ObjectNode].put("__is_visualization__", true)
-            )
-            return (
-              "visualization",
-              Some(jsonResults),
-              Some(totalCount),
-              Some(1),
-              Some(false)
-            )
+            jsonResults.foreach(_.put("__is_visualization__", true))
+            val rows = jsonResults.zipWithIndex.map { case (json, idx) => SampleRow(idx, json) }
+            return ("visualization", Some(rows), Some(totalCount), Some(1), Some(false))
           }
 
-          // __row_index__ preserves the original position so the frontend can show
-          // "row N" correctly after symmetric truncation drops the middle.
+          // rowIndex preserves the original position so the client can show "row N"
+          // correctly after symmetric truncation drops the middle.
           var rowIndex = 0
           val firstJson = ExecutionResultService.convertTuplesToJson(List(firstTuple)).head
           val truncatedFirst = truncateSingleTuple(firstJson, maxOperatorResultCellCharLimit)
-          truncatedFirst.put("__row_index__", rowIndex)
           val firstSize = estimateTupleSize(truncatedFirst, mapper)
 
           if (firstSize >= maxOperatorResultCharLimit) {
-            return (
-              "table",
-              Some(List(truncatedFirst).asJava),
-              Some(totalCount),
-              Some(1),
-              Some(true)
-            )
+            return ("table", Some(List(SampleRow(rowIndex, truncatedFirst))), Some(totalCount), Some(1), Some(true))
           }
 
           val halfLimit = maxOperatorResultCharLimit / 2
           val truncationNoticeSize = 50 // reserved for the "...skipped..." marker
 
-          val frontTuples = mutable.ListBuffer[ObjectNode](truncatedFirst)
+          val frontRows = mutable.ListBuffer[SampleRow](SampleRow(rowIndex, truncatedFirst))
           var frontSize = firstSize
-          var processedCount = 1
 
           while (tupleIterator.hasNext && frontSize < halfLimit) {
             val tuple = tupleIterator.next()
             rowIndex += 1
-            processedCount += 1
             val jsonTuple = ExecutionResultService.convertTuplesToJson(List(tuple)).head
             val truncatedTuple = truncateSingleTuple(jsonTuple, maxOperatorResultCellCharLimit)
-            truncatedTuple.put("__row_index__", rowIndex)
             val tupleSize = estimateTupleSize(truncatedTuple, mapper)
+            val row = SampleRow(rowIndex, truncatedTuple)
 
             if (frontSize + tupleSize <= halfLimit) {
-              frontTuples += truncatedTuple
+              frontRows += row
               frontSize += tupleSize
             } else {
               // Front is full — switch to a sliding window for the back half.
-              val backBuffer = mutable.ArrayBuffer[(ObjectNode, Int)]()
-              backBuffer += ((truncatedTuple, tupleSize))
+              val backBuffer = mutable.ArrayBuffer[(SampleRow, Int)]()
+              backBuffer += ((row, tupleSize))
               var backSize = tupleSize
 
               while (tupleIterator.hasNext) {
                 val t = tupleIterator.next()
                 rowIndex += 1
-                processedCount += 1
                 val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
                 val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
-                tt.put("__row_index__", rowIndex)
                 val ts = estimateTupleSize(tt, mapper)
 
-                backBuffer += ((tt, ts))
+                backBuffer += ((SampleRow(rowIndex, tt), ts))
                 backSize += ts
 
                 while (backSize > halfLimit - truncationNoticeSize && backBuffer.size > 1) {
@@ -631,34 +606,24 @@ class SyncExecutionResource extends LazyLogging {
                 }
               }
 
-              val backTuples = backBuffer.map(_._1).toList
-              val allTuples = frontTuples.toList ++ backTuples
-              val skippedRows = totalCount - allTuples.size
-
-              return (
-                "table",
-                Some(allTuples.asJava),
-                Some(totalCount),
-                Some(allTuples.size),
-                Some(skippedRows > 0)
-              )
+              val allRows = frontRows.toList ++ backBuffer.map(_._1).toList
+              val skippedRows = totalCount - allRows.size
+              return ("table", Some(allRows), Some(totalCount), Some(allRows.size), Some(skippedRows > 0))
             }
           }
 
           if (tupleIterator.hasNext) {
-            val backBuffer = mutable.ArrayBuffer[(ObjectNode, Int)]()
+            val backBuffer = mutable.ArrayBuffer[(SampleRow, Int)]()
             var backSize = 0
 
             while (tupleIterator.hasNext) {
               val t = tupleIterator.next()
               rowIndex += 1
-              processedCount += 1
               val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
               val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
-              tt.put("__row_index__", rowIndex)
               val ts = estimateTupleSize(tt, mapper)
 
-              backBuffer += ((tt, ts))
+              backBuffer += ((SampleRow(rowIndex, tt), ts))
               backSize += ts
 
               while (backSize > halfLimit - truncationNoticeSize && backBuffer.size > 1) {
@@ -667,25 +632,11 @@ class SyncExecutionResource extends LazyLogging {
               }
             }
 
-            val backTuples = backBuffer.map(_._1).toList
-            val allTuples = frontTuples.toList ++ backTuples
-            val skippedRows = totalCount - allTuples.size
-
-            (
-              "table",
-              Some(allTuples.asJava),
-              Some(totalCount),
-              Some(allTuples.size),
-              Some(skippedRows > 0)
-            )
+            val allRows = frontRows.toList ++ backBuffer.map(_._1).toList
+            val skippedRows = totalCount - allRows.size
+            ("table", Some(allRows), Some(totalCount), Some(allRows.size), Some(skippedRows > 0))
           } else {
-            (
-              "table",
-              Some(frontTuples.toList.asJava),
-              Some(totalCount),
-              Some(frontTuples.size),
-              Some(false)
-            )
+            ("table", Some(frontRows.toList), Some(totalCount), Some(frontRows.size), Some(false))
           }
 
         case None =>
