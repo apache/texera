@@ -513,7 +513,7 @@
               nzType="primary"
               nzSize="small"
               (click)="installFromSavedPve(saved.veid)">
-              Install
+              {{ isSavedPveInstalledInCu(saved.name) ? "Reinstall" : "Install" }}
             </button>
           </div>
         </nz-collapse-panel>

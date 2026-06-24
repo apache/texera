@@ -766,6 +766,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.refreshAvailableDbPves();
   }
 
+  isSavedPveInstalledInCu(name: string): boolean {
+    const trimmed = name.trim();
+    return this.pves.some(p => p.isLocked && p.name.trim() === trimmed);
+  }
+
   private refreshAvailableDbPves(): void {
     this.workflowPveService
       .listUserPves()
