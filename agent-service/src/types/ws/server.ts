@@ -18,14 +18,16 @@
  */
 
 // Server -> client WebSocket frames for this service's protocol
-// (/agents/:id/react). Modeled as a discriminated union on `type` so each
+// (`/agents/:id/react`). Modeled as a discriminated union on `type`, so each
 // message kind declares exactly the fields it sends.
 
 import type { AgentState, ReActStep } from "../agent";
 import type { WorkflowContent } from "../workflow";
 
-// Wire projection of an operator's execution result, summarized for the client
-// (counts instead of full payloads; only a sample of records).
+/**
+ * Wire projection of one operator's execution result, summarized for the
+ * client: counts and a small record sample instead of full payloads.
+ */
 export interface OperatorResultSummaryWs {
   state: string;
   inputTuples: number;
@@ -40,13 +42,19 @@ export interface OperatorResultSummaryWs {
   resultStatistics?: Record<string, string>;
 }
 
+/** Per-operator result summaries, keyed by operator id. */
 type OperatorResults = Record<string, OperatorResultSummaryWs>;
 
+/** Shared discriminator base; every server frame sets a unique `type`. */
 interface WsServerMessageBase {
   type: "snapshot" | "step" | "status" | "completion" | "error" | "headChange";
 }
 
-// Sent once on connect: a snapshot of the agent's current state and steps.
+/**
+ * Full state pushed once when a client connects: the agent's current lifecycle
+ * state, the complete step list, the HEAD pointer, and the latest operator
+ * results.
+ */
 export interface WsServerSnapshotMessage extends WsServerMessageBase {
   type: "snapshot";
   state: AgentState;
@@ -55,36 +63,49 @@ export interface WsServerSnapshotMessage extends WsServerMessageBase {
   operatorResults: OperatorResults;
 }
 
-// A single ReAct step streamed as the agent runs. Operator results accompany
-// steps that ran tools.
+/**
+ * A single ReAct step, streamed live as the agent runs. Carries operator
+ * results when the step ran tools.
+ */
 export interface WsServerStepMessage extends WsServerMessageBase {
   type: "step";
   step: ReActStep;
   operatorResults?: OperatorResults;
 }
 
-// An agent lifecycle transition (e.g. GENERATING, STOPPING).
+/**
+ * An agent lifecycle transition (e.g. GENERATING when a run starts, the resting
+ * state when it ends, STOPPING on stop).
+ */
 export interface WsServerStatusMessage extends WsServerMessageBase {
   type: "status";
   state: AgentState;
 }
 
-// Terminal frame for a finished run: the final authoritative operator-results
-// snapshot. The agent's resting state is delivered separately via a `status`
-// frame emitted at end-of-run, so completion is purely about results.
+/**
+ * Terminal frame for a finished run: the final authoritative operator-results
+ * snapshot. The agent's resting state is delivered separately via a `status`
+ * frame emitted at end-of-run, so completion is purely about results.
+ */
 export interface WsServerCompletionMessage extends WsServerMessageBase {
   type: "completion";
   operatorResults: OperatorResults;
 }
 
-// An error surfaced to the client.
+/** An error surfaced to the client (agent not found, bad request, failed run). */
 export interface WsServerErrorMessage extends WsServerMessageBase {
   type: "error";
   error: string;
 }
 
-// Emitted after a checkout: the head moved, carrying the full step list and the
-// workflow snapshot at the new head.
+/**
+ * Emitted after a checkout: HEAD moved, carrying the full step list and the
+ * workflow snapshot at the new head.
+ *
+ * @deprecated Redundant and unused — the checkout flow that produces this frame
+ * is unreachable in the product (nothing invokes the client's `checkoutStep()`).
+ * Scheduled for removal (see #5930); do not build new code on it.
+ */
 export interface WsServerHeadChangeMessage extends WsServerMessageBase {
   type: "headChange";
   headId: string;
@@ -93,6 +114,7 @@ export interface WsServerHeadChangeMessage extends WsServerMessageBase {
   operatorResults: OperatorResults;
 }
 
+/** Discriminated union of every server -> client frame. */
 export type WsServerMessage =
   | WsServerSnapshotMessage
   | WsServerStepMessage

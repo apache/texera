@@ -18,26 +18,32 @@
  */
 
 // Client -> server WebSocket frames for this service's protocol
-// (/agents/:id/react). Modeled as a discriminated union on `type` so each
-// request kind carries only its own fields, rather than one interface with
-// everything optional.
+// (`/agents/:id/react`). Modeled as a discriminated union on `type`, so each
+// request kind carries only its own fields.
 
+/** Shared discriminator base; every client request sets a unique `type`. */
 interface WsClientRequestBase {
   type: "prompt" | "command";
 }
 
-// A user prompt to run through the agent.
+/**
+ * A user prompt for the agent to run. `messageSource` notes where it
+ * originated (interactive chat vs. an operator feedback action).
+ */
 export interface WsClientRequestPrompt extends WsClientRequestBase {
   type: "prompt";
   content: string;
   messageSource?: "chat" | "feedback";
 }
 
-// A control command. Today the only command stops the in-flight run; the
-// `commandType` discriminator leaves room for additional commands later.
+/**
+ * A control command. Today the only command stops the in-flight run; the
+ * `commandType` discriminator leaves room for more commands later.
+ */
 export interface WsClientRequestStopCommand extends WsClientRequestBase {
   type: "command";
   commandType: "stop";
 }
 
+/** Discriminated union of every client -> server frame. */
 export type WsClientRequest = WsClientRequestPrompt | WsClientRequestStopCommand;
