@@ -36,7 +36,7 @@ class AsterixDBSourceOpDescSpec extends AnyFlatSpec with Matchers {
     "advertise the AsterixDB source in the Database Connector group with no input and one output" in {
     val info = (new AsterixDBSourceOpDesc).operatorInfo
     info.userFriendlyName shouldBe "AsterixDB Source"
-    info.operatorDescription shouldBe "Read data from a AsterixDB instance"
+    info.operatorDescription shouldBe "Read data from an AsterixDB instance"
     info.operatorGroupName shouldBe OperatorGroupConstants.DATABASE_GROUP
     info.inputPorts shouldBe empty
     info.outputPorts should have length 1

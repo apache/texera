@@ -82,17 +82,23 @@ class MySQLSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.host = "localhost"
     d.database = "db"
     d.table = "t"
-    d.username = "u"
+    d.username = "secret-user"
+    d.password = "secret-pass"
     d.limit = Some(5L)
     val json = objectMapper.writeValueAsString(d)
     json should include("\"operatorType\":\"MySQLSource\"")
+    // Unlike AsterixDBSourceOpDesc (which drops credentials via @JsonIgnoreProperties), the SQL
+    // base persists username/password in plaintext; pin that behavior so any future change is visible.
+    json should include("secret-user")
+    json should include("secret-pass")
     val restored = objectMapper.readValue(json, classOf[LogicalOp])
     restored shouldBe a[MySQLSourceOpDesc]
     val r = restored.asInstanceOf[MySQLSourceOpDesc]
     r.host shouldBe "localhost"
     r.database shouldBe "db"
     r.table shouldBe "t"
-    r.username shouldBe "u"
+    r.username shouldBe "secret-user"
+    r.password shouldBe "secret-pass"
     r.limit shouldBe Some(5L)
   }
 }
