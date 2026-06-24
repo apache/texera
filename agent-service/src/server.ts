@@ -571,6 +571,12 @@ export function _resetAgentStoreForTests(): void {
   agentCounter = 0;
 }
 
+// Look up an agent instance by id. Used by tests to stub agent behavior (e.g.
+// `sendMessage`) when exercising the WebSocket handlers.
+export function _getAgentForTests(agentId: string): TexeraAgent | undefined {
+  return agentStore.get(agentId);
+}
+
 function printStartupMessage(app: ReturnType<typeof buildApp>) {
   const LINE = "=".repeat(60);
   console.log(LINE);
