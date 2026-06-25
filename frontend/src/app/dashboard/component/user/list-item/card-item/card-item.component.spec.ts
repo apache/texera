@@ -207,4 +207,20 @@ describe("CardItemComponent", () => {
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
     expect(component.previewImage).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
+
+  it("should not fetch a cover when the dataset has no cover image", () => {
+    component.entry = makeDatasetEntry({ coverImageUrl: undefined });
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+
+    expect(datasetService.getDatasetCoverUrl).not.toHaveBeenCalled();
+    expect(component.previewImage).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("should use the default preview when the cover url resolves to null", () => {
+    datasetService.getDatasetCoverUrl.mockReturnValue(of({ url: null }));
+    component.entry = makeDatasetEntry({ coverImageUrl: "cover/path.png" });
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+
+    expect(component.previewImage).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
 });

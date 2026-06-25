@@ -329,5 +329,23 @@ describe("UserDatasetComponent", () => {
       expect(component.viewType).toBe("list");
       expect(localStorage.getItem(VIEW_MODE_KEY)).toBe("list");
     });
+
+    it("initializes viewType from localStorage", () => {
+      localStorage.setItem(VIEW_MODE_KEY, "card");
+      const userServiceMock = {
+        userChanged: () => new Subject<User | undefined>().asObservable(),
+        isLogin: () => true,
+        getCurrentUser: () => ({ uid: 42 }) as User,
+      };
+      const fresh = new UserDatasetComponent(
+        modalServiceMock as any,
+        userServiceMock as any,
+        routerMock as any,
+        searchServiceMock as any,
+        datasetServiceMock as any,
+        messageMock as any
+      );
+      expect(fresh.viewType).toBe("card");
+    });
   });
 });
