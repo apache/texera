@@ -20,17 +20,15 @@
 package org.apache.texera.service
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.util.ObjectMapperUtils
-import org.apache.texera.auth.{JwtAuthFilter, SessionUser, UnauthorizedExceptionMapper}
+import org.apache.texera.auth.{AuthFeatures, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
 import org.eclipse.jetty.servlet.FilterHolder
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 import java.nio.file.Path
 
@@ -58,7 +56,7 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
 
     environment.jersey.register(classOf[HealthCheckResource])
 
-    WorkflowCompilingService.registerAuthFeatures(environment)
+    AuthFeatures.register(environment)
 
     SqlServer.initConnection(
       StorageConfig.jdbcUrl,
@@ -68,6 +66,11 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
 
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
+
+    RoleAnnotationEnforcer.enforce(
+      environment.jersey.getResourceConfig,
+      "WorkflowCompilingService"
+    )
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     val requestLogger = org.slf4j.LoggerFactory.getLogger("org.eclipse.jetty.server.RequestLog")
@@ -95,21 +98,6 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
 }
 
 object WorkflowCompilingService {
-  // Registers JWT auth, @Auth injection, and @RolesAllowed enforcement.
-  def registerAuthFeatures(environment: Environment): Unit = {
-    // Register JWT authentication filter
-    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
-    environment.jersey.register(classOf[UnauthorizedExceptionMapper])
-
-    // Enable @Auth annotation for injecting SessionUser
-    environment.jersey.register(
-      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
-    )
-
-    // Enforce @RolesAllowed annotations on resource methods
-    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
-  }
-
   def main(args: Array[String]): Unit = {
     // set the configuration file's path
     val configFilePath = Path
