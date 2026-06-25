@@ -129,7 +129,7 @@ describe("DriveService", () => {
 
       let completed = false;
       let errored = false;
-      service.connect().subscribe({
+      const sub = service.connect().subscribe({
         complete: () => (completed = true),
         error: () => (errored = true),
       });
@@ -146,6 +146,8 @@ describe("DriveService", () => {
 
       expect(completed).toBe(false);
       expect(errored).toBe(false);
+
+      sub.unsubscribe();
     }));
 
     it("ignores same-origin messages not sent by the OAuth popup", fakeAsync(() => {
@@ -154,7 +156,7 @@ describe("DriveService", () => {
 
       let completed = false;
       let errored = false;
-      service.connect().subscribe({
+      const sub = service.connect().subscribe({
         complete: () => (completed = true),
         error: () => (errored = true),
       });
@@ -174,6 +176,8 @@ describe("DriveService", () => {
 
       expect(completed).toBe(false);
       expect(errored).toBe(false);
+
+      sub.unsubscribe();
     }));
   });
 });
