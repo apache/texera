@@ -18,9 +18,7 @@
  */
 package org.apache.texera.web.resource.auth
 
-import io.dropwizard.auth.Auth
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.auth.SessionUser
 import org.apache.texera.web.resource.auth.GoogleDriveAuthResource._
 import org.apache.texera.common.config.UserSystemConfig
 import com.google.api.client.googleapis.auth.oauth2.{
@@ -40,8 +38,9 @@ import javax.ws.rs.core.Response
 object GoogleDriveAuthResource {
   private val STATE_TTL_MS = 10 * 60 * 1000L
 
-  // state token → (uid, expiresAtMs)
-  private val pendingStates = new ConcurrentHashMap[String, (Int, Long)]()
+  // Maps state token → expiresAtMs.
+  // Expired entries are swept out on each getOAuth call to prevent unbounded growth from abandoned flows.
+  private val pendingStates = new ConcurrentHashMap[String, Long]()
 }
 
 @Path("/auth/google/drive")
@@ -67,9 +66,12 @@ class GoogleDriveAuthResource extends LazyLogging {
   @GET
   @Path("/connect")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def getOAuth(@Auth sessionUser: SessionUser): Response = {
+  def getOAuth(): Response = {
+    val now = System.currentTimeMillis()
+    pendingStates.entrySet().removeIf(e => now > e.getValue)
+
     val stateToken = java.util.UUID.randomUUID().toString
-    pendingStates.put(stateToken, (sessionUser.getUid, System.currentTimeMillis() + STATE_TTL_MS))
+    pendingStates.put(stateToken, now + STATE_TTL_MS)
 
     val url = new GoogleAuthorizationCodeRequestUrl(
       clientId,
@@ -93,8 +95,8 @@ class GoogleDriveAuthResource extends LazyLogging {
       return Response.ok(errorHtml("Connection failed: invalid request. Please try again.")).build()
     }
     try {
-      val entry = pendingStates.remove(state)
-      if (entry == null || System.currentTimeMillis() > entry._2) {
+      val expiresAt = pendingStates.remove(state)
+      if (expiresAt == null || System.currentTimeMillis() > expiresAt) {
         return Response
           .ok(errorHtml("Connection failed: the authorisation request expired. Please try again."))
           .build()

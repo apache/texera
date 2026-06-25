@@ -231,7 +231,7 @@
       <ul nz-menu>
         <li
           nz-menu-item
-          (click)="onClickDownload()">
+          (click)="onClickDownload(); $event.stopPropagation()">
           Download
         </li>
         <li

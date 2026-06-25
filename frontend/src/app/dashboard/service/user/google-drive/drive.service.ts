@@ -35,7 +35,7 @@ export class DriveService {
 
   connect(): Observable<void> {
     return new Observable(observer => {
-      this.http.get(this.CONNECT_URL, { responseType: "text" }).subscribe({
+      const subscription = this.http.get(this.CONNECT_URL, { responseType: "text" }).subscribe({
         next: url => {
           const popup = window.open(url, "gdrive-connect", "width=500,height=600");
 
@@ -57,9 +57,16 @@ export class DriveService {
           };
 
           window.addEventListener("message", onMessage);
+
+          return () => {
+            window.removeEventListener("message", onMessage);
+            popup?.close();
+          };
         },
         error: (err: unknown) => observer.error(err),
       });
+
+      return () => subscription.unsubscribe();
     });
   }
 }
