@@ -22,18 +22,12 @@ package org.apache.texera.service
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
-import org.apache.texera.auth.{
-  JwtAuthFilter,
-  RequestLoggingFilter,
-  SessionUser,
-  UnauthorizedExceptionMapper
-}
+import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.`type`.serde.DatasetFileNodeSerializer
@@ -45,7 +39,6 @@ import org.apache.texera.service.resource.{
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LargeBinaryManager
 import org.eclipse.jetty.server.session.SessionHandler
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
 
 class FileService extends Application[FileServiceConfiguration] with LazyLogging {
@@ -91,20 +84,12 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 
     environment.jersey.register(classOf[HealthCheckResource])
 
-    // Register JWT authentication filter
-    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
-    environment.jersey.register(classOf[UnauthorizedExceptionMapper])
-
-    // Enable @Auth annotation for injecting SessionUser
-    environment.jersey.register(
-      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
-    )
-
-    // Enforce @RolesAllowed annotations on resource methods
-    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
+    AuthFeatures.register(environment)
 
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
+
+    RoleAnnotationEnforcer.enforce(environment.jersey.getResourceConfig, "FileService")
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)

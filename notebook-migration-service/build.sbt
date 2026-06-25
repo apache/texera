@@ -15,14 +15,22 @@
 // specific language governing permissions and limitations
 // under the License.
 
-/////////////////////////////////////////////////////////////////////////////
-// Project Settings
-/////////////////////////////////////////////////////////////////////////////
+import scala.collection.Seq
 
-name := "auth"
+name := "notebook-migration-service"
 
 
 enablePlugins(JavaAppPackaging)
+
+// Ship LICENSE-binary, NOTICE-binary, DISCLAIMER, and the licenses/
+// directory at the top of the Universal dist zip.
+// See project/AddMetaInfLicenseFiles.scala.
+Universal / mappings := AddMetaInfLicenseFiles.distMappings(
+  (Universal / mappings).value,
+  (ThisBuild / baseDirectory).value,
+  baseDirectory.value / "LICENSE-binary",
+  baseDirectory.value / "NOTICE-binary"
+)
 
 // Enable semanticdb for Scalafix
 ThisBuild / semanticdbEnabled := true
@@ -33,7 +41,6 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 
 // Restrict parallel execution of tests to avoid conflicts
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
-
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
@@ -48,21 +55,33 @@ Compile / scalacOptions ++= Seq(
 )
 
 /////////////////////////////////////////////////////////////////////////////
+// Version Variables
+/////////////////////////////////////////////////////////////////////////////
+
+val dropwizardVersion = "4.0.7"
+val mockitoVersion = "5.4.0"
+val assertjVersion = "3.24.2"
+
+/////////////////////////////////////////////////////////////////////////////
+// Test-related Dependencies
+/////////////////////////////////////////////////////////////////////////////
+
+libraryDependencies ++= Seq(
+  "org.scalamock" %% "scalamock" % "5.2.0" % Test,                   // ScalaMock
+  "org.scalatest" %% "scalatest" % "3.2.17" % Test,                  // ScalaTest
+  "io.dropwizard" % "dropwizard-testing" % dropwizardVersion % Test, // Dropwizard Testing
+  "org.mockito" % "mockito-core" % mockitoVersion % Test,            // Mockito for mocking
+  "org.assertj" % "assertj-core" % assertjVersion % Test,            // AssertJ for assertions
+  "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
+)
+
+/////////////////////////////////////////////////////////////////////////////
 // Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
 // Core Dependencies
 libraryDependencies ++= Seq(
-  "com.typesafe" % "config" % "1.4.6",                                  // config reader
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",            // for LazyLogging
-  "org.bitbucket.b_c" % "jose4j" % "0.9.6",                             // for jwt parser
-  "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.0.0",                      // for JwtAuthFilter
-  "jakarta.annotation" % "jakarta.annotation-api" % "2.1.1",            // for @Priority on JwtAuthFilter
-  "jakarta.servlet" % "jakarta.servlet-api" % "5.0.0" % "provided",    // for RequestLoggingFilter
-  "org.eclipse.jetty" % "jetty-servlet" % "11.0.24" % "provided",      // for FilterHolder
-  "org.glassfish.jersey.core" % "jersey-server" % "3.0.12" % "provided", // for RoleAnnotationEnforcer's ResourceConfig overload and AuthFeatures' RolesAllowedDynamicFeature
-  "io.dropwizard" % "dropwizard-core" % "4.0.7" % "provided",          // for AuthFeatures' Environment
-  "io.dropwizard" % "dropwizard-auth" % "4.0.7" % "provided",          // for AuthFeatures' AuthDynamicFeature/AuthValueFactoryProvider
-  "org.scalatest" %% "scalatest" % "3.2.17" % Test,
-  "org.mockito" % "mockito-core" % "5.4.0" % Test                      // for mocking the Jersey environment in AuthFeaturesSpec
+  "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
+  "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.6"
 )

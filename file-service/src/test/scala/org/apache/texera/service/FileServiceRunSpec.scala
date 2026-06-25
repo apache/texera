@@ -20,16 +20,24 @@
 package org.apache.texera.service
 
 import org.apache.texera.auth.RoleAnnotationEnforcer
-import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
+import org.apache.texera.service.resource.{
+  DatasetAccessResource,
+  DatasetResource,
+  HealthCheckResource
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class ConfigServiceRunSpec extends AnyFlatSpec with Matchers {
+class FileServiceRunSpec extends AnyFlatSpec with Matchers {
 
   // Every endpoint this service registers declares @RolesAllowed/@PermitAll/@DenyAll.
-  "ConfigService's registered resources" should "all declare access control" in {
+  "FileService's registered resources" should "all declare access control" in {
     RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(classOf[ConfigResource], classOf[HealthCheckResource])
+      Seq(
+        classOf[DatasetResource],
+        classOf[DatasetAccessResource],
+        classOf[HealthCheckResource]
+      )
     ) shouldBe empty
   }
 }

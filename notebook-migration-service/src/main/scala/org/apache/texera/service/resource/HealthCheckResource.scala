@@ -17,19 +17,16 @@
  * under the License.
  */
 
-package org.apache.texera.service
+package org.apache.texera.service.resource
 
-import org.apache.texera.auth.RoleAnnotationEnforcer
-import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import jakarta.annotation.security.PermitAll
+import jakarta.ws.rs.core.MediaType
+import jakarta.ws.rs.{GET, Path, Produces}
 
-class ConfigServiceRunSpec extends AnyFlatSpec with Matchers {
-
-  // Every endpoint this service registers declares @RolesAllowed/@PermitAll/@DenyAll.
-  "ConfigService's registered resources" should "all declare access control" in {
-    RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(classOf[ConfigResource], classOf[HealthCheckResource])
-    ) shouldBe empty
-  }
+@Path("/healthcheck")
+@PermitAll
+@Produces(Array(MediaType.APPLICATION_JSON))
+class HealthCheckResource {
+  @GET
+  def healthCheck: Map[String, String] = Map("status" -> "ok")
 }

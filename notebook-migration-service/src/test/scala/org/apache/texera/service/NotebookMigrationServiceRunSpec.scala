@@ -19,28 +19,22 @@
 
 package org.apache.texera.service
 
+import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.core.setup.Environment
-import io.dropwizard.jersey.DropwizardResourceConfig
 import io.dropwizard.jersey.setup.JerseyEnvironment
 import io.dropwizard.jetty.MutableServletContextHandler
 import io.dropwizard.jetty.setup.ServletEnvironment
-import org.apache.texera.auth.{RoleAnnotationEnforcer, UnauthorizedExceptionMapper}
-import org.apache.texera.service.activity.UserActivityEventListener
-import org.apache.texera.service.resource.{
-  AccessControlResource,
-  HealthCheckResource,
-  LiteLLMModelsResource,
-  LiteLLMProxyResource
-}
+import org.apache.texera.auth.UnauthorizedExceptionMapper
+import org.apache.texera.service.resource.{HealthCheckResource, NotebookMigrationResource}
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.mockito.ArgumentMatchers.isA
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
+class NotebookMigrationServiceRunSpec extends AnyFlatSpec with Matchers {
 
-  "AccessControlService.run" should "register UserActivityEventListener on the Jersey environment" in {
+  "NotebookMigrationService.run" should "register the resources and the JWT auth stack on the Jersey environment" in {
     val jersey = mock(classOf[JerseyEnvironment])
     val servlets = mock(classOf[ServletEnvironment])
     val context = mock(classOf[MutableServletContextHandler])
@@ -48,27 +42,16 @@ class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
     when(env.jersey).thenReturn(jersey)
     when(env.servlets).thenReturn(servlets)
     when(env.getApplicationContext).thenReturn(context)
-    when(jersey.getResourceConfig).thenReturn(DropwizardResourceConfig.forTesting())
 
-    val service = new AccessControlService
-    service.run(mock(classOf[AccessControlServiceConfiguration]), env)
+    val service = new NotebookMigrationService
+    service.run(mock(classOf[NotebookMigrationServiceConfiguration]), env)
 
-    verify(jersey).register(isA(classOf[UserActivityEventListener]))
-    verify(jersey).register(classOf[UnauthorizedExceptionMapper])
-    // Without this feature Jersey ignores @RolesAllowed on the LiteLLM proxies.
-    verify(jersey).register(classOf[RolesAllowedDynamicFeature])
     verify(jersey).setUrlPattern("/api/*")
-  }
-
-  // Every endpoint this service registers declares @RolesAllowed/@PermitAll/@DenyAll.
-  "AccessControlService's registered resources" should "all declare access control" in {
-    RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(
-        classOf[AccessControlResource],
-        classOf[LiteLLMProxyResource],
-        classOf[LiteLLMModelsResource],
-        classOf[HealthCheckResource]
-      )
-    ) shouldBe empty
+    verify(jersey).register(classOf[HealthCheckResource])
+    verify(jersey).register(classOf[NotebookMigrationResource])
+    // Auth stack from registerAuthFeatures — without these, @RolesAllowed / @Auth are ignored.
+    verify(jersey).register(isA(classOf[AuthDynamicFeature]))
+    verify(jersey).register(classOf[UnauthorizedExceptionMapper])
+    verify(jersey).register(classOf[RolesAllowedDynamicFeature])
   }
 }

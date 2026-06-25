@@ -19,24 +19,26 @@ package org.apache.texera.service
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
-import org.apache.texera.dao.SqlServer
-import org.apache.texera.service.activity.UserActivityEventListener
-import org.apache.texera.service.resource.{
-  AccessControlResource,
-  HealthCheckResource,
-  LiteLLMModelsResource,
-  LiteLLMProxyResource
+import org.apache.texera.auth.{
+  JwtAuthFilter,
+  RequestLoggingFilter,
+  SessionUser,
+  UnauthorizedExceptionMapper
 }
-import org.eclipse.jetty.server.session.SessionHandler
+import org.apache.texera.dao.SqlServer
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
+import org.apache.texera.service.resource.{HealthCheckResource, NotebookMigrationResource}
 
-class AccessControlService extends Application[AccessControlServiceConfiguration] with LazyLogging {
-  override def initialize(bootstrap: Bootstrap[AccessControlServiceConfiguration]): Unit = {
+class NotebookMigrationService
+    extends Application[NotebookMigrationServiceConfiguration]
+    with LazyLogging {
+  override def initialize(bootstrap: Bootstrap[NotebookMigrationServiceConfiguration]): Unit = {
     // enable environment variable substitution in YAML config
     bootstrap.setConfigurationSourceProvider(
       new SubstitutingSourceProvider(
@@ -55,47 +57,51 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
   }
 
   override def run(
-      configuration: AccessControlServiceConfiguration,
+      configuration: NotebookMigrationServiceConfiguration,
       environment: Environment
   ): Unit = {
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 
-    environment.jersey.register(classOf[SessionHandler])
-    environment.servlets.setSessionHandler(new SessionHandler)
-
     environment.jersey.register(classOf[HealthCheckResource])
-    environment.jersey.register(classOf[AccessControlResource])
-    environment.jersey.register(classOf[LiteLLMProxyResource])
-    environment.jersey.register(classOf[LiteLLMModelsResource])
 
-    AuthFeatures.register(environment)
+    NotebookMigrationService.registerAuthFeatures(environment)
 
-    // Record USER_LAST_ACTIVE_TIME on every matched, completed request.
-    // Lives only in this service because authenticated client sessions
-    // contact access-control-service often enough to capture activity
-    // with high recall.
-    environment.jersey.register(new UserActivityEventListener())
-
-    RoleAnnotationEnforcer.enforce(environment.jersey.getResourceConfig, "AccessControlService")
+    environment.jersey.register(classOf[NotebookMigrationResource])
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)
   }
 }
-object AccessControlService {
+object NotebookMigrationService {
+  // Registers JWT auth, @Auth injection, and @RolesAllowed enforcement.
+  // Mirrors the other Dropwizard services' registerAuthFeatures so they don't drift apart.
+  def registerAuthFeatures(environment: Environment): Unit = {
+    // Register JWT authentication filter
+    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
+    environment.jersey.register(classOf[UnauthorizedExceptionMapper])
+
+    // Enable @Auth annotation for injecting SessionUser
+    environment.jersey.register(
+      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
+    )
+
+    // Enforce @RolesAllowed annotations on resource methods
+    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
+  }
+
   def main(args: Array[String]): Unit = {
-    val accessControlPath = Path
+    val notebookMigrationPath = Path
       .of(sys.env.getOrElse("TEXERA_HOME", "."))
-      .resolve("access-control-service")
+      .resolve("notebook-migration-service")
       .resolve("src")
       .resolve("main")
       .resolve("resources")
-      .resolve("access-control-service-web-config.yaml")
+      .resolve("notebook-migration-service-web-config.yaml")
       .toAbsolutePath
       .toString
 
     // Start the Dropwizard application
-    new AccessControlService().run("server", accessControlPath)
+    new NotebookMigrationService().run("server", notebookMigrationPath)
   }
 }
