@@ -66,6 +66,7 @@ class GoogleDriveAuthResource extends LazyLogging {
   @GET
   @Path("/connect")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Produces(Array(MediaType.TEXT_PLAIN))
   def getOAuth(): Response = {
     val now = System.currentTimeMillis()
     pendingStates.entrySet().removeIf(e => now > e.getValue)

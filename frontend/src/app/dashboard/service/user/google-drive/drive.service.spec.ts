@@ -48,7 +48,8 @@ describe("DriveService", () => {
 
   describe("connect", () => {
     it("fetches the connect URL and opens a popup", () => {
-      const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+      const mockPopup = { close: vi.fn() } as unknown as Window;
+      const openSpy = vi.spyOn(window, "open").mockReturnValue(mockPopup);
 
       service.connect().subscribe();
 
@@ -77,6 +78,7 @@ describe("DriveService", () => {
           new MessageEvent("message", {
             data: "gdrive-connected",
             origin: window.location.origin,
+            source: mockPopup as unknown as MessageEventSource,
           })
         );
       });
@@ -87,7 +89,8 @@ describe("DriveService", () => {
     }));
 
     it("errors the observable when the popup posts gdrive-error", fakeAsync(() => {
-      vi.spyOn(window, "open").mockReturnValue(null);
+      const mockPopup = { close: vi.fn() } as unknown as Window;
+      vi.spyOn(window, "open").mockReturnValue(mockPopup);
 
       let errorMessage = "";
       service.connect().subscribe({ error: (e: unknown) => (errorMessage = (e as Error).message) });
@@ -99,6 +102,7 @@ describe("DriveService", () => {
           new MessageEvent("message", {
             data: "gdrive-error",
             origin: window.location.origin,
+            source: mockPopup as unknown as MessageEventSource,
           })
         );
       });
@@ -107,8 +111,21 @@ describe("DriveService", () => {
       expect(errorMessage).toBe("Google Drive connection failed");
     }));
 
-    it("ignores messages from other origins", fakeAsync(() => {
+    it("errors immediately when the popup is blocked", fakeAsync(() => {
       vi.spyOn(window, "open").mockReturnValue(null);
+
+      let errorMessage = "";
+      service.connect().subscribe({ error: (e: unknown) => (errorMessage = (e as Error).message) });
+
+      httpMock.expectOne(CONNECT_URL).flush("https://accounts.google.com/...");
+      tick();
+
+      expect(errorMessage).toBe("Popup blocked. Please allow popups for this site.");
+    }));
+
+    it("ignores messages from other origins", fakeAsync(() => {
+      const mockPopup = { close: vi.fn() } as unknown as Window;
+      vi.spyOn(window, "open").mockReturnValue(mockPopup);
 
       let completed = false;
       let errored = false;
@@ -129,9 +146,34 @@ describe("DriveService", () => {
 
       expect(completed).toBe(false);
       expect(errored).toBe(false);
+    }));
 
-      // clean up the hanging observable
-      httpMock.verify();
+    it("ignores same-origin messages not sent by the OAuth popup", fakeAsync(() => {
+      const mockPopup = { close: vi.fn() } as unknown as Window;
+      vi.spyOn(window, "open").mockReturnValue(mockPopup);
+
+      let completed = false;
+      let errored = false;
+      service.connect().subscribe({
+        complete: () => (completed = true),
+        error: () => (errored = true),
+      });
+
+      httpMock.expectOne(CONNECT_URL).flush("https://accounts.google.com/...");
+
+      // same origin, but source is a different window (not the popup)
+      const otherWindow = { close: vi.fn() } as unknown as Window;
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: "gdrive-connected",
+          origin: window.location.origin,
+          source: otherWindow as unknown as MessageEventSource,
+        })
+      );
+      tick();
+
+      expect(completed).toBe(false);
+      expect(errored).toBe(false);
     }));
   });
 });

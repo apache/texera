@@ -39,11 +39,17 @@ export class DriveService {
         next: url => {
           const popup = window.open(url, "gdrive-connect", "width=500,height=600");
 
+          if (!popup) {
+            observer.error(new Error("Popup blocked. Please allow popups for this site."));
+            return;
+          }
+
           const onMessage = (event: MessageEvent) => {
             if (event.origin !== window.location.origin) return;
+            if (event.source !== popup) return;
             if (event.data === "gdrive-connected") {
               window.removeEventListener("message", onMessage);
-              popup?.close();
+              popup.close();
               this.ngZone.run(() => {
                 observer.next();
                 observer.complete();
@@ -60,7 +66,7 @@ export class DriveService {
 
           return () => {
             window.removeEventListener("message", onMessage);
-            popup?.close();
+            popup.close();
           };
         },
         error: (err: unknown) => observer.error(err),
