@@ -1,0 +1,2 @@
+# Placeholder so the (initially empty) aws/ template folder is tracked in git.
+# AWS-only, value-gated templates are added by later PRs in the AWS/EKS series.

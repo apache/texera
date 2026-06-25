@@ -15,26 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import sys
-import traceback
 from contextlib import contextmanager
 from loguru import logger
 from threading import Event
 from typing import Iterator, Optional
 
 from core.architecture.managers import Context
-from core.models import ExceptionInfo, State, TupleLike, InternalMarker
+from core.models import State, TupleLike, InternalMarker
 from core.models.internal_marker import StartChannel, EndChannel
 from core.models.table import all_output_to_tuple
 from core.util import Stoppable
+from core.util.console_message.error_message import create_error_console_message
 from core.util.console_message.replace_print import replace_print
-from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.runnable import Runnable
-from proto.org.apache.texera.amber.engine.architecture.rpc import (
-    ConsoleMessage,
-    ConsoleMessageType,
-)
 
 
 class DataProcessor(Runnable, Stoppable):
@@ -126,7 +120,9 @@ class DataProcessor(Runnable, Stoppable):
             logger.exception(err)
             exc_info = sys.exc_info()
             self._context.exception_manager.set_exception_info(exc_info)
-            self._report_exception(exc_info)
+            self._context.console_message_manager.put_message(
+                create_error_console_message(self._context.worker_id, exc_info)
+            )
         finally:
             self._switch_context()
 
@@ -174,26 +170,6 @@ class DataProcessor(Runnable, Stoppable):
             # This line will also trigger cmdloop in the debugger.
             # This line has no side effects on the current debugger state.
             self._context.debug_manager.debugger.set_trace()
-
-    def _report_exception(self, exc_info: ExceptionInfo):
-        tb = traceback.extract_tb(exc_info[2])
-        filename, line_number, func_name, text = tb[-1]
-        base_name = os.path.basename(filename)
-        module_name, _ = os.path.splitext(base_name)
-        formatted_exception = traceback.format_exception(*exc_info)
-        title: str = formatted_exception[-1].strip()
-        message: str = "\n".join(formatted_exception)
-
-        self._context.console_message_manager.put_message(
-            ConsoleMessage(
-                worker_id=self._context.worker_id,
-                timestamp=current_time_in_local_timezone(),
-                msg_type=ConsoleMessageType.ERROR,
-                source=f"{module_name}:{func_name}:{line_number}",
-                title=title,
-                message=message,
-            )
-        )
 
     def stop(self):
         self._running.clear()

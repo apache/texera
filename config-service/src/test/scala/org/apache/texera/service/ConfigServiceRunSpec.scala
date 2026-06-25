@@ -19,32 +19,17 @@
 
 package org.apache.texera.service
 
-import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
-import io.dropwizard.core.setup.Environment
-import io.dropwizard.jersey.setup.JerseyEnvironment
-import org.apache.texera.auth.UnauthorizedExceptionMapper
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
-import org.mockito.Mockito.{mock, verify, when}
+import org.apache.texera.auth.RoleAnnotationEnforcer
+import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class ConfigServiceRunSpec extends AnyFlatSpec with Matchers {
 
-  // ConfigResource's own endpoints are @PermitAll, but the service still registers
-  // RolesAllowedDynamicFeature so that any @RolesAllowed endpoint is enforced by
-  // Jersey. This verifies the helper actually runs the three registrations.
-  "ConfigService.registerAuthFeatures" should "register auth + RolesAllowedDynamicFeature on the Jersey environment" in {
-    val jersey = mock(classOf[JerseyEnvironment])
-    val env = mock(classOf[Environment])
-    when(env.jersey).thenReturn(jersey)
-
-    ConfigService.registerAuthFeatures(env)
-
-    verify(jersey).register(classOf[RolesAllowedDynamicFeature])
-    verify(jersey).register(classOf[UnauthorizedExceptionMapper])
-    verify(jersey).register(org.mockito.ArgumentMatchers.any(classOf[AuthDynamicFeature]))
-    verify(jersey).register(
-      org.mockito.ArgumentMatchers.any(classOf[AuthValueFactoryProvider.Binder[_]])
-    )
+  // Every endpoint this service registers declares @RolesAllowed/@PermitAll/@DenyAll.
+  "ConfigService's registered resources" should "all declare access control" in {
+    RoleAnnotationEnforcer.findUnannotatedEndpoints(
+      Seq(classOf[ConfigResource], classOf[HealthCheckResource])
+    ) shouldBe empty
   }
 }
