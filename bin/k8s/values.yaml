@@ -78,6 +78,10 @@ storage:
     secretAccessKey: ""
 
 minio:
+  # Set to false to disable the in-cluster MinIO and point the services at an
+  # external S3 store instead (configure storage.s3 above and the lakefs/
+  # lakekeeperInit blocks below). See values-aws.yaml for a complete example.
+  enabled: true
   mode: standalone
   image:
     repository: bitnamilegacy/minio
@@ -102,6 +106,9 @@ minio:
     existingClaim: "minio-data-pvc"
 
 lakefs:
+  # The blockstore below points LakeFS at the in-cluster MinIO. To use an
+  # external S3 store, override lakefsConfig (region-only blockstore) and inject
+  # the S3 credentials via extraEnvVars -- see values-aws.yaml for an example.
   secrets:
     authEncryptSecretKey: random_string_for_lakefs
     databaseConnectionString: postgres://postgres:root_password@texera-postgresql:5432/texera_lakefs?sslmode=disable
@@ -149,6 +156,10 @@ lakekeeper:
 
 lakekeeperInit:
   enabled: true
+  # Create the object-store bucket from the init job (true for in-cluster MinIO).
+  # Set false when pointing at a pre-existing external bucket (e.g. AWS S3) whose
+  # IAM principal can't CreateBucket.
+  createBucket: true
   defaultProject:
     id: "00000000-0000-0000-0000-000000000000"
     name: default
@@ -156,6 +167,12 @@ lakekeeperInit:
     name: texera
     region: us-west-2
     s3Bucket: texera-iceberg
+    # Lakekeeper S3 storage-profile flavor: "s3-compat" (MinIO/other; adds
+    # endpoint + path-style-access) or "aws" (real AWS S3; omits both).
+    flavor: s3-compat
+    # Optional object-key prefix to isolate the Iceberg warehouse within a
+    # shared bucket. Empty = bucket root.
+    keyPrefix: ""
 
 # Part2: configurations of Texera-related micro services
 texeraImages:
