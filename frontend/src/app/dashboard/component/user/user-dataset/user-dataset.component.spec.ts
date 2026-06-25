@@ -309,4 +309,25 @@ describe("UserDatasetComponent", () => {
       expect(searchResultsStub.entries).toEqual([e1, e3]);
     });
   });
+
+  describe("view mode toggle", () => {
+    const VIEW_MODE_KEY = "texera.userDataset.viewMode";
+
+    afterEach(() => localStorage.removeItem(VIEW_MODE_KEY));
+
+    it("setViewType updates viewType, persists it, and is a no-op when unchanged", () => {
+      component.setViewType("card");
+      expect(component.viewType).toBe("card");
+      expect(localStorage.getItem(VIEW_MODE_KEY)).toBe("card");
+
+      // setting the same value should not write again
+      localStorage.removeItem(VIEW_MODE_KEY);
+      component.setViewType("card");
+      expect(localStorage.getItem(VIEW_MODE_KEY)).toBeNull();
+
+      component.setViewType("list");
+      expect(component.viewType).toBe("list");
+      expect(localStorage.getItem(VIEW_MODE_KEY)).toBe("list");
+    });
+  });
 });
