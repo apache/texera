@@ -72,4 +72,29 @@ class GoogleDriveAuthResourceSpec extends AnyFlatSpec {
     val url = response.getEntity.toString
     assert(url.contains("state="))
   }
+
+  it should "return a Google OAuth URL with a localhost redirect URI when no domain is configured" in {
+    val resource = new GoogleDriveAuthResource()
+    val response = resource.getOAuth(newSessionUser())
+    val url = response.getEntity.toString
+    assert(url.contains("localhost"))
+    assert(url.contains("auth%2Fgoogle%2Fdrive%2Fcallback"))
+  }
+
+  it should "reject a state token that has already been used" in {
+    val resource = new GoogleDriveAuthResource()
+    val connectResponse = resource.getOAuth(newSessionUser())
+    val oauthUrl = connectResponse.getEntity.toString
+    val state = oauthUrl.split("state=").last.split("&").head
+
+    // First callback removes the state token (then fails at Google token exchange with empty credentials)
+    resource.getCallback(code = "any-code", state = state)
+
+    // Second callback with same state should see the token is gone
+    val response = resource.getCallback(code = "any-code", state = state)
+    val body = response.getEntity.toString
+    assert(body.contains("gdrive-error"))
+    assert(body.contains("expired"))
+  }
+
 }
