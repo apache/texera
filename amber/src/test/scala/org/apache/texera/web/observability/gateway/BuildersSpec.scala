@@ -108,9 +108,9 @@ class BuildersSpec extends AnyFlatSpec with Matchers {
       logsReq(query = Some(FreeText("""evil"} | drop ; --"""))),
       scope
     )
-    // The closing brace + pipe + drop attempt should be inside the
-    // quoted string literal — not turned into LogsQL syntax.
-    q should include("""contains_str("evil\"} | drop ; --")""")
+    // The closing brace + pipe + drop attempt stay inside the quoted
+    // _msg value, not turned into LogsQL syntax.
+    q should include("""| filter _msg:"evil\"} | drop ; --"""")
   }
 
   it should "place pipe filters AFTER the stream selector so the wildcard prefix has scope" in {
