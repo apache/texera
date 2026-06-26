@@ -166,9 +166,14 @@ class ReconfigurationIntegrationSpec
   ): Map[OperatorIdentity, List[Tuple]] =
     TestUtils.shouldReconfigure(system, ctx, operators, links, targetOps, newOpExecInitInfo)
 
+  private def boundedCsvSource() = {
+    val src = TestOperators.mediumCsvScanOpDesc()
+    src.limit = Some(10000)
+    src
+  }
+
   "Engine" should "be able to modify a python UDF worker in workflow" in {
-    // Medium source keeps the run in flight long enough to pause before it completes.
-    val sourceOpDesc = TestOperators.mediumCsvScanOpDesc()
+    val sourceOpDesc = boundedCsvSource()
     val udfOpDesc = TestOperators.pythonOpDesc()
     val code = """
                  |from pytexera import *
@@ -229,8 +234,7 @@ class ReconfigurationIntegrationSpec
   }
 
   "Engine" should "be able to modify two python UDFs in workflow" in {
-    // Medium source keeps the run in flight long enough to pause before it completes.
-    val sourceOpDesc = TestOperators.mediumCsvScanOpDesc()
+    val sourceOpDesc = boundedCsvSource()
     val udfOpDesc1 = TestOperators.pythonOpDesc()
     val udfOpDesc2 = TestOperators.pythonOpDesc()
     val code = """
