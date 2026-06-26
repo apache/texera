@@ -882,6 +882,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       pve.isInstalling = false;
     });
 
+    this.availableDbPves = [];
     this.pveModalVisible = false;
   }
 
