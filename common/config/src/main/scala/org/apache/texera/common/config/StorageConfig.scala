@@ -133,4 +133,8 @@ object StorageConfig {
   val ENV_S3_REGION = "STORAGE_S3_REGION"
   val ENV_S3_AUTH_USERNAME = "STORAGE_S3_AUTH_USERNAME"
   val ENV_S3_AUTH_PASSWORD = "STORAGE_S3_AUTH_PASSWORD"
+
+  // Jupyter
+  val jupyterURL: String = conf.getString("storage.jupyter.url")
+  val jupyterToken: String = conf.getString("storage.jupyter.token")
 }

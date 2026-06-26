@@ -10,6 +10,11 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/notebook-migration": {
+    "target": "http://localhost:9098",
+    "secure": false,
+    "changeOrigin": true
+  },
 "/api/models": {
     "target": "http://localhost:9096",
     "secure": false,
