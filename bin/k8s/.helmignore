@@ -1,0 +1,17 @@
+# Patterns to ignore when building Helm packages.
+# Operating system / editor files
+.DS_Store
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+# Version control directories
+.git/
+.gitignore
+# Documentation kept alongside the chart for humans, not rendered as manifests.
+# Markdown under templates/ (e.g. the base/aws/on-prem layout guide) must be
+# ignored so Helm does not try to load it as a Kubernetes manifest.
+*.md
+# git placeholders must not be loaded by Helm as manifests
+.gitkeep

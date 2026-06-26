@@ -29,6 +29,13 @@ import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { Subject, of, throwError } from "rxjs";
+import {
+  PackageResponse,
+  PvePackageResponse,
+  WorkflowPveService,
+} from "../../service/virtual-environment/virtual-environment.service";
+import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 
 describe("PowerButtonComponent", () => {
   let component: ComputingUnitSelectionComponent;
@@ -81,5 +88,70 @@ describe("PowerButtonComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  describe("getPVEs() systemPackagesLoading flag", () => {
+    const selectedUnit = {
+      computingUnit: { cuid: 123 },
+    } as unknown as DashboardWorkflowComputingUnit;
+
+    let pveService: WorkflowPveService;
+
+    beforeEach(() => {
+      pveService = TestBed.inject(WorkflowPveService);
+      component.selectedComputingUnit = selectedUnit;
+      component.systemPackagesLoading = false;
+      component.pves = [];
+      component.systemPackages = [];
+    });
+
+    it("sets systemPackagesLoading=true immediately and keeps it true while /pve/system is in flight", () => {
+      const pvesResp: PvePackageResponse[] = [{ pveName: "env-a", userPackages: ["numpy==1.26.0"] }];
+      const systemSubject = new Subject<PackageResponse>();
+      vi.spyOn(pveService, "fetchPVEs").mockReturnValue(of(pvesResp));
+      vi.spyOn(pveService, "getSystemPackages").mockReturnValue(systemSubject.asObservable());
+
+      component.getPVEs();
+
+      expect(component.systemPackagesLoading).toBe(true);
+      expect(component.pves.length).toBe(1);
+      expect(component.pves[0].name).toBe("env-a");
+
+      systemSubject.next({ system: ["pandas==2.0.0"] });
+      systemSubject.complete();
+
+      expect(component.systemPackagesLoading).toBe(false);
+      expect(component.systemPackages).toEqual([{ name: "pandas", version: "2.0.0" }]);
+    });
+
+    it("clears systemPackagesLoading when /pve/system errors", () => {
+      vi.spyOn(pveService, "fetchPVEs").mockReturnValue(of([] as PvePackageResponse[]));
+      vi.spyOn(pveService, "getSystemPackages").mockReturnValue(throwError(() => new Error("system fetch failed")));
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      component.getPVEs();
+
+      expect(component.systemPackagesLoading).toBe(false);
+      expect(component.systemPackages).toEqual([]);
+    });
+
+    it("clears systemPackagesLoading and resets state when /pve/pves errors", () => {
+      const fetchPvesSpy = vi
+        .spyOn(pveService, "fetchPVEs")
+        .mockReturnValue(throwError(() => new Error("pves fetch failed")));
+      const getSystemSpy = vi.spyOn(pveService, "getSystemPackages");
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      component.pves = [{ name: "stale" }] as any;
+      component.systemPackages = [{ name: "stale", version: "0.0.0" }];
+
+      component.getPVEs();
+
+      expect(fetchPvesSpy).toHaveBeenCalledWith(123);
+      expect(getSystemSpy).not.toHaveBeenCalled();
+      expect(component.systemPackagesLoading).toBe(false);
+      expect(component.pves).toEqual([]);
+      expect(component.systemPackages).toEqual([]);
+    });
   });
 });
