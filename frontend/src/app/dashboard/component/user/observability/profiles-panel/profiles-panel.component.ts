@@ -34,6 +34,7 @@ import {
   ProfileTimelinePoint,
   ProfileTopEntry,
 } from "../../../../service/user/observability/observability.types";
+import { humanizeGatewayError } from "../../../../service/user/observability/observability-util";
 
 // Parca's own UI renders the full interactive flame graph (call stacks, search,
 // zoom). We intentionally do NOT render the flame graph in the browser (it is a
@@ -44,6 +45,8 @@ const PARCA_UI_BASE = "http://localhost:7070";
 // Mirror of the gateway's profile-type identifier (ParcaQueryBuilder), used only
 // to build the Parca deep-link expression.
 const PROFILE_TYPE = "parca_agent:samples:count:cpu:nanoseconds:delta";
+// Allowed charset for a `comm` value injected into the Parca selector.
+const COMM_RE = /^[A-Za-z0-9._/-]+$/;
 
 /**
  * Profiles panel. Shows high-level CPU stats from Parca: a CPU-over-time
@@ -170,7 +173,8 @@ export class ProfilesPanelComponent implements OnInit, OnDestroy {
     const fromMs = range?.[0]?.getTime() ?? now - 60 * 60 * 1000;
     const toMs = range?.[1]?.getTime() ?? now;
     const comm = this.form.value.comm?.trim();
-    const selector = comm ? `deployment="texera",comm="${comm}"` : 'deployment="texera"';
+    // Add the comm matcher only when valid, else link to the host-wide view.
+    const selector = comm && COMM_RE.test(comm) ? `deployment="texera",comm="${comm}"` : 'deployment="texera"';
     const params = new URLSearchParams({
       expression_a: `${PROFILE_TYPE}{${selector}}`,
       from_a: String(fromMs),
@@ -206,7 +210,7 @@ export class ProfilesPanelComponent implements OnInit, OnDestroy {
             this.loading = false;
           },
           error: (err: unknown) => {
-            this.errorMessage = humanizeError(err);
+            this.errorMessage = humanizeGatewayError(err, "Failed to load profile.");
             this.loading = false;
           },
         });
@@ -217,12 +221,4 @@ export class ProfilesPanelComponent implements OnInit, OnDestroy {
       this.loading = false;
     }
   }
-}
-
-function humanizeError(err: unknown): string {
-  if (typeof err === "object" && err !== null) {
-    const body = (err as { error?: { code?: string; message?: string } }).error;
-    if (body?.message) return body.message;
-  }
-  return "Failed to load profile.";
 }

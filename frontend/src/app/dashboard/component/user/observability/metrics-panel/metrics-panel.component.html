@@ -41,6 +41,21 @@
         [nzValue]="u.uid"
         [nzLabel]="u.name + ' (#' + u.uid + ')'"></nz-option>
     </nz-select>
+    <label
+      class="follow-toggle"
+      nz-tooltip="Slide the window to end at 'now' on every refresh so new runs appear">
+      <nz-switch formControlName="follow"></nz-switch>
+      <span>Follow now</span>
+    </label>
+    <nz-select
+      formControlName="autoRefreshSec"
+      nz-tooltip="Automatically refresh on this interval"
+      style="min-width: 110px">
+      <nz-option
+        *ngFor="let o of autoRefreshOptions"
+        [nzValue]="o.value"
+        [nzLabel]="o.value === 0 ? 'Auto: off' : 'Auto: ' + o.label"></nz-option>
+    </nz-select>
     <button
       nz-button
       nzType="primary"
@@ -89,7 +104,8 @@
       >
     </ng-template>
     <ng-container *ngIf="summaries[desc.name] as s; else loadingHero">
-      <div class="hero">
+      <!-- Empty series renders the dash placeholder, not a misleading "0". -->
+      <div class="hero" *ngIf="s.hasData; else loadingHero">
         <span class="value">{{ s.latest | number: "1.0-2" }}</span>
         <span class="unit">{{ desc.unit }}</span>
         <!-- A window total has no trend vs. a baseline, so skip the marker. -->

@@ -30,6 +30,7 @@ import { NzOptionComponent, NzSelectComponent } from "ng-zorro-antd/select";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { ObservabilityService, ValidationError } from "../../../../service/user/observability/observability.service";
 import { loadPanelPrefs, savePanelPrefs } from "../../../../service/user/observability/observability-prefs";
+import { humanizeGatewayError } from "../../../../service/user/observability/observability-util";
 import { TracesPivotService } from "../../../../service/user/observability/traces-pivot.service";
 import {
   LOG_LEVELS,
@@ -324,7 +325,7 @@ export class LogsPanelComponent implements OnInit, OnDestroy {
             this.currentSearch = null;
           },
           error: (err: unknown) => {
-            this.errorMessage = humanizeError(err);
+            this.errorMessage = humanizeGatewayError(err, "Failed to load logs.");
             this.loading = false;
             this.currentSearch = null;
           },
@@ -377,10 +378,3 @@ function nonEmptyArray(v: string[] | null | undefined): string[] | undefined {
   return v != null && v.length > 0 ? v : undefined;
 }
 
-function humanizeError(err: unknown): string {
-  if (typeof err === "object" && err !== null) {
-    const body = (err as { error?: { code?: string; message?: string } }).error;
-    if (body?.message) return body.message;
-  }
-  return "Failed to load logs.";
-}

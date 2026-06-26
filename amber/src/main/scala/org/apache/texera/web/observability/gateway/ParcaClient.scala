@@ -60,6 +60,12 @@ object ParcaClient extends LazyLogging {
   private val QueryPath = "/parca.query.v1alpha1.QueryService/Query"
   private val QueryRangePath = "/parca.query.v1alpha1.QueryService/QueryRange"
 
+  private lazy val http: HttpClient = HttpClient
+    .newBuilder()
+    .connectTimeout(Duration.ofSeconds(10))
+    .followRedirects(HttpClient.Redirect.NEVER)
+    .build()
+
   /** Top functions over [startMs, endMs] for the selector, plus total CPU.
     *  Asks Parca for its server-side TOP report (already aggregated by
     *  function) rather than the full pprof: the response is a few KB instead of
@@ -119,15 +125,10 @@ object ParcaClient extends LazyLogging {
       .header("Accept", "application/grpc-web+proto")
       .POST(HttpRequest.BodyPublishers.ofByteArray(framed))
       .build()
-    val client = HttpClient
-      .newBuilder()
-      .connectTimeout(Duration.ofMillis(timeoutMs))
-      .followRedirects(HttpClient.Redirect.NEVER)
-      .build()
     logger.debug(
       s"[profiles] sending gRPC-Web POST $baseUrl$path (${framed.length} bytes, timeout ${timeoutMs}ms)"
     )
-    Try(client.send(req, BodyHandlers.ofByteArray())) match {
+    Try(http.send(req, BodyHandlers.ofByteArray())) match {
       case Failure(e) =>
         logger.warn(
           s"[profiles] Parca backend unreachable at $baseUrl: " +
@@ -421,12 +422,15 @@ private[gateway] object Proto {
           val (v, ni) = readVarint(bytes, i); i = ni; VarInt(v)
         case 2 =>
           val (len, ni) = readVarint(bytes, i); i = ni
+          if (len < 0 || i + len > bytes.length) return
           val payload = java.util.Arrays.copyOfRange(bytes, i, i + len.toInt)
           i += len.toInt
           LengthDelimited(payload)
         case 1 =>
+          if (i + 8 > bytes.length) return
           val payload = java.util.Arrays.copyOfRange(bytes, i, i + 8); i += 8; Fixed64(payload)
         case 5 =>
+          if (i + 4 > bytes.length) return
           val payload = java.util.Arrays.copyOfRange(bytes, i, i + 4); i += 4; Fixed32(payload)
         case _ =>
           // Unknown / deprecated group wire types — stop walking rather

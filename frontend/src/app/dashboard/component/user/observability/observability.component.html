@@ -27,8 +27,8 @@
   </div>
 
   <nz-tabs [(nzSelectedIndex)]="activeTab">
-    <!-- Per-signal panels are added by their respective PRs (obs/pr15-18);
-         the shell ships the tab framework + health gating first. -->
+    <!-- Each tab renders its signal panel when the backend is reachable,
+         otherwise an explicit disabled/unreachable empty state. -->
     <nz-tab nzTitle="Logs">
       <texera-observability-logs-panel *ngIf="isReachable('logs'); else logsDisabled"></texera-observability-logs-panel>
       <ng-template #logsDisabled>

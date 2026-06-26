@@ -29,6 +29,7 @@ import { Subject, takeUntil } from "rxjs";
 import { ObservabilityService, ValidationError } from "../../../../service/user/observability/observability.service";
 import { TracesPivotService } from "../../../../service/user/observability/traces-pivot.service";
 import { TRACE_ID_RE, TraceSpan, TracesGetResponse } from "../../../../service/user/observability/observability.types";
+import { humanizeGatewayError } from "../../../../service/user/observability/observability-util";
 
 /**
  * Trace tree panel.
@@ -131,7 +132,7 @@ export class TracesPanelComponent implements OnInit, OnChanges, OnDestroy {
             this.loading = false;
           },
           error: (err: unknown) => {
-            this.errorMessage = humanizeError(err);
+            this.errorMessage = humanizeGatewayError(err, "Failed to load trace.");
             this.loading = false;
           },
         });
@@ -195,10 +196,3 @@ export function buildSpanTree(spans: ReadonlyArray<TraceSpan>): ReadonlyArray<Sp
   return roots.slice().sort(sortByStart).map(build);
 }
 
-function humanizeError(err: unknown): string {
-  if (typeof err === "object" && err !== null) {
-    const body = (err as { error?: { code?: string; message?: string } }).error;
-    if (body?.message) return body.message;
-  }
-  return "Failed to load trace.";
-}

@@ -19,7 +19,7 @@
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { DatePipe, DecimalPipe, NgFor, NgIf } from "@angular/common";
-import { Subject, takeUntil } from "rxjs";
+import { interval, Subject, Subscription, takeUntil } from "rxjs";
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzCardComponent } from "ng-zorro-antd/card";
@@ -28,6 +28,7 @@ import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
+import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { loadPanelPrefs, savePanelPrefs } from "../../../../service/user/observability/observability-prefs";
 import { AdminUserService } from "../../../../service/admin/user/admin-user.service";
@@ -39,6 +40,7 @@ import { CanvasRenderer } from "echarts/renderers";
 import type { EChartsCoreOption } from "echarts/core";
 import { ObservabilityService, ValidationError } from "../../../../service/user/observability/observability.service";
 import { MetricsQueryResponse, NamedMetric } from "../../../../service/user/observability/observability.types";
+import { humanizeGatewayError } from "../../../../service/user/observability/observability-util";
 
 // Register the minimum set of ECharts components we use. Tree-shaking
 // keeps the bundle reasonable.
@@ -82,6 +84,7 @@ const SAFE_MAX_POINTS = 28_000;
     NzInputDirective,
     NzSelectModule,
     NzSpinComponent,
+    NzSwitchModule,
     NzTooltipModule,
     NgxEchartsDirective,
   ],
@@ -192,7 +195,26 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
     // Optional per-user filter for DB-backed counts (totalRuns). null = all
     // users. Other (metrics-backend) cards ignore it.
     userId: new FormControl<number | null>(null),
+    // Follow mode: on each refresh, slide the window to end at "now" while
+    // preserving its duration, so a just-finished run lands inside the query.
+    // Off keeps the picked range absolute (look at a fixed historical window).
+    follow: new FormControl<boolean>(true),
+    // Auto-refresh cadence in seconds; 0 = off (manual Refresh only).
+    autoRefreshSec: new FormControl<number>(0),
   });
+
+  /** Auto-refresh dropdown choices. 0 disables the timer. Intervals are at or
+   *  above the backend's ~60s export cadence except the 30s "eager" option for
+   *  operators watching a run land. */
+  readonly autoRefreshOptions: ReadonlyArray<{ label: string; value: number }> = [
+    { label: "Off", value: 0 },
+    { label: "30s", value: 30 },
+    { label: "1m", value: 60 },
+    { label: "5m", value: 300 },
+  ];
+
+  /** Active auto-refresh timer, recreated whenever the cadence changes. */
+  private autoRefreshSub?: Subscription;
 
   /** Users for the run-count filter dropdown. Populated once on init from
    *  the admin user list (this panel is admin-only). */
@@ -241,6 +263,13 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
           console.warn("[observability] failed to load user list for run-count filter", err);
         },
       });
+    // Start (or clear) the auto-refresh timer per the restored cadence, and
+    // rebuild it whenever the operator changes the dropdown.
+    this.applyAutoRefresh(this.form.controls.autoRefreshSec.value ?? 0);
+    this.form.controls.autoRefreshSec.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(sec => this.applyAutoRefresh(sec ?? 0));
+
     this.refresh();
   }
 
@@ -249,10 +278,36 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  /** (Re)create the auto-refresh timer. A 0/negative cadence just clears it. */
+  private applyAutoRefresh(sec: number): void {
+    this.autoRefreshSub?.unsubscribe();
+    this.autoRefreshSub = undefined;
+    if (sec > 0) {
+      this.autoRefreshSub = interval(sec * 1000)
+        .pipe(takeUntil(this.destroy$))
+        // Skip a tick that lands while a previous refresh is still in flight
+        // so a slow backend can't queue overlapping fan-outs.
+        .subscribe(() => {
+          if (!this.loading) this.refresh();
+        });
+    }
+  }
+
   refresh(): void {
     const v = this.form.value;
-    const range = v.range;
+    let range = v.range;
     if (!range || range.length !== 2 || !range[0] || !range[1]) return;
+
+    // Follow mode: slide the window forward to end at "now", preserving its
+    // duration, so a freshly-finished run falls inside the queried window.
+    // Without this, Refresh re-queries the same fixed window captured at load.
+    if (v.follow) {
+      const durationMs = range[1].getTime() - range[0].getTime();
+      const now = new Date();
+      range = [new Date(now.getTime() - durationMs), now];
+      // Reflect the shift in the picker without re-triggering valueChanges.
+      this.form.controls.range.setValue(range, { emitEvent: false });
+    }
 
     this.loading = true;
     this.errorMessage = null;
@@ -300,7 +355,7 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
               // which of the N charts actually failed.
               // eslint-disable-next-line no-console
               console.warn(`[observability] metric '${desc.name}' failed to load`, err);
-              this.errorMessage = humanizeError(err);
+              this.errorMessage = humanizeGatewayError(err, "Failed to load metrics.");
               settle();
             },
           });
@@ -310,7 +365,7 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
           console.warn(`[observability] metric '${desc.name}' rejected before dispatch: ${e.message}`);
           this.errorMessage = e.message;
         } else {
-          this.errorMessage = humanizeError(e);
+          this.errorMessage = humanizeGatewayError(e, "Failed to load metrics.");
         }
         settle();
       }
@@ -404,19 +459,19 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
    * - aggregate "sum": total of all points over the window (e.g. total
    *   runs). Trend is not meaningful for a window total, so it is flat.
    *
-   * Returns a zeroed summary when the series is empty (template renders
-   * the placeholder dash).
+   * Returns a no-data summary (hasData: false) when the series is empty so
+   * the template renders the placeholder dash instead of a misleading "0".
    */
   private computeSummary(resp: MetricsQueryResponse, aggregate: "latest" | "sum"): MetricSummary {
     if (resp.points.length === 0) {
-      return { latest: 0, deltaPct: 0, trend: "flat" };
+      return { latest: 0, deltaPct: 0, trend: "flat", hasData: false };
     }
     if (aggregate === "sum") {
       // Count metrics arrive as a single window-wide value (defensively, we
       // still sum in case more than one point comes back). A run count is an
       // integer, so round off the fractional residue increase() can leave.
       const total = resp.points.reduce((acc, p) => acc + p.value, 0);
-      return { latest: Math.round(total), deltaPct: 0, trend: "flat" };
+      return { latest: Math.round(total), deltaPct: 0, trend: "flat", hasData: true };
     }
     const first = resp.points[0].value;
     const latest = resp.points[resp.points.length - 1].value;
@@ -429,7 +484,7 @@ export class MetricsPanelComponent implements OnInit, OnDestroy {
       deltaPct = 100;
     }
     const trend: MetricSummary["trend"] = Math.abs(deltaPct) < 0.5 ? "flat" : deltaPct > 0 ? "up" : "down";
-    return { latest, deltaPct: Math.abs(deltaPct), trend };
+    return { latest, deltaPct: Math.abs(deltaPct), trend, hasData: true };
   }
 }
 
@@ -438,12 +493,7 @@ interface MetricSummary {
   latest: number;
   deltaPct: number;
   trend: "up" | "down" | "flat";
-}
-
-function humanizeError(err: unknown): string {
-  if (typeof err === "object" && err !== null) {
-    const body = (err as { error?: { code?: string; message?: string } }).error;
-    if (body?.message) return body.message;
-  }
-  return "Failed to load metrics.";
+  // False when the query returned no points: the card shows a placeholder
+  // dash instead of a misleading "0" (e.g. "0% success" with zero runs).
+  hasData: boolean;
 }

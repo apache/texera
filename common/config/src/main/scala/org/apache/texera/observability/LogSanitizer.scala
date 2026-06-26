@@ -60,14 +60,17 @@ object LogSanitizer {
     *  partial match doesn't shadow a tighter pattern.
     */
   private val SecretPatterns: Seq[scala.util.matching.Regex] = Seq(
-    // Authorization: Bearer <token> — bearer token in header form.
+    // Bearer token in header form.
     """(?i)Bearer\s+[A-Za-z0-9._\-/+=]{8,}""".r,
-    // password=…, password: … — generic credential keyvalue.
-    """(?i)password\s*[=:]\s*[^\s,;"']+""".r,
-    // AWS access key ID (canonical AKIA…16-char format).
+    // Bare JWT (header.payload.signature).
+    """eyJ[A-Za-z0-9_\-]{6,}\.eyJ[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{6,}""".r,
+    // AWS access key ID.
     """AKIA[0-9A-Z]{16}""".r,
-    // AWS secret access key, when explicitly labelled.
-    """(?i)aws_secret_access_key\s*[=:]\s*[A-Za-z0-9/+=]{20,}""".r
+    // Labelled AWS secret access key.
+    """(?i)aws_secret_access_key\s*[=:]\s*[A-Za-z0-9/+=]{20,}""".r,
+    // Labelled credential in key=val, JSON, or quoted form.
+    ("""(?i)(?:password|passwd|pwd|secret|token|api[_-]?key|client[_-]?secret|""" +
+      """access[_-]?token)"?\s*[=:]\s*"?[^\s,;"']+""").r
   )
 
   /** MDC keys we will forward to OTel log attributes. Anything else

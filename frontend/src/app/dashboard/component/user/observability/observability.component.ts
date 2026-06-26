@@ -34,15 +34,11 @@ import { OnDestroy } from "@angular/core";
 import { Subject, takeUntil } from "rxjs";
 
 /**
- * Shell page for the observability dashboard. Four tabs — Logs,
- * Metrics, Traces, Profiles — each guarded by the per-signal
+ * Shell page for the observability dashboard. Four tabs (Logs,
+ * Metrics, Traces, Profiles), each guarded by the per-signal
  * reachability check from /api/observability/health. Tabs whose
  * backend reports unreachable render an explicit "Unreachable"
  * card rather than a broken chart.
- *
- * Logs is the only tab with a populated panel in PR 8. Metrics,
- * Traces, Profiles land in PRs 9–11 — each tab body shows a small
- * "coming soon in PR X" message so the shell ships without dead UI.
  */
 @Component({
   selector: "texera-observability",

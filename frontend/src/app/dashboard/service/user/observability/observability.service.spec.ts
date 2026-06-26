@@ -215,8 +215,7 @@ describe("ObservabilityService", () => {
   it("queryProfiles dispatches a valid request", () => {
     service
       .queryProfiles({
-        workflowId: 42,
-        executionId: 7,
+        comm: "java",
         fromMs: 0,
         toMs: 60_000,
       })
@@ -225,7 +224,7 @@ describe("ObservabilityService", () => {
       });
     const http = httpMock.expectOne(r => r.url.endsWith("/observability/profiles/query"));
     expect(http.request.method).toBe("POST");
-    expect(http.request.body.workflowId).toBe(42);
-    http.flush({ root: null, totalSamples: 0 });
+    expect(http.request.body.comm).toBe("java");
+    http.flush({ totalSamples: 0, top: [], timeline: [] });
   });
 });
