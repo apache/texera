@@ -166,6 +166,11 @@ import org.apache.texera.amber.operator.sklearn.SklearnRidgeCVOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnSDGOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnSVMOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNClassifierTrainerOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNRegressorTrainerOpDesc
 import java.nio.file.Path
 import java.util
 
@@ -293,6 +298,10 @@ object CuratedHandlers {
     SklearnSDGTransformHandler,
     SklearnSVMTransformHandler,
     SklearnLinearRegressionTransformHandler,
+    SklearnAdvancedSVCTrainerTransformHandler,
+    SklearnAdvancedSVRTrainerTransformHandler,
+    SklearnAdvancedKNNClassifierTrainerTransformHandler,
+    SklearnAdvancedKNNRegressorTrainerTransformHandler,
     MachineLearningScorerTransformHandler
   )
 
@@ -2621,4 +2630,40 @@ object SklearnLinearRegressionTransformHandler extends TransformHandler {
     desc.target = "y"
     (desc, Map(PortIdentity(0) -> train, PortIdentity(1) -> test))
   }
+}
+
+/** Advanced (hyperparameter-sweep) trainers: train on port 0, parameter table
+  * on port 1. With an empty paraList the estimator uses default hyperparameters
+  * (one model, no sweep). The model lands in a BINARY column compared by
+  * prediction behavior; Parameters is an empty string on both paths. */
+abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
+  protected def newDesc(): SklearnMLOperatorDescriptor[_]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val (train, param) = CuratedHandlers.writeClassification2Input(testRoot)
+    val desc = newDesc()
+    desc.groundTruthAttribute = "y"
+    desc.selectedFeatures = List("x1", "x2")
+    (desc, Map(PortIdentity(0) -> train, PortIdentity(1) -> param))
+  }
+}
+
+object SklearnAdvancedSVCTrainerTransformHandler extends SklearnAdvancedTrainerTransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[SklearnAdvancedSVCTrainerOpDesc]
+  override protected def newDesc(): SklearnMLOperatorDescriptor[_] = new SklearnAdvancedSVCTrainerOpDesc()
+}
+
+object SklearnAdvancedSVRTrainerTransformHandler extends SklearnAdvancedTrainerTransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[SklearnAdvancedSVRTrainerOpDesc]
+  override protected def newDesc(): SklearnMLOperatorDescriptor[_] = new SklearnAdvancedSVRTrainerOpDesc()
+}
+
+object SklearnAdvancedKNNClassifierTrainerTransformHandler extends SklearnAdvancedTrainerTransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[SklearnAdvancedKNNClassifierTrainerOpDesc]
+  override protected def newDesc(): SklearnMLOperatorDescriptor[_] = new SklearnAdvancedKNNClassifierTrainerOpDesc()
+}
+
+object SklearnAdvancedKNNRegressorTrainerTransformHandler extends SklearnAdvancedTrainerTransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[SklearnAdvancedKNNRegressorTrainerOpDesc]
+  override protected def newDesc(): SklearnMLOperatorDescriptor[_] = new SklearnAdvancedKNNRegressorTrainerOpDesc()
 }

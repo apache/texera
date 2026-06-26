@@ -124,6 +124,10 @@ import org.apache.texera.amber.operator.sklearn.SklearnRidgeCVOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnSDGOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnSVMOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNClassifierTrainerOpDesc
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNRegressorTrainerOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -572,5 +576,21 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
 
   it should "verify SklearnLinearRegressionOpDesc end-to-end via curated model comparison" in {
     TransformVerificationRunner.run(classOf[SklearnLinearRegressionOpDesc])
+  }
+
+  it should "verify SklearnAdvancedSVCTrainerOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnAdvancedSVCTrainerOpDesc])
+  }
+
+  it should "verify SklearnAdvancedSVRTrainerOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnAdvancedSVRTrainerOpDesc])
+  }
+
+  it should "verify SklearnAdvancedKNNClassifierTrainerOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnAdvancedKNNClassifierTrainerOpDesc])
+  }
+
+  it should "verify SklearnAdvancedKNNRegressorTrainerOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnAdvancedKNNRegressorTrainerOpDesc])
   }
 }
