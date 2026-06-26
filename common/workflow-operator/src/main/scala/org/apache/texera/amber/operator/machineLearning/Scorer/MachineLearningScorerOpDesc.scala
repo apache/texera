@@ -29,11 +29,11 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, HideAnnotation}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
+class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Regression")
   @JsonPropertyDescription(
@@ -122,7 +122,12 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
       case _                           => throw new IllegalArgumentException("Unknown metric type")
     }
 
-  private def getSelectedMetrics(): EncodableString = {
+  // Returns a raw Python code fragment (already quoted, e.g. 'Accuracy','F1 Score')
+  // for verbatim insertion into the metric_list literal. The return type is a
+  // plain String — NOT EncodableString — so the Python template builder splices
+  // it as-is instead of re-encoding it as a single quoted string value (which
+  // would double-quote each metric name and break the runtime lookup).
+  private def getSelectedMetrics(): String = {
     // Return a string of metrics using the getEachScorerName() method
     val metric = if (isRegression) regressionMetrics else classificationMetrics
     metric.map(metric => getMetricName(metric)).mkString("'", "','", "'")
@@ -189,6 +194,47 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |      yield result
          |"""
     finalcode.encode
+  }
+
+  override def generateStandaloneCode(): String = {
+    val isRegressionStr = if (isRegression) "True" else "False"
+    s"""import pandas as pd
+       |from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error, root_mean_squared_error, mean_absolute_error, r2_score
+       |
+       |def classification_metrics(y_true, y_pred, metric_list, labels):
+       |  if 'Accuracy' in metric_list:
+       |    labels.insert(0, 'Overall')
+       |  result = {metric: [None] * len(labels) for metric in metric_list}
+       |  metrics_func = {'Precision Score': precision_score, 'Recall Score': recall_score, 'F1 Score': f1_score}
+       |
+       |  for metric in metric_list:
+       |    if metric == 'Accuracy':
+       |      result['Accuracy'][0] = round(accuracy_score(y_true, y_pred), 4)
+       |    else:
+       |      for i, label in enumerate(labels):
+       |        if label != 'Overall':
+       |          prediction = metrics_func[metric](y_true, y_pred, average=None, labels=[label])
+       |          result[metric][i] = round(prediction[0], 4)
+       |
+       |  labels = ['class_' + str(label) if type(label) != str else label for label in labels]
+       |  result['Class'] = labels
+       |  return pd.DataFrame(result)
+       |
+       |def regression_metrics(y_true, y_pred, metric_list):
+       |  result = dict()
+       |  metrics_func = {'MSE': mean_squared_error, 'RMSE': root_mean_squared_error, 'MAE': mean_absolute_error, 'R2': r2_score}
+       |  for metric in metric_list:
+       |    result[metric] = metrics_func[metric](y_true, y_pred)
+       |  return pd.DataFrame(result, index=[0])
+       |
+       |y_true = in1df["$actualValueColumn"]
+       |y_pred = in1df["$predictValueColumn"]
+       |metric_list = [${getSelectedMetrics()}]
+       |if $isRegressionStr:
+       |    out1df = regression_metrics(y_true, y_pred, metric_list)
+       |else:
+       |    labels = list(set(y_true))
+       |    out1df = classification_metrics(y_true, y_pred, metric_list, labels)""".stripMargin
   }
 
 }

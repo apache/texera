@@ -101,6 +101,7 @@ object OperatorBehaviorSpec {
         .map(_.value())
         .filter(classOf[StandaloneCodeGenerator].isAssignableFrom)
         .map(_.asInstanceOf[Class[_ <: LogicalOp]])
+        .distinct
         .sortBy(_.getSimpleName)
   }
 }

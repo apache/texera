@@ -48,6 +48,9 @@ object Comparator {
       actual: Path,
       expected: Path,
       orderSensitive: Boolean = true,
+      ignoreColumns: Seq[String] = Seq.empty,
+      modelColumns: Seq[String] = Seq.empty,
+      probePath: Option[Path] = None,
       pythonExe: String = resolvePython()
   ): Unit = {
     val scriptPath = extractScript()
@@ -58,9 +61,23 @@ object Comparator {
     // before assert_frame_equal — needed for set-semantics ops whose JVM
     // emission order doesn't match the pandas equivalent. Default stays
     // positional so deterministic-order ops still catch row-order regressions.
+    // --ignore-cols drops opaque columns whose value isn't compared.
+    // --model-cols + --probe compare a model column by behavior: unpickle both
+    // sides and assert their predictions on the probe feature set match (two
+    // independently-trained models are functionally equal but not bit-equal).
     val baseArgs = Seq(pythonExe, scriptPath.toString)
     val flagArgs = if (!orderSensitive) Seq("--unordered") else Seq.empty
-    val cmd = baseArgs ++ flagArgs ++ Seq(actual.toString, expected.toString)
+    val ignoreArgs =
+      if (ignoreColumns.nonEmpty) Seq("--ignore-cols", ignoreColumns.mkString(",")) else Seq.empty
+    val modelArgs =
+      if (modelColumns.nonEmpty) Seq("--model-cols", modelColumns.mkString(",")) else Seq.empty
+    val probeArgs =
+      probePath.filter(_ => modelColumns.nonEmpty).map(p => Seq("--probe", p.toString)).getOrElse(Seq.empty)
+    val cmd =
+      baseArgs ++ flagArgs ++ ignoreArgs ++ modelArgs ++ probeArgs ++ Seq(
+        actual.toString,
+        expected.toString
+      )
     val exit = Process(cmd).!(procLogger)
 
     if (exit != 0) {

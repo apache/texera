@@ -56,6 +56,7 @@ from __future__ import annotations
 import base64
 import inspect
 import json
+import pickle
 import sys
 import traceback
 from pathlib import Path
@@ -264,6 +265,13 @@ def _jsonify(value: Any, attr_type: AttributeType) -> Any:
         return float(value)
     if attr_type == AttributeType.BOOL:
         return bool(value)
+    if attr_type == AttributeType.BINARY:
+        # Trained-model / object columns: pickle then base64 so the value
+        # survives JSONL round-trip. Mirrors the BINARY read path in
+        # _coerce_field. For deterministic estimators the pickle is byte-stable
+        # across processes, so the two verification paths compare equal.
+        raw = value if isinstance(value, (bytes, bytearray)) else pickle.dumps(value)
+        return base64.b64encode(raw).decode("ascii")
     raise NotImplementedError(
         f"py_op_driver: writing attribute type {attr_type!r} to JSONL is "
         f"not implemented yet"
