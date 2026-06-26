@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -42,7 +42,7 @@ import javax.validation.constraints.{NotEmpty, NotNull}
   }
 }
 """)
-class HierarchyChartOpDesc extends PythonOperatorDescriptor {
+class HierarchyChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Chart Type")
   @JsonPropertyDescription("Treemap or Sunburst")
@@ -135,6 +135,29 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  // Output is an HTML chart, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val attributes = hierarchy.map(section => s""""${section.attributeName}"""").mkString(", ")
+    s"""if in1df.empty:
+       |    print("Hierarchy chart error: input table is empty.")
+       |else:
+       |    in1df["$value"] = in1df[in1df["$value"] > 0]["$value"]
+       |    in1df.dropna(subset=[$attributes], inplace=True)
+       |    if in1df.empty:
+       |        print("Hierarchy chart error: value column contains only non-positive numbers or nulls.")
+       |    else:
+       |        fig = px.${hierarchyChartType.getPlotlyExpressApiName}(in1df, path=[$attributes], values="$value",
+       |                         color="$value", hover_data=[$attributes],
+       |                         color_continuous_scale='RdBu')
+       |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+       |        fig.write_json("output.json")
+       |        fig.write_html("output.html")
+       |        print("Hierarchy chart saved to output.html")""".stripMargin
   }
 
 }
