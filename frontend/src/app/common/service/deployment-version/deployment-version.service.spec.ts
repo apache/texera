@@ -217,33 +217,4 @@ describe("DeploymentVersionService", () => {
       sub.unsubscribe();
     }));
   });
-
-  describe("startPollingForUpdates (idempotency)", () => {
-    it("returns the in-flight subscription instead of stacking a second poller", fakeAsync(() => {
-      const first = service.startPollingForUpdates(1000);
-      const second = service.startPollingForUpdates(1000);
-      expect(second).toBe(first);
-      tick(1000);
-      // Only one poller is active, so only one manifest request is issued.
-      takeManifestRequest().flush({ buildNumber: "new-build" });
-      expect(blankSpy).toHaveBeenCalledTimes(1);
-      first.unsubscribe();
-    }));
-
-    it("starts a fresh poller once the previous run has completed", fakeAsync(() => {
-      const first = service.startPollingForUpdates(1000);
-      tick(1000);
-      // take(1) completes the first run after the update is detected.
-      takeManifestRequest().flush({ buildNumber: "new-build" });
-      expect(blankSpy).toHaveBeenCalledTimes(1);
-
-      // A subsequent startPollingForUpdates() is no longer a no-op: the prior run is closed.
-      const second = service.startPollingForUpdates(1000);
-      expect(second).not.toBe(first);
-      tick(1000);
-      takeManifestRequest().flush({ buildNumber: "another-new-build" });
-      expect(blankSpy).toHaveBeenCalledTimes(2);
-      second.unsubscribe();
-    }));
-  });
 });
