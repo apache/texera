@@ -161,6 +161,15 @@ hr {
     gap: 6px;
   }
 
+  .system-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 4px;
+    color: rgba(0, 0, 0, 0.55);
+    font-style: italic;
+  }
+
   .package-header-row,
   .package-inputs {
     display: grid;

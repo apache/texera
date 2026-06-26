@@ -910,6 +910,34 @@ describe("WorkflowEditorComponent", () => {
 
         expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
       });
+
+      it("uses the Validation passed in instead of recomputing it", () => {
+        // Let the validation chain settle from the operator-add so the spy
+        // below is created after those calls and starts with a clean slate.
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        const validateSpy = vi.spyOn(validationWorkflowService, "validateOperator");
+
+        // Call the helper directly with a Validation argument, mirroring what
+        // the validation-stream subscriber does at runtime
+        // (handleOperatorValidation passes value.validation through).
+        (component as any).applyOperatorBorder(mockScanPredicate.operatorID, { isValid: true });
+
+        expect(validateSpy).not.toHaveBeenCalled();
+      });
+
+      it("honors the passed-in Validation result (paints red when it is invalid)", () => {
+        // Proves the passed-in value actually drives the border, not just that
+        // the recompute is skipped: an invalid result must paint red.
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        (component as any).applyOperatorBorder(mockScanPredicate.operatorID, { isValid: false, messages: {} });
+
+        expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
+      });
     });
   });
 });
