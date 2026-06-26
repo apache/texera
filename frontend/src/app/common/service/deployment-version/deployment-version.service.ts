@@ -52,7 +52,7 @@ export class DeploymentVersionService {
   // Poll until a new deployment is detected, then prompt once. Idempotent:
   // a second call while already polling returns the in-flight subscription
   // rather than stacking a duplicate poller (and a duplicate prompt).
-  start(intervalMs: number = VERSION_POLL_INTERVAL_MS): Subscription {
+  startPollingForUpdates(intervalMs: number = VERSION_POLL_INTERVAL_MS): Subscription {
     if (this.polling && !this.polling.closed) {
       return this.polling;
     }
@@ -67,10 +67,18 @@ export class DeploymentVersionService {
   }
 
   promptReload(): void {
-    this.notification.blank(
+    const ref = this.notification.blank(
       "New version available",
-      "A new version of Texera is available. Refresh the page to update.",
+      "A new version of Texera is available. Click here to refresh, or reload the page when convenient.",
       { nzDuration: 0 }
     );
+    // Clicking the notification reloads the page so the user does not have to
+    // find the browser refresh button. take(1) guards against a double reload.
+    ref.onClick.pipe(take(1)).subscribe(() => this.reload());
+  }
+
+  // Indirection over window.location.reload so it can be spied in tests.
+  reload(): void {
+    window.location.reload();
   }
 }

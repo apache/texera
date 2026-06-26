@@ -43,13 +43,13 @@ export class AppComponent {
   configLoaded = false;
 
   constructor(
-    private config: GuiConfigService,
-    private deploymentVersion: DeploymentVersionService
+    private configService: GuiConfigService,
+    private deploymentVersionService: DeploymentVersionService
   ) {
     // determine whether configuration was successfully loaded by APP_INITIALIZER
     try {
       // accessing env will throw if not loaded
-      void this.config.env;
+      void this.configService.env;
       this.configLoaded = true;
     } catch {
       this.configLoaded = false;
@@ -58,8 +58,8 @@ export class AppComponent {
     // Poll for new deployments only when the config opts in (off by default),
     // config actually loaded, and this isn't the "dev" placeholder build where
     // no deployments occur.
-    if (this.configLoaded && this.config.env.deploymentVersionCheckEnabled && Version.buildNumber !== "dev") {
-      this.deploymentVersion.start();
+    if (this.configLoaded && this.configService.env.deploymentVersionCheckEnabled && Version.buildNumber !== "dev") {
+      this.deploymentVersionService.startPollingForUpdates();
     }
   }
 

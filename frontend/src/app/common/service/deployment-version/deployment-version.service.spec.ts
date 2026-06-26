@@ -19,31 +19,41 @@
 
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { TestBed, fakeAsync, tick } from "@angular/core/testing";
-import { NzNotificationDataOptions } from "ng-zorro-antd/notification";
+import { NzMessageService } from "ng-zorro-antd/message";
+import { NzNotificationRef, NzNotificationService } from "ng-zorro-antd/notification";
+import { Subject } from "rxjs";
 import { NotificationService } from "../notification/notification.service";
 import { DeploymentVersionService, VERSION_MANIFEST_URL, VERSION_POLL_INTERVAL_MS } from "./deployment-version.service";
-
-// Records blank() calls so the prompt is observable without a spy framework.
-class FakeNotificationService {
-  public blankCalls: { title: string; content: string; options: NzNotificationDataOptions }[] = [];
-  blank(title: string, content: string, options: NzNotificationDataOptions = {}): void {
-    this.blankCalls.push({ title, content, options });
-  }
-}
 
 describe("DeploymentVersionService", () => {
   let service: DeploymentVersionService;
   let httpMock: HttpTestingController;
-  let notification: FakeNotificationService;
+  // The real NotificationService, with its single side-effecting method spied.
+  let notification: NotificationService;
+  let blankSpy: ReturnType<typeof vi.spyOn>;
+  // Drives the onClick of the ref returned by the spied blank() call.
+  let notificationClick: Subject<MouseEvent>;
 
   beforeEach(() => {
+    notificationClick = new Subject<MouseEvent>();
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [{ provide: NotificationService, useClass: FakeNotificationService }],
+      providers: [
+        NotificationService,
+        // ng-zorro's lower-level services are not under test; stub them so the
+        // real NotificationService can be constructed and spied on.
+        { provide: NzNotificationService, useValue: { blank: vi.fn(), remove: vi.fn() } },
+        { provide: NzMessageService, useValue: {} },
+      ],
     });
     service = TestBed.inject(DeploymentVersionService);
     httpMock = TestBed.inject(HttpTestingController);
-    notification = TestBed.inject(NotificationService) as unknown as FakeNotificationService;
+    notification = TestBed.inject(NotificationService);
+    blankSpy = vi.spyOn(notification, "blank").mockReturnValue({
+      onClick: notificationClick,
+      onClose: new Subject(),
+      messageId: "test",
+    } as unknown as NzNotificationRef);
   });
 
   afterEach(() => httpMock.verify());
@@ -135,44 +145,52 @@ describe("DeploymentVersionService", () => {
   describe("promptReload", () => {
     it("shows exactly one sticky, dismissible notification with a refresh message", () => {
       service.promptReload();
-      expect(notification.blankCalls.length).toBe(1);
-      const call = notification.blankCalls[0];
-      expect(call.options.nzDuration).toBe(0);
-      expect(call.title.length).toBeGreaterThan(0);
-      expect(call.content.toLowerCase()).toContain("refresh");
+      expect(blankSpy).toHaveBeenCalledTimes(1);
+      const [title, content, options] = blankSpy.mock.calls[0] as [string, string, { nzDuration?: number }];
+      expect(options.nzDuration).toBe(0);
+      expect(title.length).toBeGreaterThan(0);
+      expect(content.toLowerCase()).toContain("refresh");
+    });
+
+    it("reloads the page when the notification is clicked", () => {
+      const reloadSpy = vi.spyOn(service, "reload").mockImplementation(() => undefined);
+      service.promptReload();
+      expect(reloadSpy).not.toHaveBeenCalled();
+      notificationClick.next(new MouseEvent("click"));
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe("start (polling)", () => {
+  describe("startPollingForUpdates", () => {
     it("polls after the interval and prompts once when a new deployment is detected", fakeAsync(() => {
-      const sub = service.start(1000);
-      expect(notification.blankCalls.length).toBe(0); // nothing before the first interval
+      const sub = service.startPollingForUpdates(1000);
+      expect(blankSpy).not.toHaveBeenCalled(); // nothing before the first interval
       tick(1000);
       takeManifestRequest().flush({ buildNumber: "new-build" });
-      expect(notification.blankCalls.length).toBe(1);
+      expect(blankSpy).toHaveBeenCalledTimes(1);
       sub.unsubscribe();
     }));
 
     it("does not prompt while the deployed build is unchanged", fakeAsync(() => {
-      const sub = service.start(1000);
+      const sub = service.startPollingForUpdates(1000);
       tick(1000);
       takeManifestRequest().flush({ buildNumber: "dev" });
-      expect(notification.blankCalls.length).toBe(0);
+      expect(blankSpy).not.toHaveBeenCalled();
       tick(1000);
       takeManifestRequest().flush({ buildNumber: "dev" });
-      expect(notification.blankCalls.length).toBe(0);
+      expect(blankSpy).not.toHaveBeenCalled();
       sub.unsubscribe();
     }));
 
     it("prompts only once and stops polling after an update is found", fakeAsync(() => {
-      const sub = service.start(1000);
+      const sub = service.startPollingForUpdates(1000);
       tick(1000);
       takeManifestRequest().flush({ buildNumber: "new-build" });
-      expect(notification.blankCalls.length).toBe(1);
+      expect(blankSpy).toHaveBeenCalledTimes(1);
       tick(1000);
       // take(1) completed the stream: no further polling.
       httpMock.expectNone(req => req.url === VERSION_MANIFEST_URL);
-      expect(notification.blankCalls.length).toBe(1);
+      expect(blankSpy).toHaveBeenCalledTimes(1);
       sub.unsubscribe();
     }));
 
@@ -181,50 +199,50 @@ describe("DeploymentVersionService", () => {
     });
 
     it("does not poll before the default 5 minute interval elapses", fakeAsync(() => {
-      const sub = service.start();
+      const sub = service.startPollingForUpdates();
       tick(VERSION_POLL_INTERVAL_MS - 1);
       httpMock.expectNone(req => req.url === VERSION_MANIFEST_URL);
       sub.unsubscribe();
     }));
 
     it("keeps polling and still prompts after a transient request failure", fakeAsync(() => {
-      const sub = service.start(1000);
+      const sub = service.startPollingForUpdates(1000);
       tick(1000);
       // First poll fails at the transport level: the stream must survive it.
       takeManifestRequest().error(new ProgressEvent("error"));
-      expect(notification.blankCalls.length).toBe(0);
+      expect(blankSpy).not.toHaveBeenCalled();
       tick(1000);
       takeManifestRequest().flush({ buildNumber: "new-build" });
-      expect(notification.blankCalls.length).toBe(1);
+      expect(blankSpy).toHaveBeenCalledTimes(1);
       sub.unsubscribe();
     }));
   });
 
-  describe("start (idempotency)", () => {
+  describe("startPollingForUpdates (idempotency)", () => {
     it("returns the in-flight subscription instead of stacking a second poller", fakeAsync(() => {
-      const first = service.start(1000);
-      const second = service.start(1000);
+      const first = service.startPollingForUpdates(1000);
+      const second = service.startPollingForUpdates(1000);
       expect(second).toBe(first);
       tick(1000);
       // Only one poller is active, so only one manifest request is issued.
       takeManifestRequest().flush({ buildNumber: "new-build" });
-      expect(notification.blankCalls.length).toBe(1);
+      expect(blankSpy).toHaveBeenCalledTimes(1);
       first.unsubscribe();
     }));
 
     it("starts a fresh poller once the previous run has completed", fakeAsync(() => {
-      const first = service.start(1000);
+      const first = service.startPollingForUpdates(1000);
       tick(1000);
       // take(1) completes the first run after the update is detected.
       takeManifestRequest().flush({ buildNumber: "new-build" });
-      expect(notification.blankCalls.length).toBe(1);
+      expect(blankSpy).toHaveBeenCalledTimes(1);
 
-      // A subsequent start() is no longer a no-op: the prior run is closed.
-      const second = service.start(1000);
+      // A subsequent startPollingForUpdates() is no longer a no-op: the prior run is closed.
+      const second = service.startPollingForUpdates(1000);
       expect(second).not.toBe(first);
       tick(1000);
       takeManifestRequest().flush({ buildNumber: "another-new-build" });
-      expect(notification.blankCalls.length).toBe(2);
+      expect(blankSpy).toHaveBeenCalledTimes(2);
       second.unsubscribe();
     }));
   });

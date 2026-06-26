@@ -17,12 +17,14 @@
  * under the License.
  */
 
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { CommonModule } from "@angular/common";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { AppComponent } from "./app.component";
 import { GuiConfigService } from "./common/service/gui-config.service";
 import { DeploymentVersionService } from "./common/service/deployment-version/deployment-version.service";
+import { NotificationService } from "./common/service/notification/notification.service";
 import { Version } from "../environments/version";
 
 // GuiConfigService stub whose env getter either returns a value or throws,
@@ -38,31 +40,30 @@ class StubGuiConfigService {
   }
 }
 
-// Records start() invocations without a spy framework.
-class FakeDeploymentVersionService {
-  startCalls = 0;
-  start(): void {
-    this.startCalls++;
-  }
-}
-
 describe("AppComponent", () => {
   let config: StubGuiConfigService;
-  let deployment: FakeDeploymentVersionService;
+  // The real DeploymentVersionService, with its polling entry point spied so
+  // the test asserts on the wiring without kicking off real HTTP polling.
+  let startPollingSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     Version.buildNumber = "dev";
     config = new StubGuiConfigService();
-    deployment = new FakeDeploymentVersionService();
 
     TestBed.configureTestingModule({
-      imports: [CommonModule, RouterTestingModule],
+      imports: [CommonModule, RouterTestingModule, HttpClientTestingModule],
       declarations: [AppComponent],
       providers: [
         { provide: GuiConfigService, useValue: config },
-        { provide: DeploymentVersionService, useValue: deployment },
+        DeploymentVersionService,
+        // NotificationService is a transitive dependency of DeploymentVersionService.
+        { provide: NotificationService, useValue: { blank: vi.fn() } },
       ],
     });
+    const deploymentVersionService = TestBed.inject(DeploymentVersionService);
+    startPollingSpy = vi
+      .spyOn(deploymentVersionService, "startPollingForUpdates")
+      .mockReturnValue({ unsubscribe: () => undefined } as never);
   });
 
   // Version is a shared module singleton; restore the dev default so a test
@@ -110,28 +111,28 @@ describe("AppComponent", () => {
       config.deploymentVersionCheckEnabled = true;
       Version.buildNumber = "dev";
       create();
-      expect(deployment.startCalls).toBe(0);
+      expect(startPollingSpy).not.toHaveBeenCalled();
     });
 
     it("does not start polling when the config flag is disabled", () => {
       config.deploymentVersionCheckEnabled = false;
       Version.buildNumber = "prod-build-123";
       create();
-      expect(deployment.startCalls).toBe(0);
+      expect(startPollingSpy).not.toHaveBeenCalled();
     });
 
     it("does not start polling when config failed to load", () => {
       config.shouldThrow = true;
       Version.buildNumber = "prod-build-123";
       create();
-      expect(deployment.startCalls).toBe(0);
+      expect(startPollingSpy).not.toHaveBeenCalled();
     });
 
     it("starts polling for a real build when the config flag is enabled", () => {
       config.deploymentVersionCheckEnabled = true;
       Version.buildNumber = "prod-build-123";
       create();
-      expect(deployment.startCalls).toBe(1);
+      expect(startPollingSpy).toHaveBeenCalledTimes(1);
     });
   });
 
