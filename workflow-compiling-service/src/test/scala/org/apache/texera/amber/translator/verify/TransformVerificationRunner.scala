@@ -31,7 +31,6 @@ import org.apache.texera.amber.operator.cartesianProduct.CartesianProductOpDesc
 import org.apache.texera.amber.operator.difference.DifferenceOpDesc
 import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
-import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
 import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
 import org.apache.texera.amber.operator.randomksampling.RandomKSamplingOpDesc
@@ -181,11 +180,6 @@ object TransformVerificationRunner {
     classOf[DummyOpDesc] ->
       ("harness gap: placeholder operator with no physical execution — " +
         "LogicalOp.getPhysicalOp throws NotImplementedError"),
-    classOf[IfOpDesc] ->
-      ("harness gap: the Condition port carries State in live Texera; the " +
-        "harness can only feed tuple tables, which IfOpExec forwards to the " +
-        "active output (condition rows + data rows) while the standalone " +
-        "translation deliberately ignores condition-port data"),
     classOf[RandomKSamplingOpDesc] ->
       ("non-deterministic: per-row keep decisions from JVM java.util.Random " +
         "(LCG) vs Python's Mersenne Twister select different rows even with " +

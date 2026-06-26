@@ -171,6 +171,7 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrain
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNClassifierTrainerOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNRegressorTrainerOpDesc
+import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import java.nio.file.Path
 import java.util
 
@@ -302,6 +303,7 @@ object CuratedHandlers {
     SklearnAdvancedSVRTrainerTransformHandler,
     SklearnAdvancedKNNClassifierTrainerTransformHandler,
     SklearnAdvancedKNNRegressorTrainerTransformHandler,
+    IfTransformHandler,
     MachineLearningScorerTransformHandler
   )
 
@@ -2666,4 +2668,28 @@ object SklearnAdvancedKNNClassifierTrainerTransformHandler extends SklearnAdvanc
 object SklearnAdvancedKNNRegressorTrainerTransformHandler extends SklearnAdvancedTrainerTransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[SklearnAdvancedKNNRegressorTrainerOpDesc]
   override protected def newDesc(): SklearnMLOperatorDescriptor[_] = new SklearnAdvancedKNNRegressorTrainerOpDesc()
+}
+
+/** If operator: routes the data port (port 1) to the True (port 1) or False
+  * (port 0) output. We feed an EMPTY Condition port (port 0) so IfOpExec
+  * forwards no condition rows; with no State message it keeps its default
+  * active output (True), matching the standalone's default-True branch — so
+  * the True output gets all data rows and the False output is empty on both
+  * paths. */
+object IfTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[IfOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val cols = Seq("id" -> AttributeType.INTEGER, "name" -> AttributeType.STRING)
+    val condition =
+      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), cols, Seq.empty[Seq[Any]])
+    val data = CuratedHandlers.writeFixture(
+      testRoot.resolve("input_port_1.jsonl"),
+      cols,
+      Seq(Seq(1, "a"), Seq(2, "b"), Seq(3, "c"))
+    )
+    val desc = new IfOpDesc()
+    desc.conditionName = "cond"
+    (desc, Map(PortIdentity(0) -> condition, PortIdentity(1) -> data))
+  }
 }
