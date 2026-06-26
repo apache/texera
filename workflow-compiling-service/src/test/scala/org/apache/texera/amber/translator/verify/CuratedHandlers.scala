@@ -172,6 +172,7 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrain
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNClassifierTrainerOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNRegressorTrainerOpDesc
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
+import org.apache.texera.amber.operator.visualization.htmlviz.HtmlVizOpDesc
 import java.nio.file.Path
 import java.util
 
@@ -304,6 +305,7 @@ object CuratedHandlers {
     SklearnAdvancedKNNClassifierTrainerTransformHandler,
     SklearnAdvancedKNNRegressorTrainerTransformHandler,
     IfTransformHandler,
+    HtmlVizVisualizationHandler,
     MachineLearningScorerTransformHandler
   )
 
@@ -2691,5 +2693,23 @@ object IfTransformHandler extends TransformHandler {
     val desc = new IfOpDesc()
     desc.conditionName = "cond"
     (desc, Map(PortIdentity(0) -> condition, PortIdentity(1) -> data))
+  }
+}
+
+/** HtmlViz echoes a STRING column as the single "html-content" column. The
+  * auto fixture can pick a non-string column (the output is declared STRING),
+  * so a curated string-column fixture is used. */
+object HtmlVizVisualizationHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[HtmlVizOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val inputPath = CuratedHandlers.writeFixture(
+      testRoot.resolve("input_port_0.jsonl"),
+      Seq("html" -> AttributeType.STRING),
+      Seq(Seq("<h1>One</h1>"), Seq("<p>Two</p>"), Seq("<div>Three</div>"))
+    )
+    val desc = new HtmlVizOpDesc()
+    desc.htmlContentAttrName = "html"
+    (desc, Map(PortIdentity(0) -> inputPath))
   }
 }

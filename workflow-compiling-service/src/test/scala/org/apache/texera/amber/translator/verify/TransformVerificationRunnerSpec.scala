@@ -129,6 +129,8 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrain
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNClassifierTrainerOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.SklearnAdvancedKNNRegressorTrainerOpDesc
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
+import org.apache.texera.amber.operator.visualization.htmlviz.HtmlVizOpDesc
+import org.apache.texera.amber.operator.visualization.urlviz.UrlVizOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -597,5 +599,13 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
 
   it should "verify IfOpDesc end-to-end via curated comparison (empty condition port, default True branch)" in {
     TransformVerificationRunner.run(classOf[IfOpDesc])
+  }
+
+  it should "verify HtmlVizOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[HtmlVizOpDesc])
+  }
+
+  it should "verify UrlVizOpDesc end-to-end via auto DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[UrlVizOpDesc])
   }
 }

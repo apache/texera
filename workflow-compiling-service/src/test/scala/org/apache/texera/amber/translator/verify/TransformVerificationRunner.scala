@@ -39,6 +39,7 @@ import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
+import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.visualization.DotPlot.DotPlotOpDesc
 import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
@@ -200,6 +201,10 @@ object TransformVerificationRunner {
       ("trained-model input: scores a fitted sklearn model read from its model " +
         "port; a JVM-written JSONL fixture cannot carry a live model object, so " +
         "the operator cannot be run in isolation here"),
+    classOf[WordCloudOpDesc] ->
+      ("non-deterministic image: emits a base64 PNG from the wordcloud library " +
+        "whose word placement is randomized (no seed), so the two paths' images " +
+        "never match byte-for-byte"),
     classOf[NestedTableOpDesc] ->
       ("non-deterministic HTML: emits a pandas Styler table whose element ids/" +
         "classes embed a random per-process uuid, so the two paths' HTML never " +
