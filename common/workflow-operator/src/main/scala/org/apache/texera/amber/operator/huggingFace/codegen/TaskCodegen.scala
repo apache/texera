@@ -39,7 +39,9 @@ final case class CodegenContext(
     safeMaxTokens: Int,
     safeTemp: Double,
     imageInput: EncodableString = "",
-    inputImageColumn: EncodableString = ""
+    inputImageColumn: EncodableString = "",
+    audioInput: EncodableString = "",
+    inputAudioColumn: EncodableString = ""
 )
 
 /**

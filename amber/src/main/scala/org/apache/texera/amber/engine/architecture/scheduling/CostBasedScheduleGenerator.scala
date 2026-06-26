@@ -44,6 +44,23 @@ import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
 
+object CostBasedScheduleGenerator {
+
+  /**
+    * The execution mode to schedule under: MATERIALIZED when any operator in
+    * `physicalPlan` requires it (e.g. the loop operators, whose back-edge is a
+    * cross-region materialized state channel), otherwise the requested mode.
+    */
+  private[scheduling] def effectiveExecutionMode(
+      physicalPlan: PhysicalPlan,
+      requestedMode: ExecutionMode
+  ): ExecutionMode =
+    if (physicalPlan.operators.exists(_.requiresMaterializedExecution))
+      ExecutionMode.MATERIALIZED
+    else
+      requestedMode
+}
+
 class CostBasedScheduleGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan,
@@ -304,7 +321,11 @@ class CostBasedScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResultFuture: Future[SearchResult] = Future {
-      workflowContext.workflowSettings.executionMode match {
+      val effectiveMode = CostBasedScheduleGenerator.effectiveExecutionMode(
+        physicalPlan,
+        workflowContext.workflowSettings.executionMode
+      )
+      effectiveMode match {
         case ExecutionMode.MATERIALIZED =>
           getFullyMaterializedSearchState
         case ExecutionMode.PIPELINED =>
