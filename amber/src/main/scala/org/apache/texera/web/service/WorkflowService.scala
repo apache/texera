@@ -50,7 +50,7 @@ import org.apache.texera.amber.error.ErrorUtils.{
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.service.util.LargeBinaryManager
-import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
+import org.apache.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent}
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.service.WorkflowService.mkWorkflowStateId
@@ -277,6 +277,14 @@ class WorkflowService(
         }
       }
     }
+    // Once the execution is published via `executionService.onNext`, the normal
+    // state-store path surfaces fatal errors to the UI: `errorHandler` writes
+    // them into `executionStateStore.metadataStore`, whose diff handler (set up
+    // in the WorkflowExecutionService constructor) emits a WorkflowErrorEvent
+    // that `connectToExecution` forwards. Before that point, neither the emitter
+    // nor a subscriber exists yet, so a failure in the constructor itself would
+    // be recorded but never reach the frontend -- see the fallback in `catch`.
+    var executionPublished = false
     try {
       val execution = new WorkflowExecutionService(
         controllerConf,
@@ -290,12 +298,35 @@ class WorkflowService(
       )
       lifeCycleManager.registerCleanUpOnStateChange(executionStateStore)
       executionService.onNext(execution)
+      executionPublished = true
       execution.executeWorkflow()
     } catch {
-      case e: Throwable => errorHandler(e)
+      case e: Throwable =>
+        errorHandler(e)
+        // If the execution was never published, no `connectToExecution`
+        // subscriber is bound to `executionStateStore`, so the state-store path
+        // above cannot deliver the error. Push it directly in that pre-publish
+        // window only; once published, the state-store path already surfaces it
+        // (pushing here too would double-emit).
+        if (!executionPublished) {
+          reportFatalErrorsToSubscribers(executionStateStore)
+        }
     }
 
   }
+
+  /**
+    * Push the fatal errors currently recorded in `stateStore` to connected
+    * websocket subscribers (via `errorSubject`).
+    *
+    * Fallback used only when execution initialization fails before the execution
+    * is published (e.g. the WorkflowExecutionService constructor throws): in that
+    * window the per-execution state store has no diff-handler emitter and no
+    * websocket subscriber, so the error -- already recorded by `errorHandler` --
+    * would otherwise be logged but never reach the frontend.
+    */
+  private[service] def reportFatalErrorsToSubscribers(stateStore: ExecutionStateStore): Unit =
+    errorSubject.onNext(WorkflowErrorEvent(stateStore.metadataStore.getState.fatalErrors))
 
   def convertToJson(frontendVersion: String): String = {
     val environmentVersionMap = Map(
