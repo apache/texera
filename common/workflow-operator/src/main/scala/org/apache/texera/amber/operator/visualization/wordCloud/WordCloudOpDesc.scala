@@ -29,12 +29,12 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.visualization.ImageUtility
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
-class WordCloudOpDesc extends PythonOperatorDescriptor {
+class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text column")
   @AutofillAttributeName
@@ -108,4 +108,28 @@ class WordCloudOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |""".encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  // Standalone (non-pytexera) translation of generatePythonCode: same dropna +
+  // word filter, same WordCloud config, same base64-image HTML, written to
+  // output.html. Cannot be auto-verified (the PNG word placement is randomized,
+  // so the two paths' images never match byte-for-byte) — flagged as a known
+  // issue — but kept faithful for completeness.
+  override def generateStandaloneCode(): String =
+    s"""table = in1df
+       |table = table.dropna(subset=["$textColumn"])
+       |table = table[table["$textColumn"].str.contains(r'\\w', regex=True)]
+       |text = ' '.join(table["$textColumn"])
+       |from wordcloud import WordCloud, STOPWORDS
+       |wordcloud = WordCloud(width=1920, height=1080, stopwords=set(STOPWORDS), max_words=$topN, background_color='white', include_numbers=True).generate(text)
+       |from io import BytesIO
+       |image_stream = BytesIO()
+       |wordcloud.to_image().save(image_stream, format='PNG')
+       |binary_image_data = image_stream.getvalue()
+       |import base64
+       |encoded_image_str = base64.b64encode(binary_image_data).decode("utf-8")
+       |html = f'<img src="data:image;base64,{encoded_image_str}" alt="Image" style="max-width: 100vw; max-height: 90vh; width: auto; height: auto;">'
+       |with open("output.html", "w", encoding="utf-8") as f:
+       |    f.write(html)""".stripMargin
 }
