@@ -73,7 +73,7 @@ export class UserDatasetComponent implements AfterViewInit {
   public currentUid = this.userService.getCurrentUser()?.uid;
   public hasMismatch = false; // Display warning when there are mismatched datasets
   public viewType: "list" | "card" =
-    localStorage.getItem(UserDatasetComponent.VIEW_MODE_STORAGE_KEY) === "card" ? "card" : "list";
+    localStorage.getItem(UserDatasetComponent.VIEW_MODE_STORAGE_KEY) === "list" ? "list" : "card";
 
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {

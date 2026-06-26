@@ -136,13 +136,7 @@ export class CardItemComponent implements OnChanges {
     private notificationService: NotificationService
   ) {}
 
-  /** The top image src for the card preview. */
-  get previewImage(): string {
-    return this.coverImageSrc;
-  }
-
   initializeEntry() {
-    this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.workflow.isOwner;

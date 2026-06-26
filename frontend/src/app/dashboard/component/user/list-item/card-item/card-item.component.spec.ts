@@ -185,7 +185,7 @@ describe("CardItemComponent", () => {
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
     expect(datasetService.getDatasetCoverUrl).toHaveBeenCalledWith(5);
-    expect(component.previewImage).toBe("https://cover.example/img.png");
+    expect(component.coverImageSrc).toBe("https://cover.example/img.png");
   });
 
   it("should fall back to the default preview when the cover fetch fails", () => {
@@ -193,19 +193,19 @@ describe("CardItemComponent", () => {
     component.entry = makeDatasetEntry({ coverImageUrl: "cover/path.png" });
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
-    expect(component.previewImage).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
 
   it("should reset the preview to the default image on cover load error", () => {
     component.coverImageSrc = "https://cover.example/img.png";
     component.onCoverError();
-    expect(component.previewImage).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
 
   it("should keep the default preview for non-dataset entries", () => {
     component.entry = makeWorkflowEntry();
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
-    expect(component.previewImage).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
 
   it("should not fetch a cover when the dataset has no cover image", () => {
@@ -213,7 +213,7 @@ describe("CardItemComponent", () => {
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
     expect(datasetService.getDatasetCoverUrl).not.toHaveBeenCalled();
-    expect(component.previewImage).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
 
   it("should use the default preview when the cover url resolves to null", () => {
@@ -221,6 +221,6 @@ describe("CardItemComponent", () => {
     component.entry = makeDatasetEntry({ coverImageUrl: "cover/path.png" });
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
-    expect(component.previewImage).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
 });
