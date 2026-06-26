@@ -19,9 +19,38 @@ import io
 import os
 import requests
 import urllib.parse
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 class DatasetFileDocument:
+    # (connect, read) timeout and retry settings for the file-service GETs below.
+    # Read timeout bounds inactivity between bytes, not total download time.
+    _CONNECT_TIMEOUT_SECONDS = 5
+    _READ_TIMEOUT_SECONDS = 10
+    _REQUEST_TIMEOUT = (_CONNECT_TIMEOUT_SECONDS, _READ_TIMEOUT_SECONDS)
+    _MAX_RETRIES = 3
+    _RETRY_BACKOFF_FACTOR = 0.5
+    _RETRY_STATUS_FORCELIST = (500, 502, 503, 504)
+
+    @classmethod
+    def _retry_session(cls) -> requests.Session:
+        """Returns a Session that retries GETs on connection errors and 5xx."""
+        retry = Retry(
+            total=cls._MAX_RETRIES,
+            connect=cls._MAX_RETRIES,
+            read=cls._MAX_RETRIES,
+            backoff_factor=cls._RETRY_BACKOFF_FACTOR,
+            status_forcelist=cls._RETRY_STATUS_FORCELIST,
+            allowed_methods=frozenset({"GET"}),
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        session = requests.Session()
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        return session
+
     def __init__(self, file_path: str):
         """
         Parses the file path into dataset metadata.
@@ -69,7 +98,18 @@ class DatasetFileDocument:
 
         params = {"filePath": encoded_file_path}
 
-        response = requests.get(self.presign_endpoint, headers=headers, params=params)
+        try:
+            with self._retry_session() as session:
+                response = session.get(
+                    self.presign_endpoint,
+                    headers=headers,
+                    params=params,
+                    timeout=self._REQUEST_TIMEOUT,
+                )
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(
+                f"Failed to get presigned URL: request failed: {e}"
+            ) from e
 
         if response.status_code != 200:
             raise RuntimeError(
@@ -100,7 +140,13 @@ class DatasetFileDocument:
         :raises: RuntimeError if the retrieval fails.
         """
         presigned_url = self.get_presigned_url()
-        response = requests.get(presigned_url)
+        try:
+            with self._retry_session() as session:
+                response = session.get(presigned_url, timeout=self._REQUEST_TIMEOUT)
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(
+                f"Failed to retrieve file content: request failed: {e}"
+            ) from e
 
         if response.status_code != 200:
             raise RuntimeError(
