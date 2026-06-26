@@ -59,6 +59,9 @@ object PythonCodegenBase {
     val inputImageColumn = ctx.inputImageColumn
     val audioInput = ctx.audioInput
     val inputAudioColumn = ctx.inputAudioColumn
+    val contextColumn = ctx.contextColumn
+    val candidateLabels = ctx.candidateLabels
+    val sentencesColumn = ctx.sentencesColumn
     pyb"""import os
        |import re
        |import json
@@ -141,6 +144,9 @@ object PythonCodegenBase {
        |        self.INPUT_IMAGE_COLUMN = $inputImageColumn
        |        self.AUDIO_INPUT = $audioInput
        |        self.INPUT_AUDIO_COLUMN = $inputAudioColumn
+       |        self.CONTEXT_COLUMN = $contextColumn
+       |        self.CANDIDATE_LABELS = $candidateLabels
+       |        self.SENTENCES_COLUMN = $sentencesColumn
        |
        |    def _resolve_providers(self, token):
        |        '''Query the HF Hub API for inference providers serving this model.
@@ -491,6 +497,24 @@ object PythonCodegenBase {
        |                f"Prompt column '{prompt_col}' not found in input table. "
        |                f"Available columns: {list(table.columns)}"
        |            )
+       |        if task == "zero-shot-classification":
+       |            labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split(",") if l.strip()]
+       |            assert labels, (
+       |                "Candidate Labels are required for zero-shot-classification. "
+       |                "Provide a comma-separated list of labels."
+       |            )
+       |        if task == "question-answering":
+       |            ctx_col = self.CONTEXT_COLUMN
+       |            assert ctx_col and ctx_col in table.columns, (
+       |                f"Context column '{ctx_col}' not found in input table. "
+       |                f"Available columns: {list(table.columns)}"
+       |            )
+       |        if task in ("sentence-similarity", "text-ranking"):
+       |            sent_col = self.SENTENCES_COLUMN
+       |            assert sent_col and sent_col in table.columns, (
+       |                f"Sentences column '{sent_col}' not found in input table. "
+       |                f"Available columns: {list(table.columns)}"
+       |            )
        |
        |        # --- handle empty table ---
        |        if table.empty:
@@ -506,6 +530,16 @@ object PythonCodegenBase {
        |            "Authorization": f"Bearer {token}",
        |            "Content-Type": "application/octet-stream",
        |        }
+       |        # --- pre-compute table dict for table-question-answering ---
+       |        table_dict = None
+       |        if task == "table-question-answering":
+       |            table_dict = {}
+       |            for col in table.columns:
+       |                if col != prompt_col and col != result_col:
+       |                    table_dict[col] = [
+       |                        str(v) if not pd.isna(v) else "" for v in table[col].tolist()
+       |                    ]
+       |
        |        # --- resolve image source (upload or column) for image tasks ---
        |        has_image_upload = bool(self.IMAGE_INPUT) and bool(str(self.IMAGE_INPUT).strip())
        |        use_image_column = not has_image_upload and bool(self.INPUT_IMAGE_COLUMN) and self.INPUT_IMAGE_COLUMN in table.columns

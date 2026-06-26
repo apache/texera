@@ -637,6 +637,8 @@ jobs:
             sbt_project: ComputingUnitManagingService
           - service: workflow-compiling-service
             sbt_project: WorkflowCompilingService
+          - service: notebook-migration-service
+            sbt_project: NotebookMigrationService
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8

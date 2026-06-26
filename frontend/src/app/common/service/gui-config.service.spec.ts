@@ -207,4 +207,119 @@ describe("GuiConfigService", () => {
     http.expectNone(`${API}/config/user-system`);
     await expect(pending).rejects.toThrow(/pre-login configuration/);
   });
+
+  // ─── source() isolation ───────────────────────────────────────────────────
+
+  it("source() keeps each endpoint's payload retrievable in isolation", async () => {
+    const preLoginPending = firstValueFrom(service.loadPreLogin());
+    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
+    await preLoginPending;
+
+    const postLoginPending = firstValueFrom(service.loadPostLogin());
+    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
+    http.expectOne(`${API}/config/user-system`).flush(USER_SYSTEM_PAYLOAD);
+    await postLoginPending;
+
+    expect(service.source("preLogin")).toEqual(PRE_LOGIN_PAYLOAD);
+    expect(service.source("gui")).toEqual(GUI_PAYLOAD);
+    expect(service.source("amber")).toEqual(AMBER_PAYLOAD);
+    expect(service.source("userSystem")).toEqual(USER_SYSTEM_PAYLOAD);
+  });
+
+  it("source() does not bleed keys across sources", async () => {
+    // A value from one endpoint must not appear under another.
+    const pending = firstValueFrom(service.loadPostLogin());
+    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
+    http.expectOne(`${API}/config/user-system`).flush(USER_SYSTEM_PAYLOAD);
+    await pending;
+
+    expect(service.source("amber")).toHaveProperty("defaultDataTransferBatchSize");
+    expect(service.source("gui")).not.toHaveProperty("defaultDataTransferBatchSize");
+    expect(service.source("gui")).not.toHaveProperty("inviteOnly");
+    // env still flattens them together for the common single-flag call sites.
+    expect(service.env.defaultDataTransferBatchSize).toBe(400);
+  });
+
+  it("source() returns an empty object for an endpoint that has not loaded", () => {
+    expect(service.source("amber")).toEqual({});
+  });
+
+  // ─── env reference stability ───────────────────────────────────────────────
+
+  it("env returns a stable reference between loads so two-way bindings persist", async () => {
+    const pending = firstValueFrom(service.loadPreLogin());
+    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
+    await pending;
+
+    // Repeated reads must return the same object (relied on by change detection
+    // and by the [(ngModel)] write-through at menu.component.html).
+    expect(service.env).toBe(service.env);
+
+    // A write through env persists across subsequent reads.
+    (service.env as any).workflowEmailNotificationEnabled = true;
+    expect(service.env.workflowEmailNotificationEnabled).toBe(true);
+  });
+
+  it("env reference is rebuilt after a new source loads", async () => {
+    const preLoginPending = firstValueFrom(service.loadPreLogin());
+    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
+    await preLoginPending;
+    const before = service.env;
+
+    const postLoginPending = firstValueFrom(service.loadPostLogin());
+    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
+    http.expectOne(`${API}/config/user-system`).flush(USER_SYSTEM_PAYLOAD);
+    await postLoginPending;
+
+    expect(service.env).not.toBe(before);
+    expect(service.env.defaultDataTransferBatchSize).toBe(400);
+  });
+
+  it("a write through env is discarded when a source reloads", async () => {
+    // Documents the boundary of the memoized write-through: in-memory edits made
+    // via [(ngModel)] land on the merged cache only, not on any source payload.
+    // A subsequent source load invalidates the cache, so the edit does not
+    // survive a re-fetch (e.g. a fresh login re-running loadPostLogin). This is
+    // intentional (config reloads are authoritative) and is locked in here so a
+    // future "persist edits across reloads" change is a deliberate decision.
+    const preLoginPending = firstValueFrom(service.loadPreLogin());
+    http.expectOne(`${API}/config/pre-login`).flush(PRE_LOGIN_PAYLOAD);
+    await preLoginPending;
+
+    (service.env as any).workflowEmailNotificationEnabled = true;
+    expect(service.env.workflowEmailNotificationEnabled).toBe(true);
+
+    const postLoginPending = firstValueFrom(service.loadPostLogin());
+    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
+    http.expectOne(`${API}/config/user-system`).flush(USER_SYSTEM_PAYLOAD);
+    await postLoginPending;
+
+    expect(service.env.workflowEmailNotificationEnabled).toBeUndefined();
+  });
+
+  // ─── merge precedence ───────────────────────────────────────────────────────
+
+  it("env merges sources in MERGE_ORDER so a later source wins on a shared key", async () => {
+    // The typed source payloads are disjoint, so precedence never fires through
+    // the public API, but the merge reduce implements "later source wins" and
+    // nothing else covers it. Inject an overlapping key via the raw payloads to
+    // lock the documented order (preLogin, gui, amber, userSystem).
+    const preLoginPending = firstValueFrom(service.loadPreLogin());
+    http.expectOne(`${API}/config/pre-login`).flush({ ...PRE_LOGIN_PAYLOAD, inviteOnly: false });
+    await preLoginPending;
+    // userSystem comes after preLogin in MERGE_ORDER, so its value must win.
+    expect(service.env.inviteOnly).toBe(false);
+
+    const postLoginPending = firstValueFrom(service.loadPostLogin());
+    http.expectOne(`${API}/config/gui`).flush(GUI_PAYLOAD);
+    http.expectOne(`${API}/config/amber`).flush(AMBER_PAYLOAD);
+    http.expectOne(`${API}/config/user-system`).flush({ inviteOnly: true });
+    await postLoginPending;
+
+    expect(service.env.inviteOnly).toBe(true);
+  });
 });
