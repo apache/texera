@@ -78,14 +78,7 @@ class StagedFileCleanupJob(
       thread
     })
     executor.scheduleWithFixedDelay(
-      () => {
-        try {
-          runCleanupOnce()
-        } catch {
-          // An exception must never kill the schedule.
-          case t: Throwable => logger.error("Staged file cleanup round failed", t)
-        }
-      },
+      () => runScheduledTick(),
       // Small fixed initial delay so a restart doesn't postpone backlog cleanup by up to a
       // full interval.
       1L,
@@ -93,6 +86,18 @@ class StagedFileCleanupJob(
       TimeUnit.MINUTES
     )
   }
+
+  /**
+    * Runs one cleanup round for the scheduler. Visible for testing. Catches every Throwable
+    * because an exception escaping the scheduled task would cancel the fixed-delay schedule and
+    * silently stop all future cleanup rounds.
+    */
+  private[util] def runScheduledTick(): Unit =
+    try {
+      runCleanupOnce()
+    } catch {
+      case t: Throwable => logger.error("Staged file cleanup round failed", t)
+    }
 
   override def stop(): Unit = {
     if (executor != null) {
@@ -107,7 +112,10 @@ class StagedFileCleanupJob(
     * @param now The reference time used to evaluate the retention window.
     * @return Summary counts for this round.
     */
-  private[util] def runCleanupOnce(now: OffsetDateTime = OffsetDateTime.now()): CleanupReport = {
+  private[util] def runCleanupOnce(
+      now: OffsetDateTime = OffsetDateTime.now(),
+      mtimeOf: (String, String) => Long = LakeFSStorageClient.getStagedObjectMtime
+  ): CleanupReport = {
     val cutoff = now.minusHours(retentionHours.toLong)
     val cutoffEpochSecond = cutoff.toEpochSecond
     var sessionsDeleted = 0
@@ -206,12 +214,12 @@ class StagedFileCleanupJob(
               logger.debug(s"Skipping staged ${diff.getType} entry '$path' in '$repoName'")
             } else {
               try {
-                val mtime = LakeFSStorageClient.getStagedObjectMtime(repoName, path)
+                val mtime = mtimeOf(repoName, path)
                 if (
                   mtime < cutoffEpochSecond &&
                   !hasActiveUploadSession(ctx, did, path, cutoff)
                 ) {
-                  val latestMtime = LakeFSStorageClient.getStagedObjectMtime(repoName, path)
+                  val latestMtime = mtimeOf(repoName, path)
                   if (latestMtime < cutoffEpochSecond) {
                     LakeFSStorageClient.resetObjectUploadOrDeletion(repoName, path)
                     objectsReset += 1

@@ -744,10 +744,10 @@ class StagedFileCleanupJobSpec
   // 19. Path 1 (session cleanup): a non-404 abort failure rolls back the row delete (transactional)
   // ===========================================================================
   it should "roll back the session-row delete when the multipart abort fails (non-404)" in {
-    // Same failure mechanism as test 11: a bogus uploadId / physical address whose abort
-    // throws a NON-404 error. Unlike test 11, this asserts the DB row SURVIVES, proving the
-    // delete (staged first inside withTransaction) is rolled back rather than committed.
-    // A timeout or a 5xx from LakeFS takes this same non-404 -> rollback -> retry path.
+    // A bogus uploadId / physical address makes the multipart abort throw a NON-404 error.
+    // The DB row must SURVIVE, proving the delete (staged first inside withTransaction) is
+    // rolled back rather than committed. A timeout or a 5xx from LakeFS takes this same
+    // non-404 -> rollback -> retry path.
     val bogusPath = uniquePath("rollback-bogus-session")
     insertBogusSession(bogusPath) // created_at defaults to now -> expired under farFuture
     val bogusId = fetchSession(bogusPath).getUploadId
@@ -757,8 +757,8 @@ class StagedFileCleanupJobSpec
 
       report.errors shouldEqual 1
       report.sessionsDeleted shouldEqual 0
-      // Key assertion vs. test 11: the delete was rolled back with the failed abort, so the
-      // row is still present and the next round will retry it.
+      // The delete was rolled back together with the failed abort, so the row is still
+      // present and the next round will retry it.
       fetchSession(bogusPath) should not be null
     } finally {
       // The row survives the rolled-back round, so remove it explicitly to keep later tests'
@@ -774,8 +774,8 @@ class StagedFileCleanupJobSpec
   // 20. Path 1 (session cleanup): a transiently-failing session is cleaned on the NEXT round (self-heals)
   // ===========================================================================
   it should "clean a transiently-failing session on the next round (retried, not stuck)" in {
-    // Demonstrates Yicong's "cleaned in next round": round 1's abort fails (non-404) and rolls
-    // back, leaving the row; once the transient condition clears, a later round succeeds.
+    // Round 1's abort fails (non-404) and rolls back, leaving the row; once the transient
+    // condition clears, a later round succeeds, so the row is retried rather than stuck.
     val filePath = uniquePath("transient-session")
     insertBogusSession(filePath) // abort throws non-404 under the bogus physical address
     val bogusId = fetchSession(filePath).getUploadId
@@ -789,7 +789,7 @@ class StagedFileCleanupJobSpec
 
       // Clear the transient failure deterministically WITHOUT faking the client: replace the
       // bogus row with a REAL session at the same logical path, then abort its multipart
-      // out-of-band (the test-10 mechanism). The next round's abort therefore returns 404,
+      // out-of-band. The next round's abort therefore returns 404,
       // which the job treats as success.
       getDSLContext
         .deleteFrom(DATASET_UPLOAD_SESSION)
@@ -822,8 +822,8 @@ class StagedFileCleanupJobSpec
   // 21. Path 1 (session cleanup): a failing item does not prevent a healthy item in the same round from cleaning
   // ===========================================================================
   it should "clean a healthy session in the same round where another item fails, keeping the failed row" in {
-    // Test 11 asserts the healthy item is cleaned and the batch continues, but does NOT assert
-    // that the failing row SURVIVES (rolled back). This pins both halves precisely.
+    // Verifies both halves in a single round: a healthy item is cleaned and the batch
+    // continues, while the failing item's row is rolled back (survives) to retry next round.
     val healthyPath = uniquePath("healthy-alongside-failing")
     initSession(healthyPath) // abort succeeds -> row deleted
     val bogusPath = uniquePath("failing-alongside-healthy")
@@ -845,5 +845,97 @@ class StagedFileCleanupJobSpec
         .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(bogusId))
         .execute()
     }
+  }
+
+  // ===========================================================================
+  // 22. TOCTOU guard: the mtime is re-read right before reset; a now-fresh object is skipped
+  // ===========================================================================
+  it should "skip reset when the mtime re-read just before reset is fresh (TOCTOU guard)" in {
+    val stagedPath = uniquePath("toctou-skip")
+    stageObject(stagedPath)
+    val now = farFuture
+    val cutoffEpoch = now.minusHours(RetentionHours.toLong).toEpochSecond
+
+    // First read looks expired (old), but the re-read taken right before the reset sees a fresh
+    // mtime, as if a new upload landed on the same path between the two reads. The object must
+    // NOT be reset, which is exactly the data-loss window the second read closes.
+    val calls = new java.util.concurrent.atomic.AtomicInteger(0)
+    val mtimeOf: (String, String) => Long =
+      (_, _) => if (calls.incrementAndGet() == 1) cutoffEpoch - 100 else cutoffEpoch + 100
+
+    val report = job.runCleanupOnce(now, mtimeOf)
+
+    report.objectsReset shouldEqual 0
+    report.errors shouldEqual 0
+    calls.get() shouldEqual 2 // both the initial read and the pre-reset re-read happened
+    uncommittedPaths() should contain(stagedPath)
+  }
+
+  // ===========================================================================
+  // 23. TOCTOU guard: when the re-read is still expired, the object is reset (pass-through)
+  // ===========================================================================
+  it should "reset when the mtime re-read just before reset is still expired" in {
+    val stagedPath = uniquePath("toctou-reset")
+    stageObject(stagedPath)
+    val now = farFuture
+    val cutoffEpoch = now.minusHours(RetentionHours.toLong).toEpochSecond
+
+    val report = job.runCleanupOnce(now, (_, _) => cutoffEpoch - 100)
+
+    report.objectsReset should be >= 1
+    report.errors shouldEqual 0
+    uncommittedPaths() should not contain stagedPath
+  }
+
+  // ===========================================================================
+  // 24. Scheduled tick delegates to runCleanupOnce on each invocation
+  // ===========================================================================
+  "StagedFileCleanupJob scheduled tick" should "run a cleanup round on each invocation" in {
+    val counter = new java.util.concurrent.atomic.AtomicInteger(0)
+    val countingJob = new StagedFileCleanupJob(RetentionHours, IntervalMinutes) {
+      override def runCleanupOnce(
+          now: OffsetDateTime,
+          mtimeOf: (String, String) => Long
+      ): CleanupReport = {
+        counter.incrementAndGet()
+        CleanupReport(0, 0, 0)
+      }
+    }
+
+    countingJob.runScheduledTick()
+    countingJob.runScheduledTick()
+
+    counter.get() shouldEqual 2
+  }
+
+  // ===========================================================================
+  // 25. Scheduled tick swallows exceptions so the fixed-delay schedule is never cancelled
+  // ===========================================================================
+  it should "swallow exceptions from a cleanup round so the schedule keeps running" in {
+    val throwingJob = new StagedFileCleanupJob(RetentionHours, IntervalMinutes) {
+      override def runCleanupOnce(
+          now: OffsetDateTime,
+          mtimeOf: (String, String) => Long
+      ): CleanupReport = throw new RuntimeException("boom")
+    }
+
+    noException should be thrownBy throwingJob.runScheduledTick()
+  }
+
+  // ===========================================================================
+  // 26. Constructor rejects non-positive configuration
+  // ===========================================================================
+  "StagedFileCleanupJob constructor" should "reject a non-positive retentionHours" in {
+    assertThrows[IllegalArgumentException](new StagedFileCleanupJob(0, IntervalMinutes))
+  }
+
+  it should "reject a non-positive intervalMinutes" in {
+    assertThrows[IllegalArgumentException](new StagedFileCleanupJob(RetentionHours, 0))
+  }
+
+  it should "reject a non-positive sessionCleanupBatchSize" in {
+    assertThrows[IllegalArgumentException](
+      new StagedFileCleanupJob(RetentionHours, IntervalMinutes, sessionCleanupBatchSize = 0)
+    )
   }
 }

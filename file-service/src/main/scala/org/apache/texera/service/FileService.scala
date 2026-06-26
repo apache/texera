@@ -111,17 +111,29 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
     RequestLoggingFilter.register(environment.getApplicationContext)
 
     // Periodically clean up uploaded but uncommitted (staged) dataset files
-    if (StorageConfig.cleanupEnabled) {
+    registerStagedFileCleanup(
+      environment,
+      StorageConfig.cleanupEnabled,
+      StorageConfig.cleanupRetentionHours,
+      StorageConfig.cleanupIntervalMinutes
+    )
+  }
+
+  /**
+    * Registers the periodic staged-file cleanup job on the application lifecycle when enabled.
+    * Extracted from `run` (and kept free of any global config reads) so the conditional wiring
+    * can be unit-tested with a standalone `Environment`.
+    */
+  private[service] def registerStagedFileCleanup(
+      environment: Environment,
+      enabled: Boolean,
+      retentionHours: Int,
+      intervalMinutes: Int
+  ): Unit =
+    if (enabled)
       environment
         .lifecycle()
-        .manage(
-          new StagedFileCleanupJob(
-            StorageConfig.cleanupRetentionHours,
-            StorageConfig.cleanupIntervalMinutes
-          )
-        )
-    }
-  }
+        .manage(new StagedFileCleanupJob(retentionHours, intervalMinutes))
 
   /**
     * Runs `operation`, retrying with exponential backoff until it succeeds or `maxAttempts` is
