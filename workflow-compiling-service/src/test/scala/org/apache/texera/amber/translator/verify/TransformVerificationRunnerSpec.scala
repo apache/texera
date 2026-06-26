@@ -43,6 +43,87 @@ import org.apache.texera.amber.operator.visualization.funnelPlot.FunnelPlotOpDes
 import org.apache.texera.amber.operator.visualization.ganttChart.GanttChartOpDesc
 import org.apache.texera.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
 import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
+import org.apache.texera.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
+import org.apache.texera.amber.operator.sklearn.training.{
+  SklearnTrainingLogisticRegressionOpDesc,
+  SklearnTrainingRandomForestOpDesc,
+  SklearnTrainingDecisionTreeOpDesc,
+  SklearnTrainingGaussianNaiveBayesOpDesc,
+  SklearnTrainingKNNOpDesc,
+  SklearnTrainingSVMOpDesc,
+  SklearnTrainingAdaptiveBoostingOpDesc,
+  SklearnTrainingBaggingOpDesc,
+  SklearnTrainingBernoulliNaiveBayesOpDesc,
+  SklearnTrainingComplementNaiveBayesOpDesc,
+  SklearnTrainingDummyClassifierOpDesc,
+  SklearnTrainingExtraTreeOpDesc,
+  SklearnTrainingExtraTreesOpDesc,
+  SklearnTrainingGradientBoostingOpDesc,
+  SklearnTrainingLinearRegressionOpDesc,
+  SklearnTrainingLinearSVMOpDesc,
+  SklearnTrainingLogisticRegressionCVOpDesc,
+  SklearnTrainingMultiLayerPerceptronOpDesc,
+  SklearnTrainingMultinomialNaiveBayesOpDesc,
+  SklearnTrainingNearestCentroidOpDesc,
+  SklearnTrainingPassiveAggressiveOpDesc,
+  SklearnTrainingPerceptronOpDesc,
+  SklearnTrainingProbabilityCalibrationOpDesc,
+  SklearnTrainingRidgeOpDesc,
+  SklearnTrainingRidgeCVOpDesc,
+  SklearnTrainingSDGOpDesc
+}
+import org.apache.texera.amber.operator.visualization.heatMap.HeatMapOpDesc
+import org.apache.texera.amber.operator.visualization.hierarchychart.HierarchyChartOpDesc
+import org.apache.texera.amber.operator.visualization.histogram2d.Histogram2DOpDesc
+import org.apache.texera.amber.operator.visualization.histogram.HistogramChartOpDesc
+import org.apache.texera.amber.operator.visualization.lineChart.LineChartOpDesc
+import org.apache.texera.amber.operator.visualization.nestedTable.NestedTableOpDesc
+import org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot.ParallelCoordinatesPlotOpDesc
+import org.apache.texera.amber.operator.visualization.pieChart.PieChartOpDesc
+import org.apache.texera.amber.operator.visualization.polarChart.PolarChartOpDesc
+import org.apache.texera.amber.operator.visualization.quiverPlot.QuiverPlotOpDesc
+import org.apache.texera.amber.operator.visualization.radarChart.RadarChartOpDesc
+import org.apache.texera.amber.operator.visualization.radarPlot.RadarPlotOpDesc
+import org.apache.texera.amber.operator.visualization.rangeSlider.RangeSliderOpDesc
+import org.apache.texera.amber.operator.visualization.sankeyDiagram.SankeyDiagramOpDesc
+import org.apache.texera.amber.operator.visualization.scatter3DChart.Scatter3dChartOpDesc
+import org.apache.texera.amber.operator.visualization.scatterplot.ScatterplotOpDesc
+import org.apache.texera.amber.operator.visualization.stripChart.StripChartOpDesc
+import org.apache.texera.amber.operator.visualization.tablesChart.TablesPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ternaryContour.TernaryContourOpDesc
+import org.apache.texera.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
+import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
+import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
+import org.apache.texera.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
+import org.apache.texera.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
+import org.apache.texera.amber.operator.visualization.windRoseChart.WindRoseChartOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnAdaptiveBoostingOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnBaggingOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnBernoulliNaiveBayesOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnComplementNaiveBayesOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnDecisionTreeOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnDummyClassifierOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnExtraTreeOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnExtraTreesOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnGaussianNaiveBayesOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnGradientBoostingOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnKNNOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnLinearSVMOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnLogisticRegressionOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnLogisticRegressionCVOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnMultiLayerPerceptronOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnMultinomialNaiveBayesOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnNearestCentroidOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnPassiveAggressiveOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnPerceptronOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnProbabilityCalibrationOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnRandomForestOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnRidgeOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnRidgeCVOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnSDGOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnSVMOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -52,6 +133,12 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
   "disposition" should "flag knownIssues operators with the triage reason" in {
     disposition(classOf[UnionOpDesc]) match {
       case Flagged(reason) => reason should include("known issue")
+      case other           => fail(s"expected Flagged, got $other")
+    }
+    // The prediction op consumes a trained model on its input port, which a
+    // JVM-written JSONL fixture can't carry; triaged as a known issue, not run.
+    disposition(classOf[SklearnPredictionOpDesc]) match {
+      case Flagged(reason) => reason should include("trained-model")
       case other           => fail(s"expected Flagged, got $other")
     }
   }
@@ -82,6 +169,8 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
 
   it should "route operators with a curated handler to the curated tier" in {
     disposition(classOf[IntersectOpDesc]) shouldBe Runnable("curated")
+    disposition(classOf[SklearnTrainingLogisticRegressionOpDesc]) shouldBe Runnable("curated")
+    disposition(classOf[MachineLearningScorerOpDesc]) shouldBe Runnable("curated")
   }
 
   it should "route auto-configurable operators to the auto tier" in {
@@ -182,5 +271,306 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
 
   it should "verify ScatterMatrixChartOpDesc end-to-end via Plotly JSON comparison" in {
     TransformVerificationRunner.run(classOf[ScatterMatrixChartOpDesc])
+  }
+
+  it should "verify MachineLearningScorerOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[MachineLearningScorerOpDesc])
+  }
+
+  // The Sklearn training operators all share one execution path (only the
+  // estimator class differs); these cover a diverse set of model families.
+  // The trained model lands in a BINARY column the comparator ignores, so each
+  // case verifies that both paths run to completion and emit matching shape.
+  it should "verify SklearnTrainingLogisticRegressionOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingLogisticRegressionOpDesc])
+  }
+
+  it should "verify SklearnTrainingRandomForestOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingRandomForestOpDesc])
+  }
+
+  it should "verify SklearnTrainingDecisionTreeOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingDecisionTreeOpDesc])
+  }
+
+  it should "verify SklearnTrainingGaussianNaiveBayesOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingGaussianNaiveBayesOpDesc])
+  }
+
+  it should "verify SklearnTrainingKNNOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingKNNOpDesc])
+  }
+
+  it should "verify SklearnTrainingSVMOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingSVMOpDesc])
+  }
+
+  it should "verify SklearnTrainingAdaptiveBoostingOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingAdaptiveBoostingOpDesc])
+  }
+
+  it should "verify SklearnTrainingBaggingOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingBaggingOpDesc])
+  }
+
+  it should "verify SklearnTrainingBernoulliNaiveBayesOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingBernoulliNaiveBayesOpDesc])
+  }
+
+  it should "verify SklearnTrainingComplementNaiveBayesOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingComplementNaiveBayesOpDesc])
+  }
+
+  it should "verify SklearnTrainingDummyClassifierOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingDummyClassifierOpDesc])
+  }
+
+  it should "verify SklearnTrainingExtraTreeOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingExtraTreeOpDesc])
+  }
+
+  it should "verify SklearnTrainingExtraTreesOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingExtraTreesOpDesc])
+  }
+
+  it should "verify SklearnTrainingGradientBoostingOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingGradientBoostingOpDesc])
+  }
+
+  it should "verify SklearnTrainingLinearRegressionOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingLinearRegressionOpDesc])
+  }
+
+  it should "verify SklearnTrainingLinearSVMOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingLinearSVMOpDesc])
+  }
+
+  it should "verify SklearnTrainingLogisticRegressionCVOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingLogisticRegressionCVOpDesc])
+  }
+
+  it should "verify SklearnTrainingMultiLayerPerceptronOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingMultiLayerPerceptronOpDesc])
+  }
+
+  it should "verify SklearnTrainingMultinomialNaiveBayesOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingMultinomialNaiveBayesOpDesc])
+  }
+
+  it should "verify SklearnTrainingNearestCentroidOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingNearestCentroidOpDesc])
+  }
+
+  it should "verify SklearnTrainingPassiveAggressiveOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingPassiveAggressiveOpDesc])
+  }
+
+  it should "verify SklearnTrainingPerceptronOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingPerceptronOpDesc])
+  }
+
+  it should "verify SklearnTrainingProbabilityCalibrationOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingProbabilityCalibrationOpDesc])
+  }
+
+  it should "verify SklearnTrainingRidgeOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingRidgeOpDesc])
+  }
+
+  it should "verify SklearnTrainingRidgeCVOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingRidgeCVOpDesc])
+  }
+
+  it should "verify SklearnTrainingSDGOpDesc end-to-end via curated DataFrame comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnTrainingSDGOpDesc])
+  }
+
+  it should "verify HeatMapOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[HeatMapOpDesc])
+  }
+
+  it should "verify HierarchyChartOpDesc end-to-end via Plotly JSON comparison" in { TransformVerificationRunner.run(classOf[HierarchyChartOpDesc]) }
+
+  it should "verify HistogramChartOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[HistogramChartOpDesc])
+  }
+
+  it should "verify Histogram2DOpDesc end-to-end via Plotly JSON comparison" in { TransformVerificationRunner.run(classOf[Histogram2DOpDesc]) }
+
+  it should "verify LineChartOpDesc end-to-end via Plotly JSON comparison" in { TransformVerificationRunner.run(classOf[LineChartOpDesc]) }
+
+
+  it should "verify ParallelCoordinatesPlotOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[ParallelCoordinatesPlotOpDesc])
+  }
+
+  it should "verify PieChartOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[PieChartOpDesc])
+  }
+
+  it should "verify PolarChartOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[PolarChartOpDesc])
+  }
+
+  it should "verify QuiverPlotOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[QuiverPlotOpDesc])
+  }
+
+  it should "verify RadarChartOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[RadarChartOpDesc])
+  }
+
+  it should "verify RadarPlotOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[RadarPlotOpDesc])
+  }
+
+  it should "verify RangeSliderOpDesc end-to-end via Plotly JSON comparison" in { TransformVerificationRunner.run(classOf[RangeSliderOpDesc]) }
+
+  it should "verify SankeyDiagramOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[SankeyDiagramOpDesc])
+  }
+
+  it should "verify Scatter3dChartOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[Scatter3dChartOpDesc])
+  }
+
+  it should "verify ScatterplotOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[ScatterplotOpDesc])
+  }
+
+  it should "verify StripChartOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[StripChartOpDesc])
+  }
+
+  it should "verify TablesPlotOpDesc end-to-end via Plotly JSON comparison" in { TransformVerificationRunner.run(classOf[TablesPlotOpDesc]) }
+
+  it should "verify TernaryContourOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[TernaryContourOpDesc])
+  }
+
+  it should "verify TernaryPlotOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[TernaryPlotOpDesc])
+  }
+
+  it should "verify TimeSeriesOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[TimeSeriesOpDesc])
+  }
+
+  it should "verify TreePlotOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[TreePlotOpDesc])
+  }
+
+  it should "verify VolcanoPlotOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[VolcanoPlotOpDesc])
+  }
+
+  it should "verify WaterfallChartOpDesc end-to-end via Plotly JSON comparison" in { TransformVerificationRunner.run(classOf[WaterfallChartOpDesc]) }
+
+  it should "verify WindRoseChartOpDesc end-to-end via Plotly JSON comparison" in {
+    TransformVerificationRunner.run(classOf[WindRoseChartOpDesc])
+  }
+
+  it should "verify SklearnAdaptiveBoostingOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnAdaptiveBoostingOpDesc])
+  }
+
+  it should "verify SklearnBaggingOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnBaggingOpDesc])
+  }
+
+  it should "verify SklearnBernoulliNaiveBayesOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnBernoulliNaiveBayesOpDesc])
+  }
+
+  it should "verify SklearnComplementNaiveBayesOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnComplementNaiveBayesOpDesc])
+  }
+
+  it should "verify SklearnDecisionTreeOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnDecisionTreeOpDesc])
+  }
+
+  it should "verify SklearnDummyClassifierOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnDummyClassifierOpDesc])
+  }
+
+  it should "verify SklearnExtraTreeOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnExtraTreeOpDesc])
+  }
+
+  it should "verify SklearnExtraTreesOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnExtraTreesOpDesc])
+  }
+
+  it should "verify SklearnGaussianNaiveBayesOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnGaussianNaiveBayesOpDesc])
+  }
+
+  it should "verify SklearnGradientBoostingOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnGradientBoostingOpDesc])
+  }
+
+  it should "verify SklearnKNNOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnKNNOpDesc])
+  }
+
+  it should "verify SklearnLinearSVMOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnLinearSVMOpDesc])
+  }
+
+  it should "verify SklearnLogisticRegressionOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnLogisticRegressionOpDesc])
+  }
+
+  it should "verify SklearnLogisticRegressionCVOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnLogisticRegressionCVOpDesc])
+  }
+
+  it should "verify SklearnMultiLayerPerceptronOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnMultiLayerPerceptronOpDesc])
+  }
+
+  it should "verify SklearnMultinomialNaiveBayesOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnMultinomialNaiveBayesOpDesc])
+  }
+
+  it should "verify SklearnNearestCentroidOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnNearestCentroidOpDesc])
+  }
+
+  it should "verify SklearnPassiveAggressiveOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnPassiveAggressiveOpDesc])
+  }
+
+  it should "verify SklearnPerceptronOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnPerceptronOpDesc])
+  }
+
+  it should "verify SklearnProbabilityCalibrationOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnProbabilityCalibrationOpDesc])
+  }
+
+  it should "verify SklearnRandomForestOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnRandomForestOpDesc])
+  }
+
+  it should "verify SklearnRidgeOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnRidgeOpDesc])
+  }
+
+  it should "verify SklearnRidgeCVOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnRidgeCVOpDesc])
+  }
+
+  it should "verify SklearnSDGOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnSDGOpDesc])
+  }
+
+  it should "verify SklearnSVMOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnSVMOpDesc])
+  }
+
+  it should "verify SklearnLinearRegressionOpDesc end-to-end via curated model comparison" in {
+    TransformVerificationRunner.run(classOf[SklearnLinearRegressionOpDesc])
   }
 }

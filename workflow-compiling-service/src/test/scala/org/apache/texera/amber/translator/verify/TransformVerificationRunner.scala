@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.translator.verify
 
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{
   LogicalOp,
@@ -36,6 +37,8 @@ import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
 import org.apache.texera.amber.operator.randomksampling.RandomKSamplingOpDesc
 import org.apache.texera.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
+import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.visualization.DotPlot.DotPlotOpDesc
@@ -60,6 +63,31 @@ import org.apache.texera.amber.operator.visualization.ganttChart.GanttChartOpDes
 import org.apache.texera.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
 import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 
+import org.apache.texera.amber.operator.visualization.heatMap.HeatMapOpDesc
+import org.apache.texera.amber.operator.visualization.hierarchychart.HierarchyChartOpDesc
+import org.apache.texera.amber.operator.visualization.histogram2d.Histogram2DOpDesc
+import org.apache.texera.amber.operator.visualization.histogram.HistogramChartOpDesc
+import org.apache.texera.amber.operator.visualization.lineChart.LineChartOpDesc
+import org.apache.texera.amber.operator.visualization.nestedTable.NestedTableOpDesc
+import org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot.ParallelCoordinatesPlotOpDesc
+import org.apache.texera.amber.operator.visualization.pieChart.PieChartOpDesc
+import org.apache.texera.amber.operator.visualization.polarChart.PolarChartOpDesc
+import org.apache.texera.amber.operator.visualization.quiverPlot.QuiverPlotOpDesc
+import org.apache.texera.amber.operator.visualization.radarChart.RadarChartOpDesc
+import org.apache.texera.amber.operator.visualization.radarPlot.RadarPlotOpDesc
+import org.apache.texera.amber.operator.visualization.rangeSlider.RangeSliderOpDesc
+import org.apache.texera.amber.operator.visualization.sankeyDiagram.SankeyDiagramOpDesc
+import org.apache.texera.amber.operator.visualization.scatter3DChart.Scatter3dChartOpDesc
+import org.apache.texera.amber.operator.visualization.scatterplot.ScatterplotOpDesc
+import org.apache.texera.amber.operator.visualization.stripChart.StripChartOpDesc
+import org.apache.texera.amber.operator.visualization.tablesChart.TablesPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ternaryContour.TernaryContourOpDesc
+import org.apache.texera.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
+import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
+import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
+import org.apache.texera.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
+import org.apache.texera.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
+import org.apache.texera.amber.operator.visualization.windRoseChart.WindRoseChartOpDesc
 import java.nio.file.{Files, Path}
 import scala.util.{Failure, Success, Try}
 
@@ -93,6 +121,30 @@ object TransformVerificationRunner {
 
   /** Visualization operators with deterministic Plotly JSON validation. */
   val visualizationJsonOps: Set[Class[_]] = Set(
+    classOf[RangeSliderOpDesc],
+    classOf[HeatMapOpDesc],
+    classOf[HierarchyChartOpDesc],
+    classOf[HistogramChartOpDesc],
+    classOf[Histogram2DOpDesc],
+    classOf[LineChartOpDesc],
+    classOf[ParallelCoordinatesPlotOpDesc],
+    classOf[PieChartOpDesc],
+    classOf[PolarChartOpDesc],
+    classOf[QuiverPlotOpDesc],
+    classOf[RadarChartOpDesc],
+    classOf[RadarPlotOpDesc],
+    classOf[SankeyDiagramOpDesc],
+    classOf[Scatter3dChartOpDesc],
+    classOf[ScatterplotOpDesc],
+    classOf[StripChartOpDesc],
+    classOf[TablesPlotOpDesc],
+    classOf[TernaryContourOpDesc],
+    classOf[TernaryPlotOpDesc],
+    classOf[TimeSeriesOpDesc],
+    classOf[TreePlotOpDesc],
+    classOf[VolcanoPlotOpDesc],
+    classOf[WaterfallChartOpDesc],
+    classOf[WindRoseChartOpDesc],
     classOf[BarChartOpDesc],
     classOf[BulletChartOpDesc],
     classOf[CandlestickChartOpDesc],
@@ -145,7 +197,19 @@ object TransformVerificationRunner {
     classOf[SplitOpDesc] ->
       ("non-deterministic: random partition mask from scala.util.Random " +
         "(LCG) vs numpy RandomState (Mersenne Twister) diverges even with " +
-        "equal seeds")
+        "equal seeds"),
+    classOf[SklearnPredictionOpDesc] ->
+      ("trained-model input: the operator consumes a fitted sklearn model on " +
+        "its model port; a JSONL fixture written from the JVM cannot carry a " +
+        "live model object, so the operator cannot be run in isolation here"),
+    classOf[SklearnTestingOpDesc] ->
+      ("trained-model input: scores a fitted sklearn model read from its model " +
+        "port; a JVM-written JSONL fixture cannot carry a live model object, so " +
+        "the operator cannot be run in isolation here"),
+    classOf[NestedTableOpDesc] ->
+      ("non-deterministic HTML: emits a pandas Styler table whose element ids/" +
+        "classes embed a random per-process uuid, so the two paths' HTML never " +
+        "matches; it builds no Plotly figure, so there is no JSON to compare")
   )
 
   sealed trait Disposition
@@ -176,12 +240,37 @@ object TransformVerificationRunner {
                       Flagged(s"operatorInfo failed on generated config: ${e.getMessage}")
                     case Success(n) if n < 1 || n > 2 =>
                       Flagged(s"unsupported input port count: $n")
+                    case Success(_) if outputHasBinaryColumn(configured) =>
+                      // A trained-model (BINARY) output can only be exercised
+                      // with a curated numeric fixture — the canonical auto
+                      // fixture has a string column sklearn can't fit, and the
+                      // model itself isn't byte-comparable across paths. Such
+                      // ops must be registered in CuratedHandlers to run.
+                      Flagged(
+                        "model output: emits a BINARY (trained-model) column; " +
+                          "requires a curated numeric fixture, not the auto tier"
+                      )
                     case Success(_) => Runnable("auto")
                   }
               }
           case Success(_) =>
             Flagged("does not implement StandaloneCodeGenerator")
         }
+    }
+
+  /** True if the configured operator declares a BINARY output column (e.g. a
+    * serialized trained model). Best-effort: only Python descriptors expose
+    * getOutputSchemas, and a throw (schema needs real inputs) reads as "no
+    * detectable BINARY column" so the op falls through to its normal tier. */
+  private def outputHasBinaryColumn(configured: LogicalOp): Boolean =
+    configured match {
+      case p: PythonOperatorDescriptor =>
+        val inputSchemas = CanonicalFixture.schemasByPort.map {
+          case (port, schema) => PortIdentity(port) -> schema
+        }
+        Try(p.getOutputSchemas(inputSchemas)).toOption
+          .exists(_.values.exists(_.getAttributes.exists(_.getType == AttributeType.BINARY)))
+      case _ => false
     }
 
   /** Execute both paths and assert parity on every declared output port.
@@ -211,11 +300,14 @@ object TransformVerificationRunner {
       return
     }
 
-    val pathAOutputs: Map[PortIdentity, Path] =
-      if (classOf[PythonOperatorDescriptor].isAssignableFrom(opClass))
-        PyOpExecHarness.execute(opDesc, inputs = inputs, outputDir = actualDir).outputs
-      else
-        OpExecHarness.execute(opDesc, inputs = inputs, outputDir = actualDir).outputs
+    val (pathAOutputs, pathAOutputSchemas): (Map[PortIdentity, Path], Map[PortIdentity, Schema]) =
+      if (classOf[PythonOperatorDescriptor].isAssignableFrom(opClass)) {
+        val r = PyOpExecHarness.execute(opDesc, inputs = inputs, outputDir = actualDir)
+        (r.outputs, r.outputSchemas)
+      } else {
+        val r = OpExecHarness.execute(opDesc, inputs = inputs, outputDir = actualDir)
+        (r.outputs, r.outputSchemas)
+      }
 
     // StandaloneRunner keys inputs by 1-based port index (the inNdf convention).
     val standaloneInputs: Map[Int, Path] =
@@ -240,7 +332,23 @@ object TransformVerificationRunner {
         port + 1,
         throw new AssertionError(s"standalone path produced no output for port $port")
       )
-      Comparator.assertEqual(actual, expected, orderSensitive = orderSensitive)
+      // A BINARY column holds a trained model: the two paths produce
+      // behaviorally-equivalent but not bit-identical models, so the comparator
+      // unpickles both and asserts their predictions on the training features
+      // (the probe) match — verifying behavior, not just completion.
+      val modelColumns: Seq[String] = pathAOutputSchemas
+        .get(PortIdentity(port))
+        .map(_.getAttributes.filter(_.getType == AttributeType.BINARY).map(_.getName))
+        .getOrElse(Seq.empty)
+      val probePath: Option[Path] =
+        if (modelColumns.nonEmpty) inputs.toSeq.sortBy(_._1.id).headOption.map(_._2) else None
+      Comparator.assertEqual(
+        actual,
+        expected,
+        orderSensitive = orderSensitive,
+        modelColumns = modelColumns,
+        probePath = probePath
+      )
     }
   }
 
