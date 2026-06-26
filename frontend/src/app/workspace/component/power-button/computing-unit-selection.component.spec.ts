@@ -265,6 +265,192 @@ describe("PowerButtonComponent", () => {
       vi.runAllTimers();
       expect(component.createVirtualEnvironment).not.toHaveBeenCalled();
     });
+
+    it("is a no-op when the veid is not in availableDbPves", () => {
+      component.pves = [];
+      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" })];
+
+      component.installFromSavedPve(SAVED_VEID + 999);
+
+      expect(component.pves).toEqual([]);
+      vi.runAllTimers();
+      expect(component.createVirtualEnvironment).not.toHaveBeenCalled();
+    });
+
+    it("matches an existing locked card when the saved name has surrounding whitespace", () => {
+      component.pves = [
+        {
+          name: "scanpy_env",
+          isLocked: true,
+          userPackages: [{ name: "numpy", versionOp: "==", version: "1.26.0" }],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          isInstalling: false,
+        } as any,
+      ];
+      component.availableDbPves = [makeSaved({ numpy: "==1.26.0", pandas: "==2.0.0" }, "  scanpy_env  ")];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      // No new card pushed; the existing locked card is updated.
+      expect(component.pves.length).toBe(1);
+      const locked = component.pves[0];
+      expect(locked.newPackages).toEqual([{ name: "pandas", versionOp: "==", version: "2.0.0" }]);
+
+      vi.runAllTimers();
+      expect(component.createVirtualEnvironment).toHaveBeenCalledWith(0);
+    });
+
+    it("matches an existing locked card when the locked card name has surrounding whitespace", () => {
+      component.pves = [
+        {
+          name: "  scanpy_env  ",
+          isLocked: true,
+          userPackages: [],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          isInstalling: false,
+        } as any,
+      ];
+      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" }, "scanpy_env")];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      expect(component.pves.length).toBe(1);
+      const locked = component.pves[0];
+      expect(locked.newPackages).toEqual([{ name: "pandas", versionOp: "==", version: "2.0.0" }]);
+
+      vi.runAllTimers();
+      expect(component.createVirtualEnvironment).toHaveBeenCalledWith(0);
+    });
+
+    it("treats names that differ only in case as different (case-sensitive match)", () => {
+      component.pves = [
+        {
+          name: "ScanPy_Env",
+          isLocked: true,
+          userPackages: [],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          isInstalling: false,
+        } as any,
+      ];
+      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" }, "scanpy_env")];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      // Saved name didn't match the existing locked card (different case),
+      // so a new unlocked card is pushed.
+      expect(component.pves.length).toBe(2);
+      const pushed = component.pves[1];
+      expect(pushed.name).toBe("scanpy_env");
+      expect(pushed.isLocked).toBe(false);
+
+      vi.runAllTimers();
+      expect(component.createVirtualEnvironment).toHaveBeenCalledWith(1);
+    });
+
+    it("preserves the saved name verbatim (with whitespace) on the newly pushed card", () => {
+      component.pves = [];
+      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" }, "  scanpy_env  ")];
+
+      component.installFromSavedPve(SAVED_VEID);
+
+      expect(component.pves.length).toBe(1);
+      expect(component.pves[0].name).toBe("  scanpy_env  ");
+
+      vi.runAllTimers();
+      expect(component.createVirtualEnvironment).toHaveBeenCalledWith(0);
+    });
+  });
+
+  describe("parseDbPackages", () => {
+    it("returns an empty array for null packages", () => {
+      const rows = (component as any).parseDbPackages(null);
+      expect(rows).toEqual([]);
+    });
+
+    it("returns an empty array for undefined packages", () => {
+      const rows = (component as any).parseDbPackages(undefined);
+      expect(rows).toEqual([]);
+    });
+
+    it("parses ==X.Y.Z entries", () => {
+      const rows = (component as any).parseDbPackages({ numpy: "==1.26.0" });
+      expect(rows).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
+    });
+
+    it("parses >= and <= operators", () => {
+      const rows = (component as any).parseDbPackages({
+        pandas: ">=2.0.0",
+        scanpy: "<=1.10.5",
+      });
+      expect(rows).toEqual([
+        { name: "pandas", versionOp: ">=", version: "2.0.0" },
+        { name: "scanpy", versionOp: "<=", version: "1.10.5" },
+      ]);
+    });
+
+    it("defaults to == when there is no recognized operator prefix", () => {
+      const rows = (component as any).parseDbPackages({ numpy: "1.26.0" });
+      expect(rows).toEqual([{ name: "numpy", versionOp: "==", version: "1.26.0" }]);
+    });
+
+    it("treats an empty string as no version, defaulting versionOp to ==", () => {
+      const rows = (component as any).parseDbPackages({ numpy: "" });
+      expect(rows).toEqual([{ name: "numpy", versionOp: "==", version: "" }]);
+    });
+
+    it("parses multiple packages and preserves the package name verbatim", () => {
+      const rows = (component as any).parseDbPackages({
+        "scikit-learn": "==1.3.0",
+        numpy: "==1.26.0",
+      });
+      expect(rows).toContainEqual({ name: "scikit-learn", versionOp: "==", version: "1.3.0" });
+      expect(rows).toContainEqual({ name: "numpy", versionOp: "==", version: "1.26.0" });
+      expect(rows.length).toBe(2);
+    });
+  });
+
+  describe("refreshAvailableDbPves", () => {
+    let pveService: WorkflowPveService;
+
+    beforeEach(() => {
+      pveService = TestBed.inject(WorkflowPveService);
+    });
+
+    it("populates availableDbPves from listUserPves on success", () => {
+      const records: UserPveRecord[] = [
+        { veid: 1, name: "env-a", packages: { numpy: "==1.26.0" } },
+        { veid: 2, name: "env-b", packages: {} },
+      ];
+      vi.spyOn(pveService, "listUserPves").mockReturnValue(of(records));
+
+      component.availableDbPves = [{ veid: 999, name: "stale", packages: {} }];
+      (component as any).refreshAvailableDbPves();
+
+      expect(component.availableDbPves).toEqual(records);
+    });
+
+    it("clears availableDbPves and logs when listUserPves errors", () => {
+      vi.spyOn(pveService, "listUserPves").mockReturnValue(throwError(() => new Error("fetch failed")));
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      component.availableDbPves = [{ veid: 1, name: "stale", packages: {} }];
+      (component as any).refreshAvailableDbPves();
+
+      expect(component.availableDbPves).toEqual([]);
+      expect(errorSpy).toHaveBeenCalled();
+    });
   });
 
   describe("getPVEs() systemPackagesLoading flag", () => {
