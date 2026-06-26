@@ -22,6 +22,7 @@ header:
     - '**/NOTICE-binary'
     - '**/NOTICE-binary-*'
     - '.dockerignore'
+    - '**/.helmignore'
     - '.gitattributes'
     - '.github/PULL_REQUEST_TEMPLATE'
     - 'yarn.lock'

@@ -130,7 +130,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "AsterixDB Source",
-      "Read data from a AsterixDB instance",
+      "Read data from an AsterixDB instance",
       OperatorGroupConstants.DATABASE_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
