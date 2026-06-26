@@ -25,14 +25,14 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import java.util
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-class LineChartOpDesc extends PythonOperatorDescriptor {
+class LineChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "yLabel", required = false, defaultValue = "Y Axis")
   @JsonSchemaTitle("Y Label")
@@ -125,6 +125,39 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val traces = lines.asScala
+      .map { lineConf =>
+        val colorPart =
+          if (lineConf.color != "")
+            s"""line={'color':"${lineConf.color}"}, marker={'color':"${lineConf.color}"}, """
+          else ""
+        val namePart =
+          if (lineConf.name != "") s"""name="${lineConf.name}""""
+          else s"""name="${lineConf.yValue}""""
+
+        s"""fig.add_trace(go.Scatter(
+           |    x=in1df["${lineConf.xValue}"],
+           |    y=in1df["${lineConf.yValue}"],
+           |    mode='${lineConf.mode.getModeInPlotly}',
+           |    $colorPart
+           |    $namePart
+           |  ))""".stripMargin
+      }
+      .mkString("\n")
+
+    s"""fig = go.Figure()
+       |$traces
+       |fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+       |                  xaxis_title="$xLabel",
+       |                  yaxis_title="$yLabel")
+       |fig.write_json("output.json")
+       |fig.write_html("output.html")
+       |print("Line chart saved to output.json and output.html")""".stripMargin
   }
 
 }
