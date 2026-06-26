@@ -22,13 +22,29 @@ package org.apache.texera.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
+import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import org.apache.texera.amber.core.workflow.PhysicalOp
+import org.apache.texera.amber.core.workflow.{
+  GlobalPortIdentity,
+  OutputPort,
+  PhysicalOp,
+  PortIdentity
+}
+import org.apache.texera.amber.core.workflow.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID
+}
 import org.apache.texera.amber.engine.architecture.common.PekkoActorRefMappingService
 import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns._
 import org.apache.texera.amber.engine.architecture.scheduling.RegionCoordinatorTestSupport._
+import org.apache.texera.amber.engine.architecture.scheduling.config.{
+  OperatorConfig,
+  OutputPortConfig,
+  ResourceConfig,
+  WorkerConfig
+}
 import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -118,6 +134,85 @@ class RegionExecutionCoordinatorSpec
     assert(fixture.rpcProbe.endWorkerCalls.size == 2)
     assert(!fixture.actorRefService.hasActorRef(fixture.workerId))
     assert(workerState(fixture) == WorkerState.TERMINATED)
+  }
+
+  it should "surface the underlying cause when an output port schema is unavailable" in {
+    // Reproduces issue #3546: when schema inference for an output port fails (e.g. because a
+    // dataset used by the workflow has not been shared with the running user), the port's
+    // schema is stored as a `Left(cause)`. The coordinator must surface that real cause rather
+    // than discarding it behind a generic "Schema is missing" message.
+    val cause = new RuntimeException("User texera1 has no access to dataset 'iris'")
+    val coordinator = coordinatorWithUnresolvedOutputSchema(cause)
+
+    val thrown = intercept[IllegalStateException] {
+      await(coordinator.syncStatusAndTransitionRegionExecutionPhase())
+    }
+    assert(thrown.getCause eq cause)
+    assert(thrown.getMessage.contains(cause.getMessage))
+  }
+
+  it should "fall back to the throwable's string form when the cause has no message" in {
+    // Some throwables (e.g. NullPointerException) carry a null message; the surfaced text must
+    // not read "...: null".
+    val cause = new NullPointerException()
+    assert(cause.getMessage == null)
+    val coordinator = coordinatorWithUnresolvedOutputSchema(cause)
+
+    val thrown = intercept[IllegalStateException] {
+      await(coordinator.syncStatusAndTransitionRegionExecutionPhase())
+    }
+    assert(thrown.getCause eq cause)
+    assert(thrown.getMessage.contains(cause.toString))
+    assert(!thrown.getMessage.endsWith("null"))
+  }
+
+  /**
+    * Builds a coordinator for a single-source region whose only output port has an unresolved
+    * schema (`Left(cause)`) and a configured output storage, so that the non-dependee phase
+    * reaches `createOutputPortStorageObjects` and attempts to read that schema.
+    */
+  private def coordinatorWithUnresolvedOutputSchema(
+      cause: Throwable
+  ): RegionExecutionCoordinator = {
+    val portId = PortIdentity(0)
+    val baseOp = createSourceOp("schema-missing-op").withOutputPorts(List(OutputPort(portId)))
+    val (outPort, links, _) = baseOp.outputPorts(portId)
+    val physicalOp =
+      baseOp.copy(outputPorts = baseOp.outputPorts.updated(portId, (outPort, links, Left(cause))))
+
+    val workerId = createWorkerId(physicalOp)
+    val globalPortId = GlobalPortIdentity(physicalOp.id, portId)
+    val storageBase =
+      VFSURIFactory.createPortBaseURI(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, globalPortId)
+    val region = Region(
+      RegionIdentity(1),
+      physicalOps = Set(physicalOp),
+      physicalLinks = Set.empty,
+      resourceConfig = Some(
+        ResourceConfig(
+          operatorConfigs = Map(physicalOp.id -> OperatorConfig(List(WorkerConfig(workerId)))),
+          portConfigs = Map(globalPortId -> OutputPortConfig(storageBase))
+        )
+      )
+    )
+
+    val workflowExecution = WorkflowExecution()
+    seedReusableWorkerExecution(workflowExecution, seedRegionId = 0, physicalOp, workerId)
+    workflowExecution.initRegionExecution(region)
+
+    val rpcProbe = new ControllerRpcProbe(_ => None)
+    val controller = createControllerHarness()
+    registerLiveWorker(controller.actorRefService, workerId)
+
+    new RegionExecutionCoordinator(
+      region,
+      isRestart = false,
+      workflowExecution,
+      rpcProbe.asyncRPCClient,
+      ControllerConfig(None, None, None, None),
+      controller.actorService,
+      controller.actorRefService
+    )
   }
 
   private case class SingleRegionFixture(
