@@ -26,6 +26,7 @@ import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { SortMethod } from "../../../type/sort-method";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
+import { CardItemComponent } from "../list-item/card-item/card-item.component";
 import { FiltersComponent } from "../filters/filters.component";
 import { firstValueFrom } from "rxjs";
 import { USER_DATASET } from "../../../../app-routing.constant";
@@ -61,14 +62,18 @@ import { FormsModule } from "@angular/forms";
     NzSelectComponent,
     FormsModule,
     SearchResultsComponent,
+    CardItemComponent,
   ],
 })
 export class UserDatasetComponent implements AfterViewInit {
+  private static readonly VIEW_MODE_STORAGE_KEY = "texera.userDataset.viewMode";
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
   public isLogin = this.userService.isLogin();
   public currentUid = this.userService.getCurrentUser()?.uid;
   public hasMismatch = false; // Display warning when there are mismatched datasets
+  public viewType: "list" | "card" =
+    localStorage.getItem(UserDatasetComponent.VIEW_MODE_STORAGE_KEY) === "list" ? "list" : "card";
 
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
@@ -118,6 +123,14 @@ export class UserDatasetComponent implements AfterViewInit {
       .userChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => this.search());
+  }
+
+  public setViewType(viewType: "list" | "card"): void {
+    if (this.viewType === viewType) {
+      return;
+    }
+    this.viewType = viewType;
+    localStorage.setItem(UserDatasetComponent.VIEW_MODE_STORAGE_KEY, viewType);
   }
 
   /*
