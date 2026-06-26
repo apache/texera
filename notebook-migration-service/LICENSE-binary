@@ -242,6 +242,9 @@ Scala/Java jars:
   - com.google.guava.listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
   - com.google.j2objc.j2objc-annotations-2.8.jar
   - com.helger.profiler-1.1.1.jar
+  - com.squareup.okhttp3.okhttp-4.12.0.jar
+  - com.squareup.okio.okio-3.6.0.jar
+  - com.squareup.okio.okio-jvm-3.6.0.jar
   - com.thesamet.scalapb.lenses_2.13-0.11.20.jar
   - com.thesamet.scalapb.scalapb-json4s_2.13-0.12.0.jar
   - com.thesamet.scalapb.scalapb-runtime_2.13-0.11.20.jar
@@ -274,6 +277,18 @@ Scala/Java jars:
   - io.dropwizard.metrics.metrics-json-4.2.25.jar
   - io.dropwizard.metrics.metrics-jvm-4.2.25.jar
   - io.dropwizard.metrics.metrics-logback-4.2.25.jar
+  - io.opentelemetry.opentelemetry-api-1.50.0.jar
+  - io.opentelemetry.opentelemetry-context-1.50.0.jar
+  - io.opentelemetry.opentelemetry-exporter-common-1.50.0.jar
+  - io.opentelemetry.opentelemetry-exporter-otlp-1.50.0.jar
+  - io.opentelemetry.opentelemetry-exporter-otlp-common-1.50.0.jar
+  - io.opentelemetry.opentelemetry-exporter-sender-okhttp-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-common-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-extension-autoconfigure-spi-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-logs-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-metrics-1.50.0.jar
+  - io.opentelemetry.opentelemetry-sdk-trace-1.50.0.jar
   - io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar
   - jakarta.inject.jakarta.inject-api-2.0.1.jar
   - jakarta.validation.jakarta.validation-api-3.0.2.jar
@@ -292,6 +307,11 @@ Scala/Java jars:
   - org.hibernate.validator.hibernate-validator-7.0.5.Final.jar
   - org.javassist.javassist-3.30.2-GA.jar
   - org.jboss.logging.jboss-logging-3.5.3.Final.jar
+  - org.jetbrains.annotations-13.0.jar
+  - org.jetbrains.kotlin.kotlin-stdlib-1.9.10.jar
+  - org.jetbrains.kotlin.kotlin-stdlib-common-1.9.10.jar
+  - org.jetbrains.kotlin.kotlin-stdlib-jdk7-1.9.10.jar
+  - org.jetbrains.kotlin.kotlin-stdlib-jdk8-1.9.10.jar
   - org.jooq.jooq-3.16.23.jar
   - org.json4s.json4s-ast_2.13-4.0.1.jar
   - org.json4s.json4s-jackson-core_2.13-4.0.1.jar
