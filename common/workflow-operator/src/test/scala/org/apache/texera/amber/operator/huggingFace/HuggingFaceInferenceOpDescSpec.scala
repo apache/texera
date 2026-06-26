@@ -25,6 +25,7 @@ import org.apache.texera.amber.operator.huggingFace.codegen.{
   AudioTaskCodegen,
   CodegenContext,
   MediaGenCodegen,
+  QaRankingCodegen,
   TextGenCodegen
 }
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -46,7 +47,10 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       imageInput: EncodableString = "",
       inputImageColumn: EncodableString = "",
       audioInput: EncodableString = "",
-      inputAudioColumn: EncodableString = ""
+      inputAudioColumn: EncodableString = "",
+      contextColumn: EncodableString = "",
+      candidateLabels: EncodableString = "",
+      sentencesColumn: EncodableString = ""
   ): HuggingFaceInferenceOpDesc = {
     val desc = new HuggingFaceInferenceOpDesc()
     desc.hfApiToken = token
@@ -61,6 +65,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     desc.inputImageColumn = inputImageColumn
     desc.audioInput = audioInput
     desc.inputAudioColumn = inputAudioColumn
+    desc.contextColumn = contextColumn
+    desc.candidateLabels = candidateLabels
+    desc.sentencesColumn = sentencesColumn
     desc
   }
 
@@ -163,6 +170,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     desc.inputImageColumn = null
     desc.audioInput = null
     desc.inputAudioColumn = null
+    desc.contextColumn = null
+    desc.candidateLabels = null
+    desc.sentencesColumn = null
     val code = desc.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator):")
     code should include("def open(self):")
@@ -494,6 +504,77 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     MediaGenCodegen.tasks.foreach { t =>
       val code = makeDesc(task = t).generatePythonCode()
       code should include("""payload = {"inputs": prompt_value}""")
+    }
+  }
+
+  "qa and ranking task family" should
+    "route question-answering through QaRankingCodegen with context-column validation" in {
+    val code = makeDesc(task = "question-answering", contextColumn = "context").generatePythonCode()
+    code should include("self.CONTEXT_COLUMN = ")
+    code should include("""if task == "question-answering":""")
+    code should include("ctx_col = self.CONTEXT_COLUMN")
+    code should include("Context column")
+    code should include("""payload = {"inputs": {"question": prompt_value, "context": ctx_val}}""")
+    code should include(
+      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
+    )
+  }
+
+  it should "route table-question-answering with a precomputed table payload" in {
+    val code = makeDesc(task = "table-question-answering").generatePythonCode()
+    code should include("""if task == "table-question-answering":""")
+    code should include("table_dict = {}")
+    code should include("""payload = {"inputs": {"query": prompt_value, "table": table_dict}}""")
+    code should include(
+      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
+    )
+  }
+
+  it should "route zero-shot-classification with candidate labels" in {
+    val code =
+      makeDesc(task = "zero-shot-classification", candidateLabels = "positive,negative")
+        .generatePythonCode()
+    code should include("self.CANDIDATE_LABELS = ")
+    code should include("""if task == "zero-shot-classification":""")
+    code should include(
+      "labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split"
+    )
+    code should include("Candidate Labels are required for zero-shot-classification.")
+    code should include("""elif task == "zero-shot-classification":""")
+    code should include("labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split")
+    code should include(""""parameters": {"candidate_labels": labels}""")
+  }
+
+  it should "route sentence-similarity and text-ranking with sentences-column validation" in {
+    Seq("sentence-similarity", "text-ranking").foreach { taskName =>
+      val code = makeDesc(task = taskName, sentencesColumn = "sentences").generatePythonCode()
+      code should include("self.SENTENCES_COLUMN = ")
+      code should include("sent_col = self.SENTENCES_COLUMN")
+      code should include("Sentences column")
+      if (taskName == "sentence-similarity") {
+        code should include("""elif task == "sentence-similarity":""")
+        code should include(""""source_sentence": prompt_value""")
+        code should include(""""sentences": sentences_list""")
+      } else {
+        code should include("""elif task == "text-ranking":""")
+        code should include(""""query": prompt_value""")
+        code should include(""""texts": sentences_list""")
+      }
+    }
+  }
+
+  it should "register all qa and ranking task strings under the dispatcher" in {
+    QaRankingCodegen.tasks should contain allOf (
+      "question-answering",
+      "table-question-answering",
+      "zero-shot-classification",
+      "sentence-similarity",
+      "text-ranking"
+    )
+    QaRankingCodegen.tasks.foreach { t =>
+      val code = makeDesc(task = t, contextColumn = "context", sentencesColumn = "sentences")
+        .generatePythonCode()
+      code should include("""if task == "question-answering":""")
     }
   }
 
