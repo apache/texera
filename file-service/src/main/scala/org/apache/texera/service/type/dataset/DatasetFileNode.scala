@@ -26,9 +26,10 @@ import java.util
 import scala.collection.mutable
 
 // DatasetFileNode represents a unique file in dataset, its full path is in the format of:
-// /ownerEmail/datasetName/versionName/fileRelativePath
-// e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
-// ownerName is bob@texera.com; datasetName is twitterDataset, versionName is v1, fileRelativePath is california/irvine/tw1.csv
+// /datasets/ownerEmail/datasetName/versionName/fileRelativePath
+// e.g. /datasets/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
+// the leading "datasets" segment is the resource-type prefix; ownerName is bob@texera.com;
+// datasetName is twitterDataset, versionName is v1, fileRelativePath is california/irvine/tw1.csv
 class DatasetFileNode(
     val name: String, // direct name of this node
     val nodeType: String, // "file" or "directory"
@@ -157,14 +158,19 @@ object DatasetFileNode {
       map: Map[(String, String, String), List[PhysicalFileNode]]
   ): List[DatasetFileNode] = {
     val rootNode = new DatasetFileNode("/", "directory", null, "")
+
+    // Add "datasets" prefix node
+    val datasetsNode = new DatasetFileNode("datasets", "directory", rootNode, "")
+    rootNode.children = Some(List(datasetsNode))
+
     val ownerNodes = mutable.Map[String, DatasetFileNode]()
 
     map.foreach {
       case ((ownerEmail, datasetName, versionName), physicalNodes) =>
         val ownerNode = ownerNodes.getOrElseUpdate(
           ownerEmail, {
-            val newNode = new DatasetFileNode(ownerEmail, "directory", rootNode, ownerEmail)
-            rootNode.children = Some(rootNode.getChildren :+ newNode)
+            val newNode = new DatasetFileNode(ownerEmail, "directory", datasetsNode, ownerEmail)
+            datasetsNode.children = Some(datasetsNode.getChildren :+ newNode)
             newNode
           }
         )

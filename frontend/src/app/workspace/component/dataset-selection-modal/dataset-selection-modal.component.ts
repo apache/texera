@@ -78,7 +78,13 @@ export class DatasetSelectionModalComponent implements OnInit {
         this.datasets = datasets;
         const selectedPath = this.data.selectedPath;
         if (selectedPath) {
-          const [ownerEmail, datasetName, versionName] = selectedPath.split("/").filter(part => part.length > 0);
+          const segments = selectedPath.split("/").filter(part => part.length > 0);
+          // Drop the resource-type prefix ("datasets") if present, so owner/dataset/version
+          // line up whether the stored path is prefixed (file mode) or not (version mode).
+          if (segments[0] === "datasets") {
+            segments.shift();
+          }
+          const [ownerEmail, datasetName, versionName] = segments;
           this.selectedDataset = this.datasets.find(
             dataset => dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
           );

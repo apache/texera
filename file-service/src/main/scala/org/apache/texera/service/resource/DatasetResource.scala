@@ -1191,13 +1191,21 @@ class DatasetResource extends LazyLogging {
       val datasetsNode = DatasetFileNode
         .fromLakeFSRepositoryCommittedObjects(
           Map(
-            (user.getEmail, dataset.getName, latestVersion.getName) -> LakeFSStorageClient
+            (
+              getOwner(ctx, did).getEmail,
+              dataset.getName,
+              latestVersion.getName
+            ) -> LakeFSStorageClient
               .retrieveObjectsOfVersion(dataset.getRepositoryName, latestVersion.getVersionHash)
           )
         )
         .head
 
-      val ownerNode = datasetsNode.children.get.head
+      val ownerNode = datasetsNode.getChildren.headOption.getOrElse(
+        throw new IllegalStateException(
+          s"Dataset file tree for ${dataset.getName} is missing its owner node"
+        )
+      )
 
       DashboardDatasetVersion(
         latestVersion,
@@ -1415,7 +1423,11 @@ class DatasetResource extends LazyLogging {
       )
       .head
 
-    val ownerFileNode = datasetsNode.children.get.head
+    val ownerFileNode = datasetsNode.getChildren.headOption.getOrElse(
+      throw new IllegalStateException(
+        s"Dataset file tree for $datasetName is missing its owner node"
+      )
+    )
 
     DatasetVersionRootFileNodesResponse(
       ownerFileNode.children.get

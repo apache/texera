@@ -79,9 +79,15 @@ object FileResolver {
 
   /**
     * Parses a dataset file path and extracts its components.
-    * Expected format: /datasets/ownerEmail/datasetName/versionName/fileRelativePath
     *
-    * The first segment is a resource type prefix (e.g. "datasets") and is stripped before parsing.
+    * Two formats are accepted:
+    *   - Prefixed (current): /datasets/ownerEmail/datasetName/versionName/fileRelativePath
+    *   - Legacy (unprefixed): /ownerEmail/datasetName/versionName/fileRelativePath
+    *
+    * A leading resource-type prefix listed in [[RESOURCE_TYPE_PREFIXES]] (e.g. "datasets") is
+    * stripped if present; legacy paths without the prefix are still parsed for backward
+    * compatibility. An unrecognized leading segment is NOT stripped and is treated as the
+    * ownerEmail segment.
     *
     * @param fileName The file path to parse
     * @return Some((ownerEmail, datasetName, versionName, fileRelativePath)) if valid, None otherwise
