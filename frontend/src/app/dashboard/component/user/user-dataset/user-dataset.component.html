@@ -32,6 +32,26 @@
           nzTheme="outline"></i>
         <span>Create Dataset</span>
       </button>
+      <button
+        nz-button
+        title="List View"
+        (click)="setViewType('list')"
+        [nzType]="viewType === 'list' ? 'primary' : 'default'">
+        <i
+          nz-icon
+          nzType="bars"
+          nzTheme="outline"></i>
+      </button>
+      <button
+        nz-button
+        title="Card View"
+        (click)="setViewType('card')"
+        [nzType]="viewType === 'card' ? 'primary' : 'default'">
+        <i
+          nz-icon
+          nzType="appstore"
+          nzTheme="outline"></i>
+      </button>
       <texera-filters #filters></texera-filters>
     </div>
   </nz-card>
@@ -52,9 +72,24 @@
     </nz-select>
   </div>
 
+  <ng-template
+    #datasetCardTpl
+    let-entry>
+    <texera-card-item
+      [entry]="entry"
+      [currentUid]="currentUid"
+      [isPrivateSearch]="true"
+      [editable]="true"
+      (deleted)="deleteDataset(entry)"
+      (refresh)="search(true)">
+    </texera-card-item>
+  </ng-template>
+
   <texera-search-results
     [editable]="true"
     [isPrivateSearch]="true"
+    [viewMode]="viewType"
+    [cardTemplate]="datasetCardTpl"
     (deleted)="deleteDataset($event)"
     (refresh)="ngAfterViewInit()"
     [currentUid]="currentUid"></texera-search-results>

@@ -39,7 +39,8 @@
     <!-- Placeholder or Preview Image -->
     <img
       class="card-preview-image"
-      [src]="previewImage"
+      [src]="coverImageSrc"
+      (error)="onCoverError()"
       alt="Workflow Preview" />
   </div>
 
