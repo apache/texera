@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -42,7 +42,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class RangeSliderOpDesc extends PythonOperatorDescriptor {
+class RangeSliderOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(value = "Y-axis", required = true)
   @JsonSchemaTitle("Y-axis")
   @JsonPropertyDescription("The name of the column to represent y-axis")
@@ -140,6 +140,45 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalcode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val functionType = duplicateType.getFunctionType
+    s"""def render_error(error_msg):
+       |    return '''<h1>RangeChart is not available.</h1>
+       |              <p>Reason is: {} </p>
+       |           '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("input table is empty."))
+       |elif "$yAxis".strip() == "" or "$xAxis".strip() == "":
+       |    with open("output.html", "w", encoding="utf-8") as output:
+       |        output.write(render_error("Y-axis or X-axis is empty"))
+       |else:
+       |    table = in1df
+       |    table = table.dropna(subset=["$xAxis", "$yAxis"])
+       |    functionType = "$functionType"
+       |    if functionType.lower() == "mean":
+       |        table = table.groupby("$xAxis")["$yAxis"].mean().reset_index()
+       |    elif functionType.lower() == "sum":
+       |        table = table.groupby("$xAxis")["$yAxis"].sum().reset_index()
+       |    fig = go.Figure()
+       |    fig.add_trace(go.Scatter(x=table["$xAxis"], y=table["$yAxis"], mode="markers+lines"))
+       |    fig.update_layout(
+       |        xaxis_title="$xAxis",
+       |        yaxis_title="$yAxis",
+       |        xaxis=dict(
+       |            rangeslider=dict(
+       |                visible=True
+       |            )
+       |        )
+       |    )
+       |    fig.write_json("output.json")
+       |    fig.write_html("output.html")
+       |    print("Range slider saved to output.html")""".stripMargin
   }
 
 }
