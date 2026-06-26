@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -38,7 +38,9 @@ trait ParamClass {
   def getType: String
 }
 
-abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperatorDescriptor {
+abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator {
   @JsonIgnore
   def getImportStatements: String
 
@@ -171,5 +173,33 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
     )
 
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
+  }
+
+  override def generateStandaloneCode(): String = {
+    val listFeatures = selectedFeatures.map(feature => s""""$feature"""").mkString(",")
+    val trainingName = getImportStatements.split(" ").last
+    val stringList = getParameter(paraList)
+    val trainingParamPlain = stringList(1).plain
+    val paramStringPlain = stringList(0).plain
+    val loopTimesPlain = getLoopTimes(paraList).plain
+
+    s"""import pandas as pd
+       |${getImportStatements}
+       |
+       |dataset = in1df
+       |table = in2df
+       |y_train = dataset["$groundTruthAttribute"]
+       |features = [$listFeatures]
+       |X_train = dataset[features]
+       |loop_times = $loopTimesPlain
+       |model_list = []
+       |para_list = []
+       |for i in range(loop_times):
+       |    model = $trainingName($trainingParamPlain)
+       |    model.fit(X_train, y_train)
+       |    model_list.append(model)
+       |    para_str = $paramStringPlain
+       |    para_list.append(para_str)
+       |out1df = pd.DataFrame({"Model": model_list, "Parameters": para_list})""".stripMargin
   }
 }

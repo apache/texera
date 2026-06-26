@@ -30,7 +30,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   CommonOpDescAnnotation,
@@ -38,7 +38,7 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class SklearnTrainingOpDesc extends PythonOperatorDescriptor {
+class SklearnTrainingOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
@@ -124,5 +124,23 @@ class SklearnTrainingOpDesc extends PythonOperatorDescriptor {
         .add("model_name", AttributeType.STRING)
         .add("model", AttributeType.BINARY)
     )
+  }
+
+  override def generateStandaloneCode(): String = {
+    val estimator = getImportStatements.split(" ").last
+    val cvPart = if (countVectorizer) "CountVectorizer()," else ""
+    val tfidfPart = if (tfidfTransformer) "TfidfTransformer()," else ""
+    val trainX =
+      if (countVectorizer) s"""in1df["$text"]""" else s"""in1df.drop("$target", axis=1)"""
+
+    s"""${getImportStatements}
+       |from sklearn.pipeline import make_pipeline
+       |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+       |import pandas as pd
+       |
+       |Y = in1df["$target"]
+       |X = $trainX
+       |model = make_pipeline($cvPart$tfidfPart$estimator()).fit(X, Y)
+       |out1df = pd.DataFrame([{"model_name": "${getUserFriendlyModelName}", "model": model}])""".stripMargin
   }
 }

@@ -30,7 +30,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   CommonOpDescAnnotation,
@@ -38,7 +38,7 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor {
+abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
@@ -135,5 +135,37 @@ abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor {
         .add("model_name", AttributeType.STRING)
         .add("model", AttributeType.BINARY)
     )
+  }
+
+  override def generateStandaloneCode(): String = {
+    val estimator = getImportStatements.split(" ").last
+    val cvPart = if (countVectorizer) "CountVectorizer()," else ""
+    val tfidfPart = if (tfidfTransformer) "TfidfTransformer()," else ""
+    val trainX =
+      if (countVectorizer) s"""in1df["$text"]""" else s"""in1df.drop("$target", axis=1)"""
+    val testX =
+      if (countVectorizer) s"""in2df["$text"]""" else s"""in2df.drop("$target", axis=1)"""
+
+    s"""${getImportStatements}
+       |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+       |from sklearn.pipeline import make_pipeline
+       |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+       |import numpy as np
+       |import pandas as pd
+       |
+       |Y_train = in1df["$target"]
+       |X_train = $trainX
+       |model = make_pipeline($cvPart$tfidfPart$estimator()).fit(X_train, Y_train)
+       |
+       |Y_test = in2df["$target"]
+       |X_test = $testX
+       |predictions = model.predict(X_test)
+       |print("Overall Accuracy:", round(accuracy_score(Y_test, predictions), 4))
+       |f1s = f1_score(Y_test, predictions, average=None)
+       |precisions = precision_score(Y_test, predictions, average=None)
+       |recalls = recall_score(Y_test, predictions, average=None)
+       |for i, class_name in enumerate(np.unique(Y_test)):
+       |    print("Class", repr(class_name), " - F1:", round(f1s[i], 4), ", Precision:", round(precisions[i], 4), ", Recall:", round(recalls[i], 4))
+       |out1df = pd.DataFrame([{"model_name": "${getUserFriendlyModelName}", "model": model}])""".stripMargin
   }
 }

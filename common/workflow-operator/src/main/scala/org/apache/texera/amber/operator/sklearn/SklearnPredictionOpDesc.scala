@@ -24,14 +24,14 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
+class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(value = "Model Attribute", required = true, defaultValue = "model")
   @JsonPropertyDescription("attribute corresponding to ML model")
   @AutofillAttributeName
@@ -92,5 +92,22 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
       operatorInfo.outputPorts.head.id -> inputSchema
         .add(resultAttribute, resultType)
     )
+  }
+
+  override def generateStandaloneCode(): String = {
+    if (groundTruthAttribute.nonEmpty) {
+      s"""from sklearn.pipeline import Pipeline
+         |
+         |model = in1df["$model"].iloc[0]
+         |out1df = in2df.copy()
+         |X = in2df.drop("$groundTruthAttribute", axis=1)
+         |out1df["$resultAttribute"] = model.predict(X)""".stripMargin
+    } else {
+      s"""from sklearn.pipeline import Pipeline
+         |
+         |model = in1df["$model"].iloc[0]
+         |out1df = in2df.copy()
+         |out1df["$resultAttribute"] = [str(p) for p in model.predict(in2df)]""".stripMargin
+    }
   }
 }

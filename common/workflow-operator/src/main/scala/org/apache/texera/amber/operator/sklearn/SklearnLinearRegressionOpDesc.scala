@@ -25,11 +25,11 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor {
+class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
@@ -89,5 +89,28 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor {
         .add("model", AttributeType.BINARY)
     )
   }
+
+  override def generateStandaloneCode(): String =
+    s"""from sklearn.metrics import mean_absolute_error, r2_score
+       |from sklearn.pipeline import make_pipeline
+       |from sklearn.linear_model import LinearRegression
+       |from sklearn.preprocessing import PolynomialFeatures
+       |import pandas as pd
+       |
+       |Y_train = in1df["$target"]
+       |X_train = in1df.drop("$target", axis=1)
+       |pipeline = make_pipeline(
+       |    PolynomialFeatures(degree=$degree),
+       |    LinearRegression()
+       |)
+       |model = pipeline.fit(X_train, Y_train)
+       |
+       |Y_test = in2df["$target"]
+       |X_test = in2df.drop("$target", axis=1)
+       |predictions = model.predict(X_test)
+       |mae = round(mean_absolute_error(Y_test, predictions), 4)
+       |r2 = round(r2_score(Y_test, predictions), 4)
+       |print("MAE:", mae, ", R2:", r2)
+       |out1df = pd.DataFrame([{"model_name": "LinearRegression", "model": model}])""".stripMargin
 
 }
