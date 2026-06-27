@@ -15,14 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# agent-service uses Bun (bun.lock). The npm/yarn updater leaves bun.lock
-# stale, so version updates run through the bun ecosystem instead. Requires
-# Dependabot bun support (>= v1.2.5).
-version: 2
-updates:
-  - package-ecosystem: "bun"
-    directory: "/agent-service"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore(deps)"
+server:
+  applicationConnectors:
+    - type: http
+      port: 9098
+  adminConnectors: []
+  requestLog:
+    type: classic
+    appenders: []
+
+logging:
+  level: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
+  appenders:
+    - type: console
+      threshold: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
+    - type: file
+      currentLogFilename: logs/notebook-migration-service.log
+      archive: true
+      archivedLogFilenamePattern: logs/notebook-migration-service-%d.log.gz
+      archivedFileCount: 5

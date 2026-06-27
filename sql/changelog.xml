@@ -33,9 +33,14 @@
         <sqlFile path="sql/updates/24.sql"/>
     </changeSet>
 
-    <!-- Add workflow_cover_image table (per-workflow custom card cover) -->
-    <changeSet id="25" author="Ma77Ball">
+    <!-- Add feedback table -->
+    <changeSet id="25" author="arisheh">
         <sqlFile path="sql/updates/25.sql"/>
+    </changeSet>
+
+    <!-- Add workflow_cover_image table (per-workflow custom card cover) -->
+    <changeSet id="26" author="Ma77Ball">
+        <sqlFile path="sql/updates/26.sql"/>
     </changeSet>
 
     <!-- example changeSet

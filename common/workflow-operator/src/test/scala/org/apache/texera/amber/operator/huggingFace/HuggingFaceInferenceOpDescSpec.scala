@@ -21,7 +21,13 @@ package org.apache.texera.amber.operator.huggingFace
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.huggingFace.codegen.{CodegenContext, TextGenCodegen}
+import org.apache.texera.amber.operator.huggingFace.codegen.{
+  AudioTaskCodegen,
+  CodegenContext,
+  MediaGenCodegen,
+  QaRankingCodegen,
+  TextGenCodegen
+}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
@@ -39,7 +45,12 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       temperature: Double = 0.7,
       resultColumn: EncodableString = "hf_response",
       imageInput: EncodableString = "",
-      inputImageColumn: EncodableString = ""
+      inputImageColumn: EncodableString = "",
+      audioInput: EncodableString = "",
+      inputAudioColumn: EncodableString = "",
+      contextColumn: EncodableString = "",
+      candidateLabels: EncodableString = "",
+      sentencesColumn: EncodableString = ""
   ): HuggingFaceInferenceOpDesc = {
     val desc = new HuggingFaceInferenceOpDesc()
     desc.hfApiToken = token
@@ -52,6 +63,11 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     desc.resultColumn = resultColumn
     desc.imageInput = imageInput
     desc.inputImageColumn = inputImageColumn
+    desc.audioInput = audioInput
+    desc.inputAudioColumn = inputAudioColumn
+    desc.contextColumn = contextColumn
+    desc.candidateLabels = candidateLabels
+    desc.sentencesColumn = sentencesColumn
     desc
   }
 
@@ -152,6 +168,11 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     desc.temperature = null
     desc.imageInput = null
     desc.inputImageColumn = null
+    desc.audioInput = null
+    desc.inputAudioColumn = null
+    desc.contextColumn = null
+    desc.candidateLabels = null
+    desc.sentencesColumn = null
     val code = desc.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator):")
     code should include("def open(self):")
@@ -272,10 +293,15 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     // size cap
     code should include("MAX_REMOTE_FETCH_BYTES")
     code should include("Remote file exceeds the")
-    // all three fetch sites route through the helper (no raw requests.get on these URLs)
+    // all remote fetch sites route through the helper (no raw requests.get on these URLs)
     code should include("_, data = self._fetch_remote_url(image_input)")
+    code should include("_, data = self._fetch_remote_url(audio_input)")
     code should include("_, data = self._fetch_remote_url(val)")
     code should include("raw_content_type, data = self._fetch_remote_url(url)")
+    code should not include "def _audio_url_to_data_url"
+    code should not include "requests.get(audio_input"
+    code should not include "os.path.exists(audio_input)"
+    code should not include "open(audio_input"
   }
 
   it should "treat pandas NA sentinels (NaN, pd.NA, NaT) as missing in _read_binary_value" in {
@@ -399,6 +425,156 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     imageTasks.foreach { t =>
       val code = makeDesc(task = t).generatePythonCode()
       code should include("if task in image_only_tasks:")
+    }
+  }
+
+  "audio task family" should
+    "route ASR and audio-classification through AudioTaskCodegen as raw binary payloads" in {
+    val code =
+      makeDesc(task = "automatic-speech-recognition", inputAudioColumn = "audio")
+        .generatePythonCode()
+    code should include("self.AUDIO_INPUT = ")
+    code should include("self.INPUT_AUDIO_COLUMN = ")
+    code should include(
+      """audio_only_tasks = ("automatic-speech-recognition", "audio-classification")"""
+    )
+    code should include("payload = current_audio_bytes")
+    code should include("raw_binary_headers = audio_headers")
+    code should include("self._read_audio_input()")
+    code should include(
+      """"Content-Type": "application/octet-stream" if use_audio_column else self._get_audio_content_type()"""
+    )
+    code should include(
+      """path = _urlparse(audio_input).path if audio_input.startswith("http") else audio_input"""
+    )
+    code should include(
+      """audio_content_type = raw_binary_headers.get("Content-Type", "audio/mpeg")"""
+    )
+    code should include(
+      """elif task in ("automatic-speech-recognition", "audio-classification") and img_b64:"""
+    )
+    code should not include "data:audio/wav;base64"
+    code should include(
+      """if content_type.startswith("audio/") or content_type.startswith("video/"):"""
+    )
+  }
+
+  it should "route text-to-speech through AudioTaskCodegen and normalize audio URLs" in {
+    val code = makeDesc(task = "text-to-speech").generatePythonCode()
+    code should include("""elif task == "text-to-speech":""")
+    code should include("""payload = {"inputs": prompt_value}""")
+    code should include("self._url_to_data_url(")
+    code should include(""""text-to-speech": "audio/mpeg"""")
+    code should include("""".m4a": "audio/m4a"""")
+    code should not include "_audio_url_to_data_url"
+    code should include("data:audio/mpeg;base64")
+  }
+
+  it should "register all audio task strings under the dispatcher" in {
+    AudioTaskCodegen.tasks should contain allOf (
+      "automatic-speech-recognition",
+      "audio-classification",
+      "text-to-speech"
+    )
+    AudioTaskCodegen.tasks.foreach { t =>
+      val code = makeDesc(task = t, inputAudioColumn = "audio").generatePythonCode()
+      code should include("if task in audio_only_tasks:")
+    }
+  }
+
+  "media generation task family" should
+    "route text-to-image through MediaGenCodegen and parse URL or b64 responses as data URLs" in {
+    val code = makeDesc(task = "text-to-image").generatePythonCode()
+    code should include("if task not in image_tasks and task not in audio_only_tasks:")
+    code should include("""payload = {"inputs": prompt_value}""")
+    code should include("""if task == "text-to-image":""")
+    code should include("self._url_to_data_url(")
+    code should include("data:image/png;base64")
+  }
+
+  it should "route text-to-video through MediaGenCodegen and normalize remote video URLs" in {
+    val code = makeDesc(task = "text-to-video").generatePythonCode()
+    code should include("""elif task == "text-to-video":""")
+    code should include("self._url_to_data_url(")
+    code should include("video/mp4")
+  }
+
+  it should "register all media generation task strings under the dispatcher" in {
+    MediaGenCodegen.tasks should contain allOf ("text-to-image", "text-to-video")
+    MediaGenCodegen.tasks.foreach { t =>
+      val code = makeDesc(task = t).generatePythonCode()
+      code should include("""payload = {"inputs": prompt_value}""")
+    }
+  }
+
+  "qa and ranking task family" should
+    "route question-answering through QaRankingCodegen with context-column validation" in {
+    val code = makeDesc(task = "question-answering", contextColumn = "context").generatePythonCode()
+    code should include("self.CONTEXT_COLUMN = ")
+    code should include("""if task == "question-answering":""")
+    code should include("ctx_col = self.CONTEXT_COLUMN")
+    code should include("Context column")
+    code should include("""payload = {"inputs": {"question": prompt_value, "context": ctx_val}}""")
+    code should include(
+      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
+    )
+  }
+
+  it should "route table-question-answering with a precomputed table payload" in {
+    val code = makeDesc(task = "table-question-answering").generatePythonCode()
+    code should include("""if task == "table-question-answering":""")
+    code should include("table_dict = {}")
+    code should include("""payload = {"inputs": {"query": prompt_value, "table": table_dict}}""")
+    code should include(
+      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
+    )
+  }
+
+  it should "route zero-shot-classification with candidate labels" in {
+    val code =
+      makeDesc(task = "zero-shot-classification", candidateLabels = "positive,negative")
+        .generatePythonCode()
+    code should include("self.CANDIDATE_LABELS = ")
+    code should include("""if task == "zero-shot-classification":""")
+    code should include(
+      "labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split"
+    )
+    code should include("Candidate Labels are required for zero-shot-classification.")
+    code should include("""elif task == "zero-shot-classification":""")
+    code should include("labels = [l.strip() for l in str(self.CANDIDATE_LABELS).split")
+    code should include(""""parameters": {"candidate_labels": labels}""")
+  }
+
+  it should "route sentence-similarity and text-ranking with sentences-column validation" in {
+    Seq("sentence-similarity", "text-ranking").foreach { taskName =>
+      val code = makeDesc(task = taskName, sentencesColumn = "sentences").generatePythonCode()
+      code should include("self.SENTENCES_COLUMN = ")
+      code should include("sent_col = self.SENTENCES_COLUMN")
+      code should include("Sentences column")
+      if (taskName == "sentence-similarity") {
+        code should include("""elif task == "sentence-similarity":""")
+        code should include(""""source_sentence": prompt_value""")
+        code should include(""""sentences": sentences_list""")
+      } else {
+        code should include("""elif task == "text-ranking":""")
+        code should include(""""query": prompt_value""")
+        code should include(""""texts": sentences_list""")
+      }
+    }
+  }
+
+  it should "register all qa and ranking task strings under the dispatcher" in {
+    QaRankingCodegen.tasks should contain allOf (
+      "question-answering",
+      "table-question-answering",
+      "zero-shot-classification",
+      "sentence-similarity",
+      "text-ranking"
+    )
+    QaRankingCodegen.tasks.foreach { t =>
+      val code = makeDesc(task = t, contextColumn = "context", sentencesColumn = "sentences")
+        .generatePythonCode()
+      code should include("""if task == "question-answering":""")
     }
   }
 

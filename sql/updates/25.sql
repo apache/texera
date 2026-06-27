@@ -23,12 +23,16 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- Optional custom card cover image per workflow, stored as a downscaled image data URL.
-CREATE TABLE IF NOT EXISTS workflow_cover_image
+-- Adds the feedback table, used to persist free-text feedback messages
+-- submitted by users from the dashboard. Each row is one feedback message
+-- owned by a user; deleting the user cascades to their feedback.
+CREATE TABLE IF NOT EXISTS feedback
 (
-    wid   INT PRIMARY KEY,
-    image TEXT NOT NULL,
-    FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
+    fid           SERIAL PRIMARY KEY,
+    uid           INT NOT NULL,
+    message       TEXT NOT NULL,
+    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
 
 COMMIT;

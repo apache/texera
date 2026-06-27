@@ -45,7 +45,7 @@
 #     job summary plus uploaded artifact. Publishing on every merge spammed
 #     the repo's Pulse / all-branches commit count with bot commits, so
 #     only the scheduled (daily) run persists the baseline now.
-#   - schedule (daily): runs the full 36-config sweep and is the sole
+#   - schedule (daily): runs the full 27-config sweep and is the sole
 #     writer that publishes to gh-pages (the authoritative long-term
 #     baseline).
 #   - workflow_dispatch: manual full-grid run (no publish; bring-your-own
@@ -53,7 +53,7 @@
 #
 # Two modes via BENCH_MODE env (read by the bench Scala main):
 #   pr   — 3 configs × 20 batches, ~5 min   (PR + push-to-main)
-#   full — 36 configs × 200 batches, ~50-60 min   (schedule + dispatch)
+#   full — 27 configs × 200 batches, ~40 min   (schedule + dispatch)
 #
 # Non-blocking: this workflow is NOT included in required-checks.yml's
 # `required-checks` aggregator, so its result doesn't gate merges even
@@ -76,7 +76,7 @@ on:
   schedule:
     # Daily full-grid baseline refresh, 12:00 UTC (05:00 PDT). PR and
     # post-merge runs use a trimmed 3-config grid to stay around 5 min; the
-    # scheduled run covers the full 36-config sweep that the gh-pages
+    # scheduled run covers the full 27-config sweep that the gh-pages
     # dashboard tracks long-term. Daily (rather than weekly) keeps the
     # baseline fresh and accumulates enough data points to average out CI
     # noise; the extra bot commits on gh-pages are intentionally tolerated.
@@ -178,7 +178,7 @@ jobs:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       # `pr` mode = 3-config trimmed sweep (~5 min) for PR + post-merge.
-      # `full` mode = 36-config sweep (~50-60 min) for schedule + manual.
+      # `full` mode = 27-config sweep (~40 min) for schedule + manual.
       # Read by the bench Scala main (see GridSpec switch); workflow only
       # decides which mode to pass.
       BENCH_MODE: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'full' || 'pr' }}
