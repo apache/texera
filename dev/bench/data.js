@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782481152588,
+  "lastUpdate": 1782566449040,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -1677,6 +1677,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 495.5842293231326,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "7944c0979b0d79a44ae3d4641deb80a87a426682",
+          "message": "test(workflow-operator): add unit test coverage for Sklearn training SVM, neighbor & misc descriptors (#5956)\n\n### What changes were proposed in this PR?\n\nPin behavior of nine previously-untested Sklearn **training** operator\ndescriptors in `common/workflow-operator`. No production-code changes.\n\n| Spec | Source class |\n| --- | --- |\n| `SklearnTrainingSVMOpDescSpec` | `SklearnTrainingSVMOpDesc` |\n| `SklearnTrainingLinearSVMOpDescSpec` |\n`SklearnTrainingLinearSVMOpDesc` |\n| `SklearnTrainingKNNOpDescSpec` | `SklearnTrainingKNNOpDesc` |\n| `SklearnTrainingNearestCentroidOpDescSpec` |\n`SklearnTrainingNearestCentroidOpDesc` |\n| `SklearnTrainingRidgeOpDescSpec` | `SklearnTrainingRidgeOpDesc` |\n| `SklearnTrainingRidgeCVOpDescSpec` | `SklearnTrainingRidgeCVOpDesc` |\n| `SklearnTrainingDummyClassifierOpDescSpec` |\n`SklearnTrainingDummyClassifierOpDesc` |\n| `SklearnTrainingMultiLayerPerceptronOpDescSpec` |\n`SklearnTrainingMultiLayerPerceptronOpDesc` |\n| `SklearnTrainingProbabilityCalibrationOpDescSpec` |\n`SklearnTrainingProbabilityCalibrationOpDesc` |\n\n**Behavior pinned** (shared `SklearnTrainingOpDesc` contract)\n\n| Surface | Contract |\n| --- | --- |\n| `operatorInfo` | exact model name (`Training: <model>`) + `Sklearn\n<name> Operator` description; **Sklearn Training** group; single\n`training` input port; one blocking output |\n| field defaults | `countVectorizer`/`tfidfTransformer` `false`;\n`target`/`text` `null` |\n| `getOutputSchemas` | `model_name` (STRING) + `model` (BINARY) keyed by\nthe declared output port |\n| `generatePythonCode` | imports the matching sklearn estimator and\nbuilds the `make_pipeline(...).fit(X, Y)` training model |\n| Round-trip | config fields preserved through the polymorphic\n`LogicalOp` base, with the correct `operatorType` discriminator |\n\n### Any related issues, documentation, discussions?\n\nPart of the ongoing `workflow-operator` unit-test coverage effort (the\ntraining-side counterpart to the Sklearn classifier coverage in\n#5925/#5939/#5940/#5941/#5945/#5946/#5951).\n\n### How was this PR tested?\n\n- `sbt \"WorkflowOperator/testOnly\norg.apache.texera.amber.operator.sklearn.training.*\"` — 45 tests, all\ngreen\n- `sbt \"WorkflowOperator/Test/scalafmtCheck\"` and `sbt\n\"WorkflowOperator/scalafixAll --check\"` — clean\n- CI to confirm\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-06-27T00:24:53Z",
+          "url": "https://github.com/apache/texera/commit/7944c0979b0d79a44ae3d4641deb80a87a426682"
+        },
+        "date": 1782566448527,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 663.3561062047322,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1117.0825872932649,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1208.9525342597474,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 843.1469561343058,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1159.1794548340051,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1212.9528006670607,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 875.6412881015916,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1167.6024750442616,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1194.489555064826,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 708.0746811903396,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 941.9503896172347,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 963.9845256023498,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 749.7604101247025,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 948.6335053645886,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 965.2678929844304,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 761.1418634708496,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 920.8446213634342,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 952.856591729709,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 452.3432618802734,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 533.8702085478014,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 540.7273037922697,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 454.5702533156899,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 532.8369823562394,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 543.2076879939052,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 444.2315046393665,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 514.2193506290274,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 520.9451381339056,
             "unit": "tuples/sec"
           }
         ]
