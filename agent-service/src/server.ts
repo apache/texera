@@ -22,9 +22,9 @@ import { cors } from "@elysiajs/cors";
 import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
 import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
-import { getBackendConfig } from "./api/backend-api";
-import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
-import { retrieveWorkflow } from "./api/workflow-api";
+import { getServiceEndpoints } from "./config/endpoints";
+import { extractBearerToken, extractUserFromToken, validateToken } from "./auth/jwt";
+import { retrieveWorkflow } from "./api/workflow-client";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
 import { createLogger } from "./logger";
@@ -33,31 +33,32 @@ const log = createLogger("Server");
 const wsLog = createLogger("WS");
 import type {
   AgentInfo,
-  AgentDelegateConfig,
+  AgentDelegationDto,
   CreateAgentRequest,
   UpdateAgentSettingsRequest,
-  AgentSettingsApi,
+  AgentSettingsDto,
   ReActStep,
 } from "./types/agent";
 import { OperatorResultSerializationMode } from "./types/agent";
+import type { WsMessage, WsOutgoingMessage, OperatorResultSummaryWs } from "./types/api";
 
 const agentStore = new Map<string, TexeraAgent>();
 let agentCounter = 0;
 
 async function createAgentInstance(
   modelType: string,
-  delegateConfig: AgentDelegateConfig,
+  delegation: AgentDelegationDto,
   customName?: string
 ): Promise<{ agentId: string; agent: TexeraAgent }> {
   const agentId = `agent-${++agentCounter}`;
-  const config = getBackendConfig();
+  const config = getServiceEndpoints();
 
   const openai = createOpenAI({
     baseURL: `${config.modelsEndpoint}/api`,
     // The LLM gateway (access-control-service) enforces a REGULAR/ADMIN-role
     // JWT (apache/texera#5421) and injects the LiteLLM master key downstream,
     // so the delegating user's JWT is the only credential this service sends.
-    apiKey: delegateConfig.userToken,
+    apiKey: delegation.userToken,
   });
 
   // Reasoning effort variants are configured as separate model entries in litellm-config.yaml
@@ -71,37 +72,37 @@ async function createAgentInstance(
 
   await agent.initialize();
 
-  if (delegateConfig.workflowId) {
+  if (delegation.workflowId) {
     try {
-      const workflow = await retrieveWorkflow(delegateConfig.userToken, delegateConfig.workflowId);
-      delegateConfig.workflowName = workflow.name;
+      const workflow = await retrieveWorkflow(delegation.userToken, delegation.workflowId);
+      delegation.workflowName = workflow.name;
 
       const workflowState = agent.getWorkflowState();
       workflowState.setWorkflowContent(workflow.content);
 
-      agent.setDelegateConfig({
-        userToken: delegateConfig.userToken,
-        userInfo: delegateConfig.userInfo,
-        workflowId: delegateConfig.workflowId,
-        workflowName: delegateConfig.workflowName,
-        computingUnitId: delegateConfig.computingUnitId,
+      agent.setDelegation({
+        userToken: delegation.userToken,
+        userInfo: delegation.userInfo,
+        workflowId: delegation.workflowId,
+        workflowName: delegation.workflowName,
+        computingUnitId: delegation.computingUnitId,
       });
 
-      log.info({ agentId, workflowId: delegateConfig.workflowId }, "loaded workflow for agent");
+      log.info({ agentId, workflowId: delegation.workflowId }, "loaded workflow for agent");
     } catch (error) {
-      log.warn({ agentId, workflowId: delegateConfig.workflowId, err: error }, "failed to load workflow");
+      log.warn({ agentId, workflowId: delegation.workflowId, err: error }, "failed to load workflow");
     }
   }
 
   agentStore.set(agentId, agent);
-  log.info({ agentId, userId: delegateConfig.userInfo?.uid }, "created agent");
+  log.info({ agentId, userId: delegation.userInfo?.uid }, "created agent");
 
   return { agentId, agent };
 }
 
 function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
   const agentSettings = agent.getSettings();
-  const settingsApi: AgentSettingsApi = {
+  const settingsApi: AgentSettingsDto = {
     maxOperatorResultCharLimit: agentSettings.maxOperatorResultCharLimit,
     maxOperatorResultCellCharLimit: agentSettings.maxOperatorResultCellCharLimit,
     operatorResultSerializationMode: agentSettings.operatorResultSerializationMode,
@@ -112,7 +113,7 @@ function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
     allowedOperatorTypes: agentSettings.allowedOperatorTypes,
   };
 
-  const delegateConfig = agent.getDelegateConfig();
+  const delegation = agent.getDelegation();
 
   return {
     id: agentId,
@@ -120,13 +121,13 @@ function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
     modelType: agent.modelType,
     state: agent.getState(),
     createdAt: agent.createdAt,
-    delegate: delegateConfig
+    delegate: delegation
       ? {
           userToken: "***",
-          userInfo: delegateConfig.userInfo,
-          workflowId: delegateConfig.workflowId,
-          workflowName: delegateConfig.workflowName,
-          computingUnitId: delegateConfig.computingUnitId,
+          userInfo: delegation.userInfo,
+          workflowId: delegation.workflowId,
+          workflowName: delegation.workflowName,
+          computingUnitId: delegation.computingUnitId,
         }
       : undefined,
     settings: settingsApi,
@@ -190,14 +191,14 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       }
 
       const userInfo = extractUserFromToken(userToken);
-      const delegateConfig: AgentDelegateConfig = {
+      const delegation: AgentDelegationDto = {
         userToken,
         userInfo,
         workflowId,
         computingUnitId,
       };
 
-      const { agentId, agent } = await createAgentInstance(modelType, delegateConfig, name);
+      const { agentId, agent } = await createAgentInstance(modelType, delegation, name);
 
       if (settings) {
         log.info(
@@ -410,37 +411,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   );
 
-interface WsMessage {
-  type: "message" | "stop";
-  content?: string;
-  messageSource?: "chat" | "feedback";
-}
-
-interface OperatorResultSummaryWs {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
-  outputColumns?: number;
-  error?: string;
-  warnings?: string[];
-  consoleLogCount?: number;
-  totalRowCount?: number;
-  sampleRecords?: Record<string, any>[];
-  resultStatistics?: Record<string, string>;
-}
-
-interface WsOutgoingMessage {
-  type: "step" | "state" | "error" | "complete" | "init" | "headChange";
-  step?: ReActStep;
-  state?: string;
-  error?: string;
-  steps?: ReActStep[];
-  headId?: string;
-  operatorResults?: Record<string, OperatorResultSummaryWs>;
-  workflowContent?: any;
-}
-
 function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummaryWs> {
   const resultState = agent.getWorkflowResultState();
   const visible = resultState.getAllVisible();
@@ -605,7 +575,8 @@ export function _resetAgentStoreForTests(): void {
   agentCounter = 0;
 }
 
-function printStartupMessage(app: ReturnType<typeof buildApp>) {
+// Exported for tests; called at boot from start().
+export function printStartupMessage(app: ReturnType<typeof buildApp>) {
   const LINE = "=".repeat(60);
   console.log(LINE);
   console.log("Texera Agent Service (Elysia.js + RxJS)");
@@ -637,9 +608,9 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
 
   console.log("");
   console.log("Environment:");
-  console.log(`  LLM_ENDPOINT: ${getBackendConfig().modelsEndpoint}`);
-  console.log(`  WORKFLOW_COMPILING_SERVICE_ENDPOINT: ${getBackendConfig().compileEndpoint}`);
-  console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${getBackendConfig().apiEndpoint}`);
+  console.log(`  LLM_ENDPOINT: ${getServiceEndpoints().modelsEndpoint}`);
+  console.log(`  WORKFLOW_COMPILING_SERVICE_ENDPOINT: ${getServiceEndpoints().compileEndpoint}`);
+  console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${getServiceEndpoints().apiEndpoint}`);
   console.log("");
   console.log("Features:");
   console.log("  - Auto-persistence with debounce (500ms)");

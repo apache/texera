@@ -17,7 +17,16 @@
  * under the License.
  */
 
-export * from "./operator-metadata-client";
-export * from "./compile-client";
-export * from "./workflow-client";
-export * from "./execution-client";
+import { getServiceEndpoints } from "../config/endpoints";
+import type { OperatorMetadata } from "../types/metadata";
+
+export async function fetchOperatorMetadata(): Promise<OperatorMetadata> {
+  const url = `${getServiceEndpoints().apiEndpoint}/api/resources/operator-metadata`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch operator metadata: ${response.status} ${response.statusText}`);
+  }
+
+  return (await response.json()) as OperatorMetadata;
+}
