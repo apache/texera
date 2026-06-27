@@ -18,7 +18,8 @@
  */
 
 import Ajv from "ajv";
-import { fetchOperatorMetadata, type OperatorSchema, type OperatorMetadata } from "../../api/backend-api";
+import { fetchOperatorMetadata } from "../../api/operator-metadata-client";
+import type { OperatorSchema, OperatorMetadata } from "../../types/metadata";
 import type { ValidationError, Validation } from "../../types/workflow";
 import { createLogger } from "../../logger";
 

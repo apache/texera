@@ -48,7 +48,8 @@ import {
   type ExecutionConfig,
 } from "./tools/workflow-execution-tools";
 import { assembleContext } from "./util/context-utils";
-import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
+import { compileWorkflowAsync } from "../api/compile-client";
+import type { WorkflowCompilationResponse } from "../types/api";
 import { createLogger } from "../logger";
 import type { Logger } from "pino";
 
@@ -420,7 +421,7 @@ export class TexeraAgent {
     }
 
     try {
-      const { retrieveWorkflow } = await import("../api/workflow-api");
+      const { retrieveWorkflow } = await import("../api/workflow-client");
       const workflow = await retrieveWorkflow(this.delegateConfig.userToken, this.delegateConfig.workflowId);
       this.workflowState.setWorkflowContent(workflow.content);
       this.log.debug({ workflowId: this.delegateConfig.workflowId }, "refreshed workflow from backend");
@@ -464,7 +465,7 @@ export class TexeraAgent {
         }
 
         try {
-          const { persistWorkflow } = await import("../api/workflow-api");
+          const { persistWorkflow } = await import("../api/workflow-client");
           const workflowContent = this.workflowState.getWorkflowContent();
           await persistWorkflow(
             this.delegateConfig.userToken,

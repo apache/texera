@@ -162,3 +162,13 @@ export interface UpdateAgentSettingsRequest {
   maxSteps?: number;
   allowedOperatorTypes?: string[];
 }
+
+/** Parameters for a single workflow-execution request. */
+export interface ExecutionRequestParams {
+  userToken: string;
+  workflowId: number;
+  computingUnitId?: number;
+  maxOperatorResultCharLimit?: number;
+  maxOperatorResultCellCharLimit?: number;
+  executionTimeoutMs?: number;
+}
