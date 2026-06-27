@@ -634,7 +634,7 @@ services:
   # observability service that requires elevated permissions; the
   # surface is documented and reviewed.
   parca-agent:
-    image: ghcr.io/parca-dev/parca-agent:v0.48.0
+    image: ghcr.io/parca-dev/parca-agent:v0.47.1
     container_name: texera-parca-agent
     profiles: [observability-profiles]
     restart: always
