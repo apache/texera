@@ -190,7 +190,6 @@ export interface ProfilesQueryRequest {
   readonly toMs: number;
 }
 
-
 /** One row of the "top functions" table. `flat` is the self CPU spent in the
  *  function; flat sums to the total across rows. Unsymbolized frames are
  *  bucketed under a single "(unsymbolized)" name. */

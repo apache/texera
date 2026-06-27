@@ -195,4 +195,3 @@ export function buildSpanTree(spans: ReadonlyArray<TraceSpan>): ReadonlyArray<Sp
 
   return roots.slice().sort(sortByStart).map(build);
 }
-

@@ -611,13 +611,15 @@ class ProfilesResource(ctx: GatewayContext) extends LazyLogging {
             ParcaClient.queryTop(ctx.profilesBaseUrl, q, fromMs, toMs) match {
               case Left(err) => Respond.err(err)
               case Right((total, top)) =>
-                val timeline = ParcaClient.queryTimeline(ctx.profilesBaseUrl, q, fromMs, toMs) match {
-                  case Right(points) => points
-                  case Left(e) =>
-                    logger.warn(s"profiles timeline unavailable: ${e.code}")
-                    Seq.empty
-                }
-                val parsed = ProfilesQueryResponse(totalSamples = total, top = top, timeline = timeline)
+                val timeline =
+                  ParcaClient.queryTimeline(ctx.profilesBaseUrl, q, fromMs, toMs) match {
+                    case Right(points) => points
+                    case Left(e) =>
+                      logger.warn(s"profiles timeline unavailable: ${e.code}")
+                      Seq.empty
+                  }
+                val parsed =
+                  ProfilesQueryResponse(totalSamples = total, top = top, timeline = timeline)
                 logger.info(
                   s"profiles query ok for user ${user.getUid}: ${total} sample(s), " +
                     s"${top.size} top entries, ${timeline.size} timeline points"
@@ -647,7 +649,7 @@ class ProfilesResource(ctx: GatewayContext) extends LazyLogging {
       Invalid(GatewayError.BadComm)
     } else {
       TimeWindow.validate(raw.fromMs, raw.toMs) match {
-        case Invalid(e) => Invalid(e)
+        case Invalid(e)    => Invalid(e)
         case Valid(window) => Valid(ValidatedProfilesRequest(commOpt, window))
       }
     }

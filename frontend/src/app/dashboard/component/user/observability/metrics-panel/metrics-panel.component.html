@@ -105,7 +105,9 @@
     </ng-template>
     <ng-container *ngIf="summaries[desc.name] as s; else loadingHero">
       <!-- Empty series renders the dash placeholder, not a misleading "0". -->
-      <div class="hero" *ngIf="s.hasData; else loadingHero">
+      <div
+        class="hero"
+        *ngIf="s.hasData; else loadingHero">
         <span class="value">{{ s.latest | number: "1.0-2" }}</span>
         <span class="unit">{{ desc.unit }}</span>
         <!-- A window total has no trend vs. a baseline, so skip the marker. -->

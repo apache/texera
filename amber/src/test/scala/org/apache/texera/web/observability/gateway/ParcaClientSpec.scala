@@ -66,10 +66,11 @@ class ParcaClientSpec extends AnyFlatSpec with Matchers {
     var limit = -1L
     var stepSec = -1L
     TestAccess.walk(payload) {
-      case (1, TestAccess.LD(b))  => query = new String(b, "UTF-8")
-      case (2, TestAccess.LD(ts)) => TestAccess.walk(ts) { case (1, TestAccess.V(v)) => startSec = v }
-      case (4, TestAccess.V(v))   => limit = v
-      case (5, TestAccess.LD(d))  => TestAccess.walk(d) { case (1, TestAccess.V(v)) => stepSec = v }
+      case (1, TestAccess.LD(b)) => query = new String(b, "UTF-8")
+      case (2, TestAccess.LD(ts)) =>
+        TestAccess.walk(ts) { case (1, TestAccess.V(v)) => startSec = v }
+      case (4, TestAccess.V(v))  => limit = v
+      case (5, TestAccess.LD(d)) => TestAccess.walk(d) { case (1, TestAccess.V(v)) => stepSec = v }
     }
     query shouldBe "q"
     startSec shouldBe 1_700_000_000L
@@ -128,10 +129,12 @@ private[gateway] object TopFixture {
 
   /** Build the framed response. Each node is (optional function name, flat). */
   def framed(nodes: Seq[(Option[String], Long)]): Array[Byte] = {
-    val topBody = nodes.foldLeft(Array.emptyByteArray) { case (acc, (name, flat)) =>
-      val meta = name.map(n => ld(3 /*function*/, str(3 /*name*/, n))).getOrElse(Array.emptyByteArray)
-      val node = ld(1 /*meta*/, meta) ++ vf(3 /*flat*/, flat)
-      acc ++ ld(1 /*list*/, node)
+    val topBody = nodes.foldLeft(Array.emptyByteArray) {
+      case (acc, (name, flat)) =>
+        val meta =
+          name.map(n => ld(3 /*function*/, str(3 /*name*/, n))).getOrElse(Array.emptyByteArray)
+        val node = ld(1 /*meta*/, meta) ++ vf(3 /*flat*/, flat)
+        acc ++ ld(1 /*list*/, node)
     }
     val queryResponse = ld(7 /*top*/, topBody)
     // gRPC-Web frame: flag byte + 4-byte big-endian length + payload.

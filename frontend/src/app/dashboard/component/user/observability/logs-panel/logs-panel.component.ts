@@ -377,4 +377,3 @@ function nonEmpty(v: string | null | undefined): string | undefined {
 function nonEmptyArray(v: string[] | null | undefined): string[] | undefined {
   return v != null && v.length > 0 ? v : undefined;
 }
-
