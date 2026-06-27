@@ -134,11 +134,6 @@ class OtelInitSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
   }
 
   it should "carry the texera.* resource attrs so a CU JVM auto-tags every emitted record" in {
-    // Setting the CU id at JVM boot is the only sane place to attach
-    // it for ComputingUnitMaster / ComputingUnitWorker — those JVMs
-    // are CU-scoped by deployment, and there is no HTTP request to
-    // hang an MDC value off. The dashboard's CU filter relies on
-    // this key being present on every record.
     val r = OtelInit.buildResource(
       "texera-computing-unit-master",
       "texera.computing_unit.id=8,texera.workflow.id=441,texera.execution.id=1234"
@@ -175,16 +170,11 @@ class OtelInitSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
   }
 
   it should "initialize by default (no OTEL_SDK_DISABLED set) so `sbt run` services emit without per-JVM config" in {
-    // The previous default was `true` (opt-in), which forced every
-    // service Run Configuration to set OTEL_SDK_DISABLED=false
-    // explicitly. New default is `false` so a fresh sbt run is
-    // immediately tagged in the dashboard. Operators who need to
-    // silence telemetry still set the env var explicitly.
     val exporter = InMemorySpanExporter.create()
     val result = OtelInit.initForTest(
       "svc",
       Map(
-        // OTEL_SDK_DISABLED deliberately omitted — defaults to false.
+        // OTEL_SDK_DISABLED omitted; defaults to false.
         "OTEL_EXPORTER_OTLP_ENDPOINT" -> "http://localhost:4317"
       ),
       exporter
@@ -204,7 +194,7 @@ class OtelInitSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
     )
     result.isDefined shouldBe true
 
-    // BatchSpanProcessor is async — flush before reading.
+    // BatchSpanProcessor is async; flush before reading.
     result.get
       .asInstanceOf[io.opentelemetry.sdk.OpenTelemetrySdk]
       .getSdkTracerProvider

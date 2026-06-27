@@ -31,25 +31,13 @@ import io.opentelemetry.context.Context
 import java.util.concurrent.TimeUnit
 
 /**
-  * Logback appender that forwards every event through [[LogSanitizer]]
-  * before emitting it as an OTel LogRecord.
-  *
-  * Lifecycle:
-  *  - Construct with no args (Logback / programmatic instantiation).
-  *  - Call [[bind]] once with the active [[OpenTelemetry]] instance
-  *    (done by [[OtelInit]] after the SDK is built). Until then,
-  *    [[append]] is a silent no-op — log events keep flowing to
-  *    stdout/file unimpeded.
-  *  - Stopping the appender unbinds; subsequent events drop.
-  *
-  * This is intentionally a thin shim. All security-critical logic
-  * lives in [[LogSanitizer]] so it can be tested without a Logback
-  * fixture.
+  * Logback appender that sanitizes each event via [[LogSanitizer]] and
+  * emits it as an OTel LogRecord. [[append]] is a no-op until [[bind]]
+  * is called and after [[stop]].
   */
 class TexeraOtelLogAppender extends UnsynchronizedAppenderBase[ILoggingEvent] {
 
-  // @volatile so a late [[bind]] is visible to appender threads
-  // without taking a lock on the hot path.
+  // @volatile so a late bind() is visible to appender threads.
   @volatile private var otelLogger: Option[Logger] = None
 
   def bind(otel: OpenTelemetry): Unit = {
@@ -63,13 +51,12 @@ class TexeraOtelLogAppender extends UnsynchronizedAppenderBase[ILoggingEvent] {
 
   override def append(event: ILoggingEvent): Unit = {
     otelLogger match {
-      case None => () // disabled or not yet wired
+      case None => () // not bound
       case Some(logger) =>
         try {
           emit(logger, event)
         } catch {
-          // Logback's addStatus contract: errors from inside an
-          // appender must not throw out into the calling thread.
+          // An appender must not throw into the calling thread.
           case t: Throwable =>
             addError("OTel log emission failed", t)
         }
@@ -77,17 +64,11 @@ class TexeraOtelLogAppender extends UnsynchronizedAppenderBase[ILoggingEvent] {
   }
 
   private def emit(logger: Logger, event: ILoggingEvent): Unit = {
-    // Append the throwable's full stack trace to the body when one is
-    // attached. Without this, Dropwizard's LoggingExceptionMapper logs
-    // "Error handling a request: <id>" and the exception itself never
-    // reaches the observability backend — making 500s impossible to
-    // diagnose from the dashboard. ThrowableProxyUtil emits a Logback-
-    // formatted trace that fits inside a single log record.
+    // Append the stack trace to the body when a throwable is attached.
     val baseBody = LogSanitizer.sanitize(event.getFormattedMessage)
     val body = Option(event.getThrowableProxy) match {
       case Some(proxy) =>
-        // Trusted JVM frames: skip the C0 strip so newlines survive,
-        // but still cap length (the OTel SDK does not bound the body).
+        // Skip the C0 strip so trace newlines survive, but still cap.
         LogSanitizer.truncate(baseBody + "\n" + formatThrowable(proxy))
       case None => baseBody
     }
@@ -98,8 +79,7 @@ class TexeraOtelLogAppender extends UnsynchronizedAppenderBase[ILoggingEvent] {
       .setSeverityText(event.getLevel.toString)
       .setTimestamp(event.getTimeStamp, TimeUnit.MILLISECONDS)
 
-    // MDC subset: typed AttributeKeys only, so no string injection
-    // path exists for downstream consumers.
+    // Allowlisted MDC keys as typed attributes.
     LogSanitizer.filterMdc(event.getMDCPropertyMap).foreach {
       case (k, v) => builder.setAttribute(AttributeKey.stringKey(k), v)
     }
@@ -107,8 +87,7 @@ class TexeraOtelLogAppender extends UnsynchronizedAppenderBase[ILoggingEvent] {
     builder.setAttribute(AttributeKey.stringKey("logger.name"), event.getLoggerName)
     builder.setAttribute(AttributeKey.stringKey("thread.name"), event.getThreadName)
 
-    // Attach the current trace context so the SDK populates trace_id /
-    // span_id on the LogRecord automatically when a span is active.
+    // Attach trace context so the SDK sets trace_id / span_id.
     val span = Span.current()
     if (span.getSpanContext.isValid) {
       builder.setContext(Context.current())
@@ -117,10 +96,7 @@ class TexeraOtelLogAppender extends UnsynchronizedAppenderBase[ILoggingEvent] {
     builder.emit()
   }
 
-  /** Pretty-print a Logback throwable proxy. Matches what Logback's
-    *  default pattern layout would produce for `%ex` — class name,
-    *  message, full stack frames, then walks the cause chain.
-    */
+  /** Format a throwable proxy as a Logback-style stack trace. */
   private def formatThrowable(proxy: IThrowableProxy): String =
     ThrowableProxyUtil.asString(proxy)
 
