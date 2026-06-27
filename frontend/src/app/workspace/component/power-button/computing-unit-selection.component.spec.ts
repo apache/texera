@@ -95,27 +95,27 @@ describe("PowerButtonComponent", () => {
   describe("isSavedPveInstalledInCu", () => {
     it("returns true when a locked card with the same trimmed name exists", () => {
       component.pves = [
-        { name: "  scanpy_env ", isLocked: true, userPackages: [] } as any,
+        { name: "  scanpyenv ", isLocked: true, userPackages: [] } as any,
         { name: "other", isLocked: false, userPackages: [] } as any,
       ];
-      expect(component.isSavedPveInstalledInCu("scanpy_env")).toBe(true);
+      expect(component.isSavedPveInstalledInCu("scanpyenv")).toBe(true);
     });
 
     it("returns false when the same-name card is not locked (draft only)", () => {
-      component.pves = [{ name: "scanpy_env", isLocked: false, userPackages: [] } as any];
-      expect(component.isSavedPveInstalledInCu("scanpy_env")).toBe(false);
+      component.pves = [{ name: "scanpyenv", isLocked: false, userPackages: [] } as any];
+      expect(component.isSavedPveInstalledInCu("scanpyenv")).toBe(false);
     });
 
     it("returns false when no card matches", () => {
       component.pves = [{ name: "other", isLocked: true, userPackages: [] } as any];
-      expect(component.isSavedPveInstalledInCu("scanpy_env")).toBe(false);
+      expect(component.isSavedPveInstalledInCu("scanpyenv")).toBe(false);
     });
   });
 
   describe("installFromSavedPve", () => {
     const SAVED_VEID = 42;
 
-    function makeSaved(packages: Record<string, string>, name = "scanpy_env"): UserPveRecord {
+    function makeSaved(packages: Record<string, string>, name = "scanpyenv"): UserPveRecord {
       return { veid: SAVED_VEID, name, packages };
     }
 
@@ -139,7 +139,7 @@ describe("PowerButtonComponent", () => {
       expect(component.pves.length).toBe(1);
       const card = component.pves[0];
       expect(card.isLocked).toBe(false);
-      expect(card.name).toBe("scanpy_env");
+      expect(card.name).toBe("scanpyenv");
       expect(card.newPackages).toEqual([{ name: "pandas", versionOp: "==", version: "2.0.0" }]);
       expect(card.deletingPackages).toEqual([]);
 
@@ -150,7 +150,7 @@ describe("PowerButtonComponent", () => {
     it("routes to the locked card and installs only packages that are new in the DB", () => {
       component.pves = [
         {
-          name: "scanpy_env",
+          name: "scanpyenv",
           isLocked: true,
           userPackages: [{ name: "numpy", versionOp: "==", version: "1.26.0" }],
           newPackages: [],
@@ -178,7 +178,7 @@ describe("PowerButtonComponent", () => {
     it("routes to the locked card and deletes packages that were removed from the DB", () => {
       component.pves = [
         {
-          name: "scanpy_env",
+          name: "scanpyenv",
           isLocked: true,
           userPackages: [
             { name: "numpy", versionOp: "==", version: "1.26.0" },
@@ -210,7 +210,7 @@ describe("PowerButtonComponent", () => {
     it("treats a version change as delete-then-install on the locked card", () => {
       component.pves = [
         {
-          name: "scanpy_env",
+          name: "scanpyenv",
           isLocked: true,
           userPackages: [{ name: "scanpy", versionOp: "==", version: "1.11.1" }],
           newPackages: [],
@@ -241,7 +241,7 @@ describe("PowerButtonComponent", () => {
 
       component.pves = [
         {
-          name: "scanpy_env",
+          name: "scanpyenv",
           isLocked: true,
           userPackages: [{ name: "numpy", versionOp: "==", version: "1.26.0" }],
           newPackages: [],
@@ -280,7 +280,7 @@ describe("PowerButtonComponent", () => {
     it("matches an existing locked card when the saved name has surrounding whitespace", () => {
       component.pves = [
         {
-          name: "scanpy_env",
+          name: "scanpyenv",
           isLocked: true,
           userPackages: [{ name: "numpy", versionOp: "==", version: "1.26.0" }],
           newPackages: [],
@@ -291,7 +291,7 @@ describe("PowerButtonComponent", () => {
           isInstalling: false,
         } as any,
       ];
-      component.availableDbPves = [makeSaved({ numpy: "==1.26.0", pandas: "==2.0.0" }, "  scanpy_env  ")];
+      component.availableDbPves = [makeSaved({ numpy: "==1.26.0", pandas: "==2.0.0" }, "  scanpyenv  ")];
 
       component.installFromSavedPve(SAVED_VEID);
 
@@ -307,7 +307,7 @@ describe("PowerButtonComponent", () => {
     it("matches an existing locked card when the locked card name has surrounding whitespace", () => {
       component.pves = [
         {
-          name: "  scanpy_env  ",
+          name: "  scanpyenv  ",
           isLocked: true,
           userPackages: [],
           newPackages: [],
@@ -318,7 +318,7 @@ describe("PowerButtonComponent", () => {
           isInstalling: false,
         } as any,
       ];
-      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" }, "scanpy_env")];
+      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" }, "scanpyenv")];
 
       component.installFromSavedPve(SAVED_VEID);
 
@@ -333,7 +333,7 @@ describe("PowerButtonComponent", () => {
     it("treats names that differ only in case as different (case-sensitive match)", () => {
       component.pves = [
         {
-          name: "ScanPy_Env",
+          name: "ScanPyEnv",
           isLocked: true,
           userPackages: [],
           newPackages: [],
@@ -344,7 +344,7 @@ describe("PowerButtonComponent", () => {
           isInstalling: false,
         } as any,
       ];
-      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" }, "scanpy_env")];
+      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" }, "scanpyenv")];
 
       component.installFromSavedPve(SAVED_VEID);
 
@@ -352,7 +352,7 @@ describe("PowerButtonComponent", () => {
       // so a new unlocked card is pushed.
       expect(component.pves.length).toBe(2);
       const pushed = component.pves[1];
-      expect(pushed.name).toBe("scanpy_env");
+      expect(pushed.name).toBe("scanpyenv");
       expect(pushed.isLocked).toBe(false);
 
       vi.runAllTimers();
@@ -361,12 +361,12 @@ describe("PowerButtonComponent", () => {
 
     it("preserves the saved name verbatim (with whitespace) on the newly pushed card", () => {
       component.pves = [];
-      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" }, "  scanpy_env  ")];
+      component.availableDbPves = [makeSaved({ pandas: "==2.0.0" }, "  scanpyenv  ")];
 
       component.installFromSavedPve(SAVED_VEID);
 
       expect(component.pves.length).toBe(1);
-      expect(component.pves[0].name).toBe("  scanpy_env  ");
+      expect(component.pves[0].name).toBe("  scanpyenv  ");
 
       vi.runAllTimers();
       expect(component.createVirtualEnvironment).toHaveBeenCalledWith(0);
@@ -430,8 +430,8 @@ describe("PowerButtonComponent", () => {
 
     it("populates availableDbPves from listUserPves on success", () => {
       const records: UserPveRecord[] = [
-        { veid: 1, name: "env-a", packages: { numpy: "==1.26.0" } },
-        { veid: 2, name: "env-b", packages: {} },
+        { veid: 1, name: "env1", packages: { numpy: "==1.26.0" } },
+        { veid: 2, name: "env2", packages: {} },
       ];
       vi.spyOn(pveService, "listUserPves").mockReturnValue(of(records));
 
@@ -469,7 +469,7 @@ describe("PowerButtonComponent", () => {
     });
 
     it("sets systemPackagesLoading=true immediately and keeps it true while /pve/system is in flight", () => {
-      const pvesResp: PvePackageResponse[] = [{ pveName: "env-a", userPackages: ["numpy==1.26.0"] }];
+      const pvesResp: PvePackageResponse[] = [{ pveName: "env1", userPackages: ["numpy==1.26.0"] }];
       const systemSubject = new Subject<PackageResponse>();
       vi.spyOn(pveService, "fetchPVEs").mockReturnValue(of(pvesResp));
       vi.spyOn(pveService, "getSystemPackages").mockReturnValue(systemSubject.asObservable());
@@ -478,7 +478,7 @@ describe("PowerButtonComponent", () => {
 
       expect(component.systemPackagesLoading).toBe(true);
       expect(component.pves.length).toBe(1);
-      expect(component.pves[0].name).toBe("env-a");
+      expect(component.pves[0].name).toBe("env1");
 
       systemSubject.next({ system: ["pandas==2.0.0"] });
       systemSubject.complete();
@@ -515,6 +515,98 @@ describe("PowerButtonComponent", () => {
       expect(component.systemPackagesLoading).toBe(false);
       expect(component.pves).toEqual([]);
       expect(component.systemPackages).toEqual([]);
+    });
+  });
+
+  describe("createVirtualEnvironment name validation", () => {
+    const VALIDATION_MSG = "Environment name must contain only letters and numbers.";
+
+    let errorSpy: ReturnType<typeof vi.spyOn>;
+    let runWsSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      errorSpy = vi.spyOn((component as any).notificationService, "error").mockImplementation(() => {});
+      runWsSpy = vi.spyOn(component as any, "runPveWebSocket").mockImplementation(() => {});
+    });
+
+    function setSinglePve(name: string, isLocked = false): void {
+      component.pves = [
+        {
+          name,
+          isLocked,
+          userPackages: [],
+          newPackages: [],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "",
+          expanded: false,
+          isInstalling: false,
+        } as any,
+      ];
+    }
+
+    const invalidCases: ReadonlyArray<readonly [string, string]> = [
+      ["underscore", "my_env"],
+      ["dash", "my-env"],
+      ["internal whitespace", "my env"],
+      ["dot", "my.env"],
+      ["exclamation mark", "env!"],
+      ["slash", "env/1"],
+      ["only whitespace (empty after trim)", "   "],
+      ["empty string", ""],
+    ];
+
+    invalidCases.forEach(([label, name]) => {
+      it(`rejects ${label} (${JSON.stringify(name)}) and does not invoke the websocket`, () => {
+        setSinglePve(name);
+
+        component.createVirtualEnvironment(0);
+
+        expect(errorSpy).toHaveBeenCalledWith(VALIDATION_MSG);
+        expect(runWsSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    const validCases: ReadonlyArray<string> = ["env", "env1", "123", "ScanPyEnv", "abcXYZ0"];
+
+    validCases.forEach(name => {
+      it(`accepts ${JSON.stringify(name)} (alphanumeric only) and proceeds to create`, () => {
+        setSinglePve(name);
+
+        component.createVirtualEnvironment(0);
+
+        expect(errorSpy).not.toHaveBeenCalledWith(VALIDATION_MSG);
+        expect(runWsSpy).toHaveBeenCalled();
+      });
+    });
+
+    it("trims surrounding whitespace before validating (valid name with padding passes)", () => {
+      setSinglePve("  env1  ");
+
+      component.createVirtualEnvironment(0);
+
+      expect(errorSpy).not.toHaveBeenCalledWith(VALIDATION_MSG);
+      expect(runWsSpy).toHaveBeenCalled();
+    });
+
+    it("rejects a name that is valid only before trimming (internal whitespace persists after trim)", () => {
+      setSinglePve("  my env  ");
+
+      component.createVirtualEnvironment(0);
+
+      expect(errorSpy).toHaveBeenCalledWith(VALIDATION_MSG);
+      expect(runWsSpy).not.toHaveBeenCalled();
+    });
+
+    it("rejects an invalid name on a locked card too (validation runs before the locked branch)", () => {
+      const deleteSpy = vi.spyOn(component as any, "deleteUserPackages").mockImplementation(() => {});
+      setSinglePve("my_env", true);
+
+      component.createVirtualEnvironment(0);
+
+      expect(errorSpy).toHaveBeenCalledWith(VALIDATION_MSG);
+      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(runWsSpy).not.toHaveBeenCalled();
     });
   });
 });
