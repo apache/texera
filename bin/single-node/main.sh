@@ -104,7 +104,6 @@ cmd_up() {
 }
 
 cmd_down() {
-    need_docker
     local drop_volumes=false
     case "${1:-}" in
         "")          ;;
@@ -114,6 +113,7 @@ cmd_down() {
             exit 1
             ;;
     esac
+    need_docker
     tui_header "Texera single-node — down"
     if $drop_volumes; then
         tui_step "docker compose --profile $COMPOSE_PROFILE down --volumes"
@@ -135,11 +135,11 @@ cmd_status() {
 }
 
 cmd_logs() {
-    need_docker
     if [[ $# -eq 0 ]]; then
         tui_err "usage: bin/single-node.sh logs <service>"
         exit 1
     fi
+    need_docker
     compose logs -f "$1"
 }
 
