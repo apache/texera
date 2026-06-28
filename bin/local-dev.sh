@@ -187,11 +187,62 @@ _find_jdk17() {
     return 1
 }
 
+# Print the current java environment alongside detection results so the
+# user can see *why* JDK 17 lookup failed (wrong version pinned, JAVA_HOME
+# pointing at JDK 21, etc) — not just "couldn't find one".
+_diagnose_jdk17() {
+    echo "" >&2
+    echo "  current java environment:" >&2
+    if [[ -n "${JAVA_HOME:-}" ]]; then
+        local jhver=""
+        jhver=$("$JAVA_HOME/bin/java" -version 2>&1 | head -1 || echo "(unreadable)")
+        echo "    \$JAVA_HOME = $JAVA_HOME" >&2
+        echo "                ↳ $jhver" >&2
+    else
+        echo "    \$JAVA_HOME (unset)" >&2
+    fi
+    local path_java=""
+    path_java=$(command -v java 2>/dev/null) || true
+    if [[ -n "$path_java" ]]; then
+        local pver=""
+        pver=$("$path_java" -version 2>&1 | head -1 || echo "(unreadable)")
+        echo "    \`java\` on PATH → $path_java" >&2
+        echo "                ↳ $pver" >&2
+    else
+        echo "    \`java\` on PATH (not found)" >&2
+    fi
+    if command -v /usr/libexec/java_home >/dev/null 2>&1; then
+        local jh17=""
+        jh17=$(/usr/libexec/java_home -v 17 2>/dev/null) || jh17="(none registered)"
+        echo "    /usr/libexec/java_home -v 17 → $jh17" >&2
+    fi
+    if command -v brew >/dev/null 2>&1; then
+        local brewp=""
+        brewp=$(brew --prefix openjdk@17 2>/dev/null) || brewp="(not installed)"
+        echo "    brew --prefix openjdk@17 → $brewp" >&2
+    fi
+    echo "" >&2
+    echo "  likely cause:" >&2
+    if [[ -n "${JAVA_HOME:-}" ]] && [[ -n "$path_java" ]]; then
+        echo "    JAVA_HOME points at the wrong JDK (probably not 17)." >&2
+        echo "    Either fix JAVA_HOME or unset it to let auto-detect try other paths." >&2
+    elif [[ -n "$path_java" ]]; then
+        echo "    \`java\` on PATH is not JDK 17. Install a 17 sibling or set JAVA_HOME=/path/to/jdk-17." >&2
+    else
+        echo "    No JDK is installed anywhere we know to look." >&2
+    fi
+    echo "" >&2
+}
+
 JAVA_HOME_DETECTED="$(_find_jdk17)" || {
     echo "FATAL: could not find a JDK 17 install." >&2
-    echo "  tried: \$JAVA_HOME, /usr/libexec/java_home -v 17, Homebrew, Linux /usr/lib/jvm/*, SDKMAN, asdf, \$PATH" >&2
-    echo "  install one of: brew install openjdk@17 · apt install openjdk-17-jdk · sdk install java 17.0.x-tem" >&2
-    echo "  or set JAVA_HOME=/path/to/jdk-17 explicitly" >&2
+    _diagnose_jdk17
+    echo "  fix:" >&2
+    echo "    macOS:   brew install openjdk@17" >&2
+    echo "    Linux:   apt install openjdk-17-jdk    # or yum/dnf equivalent" >&2
+    echo "    SDKMAN:  sdk install java 17.0.13-tem" >&2
+    echo "    or set JAVA_HOME=/path/to/jdk-17 explicitly" >&2
+    echo "" >&2
     exit 1
 }
 export JAVA_HOME="$JAVA_HOME_DETECTED"
@@ -726,6 +777,35 @@ _install_hint() {
     esac
 }
 
+# Inspect the user's Node/yarn/bun setup and print what we actually find,
+# so "yarn not found" reads as "you have node 18 but no yarn" instead of
+# the generic install hint. Called from start_one's frontend/agent paths.
+_diagnose_node() {
+    printf "\n  ${BOLD}node environment:${RESET}\n"
+    for tool in node npm yarn bun corepack; do
+        local p=""
+        p=$(command -v "$tool" 2>/dev/null) || true
+        if [[ -n "$p" ]]; then
+            local v=""
+            v=$("$tool" --version 2>&1 | head -1) || v="(no --version)"
+            printf "    ${GREEN}✓${RESET} %-8s → %s  ${DIM}(%s)${RESET}\n" "$tool" "$p" "$v"
+        else
+            printf "    ${RED}✗${RESET} %-8s ${DIM}not on PATH${RESET}\n" "$tool"
+        fi
+    done
+    printf "\n  ${BOLD}version manager:${RESET}\n"
+    if [[ -n "${NVM_DIR:-}" && -s "${NVM_DIR}/nvm.sh" ]]; then
+        printf "    nvm  → ${DIM}%s${RESET}\n" "$NVM_DIR"
+    elif command -v fnm >/dev/null 2>&1; then
+        printf "    fnm  → ${DIM}%s${RESET}\n" "$(command -v fnm)"
+    elif [[ -s "$HOME/.volta/load.sh" ]]; then
+        printf "    volta → ${DIM}%s${RESET}\n" "$HOME/.volta"
+    else
+        printf "    ${DIM}none detected (using whatever \`node\` is on PATH)${RESET}\n"
+    fi
+    printf "\n"
+}
+
 # --------- helpers ---------
 listen_pid_for_port() {
     # || true so pipefail doesn't kill us when nothing is listening
@@ -997,6 +1077,7 @@ start_one() {
         bun)
             if ! command -v bun >/dev/null 2>&1; then
                 tui_err "$svc: \`bun\` not found on PATH"
+                _diagnose_node
                 _install_hint bun
                 return 1
             fi
@@ -1005,6 +1086,7 @@ start_one() {
         yarn)
             if ! command -v yarn >/dev/null 2>&1; then
                 tui_err "$svc: \`yarn\` not found on PATH"
+                _diagnose_node
                 if ! command -v node >/dev/null 2>&1; then
                     _install_hint node
                 else
@@ -1860,6 +1942,37 @@ _find_python_with_textual() {
     return 1
 }
 
+# Show every candidate Python the picker considered, its version, and
+# whether it can `import textual`. Pinpoints "I have the right python on
+# PATH but textual isn't installed THERE" vs "no python found at all".
+_diagnose_python() {
+    printf "\n  ${BOLD}candidate interpreters:${RESET}\n"
+    local any=0
+    while IFS= read -r cand; do
+        any=1
+        if [[ ! -x "$cand" ]]; then
+            printf "    ${RED}✗${RESET} %s  ${DIM}(not executable)${RESET}\n" "$cand"
+            continue
+        fi
+        local ver=""
+        ver=$("$cand" --version 2>&1 | head -1) || ver="(unreadable)"
+        if "$cand" -c "import textual; print(textual.__version__)" >/dev/null 2>&1; then
+            local tv=""
+            tv=$("$cand" -c "import textual; print(textual.__version__)" 2>/dev/null) || tv="?"
+            printf "    ${GREEN}✓${RESET} %s  ${DIM}(%s, textual %s)${RESET}\n" "$cand" "$ver" "$tv"
+        else
+            printf "    ${YELLOW}!${RESET} %s  ${DIM}(%s, textual MISSING)${RESET}\n" "$cand" "$ver"
+        fi
+    done < <(_probed_pythons)
+    if (( any == 0 )); then
+        printf "    ${RED}✗${RESET} ${DIM}no candidate python on PATH or in TEXERA_PYTHON / VIRTUAL_ENV${RESET}\n"
+    fi
+    printf "\n  ${BOLD}env:${RESET}\n"
+    printf "    \$TEXERA_PYTHON = ${DIM}%s${RESET}\n" "${TEXERA_PYTHON:-(unset)}"
+    printf "    \$VIRTUAL_ENV   = ${DIM}%s${RESET}\n" "${VIRTUAL_ENV:-(unset)}"
+    printf "\n"
+}
+
 # Hand off to the Python + Textual TUI. Hard requirement now (no more zsh
 # REPL fallback) — if we can't find a Python with `textual` installed,
 # print install instructions and exit non-zero. Use the non-interactive
@@ -1876,10 +1989,7 @@ cmd_interactive() {
     py="$(_find_python_with_textual)" || true
     if [[ -z "$py" ]]; then
         tui_err "interactive mode requires Python with the ${BOLD}textual${RESET} package"
-        local tried=""
-        tried="$(_probed_pythons | paste -sd ' ' -)" || true
-        printf "  ${DIM}tried interpreters:${RESET} %s\n" "${tried:-(none found)}"
-        printf "\n"
+        _diagnose_python
         _install_hint python
         exit 1
     fi
