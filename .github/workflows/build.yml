@@ -954,16 +954,24 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r amber/dev-requirements.txt
-      - name: Run shell smoke tests (bash)
-        run: bash bin/local-dev/tests/test_local_dev_sh.sh
+      - name: Run shell smoke tests
+        # Discover + run every `test_*.sh` under bin/. New shell test
+        # suites picked up automatically — no edits to this workflow.
+        run: |
+          set -e
+          shopt -s globstar nullglob
+          tests=( bin/**/test_*.sh )
+          if (( ${#tests[@]} == 0 )); then
+              echo "no shell tests found under bin/" >&2; exit 1
+          fi
+          for t in "${tests[@]}"; do
+              echo "==> $t"
+              bash "$t"
+          done
       - name: Run Python unit tests
-        # Covers both project-tooling test suites:
-        #   * bin/local-dev/tests   — TUI helpers + smoke tests
-        #   * bin/licensing         — LICENSE-binary version-drift checker
-        # pytest discovers stdlib `unittest.TestCase` subclasses just
-        # fine, so the licensing tests' `unittest`-style classes don't
-        # need to be rewritten. The licensing tests were previously a
-        # step inside `pyamber × 4 python versions`; consolidated here
-        # since they have no pyamber dependency and 3.12 is the only
-        # version that actually drives the license check itself.
-        run: python -m pytest bin/local-dev/tests/ bin/licensing/ -v --tb=short
+        # `pytest bin/` discovers every `test_*.py` recursively — covers
+        # bin/local-dev/tests (TUI helpers, dirty detection) and
+        # bin/licensing (LICENSE-binary version-drift checker) in one
+        # pass, and any future tooling test suite under bin/ comes
+        # along without this workflow being edited.
+        run: python -m pytest bin/ -v --tb=short
