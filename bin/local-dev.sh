@@ -97,7 +97,12 @@ cd "$REPO_ROOT"
 STATE_DIR="${TEXERA_LOCAL_DEV_DIR:-/tmp/texera-local-dev}"
 LOG_DIR="$STATE_DIR/logs"
 BUILD_STAMP_DIR="$STATE_DIR/build-stamps"
-mkdir -p "$LOG_DIR" "$BUILD_STAMP_DIR"
+# Per-service phase markers: shell writes `<phase>\t<epoch>` here as it
+# walks each service through stop → build → start; the TUI reads them
+# every tick and renders an animated transitional state in the STATE
+# column. Removed once the service is up / on stale-after-90s.
+PHASE_DIR="$STATE_DIR/svc-phase"
+mkdir -p "$LOG_DIR" "$BUILD_STAMP_DIR" "$PHASE_DIR"
 
 # --------- toolchain (JDK 17 + node) ---------
 # Detect a JDK 17 installation rather than pinning one path. We try, in
@@ -1273,11 +1278,25 @@ wait_for_port() {
     return 1
 }
 
+# Write a transitional phase for $svc so the TUI dashboard can render it
+# in the STATE column with animated dots. Cleared by phase_clear or after
+# 90s (TUI side stale check).
+phase_set() {
+    local svc="$1" phase="$2"
+    printf '%s\t%s\n' "$phase" "$(date +%s)" > "$PHASE_DIR/$svc" 2>/dev/null || true
+}
+phase_clear() {
+    local svc="$1"
+    rm -f "$PHASE_DIR/$svc" 2>/dev/null || true
+}
+
 stop_one() {
     local svc="$1"
     if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+        phase_set "$svc" stopping
         tui_step "$svc: docker compose stop $svc"
         docker compose -p "$DOCKER_PROJECT" stop "$svc" >/dev/null 2>&1 || true
+        phase_clear "$svc"
         tui_ok "$svc: stopped"
         return
     fi
@@ -1287,6 +1306,7 @@ stop_one() {
         tui_skip "$svc: already stopped"
         return 0
     fi
+    phase_set "$svc" stopping
     tui_step "$svc: stopping PID $pid"
     kill "$pid" 2>/dev/null || true
     local i=0
@@ -1298,6 +1318,7 @@ stop_one() {
         tui_warn "$svc: SIGKILL $pid"
         kill -9 "$pid" 2>/dev/null || true
     fi
+    phase_clear "$svc"
     tui_ok "$svc: stopped"
 }
 
@@ -1311,11 +1332,16 @@ start_one() {
             tui_ok "$svc: already running"
             return 0
         fi
+        phase_set "$svc" starting
         tui_step "$svc: docker compose up -d $svc"
         local files=()
         while read -r f; do files+=("$f"); done < <(docker_compose_files | tr ' ' '\n')
         docker compose --progress auto -p "$DOCKER_PROJECT" --env-file "$DOCKER_ENV_FILE" \
             "${files[@]}" up -d "$svc" >/dev/null 2>&1
+        # Don't clear the phase yet — docker `up -d` returns before the
+        # container is healthy. The TUI's docker_state poller will flip
+        # the row to "running" once the container reports healthy; the
+        # stale-after-90s rule covers cleanup if that never happens.
         tui_ok "$svc: started"
         return
     fi
@@ -1324,11 +1350,13 @@ start_one() {
         return 0
     fi
     local cwd="${SVC_CWD[$svc]}" log="$LOG_DIR/$svc.log"
+    phase_set "$svc" starting
     tui_step "$svc: starting ${DIM}(log: $log)${RESET}"
     case "$type" in
         jvm)
             local launcher="${SVC_LAUNCHER[$svc]}"
             if [[ ! -x "$cwd/$launcher" ]]; then
+                phase_clear "$svc"
                 tui_err "$svc: launcher missing at $cwd/$launcher -- run \`bin/local-dev.sh up\` to build first"
                 return 1
             fi
@@ -2020,10 +2048,12 @@ cmd_auto() {
                 # Sibling service (e.g. computing-unit-master): no own dist
                 # to unzip — its launcher comes from the twin's unzip later
                 # in this pass. Just stamp it clean.
+                phase_set "$svc" building
                 svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc" 2>/dev/null || true
                 n_rebuilt=$((n_rebuilt+1))
                 continue
             fi
+            phase_set "$svc" building
             # shellcheck disable=SC2086
             if unzip -oq ${SVC_ZIP_GLOB[$svc]} -d "${SVC_UNZIP_DEST[$svc]}" 2>/dev/null; then
                 svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc"

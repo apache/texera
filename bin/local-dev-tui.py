@@ -55,6 +55,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 STATE_DIR = Path(os.environ.get("TEXERA_LOCAL_DEV_DIR", "/tmp/texera-local-dev"))
 LOG_DIR = STATE_DIR / "logs"
 BUILD_STAMP_DIR = STATE_DIR / "build-stamps"
+# Per-service phase markers written by the shell during stop/build/start.
+# Each file holds `<phase>\t<epoch>` — we read it back in _tick_state and
+# render an animated transitional STATE if it's recent (<90s).
+PHASE_DIR = STATE_DIR / "svc-phase"
+PHASE_STALE_S = 90.0
 REPL_LOG = LOG_DIR / "repl.log"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 BUILD_STAMP_DIR.mkdir(parents=True, exist_ok=True)
@@ -268,6 +273,28 @@ SERVICES_BY_NAME = {s.name: s for s in SERVICES}
 
 # ─────────────────── Live state model ───────────────────
 
+def read_svc_phase(svc_name: str) -> Optional[str]:
+    """Return the shell-written phase (`stopping` / `building` / `starting`)
+    or None if absent / stale. Stale-after-90s guards against a crashed
+    `bin/local-dev.sh` leaving an orphan file."""
+    f = PHASE_DIR / svc_name
+    try:
+        text = f.read_text().strip()
+    except OSError:
+        return None
+    if not text:
+        return None
+    parts = text.split("\t", 1)
+    phase = parts[0]
+    try:
+        ts = float(parts[1]) if len(parts) > 1 else 0.0
+    except ValueError:
+        ts = 0.0
+    if ts and (time.time() - ts) > PHASE_STALE_S:
+        return None
+    return phase
+
+
 @dataclass
 class LiveState:
     """Snapshot of the world this tick — what the dashboard renders."""
@@ -281,6 +308,7 @@ class LiveState:
     uptimes: dict[str, str] = field(default_factory=dict)              # name -> "12m" / "—"
     cpu_pct: dict[str, str] = field(default_factory=dict)              # name -> "8.2%" / "—"
     mem_use: dict[str, str] = field(default_factory=dict)              # name -> "85M" / "—"
+    phases:  dict[str, str] = field(default_factory=dict)              # name -> "stopping"/"building"/"starting" or ""
 
 
 # ─────────────────── Helpers ───────────────────
@@ -971,6 +999,11 @@ class LocalDevApp(App):
         self.set_interval(POLL_INTERVAL_S, self._tick_state)
         self.set_interval(0.2, self._tick_log)
         self.set_interval(0.5, self._tick_banner)
+        # 3 Hz lightweight tick so the `stopping.`/`building..` etc dots
+        # animate smoothly between full state polls. Skips work entirely
+        # when no phase markers are active, so the steady-state cost is a
+        # 14-row dict lookup.
+        self.set_interval(0.33, self._tick_phase_animation)
         # Kick the first poll immediately so the table populates fast.
         self.call_later(self._tick_state)
         self.call_later(self._tick_log)
@@ -1004,9 +1037,26 @@ class LocalDevApp(App):
             f"{running}/{total} running{dirty_part}{url_part}    last: {active}{elapsed}"
         )
 
+    # State-cell renderer: when the shell has written a transitional phase
+    # (stopping / building / starting), we display that with cycling dots
+    # ("building." → "building.." → "building...") so the user sees motion
+    # while the per-service action is in flight. Cycles at 3 Hz off the
+    # main poll tick.
+    _PHASE_PALETTE = {
+        "stopping": ("◐", "yellow"),
+        "building": ("⚙", "cyan"),
+        "starting": ("⚠", "yellow"),
+    }
+
+    def _phase_text(self, phase: str) -> Text:
+        sym, style = self._PHASE_PALETTE.get(phase, ("⚠", "yellow"))
+        dots = "." * (int(time.monotonic() * 3) % 3 + 1)
+        return Text(f"{phase}{dots}", style=style)
+
     def _refresh_table(self) -> None:
         table = self.query_one(DataTable)
         for svc in SERVICES:
+            phase = self.live.phases.get(svc.name, "")
             if svc.type == "docker":
                 ds, dstatus = self.live.docker.get(svc.name, ("", ""))
                 state = docker_state(ds, dstatus)
@@ -1014,7 +1064,16 @@ class LocalDevApp(App):
             else:
                 pid = self.live.pids.get(svc.name) or "—"
                 state = "running" if self.live.pids.get(svc.name) else "stopped"
-            sym, style = STATE_STYLE.get(state, ("○", "grey50"))
+            # If the shell signalled a transitional phase AND we haven't
+            # observed the service as fully running yet, render the phase
+            # instead. Once the poller confirms "running" we trust that
+            # over a stale stop/build/start marker.
+            if phase and state != "running":
+                sym, style = self._PHASE_PALETTE.get(phase, ("⚠", "yellow"))
+                state_cell_text = self._phase_text(phase)
+            else:
+                sym, style = STATE_STYLE.get(state, ("○", "grey50"))
+                state_cell_text = Text(state, style=style)
             mtime = self.live.mtimes.get(svc.name) or "—"
             dirty = self.live.dirty.get(svc.name, False)
 
@@ -1043,7 +1102,7 @@ class LocalDevApp(App):
             table.update_cell(svc.name, "mem",    mem)
             table.update_cell(svc.name, "mtime",  mtime)
             table.update_cell(svc.name, "src",    src_cell)
-            table.update_cell(svc.name, "state",  Text(state, style=style))
+            table.update_cell(svc.name, "state",  state_cell_text)
 
     # ── Polling tasks (Textual will run them on the event loop) ──
     @work(exclusive=True, group="state")
@@ -1101,6 +1160,7 @@ class LocalDevApp(App):
         if time.time() - _DOCKER_STATS_TS >= _DOCKER_STATS_TTL:
             self._refresh_docker_stats_worker()
 
+        phases = {s.name: (read_svc_phase(s.name) or "") for s in SERVICES}
         new_state = LiveState(
             docker=docker_map,
             pids=pids,
@@ -1109,6 +1169,7 @@ class LocalDevApp(App):
             uptimes=uptimes,
             cpu_pct=cpus,
             mem_use=mems,
+            phases=phases,
         )
         self.live = new_state
         self._refresh_table()
@@ -1121,6 +1182,31 @@ class LocalDevApp(App):
 
     def _tick_banner(self) -> None:
         self._update_banner()
+
+    def _tick_phase_animation(self) -> None:
+        """Refresh only the STATE cells whose phase is mid-transition, so
+        the trailing dots animate at 3 Hz without a full poll."""
+        active = {
+            name: phase for name, phase in self.live.phases.items() if phase
+        }
+        if not active:
+            return
+        table = self.query_one(DataTable)
+        for name, phase in active.items():
+            # Skip if the poller has already declared the service running —
+            # don't fight the steady-state render.
+            svc = SERVICES_BY_NAME.get(name)
+            if svc is None:
+                continue
+            if svc.type == "docker":
+                ds, dstatus = self.live.docker.get(name, ("", ""))
+                if docker_state(ds, dstatus) == "running":
+                    continue
+            else:
+                if self.live.pids.get(name):
+                    continue
+            with contextlib.suppress(Exception):
+                table.update_cell(name, "state", self._phase_text(phase))
 
     @work(exclusive=True, group="log")
     async def _tick_log(self) -> None:
