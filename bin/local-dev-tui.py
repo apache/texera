@@ -492,15 +492,20 @@ class HistoricInput(Input):
 
 # ─────────────────── Textual app ───────────────────
 
-# Apache Texera wordmark in box-drawing block characters. ~52 cols wide, 6
-# rows tall. Rendered orange to evoke the Apache feather.
+# Stylised side-profile peacock (Apache Texera's brand mark) — three crest
+# spheres on top, a long S-curve neck, and a fanned tail with eye-feathers.
+# 9 rows tall, ~30 cols wide. Coloured teal to match the actual brand
+# (gradient teal→deep-blue in the PNG at frontend/src/assets/logos/logo.png).
 LOGO_TEXERA = (
-    "████████╗███████╗██╗  ██╗███████╗██████╗  █████╗ \n"
-    "╚══██╔══╝██╔════╝╚██╗██╔╝██╔════╝██╔══██╗██╔══██╗\n"
-    "   ██║   █████╗   ╚███╔╝ █████╗  ██████╔╝███████║\n"
-    "   ██║   ██╔══╝   ██╔██╗ ██╔══╝  ██╔══██╗██╔══██║\n"
-    "   ██║   ███████╗██╔╝ ██╗███████╗██║  ██║██║  ██║\n"
-    "   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝"
+    "        ● ● ●                 \n"
+    "         ╲│╱                  \n"
+    "        ╭─┴─╮◀                \n"
+    "       ╱  ◉  ╲                \n"
+    "       ╲__╤__╱                \n"
+    "          │╲_____             \n"
+    "          │      ╲___         \n"
+    "          ╰─◉ ◉ ◉ ◉ ◉╮        \n"
+    "             ╲◉_◉_◉_╱         "
 )
 
 
@@ -525,16 +530,16 @@ class LocalDevApp(App):
     CSS = """
     Screen { layout: vertical; }
     #banner {
-        height: 11;
+        height: 14;
         background: $boost;
         color: $text;
         padding: 0 2;
         border-bottom: heavy $primary;
     }
     #banner-logo  {
-        color: #d2691e;
+        color: #20b2aa;
         text-style: bold;
-        height: 7;
+        height: 10;
     }
     #banner-title { text-style: bold; }
     #banner-sub  { color: $text-muted; }
@@ -655,7 +660,7 @@ class LocalDevApp(App):
         now = datetime.now().strftime("%H:%M:%S")
         wt_tag = f"worktree: {self._worktree_name}" if self._is_worktree else f"checkout: {self._worktree_name}"
         sub = f"{wt_tag}  ·  branch: {self._branch} @ {self._sha}  ·  {now}"
-        self.query_one("#banner-title", Static).update("Texera Local Dev — interactive")
+        self.query_one("#banner-title", Static).update("Apache Texera — Local Dev")
         self.query_one("#banner-sub", Static).update(sub)
 
     def _update_status_bar(self) -> None:
@@ -942,8 +947,16 @@ class LocalDevApp(App):
             async for raw in proc.stdout:
                 log_widget.write(_strip_ansi_motion(raw.decode(errors="replace").rstrip("\n")))
         finally:
-            self.active_cmd = None
-            self._cmd_proc = None
+            # ESC fires _cancel_active_cmd which terminates this proc AND
+            # immediately clears active_cmd/_cmd_proc so the user can run
+            # another command. By the time our async-for unwinds the proc
+            # we're holding, the user may have already kicked off `up`. Only
+            # clear the global state if it still belongs to us — otherwise
+            # we'd clobber a freshly-spawned command's state to idle, and
+            # any subsequent up/down would see a stale view.
+            if self._cmd_proc is proc:
+                self.active_cmd = None
+                self._cmd_proc = None
 
     @work(exclusive=True, group="cmd")
     async def _spawn_action(self, label: str, argv: list[str]) -> None:
@@ -973,8 +986,12 @@ class LocalDevApp(App):
         rc = proc.returncode or 0
         style = "bold green" if rc == 0 else "bold red"
         log.write(Text(f"── {label}: done (exit {rc}) ──", style=style))
-        self.active_cmd = None
-        self._cmd_proc = None
+        # Same guard as _tail_service_log: only release the global state if
+        # it still points at our proc. Otherwise a faster newer command has
+        # already taken over and we mustn't reset it to idle.
+        if self._cmd_proc is proc:
+            self.active_cmd = None
+            self._cmd_proc = None
         # Right after a command, source state likely moved — force a state poll.
         self._last_dirty_check = 0
         self.call_later(self._tick_state)
