@@ -964,11 +964,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r amber/dev-requirements.txt
-      - name: Run shell smoke tests (zsh)
-        run: zsh bin/local-dev/tests/test_local_dev_sh.zsh
       - name: Run shell smoke tests (bash)
-        # The script itself is bash-shebanged; re-running the harness under
-        # bash too guards against any drift between the two shells.
+        # bin/local-dev.sh is bash-shebanged; CI mirrors that. zsh
+        # portability is exercised by `bash -n` and `zsh -n` checks inside
+        # the harness itself (test 1a/1b in test_local_dev_sh.zsh).
         run: bash bin/local-dev/tests/test_local_dev_sh.zsh
       - name: Run Python unit tests
         run: python -m pytest bin/local-dev/tests/ -v --tb=short
