@@ -4,12 +4,12 @@ This directory contains Dockerfiles and configuration files for building and dep
 
 ## Dockerfiles
 
-This directory includes several Dockerfiles, such as `file-service.dockerfile` and `computing-unit-master.dockerfile`. Each Dockerfile builds a specific Texera microservice. All Dockerfiles must be built from the `texera` project root as the Docker build context.
+`bin/dockerfiles/` collects the per-service Dockerfiles, e.g. `file-service.dockerfile` and `computing-unit-master.dockerfile`. Each Dockerfile builds a specific Texera microservice. All Dockerfiles must be built from the `texera` project root as the Docker build context.
 
 For example, to build the image using `texera-web-application.dockerfile`, run the following command **from the project root**:
 
 ```bash
-docker build -f bin/texera-web-application.dockerfile -t your-repo/texera-web-application:test .
+docker build -f bin/dockerfiles/texera-web-application.dockerfile -t your-repo/texera-web-application:test .
 ```
 
 `build-images.sh` is included for building platform-dependent images conveniently.
