@@ -40,14 +40,25 @@ _fail() {
     FAIL=$((FAIL+1))
 }
 
-# 1) bash -n: syntax check. Catches everything from typos to unbalanced
-#    heredocs without executing a line of the script.
-if bash -n "$SCRIPT" 2>/tmp/.local-dev-syntax.err; then
+# 1) bash -n: syntax-check the entry wrapper and every shell file under
+#    bin/local-dev/. `bash -n` on the wrapper alone would only see the
+#    one-line exec, so internal helpers it routes to must be checked
+#    explicitly. Catches typos and unbalanced heredocs without executing
+#    a line. Uses find because macOS /bin/bash 3.2 lacks `globstar`.
+syntax_ok=true
+syntax_err=""
+while IFS= read -r -d '' f; do
+    if ! bash -n "$f" 2>/tmp/.local-dev-syntax.err; then
+        syntax_ok=false
+        syntax_err+="\n  $f: $(cat /tmp/.local-dev-syntax.err)"
+    fi
+done < <(printf '%s\0' "$SCRIPT"; find "$REPO_ROOT/bin/local-dev" -type f -name '*.sh' -print0)
+rm -f /tmp/.local-dev-syntax.err
+if $syntax_ok; then
     _pass "bash -n bin/local-dev.sh"
 else
-    _fail "bash -n bin/local-dev.sh" "$(cat /tmp/.local-dev-syntax.err)"
+    _fail "bash -n bin/local-dev.sh" "$(printf '%b' "$syntax_err")"
 fi
-rm -f /tmp/.local-dev-syntax.err
 
 # 2) `version` subcommand returns the same string we'd extract by hand
 #    from build.sbt. This is the single source of truth that all the
@@ -171,8 +182,10 @@ fi
 #     silently logged "not produced — skipping". Both call sites
 #     (`build_all` + `cmd_auto`) must now pick the newest match via
 #     `ls -t <glob> | head -1` and feed unzip a single file.
-n_naked=$(grep -cE '^[[:space:]]*if unzip -oq \$\{zip_glob\}' "$SCRIPT" 2>/dev/null || true)
-n_picker=$(grep -cE 'ls -t \$\{?zip_glob\}?.*head -1' "$SCRIPT" 2>/dev/null || true)
+n_naked=$(grep -hE '^[[:space:]]*if unzip -oq \$\{zip_glob\}' \
+    "$REPO_ROOT"/bin/local-dev/*.sh 2>/dev/null | wc -l)
+n_picker=$(grep -hE 'ls -t \$\{?zip_glob\}?.*head -1' \
+    "$REPO_ROOT"/bin/local-dev/*.sh 2>/dev/null | wc -l)
 if (( n_naked == 0 )) && (( n_picker >= 2 )); then
     _pass "unzip step picks newest dist zip (regression for #5991)"
 else
