@@ -20,15 +20,17 @@
 package org.apache.texera.service
 
 import com.fasterxml.jackson.databind.module.SimpleModule
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
-import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
-import org.apache.texera.dao.SqlServer
+import org.apache.texera.auth.{
+  AuthFeatures,
+  RequestLoggingFilter,
+  RoleAnnotationEnforcer,
+  ServiceBootstrap
+}
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.`type`.serde.DatasetFileNodeSerializer
 import org.apache.texera.service.resource.{
@@ -39,19 +41,10 @@ import org.apache.texera.service.resource.{
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LargeBinaryManager
 import org.eclipse.jetty.server.session.SessionHandler
-import java.nio.file.Path
 
 class FileService extends Application[FileServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[FileServiceConfiguration]): Unit = {
-    // enable environment variable substitution in YAML config
-    bootstrap.setConfigurationSourceProvider(
-      new SubstitutingSourceProvider(
-        bootstrap.getConfigurationSourceProvider,
-        new EnvironmentVariableSubstitutor(false)
-      )
-    )
-    // Register Scala module to Dropwizard default object mapper
-    bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+    ServiceBootstrap.configure(bootstrap)
 
     // register a new custom module just for DatasetFileNode serde/deserde
     val customSerializerModule = new SimpleModule("CustomSerializers")
@@ -62,11 +55,7 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
   override def run(configuration: FileServiceConfiguration, environment: Environment): Unit = {
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
+    ServiceBootstrap.initDatabase()
 
     // check if the texera dataset bucket exists, if not create it
     awaitDependency("texera dataset bucket") {
@@ -147,15 +136,8 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 object FileService {
   def main(args: Array[String]): Unit = {
     // Set the configuration file's path
-    val configFilePath = Path
-      .of(sys.env.getOrElse("TEXERA_HOME", "."))
-      .resolve("file-service")
-      .resolve("src")
-      .resolve("main")
-      .resolve("resources")
-      .resolve("file-service-web-config.yaml")
-      .toAbsolutePath
-      .toString
+    val configFilePath =
+      ServiceBootstrap.configFilePath("file-service", "file-service-web-config.yaml")
 
     // Start the Dropwizard application
     new FileService().run("server", configFilePath)

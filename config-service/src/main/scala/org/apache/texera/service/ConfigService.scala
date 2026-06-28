@@ -19,37 +19,25 @@
 
 package org.apache.texera.service
 
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
-import org.apache.texera.common.config.{DefaultsConfig, StorageConfig}
+import org.apache.texera.auth.{
+  AuthFeatures,
+  RequestLoggingFilter,
+  RoleAnnotationEnforcer,
+  ServiceBootstrap
+}
+import org.apache.texera.common.config.DefaultsConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
 import org.eclipse.jetty.server.session.SessionHandler
 import org.jooq.impl.DSL
 
-import java.nio.file.Path
-
 class ConfigService extends Application[ConfigServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[ConfigServiceConfiguration]): Unit = {
-    // enable environment variable substitution in YAML config
-    bootstrap.setConfigurationSourceProvider(
-      new SubstitutingSourceProvider(
-        bootstrap.getConfigurationSourceProvider,
-        new EnvironmentVariableSubstitutor(false)
-      )
-    )
-    // Register Scala module to Dropwizard default object mapper
-    bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
-
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
+    ServiceBootstrap.configure(bootstrap)
+    ServiceBootstrap.initDatabase()
   }
 
   override def run(configuration: ConfigServiceConfiguration, environment: Environment): Unit = {
@@ -104,15 +92,8 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
 
 object ConfigService {
   def main(args: Array[String]): Unit = {
-    val configFilePath = Path
-      .of(sys.env.getOrElse("TEXERA_HOME", "."))
-      .resolve("config-service")
-      .resolve("src")
-      .resolve("main")
-      .resolve("resources")
-      .resolve("config-service-web-config.yaml")
-      .toAbsolutePath
-      .toString
+    val configFilePath =
+      ServiceBootstrap.configFilePath("config-service", "config-service-web-config.yaml")
 
     // Start the Dropwizard application
     new ConfigService().run("server", configFilePath)

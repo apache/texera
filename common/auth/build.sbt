@@ -63,6 +63,7 @@ libraryDependencies ++= Seq(
   "org.glassfish.jersey.core" % "jersey-server" % "3.0.12" % "provided", // for RoleAnnotationEnforcer's ResourceConfig overload and AuthFeatures' RolesAllowedDynamicFeature
   "io.dropwizard" % "dropwizard-core" % "4.0.7" % "provided",          // for AuthFeatures' Environment
   "io.dropwizard" % "dropwizard-auth" % "4.0.7" % "provided",          // for AuthFeatures' AuthDynamicFeature/AuthValueFactoryProvider
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.6" % "provided", // for ServiceBootstrap's DefaultScalaModule
   "org.scalatest" %% "scalatest" % "3.2.17" % Test,
   "org.mockito" % "mockito-core" % "5.4.0" % Test                      // for mocking the Jersey environment in AuthFeaturesSpec
 )

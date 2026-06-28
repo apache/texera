@@ -17,14 +17,15 @@
 
 package org.apache.texera.service
 
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
-import org.apache.texera.dao.SqlServer
+import org.apache.texera.auth.{
+  AuthFeatures,
+  RequestLoggingFilter,
+  RoleAnnotationEnforcer,
+  ServiceBootstrap
+}
 import org.apache.texera.service.activity.UserActivityEventListener
 import org.apache.texera.service.resource.{
   AccessControlResource,
@@ -33,25 +34,11 @@ import org.apache.texera.service.resource.{
   LiteLLMProxyResource
 }
 import org.eclipse.jetty.server.session.SessionHandler
-import java.nio.file.Path
 
 class AccessControlService extends Application[AccessControlServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[AccessControlServiceConfiguration]): Unit = {
-    // enable environment variable substitution in YAML config
-    bootstrap.setConfigurationSourceProvider(
-      new SubstitutingSourceProvider(
-        bootstrap.getConfigurationSourceProvider,
-        new EnvironmentVariableSubstitutor(false)
-      )
-    )
-    // Register Scala module to Dropwizard default object mapper
-    bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
-
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
+    ServiceBootstrap.configure(bootstrap)
+    ServiceBootstrap.initDatabase()
   }
 
   override def run(
@@ -85,15 +72,10 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
 }
 object AccessControlService {
   def main(args: Array[String]): Unit = {
-    val accessControlPath = Path
-      .of(sys.env.getOrElse("TEXERA_HOME", "."))
-      .resolve("access-control-service")
-      .resolve("src")
-      .resolve("main")
-      .resolve("resources")
-      .resolve("access-control-service-web-config.yaml")
-      .toAbsolutePath
-      .toString
+    val accessControlPath = ServiceBootstrap.configFilePath(
+      "access-control-service",
+      "access-control-service-web-config.yaml"
+    )
 
     // Start the Dropwizard application
     new AccessControlService().run("server", accessControlPath)

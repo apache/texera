@@ -19,34 +19,26 @@
 
 package org.apache.texera.service
 
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
-import org.apache.texera.dao.SqlServer
+import org.apache.texera.auth.{
+  AuthFeatures,
+  RequestLoggingFilter,
+  RoleAnnotationEnforcer,
+  ServiceBootstrap
+}
 import org.apache.texera.service.resource.{
   ComputingUnitAccessResource,
   ComputingUnitManagingResource,
   HealthCheckResource
 }
-import java.nio.file.Path
 
 class ComputingUnitManagingService extends Application[ComputingUnitManagingServiceConfiguration] {
 
   override def initialize(
       bootstrap: Bootstrap[ComputingUnitManagingServiceConfiguration]
   ): Unit = {
-    // enable environment variable substitution in YAML config
-    bootstrap.setConfigurationSourceProvider(
-      new SubstitutingSourceProvider(
-        bootstrap.getConfigurationSourceProvider,
-        new EnvironmentVariableSubstitutor(false)
-      )
-    )
-    // register scala module to dropwizard default object mapper
-    bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+    ServiceBootstrap.configure(bootstrap)
   }
   override def run(
       configuration: ComputingUnitManagingServiceConfiguration,
@@ -58,11 +50,7 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
 
     AuthFeatures.register(environment)
 
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
+    ServiceBootstrap.initDatabase()
 
     environment.jersey().register(new ComputingUnitManagingResource)
     environment.jersey().register(new ComputingUnitAccessResource)
@@ -79,15 +67,10 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
 
 object ComputingUnitManagingService {
   def main(args: Array[String]): Unit = {
-    val configFilePath = Path
-      .of(sys.env.getOrElse("TEXERA_HOME", "."))
-      .resolve("computing-unit-managing-service")
-      .resolve("src")
-      .resolve("main")
-      .resolve("resources")
-      .resolve("computing-unit-managing-service-config.yaml")
-      .toAbsolutePath
-      .toString
+    val configFilePath = ServiceBootstrap.configFilePath(
+      "computing-unit-managing-service",
+      "computing-unit-managing-service-config.yaml"
+    )
 
     new ComputingUnitManagingService().run("server", configFilePath)
   }

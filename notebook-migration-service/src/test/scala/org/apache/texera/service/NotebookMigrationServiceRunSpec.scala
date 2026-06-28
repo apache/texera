@@ -49,7 +49,7 @@ class NotebookMigrationServiceRunSpec extends AnyFlatSpec with Matchers {
     verify(jersey).setUrlPattern("/api/*")
     verify(jersey).register(classOf[HealthCheckResource])
     verify(jersey).register(classOf[NotebookMigrationResource])
-    // Auth stack from registerAuthFeatures — without these, @RolesAllowed / @Auth are ignored.
+    // Auth stack from AuthFeatures.register; without these, @RolesAllowed / @Auth are ignored.
     verify(jersey).register(isA(classOf[AuthDynamicFeature]))
     verify(jersey).register(classOf[UnauthorizedExceptionMapper])
     verify(jersey).register(classOf[RolesAllowedDynamicFeature])
