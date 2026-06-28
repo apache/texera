@@ -18,11 +18,10 @@
  */
 
 // Server -> client WebSocket frames for this service's protocol
-// (`/agents/:id/react`). Modeled as a discriminated union on `type`, so each
-// message kind declares exactly the fields it sends.
 
 import type { AgentState, ReActStep } from "../agent";
 import type { WorkflowContent } from "../workflow";
+import type { CustomUnionType } from "../util";
 
 /**
  * Wire projection of one operator's execution result, summarized for the
@@ -42,69 +41,54 @@ export interface OperatorResultSummaryWs {
   resultStatistics?: Record<string, string>;
 }
 
-/** Per-operator result summaries, keyed by operator id. */
-type OperatorResults = Record<string, OperatorResultSummaryWs>;
-
-/** Shared discriminator base; every server frame sets a unique `type`. */
-interface WsServerMessageBase {
-  type: "snapshot" | "step" | "status" | "error" | "headChange";
-}
-
 /**
  * Full state pushed once when a client connects: the agent's current lifecycle
  * state, the complete step list, and the HEAD pointer. Operator results are not
  * included — they are pulled on demand via `GET /operator-results`.
  */
-export interface WsServerSnapshotMessage extends WsServerMessageBase {
-  type: "snapshot";
+export interface WsServerSnapshotEvent extends Readonly<{
   state: AgentState;
   steps: ReActStep[];
   headId: string;
-}
+}> {}
 
-/**
- * A single ReAct step, streamed live as the agent runs.
- */
-export interface WsServerStepMessage extends WsServerMessageBase {
-  type: "step";
+/** A single ReAct step, streamed live as the agent runs. */
+export interface WsServerStepEvent extends Readonly<{
   step: ReActStep;
-}
+}> {}
 
 /**
  * An agent lifecycle transition (e.g. GENERATING when a run starts, the resting
  * state when it ends, STOPPING on stop).
  */
-export interface WsServerStatusMessage extends WsServerMessageBase {
-  type: "status";
+export interface WsServerStatusEvent extends Readonly<{
   state: AgentState;
-}
+}> {}
 
 /** An error surfaced to the client (agent not found, bad request, failed run). */
-export interface WsServerErrorMessage extends WsServerMessageBase {
-  type: "error";
+export interface WsServerErrorEvent extends Readonly<{
   error: string;
-}
+}> {}
 
 /**
  * Emitted after a checkout: HEAD moved, carrying the full step list and the
  * workflow snapshot at the new head.
  *
- * @deprecated Redundant and unused — the checkout flow that produces this frame
- * is unreachable in the product (nothing invokes the client's `checkoutStep()`).
- * Scheduled for removal (see #5930); do not build new code on it.
+ * @deprecated Redundant and unused. TODO: remove this message and related caller logics.
  */
-export interface WsServerHeadChangeMessage extends WsServerMessageBase {
-  type: "headChange";
+export interface WsServerHeadChangeEvent extends Readonly<{
   headId: string;
   steps: ReActStep[];
   workflowContent?: WorkflowContent;
-  operatorResults: OperatorResults;
-}
+}> {}
+
+export type WsServerEventTypeMap = {
+  snapshot: WsServerSnapshotEvent;
+  step: WsServerStepEvent;
+  status: WsServerStatusEvent;
+  error: WsServerErrorEvent;
+  headChange: WsServerHeadChangeEvent;
+};
 
 /** Discriminated union of every server -> client frame. */
-export type WsServerMessage =
-  | WsServerSnapshotMessage
-  | WsServerStepMessage
-  | WsServerStatusMessage
-  | WsServerErrorMessage
-  | WsServerHeadChangeMessage;
+export type WsServerEvent = CustomUnionType<WsServerEventTypeMap>;

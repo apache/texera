@@ -168,7 +168,7 @@ describe(`WS ${API}/agents/:id/react`, () => {
     await waitOpen(ws);
     await messages.waitFor(m => m.type === "snapshot");
 
-    ws.send(JSON.stringify({ type: "command", commandType: "stop" }));
+    ws.send(JSON.stringify({ type: "stop" }));
 
     const status = await messages.waitFor(m => m.type === "status");
     expect(status.state).toBe("STOPPING");
@@ -196,6 +196,18 @@ describe(`WS ${API}/agents/:id/react`, () => {
 
     const err = await messages.waitFor(m => m.type === "error");
     expect(err.error).toBe("Invalid message format");
+  });
+
+  test("an unknown message type yields an error frame", async () => {
+    const id = await createAgent();
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "snapshot");
+
+    ws.send(JSON.stringify({ type: "bogus" }));
+
+    const err = await messages.waitFor(m => m.type === "error");
+    expect(err.error).toBe("Unknown message type: bogus");
   });
 
   test("a prompt run streams GENERATING -> step -> resting status (no result frames)", async () => {

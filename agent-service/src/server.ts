@@ -40,7 +40,7 @@ import type {
   ReActStep,
 } from "./types/agent";
 import { AgentState, OperatorResultSerializationMode } from "./types/agent";
-import type { WsClientRequest, WsServerMessage, WsServerSnapshotMessage, OperatorResultSummaryWs } from "./types/ws";
+import type { WsClientCommand, WsServerEvent, OperatorResultSummaryWs } from "./types/ws";
 
 const agentStore = new Map<string, TexeraAgent>();
 let agentCounter = 0;
@@ -325,7 +325,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       headId: stepId,
       steps: allSteps,
       workflowContent,
-      operatorResults: getOperatorResultSummaries(agent),
     });
 
     return {
@@ -434,7 +433,7 @@ function getOperatorResultSummaries(agent: TexeraAgent): Record<string, Operator
   return results;
 }
 
-function broadcastToAgent(agentId: string, message: WsServerMessage): void {
+function broadcastToAgent(agentId: string, message: WsServerEvent): void {
   const agent = agentStore.get(agentId);
   if (!agent) return;
 
@@ -474,7 +473,7 @@ export function buildApp() {
 
         agent.addWebsocket(ws);
 
-        const snapshotMessage: WsServerSnapshotMessage = {
+        const snapshotMessage: WsServerEvent = {
           type: "snapshot",
           state: agent.getState(),
           steps: agent.getAllSteps(),
@@ -492,19 +491,17 @@ export function buildApp() {
           return;
         }
 
-        let msg: WsClientRequest;
+        let msg: WsClientCommand;
         try {
-          msg = typeof messageData === "string" ? JSON.parse(messageData) : (messageData as WsClientRequest);
+          msg = typeof messageData === "string" ? JSON.parse(messageData) : (messageData as WsClientCommand);
         } catch {
           ws.send(JSON.stringify({ type: "error", error: "Invalid message format" }));
           return;
         }
 
-        if (msg.type === "command") {
-          if (msg.commandType === "stop") {
-            agent.stop();
-            broadcastToAgent(agentId, { type: "status", state: AgentState.STOPPING });
-          }
+        if (msg.type === "stop") {
+          agent.stop();
+          broadcastToAgent(agentId, { type: "status", state: AgentState.STOPPING });
           return;
         }
 
@@ -544,7 +541,13 @@ export function buildApp() {
             // from GENERATING after errors).
             broadcastToAgent(agentId, { type: "status", state: agent.getState() });
           }
+          return;
         }
+
+        // Frames are parsed from untrusted JSON; reject unknown discriminators
+        // explicitly instead of silently no-op'ing, so client/server mismatches
+        // are easy to diagnose.
+        ws.send(JSON.stringify({ type: "error", error: `Unknown message type: ${(msg as { type?: unknown }).type}` }));
       },
 
       close(ws) {
@@ -603,7 +606,7 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
       console.log(`  WS     ${route.path}`);
     }
     console.log("         Send: { type: 'prompt', content: '...' }");
-    console.log("         Send: { type: 'command', commandType: 'stop' }");
+    console.log("         Send: { type: 'stop' }");
     console.log("         Recv: { type: 'snapshot' | 'step' | 'status' | 'error' | 'headChange', ... }");
   }
 

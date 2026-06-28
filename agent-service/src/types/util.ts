@@ -17,8 +17,11 @@
  * under the License.
  */
 
-export * from "./util";
-export * from "./workflow";
-export * from "./execution";
-export * from "./agent";
-export * from "./ws";
+// Generic type-level utilities shared across the type modules.
+
+/**
+ * Builds a discriminated union from a `{ type -> payload }` map: each entry
+ * becomes `{ type: <key> } & <payload>`, then they are unioned. The `type` tag
+ * is derived from the map key rather than hand-written into each payload
+ */
+export type CustomUnionType<T> = { [K in keyof T]: { readonly type: K } & T[K] }[keyof T];

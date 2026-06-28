@@ -537,10 +537,6 @@ export class AgentService {
           };
           tracking.workflowSubject.next(workflow as Workflow);
         }
-        // Update operator results on HEAD change
-        if (message.operatorResults) {
-          this.updateOperatorResultSummaries(message.operatorResults);
-        }
         break;
 
       case "error":
@@ -952,7 +948,7 @@ export class AgentService {
     if (tracking?.websocket && tracking.websocket.readyState === WebSocket.OPEN) {
       // Send stop via WebSocket for immediate effect
       try {
-        tracking.websocket.send(JSON.stringify({ type: "command", commandType: "stop" }));
+        tracking.websocket.send(JSON.stringify({ type: "stop" }));
       } catch (error) {
         console.error("Failed to send stop command:", error);
       }
