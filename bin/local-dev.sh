@@ -621,34 +621,47 @@ tui_wait_panel() {
     local svc="" i=0 state="" state_color="" state_sym="" port_str="" elapsed=0 spinner_frame=""
 
     if [[ ! -t 1 ]]; then
-        # Non-TTY: redrawing would just spam lines. Fall back to sequential.
+        # Non-TTY: redrawing would just spam lines. Poll each service to
+        # completion (or per-service timeout) and print one line per
+        # transition. Crucially we WAIT for docker containers to leave
+        # `starting`/`unhealthy` rather than treating an in-flight state as
+        # a failure — the previous one-shot check exited rc=1 within ~20s
+        # of `up` if e.g. lakefs hadn't reached `running` yet, which is its
+        # normal cold-start state.
         local n_done=0 n_failed=0
+        local svc_timeout=0 waited=0 final_state=""
         for svc in "${svcs[@]}"; do
-            if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
-                local dstate=""
-                dstate=$(docker_svc_state "$svc")
-                case "$dstate" in
-                    running|exited)
-                        printf "  %s  %-32s :%-6s  %s\n" "$SYM_OK" "$svc" "${SVC_PORT[$svc]}" "$dstate"
-                        n_done=$((n_done+1)) ;;
-                    *)
-                        printf "  %s  %-32s :%-6s  %s\n" "$SYM_ERR" "$svc" "${SVC_PORT[$svc]}" "$dstate"
-                        n_failed=$((n_failed+1)) ;;
-                esac
-                continue
-            fi
-            local svc_timeout=$timeout_default
+            svc_timeout=$timeout_default
             case "${SVC_TYPE[$svc]}" in
                 yarn) svc_timeout=$timeout_yarn ;;
                 bun)  svc_timeout=$timeout_bun  ;;
             esac
-            if wait_for_port "${SVC_PORT[$svc]}" "$svc_timeout"; then
-                printf "  %s  %-32s :%-6s  %s\n" "$SYM_OK" "$svc" "${SVC_PORT[$svc]}" "healthy"
-                n_done=$((n_done+1))
-            else
-                printf "  %s  %-32s :%-6s  %s\n" "$SYM_ERR" "$svc" "${SVC_PORT[$svc]}" "timeout"
-                n_failed=$((n_failed+1))
-            fi
+            waited=0
+            final_state=""
+            while (( waited < svc_timeout )); do
+                if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+                    case "$(docker_svc_state "$svc")" in
+                        running|exited)        final_state="ok";    break ;;
+                        unhealthy|failed)      final_state="bad";   break ;;
+                        # starting / created / restarting / paused / "" → keep waiting
+                    esac
+                else
+                    [[ -n "$(listen_pid_for_port "${SVC_PORT[$svc]}")" ]] && { final_state="ok"; break; }
+                fi
+                sleep 1
+                waited=$((waited+1))
+            done
+            case "$final_state" in
+                ok)
+                    printf "  %s  %-32s :%-6s  %s\n" "$SYM_OK" "$svc" "${SVC_PORT[$svc]}" "healthy"
+                    n_done=$((n_done+1)) ;;
+                bad)
+                    printf "  %s  %-32s :%-6s  %s\n" "$SYM_ERR" "$svc" "${SVC_PORT[$svc]}" "unhealthy"
+                    n_failed=$((n_failed+1)) ;;
+                *)  # timed out without ever reaching a terminal state
+                    printf "  %s  %-32s :%-6s  %s\n" "$SYM_ERR" "$svc" "${SVC_PORT[$svc]}" "timeout (${waited}s)"
+                    n_failed=$((n_failed+1)) ;;
+            esac
         done
         return $((n_failed > 0))
     fi
