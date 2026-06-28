@@ -347,6 +347,29 @@ export class AgentService {
     };
   }
 
+  private convertApiReActSteps(apiSteps: any[]): ReActStep[] {
+    return apiSteps.map(s => this.convertApiReActStep(s));
+  }
+
+  private mapApiAgentInfo(api: ApiAgentInfo): AgentInfo {
+    return {
+      id: api.id,
+      name: api.name,
+      modelType: api.modelType,
+      isBaselineMode: false,
+      createdAt: new Date(api.createdAt),
+      state: this.mapStateToAgentState(api.state),
+      delegate: api.delegate
+        ? {
+            userInfo: api.delegate.userInfo,
+            workflowId: api.delegate.workflowId,
+            workflowName: api.delegate.workflowName,
+          }
+        : undefined,
+      settings: api.settings,
+    };
+  }
+
   /**
    * Get or create state tracking for an agent.
    * If tracking exists but doesn't have workflowId and one is provided, updates it.
@@ -455,7 +478,7 @@ export class AgentService {
           tracking.stateSubject.next(this.mapStateToAgentState(message.state));
         }
         if (message.steps && Array.isArray(message.steps)) {
-          const steps = message.steps.map((s: any) => this.convertApiReActStep(s));
+          const steps = this.convertApiReActSteps(message.steps);
           tracking.reActStepsSubject.next(steps);
         }
         // Handle initial HEAD pointer
@@ -669,22 +692,7 @@ export class AgentService {
 
       return this.http.post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body).pipe(
         map(response => {
-          const agentInfo: AgentInfo = {
-            id: response.id,
-            name: response.name,
-            modelType: response.modelType,
-            isBaselineMode: false,
-            createdAt: new Date(response.createdAt),
-            state: this.mapStateToAgentState(response.state),
-            delegate: response.delegate
-              ? {
-                  userInfo: response.delegate.userInfo,
-                  workflowId: response.delegate.workflowId,
-                  workflowName: response.delegate.workflowName,
-                }
-              : undefined,
-            settings: response.settings,
-          };
+          const agentInfo = this.mapApiAgentInfo(response);
 
           this.agents.set(response.id, agentInfo);
           // Pass workflowId to enable workflow polling from backend database
@@ -718,22 +726,7 @@ export class AgentService {
       // Fetch from API if not in cache
       return this.http.get<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents/${agentId}`, this.agentHeaders(agentId)).pipe(
         map(response => {
-          const agentInfo: AgentInfo = {
-            id: response.id,
-            name: response.name,
-            modelType: response.modelType,
-            isBaselineMode: false,
-            createdAt: new Date(response.createdAt),
-            state: this.mapStateToAgentState(response.state),
-            delegate: response.delegate
-              ? {
-                  userInfo: response.delegate.userInfo,
-                  workflowId: response.delegate.workflowId,
-                  workflowName: response.delegate.workflowName,
-                }
-              : undefined,
-            settings: response.settings,
-          };
+          const agentInfo = this.mapApiAgentInfo(response);
           this.agents.set(response.id, agentInfo);
           return agentInfo;
         }),
@@ -749,22 +742,7 @@ export class AgentService {
   public getAllAgents(): Observable<AgentInfo[]> {
     return this.http.get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`).pipe(
       map(response => {
-        const agents = response.agents.map(a => ({
-          id: a.id,
-          name: a.name,
-          modelType: a.modelType,
-          isBaselineMode: false,
-          createdAt: new Date(a.createdAt),
-          state: this.mapStateToAgentState(a.state),
-          delegate: a.delegate
-            ? {
-                userInfo: a.delegate.userInfo,
-                workflowId: a.delegate.workflowId,
-                workflowName: a.delegate.workflowName,
-              }
-            : undefined,
-          settings: a.settings,
-        }));
+        const agents = response.agents.map(a => this.mapApiAgentInfo(a));
 
         // Build a set of backend agent IDs for quick lookup
         const backendAgentIds = new Set(agents.map(a => a.id));
@@ -898,7 +876,7 @@ export class AgentService {
     return this.http
       .get<ApiReActStepsResponse>(`${this.AGENT_API_BASE}/agents/${agentId}/react-steps`, this.agentHeaders(agentId))
       .pipe(
-        map(response => response.steps.map((s: any) => this.convertApiReActStep(s))),
+        map(response => this.convertApiReActSteps(response.steps)),
         catchError(() => of([]))
       );
   }
@@ -1190,7 +1168,7 @@ export class AgentService {
       }>(`${this.AGENT_API_BASE}/agents/${agentId}/steps-by-operators`, { operatorIds }, this.agentHeaders(agentId))
       .pipe(
         map(response => ({
-          steps: response.steps.map((s: any) => this.convertApiReActStep(s)),
+          steps: this.convertApiReActSteps(response.steps),
         })),
         catchError(() =>
           of({
