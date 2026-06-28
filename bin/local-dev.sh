@@ -1,4 +1,24 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
+# Re-exec under bash 4+ when invoked through Apple's /bin/bash (still
+# pinned at 3.2 for licensing). We need associative arrays and a few
+# other 4+ features. Same compat is automatic on Linux distros (bash 5+).
+if [[ -z "${BASH_VERSION:-}" ]] || (( ${BASH_VERSINFO[0]:-0} < 4 )); then
+    for _newer in \
+        /opt/homebrew/bin/bash \
+        /usr/local/bin/bash \
+        /opt/homebrew/opt/bash/bin/bash \
+        /usr/local/opt/bash/bin/bash; do
+        if [[ -x "$_newer" ]]; then
+            exec "$_newer" "$0" "$@"
+        fi
+    done
+    printf 'FATAL: bin/local-dev.sh needs bash 4+, but the bash on PATH is %s.\n' \
+        "${BASH_VERSION:-not bash}" >&2
+    printf '       Install GNU bash: brew install bash\n' >&2
+    exit 1
+fi
+unset _newer
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -67,7 +87,9 @@
 # Logs and pid book-keeping live under: ${TEXERA_LOCAL_DEV_DIR:-/tmp/texera-local-dev}
 
 set -euo pipefail
-setopt no_nomatch   # don't error on unmatched globs (match bash behaviour)
+# Unmatched globs in bash default to the literal pattern (we handle that
+# in-place at every glob site). `failglob` / `nullglob` are opt-in per glob
+# via `( shopt -s nullglob; ... )` subshells where we need empty-on-no-match.
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -95,13 +117,13 @@ _find_jdk17() {
     local cand=""
     # 1. Respect $JAVA_HOME if the caller already set it AND it's 17.
     if [[ -n "${JAVA_HOME:-}" ]] && _java_is_17 "$JAVA_HOME"; then
-        print -r -- "$JAVA_HOME"; return 0
+        printf '%s\n' "$JAVA_HOME"; return 0
     fi
     # 2. macOS native locator (works for any vendor installed via /Library).
     if command -v /usr/libexec/java_home >/dev/null 2>&1; then
         cand=$(/usr/libexec/java_home -v 17 2>/dev/null) || cand=""
         if [[ -n "$cand" ]] && _java_is_17 "$cand"; then
-            print -r -- "$cand"; return 0
+            printf '%s\n' "$cand"; return 0
         fi
     fi
     # 3. Homebrew — try `brew --prefix openjdk@17` first, then both well-
@@ -109,41 +131,58 @@ _find_jdk17() {
     #    if /etc/zprofile didn't fire).
     if command -v brew >/dev/null 2>&1; then
         cand=$(brew --prefix openjdk@17 2>/dev/null) || cand=""
-        [[ -n "$cand" ]] && _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
+        [[ -n "$cand" ]] && _java_is_17 "$cand" && { printf '%s\n' "$cand"; return 0; }
     fi
     for cand in /opt/homebrew/opt/openjdk@17 /usr/local/opt/openjdk@17; do
-        _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
+        _java_is_17 "$cand" && { printf '%s\n' "$cand"; return 0; }
     done
     # 4. Linux distro layouts. Glob first match.
-    local glob=""
-    for glob in \
-        /usr/lib/jvm/java-17-openjdk* \
-        /usr/lib/jvm/temurin-17-jdk* \
-        /usr/lib/jvm/java-17-amazon-corretto* \
-        /usr/lib/jvm/zulu-17* \
-        /usr/lib/jvm/jdk-17* ; do
-        for cand in $~glob(N); do
-            _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
-        done
-    done
+    # bash equivalents of zsh's `*(N)` "null on no match" qualifier: enable
+    # `shopt -s nullglob` locally so an unmatched pattern expands to zero
+    # words. We localize it in a subshell so it doesn't leak out and break
+    # the unquoted globs elsewhere (e.g. unzip's zip glob).
+    local matched=""
+    matched=$(shopt -s nullglob; \
+        for cand in \
+            /usr/lib/jvm/java-17-openjdk* \
+            /usr/lib/jvm/temurin-17-jdk* \
+            /usr/lib/jvm/java-17-amazon-corretto* \
+            /usr/lib/jvm/zulu-17* \
+            /usr/lib/jvm/jdk-17*; do
+            printf '%s\n' "$cand"
+        done)
+    while IFS= read -r cand; do
+        [[ -z "$cand" ]] && continue
+        _java_is_17 "$cand" && { printf '%s\n' "$cand"; return 0; }
+    done <<< "$matched"
     # 5. SDKMAN (`sdk install java 17.x-...`) — pick the lex-largest 17.* dir.
     if [[ -d "$HOME/.sdkman/candidates/java" ]]; then
-        for cand in "$HOME"/.sdkman/candidates/java/17.*(N); do
-            _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
-        done
+        matched=$(shopt -s nullglob; \
+            for cand in "$HOME"/.sdkman/candidates/java/17.*; do
+                printf '%s\n' "$cand"
+            done)
+        while IFS= read -r cand; do
+            [[ -z "$cand" ]] && continue
+            _java_is_17 "$cand" && { printf '%s\n' "$cand"; return 0; }
+        done <<< "$matched"
     fi
     # 6. asdf.
     if [[ -d "$HOME/.asdf/installs/java" ]]; then
-        for cand in "$HOME"/.asdf/installs/java/*17*(N); do
-            _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
-        done
+        matched=$(shopt -s nullglob; \
+            for cand in "$HOME"/.asdf/installs/java/*17*; do
+                printf '%s\n' "$cand"
+            done)
+        while IFS= read -r cand; do
+            [[ -z "$cand" ]] && continue
+            _java_is_17 "$cand" && { printf '%s\n' "$cand"; return 0; }
+        done <<< "$matched"
     fi
     # 7. Whatever `java` is on PATH, IF it's 17 — covers cases like Docker
     #    images or distro-managed defaults.
     cand=$(command -v java 2>/dev/null) || cand=""
     if [[ -n "$cand" ]]; then
         cand="$(dirname "$(dirname "$cand")")"
-        _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
+        _java_is_17 "$cand" && { printf '%s\n' "$cand"; return 0; }
     fi
     return 1
 }
@@ -190,12 +229,12 @@ _detect_host_lan_ip() {
     iface=$(route get default 2>/dev/null | awk '/interface:/{print $2; exit}')
     if [[ -n "$iface" ]]; then
         ip=$(ipconfig getifaddr "$iface" 2>/dev/null)
-        [[ -n "$ip" && "$ip" != 127.* ]] && { print -r -- "$ip"; return 0; }
+        [[ -n "$ip" && "$ip" != 127.* ]] && { printf '%s\n' "$ip"; return 0; }
     fi
     # 2. Fallback: linux `hostname -I`-equivalent walk over en*.
     for iface in en0 en1 en2 en3 en4 en5 en6 en7 en8 en9 en10; do
         ip=$(ipconfig getifaddr "$iface" 2>/dev/null)
-        [[ -n "$ip" && "$ip" != 127.* ]] && { print -r -- "$ip"; return 0; }
+        [[ -n "$ip" && "$ip" != 127.* ]] && { printf '%s\n' "$ip"; return 0; }
     done
     return 1
 }
@@ -379,7 +418,7 @@ DOCKER_INFRA_LONGLIVED=(postgres minio lakefs lakekeeper litellm)  # exclude one
 docker_compose_files() {
     local args=(-f "$DOCKER_COMPOSE_FILE")
     [[ -f "$DOCKER_OVERLAY_FILE" ]] && args+=(-f "$DOCKER_OVERLAY_FILE")
-    print -r -- "${args[@]}"
+    printf '%s\n' "${args[@]}"
 }
 
 # --------- TUI helpers ---------
@@ -471,14 +510,17 @@ tui_spinner() {
         printf "  ${BLUE}${SYM_PROG}${RESET}  ${DIM}%s (no-TTY, no spinner)${RESET}\n" "$msg"
         return
     fi
-    local frames="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-    local n=${#frames}
+    # Use an array (vs a single multibyte string + byte indexing) because
+    # bash's `${str:i:1}` is byte-wise — each braille glyph is 3 UTF-8
+    # bytes, so a byte index would print broken half-chars.
+    local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+    local n=${#frames[@]}
     local i=0
     local start_ts=$SECONDS
     printf "\e[?25l"   # hide cursor
     while kill -0 "$pid" 2>/dev/null; do
         local elapsed=$((SECONDS - start_ts))
-        local frame="${frames[((i % n) + 1)]}"
+        local frame="${frames[i % n]}"
         printf "\r  ${BLUE}%s${RESET}  ${DIM}%s${RESET} ${GRAY}(%ds)${RESET}     " \
             "$frame" "$msg" "$elapsed"
         sleep 0.1
@@ -511,8 +553,8 @@ tui_wait_panel() {
     local n=${#svcs[@]}
     (( n == 0 )) && return 0
 
-    local frames="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-    local n_frames=${#frames}
+    local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+    local n_frames=${#frames[@]}
     local start_ts=$SECONDS
     local timeout=90
     local frame_idx=0
@@ -562,7 +604,7 @@ tui_wait_panel() {
         fi
         first_render=false
 
-        spinner_frame="${frames[((frame_idx % n_frames) + 1)]}"
+        spinner_frame="${frames[frame_idx % n_frames]}"
 
         for svc in "${svcs[@]}"; do
             state_color="" state_sym=""
@@ -847,12 +889,25 @@ svc_artifact_mtime() {
             local jar_dir=""
             jar_dir="$(dirname "$(dirname "$launcher")")/lib"
             if [[ -d "$jar_dir" ]]; then
-                local main_jars=("$jar_dir"/org.apache.texera.${svc}-*.jar(NoL[1]))
+                # `shopt -s nullglob` localised in a subshell so an
+                # unmatched glob yields no words instead of the literal
+                # pattern. Capture into a string then split into an array.
+                local globbed=""
+                globbed=$(shopt -s nullglob; \
+                    printf '%s\n' "$jar_dir"/org.apache.texera."${svc}"-*.jar)
+                local main_jars=()
+                while IFS= read -r _f; do
+                    [[ -n "$_f" ]] && main_jars+=("$_f")
+                done <<< "$globbed"
                 if [[ ${#main_jars[@]} -eq 0 && ( "$svc" == "texera-web" || "$svc" == "computing-unit-master" ) ]]; then
-                    main_jars=("$jar_dir"/org.apache.texera.amber-*.jar(NoL[1]))
+                    globbed=$(shopt -s nullglob; \
+                        printf '%s\n' "$jar_dir"/org.apache.texera.amber-*.jar)
+                    while IFS= read -r _f; do
+                        [[ -n "$_f" ]] && main_jars+=("$_f")
+                    done <<< "$globbed"
                 fi
                 if [[ ${#main_jars[@]} -gt 0 ]]; then
-                    stat -f "%Sm" -t "%Y-%m-%d %H:%M" "${main_jars[1]}"
+                    stat -f "%Sm" -t "%Y-%m-%d %H:%M" "${main_jars[0]}"
                     return
                 fi
             fi
@@ -1595,7 +1650,8 @@ cmd_down() {
     tui_section "Stopping (reverse order)"
     local svc=""
     # Stop native services first (reverse declaration order)
-    for (( i=${#SERVICES[@]}; i>=1; i-- )); do
+    # bash arrays are 0-indexed: last element is at N-1.
+    for (( i=${#SERVICES[@]} - 1; i>=0; i-- )); do
         svc="${SERVICES[i]}"
         [[ "${SVC_TYPE[$svc]}" == "docker" ]] && continue
         if is_skipped "$svc"; then
@@ -1786,7 +1842,7 @@ _probed_pythons() {
         [[ -z "$cand" ]] && continue
         case ":$seen:" in *":$cand:"*) continue ;; esac
         seen="$seen:$cand"
-        print -r -- "$cand"
+        printf '%s\n' "$cand"
     done
 }
 
@@ -1797,7 +1853,7 @@ _find_python_with_textual() {
     while IFS= read -r cand; do
         [[ -x "$cand" ]] || continue
         if "$cand" -c "import textual" >/dev/null 2>&1; then
-            print -r -- "$cand"
+            printf '%s\n' "$cand"
             return 0
         fi
     done < <(_probed_pythons)
@@ -1842,6 +1898,6 @@ case "${1:-}" in
     logs)             shift; cmd_logs "${1:-}" ;;
     w|watch)          shift; cmd_watch "${1:-2}" ;;
     version)          printf "%s\n" "$TEXERA_VERSION" ;;
-    -h|--help)        sed -n '17,49p' "$0" ;;
+    -h|--help)        sed -n '39,87p' "$0" ;;
     *)                cmd_update_one "$1" ;;
 esac
