@@ -28,7 +28,7 @@ class FilterPredicateSpec extends AnyFlatSpec with Matchers {
 
   private val intSchema = Schema().add(new Attribute("age", AttributeType.INTEGER))
   private def ageTuple(age: Integer): Tuple =
-    Tuple.builder(intSchema).add(new Attribute("age", AttributeType.INTEGER), age).build()
+    Tuple.builder(intSchema).add("age", AttributeType.INTEGER, age).build()
 
   "FilterPredicate" should "expose its constructor-supplied fields" in {
     val p = new FilterPredicate("age", ComparisonType.GREATER_THAN, "18")
@@ -52,7 +52,7 @@ class FilterPredicateSpec extends AnyFlatSpec with Matchers {
 
   it should "compare string fields when the value is non-numeric" in {
     val schema = Schema().add(new Attribute("name", AttributeType.STRING))
-    val t = Tuple.builder(schema).add(new Attribute("name", AttributeType.STRING), "bob").build()
+    val t = Tuple.builder(schema).add("name", AttributeType.STRING, "bob").build()
     new FilterPredicate("name", ComparisonType.EQUAL_TO, "bob").evaluate(t) shouldBe true
     new FilterPredicate("name", ComparisonType.NOT_EQUAL_TO, "bob").evaluate(t) shouldBe false
   }
@@ -69,7 +69,10 @@ class FilterPredicateSpec extends AnyFlatSpec with Matchers {
   "FilterPredicate" should "round-trip through Jackson (condition as its symbol)" in {
     val p = new FilterPredicate("age", ComparisonType.GREATER_THAN_OR_EQUAL_TO, "18")
     val json = objectMapper.writeValueAsString(p)
-    json should include("\"condition\":\">=\"")
+    val node = objectMapper.readTree(json)
+    node.get("attribute").asText shouldBe "age"
+    node.get("condition").asText shouldBe ">="
+    node.get("value").asText shouldBe "18"
     objectMapper.readValue(json, classOf[FilterPredicate]) shouldBe p
   }
 }
