@@ -609,4 +609,28 @@ describe("PowerButtonComponent", () => {
       expect(runWsSpy).not.toHaveBeenCalled();
     });
   });
+
+  describe("isCreateDisabled", () => {
+    // Backs the per-environment OK button's [disabled]="isCreateDisabled(pve)":
+    // the button stays disabled until the name has non-whitespace content.
+    function pveWithName(name: string): any {
+      return { name } as any;
+    }
+
+    it("disables when the name is empty", () => {
+      expect(component.isCreateDisabled(pveWithName(""))).toBe(true);
+    });
+
+    it("disables when the name is only whitespace", () => {
+      expect(component.isCreateDisabled(pveWithName("   "))).toBe(true);
+    });
+
+    it("enables when the name has non-whitespace content", () => {
+      expect(component.isCreateDisabled(pveWithName("env1"))).toBe(false);
+    });
+
+    it("enables when a valid name is padded with whitespace", () => {
+      expect(component.isCreateDisabled(pveWithName("  env1  "))).toBe(false);
+    });
+  });
 });
