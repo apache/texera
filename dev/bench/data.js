@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782566451631,
+  "lastUpdate": 1782652964080,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -1834,6 +1834,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 520.9451381339056,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Jiadong Bai",
+            "username": "bobbai00",
+            "email": "43344272+bobbai00@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "a24d1d1701dfffc46279ecda1db34268e2dca44c",
+          "message": "refactor(agent-service): extract WebSocket message types into types/ws (#5751)\n\n### What changes were proposed in this PR?\n\nThis PR refactors the agent-service ↔ frontend WebSocket messaging into\na dedicated **`types/ws`** folder. Each frame is a small class whose\n`type` discriminator equals its class name (matching the main Texera WS\nconvention, e.g. `RegionUpdateEvent`). Building a frame with `new\nWsServerStatusEvent(...)` sets the wire `type` for you, so no `type:\n\"...\"` literal is hand-written at call sites; receivers `switch` on\n`event.type`.\n\n- `types/ws/client.ts` — frames the frontend sends, unioned as\n`WsClientCommand`:\n  - `WsClientPromptCommand` — a user prompt for the agent to run.\n  - `WsClientStopCommand` — stop the in-flight run (payload-less).\n- `types/ws/server.ts` — frames agent-service sends back, unioned as\n`WsServerEvent`:\n- `WsServerSnapshotEvent` — full state, sent once when a client\nconnects.\n  - `WsServerStepEvent` — one step, streamed live as the agent runs.\n- `WsServerStatusEvent` — a lifecycle change (GENERATING / AVAILABLE /\nSTOPPING).\n  - `WsServerErrorEvent` — an error to surface to the user.\n- `WsServerHeadChangeEvent` — unused by the frontend/UI (still reachable\nvia `/agents/:id/checkout`); slated for removal in #5930.\n- Operator result summaries are no longer pushed over WebSocket — they\nare pulled on demand via `GET /agents/:id/operator-results`. The\ncorresponding REST DTO `OperatorResultSummary` lives in\n`types/execution.ts` (not under `ws/`).\n\nThis PR also adds unit tests and renames the `agent-service` test files\nfrom `*.test.ts` to `*.spec.ts` to align with the frontend's naming\nconvention.\n\n### Any related issues, documentation, discussions?\n\nCloses #5749\n\n### How was this PR tested?\n\nAdded/updated unit tests in both `agent-service` and `frontend` all\npass; a local end-to-end run was also verified.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Opus 4.8 (1M context)\n\n---------\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-28T09:46:50Z",
+          "url": "https://github.com/apache/texera/commit/a24d1d1701dfffc46279ecda1db34268e2dca44c"
+        },
+        "date": 1782652963563,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 629.6321169096885,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1122.7866167710467,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1176.295884964202,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 848.3293311580297,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1127.62395785478,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1184.7727283490974,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 863.7158031317904,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1140.4840257817527,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1171.390831917027,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 725.8422811195763,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 921.1966341034391,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 948.7723297876665,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 759.3957743891441,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 932.9703289771704,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 941.7038756948331,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 744.7339578839125,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 912.5585192608825,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 927.637168078939,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 462.9130924354061,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 526.1714437261043,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 538.4734640318966,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 461.86339248948866,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 528.841795364716,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 536.9348492395007,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 425.65533728126036,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 504.5457768217761,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 508.88512744247424,
             "unit": "tuples/sec"
           }
         ]
