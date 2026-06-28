@@ -79,6 +79,32 @@ DIRTY_INTERVAL_S = 2.0    # how often to recompute dirty indicators
 WATCH_TYPES = {"yarn", "bun"}
 
 
+# ─────────────────── Texera version (dynamic) ───────────────────
+
+_VERSION_RE = re.compile(
+    r'^\s*ThisBuild\s*/\s*version\s*:=\s*"([^"]+)"', re.MULTILINE
+)
+
+
+def texera_version() -> str:
+    """Parse the project version from build.sbt so artifact paths track
+    whatever branch the developer is on (it's 1.3.0-incubating-SNAPSHOT on
+    main today, was 1.2.0-incubating on release/v1.2, will differ again).
+    Override with `TEXERA_VERSION` env var to bypass parsing."""
+    env = os.environ.get("TEXERA_VERSION")
+    if env:
+        return env
+    bs = REPO_ROOT / "build.sbt"
+    if bs.exists():
+        m = _VERSION_RE.search(bs.read_text(errors="replace"))
+        if m:
+            return m.group(1)
+    return "1.3.0-incubating-SNAPSHOT"   # last-ditch fallback
+
+
+TEXERA_VERSION = texera_version()
+
+
 # ─────────────────── Service catalog ───────────────────
 
 @dataclass
@@ -91,8 +117,21 @@ class Service:
     artifact_jar: Optional[str] = None    # for jvm
 
 
-def _jvm(name: str, port: int, project: str, own_src: str, jar: str) -> Service:
-    return Service(name, "jvm", port, sbt_project=project, own_src=own_src, artifact_jar=jar)
+def _jvm(name: str, port: int, project: str, own_src: str) -> Service:
+    """sbt-native-packager lays the dist out as
+    `target/<artifact>-<VERSION>/lib/org.apache.texera.<artifact>-<VERSION>.jar`
+    for every subproject. The single exception is amber: its sbt subproject
+    name is `amber` (not `texera-web`) and the dist goes under `amber/target/`
+    rather than the repo-level `target/`."""
+    is_amber = name == "texera-web"
+    artifact = "amber" if is_amber else name
+    target_prefix = "amber/" if is_amber else ""
+    jar = (
+        f"{target_prefix}target/{artifact}-{TEXERA_VERSION}/lib/"
+        f"org.apache.texera.{artifact}-{TEXERA_VERSION}.jar"
+    )
+    return Service(name, "jvm", port, sbt_project=project,
+                   own_src=own_src, artifact_jar=jar)
 
 
 SERVICES: list[Service] = [
@@ -102,23 +141,17 @@ SERVICES: list[Service] = [
     Service("lakekeeper", "docker", 8181),
     Service("litellm",    "docker", 4000),
     _jvm("config-service",                  9094, "ConfigService",
-         "config-service/src",
-         "target/config-service-1.3.0-incubating-SNAPSHOT/lib/org.apache.texera.config-service-1.3.0-incubating-SNAPSHOT.jar"),
+         "config-service/src"),
     _jvm("access-control-service",          9096, "AccessControlService",
-         "access-control-service/src",
-         "target/access-control-service-1.3.0-incubating-SNAPSHOT/lib/org.apache.texera.access-control-service-1.3.0-incubating-SNAPSHOT.jar"),
+         "access-control-service/src"),
     _jvm("file-service",                    9092, "FileService",
-         "file-service/src",
-         "target/file-service-1.3.0-incubating-SNAPSHOT/lib/org.apache.texera.file-service-1.3.0-incubating-SNAPSHOT.jar"),
+         "file-service/src"),
     _jvm("workflow-compiling-service",      9090, "WorkflowCompilingService",
-         "workflow-compiling-service/src",
-         "target/workflow-compiling-service-1.3.0-incubating-SNAPSHOT/lib/org.apache.texera.workflow-compiling-service-1.3.0-incubating-SNAPSHOT.jar"),
+         "workflow-compiling-service/src"),
     _jvm("computing-unit-managing-service", 8082, "ComputingUnitManagingService",
-         "computing-unit-managing-service/src",
-         "target/computing-unit-managing-service-1.3.0-incubating-SNAPSHOT/lib/org.apache.texera.computing-unit-managing-service-1.3.0-incubating-SNAPSHOT.jar"),
+         "computing-unit-managing-service/src"),
     _jvm("texera-web",                      8080, "WorkflowExecutionService",
-         "amber/src",
-         "amber/target/amber-1.3.0-incubating-SNAPSHOT/lib/org.apache.texera.amber-1.3.0-incubating-SNAPSHOT.jar"),
+         "amber/src"),
     Service("agent-service", "bun",  3001),
     Service("frontend",      "yarn", 4200),
 ]
@@ -335,14 +368,88 @@ def subprocess_run(*argv: str) -> str:
 
 # ─────────────────── Input with shell-style history ───────────────────
 
-class HistoricInput(Input):
-    """Single-line Input that remembers submitted commands and lets the user
-    walk through them with ↑/↓, exactly like bash/zsh.
+class CommandHistory:
+    """Pure-Python state machine for command history navigation.
 
-    History is persisted to a flat file under STATE_DIR so it survives across
-    REPL sessions.  ↑ saves the current draft into a `_draft` slot the first
-    time we step back, so when the user walks all the way forward again they
-    get their in-progress input back."""
+    Kept separate from `HistoricInput` (which subclasses Textual's `Input`)
+    so the navigation logic can be unit-tested without a running app —
+    Textual's reactive setters need an active App context, so they can't
+    be exercised from a bare pytest. `HistoricInput` is a thin wrapper that
+    delegates here and forwards the resulting value to its `Input.value`.
+
+    Conventions match bash/zsh: ↑ walks back from newest to oldest, the
+    in-progress draft is saved when stepping off it the first time, ↓
+    walks forward and restores the draft once you step past the newest
+    entry. Consecutive duplicates are coalesced on `push`."""
+
+    def __init__(self, history_file: Optional[Path] = None, max_size: int = MAX_HISTORY) -> None:
+        self._file = history_file
+        self._max = max_size
+        self._history: list[str] = self._load()
+        self._idx: int = -1   # -1 = at the live draft; 0+ = back in history
+        self._draft: str = ""
+
+    def _load(self) -> list[str]:
+        if not self._file or not self._file.exists():
+            return []
+        try:
+            lines = self._file.read_text(errors="replace").splitlines()
+            return [s for s in (l.strip() for l in lines) if s][-self._max:]
+        except OSError:
+            return []
+
+    def _save(self) -> None:
+        if not self._file:
+            return
+        try:
+            self._file.write_text("\n".join(self._history[-self._max:]) + "\n")
+        except OSError:
+            pass
+
+    def push(self, cmd: str) -> None:
+        cmd = cmd.strip()
+        if not cmd:
+            return
+        if self._history and self._history[-1] == cmd:
+            self._reset()
+            return
+        self._history.append(cmd)
+        self._save()
+        self._reset()
+
+    def _reset(self) -> None:
+        self._idx = -1
+        self._draft = ""
+
+    def back(self, current_value: str) -> Optional[str]:
+        """Step one entry back in history. Returns the new value to display,
+        or None if we're already at the oldest entry (caller should leave
+        the input alone)."""
+        if not self._history:
+            return None
+        if self._idx == -1:
+            self._draft = current_value
+        if self._idx + 1 >= len(self._history):
+            return None
+        self._idx += 1
+        return self._history[-1 - self._idx]
+
+    def forward(self) -> Optional[str]:
+        """Step one entry forward. Returns the draft when you cross the
+        newest entry. Returns None if we weren't browsing history."""
+        if self._idx == -1:
+            return None
+        self._idx -= 1
+        if self._idx == -1:
+            return self._draft
+        return self._history[-1 - self._idx]
+
+
+class HistoricInput(Input):
+    """Textual Input wired up to `CommandHistory` for shell-style ↑/↓.
+
+    History is persisted to `HISTORY_FILE` under STATE_DIR so it survives
+    across REPL sessions."""
 
     BINDINGS = [
         Binding("up",   "history_back",    "history back",    show=False),
@@ -351,64 +458,25 @@ class HistoricInput(Input):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._history: list[str] = self._load_history()
-        self._idx: int = -1   # -1 = at the live draft; 0+ = back in history
-        self._draft: str = ""
-
-    @staticmethod
-    def _load_history() -> list[str]:
-        if not HISTORY_FILE.exists():
-            return []
-        try:
-            lines = HISTORY_FILE.read_text(errors="replace").splitlines()
-            return [s for s in (l.strip() for l in lines) if s][-MAX_HISTORY:]
-        except OSError:
-            return []
-
-    def _save_history(self) -> None:
-        try:
-            HISTORY_FILE.write_text("\n".join(self._history[-MAX_HISTORY:]) + "\n")
-        except OSError:
-            pass
+        self._hist = CommandHistory(HISTORY_FILE)
 
     def push(self, cmd: str) -> None:
-        cmd = cmd.strip()
-        if not cmd:
-            return
-        # Skip dup against the most recent entry — typical shell behaviour.
-        if self._history and self._history[-1] == cmd:
-            self._idx = -1
-            self._draft = ""
-            return
-        self._history.append(cmd)
-        self._save_history()
-        self._idx = -1
-        self._draft = ""
+        self._hist.push(cmd)
 
     def _set_value(self, v: str) -> None:
         self.value = v
-        # Move cursor to end so the user can keep editing the recalled line.
         with contextlib.suppress(Exception):
             self.cursor_position = len(v)
 
     def action_history_back(self) -> None:
-        if not self._history:
-            return
-        if self._idx == -1:
-            self._draft = self.value
-        if self._idx + 1 >= len(self._history):
-            return  # already at oldest
-        self._idx += 1
-        self._set_value(self._history[-1 - self._idx])
+        v = self._hist.back(self.value)
+        if v is not None:
+            self._set_value(v)
 
     def action_history_forward(self) -> None:
-        if self._idx == -1:
-            return
-        self._idx -= 1
-        if self._idx == -1:
-            self._set_value(self._draft)
-        else:
-            self._set_value(self._history[-1 - self._idx])
+        v = self._hist.forward()
+        if v is not None:
+            self._set_value(v)
 
 
 # ─────────────────── Textual app ───────────────────

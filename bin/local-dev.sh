@@ -118,6 +118,27 @@ export LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-sk-texera-internal-do-not-share
 export LLM_ENDPOINT="${LLM_ENDPOINT:-http://localhost:8080}"
 export LLM_API_KEY="${LLM_API_KEY:-dummy}"
 
+# --------- texera version (dynamic) ---------
+# The sbt-native-packager dist directory and jar names embed the project
+# version (e.g. target/config-service-<VERSION>/...). That version moves
+# across branches (1.3.0-incubating-SNAPSHOT on main, 1.2.0-incubating on
+# release/v1.2, …) so resolve it from build.sbt at startup rather than
+# hardcoding. Override via the TEXERA_VERSION env var to target a sibling
+# tree or if the build.sbt parse fails.
+_texera_version() {
+    grep -E '^[[:space:]]*ThisBuild[[:space:]]*/[[:space:]]*version[[:space:]]*:=[[:space:]]*"' \
+        "$REPO_ROOT/build.sbt" 2>/dev/null \
+        | head -1 \
+        | sed -E 's/.*"([^"]+)".*/\1/'
+}
+TEXERA_VERSION="${TEXERA_VERSION:-$(_texera_version)}"
+if [[ -z "$TEXERA_VERSION" ]]; then
+    # tui_warn isn't defined yet at this point in the script; print raw.
+    printf "FATAL: could not detect texera version from %s/build.sbt\n" "$REPO_ROOT" >&2
+    printf "       Set the TEXERA_VERSION env var to bypass.\n" >&2
+    exit 1
+fi
+
 # --------- service catalog ---------
 SERVICES=(
     postgres
@@ -149,7 +170,7 @@ SVC_TYPE[litellm]=docker;    SVC_PORT[litellm]=4000;    SVC_CWD[litellm]="."
 SVC_TYPE[config-service]=jvm
 SVC_PORT[config-service]=9094
 SVC_SBT[config-service]=ConfigService
-SVC_LAUNCHER[config-service]="target/config-service-1.3.0-incubating-SNAPSHOT/bin/config-service"
+SVC_LAUNCHER[config-service]="target/config-service-${TEXERA_VERSION}/bin/config-service"
 SVC_CWD[config-service]="."
 SVC_ZIP_GLOB[config-service]="config-service/target/universal/config-service-*.zip"
 SVC_UNZIP_DEST[config-service]="target/"
@@ -158,7 +179,7 @@ SVC_HEALTH[config-service]="/api/healthcheck"
 SVC_TYPE[access-control-service]=jvm
 SVC_PORT[access-control-service]=9096
 SVC_SBT[access-control-service]=AccessControlService
-SVC_LAUNCHER[access-control-service]="target/access-control-service-1.3.0-incubating-SNAPSHOT/bin/access-control-service"
+SVC_LAUNCHER[access-control-service]="target/access-control-service-${TEXERA_VERSION}/bin/access-control-service"
 SVC_CWD[access-control-service]="."
 SVC_ZIP_GLOB[access-control-service]="access-control-service/target/universal/access-control-service-*.zip"
 SVC_UNZIP_DEST[access-control-service]="target/"
@@ -167,7 +188,7 @@ SVC_HEALTH[access-control-service]="/api/healthcheck"
 SVC_TYPE[file-service]=jvm
 SVC_PORT[file-service]=9092
 SVC_SBT[file-service]=FileService
-SVC_LAUNCHER[file-service]="target/file-service-1.3.0-incubating-SNAPSHOT/bin/file-service"
+SVC_LAUNCHER[file-service]="target/file-service-${TEXERA_VERSION}/bin/file-service"
 SVC_CWD[file-service]="."
 SVC_ZIP_GLOB[file-service]="file-service/target/universal/file-service-*.zip"
 SVC_UNZIP_DEST[file-service]="target/"
@@ -176,7 +197,7 @@ SVC_HEALTH[file-service]="/api/healthcheck"
 SVC_TYPE[workflow-compiling-service]=jvm
 SVC_PORT[workflow-compiling-service]=9090
 SVC_SBT[workflow-compiling-service]=WorkflowCompilingService
-SVC_LAUNCHER[workflow-compiling-service]="target/workflow-compiling-service-1.3.0-incubating-SNAPSHOT/bin/workflow-compiling-service"
+SVC_LAUNCHER[workflow-compiling-service]="target/workflow-compiling-service-${TEXERA_VERSION}/bin/workflow-compiling-service"
 SVC_CWD[workflow-compiling-service]="."
 SVC_ZIP_GLOB[workflow-compiling-service]="workflow-compiling-service/target/universal/workflow-compiling-service-*.zip"
 SVC_UNZIP_DEST[workflow-compiling-service]="target/"
@@ -185,7 +206,7 @@ SVC_HEALTH[workflow-compiling-service]="/api/healthcheck"
 SVC_TYPE[computing-unit-managing-service]=jvm
 SVC_PORT[computing-unit-managing-service]=8082
 SVC_SBT[computing-unit-managing-service]=ComputingUnitManagingService
-SVC_LAUNCHER[computing-unit-managing-service]="target/computing-unit-managing-service-1.3.0-incubating-SNAPSHOT/bin/computing-unit-managing-service"
+SVC_LAUNCHER[computing-unit-managing-service]="target/computing-unit-managing-service-${TEXERA_VERSION}/bin/computing-unit-managing-service"
 SVC_CWD[computing-unit-managing-service]="."
 SVC_ZIP_GLOB[computing-unit-managing-service]="computing-unit-managing-service/target/universal/computing-unit-managing-service-*.zip"
 SVC_UNZIP_DEST[computing-unit-managing-service]="target/"
@@ -194,7 +215,7 @@ SVC_HEALTH[computing-unit-managing-service]=""
 SVC_TYPE[texera-web]=jvm
 SVC_PORT[texera-web]=8080
 SVC_SBT[texera-web]=WorkflowExecutionService
-SVC_LAUNCHER[texera-web]="target/amber-1.3.0-incubating-SNAPSHOT/bin/texera-web-application"
+SVC_LAUNCHER[texera-web]="target/amber-${TEXERA_VERSION}/bin/texera-web-application"
 SVC_CWD[texera-web]="amber"
 SVC_ZIP_GLOB[texera-web]="amber/target/universal/amber-*.zip"
 SVC_UNZIP_DEST[texera-web]="amber/target/"
@@ -725,7 +746,7 @@ any_jvm_src_changed() {
 # based check `up --auto` consulted; replaced by any_jvm_src_changed because
 # git checkouts move mtimes without changing content.
 needs_jvm_build() {
-    local canary="amber/target/amber-1.3.0-incubating-SNAPSHOT/lib/org.apache.texera.amber-1.3.0-incubating-SNAPSHOT.jar"
+    local canary="amber/target/amber-${TEXERA_VERSION}/lib/org.apache.texera.amber-${TEXERA_VERSION}.jar"
     [[ ! -f "$canary" ]] && return 0
     local newer=""
     newer=$(find amber/src common/dao/src common/config/src common/auth/src \
@@ -809,9 +830,9 @@ svc_src_changed() {
             if [[ ! -s "$stamp" ]]; then
                 local jar=""
                 if [[ "$svc" == "texera-web" ]]; then
-                    jar="amber/target/amber-1.3.0-incubating-SNAPSHOT/lib/org.apache.texera.amber-1.3.0-incubating-SNAPSHOT.jar"
+                    jar="amber/target/amber-${TEXERA_VERSION}/lib/org.apache.texera.amber-${TEXERA_VERSION}.jar"
                 else
-                    jar="target/${svc}-1.3.0-incubating-SNAPSHOT/lib/org.apache.texera.${svc}-1.3.0-incubating-SNAPSHOT.jar"
+                    jar="target/${svc}-${TEXERA_VERSION}/lib/org.apache.texera.${svc}-${TEXERA_VERSION}.jar"
                 fi
                 [[ ! -f "$jar" ]] && return 0   # no jar, definitely dirty
                 svc_source_hash "$svc" > "$stamp"
@@ -1748,6 +1769,7 @@ case "${1:-}" in
     stop)             shift; stop_one "${1:?need service name}" ;;
     logs)             shift; cmd_logs "${1:-}" ;;
     w|watch)          shift; cmd_watch "${1:-2}" ;;
+    version)          printf "%s\n" "$TEXERA_VERSION" ;;
     -h|--help)        sed -n '17,45p' "$0" ;;
     *)                cmd_update_one "$1" ;;
 esac
