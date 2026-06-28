@@ -1987,12 +1987,25 @@ cmd_auto() {
     fi
 
     # ── Bounce dirty JVMs ────────────────────────────────────────────────
+    # Two passes so siblings can coexist:
+    #   1) stop + (maybe-)unzip + stamp every dirty service
+    #   2) start the ones that were running when we entered
+    #
+    # Pass 1 needs to finish before pass 2 because computing-unit-master
+    # shares amber's dist with texera-web: cu-master has empty SVC_ZIP_GLOB
+    # / SVC_UNZIP_DEST, so its "rebuild" is just waiting for texera-web's
+    # iteration to unzip amber. If we kept the previous single-pass loop
+    # we'd `continue` past start_one whenever ZIP_GLOB was empty and the
+    # sibling never came back up.
     local n_bounced=0 n_rebuilt=0
+    declare -A _was_running=()
     if (( ${#dirty_jvms[@]} > 0 )); then
         tui_section "Bounce"
+        # Pass 1: stop running pids; unzip own dist if we have one.
         for svc in "${dirty_jvms[@]}"; do
             local pid=""
             pid=$(svc_running_pid "$svc")
+            _was_running[$svc]="$pid"
             if [[ -n "$pid" ]]; then
                 tui_step "$svc: stopping PID $pid before unzip"
                 kill "$pid" 2>/dev/null || true
@@ -2003,15 +2016,27 @@ cmd_auto() {
                 done
                 kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null
             fi
+            if [[ -z "${SVC_ZIP_GLOB[$svc]:-}" ]]; then
+                # Sibling service (e.g. computing-unit-master): no own dist
+                # to unzip — its launcher comes from the twin's unzip later
+                # in this pass. Just stamp it clean.
+                svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc" 2>/dev/null || true
+                n_rebuilt=$((n_rebuilt+1))
+                continue
+            fi
             # shellcheck disable=SC2086
             if unzip -oq ${SVC_ZIP_GLOB[$svc]} -d "${SVC_UNZIP_DEST[$svc]}" 2>/dev/null; then
                 svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc"
                 n_rebuilt=$((n_rebuilt+1))
             else
                 tui_warn "$svc: ${SVC_ZIP_GLOB[$svc]} not produced — skipping"
-                continue
             fi
-            if [[ -n "$pid" ]]; then
+        done
+        # Pass 2: start the ones that had been running. By now every
+        # sibling's launcher is on disk (the twin's unzip in pass 1
+        # populated `amber/target/amber-<VERSION>/bin/*`).
+        for svc in "${dirty_jvms[@]}"; do
+            if [[ -n "${_was_running[$svc]:-}" ]]; then
                 start_one "$svc"
                 n_bounced=$((n_bounced+1))
             else
