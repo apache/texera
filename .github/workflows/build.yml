@@ -958,9 +958,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Python test deps
+        # amber/dev-requirements.txt pins both `pytest` and `textual` — the
+        # latter so a fresh dev who follows the AGENTS.md venv-setup
+        # instructions ends up with the TUI working.
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r bin/local-dev/requirements.txt
+          python -m pip install -r amber/dev-requirements.txt
       - name: Run zsh smoke tests
         run: zsh bin/local-dev/tests/test_local_dev_sh.zsh
       - name: Run Python unit tests

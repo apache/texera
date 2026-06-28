@@ -1629,7 +1629,7 @@ cmd_interactive() {
         exec "$py" "$REPO_ROOT/bin/local-dev-tui.py"
     fi
     tui_warn "Falling back to zsh REPL (no Python+textual found at $py)"
-    tui_warn "  install:  '$py' -m pip install textual"
+    tui_warn "  install:  '$py' -m pip install -r $REPO_ROOT/amber/dev-requirements.txt"
     set +e
 
     _tui_log_file="$LOG_DIR/repl.log"
