@@ -107,7 +107,7 @@ export STORAGE_LAKEFS_ENDPOINT="${STORAGE_LAKEFS_ENDPOINT:-http://localhost:8000
 export STORAGE_LAKEFS_AUTH_USERNAME="${STORAGE_LAKEFS_AUTH_USERNAME:-AKIAIOSFOLKFSSAMPLES}"
 export STORAGE_LAKEFS_AUTH_PASSWORD="${STORAGE_LAKEFS_AUTH_PASSWORD:-wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY}"
 export STORAGE_LAKEFS_AUTH_API_SECRET="${STORAGE_LAKEFS_AUTH_API_SECRET:-random_string_for_lakefs}"
-export UDF_PYTHON_PATH="${UDF_PYTHON_PATH:-$HOME/Repos/venv312/bin/python}"
+export UDF_PYTHON_PATH="${UDF_PYTHON_PATH:-$(command -v python3 2>/dev/null || command -v python 2>/dev/null)}"
 export TEXERA_DASHBOARD_SERVICE_ENDPOINT="${TEXERA_DASHBOARD_SERVICE_ENDPOINT:-http://localhost:8080}"
 export WORKFLOW_COMPILING_SERVICE_ENDPOINT="${WORKFLOW_COMPILING_SERVICE_ENDPOINT:-http://localhost:9090}"
 export WORKFLOW_EXECUTION_SERVICE_ENDPOINT="${WORKFLOW_EXECUTION_SERVICE_ENDPOINT:-http://localhost:8085}"
@@ -1766,20 +1766,59 @@ _tui_exec_cmd() {
     esac
 }
 
+# Print the ordered list of Python interpreters we consider for launching the
+# Textual TUI: an explicit override, then any active venv, then the canonical
+# texera dev venv, then whatever `python3`/`python` happen to resolve to. We
+# de-duplicate as we go so the diagnostic doesn't show the same path twice.
+_probed_pythons() {
+    local seen=""
+    local cand=""
+    local raw=(
+        "${TEXERA_PYTHON:-}"
+        "${VIRTUAL_ENV:+$VIRTUAL_ENV/bin/python}"
+        "$(command -v python3 2>/dev/null)"
+        "$(command -v python  2>/dev/null)"
+    )
+    for cand in "${raw[@]}"; do
+        [[ -z "$cand" ]] && continue
+        case ":$seen:" in *":$cand:"*) continue ;; esac
+        seen="$seen:$cand"
+        print -r -- "$cand"
+    done
+}
+
+# Walk `_probed_pythons` and return the first interpreter where `import
+# textual` succeeds, or empty string if none.
+_find_python_with_textual() {
+    local cand=""
+    while IFS= read -r cand; do
+        [[ -x "$cand" ]] || continue
+        if "$cand" -c "import textual" >/dev/null 2>&1; then
+            print -r -- "$cand"
+            return 0
+        fi
+    done < <(_probed_pythons)
+    return 1
+}
+
 cmd_interactive() {
     if [[ ! -t 0 || ! -t 1 ]]; then
         tui_err "interactive mode requires a TTY"
         exit 1
     fi
     # Prefer the Python (Textual) TUI — much smoother than the zsh repl below
-    # (diff rendering, real input editing, no scrollback growth). Fall back to
-    # the legacy zsh REPL if the Python interpreter or textual aren't found.
-    local py="${TEXERA_PYTHON:-$HOME/Repos/venv312/bin/python}"
-    if [[ -x "$py" ]] && "$py" -c "import textual" >/dev/null 2>&1; then
+    # (diff rendering, real input editing, no scrollback growth). Probe a
+    # handful of plausible interpreters and use the first one with textual
+    # importable; fall through to the zsh REPL otherwise.
+    local py=""
+    py="$(_find_python_with_textual)"
+    if [[ -n "$py" ]]; then
         exec "$py" "$REPO_ROOT/bin/local-dev-tui.py"
     fi
-    tui_warn "Falling back to zsh REPL (no Python+textual found at $py)"
-    tui_warn "  install:  '$py' -m pip install -r $REPO_ROOT/amber/dev-requirements.txt"
+    tui_warn "Falling back to zsh REPL (no Python with textual found)"
+    tui_warn "  tried: $(_probed_pythons | paste -sd ' ' -)"
+    tui_warn "  install: pip install -r $REPO_ROOT/amber/dev-requirements.txt"
+    tui_warn "  or set TEXERA_PYTHON=/path/to/python explicitly"
     set +e
 
     _tui_log_file="$LOG_DIR/repl.log"
