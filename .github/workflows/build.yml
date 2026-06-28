@@ -772,11 +772,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Unit-test licensing scripts
-        # Stdlib only, no install needed. Runs on every matrix row (3.10 →
-        # 3.13) so the script's behavior is guarded across all supported
-        # Python versions before the license check itself runs (3.12 only).
-        run: python3 -m unittest discover -s bin/licensing -p "test_*.py" -v
       - name: Install dependencies
         # 3.12 is the only leg that drives the binary-license check via
         # pip-licenses. Keep stock pip there so the resolved versions
@@ -923,10 +918,14 @@ jobs:
           fail_ci_if_error: false
 
   infra:
-    # Tests for the dev-loop tooling under bin/local-dev*.
-    # Light job: bash syntax + smoke tests, plus pytest unit tests for the
-    # pure helpers in local-dev-tui.py. No docker / sbt / live stack — those
-    # belong in an e2e job we'll add when the tool is exercised more widely.
+    # Generic project-tooling job — runs the lightweight (no docker, no
+    # sbt, no live stack) unit and smoke tests for anything under
+    # `bin/` that doesn't belong to a specific service. Today that's
+    #   • bin/local-dev*     dev-loop stack manager + TUI
+    #   • bin/licensing/*    LICENSE-binary version-drift checker
+    # New tooling test suites should land here too — bias against
+    # spinning up another CI job unless the suite needs docker / a
+    # heavy install / a different python matrix.
     if: ${{ inputs.run_infra }}
     name: ${{ format('infra{0} ({1})', inputs.job_name_suffix, matrix.os) }}
     runs-on: ${{ matrix.os }}
@@ -958,4 +957,13 @@ jobs:
       - name: Run shell smoke tests (bash)
         run: bash bin/local-dev/tests/test_local_dev_sh.sh
       - name: Run Python unit tests
-        run: python -m pytest bin/local-dev/tests/ -v --tb=short
+        # Covers both project-tooling test suites:
+        #   * bin/local-dev/tests   — TUI helpers + smoke tests
+        #   * bin/licensing         — LICENSE-binary version-drift checker
+        # pytest discovers stdlib `unittest.TestCase` subclasses just
+        # fine, so the licensing tests' `unittest`-style classes don't
+        # need to be rewritten. The licensing tests were previously a
+        # step inside `pyamber × 4 python versions`; consolidated here
+        # since they have no pyamber dependency and 3.12 is the only
+        # version that actually drives the license check itself.
+        run: python -m pytest bin/local-dev/tests/ bin/licensing/ -v --tb=short

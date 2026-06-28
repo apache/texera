@@ -114,15 +114,15 @@ dev:
           - 'bin/**'
 
 infra:
-  # Dev-loop tooling for bringing up / tailing the local stack lives under
-  # bin/local-dev*. Tracked on its own label so the matching CI stack runs
-  # on changes here without dragging the broader `dev` label (which is a
-  # no-op stack-mapping-wise) into the equation.
+  # Project-tooling scripts under bin/* that aren't tied to a specific
+  # service. The CI's `infra` job picks up everything labelled here and
+  # runs each subdirectory's unit / smoke tests in one consolidated job.
   - changed-files:
       - any-glob-to-any-file:
           - 'bin/local-dev.sh'
           - 'bin/local-dev-tui.py'
           - 'bin/local-dev/**'
+          - 'bin/licensing/**'
 
 dependencies:
   - changed-files:
