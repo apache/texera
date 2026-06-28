@@ -447,13 +447,13 @@ function broadcastToAgentClients(agentId: string, event: WsServerEvent): void {
   const agent = agentStore.get(agentId);
   if (!agent) return;
 
-  const jsonMessage = JSON.stringify(event);
-  for (const ws of agent.getWebsockets()) {
+  const serializedEvent = JSON.stringify(event);
+  for (const ws of agent.getClients()) {
     try {
-      ws.send(jsonMessage);
+      ws.send(serializedEvent);
     } catch (error) {
-      wsLog.error({ agentId, err: error }, "failed to send message to client");
-      agent.removeWebsocket(ws);
+      wsLog.error({ agentId, err: error }, "failed to send event to a client");
+      agent.removeClient(ws);
     }
   }
 }
@@ -481,7 +481,7 @@ export function buildApp() {
           return;
         }
 
-        agent.addWebsocket(ws);
+        agent.addClient(ws);
 
         sendEventToClient(ws, new WsServerSnapshotEvent(agent.getState(), agent.getAllSteps(), agent.getHead()));
       },
@@ -515,7 +515,7 @@ export function buildApp() {
               return;
             }
 
-            wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received message");
+            wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received command");
 
             agent.setStepCallback((step: ReActStep) => {
               broadcastToAgentClients(agentId, new WsServerStepEvent(step));
@@ -562,7 +562,7 @@ export function buildApp() {
 
         const agent = agentStore.get(agentId);
         if (agent) {
-          agent.removeWebsocket(ws);
+          agent.removeClient(ws);
         }
       },
     })

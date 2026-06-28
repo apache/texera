@@ -361,7 +361,7 @@ describe("checkout route", () => {
     (agent as any).checkout = () => true;
     (agent as any).getAllSteps = () => [];
     // A failing socket must be dropped inside broadcastToAgentClients, not crash the request.
-    agent.addWebsocket({
+    agent.addClient({
       send: () => {
         throw new Error("send failed");
       },

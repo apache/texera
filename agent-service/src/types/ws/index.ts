@@ -18,7 +18,7 @@
  */
 
 // WebSocket frames for this service's own protocol (/agents/:id/react):
-// inbound client requests and the outbound server messages it pushes back.
+// inbound client commands and the outbound server events it pushes back.
 
 export * from "./client";
 export * from "./server";

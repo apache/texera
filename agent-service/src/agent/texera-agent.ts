@@ -79,7 +79,7 @@ type ReActStepCallback = (step: ReActStep) => void;
  * workflow being edited (`WorkflowState`), cached operator execution results
  * (`WorkflowResultState`), and the tool surface exposed to the LLM. Each call
  * to `sendMessage` drives one multi-step generation via the Vercel AI SDK,
- * streaming step updates to subscribed websockets.
+ * streaming step updates to subscribed clients.
  */
 export class TexeraAgent {
   readonly agentId: string;
@@ -95,7 +95,7 @@ export class TexeraAgent {
   private stepCounter = 0;
   private workflowResultState: WorkflowResultState;
 
-  private websockets: Set<any> = new Set();
+  private clients: Set<any> = new Set();
 
   private model: LanguageModel;
   private systemPrompt: string;
@@ -266,16 +266,16 @@ export class TexeraAgent {
     return this.workflowResultState;
   }
 
-  getWebsockets(): Set<any> {
-    return this.websockets;
+  getClients(): Set<any> {
+    return this.clients;
   }
 
-  addWebsocket(ws: any): void {
-    this.websockets.add(ws);
+  addClient(ws: any): void {
+    this.clients.add(ws);
   }
 
-  removeWebsocket(ws: any): void {
-    this.websockets.delete(ws);
+  removeClient(ws: any): void {
+    this.clients.delete(ws);
   }
 
   getReActSteps(): ReActStep[] {
@@ -831,7 +831,7 @@ export class TexeraAgent {
 
     this.workflowState.destroy();
 
-    this.websockets.clear();
+    this.clients.clear();
 
     this.reActStepsByMessageId.clear();
     this.stepsById.clear();
