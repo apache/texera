@@ -103,12 +103,21 @@ class StateSpec extends AnyFlatSpec {
         "blob" -> Array[Byte](1, 2)
       )
     )
-    val decoded = State.fromTuple(original.toTuple())
+    val tuple = original.toTuple(5L, "outer-loop", "vfs:///outer")
+
+    // Content round-trips through fromTuple, which reads only the content column.
+    val decoded = State.fromTuple(tuple)
     assert(decoded.values("i") == 3L)
     assert(decoded.values("label") == "outer")
     assert(
       decoded.values("blob").asInstanceOf[Array[Byte]].sameElements(Array[Byte](1, 2))
     )
+
+    // The loop bookkeeping is carried in its own columns (not the content
+    // JSON, and not surfaced by fromTuple), so assert it off the raw tuple.
+    assert(tuple.getField[java.lang.Long]("loop_counter").toLong == 5L)
+    assert(tuple.getField[String]("loop_start_id") == "outer-loop")
+    assert(tuple.getField[String]("loop_start_state_uri") == "vfs:///outer")
   }
 
   it should "produce a tuple whose payload is the JSON serialization" in {
