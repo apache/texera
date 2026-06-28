@@ -552,30 +552,6 @@ export class AgentService {
         }
         break;
 
-      case "headChange":
-        // HEAD moved (checkout) — update HEAD, visible steps, and workflow
-        if (message.headId !== undefined) {
-          tracking.headIdSubject.next(message.headId);
-        }
-        if (message.steps && Array.isArray(message.steps)) {
-          const steps = message.steps.map((s: any) => this.convertApiReActStep(s));
-          tracking.reActStepsSubject.next(steps);
-        }
-        // Update workflow content from agent service (ground truth)
-        if (message.workflowContent) {
-          tracking.wsWorkflowActive = true;
-          const workflow: Workflow = {
-            ...(message.workflowMetadata || tracking.workflowSubject.getValue() || {}),
-            content: message.workflowContent,
-          };
-          tracking.workflowSubject.next(workflow as Workflow);
-        }
-        // Update operator results on HEAD change
-        if (message.operatorResults) {
-          this.updateOperatorResultSummaries(message.operatorResults);
-        }
-        break;
-
       case "error":
         // Error occurred
         console.error(`Agent ${agentId} error:`, message.error);
@@ -1041,14 +1017,6 @@ export class AgentService {
   public getHeadId(agentId: string): string | null {
     const tracking = this.agentStateTracking.get(agentId);
     return tracking ? tracking.headIdSubject.getValue() : null;
-  }
-
-  /**
-   * Checkout to a specific step (move HEAD, restore workflow).
-   * The backend broadcasts headChange + visible steps via WebSocket to all clients.
-   */
-  public checkoutStep(agentId: string, stepId: string): Observable<any> {
-    return this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/checkout`, { stepId });
   }
 
   /**

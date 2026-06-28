@@ -17,11 +17,13 @@
  * under the License.
  */
 
-// Exercises the /agents/:id/react WebSocket protocol end to end: the snapshot
-// sent on connect, the status lifecycle frames, the stop command, the prompt
-// request (with a stubbed run), and the error paths. These drive the real
-// socket via app.listen + a WebSocket client, since app.handle() does not
-// perform WS upgrades.
+// Exercises the /agents/:id/react WebSocket protocol end to end: the init
+// snapshot sent on connect, the state lifecycle frames, the stop command, the
+// prompt request (with a stubbed run), and the error paths. Frames use the
+// discriminated-union message model (type: "init" | "step" | "state" |
+// "complete" | "error" for server frames; "prompt" | "command" for client
+// frames). These drive the real socket via app.listen + a WebSocket client,
+// since app.handle() does not perform WS upgrades.
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { buildApp, _resetAgentStoreForTests, _getAgentForTests } from "./server";
@@ -150,34 +152,35 @@ afterEach(() => {
 });
 
 describe(`WS ${API}/agents/:id/react`, () => {
-  test("sends a results-free snapshot frame on connect", async () => {
+  test("sends an init snapshot frame on connect", async () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
 
-    const snapshot = await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    const snapshot = await messages.waitFor(m => m.type === "init");
     expect(snapshot.state).toBe("AVAILABLE");
     expect(Array.isArray(snapshot.steps)).toBe(true);
     expect(typeof snapshot.headId).toBe("string");
-    // Results are pulled on demand, never pushed on the snapshot.
-    expect("operatorResults" in snapshot).toBe(false);
+    // The init frame carries the current per-operator execution summaries.
+    expect("operatorResults" in snapshot).toBe(true);
+    expect(typeof snapshot.operatorResults).toBe("object");
   });
 
   test("errors and closes when connecting to an unknown agent", async () => {
     const { messages } = connect("agent-does-not-exist");
-    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    const err = await messages.waitFor(m => m.type === "error");
     expect(err.error).toBe("Agent not found");
   });
 
-  test("a stop command broadcasts a STOPPING status frame", async () => {
+  test("a stop command broadcasts a STOPPING state frame", async () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    await messages.waitFor(m => m.type === "init");
 
-    ws.send(JSON.stringify({ type: "WsClientStopCommand" }));
+    ws.send(JSON.stringify({ type: "command", commandType: "stop" }));
 
-    const status = await messages.waitFor(m => m.type === "WsServerStatusEvent");
+    const status = await messages.waitFor(m => m.type === "state");
     expect(status.state).toBe("STOPPING");
   });
 
@@ -185,11 +188,11 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    await messages.waitFor(m => m.type === "init");
 
-    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "" }));
+    ws.send(JSON.stringify({ type: "prompt", content: "" }));
 
-    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    const err = await messages.waitFor(m => m.type === "error");
     expect(err.error).toBe("Message content is required");
   });
 
@@ -197,11 +200,11 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    await messages.waitFor(m => m.type === "init");
 
     ws.send("this is not json");
 
-    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    const err = await messages.waitFor(m => m.type === "error");
     expect(err.error).toBe("Invalid message format");
   });
 
@@ -209,15 +212,15 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    await messages.waitFor(m => m.type === "init");
 
     ws.send(JSON.stringify({ type: "bogus" }));
 
-    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    const err = await messages.waitFor(m => m.type === "error");
     expect(err.error).toBe("Unknown message type: bogus");
   });
 
-  test("a prompt run streams GENERATING -> step -> resting status (no result frames)", async () => {
+  test("a prompt run streams GENERATING -> step -> complete", async () => {
     const id = await createAgent();
 
     // Stub the agent's run so no live LLM is needed: emit one ending step via
@@ -259,22 +262,25 @@ describe(`WS ${API}/agents/:id/react`, () => {
 
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    await messages.waitFor(m => m.type === "init");
 
-    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "hello" }));
+    ws.send(JSON.stringify({ type: "prompt", content: "hello" }));
 
-    const generating = await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "GENERATING");
+    const generating = await messages.waitFor(m => m.type === "state" && m.state === "GENERATING");
     expect(generating.state).toBe("GENERATING");
 
-    const step = await messages.waitFor(m => m.type === "WsServerStepEvent");
+    const step = await messages.waitFor(m => m.type === "step");
     expect(step.step.content).toBe("done");
+    // A step with no tool calls carries no operatorResults.
     expect("operatorResults" in step).toBe(false);
 
-    const resting = await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
-    expect(resting.state).toBe("AVAILABLE");
+    // The run ends with a terminal `complete` frame carrying the resting state.
+    const complete = await messages.waitFor(m => m.type === "complete");
+    expect(complete.state).toBe("AVAILABLE");
+    expect("operatorResults" in complete).toBe(true);
   });
 
-  test("a failed run emits an error frame and still returns to a resting status", async () => {
+  test("a failed run emits an error frame", async () => {
     const id = await createAgent();
 
     const agent = _getAgentForTests(id)!;
@@ -284,32 +290,27 @@ describe(`WS ${API}/agents/:id/react`, () => {
 
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    await messages.waitFor(m => m.type === "init");
 
-    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "hello" }));
+    ws.send(JSON.stringify({ type: "prompt", content: "hello" }));
 
-    await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "GENERATING");
+    await messages.waitFor(m => m.type === "state" && m.state === "GENERATING");
 
-    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    const err = await messages.waitFor(m => m.type === "error");
     expect(err.error).toBe("boom");
-
-    // The end-of-run status frame must still fire after a failure, so the client
-    // is not left stuck on GENERATING.
-    const resting = await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
-    expect(resting.state).toBe("AVAILABLE");
   });
 
   test("a message for an agent that no longer exists yields an error frame", async () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    await messages.waitFor(m => m.type === "init");
 
     // Drop the agent while the socket stays open; the message handler re-looks it up.
     _resetAgentStoreForTests();
-    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "hello" }));
+    ws.send(JSON.stringify({ type: "prompt", content: "hello" }));
 
-    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    const err = await messages.waitFor(m => m.type === "error");
     expect(err.error).toBe("Agent not found");
   });
 
@@ -317,7 +318,7 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    await messages.waitFor(m => m.type === "init");
 
     const closed = new Promise<void>(resolve => ws.addEventListener("close", () => resolve(), { once: true }));
     ws.close();

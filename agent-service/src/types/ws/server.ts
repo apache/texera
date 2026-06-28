@@ -23,14 +23,13 @@
 
 import type { ReActStep } from "../agent";
 import type { OperatorExecutionSummary } from "../execution";
-import type { WorkflowContent } from "../workflow";
 
 // The server streams the canonical per-operator execution summaries straight to
 // the client, keyed by operator id.
 type OperatorResults = Record<string, OperatorExecutionSummary>;
 
 interface WsServerMessageBase {
-  type: "init" | "step" | "state" | "complete" | "error" | "headChange";
+  type: "init" | "step" | "state" | "complete" | "error";
 }
 
 // Sent once on connect: a snapshot of the agent's current state and steps.
@@ -69,20 +68,9 @@ export interface WsServerErrorMessage extends WsServerMessageBase {
   error: string;
 }
 
-// Emitted after a checkout: the head moved, carrying the full step list and the
-// workflow snapshot at the new head.
-export interface WsServerHeadChangeMessage extends WsServerMessageBase {
-  type: "headChange";
-  headId: string;
-  steps: ReActStep[];
-  workflowContent?: WorkflowContent;
-  operatorResults: OperatorResults;
-}
-
 export type WsServerMessage =
   | WsServerInitMessage
   | WsServerStepMessage
   | WsServerStateMessage
   | WsServerCompleteMessage
-  | WsServerErrorMessage
-  | WsServerHeadChangeMessage;
+  | WsServerErrorMessage;

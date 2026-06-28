@@ -309,31 +309,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     return { status: "cleared" };
   })
 
-  .post("/:id/checkout", ({ params: { id }, body }) => {
-    const agent = getAgent(id);
-    const { stepId } = body as { stepId: string };
-    if (!stepId) throw new Error("stepId is required");
-
-    const success = agent.checkout(stepId);
-    if (!success) throw new Error(`Step ${stepId} not found or checkout failed`);
-
-    const allSteps = agent.getAllSteps();
-    const workflowContent = agent.getWorkflowState().getWorkflowContent();
-
-    broadcastToAgent(id, {
-      type: "headChange",
-      headId: stepId,
-      steps: allSteps,
-      workflowContent,
-      operatorResults: getOperatorResultSummaries(agent),
-    });
-
-    return {
-      status: "checked out",
-      headId: stepId,
-    };
-  })
-
   .get("/:id/operator-types", ({ params: { id } }) => {
     const agent = getAgent(id);
     const metadataStore = agent.getMetadataStore();
@@ -426,12 +401,12 @@ function broadcastToAgent(agentId: string, message: WsServerMessage): void {
   if (!agent) return;
 
   const jsonMessage = JSON.stringify(message);
-  for (const ws of agent.getWebsockets()) {
+  for (const ws of agent.getClients()) {
     try {
       ws.send(jsonMessage);
     } catch (error) {
       wsLog.error({ agentId, err: error }, "failed to send message to client");
-      agent.removeWebsocket(ws);
+      agent.removeClient(ws);
     }
   }
 }
@@ -459,7 +434,7 @@ export function buildApp() {
           return;
         }
 
-        agent.addWebsocket(ws);
+        agent.addClient(ws);
 
         const initMessage: WsServerInitMessage = {
           type: "init",
@@ -485,6 +460,12 @@ export function buildApp() {
           msg = typeof messageData === "string" ? JSON.parse(messageData) : (messageData as WsClientRequest);
         } catch {
           ws.send(JSON.stringify({ type: "error", error: "Invalid message format" }));
+          return;
+        }
+
+        if (msg.type !== "command" && msg.type !== "prompt") {
+          const unknownType = (msg as { type?: string }).type;
+          ws.send(JSON.stringify({ type: "error", error: `Unknown message type: ${unknownType}` }));
           return;
         }
 
@@ -546,7 +527,7 @@ export function buildApp() {
 
         const agent = agentStore.get(agentId);
         if (agent) {
-          agent.removeWebsocket(ws);
+          agent.removeClient(ws);
         }
       },
     })
@@ -562,6 +543,10 @@ export function buildApp() {
 export function _resetAgentStoreForTests(): void {
   agentStore.clear();
   agentCounter = 0;
+}
+
+export function _getAgentForTests(agentId: string): TexeraAgent | undefined {
+  return agentStore.get(agentId);
 }
 
 function printStartupMessage(app: ReturnType<typeof buildApp>) {
@@ -591,7 +576,7 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
     }
     console.log("         Send: { type: 'prompt', content: '...' }");
     console.log("         Send: { type: 'command', commandType: 'stop' }");
-    console.log("         Recv: { type: 'step' | 'state' | 'complete' | 'error' | 'init' | 'headChange', ... }");
+    console.log("         Recv: { type: 'step' | 'state' | 'complete' | 'error' | 'init', ... }");
   }
 
   console.log("");
