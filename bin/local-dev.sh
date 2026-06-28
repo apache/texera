@@ -346,6 +346,103 @@ if [[ -z "$TEXERA_VERSION" ]]; then
     exit 1
 fi
 
+# --------- sbt dependency graph (parsed from build.sbt) ---------
+# We parse the build.sbt's project + .dependsOn() declarations so that the
+# per-service "did anything that affects me change?" check can prune to
+# the actual transitive closure. Without this, every JVM service watches
+# every common/* dir and `cmd_auto` rebuilds half the stack whenever
+# common/workflow-operator changes, even though config-service has zero
+# dependency on it.
+#
+# Populates two associative arrays keyed by sbt project name:
+#   SBT_PATH[ConfigService] = "config-service"
+#   SBT_DEPS[ConfigService] = "Auth Config"   (space-separated)
+declare -A SBT_PATH=()
+declare -A SBT_DEPS=()
+
+_parse_sbt() {
+    local file="$REPO_ROOT/build.sbt"
+    [[ -f "$file" ]] || return 1
+    local current="" line=""
+    local decl_re='^lazy[[:space:]]+val[[:space:]]+([A-Z][A-Za-z0-9]*)[[:space:]]*=[[:space:]]*\(project[[:space:]]+in[[:space:]]+file\("([^"]+)"\)\)'
+    local deps_re='\.dependsOn\(([^)]*)\)'
+
+    # Helper: split a comma-list of dependsOn args, dropping test-scope
+    # and non-project tokens, then append unique main-scope refs.
+    _absorb() {
+        local args="$1"
+        local IFS_OLD="$IFS"
+        IFS=','
+        # shellcheck disable=SC2206
+        local parts=($args)
+        IFS="$IFS_OLD"
+        local arg=""
+        for arg in "${parts[@]}"; do
+            arg="${arg// /}"
+            arg="${arg//$'\t'/}"
+            [[ "$arg" == *"%"* ]] && continue
+            [[ "$arg" =~ ^[A-Z] ]] || continue
+            case " ${SBT_DEPS[$current]} " in
+                *" $arg "*) ;;
+                *) SBT_DEPS[$current]+=" $arg" ;;
+            esac
+        done
+    }
+
+    while IFS= read -r line; do
+        local rest="$line"
+        if [[ "$line" =~ $decl_re ]]; then
+            current="${BASH_REMATCH[1]}"
+            SBT_PATH[$current]="${BASH_REMATCH[2]}"
+            SBT_DEPS[$current]=""
+            # Don't `continue` — `.dependsOn(...)` can chain on the SAME
+            # line as the declaration (WorkflowOperator's one-liner does
+            # this). Fall through so the loop below catches it.
+        elif [[ "$line" =~ ^lazy[[:space:]]+val ]]; then
+            # Other `lazy val` (settings, etc) breaks attribution.
+            current=""
+            continue
+        fi
+        [[ -z "$current" ]] && continue
+        # Scan ALL `.dependsOn(...)` matches on this line — some lines
+        # chain `.dependsOn(A).dependsOn(B % "test->test")` and we must
+        # see both to filter correctly.
+        while [[ "$rest" =~ $deps_re ]]; do
+            _absorb "${BASH_REMATCH[1]}"
+            rest="${rest#*"${BASH_REMATCH[0]}"}"
+        done
+    done < "$file"
+    # Trim leading space on every entry.
+    local p=""
+    for p in "${!SBT_DEPS[@]}"; do
+        SBT_DEPS[$p]="${SBT_DEPS[$p]# }"
+    done
+    return 0
+}
+_parse_sbt || true
+
+# BFS from $1 over SBT_DEPS, emit one `<path>/src` per visited project.
+# Caller can also pass an explicit fallback list for the unparseable case.
+_sbt_transitive_src_dirs() {
+    local root="$1"
+    [[ -z "$root" || -z "${SBT_PATH[$root]:-}" ]] && return 1
+    local -A visited=()
+    local queue=("$root")
+    while ((${#queue[@]} > 0)); do
+        local p="${queue[0]}"
+        queue=("${queue[@]:1}")
+        [[ -n "${visited[$p]:-}" ]] && continue
+        visited[$p]=1
+        local path="${SBT_PATH[$p]:-}"
+        [[ -n "$path" ]] && printf '%s/src\n' "$path"
+        local d=""
+        for d in ${SBT_DEPS[$p]:-}; do
+            queue+=("$d")
+        done
+    done
+    return 0
+}
+
 # --------- service catalog ---------
 SERVICES=(
     postgres
@@ -1338,15 +1435,28 @@ needs_bun_install() {
 
 _svc_src_dirs() {
     local svc="$1"
-    # texera-web and computing-unit-master both live under amber/.
+    # Prefer the parsed build.sbt graph so each service only watches its
+    # actual transitive dependency tree. computing-unit-master rides
+    # amber's dist but has no SVC_SBT of its own — enter the graph at the
+    # producing project explicitly.
+    local entry="${SVC_SBT[$svc]:-}"
+    if [[ -z "$entry" && "$svc" == "computing-unit-master" ]]; then
+        entry="WorkflowExecutionService"
+    fi
+    local out=""
+    out=$(_sbt_transitive_src_dirs "$entry" 2>/dev/null) || out=""
+    if [[ -n "$out" ]]; then
+        printf '%s\n' "$out"
+        return 0
+    fi
+    # Fallback: build.sbt parse failed (or unknown service) — emit the old
+    # conservative common/* list so we over-report rather than miss
+    # changes. Same idea as the Python TUI's _FALLBACK_COMMON_SRC.
     if [[ "$svc" == "texera-web" || "$svc" == "computing-unit-master" ]]; then
         echo "amber/src"
     else
         echo "$svc/src"
     fi
-    # One dir per line — zsh doesn't word-split unquoted `$d` by default
-    # (unlike bash), so multi-dir strings would land in the array as a single
-    # literal path and `find` would bail on the non-existent compound path.
     echo "common/dao/src"
     echo "common/config/src"
     echo "common/auth/src"
