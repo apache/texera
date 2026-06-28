@@ -48,6 +48,7 @@ SET search_path TO texera_db, public;
 -- ============================================
 DROP TABLE IF EXISTS operator_executions CASCADE;
 DROP TABLE IF EXISTS operator_port_executions CASCADE;
+DROP TABLE IF EXISTS operator_port_cache CASCADE;
 DROP TABLE IF EXISTS workflow_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_of_user CASCADE;
 DROP TABLE IF EXISTS user_config CASCADE;
@@ -369,6 +370,24 @@ CREATE TABLE operator_port_executions
     result_size           INT DEFAULT 0,
     PRIMARY KEY (workflow_execution_id, global_port_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
+);
+
+-- operator_port_cache
+-- Caches a materialized output port result across executions, keyed by the cache
+-- key (a SHA-256 hash of the upstream sub-DAG). cache_key_json holds the JSON
+-- the cache key is computed from.
+CREATE TABLE operator_port_cache
+(
+    workflow_id         INT NOT NULL,
+    global_port_id      VARCHAR(200) NOT NULL,
+    cache_key           CHAR(64) NOT NULL,
+    cache_key_json      TEXT NOT NULL,
+    result_uri          TEXT NOT NULL,
+    tuple_count         BIGINT,
+    source_execution_id BIGINT,
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (workflow_id, global_port_id, cache_key),
+    FOREIGN KEY (workflow_id) REFERENCES workflow(wid) ON DELETE CASCADE
 );
 
 -- workflow_user_likes
