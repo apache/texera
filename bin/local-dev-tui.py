@@ -45,11 +45,9 @@ from rich.text import Text
 from textual import events, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Vertical
+from textual.containers import Vertical
 from textual.reactive import reactive
-from textual.screen import ModalScreen
-from textual.widgets import DataTable, Input, OptionList, RichLog, Static
-from textual.widgets.option_list import Option
+from textual.widgets import DataTable, Input, RichLog, Static
 
 # ─────────────────── Constants ───────────────────
 
@@ -860,66 +858,6 @@ def state_cell(state: str) -> Text:
     return Text(f"{sym}  {state}", style=style)
 
 
-class ServiceMenu(ModalScreen[Optional[str]]):
-    """Right-click context menu for a service row.
-
-    Returns the picked action's name (`bounce` / `tail` / `stop`) via
-    `dismiss`; the host app translates it into the corresponding command.
-    ESC or clicking outside the box dismisses with None.
-    """
-
-    DEFAULT_CSS = """
-    ServiceMenu {
-        align: center middle;
-    }
-    #menu-box {
-        background: $boost;
-        border: heavy $accent;
-        width: auto;
-        height: auto;
-        padding: 1 2;
-    }
-    #menu-title {
-        text-style: bold;
-        color: $accent;
-        padding: 0 1 1 1;
-    }
-    """
-
-    BINDINGS = [
-        Binding("escape", "dismiss",        "Close",   priority=True, show=False),
-    ]
-
-    def __init__(self, svc_name: str) -> None:
-        super().__init__()
-        self._svc_name = svc_name
-
-    def compose(self) -> ComposeResult:
-        with Container(id="menu-box"):
-            yield Static(self._svc_name, id="menu-title")
-            yield OptionList(
-                Option("↻  Bounce      (rebuild + restart)", id="bounce"),
-                Option("📜  Tail log    (live follow this service)", id="tail"),
-                Option("⏹  Stop", id="stop"),
-                id="menu-options",
-            )
-
-    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        self.dismiss(event.option.id)
-
-    def on_click(self, event: events.Click) -> None:
-        # Clicks anywhere outside the menu box close the popup.
-        widget = getattr(event, "control", None) or getattr(event, "widget", None)
-        # Walk the widget's ancestry; if #menu-box isn't on the path,
-        # the click landed elsewhere → dismiss.
-        node = widget
-        while node is not None:
-            if getattr(node, "id", None) == "menu-box":
-                return
-            node = getattr(node, "parent", None)
-        self.dismiss(None)
-
-
 class LocalDevApp(App):
     """Live dashboard + REPL for the texera local dev stack."""
 
@@ -1345,7 +1283,6 @@ class LocalDevApp(App):
             "  q           quit",
             "",
             "Mouse: double-click a service row → tail its log.",
-            "       right-click a service row → menu (Bounce / Tail / Stop).",
             "       double-click the banner    → collapse / expand the wordmark.",
             "       Enter on a focused row does the same as double-click.",
             "",
@@ -1636,35 +1573,6 @@ class LocalDevApp(App):
                 return True
             node = getattr(node, "parent", None)
         return False
-
-    def on_mouse_down(self, event: events.MouseDown) -> None:
-        # Right-click on a service row → context menu (Bounce / Tail / Stop).
-        # Textual maps button 3 to right-click on every supported terminal.
-        if event.button != 3:
-            return
-        widget = getattr(event, "control", None) or getattr(event, "widget", None)
-        table = self.query_one(DataTable)
-        if widget is not table:
-            return
-        row = table.cursor_row
-        if not (0 <= row < len(SERVICES)):
-            return
-        svc_name = SERVICES[row].name
-        self.push_screen(ServiceMenu(svc_name),
-                         lambda choice: self._service_menu_picked(svc_name, choice))
-
-    def _service_menu_picked(self, svc_name: str, choice: Optional[str]) -> None:
-        if choice is None:
-            return  # user dismissed
-        if choice == "bounce":
-            # Equivalent to typing the service name in the prompt — runs
-            # `bin/local-dev.sh <svc>` through cmd_update_one.
-            self._dispatch(svc_name)
-        elif choice == "tail":
-            self._spawn_logs(svc_name)
-        elif choice == "stop":
-            self._dispatch(f"s {svc_name}")
-        self.query_one("#prompt", Input).focus()
 
     # Enter on a focused row works too (keyboard equivalent of double-click).
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
