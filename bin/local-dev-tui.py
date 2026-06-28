@@ -34,9 +34,10 @@ import os
 import re
 import shlex
 import shutil
+import subprocess
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -179,6 +180,12 @@ class LiveState:
     pids: dict[str, Optional[str]] = field(default_factory=dict)       # name -> pid or None
     dirty: dict[str, bool] = field(default_factory=dict)
     mtimes: dict[str, Optional[str]] = field(default_factory=dict)
+    # Per-service resource usage (computed every poll for native services
+    # via cheap `ps`; refreshed less often for docker via `docker stats`
+    # since that call costs ~2s).
+    uptimes: dict[str, str] = field(default_factory=dict)              # name -> "12m" / "—"
+    cpu_pct: dict[str, str] = field(default_factory=dict)              # name -> "8.2%" / "—"
+    mem_use: dict[str, str] = field(default_factory=dict)              # name -> "85M" / "—"
 
 
 # ─────────────────── Helpers ───────────────────
@@ -230,6 +237,154 @@ def docker_state(svc_state: str, svc_status: str) -> str:
 
 
 # ─────────────────── Dirty-source detection (content hash) ───────────────────
+
+# ─────────────────── Uptime / resource helpers ───────────────────
+
+def _format_uptime(secs: int) -> str:
+    """Compact duration: `12s`, `5m 23s`, `2h 14m`, `3d 4h`."""
+    if secs < 0:
+        return "—"
+    if secs < 60:
+        return f"{secs}s"
+    if secs < 3600:
+        return f"{secs // 60}m {secs % 60}s"
+    if secs < 86400:
+        return f"{secs // 3600}h {(secs % 3600) // 60}m"
+    return f"{secs // 86400}d {(secs % 86400) // 3600}h"
+
+
+def _format_bytes(n: int) -> str:
+    """Bytes → short human string (`85M`, `1.2G`, `467K`)."""
+    if n < 1024:
+        return f"{n}B"
+    if n < 1024 ** 2:
+        return f"{n // 1024}K"
+    if n < 1024 ** 3:
+        return f"{n // (1024 ** 2)}M"
+    return f"{n / (1024 ** 3):.1f}G"
+
+
+def _parse_etime(et: str) -> int:
+    """`ps -o etime` format `[[DD-]hh:]mm:ss` → seconds."""
+    et = et.strip()
+    if not et:
+        return -1
+    days = 0
+    if "-" in et:
+        d, et = et.split("-", 1)
+        days = int(d or 0)
+    parts = et.split(":")
+    try:
+        if len(parts) == 3:
+            h, m, s = (int(p or 0) for p in parts)
+        elif len(parts) == 2:
+            h = 0
+            m, s = (int(p or 0) for p in parts)
+        else:
+            h = m = 0
+            s = int(parts[0] or 0)
+    except ValueError:
+        return -1
+    return days * 86400 + h * 3600 + m * 60 + s
+
+
+def _docker_container_for(svc_name: str) -> str:
+    """Container names: most are `texera-<svc>`; `litellm` is unprefixed."""
+    if svc_name == "litellm":
+        return "litellm"
+    return f"texera-{svc_name}"
+
+
+_DOCKER_STATS_CACHE: dict[str, tuple[str, str]] = {}
+_DOCKER_STATS_TS: float = 0.0
+_DOCKER_STATS_TTL = 5.0  # seconds — docker stats --no-stream costs ~2s, don't run it more than this
+
+
+def _refresh_docker_stats() -> None:
+    """Single `docker stats --no-stream` pass; refreshes the cached
+    container → (cpu%, mem) map. Called from a background worker so the
+    main poll tick stays cheap."""
+    global _DOCKER_STATS_CACHE, _DOCKER_STATS_TS
+    try:
+        out = subprocess.run(
+            ["docker", "stats", "--no-stream",
+             "--format", "{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}"],
+            capture_output=True, text=True, timeout=8,
+        ).stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return
+    fresh: dict[str, tuple[str, str]] = {}
+    for line in out.splitlines():
+        parts = line.split("|")
+        if len(parts) != 3:
+            continue
+        name, cpu, memu = parts
+        # MemUsage is "85.2MiB / 1.95GiB" — strip the "/ total" half.
+        used = memu.split(" /")[0].strip()
+        # Normalise to our own _format_bytes shape: parse the IEC unit suffix.
+        m = re.match(r"^([0-9.]+)\s*([KMGTPE]?i?B)?$", used)
+        if m:
+            val = float(m.group(1))
+            unit = (m.group(2) or "B").lower()
+            mult = {
+                "b":    1,
+                "kb":   1024,    "kib": 1024,
+                "mb":   1024**2, "mib": 1024**2,
+                "gb":   1024**3, "gib": 1024**3,
+                "tb":   1024**4, "tib": 1024**4,
+            }.get(unit, 1)
+            mem_str = _format_bytes(int(val * mult))
+        else:
+            mem_str = used or "—"
+        fresh[name] = (cpu, mem_str)
+    _DOCKER_STATS_CACHE = fresh
+    _DOCKER_STATS_TS = time.time()
+
+
+def proc_uptime_cpu_mem(pid: str) -> tuple[str, str, str]:
+    """For a native PID return (uptime, cpu%, mem) — `—` if not running."""
+    try:
+        out = subprocess.run(
+            ["ps", "-p", pid, "-o", "etime=,pcpu=,rss="],
+            capture_output=True, text=True, timeout=2,
+        ).stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return ("—", "—", "—")
+    if not out:
+        return ("—", "—", "—")
+    parts = out.split()
+    if len(parts) < 3:
+        return ("—", "—", "—")
+    etime, cpu, rss_kb = parts[0], parts[1], parts[2]
+    secs = _parse_etime(etime)
+    try:
+        mem = _format_bytes(int(rss_kb) * 1024)
+    except ValueError:
+        mem = "—"
+    return (_format_uptime(secs), f"{cpu}%", mem)
+
+
+def container_uptime(svc_name: str) -> str:
+    """ISO StartedAt → human duration. Empty if not started."""
+    container = _docker_container_for(svc_name)
+    try:
+        out = subprocess.run(
+            ["docker", "inspect", "-f", "{{.State.StartedAt}}", container],
+            capture_output=True, text=True, timeout=2,
+        ).stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return "—"
+    if not out or out.startswith("0001-01-01"):
+        return "—"
+    try:
+        # ISO 8601 with fractional + Z. Trim to the second.
+        trimmed = out.split(".", 1)[0].rstrip("Z")
+        started = datetime.strptime(trimmed, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return "—"
+    elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+    return _format_uptime(max(0, int(elapsed)))
+
 
 def _jvm_src_dirs(svc: Service) -> list[Path]:
     dirs = [REPO_ROOT / d for d in COMMON_SRC]
@@ -675,8 +830,8 @@ class LocalDevApp(App):
     # string labels passed to add_columns() are NOT the keys (Textual hands
     # back auto-generated ColumnKey objects), so doing
     # `update_cell(row, "STATE", ...)` silently fails.
-    _COL_LABELS = ("●", "SERVICE", "PORT", "PID", "ARTIFACT", "BUILD", "STATE")
-    _COL_KEYS   = ("sym", "svc",     "port", "pid", "mtime",    "src",   "state")
+    _COL_LABELS = ("●", "SERVICE", "PORT", "PID", "UPTIME", "CPU%", "MEM", "ARTIFACT", "BUILD", "STATE")
+    _COL_KEYS   = ("sym", "svc",     "port", "pid", "uptime", "cpu",  "mem", "mtime",    "src",   "state")
 
     # ── Layout ──
     def compose(self) -> ComposeResult:
@@ -690,7 +845,7 @@ class LocalDevApp(App):
         for label, key in zip(self._COL_LABELS, self._COL_KEYS):
             table.add_column(label, key=key)
         for s in SERVICES:
-            table.add_row("○", s.name, f":{s.port}", "—", "—", "  ", "stopped", key=s.name)
+            table.add_row("○", s.name, f":{s.port}", "—", "—", "—", "—", "—", "  ", "stopped", key=s.name)
         yield table
         yield LogResizeHandle(id="log-header", classes="-hidden")
         yield RichLog(id="log", highlight=False, markup=False, wrap=False,
@@ -732,8 +887,12 @@ class LocalDevApp(App):
         if self.active_cmd and self.cmd_started_at:
             elapsed = f"  ({int(time.monotonic() - self.cmd_started_at)}s)"
         dirty_part = f"  ★ {dirty} dirty" if dirty else ""
+        # Surface the frontend URL the moment ng serve is listening, so the
+        # user knows when the web app is actually clickable.
+        frontend_pid = self.live.pids.get("frontend")
+        url_part = "  →  http://localhost:4200" if frontend_pid else ""
         self.query_one("#status-bar", Static).update(
-            f"{running}/{total} running{dirty_part}    last: {active}{elapsed}"
+            f"{running}/{total} running{dirty_part}{url_part}    last: {active}{elapsed}"
         )
 
     def _refresh_table(self) -> None:
@@ -764,12 +923,18 @@ class LocalDevApp(App):
             else:
                 src_cell = "  "
 
-            table.update_cell(svc.name, "sym",   Text(sym, style=style))
-            table.update_cell(svc.name, "port",  f":{svc.port}")
-            table.update_cell(svc.name, "pid",   str(pid))
-            table.update_cell(svc.name, "mtime", mtime)
-            table.update_cell(svc.name, "src",   src_cell)
-            table.update_cell(svc.name, "state", Text(state, style=style))
+            uptime = self.live.uptimes.get(svc.name, "—")
+            cpu    = self.live.cpu_pct.get(svc.name, "—")
+            mem    = self.live.mem_use.get(svc.name, "—")
+            table.update_cell(svc.name, "sym",    Text(sym, style=style))
+            table.update_cell(svc.name, "port",   f":{svc.port}")
+            table.update_cell(svc.name, "pid",    str(pid))
+            table.update_cell(svc.name, "uptime", uptime)
+            table.update_cell(svc.name, "cpu",    cpu)
+            table.update_cell(svc.name, "mem",    mem)
+            table.update_cell(svc.name, "mtime",  mtime)
+            table.update_cell(svc.name, "src",    src_cell)
+            table.update_cell(svc.name, "state",  Text(state, style=style))
 
     # ── Polling tasks (Textual will run them on the event loop) ──
     @work(exclusive=True, group="state")
@@ -794,15 +959,56 @@ class LocalDevApp(App):
             self._cached_mtimes = {s.name: artifact_mtime_str(s) for s in SERVICES}
             self._last_dirty_check = now
 
+        # Per-service uptime / cpu / mem.
+        # Native: cheap `ps -o etime,pcpu,rss` per pid (<5ms each).
+        # Docker: cached via `docker stats --no-stream` refreshed by a
+        #         background worker every _DOCKER_STATS_TTL seconds (the
+        #         call itself takes ~2s, too slow to run in-line each tick).
+        uptimes: dict[str, str] = {}
+        cpus:    dict[str, str] = {}
+        mems:    dict[str, str] = {}
+        for s in SERVICES:
+            if s.type == "docker":
+                state = docker_state(*docker_map.get(s.name, ("", "")))
+                if state == "running":
+                    uptimes[s.name] = container_uptime(s.name)
+                    container = _docker_container_for(s.name)
+                    cpu_mem = _DOCKER_STATS_CACHE.get(container)
+                    if cpu_mem:
+                        cpus[s.name], mems[s.name] = cpu_mem
+                    else:
+                        cpus[s.name] = "…"; mems[s.name] = "…"
+                else:
+                    uptimes[s.name] = "—"; cpus[s.name] = "—"; mems[s.name] = "—"
+            else:
+                pid = pids.get(s.name)
+                if pid:
+                    up, cpu, mem = proc_uptime_cpu_mem(pid)
+                    uptimes[s.name] = up; cpus[s.name] = cpu; mems[s.name] = mem
+                else:
+                    uptimes[s.name] = "—"; cpus[s.name] = "—"; mems[s.name] = "—"
+        # Kick a docker-stats refresh if the cache is stale; runs in
+        # background so it never blocks the tick.
+        if time.time() - _DOCKER_STATS_TS >= _DOCKER_STATS_TTL:
+            self._refresh_docker_stats_worker()
+
         new_state = LiveState(
             docker=docker_map,
             pids=pids,
             dirty=dict(self._cached_dirty),
             mtimes=dict(self._cached_mtimes),
+            uptimes=uptimes,
+            cpu_pct=cpus,
+            mem_use=mems,
         )
         self.live = new_state
         self._refresh_table()
         self._update_status_bar()
+
+    @work(exclusive=True, group="docker_stats")
+    async def _refresh_docker_stats_worker(self) -> None:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, _refresh_docker_stats)
 
     def _tick_banner(self) -> None:
         self._update_banner()

@@ -991,6 +991,138 @@ svc_running_pid() {
     listen_pid_for_port "${SVC_PORT[$1]}"
 }
 
+# Compact-format a duration in seconds:
+#   "—" for <0, "12s", "5m 23s", "2h 14m", "3d 4h"
+_format_uptime() {
+    local s="${1:-0}"
+    if (( s < 0 ));     then printf "—"; return; fi
+    if (( s < 60 ));    then printf "%ds" "$s"; return; fi
+    if (( s < 3600 ));  then printf "%dm %ds" $((s/60)) $((s%60)); return; fi
+    if (( s < 86400 )); then printf "%dh %dm" $((s/3600)) $(((s%3600)/60)); return; fi
+    printf "%dd %dh" $((s/86400)) $(((s%86400)/3600))
+}
+
+# Translate ps -o etime output (`[[DD-]hh:]mm:ss`) to whole seconds.
+_etime_to_seconds() {
+    local et="$1"
+    # bash quirk: in `local a=$x b=$a`, the right-hand `$a` resolves
+    # against the *outer* scope (before this `local` declares either).
+    # Putting `rest` on its own line ensures it sees the fresh `et`.
+    local rest="$et" days=0 h=0 m=0 s=0
+    if [[ "$rest" == *-* ]]; then
+        days="${rest%%-*}"
+        rest="${rest#*-}"
+    fi
+    # `IFS=: read -ra` reliably splits on `:` without the local-IFS-vs-
+    # array-literal trap.
+    local parts=()
+    IFS=: read -ra parts <<< "$rest"
+    case "${#parts[@]}" in
+        3) h=${parts[0]}; m=${parts[1]}; s=${parts[2]} ;;
+        2) m=${parts[0]}; s=${parts[1]} ;;
+        *) s=${parts[0]} ;;
+    esac
+    # Force base-10 so "08" / "09" don't blow up under bash's octal default.
+    printf '%d' "$((10#${days:-0}*86400 + 10#${h:-0}*3600 + 10#${m:-0}*60 + 10#${s:-0}))"
+}
+
+# Translate a number of bytes to a 4-char-ish human string ("85M", "1.2G").
+_format_bytes() {
+    local b="${1:-0}"
+    if (( b < 1024 ));         then printf "%dB"   "$b"; return; fi
+    if (( b < 1048576 ));      then printf "%dK"   $((b/1024)); return; fi
+    if (( b < 1073741824 ));   then printf "%dM"   $((b/1048576)); return; fi
+    # GB → 1 decimal place
+    local g_int=$((b / 1073741824)) g_frac=$(( (b % 1073741824) * 10 / 1073741824 ))
+    printf "%d.%dG" "$g_int" "$g_frac"
+}
+
+# Compact "8.2%" formatter from a string like "0.50" or "8.2".
+_format_pct() {
+    local p="${1:-0}"
+    # Strip optional trailing %, normalise weird inputs
+    p="${p%%%}"
+    [[ -z "$p" || "$p" == "-" ]] && { printf "—"; return; }
+    # Round to 1 decimal place using awk to avoid bash's lack of float math
+    printf '%s%%' "$(awk -v v="$p" 'BEGIN { printf "%.1f", v }' 2>/dev/null)"
+}
+
+# Container name for a docker-typed service. Most use `texera-<svc>`, but
+# `litellm` ships unprefixed in upstream's compose.
+_docker_container_for() {
+    case "$1" in
+        litellm) printf "litellm" ;;
+        *)       printf "texera-%s" "$1" ;;
+    esac
+}
+
+# Uptime for a service. Native: `ps -o etime` (POSIX, works on mac+linux).
+# Docker: parse the container's ISO-8601 .State.StartedAt against `date -u`.
+# Echoes "—" when not running.
+svc_uptime() {
+    local svc="$1"
+    if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+        local container="" since=""
+        container=$(_docker_container_for "$svc")
+        since=$(docker inspect -f '{{.State.StartedAt}}' "$container" 2>/dev/null) || { printf "—"; return; }
+        [[ -z "$since" || "$since" == "0001-01-01T00:00:00Z" ]] && { printf "—"; return; }
+        local now=0 started=0
+        now=$(date -u +%s 2>/dev/null) || { printf "—"; return; }
+        # macOS `date -j` parses ISO without fractional seconds — trim them.
+        started=$(date -u -j -f "%Y-%m-%dT%H:%M:%S" "${since%%.*}" +%s 2>/dev/null) || {
+            # GNU date fallback
+            started=$(date -u -d "${since%%.*}" +%s 2>/dev/null) || { printf "—"; return; }
+        }
+        local elapsed=$((now - started))
+        (( elapsed < 0 )) && elapsed=0
+        _format_uptime "$elapsed"
+        return
+    fi
+    local pid=""
+    pid=$(svc_running_pid "$svc") || true
+    [[ -z "$pid" ]] && { printf "—"; return; }
+    local et=""
+    et=$(ps -p "$pid" -o etime= 2>/dev/null | tr -d ' ')
+    [[ -z "$et" ]] && { printf "—"; return; }
+    _format_uptime "$(_etime_to_seconds "$et")"
+}
+
+# CPU% + RSS for a running native process. Returns "cpu%|rss_bytes".
+# Cheap enough (<5ms) that we can call it per service per tick.
+svc_proc_cpu_mem() {
+    local pid=""
+    pid=$(svc_running_pid "$1") || true
+    [[ -z "$pid" ]] && { printf "—|—"; return; }
+    local cpu="" rss=""
+    # macOS ps emits RSS in KB. Linux's `ps -o rss=` is also KB.
+    read -r cpu rss <<< "$(ps -p "$pid" -o pcpu=,rss= 2>/dev/null | tr -s ' ')"
+    [[ -z "$cpu" || -z "$rss" ]] && { printf "—|—"; return; }
+    printf "%s|%s" "$(_format_pct "$cpu")" "$(_format_bytes $((rss * 1024)))"
+}
+
+# Bulk docker stats — one slow `docker stats --no-stream` call returns CPU
+# + memory for every running container. Callers can grep their service out
+# of the result instead of paying the 1-2 second cost N times. Format:
+#   <container>|<cpu%>|<used-bytes>
+_docker_stats_snapshot() {
+    docker stats --no-stream --format '{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}' 2>/dev/null \
+        | while IFS='|' read -r name cpu memu; do
+            # MemUsage is like "85.2MiB / 1.95GiB" — keep only the first
+            # half and translate IEC units to bytes.
+            local used="${memu%% *}"   # "85.2MiB"
+            local val="${used%[A-Za-z]*}"
+            local unit="${used##*[0-9.]}"
+            local bytes=0
+            case "$unit" in
+                KB|KiB) bytes=$(awk -v v="$val" 'BEGIN { printf "%d", v * 1024 }') ;;
+                MB|MiB) bytes=$(awk -v v="$val" 'BEGIN { printf "%d", v * 1048576 }') ;;
+                GB|GiB) bytes=$(awk -v v="$val" 'BEGIN { printf "%d", v * 1073741824 }') ;;
+                *)      bytes=$(awk -v v="$val" 'BEGIN { printf "%d", v }') ;;
+            esac
+            printf "%s|%s|%s\n" "$name" "$(_format_pct "${cpu%%%}")" "$(_format_bytes "$bytes")"
+        done
+}
+
 svc_artifact_mtime() {
     local svc="$1" type="${SVC_TYPE[$1]}"
     case "$type" in
@@ -1406,34 +1538,62 @@ cmd_status() {
     sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
     tui_banner "Texera Local Dev" "branch: $branch  @  $sha"
 
-    printf "\n"
-    printf "    ${BOLD}%-32s %-6s %-9s %-18s %s${RESET}\n" \
-        "SERVICE" "PORT" "PID" "ARTIFACT MTIME" "STATE"
-    printf "    ${GRAY}"; tui_hline "─" 32; printf " "
-    tui_hline "─" 6; printf " "; tui_hline "─" 9; printf " "
-    tui_hline "─" 18; printf " "; tui_hline "─" 12; printf "${RESET}\n"
+    # One docker stats call up front — paying the ~2s docker-API cost once
+    # is cheaper than running it per docker service. Indexed by container
+    # name → "cpu%|mem" so the per-row formatting is just a lookup.
+    declare -A _DSTATS=()
+    while IFS='|' read -r name cpu mem; do
+        [[ -n "$name" ]] && _DSTATS[$name]="$cpu|$mem"
+    done < <(_docker_stats_snapshot)
 
-    local n_running=0 n_total=0
+    printf "\n"
+    printf "    ${BOLD}%-32s %-6s %-9s %-10s %-7s %-7s %s${RESET}\n" \
+        "SERVICE" "PORT" "PID" "UPTIME" "CPU%" "MEM" "STATE"
+    printf "    ${GRAY}"
+    tui_hline "─" 32; printf " "
+    tui_hline "─" 6;  printf " "
+    tui_hline "─" 9;  printf " "
+    tui_hline "─" 10; printf " "
+    tui_hline "─" 7;  printf " "
+    tui_hline "─" 7;  printf " "
+    tui_hline "─" 12; printf "${RESET}\n"
+
+    local n_running=0 n_total=0 frontend_up=false
     for svc in "${SERVICES[@]}"; do
         n_total=$((n_total+1))
-        local pid="—" state="stopped" mtime="—"
+        local pid="—" state="stopped" uptime="—" cpu="—" mem="—"
         if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
             state=$(docker_svc_state "$svc")
-            mtime="${DIM}docker${RESET}"
+            if [[ "$state" == "running" ]]; then
+                local container=""
+                container=$(_docker_container_for "$svc")
+                if [[ -n "${_DSTATS[$container]:-}" ]]; then
+                    cpu="${_DSTATS[$container]%|*}"
+                    mem="${_DSTATS[$container]#*|}"
+                fi
+                uptime=$(svc_uptime "$svc")
+            fi
         else
             local found_pid=""
             found_pid=$(svc_running_pid "$svc")
-            if [[ -n "$found_pid" ]]; then state="running"; pid="$found_pid"; fi
-            mtime=$(svc_artifact_mtime "$svc")
+            if [[ -n "$found_pid" ]]; then
+                state="running"; pid="$found_pid"
+                uptime=$(svc_uptime "$svc")
+                local cm=""
+                cm=$(svc_proc_cpu_mem "$svc")
+                cpu="${cm%|*}"
+                mem="${cm#*|}"
+            fi
         fi
         [[ "$state" == "running" ]] && n_running=$((n_running+1))
+        [[ "$svc" == "frontend" && "$state" == "running" ]] && frontend_up=true
 
         local sym="" color=""
         sym=$(tui_state_symbol "$state")
         color=$(tui_state_color "$state")
         printf "  %s " "$sym"
-        printf "${color}%-32s${RESET} %-6s ${DIM}%-9s${RESET} %-18s ${color}%s${RESET}\n" \
-            "$svc" "${SVC_PORT[$svc]}" "$pid" "$mtime" "$state"
+        printf "${color}%-32s${RESET} %-6s ${DIM}%-9s${RESET} %-10s %-7s %-7s ${color}%s${RESET}\n" \
+            "$svc" "${SVC_PORT[$svc]}" "$pid" "$uptime" "$cpu" "$mem" "$state"
     done
     printf "\n"
 
@@ -1445,7 +1605,11 @@ cmd_status() {
     printf "\n"
     printf "  ${CYAN}${SYM_LIST}${RESET}  Logs:    ${DIM}%s${RESET}\n" "$LOG_DIR/<service>.log"
     printf "  ${CYAN}${SYM_LIST}${RESET}  Docker:  ${DIM}docker compose -p %s ps${RESET}\n" "$DOCKER_PROJECT"
-    printf "  ${CYAN}${SYM_LIST}${RESET}  Open:    ${DIM}http://localhost:4200${RESET}  ${DIM}(frontend)${RESET}\n"
+    if $frontend_up; then
+        printf "  ${CYAN}${SYM_LIST}${RESET}  Open:    ${BOLD}${GREEN}http://localhost:4200${RESET}  ${GREEN}(frontend live)${RESET}\n"
+    else
+        printf "  ${CYAN}${SYM_LIST}${RESET}  Open:    ${DIM}http://localhost:4200  (frontend not running yet)${RESET}\n"
+    fi
 
     printf "\n  ${BOLD}Common operations${RESET}\n"
     printf "    ${BOLD}bin/local-dev.sh up${RESET}            ${DIM}# bring up the whole stack (build + start)${RESET}\n"
