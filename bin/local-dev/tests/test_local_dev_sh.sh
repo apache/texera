@@ -157,11 +157,23 @@ fi
 #    so the install-hint code below the assignment never ran. `script`
 #    allocates a pty so the TTY check passes and we get to the python
 #    check.
+#
+# `script` has two incompatible invocation styles:
+#   macOS BSD:  script -q OUT_FILE CMD ARGS...
+#   util-linux: script -qc "CMD ARGS..."  OUT_FILE
+# Probe with `script --version`: util-linux supports it, BSD doesn't.
 if command -v script >/dev/null 2>&1; then
     bad_py="/usr/bin/python3"
     if [[ -x "$bad_py" ]] && ! "$bad_py" -c "import textual" >/dev/null 2>&1; then
-        out=$(env -i HOME="$HOME" PATH=/usr/bin:/bin TERM="${TERM:-xterm}" \
-            script -q /dev/null sh -c "$SCRIPT -i; echo __rc=\$?" </dev/null 2>&1)
+        if script --version >/dev/null 2>&1; then
+            # util-linux dialect
+            out=$(env -i HOME="$HOME" PATH=/usr/bin:/bin TERM="${TERM:-xterm}" \
+                script -qc "$SCRIPT -i; echo __rc=\$?" /dev/null </dev/null 2>&1)
+        else
+            # macOS BSD dialect
+            out=$(env -i HOME="$HOME" PATH=/usr/bin:/bin TERM="${TERM:-xterm}" \
+                script -q /dev/null sh -c "$SCRIPT -i; echo __rc=\$?" </dev/null 2>&1)
+        fi
         if [[ "$out" == *"requires Python"* && "$out" == *"install Python"* && "$out" == *"__rc=1"* ]]; then
             _pass "-i with no textual prints the install hint (regression for zsh set -e bug)"
         else

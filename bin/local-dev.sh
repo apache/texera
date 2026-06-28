@@ -1,24 +1,4 @@
 #!/usr/bin/env bash
-# Re-exec under bash 4+ when invoked through Apple's /bin/bash (still
-# pinned at 3.2 for licensing). We need associative arrays and a few
-# other 4+ features. Same compat is automatic on Linux distros (bash 5+).
-if [[ -z "${BASH_VERSION:-}" ]] || (( ${BASH_VERSINFO[0]:-0} < 4 )); then
-    for _newer in \
-        /opt/homebrew/bin/bash \
-        /usr/local/bin/bash \
-        /opt/homebrew/opt/bash/bin/bash \
-        /usr/local/opt/bash/bin/bash; do
-        if [[ -x "$_newer" ]]; then
-            exec "$_newer" "$0" "$@"
-        fi
-    done
-    printf 'FATAL: bin/local-dev.sh needs bash 4+, but the bash on PATH is %s.\n' \
-        "${BASH_VERSION:-not bash}" >&2
-    printf '       Install GNU bash: brew install bash\n' >&2
-    exit 1
-fi
-unset _newer
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -103,6 +83,33 @@ BUILD_STAMP_DIR="$STATE_DIR/build-stamps"
 # column. Removed once the service is up / on stale-after-90s.
 PHASE_DIR="$STATE_DIR/svc-phase"
 mkdir -p "$LOG_DIR" "$BUILD_STAMP_DIR" "$PHASE_DIR"
+
+# --------- associative-array shim for bash 3.2 ---------
+# Apple ships bash 3.2 at /bin/bash and we ship licensing as bash 3.2 too,
+# so we can't use `declare -A`. Every old `MAP[$key]=val` / `${MAP[$key]}`
+# is reshaped as a function call against a flat namespace of synthetic
+# variables `_amap__<MAP>__<key>`. Keys containing `-` get mangled to `_`
+# so they're valid identifier chars.
+amap_set() {
+    local _map="$1" _key="${2//-/_}" _val="$3"
+    eval "_amap__${_map}__${_key}=\$_val"
+}
+amap_get() {
+    local _map="$1" _key="${2//-/_}"
+    local _var="_amap__${_map}__${_key}"
+    eval "printf '%s' \"\${$_var:-}\""
+}
+amap_has() {
+    local _map="$1" _key="${2//-/_}"
+    local _var="_amap__${_map}__${_key}"
+    eval "[[ \${$_var+x} ]]"
+}
+amap_append() {
+    # amap_append MAP key suffix — append to existing value (or seed it).
+    local _map="$1" _key="${2//-/_}" _suffix="$3"
+    local _var="_amap__${_map}__${_key}"
+    eval "$_var=\"\${$_var:-}\$_suffix\""
+}
 
 # --------- toolchain (JDK 17 + node) ---------
 # Detect a JDK 17 installation rather than pinning one path. We try, in
@@ -359,11 +366,12 @@ fi
 # common/workflow-operator changes, even though config-service has zero
 # dependency on it.
 #
-# Populates two associative arrays keyed by sbt project name:
-#   SBT_PATH[ConfigService] = "config-service"
-#   SBT_DEPS[ConfigService] = "Auth Config"   (space-separated)
-declare -A SBT_PATH=()
-declare -A SBT_DEPS=()
+# Populates two amap maps keyed by sbt project name plus a parallel
+# indexed-array of keys so we can iterate without `${!MAP[@]}`:
+#   amap_get SBT_PATH ConfigService → "config-service"
+#   amap_get SBT_DEPS ConfigService → "Auth Config"   (space-separated)
+#   SBT_DEPS_KEYS=(ConfigService AccessControlService …)
+SBT_DEPS_KEYS=()
 
 _parse_sbt() {
     local file="$REPO_ROOT/build.sbt"
@@ -381,15 +389,16 @@ _parse_sbt() {
         # shellcheck disable=SC2206
         local parts=($args)
         IFS="$IFS_OLD"
-        local arg=""
+        local arg="" existing=""
         for arg in "${parts[@]}"; do
             arg="${arg// /}"
             arg="${arg//$'\t'/}"
             [[ "$arg" == *"%"* ]] && continue
             [[ "$arg" =~ ^[A-Z] ]] || continue
-            case " ${SBT_DEPS[$current]} " in
+            existing=$(amap_get SBT_DEPS "$current")
+            case " $existing " in
                 *" $arg "*) ;;
-                *) SBT_DEPS[$current]+=" $arg" ;;
+                *) amap_append SBT_DEPS "$current" " $arg" ;;
             esac
         done
     }
@@ -398,8 +407,9 @@ _parse_sbt() {
         local rest="$line"
         if [[ "$line" =~ $decl_re ]]; then
             current="${BASH_REMATCH[1]}"
-            SBT_PATH[$current]="${BASH_REMATCH[2]}"
-            SBT_DEPS[$current]=""
+            amap_set SBT_PATH "$current" "${BASH_REMATCH[2]}"
+            amap_set SBT_DEPS "$current" ""
+            SBT_DEPS_KEYS+=("$current")
             # Don't `continue` — `.dependsOn(...)` can chain on the SAME
             # line as the declaration (WorkflowOperator's one-liner does
             # this). Fall through so the loop below catches it.
@@ -418,9 +428,10 @@ _parse_sbt() {
         done
     done < "$file"
     # Trim leading space on every entry.
-    local p=""
-    for p in "${!SBT_DEPS[@]}"; do
-        SBT_DEPS[$p]="${SBT_DEPS[$p]# }"
+    local p="" cur=""
+    for p in "${SBT_DEPS_KEYS[@]}"; do
+        cur=$(amap_get SBT_DEPS "$p")
+        amap_set SBT_DEPS "$p" "${cur# }"
     done
     return 0
 }
@@ -430,20 +441,33 @@ _parse_sbt || true
 # Caller can also pass an explicit fallback list for the unparseable case.
 _sbt_transitive_src_dirs() {
     local root="$1"
-    [[ -z "$root" || -z "${SBT_PATH[$root]:-}" ]] && return 1
-    local -A visited=()
+    [[ -z "$root" ]] && return 1
+    amap_has SBT_PATH "$root" || return 1
+    # `_visited_` namespace is a per-call amap. We can't easily clear all
+    # entries (bash 3.2 has no `${!_visited_*}` glob over set vars without
+    # `compgen`, but `compgen -v` IS available). We unset matching vars
+    # at function exit so successive calls start clean.
     local queue=("$root")
+    local p="" path="" d="" key="" var=""
     while ((${#queue[@]} > 0)); do
-        local p="${queue[0]}"
+        p="${queue[0]}"
         queue=("${queue[@]:1}")
-        [[ -n "${visited[$p]:-}" ]] && continue
-        visited[$p]=1
-        local path="${SBT_PATH[$p]:-}"
+        key="${p//-/_}"
+        var="_amap__visited__${key}"
+        eval "[[ \${$var+x} ]]" && continue
+        eval "$var=1"
+        path=$(amap_get SBT_PATH "$p")
         [[ -n "$path" ]] && printf '%s/src\n' "$path"
-        local d=""
-        for d in ${SBT_DEPS[$p]:-}; do
+        local deps=""
+        deps=$(amap_get SBT_DEPS "$p")
+        for d in $deps; do
             queue+=("$d")
         done
+    done
+    # Clean up our visited markers so the next caller starts fresh.
+    local v=""
+    for v in $(compgen -v _amap__visited__ 2>/dev/null); do
+        unset "$v"
     done
     return 0
 }
@@ -466,70 +490,72 @@ SERVICES=(
     frontend
 )
 
-typeset -A SVC_TYPE SVC_PORT SVC_SBT SVC_LAUNCHER SVC_CWD SVC_HEALTH SVC_ZIP_GLOB SVC_UNZIP_DEST
+# Service catalog. Under bash 3.2 this would normally be `typeset -A` maps;
+# we use the `amap_*` helpers defined above instead. Each amap_set call
+# stores into a synthetic var name (e.g. `_amap__SVC_TYPE__postgres`).
 
 # Each docker service is now its own row in the dashboard. start/stop still
 # batch through infra_up/infra_down because `docker compose up -d` and
 # `docker compose down` operate at the project level.
-SVC_TYPE[postgres]=docker;   SVC_PORT[postgres]=5432;   SVC_CWD[postgres]="."
-SVC_TYPE[minio]=docker;      SVC_PORT[minio]=9000;      SVC_CWD[minio]="."
-SVC_TYPE[lakefs]=docker;     SVC_PORT[lakefs]=8000;     SVC_CWD[lakefs]="."
-SVC_TYPE[lakekeeper]=docker; SVC_PORT[lakekeeper]=8181; SVC_CWD[lakekeeper]="."
-SVC_TYPE[litellm]=docker;    SVC_PORT[litellm]=4000;    SVC_CWD[litellm]="."
+amap_set SVC_TYPE postgres   docker; amap_set SVC_PORT postgres   5432; amap_set SVC_CWD postgres   "."
+amap_set SVC_TYPE minio      docker; amap_set SVC_PORT minio      9000; amap_set SVC_CWD minio      "."
+amap_set SVC_TYPE lakefs     docker; amap_set SVC_PORT lakefs     8000; amap_set SVC_CWD lakefs     "."
+amap_set SVC_TYPE lakekeeper docker; amap_set SVC_PORT lakekeeper 8181; amap_set SVC_CWD lakekeeper "."
+amap_set SVC_TYPE litellm    docker; amap_set SVC_PORT litellm    4000; amap_set SVC_CWD litellm    "."
 
-SVC_TYPE[config-service]=jvm
-SVC_PORT[config-service]=9094
-SVC_SBT[config-service]=ConfigService
-SVC_LAUNCHER[config-service]="target/config-service-${TEXERA_VERSION}/bin/config-service"
-SVC_CWD[config-service]="."
-SVC_ZIP_GLOB[config-service]="config-service/target/universal/config-service-*.zip"
-SVC_UNZIP_DEST[config-service]="target/"
-SVC_HEALTH[config-service]="/api/healthcheck"
+amap_set SVC_TYPE       config-service jvm
+amap_set SVC_PORT       config-service 9094
+amap_set SVC_SBT        config-service ConfigService
+amap_set SVC_LAUNCHER   config-service "target/config-service-${TEXERA_VERSION}/bin/config-service"
+amap_set SVC_CWD        config-service "."
+amap_set SVC_ZIP_GLOB   config-service "config-service/target/universal/config-service-*.zip"
+amap_set SVC_UNZIP_DEST config-service "target/"
+amap_set SVC_HEALTH     config-service "/api/healthcheck"
 
-SVC_TYPE[access-control-service]=jvm
-SVC_PORT[access-control-service]=9096
-SVC_SBT[access-control-service]=AccessControlService
-SVC_LAUNCHER[access-control-service]="target/access-control-service-${TEXERA_VERSION}/bin/access-control-service"
-SVC_CWD[access-control-service]="."
-SVC_ZIP_GLOB[access-control-service]="access-control-service/target/universal/access-control-service-*.zip"
-SVC_UNZIP_DEST[access-control-service]="target/"
-SVC_HEALTH[access-control-service]="/api/healthcheck"
+amap_set SVC_TYPE       access-control-service jvm
+amap_set SVC_PORT       access-control-service 9096
+amap_set SVC_SBT        access-control-service AccessControlService
+amap_set SVC_LAUNCHER   access-control-service "target/access-control-service-${TEXERA_VERSION}/bin/access-control-service"
+amap_set SVC_CWD        access-control-service "."
+amap_set SVC_ZIP_GLOB   access-control-service "access-control-service/target/universal/access-control-service-*.zip"
+amap_set SVC_UNZIP_DEST access-control-service "target/"
+amap_set SVC_HEALTH     access-control-service "/api/healthcheck"
 
-SVC_TYPE[file-service]=jvm
-SVC_PORT[file-service]=9092
-SVC_SBT[file-service]=FileService
-SVC_LAUNCHER[file-service]="target/file-service-${TEXERA_VERSION}/bin/file-service"
-SVC_CWD[file-service]="."
-SVC_ZIP_GLOB[file-service]="file-service/target/universal/file-service-*.zip"
-SVC_UNZIP_DEST[file-service]="target/"
-SVC_HEALTH[file-service]="/api/healthcheck"
+amap_set SVC_TYPE       file-service jvm
+amap_set SVC_PORT       file-service 9092
+amap_set SVC_SBT        file-service FileService
+amap_set SVC_LAUNCHER   file-service "target/file-service-${TEXERA_VERSION}/bin/file-service"
+amap_set SVC_CWD        file-service "."
+amap_set SVC_ZIP_GLOB   file-service "file-service/target/universal/file-service-*.zip"
+amap_set SVC_UNZIP_DEST file-service "target/"
+amap_set SVC_HEALTH     file-service "/api/healthcheck"
 
-SVC_TYPE[workflow-compiling-service]=jvm
-SVC_PORT[workflow-compiling-service]=9090
-SVC_SBT[workflow-compiling-service]=WorkflowCompilingService
-SVC_LAUNCHER[workflow-compiling-service]="target/workflow-compiling-service-${TEXERA_VERSION}/bin/workflow-compiling-service"
-SVC_CWD[workflow-compiling-service]="."
-SVC_ZIP_GLOB[workflow-compiling-service]="workflow-compiling-service/target/universal/workflow-compiling-service-*.zip"
-SVC_UNZIP_DEST[workflow-compiling-service]="target/"
-SVC_HEALTH[workflow-compiling-service]="/api/healthcheck"
+amap_set SVC_TYPE       workflow-compiling-service jvm
+amap_set SVC_PORT       workflow-compiling-service 9090
+amap_set SVC_SBT        workflow-compiling-service WorkflowCompilingService
+amap_set SVC_LAUNCHER   workflow-compiling-service "target/workflow-compiling-service-${TEXERA_VERSION}/bin/workflow-compiling-service"
+amap_set SVC_CWD        workflow-compiling-service "."
+amap_set SVC_ZIP_GLOB   workflow-compiling-service "workflow-compiling-service/target/universal/workflow-compiling-service-*.zip"
+amap_set SVC_UNZIP_DEST workflow-compiling-service "target/"
+amap_set SVC_HEALTH     workflow-compiling-service "/api/healthcheck"
 
-SVC_TYPE[computing-unit-managing-service]=jvm
-SVC_PORT[computing-unit-managing-service]=8082
-SVC_SBT[computing-unit-managing-service]=ComputingUnitManagingService
-SVC_LAUNCHER[computing-unit-managing-service]="target/computing-unit-managing-service-${TEXERA_VERSION}/bin/computing-unit-managing-service"
-SVC_CWD[computing-unit-managing-service]="."
-SVC_ZIP_GLOB[computing-unit-managing-service]="computing-unit-managing-service/target/universal/computing-unit-managing-service-*.zip"
-SVC_UNZIP_DEST[computing-unit-managing-service]="target/"
-SVC_HEALTH[computing-unit-managing-service]=""
+amap_set SVC_TYPE       computing-unit-managing-service jvm
+amap_set SVC_PORT       computing-unit-managing-service 8082
+amap_set SVC_SBT        computing-unit-managing-service ComputingUnitManagingService
+amap_set SVC_LAUNCHER   computing-unit-managing-service "target/computing-unit-managing-service-${TEXERA_VERSION}/bin/computing-unit-managing-service"
+amap_set SVC_CWD        computing-unit-managing-service "."
+amap_set SVC_ZIP_GLOB   computing-unit-managing-service "computing-unit-managing-service/target/universal/computing-unit-managing-service-*.zip"
+amap_set SVC_UNZIP_DEST computing-unit-managing-service "target/"
+amap_set SVC_HEALTH     computing-unit-managing-service ""
 
-SVC_TYPE[texera-web]=jvm
-SVC_PORT[texera-web]=8080
-SVC_SBT[texera-web]=WorkflowExecutionService
-SVC_LAUNCHER[texera-web]="target/amber-${TEXERA_VERSION}/bin/texera-web-application"
-SVC_CWD[texera-web]="amber"
-SVC_ZIP_GLOB[texera-web]="amber/target/universal/amber-*.zip"
-SVC_UNZIP_DEST[texera-web]="amber/target/"
-SVC_HEALTH[texera-web]="/api/healthcheck"
+amap_set SVC_TYPE       texera-web jvm
+amap_set SVC_PORT       texera-web 8080
+amap_set SVC_SBT        texera-web WorkflowExecutionService
+amap_set SVC_LAUNCHER   texera-web "target/amber-${TEXERA_VERSION}/bin/texera-web-application"
+amap_set SVC_CWD        texera-web "amber"
+amap_set SVC_ZIP_GLOB   texera-web "amber/target/universal/amber-*.zip"
+amap_set SVC_UNZIP_DEST texera-web "amber/target/"
+amap_set SVC_HEALTH     texera-web "/api/healthcheck"
 
 # computing-unit-master shares the amber dist with texera-web: sbt-native-
 # packager emits both `bin/texera-web-application` and `bin/computing-unit-master`
@@ -538,24 +564,24 @@ SVC_HEALTH[texera-web]="/api/healthcheck"
 # build pipeline knows to skip it (the texera-web build path already produces
 # its launcher). Source-dir and canary-jar lookups treat it identically to
 # texera-web — see _svc_src_dirs / svc_src_changed / svc_artifact_mtime.
-SVC_TYPE[computing-unit-master]=jvm
-SVC_PORT[computing-unit-master]=8085
-SVC_SBT[computing-unit-master]=""
-SVC_LAUNCHER[computing-unit-master]="target/amber-${TEXERA_VERSION}/bin/computing-unit-master"
-SVC_CWD[computing-unit-master]="amber"
-SVC_ZIP_GLOB[computing-unit-master]=""
-SVC_UNZIP_DEST[computing-unit-master]=""
-SVC_HEALTH[computing-unit-master]=""
+amap_set SVC_TYPE       computing-unit-master jvm
+amap_set SVC_PORT       computing-unit-master 8085
+amap_set SVC_SBT        computing-unit-master ""
+amap_set SVC_LAUNCHER   computing-unit-master "target/amber-${TEXERA_VERSION}/bin/computing-unit-master"
+amap_set SVC_CWD        computing-unit-master "amber"
+amap_set SVC_ZIP_GLOB   computing-unit-master ""
+amap_set SVC_UNZIP_DEST computing-unit-master ""
+amap_set SVC_HEALTH     computing-unit-master ""
 
-SVC_TYPE[agent-service]=bun
-SVC_PORT[agent-service]=3001
-SVC_CWD[agent-service]="agent-service"
-SVC_HEALTH[agent-service]="/api/healthcheck"
+amap_set SVC_TYPE   agent-service bun
+amap_set SVC_PORT   agent-service 3001
+amap_set SVC_CWD    agent-service "agent-service"
+amap_set SVC_HEALTH agent-service "/api/healthcheck"
 
-SVC_TYPE[frontend]=yarn
-SVC_PORT[frontend]=4200
-SVC_CWD[frontend]="frontend"
-SVC_HEALTH[frontend]=""
+amap_set SVC_TYPE   frontend yarn
+amap_set SVC_PORT   frontend 4200
+amap_set SVC_CWD    frontend "frontend"
+amap_set SVC_HEALTH frontend ""
 
 # --------- docker infra config ---------
 DOCKER_PROJECT="texera-local-dev"
@@ -734,34 +760,34 @@ tui_wait_panel() {
         local svc_timeout=0 waited=0 final_state=""
         for svc in "${svcs[@]}"; do
             svc_timeout=$timeout_default
-            case "${SVC_TYPE[$svc]}" in
+            case "$(amap_get SVC_TYPE "$svc")" in
                 yarn) svc_timeout=$timeout_yarn ;;
                 bun)  svc_timeout=$timeout_bun  ;;
             esac
             waited=0
             final_state=""
             while (( waited < svc_timeout )); do
-                if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+                if [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]]; then
                     case "$(docker_svc_state "$svc")" in
                         running|exited)        final_state="ok";    break ;;
                         unhealthy|failed)      final_state="bad";   break ;;
                         # starting / created / restarting / paused / "" → keep waiting
                     esac
                 else
-                    [[ -n "$(listen_pid_for_port "${SVC_PORT[$svc]}")" ]] && { final_state="ok"; break; }
+                    [[ -n "$(listen_pid_for_port "$(amap_get SVC_PORT "$svc")")" ]] && { final_state="ok"; break; }
                 fi
                 sleep 1
                 waited=$((waited+1))
             done
             case "$final_state" in
                 ok)
-                    printf "  %s  %-32s :%-6s  %s\n" "$SYM_OK" "$svc" "${SVC_PORT[$svc]}" "healthy"
+                    printf "  %s  %-32s :%-6s  %s\n" "$SYM_OK" "$svc" "$(amap_get SVC_PORT "$svc")" "healthy"
                     n_done=$((n_done+1)) ;;
                 bad)
-                    printf "  %s  %-32s :%-6s  %s\n" "$SYM_ERR" "$svc" "${SVC_PORT[$svc]}" "unhealthy"
+                    printf "  %s  %-32s :%-6s  %s\n" "$SYM_ERR" "$svc" "$(amap_get SVC_PORT "$svc")" "unhealthy"
                     n_failed=$((n_failed+1)) ;;
                 *)  # timed out without ever reaching a terminal state
-                    printf "  %s  %-32s :%-6s  %s\n" "$SYM_ERR" "$svc" "${SVC_PORT[$svc]}" "timeout (${waited}s)"
+                    printf "  %s  %-32s :%-6s  %s\n" "$SYM_ERR" "$svc" "$(amap_get SVC_PORT "$svc")" "timeout (${waited}s)"
                     n_failed=$((n_failed+1)) ;;
             esac
         done
@@ -788,11 +814,11 @@ tui_wait_panel() {
             # Per-service wait budget — yarn (ng serve cold compile) gets the
             # most slack, bun a moderate amount, everything else the default.
             local svc_timeout=$timeout_default
-            case "${SVC_TYPE[$svc]}" in
+            case "$(amap_get SVC_TYPE "$svc")" in
                 yarn) svc_timeout=$timeout_yarn ;;
                 bun)  svc_timeout=$timeout_bun  ;;
             esac
-            if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+            if [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]]; then
                 local dstate=""
                 dstate=$(docker_svc_state "$svc")
                 case "$dstate" in
@@ -817,9 +843,9 @@ tui_wait_panel() {
                             state_color="$YELLOW"; state_sym="${YELLOW}${spinner_frame}${RESET}"
                         fi ;;
                 esac
-                port_str=":${SVC_PORT[$svc]}"
+                port_str=":$(amap_get SVC_PORT "$svc")"
             else
-                if [[ -n "$(listen_pid_for_port "${SVC_PORT[$svc]}")" ]]; then
+                if [[ -n "$(listen_pid_for_port "$(amap_get SVC_PORT "$svc")")" ]]; then
                     state="healthy"
                     state_color="$GREEN"; state_sym="${GREEN}${SYM_OK}${RESET}"
                     n_done=$((n_done+1))
@@ -831,7 +857,7 @@ tui_wait_panel() {
                     state="starting (${elapsed}s)"
                     state_color="$YELLOW"; state_sym="${YELLOW}${spinner_frame}${RESET}"
                 fi
-                port_str=":${SVC_PORT[$svc]}"
+                port_str=":$(amap_get SVC_PORT "$svc")"
             fi
 
             [[ -t 1 ]] && printf "\e[2K"
@@ -1090,7 +1116,7 @@ infra_ensure_db_schema() {
 }
 
 svc_running_pid() {
-    listen_pid_for_port "${SVC_PORT[$1]}"
+    listen_pid_for_port "$(amap_get SVC_PORT "$1")"
 }
 
 # Compact-format a duration in seconds:
@@ -1163,7 +1189,7 @@ _docker_container_for() {
 # Echoes "—" when not running.
 svc_uptime() {
     local svc="$1"
-    if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+    if [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]]; then
         local container="" since=""
         container=$(_docker_container_for "$svc")
         since=$(docker inspect -f '{{.State.StartedAt}}' "$container" 2>/dev/null) || { printf "—"; return; }
@@ -1226,10 +1252,11 @@ _docker_stats_snapshot() {
 }
 
 svc_artifact_mtime() {
-    local svc="$1" type="${SVC_TYPE[$1]}"
+    local svc="$1" type=""
+    type=$(amap_get SVC_TYPE "$svc")
     case "$type" in
         jvm)
-            local launcher="${SVC_CWD[$svc]}/${SVC_LAUNCHER[$svc]}"
+            local launcher="$(amap_get SVC_CWD "$svc")/$(amap_get SVC_LAUNCHER "$svc")"
             launcher="${launcher#./}"
             local jar_dir=""
             jar_dir="$(dirname "$(dirname "$launcher")")/lib"
@@ -1258,8 +1285,8 @@ svc_artifact_mtime() {
             fi
             echo "—"
             ;;
-        bun)    stat -f "%Sm" -t "%Y-%m-%d %H:%M" "${SVC_CWD[$svc]}/bun.lock" 2>/dev/null || echo "—" ;;
-        yarn)   stat -f "%Sm" -t "%Y-%m-%d %H:%M" "${SVC_CWD[$svc]}/yarn.lock" 2>/dev/null || echo "—" ;;
+        bun)    stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$(amap_get SVC_CWD "$svc")/bun.lock" 2>/dev/null || echo "—" ;;
+        yarn)   stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$(amap_get SVC_CWD "$svc")/yarn.lock" 2>/dev/null || echo "—" ;;
         docker) echo "—" ;;
     esac
 }
@@ -1292,7 +1319,7 @@ phase_clear() {
 
 stop_one() {
     local svc="$1"
-    if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+    if [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]]; then
         phase_set "$svc" stopping
         tui_step "$svc: docker compose stop $svc"
         docker compose -p "$DOCKER_PROJECT" stop "$svc" >/dev/null 2>&1 || true
@@ -1324,7 +1351,8 @@ stop_one() {
 
 start_one() {
     local svc="$1"
-    local type="${SVC_TYPE[$svc]}"
+    local type=""
+    type=$(amap_get SVC_TYPE "$svc")
     if [[ "$type" == "docker" ]]; then
         local dstate=""
         dstate=$(docker_svc_state "$svc")
@@ -1349,12 +1377,14 @@ start_one() {
         tui_ok "$svc: already running ${DIM}(PID $(svc_running_pid "$svc"))${RESET}"
         return 0
     fi
-    local cwd="${SVC_CWD[$svc]}" log="$LOG_DIR/$svc.log"
+    local cwd="" log="$LOG_DIR/$svc.log"
+    cwd=$(amap_get SVC_CWD "$svc")
     phase_set "$svc" starting
     tui_step "$svc: starting ${DIM}(log: $log)${RESET}"
     case "$type" in
         jvm)
-            local launcher="${SVC_LAUNCHER[$svc]}"
+            local launcher=""
+            launcher=$(amap_get SVC_LAUNCHER "$svc")
             if [[ ! -x "$cwd/$launcher" ]]; then
                 phase_clear "$svc"
                 tui_err "$svc: launcher missing at $cwd/$launcher -- run \`bin/local-dev.sh up\` to build first"
@@ -1388,7 +1418,8 @@ start_one() {
 }
 
 build_one_jvm() {
-    local svc="$1" proj="${SVC_SBT[$svc]}"
+    local svc="$1" proj=""
+    proj=$(amap_get SVC_SBT "$svc")
     local log="$LOG_DIR/sbt-${svc}.log"
     # Empty SVC_SBT means this service rides another service's dist (e.g.
     # computing-unit-master shares amber's). Nothing to build directly — the
@@ -1402,9 +1433,12 @@ build_one_jvm() {
     phase_set "$svc" building
     if tui_run_with_spinner "$log" "sbt $proj/dist  ${DIM}(log: $log)${RESET}" \
         sbt -no-colors "$proj/dist"; then
-        tui_step "unzip ${SVC_ZIP_GLOB[$svc]} → ${SVC_UNZIP_DEST[$svc]}"
+        local zip_glob="" unzip_dest=""
+        zip_glob=$(amap_get SVC_ZIP_GLOB "$svc")
+        unzip_dest=$(amap_get SVC_UNZIP_DEST "$svc")
+        tui_step "unzip ${zip_glob} → ${unzip_dest}"
         # shellcheck disable=SC2086
-        unzip -oq ${SVC_ZIP_GLOB[$svc]} -d "${SVC_UNZIP_DEST[$svc]}"
+        unzip -oq ${zip_glob} -d "${unzip_dest}"
         # Stamp = SHA-1 of the source we just built from. Clears the `*` and
         # lets us tell content-vs-mtime apart on the next dirty check.
         svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc"
@@ -1427,7 +1461,7 @@ build_one_jvm() {
 any_jvm_src_changed() {
     local svc=""
     for svc in "${SERVICES[@]}"; do
-        [[ "${SVC_TYPE[$svc]}" == "jvm" ]] || continue
+        [[ "$(amap_get SVC_TYPE "$svc")" == "jvm" ]] || continue
         if svc_src_changed "$svc" 2>/dev/null; then
             return 0
         fi
@@ -1468,23 +1502,22 @@ needs_bun_install() {
 }
 
 # Cache of per-service transitive src dirs, populated once at startup by
-# _precompute_src_dirs(). Bash assoc arrays only hold scalars, so each
-# entry is a newline-separated list — callers consume via `while read`
-# (same shape as the old _svc_src_dirs output).
-declare -A SVC_SRC_DIRS=()
+# _precompute_src_dirs(). Each entry (in the SVC_SRC_DIRS amap) is a
+# newline-separated list — callers consume via `while read` (same shape
+# as the old _svc_src_dirs output).
 
 _precompute_src_dirs() {
     local svc="" entry="" dirs=""
     for svc in "${SERVICES[@]}"; do
-        [[ "${SVC_TYPE[$svc]}" == "jvm" ]] || continue
-        entry="${SVC_SBT[$svc]:-}"
+        [[ "$(amap_get SVC_TYPE "$svc")" == "jvm" ]] || continue
+        entry=$(amap_get SVC_SBT "$svc")
         # computing-unit-master rides amber's dist (no SVC_SBT of its
         # own); enter the graph at the producing project explicitly.
         if [[ -z "$entry" && "$svc" == "computing-unit-master" ]]; then
             entry="WorkflowExecutionService"
         fi
         dirs=""
-        if [[ -n "$entry" && -n "${SBT_PATH[$entry]:-}" ]]; then
+        if [[ -n "$entry" ]] && amap_has SBT_PATH "$entry"; then
             dirs="$(_sbt_transitive_src_dirs "$entry" 2>/dev/null)" || dirs=""
         fi
         if [[ -z "$dirs" ]]; then
@@ -1503,7 +1536,7 @@ _precompute_src_dirs() {
             dirs+=$'\n'"common/workflow-operator/src"
             dirs+=$'\n'"common/pybuilder/src"
         fi
-        SVC_SRC_DIRS[$svc]="$dirs"
+        amap_set SVC_SRC_DIRS "$svc" "$dirs"
     done
 }
 
@@ -1513,12 +1546,15 @@ _precompute_src_dirs() {
 # known JVM service.
 _svc_src_dirs() {
     local svc="$1"
-    if [[ -n "${SVC_SRC_DIRS[$svc]:-}" ]]; then
-        printf '%s\n' "${SVC_SRC_DIRS[$svc]}"
+    local cached=""
+    cached=$(amap_get SVC_SRC_DIRS "$svc")
+    if [[ -n "$cached" ]]; then
+        printf '%s\n' "$cached"
         return 0
     fi
     # Slow path — only reached if _precompute_src_dirs hasn't run.
-    local entry="${SVC_SBT[$svc]:-}"
+    local entry=""
+    entry=$(amap_get SVC_SBT "$svc")
     if [[ -z "$entry" && "$svc" == "computing-unit-master" ]]; then
         entry="WorkflowExecutionService"
     fi
@@ -1570,7 +1606,7 @@ svc_source_hash() {
 #                        slow path next tick. If they differ, dirty.
 svc_src_changed() {
     local svc="$1"
-    case "${SVC_TYPE[$svc]}" in
+    case "$(amap_get SVC_TYPE "$svc")" in
         jvm)
             local stamp="$BUILD_STAMP_DIR/$svc"
             # Lazy seed: if we have a jar but no stamp, assume the jar matches
@@ -1649,7 +1685,7 @@ build_all() {
     if [[ "$BUILD_DID_RUN" == "true" ]]; then
         local svc="" pid=""
         for svc in "${SERVICES[@]}"; do
-            [[ "${SVC_TYPE[$svc]}" == "jvm" ]] || continue
+            [[ "$(amap_get SVC_TYPE "$svc")" == "jvm" ]] || continue
             pid=$(svc_running_pid "$svc")
             [[ -z "$pid" ]] && continue
             tui_step "$svc: pre-bouncing PID $pid (jars about to change)"
@@ -1660,7 +1696,7 @@ build_all() {
         while (( waited < 10 )); do
             local still_up=0
             for svc in "${SERVICES[@]}"; do
-                [[ "${SVC_TYPE[$svc]}" == "jvm" ]] || continue
+                [[ "$(amap_get SVC_TYPE "$svc")" == "jvm" ]] || continue
                 [[ -n "$(svc_running_pid "$svc")" ]] && still_up=$((still_up+1))
             done
             (( still_up == 0 )) && break
@@ -1669,20 +1705,23 @@ build_all() {
         done
     fi
     tui_step "unzipping dist artifacts"
+    local zip_glob="" unzip_dest=""
     for svc in "${SERVICES[@]}"; do
-        [[ "${SVC_TYPE[$svc]}" == "jvm" ]] || continue
+        [[ "$(amap_get SVC_TYPE "$svc")" == "jvm" ]] || continue
+        zip_glob=$(amap_get SVC_ZIP_GLOB "$svc")
+        unzip_dest=$(amap_get SVC_UNZIP_DEST "$svc")
         # Sibling services (empty ZIP_GLOB) share another service's dist —
         # just stamp them as clean since the unzip already happened for the
         # twin holding the build.
-        if [[ -z "${SVC_ZIP_GLOB[$svc]}" ]]; then
+        if [[ -z "$zip_glob" ]]; then
             svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc" 2>/dev/null || true
             continue
         fi
         # shellcheck disable=SC2086
-        if unzip -oq ${SVC_ZIP_GLOB[$svc]} -d "${SVC_UNZIP_DEST[$svc]}" 2>/dev/null; then
+        if unzip -oq ${zip_glob} -d "${unzip_dest}" 2>/dev/null; then
             svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc"
         else
-            tui_warn "${SVC_ZIP_GLOB[$svc]} not produced"
+            tui_warn "${zip_glob} not produced"
         fi
     done
     tui_ok "artifacts unzipped"
@@ -1727,9 +1766,9 @@ cmd_status() {
     # One docker stats call up front — paying the ~2s docker-API cost once
     # is cheaper than running it per docker service. Indexed by container
     # name → "cpu%|mem" so the per-row formatting is just a lookup.
-    declare -A _DSTATS=()
+    # `_DSTATS` is an amap (bash 3.2: no associative arrays).
     while IFS='|' read -r name cpu mem; do
-        [[ -n "$name" ]] && _DSTATS[$name]="$cpu|$mem"
+        [[ -n "$name" ]] && amap_set _DSTATS "$name" "$cpu|$mem"
     done < <(_docker_stats_snapshot)
 
     printf "\n"
@@ -1748,14 +1787,15 @@ cmd_status() {
     for svc in "${SERVICES[@]}"; do
         n_total=$((n_total+1))
         local pid="—" state="stopped" uptime="—" cpu="—" mem="—"
-        if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+        if [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]]; then
             state=$(docker_svc_state "$svc")
             if [[ "$state" == "running" ]]; then
-                local container=""
+                local container="" dstat=""
                 container=$(_docker_container_for "$svc")
-                if [[ -n "${_DSTATS[$container]:-}" ]]; then
-                    cpu="${_DSTATS[$container]%|*}"
-                    mem="${_DSTATS[$container]#*|}"
+                dstat=$(amap_get _DSTATS "$container")
+                if [[ -n "$dstat" ]]; then
+                    cpu="${dstat%|*}"
+                    mem="${dstat#*|}"
                 fi
                 uptime=$(svc_uptime "$svc")
             fi
@@ -1779,7 +1819,7 @@ cmd_status() {
         color=$(tui_state_color "$state")
         printf "  %s " "$sym"
         printf "${color}%-32s${RESET} %-6s ${DIM}%-9s${RESET} %-10s %-7s %-7s ${color}%s${RESET}\n" \
-            "$svc" "${SVC_PORT[$svc]}" "$pid" "$uptime" "$cpu" "$mem" "$state"
+            "$svc" "$(amap_get SVC_PORT "$svc")" "$pid" "$uptime" "$cpu" "$mem" "$state"
     done
     printf "\n"
 
@@ -1843,7 +1883,7 @@ cmd_up() {
 
         local all_running=true svc=""
         for svc in "${SERVICES[@]}"; do
-            if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+            if [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]]; then
                 [[ "$(docker_svc_state "$svc")" == "running" ]] || { all_running=false; break; }
             else
                 [[ -n "$(svc_running_pid "$svc")" ]] || { all_running=false; break; }
@@ -1878,7 +1918,7 @@ cmd_up() {
     # row — much faster than five separate calls.
     local has_docker_targets=false
     for svc in "${SERVICES[@]}"; do
-        [[ "${SVC_TYPE[$svc]}" == "docker" ]] || continue
+        [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]] || continue
         is_skipped "$svc" && continue
         has_docker_targets=true
         break
@@ -1898,18 +1938,18 @@ cmd_up() {
 
     for svc in "${SERVICES[@]}"; do
         is_skipped "$svc" && { tui_skip "$svc: --skip"; continue; }
-        type="${SVC_TYPE[$svc]}"
+        type=$(amap_get SVC_TYPE "$svc")
         [[ "$type" == "docker" ]] && continue   # already handled by infra_up
         if [[ -n "$(svc_running_pid "$svc")" ]]; then
             tui_ok "$svc: already running ${DIM}(PID $(svc_running_pid "$svc"))${RESET}"
             continue
         fi
-        cwd="${SVC_CWD[$svc]}"
+        cwd=$(amap_get SVC_CWD "$svc")
         log="$LOG_DIR/$svc.log"
         tui_step "$svc: launching → ${DIM}$log${RESET}"
         case "$type" in
             jvm)
-                launcher="${SVC_LAUNCHER[$svc]}"
+                launcher=$(amap_get SVC_LAUNCHER "$svc")
                 if [[ ! -x "$cwd/$launcher" ]]; then
                     tui_err "$svc: launcher missing at $cwd/$launcher"
                     continue
@@ -1929,7 +1969,7 @@ cmd_up() {
     for svc in "${SERVICES[@]}"; do
         is_skipped "$svc" && continue
         total=$((total+1))
-        if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+        if [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]]; then
             case "$(docker_svc_state "$svc")" in
                 running|exited) ok=$((ok+1)) ;;
                 *)              failed=$((failed+1)) ;;
@@ -1979,7 +2019,7 @@ cmd_auto() {
     local need_bun=false
     for svc in "${SERVICES[@]}"; do
         is_skipped "$svc" && continue
-        case "${SVC_TYPE[$svc]}" in
+        case "$(amap_get SVC_TYPE "$svc")" in
             jvm)
                 if svc_src_changed "$svc"; then
                     dirty_jvms+=("$svc")
@@ -2042,14 +2082,21 @@ cmd_auto() {
     # we'd `continue` past start_one whenever ZIP_GLOB was empty and the
     # sibling never came back up.
     local n_bounced=0 n_rebuilt=0
-    declare -A _was_running=()
+    # `_was_running` is an amap (bash 3.2: no associative arrays). Keyed by
+    # svc → the PID we observed at the start of pass 1, "" if not running.
+    # Cleared with `unset` at the top so a re-invocation (e.g. interactive
+    # REPL would have, if we still had one) starts fresh.
+    local _wr_var=""
+    for _wr_var in $(compgen -v _amap___was_running__ 2>/dev/null); do
+        unset "$_wr_var"
+    done
     if (( ${#dirty_jvms[@]} > 0 )); then
         tui_section "Bounce"
         # Pass 1: stop running pids; unzip own dist if we have one.
         for svc in "${dirty_jvms[@]}"; do
             local pid=""
             pid=$(svc_running_pid "$svc")
-            _was_running[$svc]="$pid"
+            amap_set _was_running "$svc" "$pid"
             if [[ -n "$pid" ]]; then
                 # Flip the dashboard from `building` to `stopping` while we
                 # SIGTERM/SIGKILL the JVM, then back to `building` for the
@@ -2065,7 +2112,10 @@ cmd_auto() {
                 done
                 kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null
             fi
-            if [[ -z "${SVC_ZIP_GLOB[$svc]:-}" ]]; then
+            local zip_glob="" unzip_dest=""
+            zip_glob=$(amap_get SVC_ZIP_GLOB "$svc")
+            unzip_dest=$(amap_get SVC_UNZIP_DEST "$svc")
+            if [[ -z "$zip_glob" ]]; then
                 # Sibling service (e.g. computing-unit-master): no own dist
                 # to unzip — its launcher comes from the twin's unzip later
                 # in this pass. Just stamp it clean.
@@ -2076,11 +2126,11 @@ cmd_auto() {
             fi
             phase_set "$svc" building
             # shellcheck disable=SC2086
-            if unzip -oq ${SVC_ZIP_GLOB[$svc]} -d "${SVC_UNZIP_DEST[$svc]}" 2>/dev/null; then
+            if unzip -oq ${zip_glob} -d "${unzip_dest}" 2>/dev/null; then
                 svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc"
                 n_rebuilt=$((n_rebuilt+1))
             else
-                tui_warn "$svc: ${SVC_ZIP_GLOB[$svc]} not produced — skipping"
+                tui_warn "$svc: ${zip_glob} not produced — skipping"
             fi
         done
         # amber's two siblings (texera-web + computing-unit-master) are
@@ -2093,7 +2143,7 @@ cmd_auto() {
         local amber_group_active=false
         local s=""
         for s in "${AMBER_SIBLINGS[@]}"; do
-            [[ -n "${_was_running[$s]:-}" ]] && amber_group_active=true
+            [[ -n "$(amap_get _was_running "$s")" ]] && amber_group_active=true
         done
 
         # Pass 2: start the ones that had been running, plus any amber
@@ -2102,7 +2152,7 @@ cmd_auto() {
         # populated `amber/target/amber-<VERSION>/bin/*`).
         for svc in "${dirty_jvms[@]}"; do
             local should_start=false
-            if [[ -n "${_was_running[$svc]:-}" ]]; then
+            if [[ -n "$(amap_get _was_running "$svc")" ]]; then
                 should_start=true
             elif $amber_group_active && { [[ "$svc" == "texera-web" ]] || [[ "$svc" == "computing-unit-master" ]]; }; then
                 should_start=true
@@ -2179,7 +2229,7 @@ cmd_down() {
     # bash arrays are 0-indexed: last element is at N-1.
     for (( i=${#SERVICES[@]} - 1; i>=0; i-- )); do
         svc="${SERVICES[i]}"
-        [[ "${SVC_TYPE[$svc]}" == "docker" ]] && continue
+        [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]] && continue
         if is_skipped "$svc"; then
             tui_skip "$svc: --skip"
             continue
@@ -2189,7 +2239,7 @@ cmd_down() {
     # Then one project-level docker compose down for any docker target.
     local has_docker_targets=false
     for svc in "${SERVICES[@]}"; do
-        [[ "${SVC_TYPE[$svc]}" == "docker" ]] || continue
+        [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]] || continue
         if is_skipped "$svc"; then
             tui_skip "$svc: --skip"
             continue
@@ -2202,12 +2252,13 @@ cmd_down() {
 
 cmd_update_one() {
     local svc="$1"
-    if [[ -z "${SVC_TYPE[$svc]+x}" ]]; then
+    if ! amap_has SVC_TYPE "$svc"; then
         tui_err "unknown service: ${BOLD}$svc${RESET}"
         printf "  ${DIM}Known:${RESET} ${SERVICES[*]}\n"
         exit 1
     fi
-    local type="${SVC_TYPE[$svc]}"
+    local type=""
+    type=$(amap_get SVC_TYPE "$svc")
     case "$type" in
         docker)
             tui_banner "Restarting ${svc}" "docker compose restart $svc"
@@ -2225,14 +2276,16 @@ cmd_update_one() {
         bun)
             tui_banner "Updating ${svc}" "bun install + bounce"
             tui_section "Deps"
-            ( cd "${SVC_CWD[$svc]}" && bun install )
+            ( cd "$(amap_get SVC_CWD "$svc")" && bun install )
             tui_section "Bounce"
             stop_one "$svc"
             start_one "$svc"
             ;;
         jvm)
-            if [[ -n "${SVC_SBT[$svc]}" ]]; then
-                tui_banner "Updating ${svc}" "sbt ${SVC_SBT[$svc]}/dist + bounce"
+            local _sbt_proj=""
+            _sbt_proj=$(amap_get SVC_SBT "$svc")
+            if [[ -n "$_sbt_proj" ]]; then
+                tui_banner "Updating ${svc}" "sbt ${_sbt_proj}/dist + bounce"
             else
                 tui_banner "Updating ${svc}" "bounce only (shares dist with its sibling)"
             fi
@@ -2261,11 +2314,13 @@ cmd_update_one() {
             ;;
     esac
     tui_section "Health"
-    if wait_for_port "${SVC_PORT[$svc]}" 60; then
-        printf "  ${GREEN}${SYM_OK}${RESET}  %-32s ${DIM}:%s${RESET}\n" "$svc" "${SVC_PORT[$svc]}"
+    local _port=""
+    _port=$(amap_get SVC_PORT "$svc")
+    if wait_for_port "$_port" 60; then
+        printf "  ${GREEN}${SYM_OK}${RESET}  %-32s ${DIM}:%s${RESET}\n" "$svc" "$_port"
     else
         printf "  ${RED}${SYM_ERR}${RESET}  %-32s ${DIM}:%s${RESET}  ${RED}timeout${RESET}  ${DIM}(bin/local-dev.sh logs %s)${RESET}\n" \
-            "$svc" "${SVC_PORT[$svc]}" "$svc"
+            "$svc" "$_port" "$svc"
         exit 1
     fi
     printf "\n"
@@ -2273,11 +2328,11 @@ cmd_update_one() {
 
 cmd_logs() {
     local svc="${1:?usage: bin/local-dev.sh logs <service>}"
-    if [[ -z "${SVC_TYPE[$svc]+x}" ]]; then
+    if ! amap_has SVC_TYPE "$svc"; then
         echo "Unknown service: $svc" >&2
         exit 1
     fi
-    if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+    if [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]]; then
         exec docker compose -p "$DOCKER_PROJECT" logs -f "$svc"
     fi
     exec tail -f "$LOG_DIR/$svc.log"
@@ -2304,16 +2359,16 @@ tui_render_dashboard() {
     for svc in "${SERVICES[@]}"; do
         n_total=$((n_total+1))
         local pid="—" state="stopped" mtime="—" port_str="—" src_disp="   "
-        if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
+        if [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]]; then
             state=$(docker_svc_state "$svc")
             mtime="docker"
-            port_str=":${SVC_PORT[$svc]}"
+            port_str=":$(amap_get SVC_PORT "$svc")"
         else
             local found_pid=""
             found_pid=$(svc_running_pid "$svc")
             if [[ -n "$found_pid" ]]; then state="running"; pid="$found_pid"; fi
             mtime=$(svc_artifact_mtime "$svc")
-            port_str=":${SVC_PORT[$svc]}"
+            port_str=":$(amap_get SVC_PORT "$svc")"
         fi
         [[ "$state" == "running" ]] && n_run=$((n_run+1))
 
@@ -2474,6 +2529,6 @@ case "${1:-}" in
     logs)             shift; cmd_logs "${1:-}" ;;
     w|watch)          shift; cmd_watch "${1:-2}" ;;
     version)          printf "%s\n" "$TEXERA_VERSION" ;;
-    -h|--help)        sed -n '39,87p' "$0" ;;
+    -h|--help)        sed -n '18,67p' "$0" ;;
     *)                cmd_update_one "$1" ;;
 esac
