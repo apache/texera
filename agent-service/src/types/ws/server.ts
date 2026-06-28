@@ -23,7 +23,6 @@
 // for you. `WsServerEvent` is their discriminated union.
 
 import type { AgentState, ReActStep } from "../agent";
-import type { WorkflowContent } from "../workflow";
 
 /**
  * Full state pushed once when a client connects: the agent's current lifecycle
@@ -60,27 +59,5 @@ export class WsServerErrorEvent {
   constructor(readonly error: string) {}
 }
 
-/**
- * Emitted after a checkout: HEAD moved, carrying the full step list and the
- * workflow snapshot at the new head.
- *
- * @deprecated Unused by the frontend/UI — nothing invokes the client's
- * `checkoutStep()`. The `/agents/:id/checkout` route (and its tests) still
- * broadcast it, so it remains reachable; do not build new UI on it.
- */
-export class WsServerHeadChangeEvent {
-  readonly type = "WsServerHeadChangeEvent";
-  constructor(
-    readonly headId: string,
-    readonly steps: ReActStep[],
-    readonly workflowContent?: WorkflowContent
-  ) {}
-}
-
 /** Discriminated union of every server -> client frame. */
-export type WsServerEvent =
-  | WsServerSnapshotEvent
-  | WsServerStepEvent
-  | WsServerStatusEvent
-  | WsServerErrorEvent
-  | WsServerHeadChangeEvent;
+export type WsServerEvent = WsServerSnapshotEvent | WsServerStepEvent | WsServerStatusEvent | WsServerErrorEvent;

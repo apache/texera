@@ -108,21 +108,12 @@ ci:
           - '.asf.yaml'
           - 'codecov.yml'
 
-dev:
+infra:
+  # Anything under bin/ — project-tooling scripts, Dockerfiles, k8s
+  # manifests, license / deploy / dev-loop tooling.
   - changed-files:
       - any-glob-to-any-file:
           - 'bin/**'
-
-infra:
-  # Project-tooling scripts under bin/* that aren't tied to a specific
-  # service. The CI's `infra` job picks up everything labelled here and
-  # runs each subdirectory's unit / smoke tests in one consolidated job.
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'bin/local-dev.sh'
-          - 'bin/local-dev-tui.py'
-          - 'bin/local-dev/**'
-          - 'bin/licensing/**'
 
 dependencies:
   - changed-files:

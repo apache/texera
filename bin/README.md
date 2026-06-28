@@ -12,7 +12,7 @@ For example, to build the image using `texera-web-application.dockerfile`, run t
 docker build -f bin/texera-web-application.dockerfile -t your-repo/texera-web-application:test .
 ```
 
-Two shell scripts, `build-images.sh` and `build-services.sh` are included for building platform-dependent images conveniently. 
+`build-images.sh` is included for building platform-dependent images conveniently.
 
 You can also find prebuilt images published by the Texera team on the [Texera DockerHub Repository](https://hub.docker.com/repositories/texera).
 

@@ -354,32 +354,6 @@ describe("agent read routes", () => {
   });
 });
 
-describe("checkout route", () => {
-  test("broadcasts and survives a websocket whose send throws", async () => {
-    const id = (await readJson<{ id: string }>(await createAgent())).id;
-    const agent = _getAgentForTests(id)!;
-    (agent as any).checkout = () => true;
-    (agent as any).getAllSteps = () => [];
-    // A failing socket must be dropped inside broadcastToAgentClients, not crash the request.
-    agent.addClient({
-      send: () => {
-        throw new Error("send failed");
-      },
-    } as any);
-
-    const res = await postJson(`${API}/agents/${id}/checkout`, { stepId: "step-1" });
-    expect(res.status).toBe(200);
-    expect((await readJson<{ headId: string }>(res)).headId).toBe("step-1");
-  });
-
-  test("returns 500 when the step cannot be found", async () => {
-    const id = (await readJson<{ id: string }>(await createAgent())).id;
-    (_getAgentForTests(id) as any).checkout = () => false;
-    const res = await postJson(`${API}/agents/${id}/checkout`, { stepId: "missing" });
-    expect(res.status).toBe(500);
-  });
-});
-
 describe("non-router routes", () => {
   test("unknown routes fall through to the catch-all error handler", async () => {
     const res = await getJson("/no-such-route");
