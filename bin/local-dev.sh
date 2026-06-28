@@ -171,10 +171,41 @@ elif [[ -s "$HOME/.volta/load.sh" ]]; then
 fi
 
 # --------- runtime env for backend ---------
+# Detect the host's primary LAN IP so we can use it as the MinIO endpoint.
+# It has to be the same string from both directions:
+#   • host-native JVMs need it to reach localhost-published port 9000
+#   • the lakekeeper container needs it to do server-side S3 ops (validation,
+#     compaction) AND to return URLs to clients that *they* can reach
+# `localhost` only works for the host. `texera-minio` only works inside the
+# docker network. The host's LAN IP works from BOTH (host loopback for the
+# host, docker NAT'd out-and-back for the container).
+_detect_host_lan_ip() {
+    local iface="" ip=""
+    # 1. The interface backing the default route — most reliable on a
+    #    laptop that may have wifi + thunderbolt + tailscale all active.
+    iface=$(route get default 2>/dev/null | awk '/interface:/{print $2; exit}')
+    if [[ -n "$iface" ]]; then
+        ip=$(ipconfig getifaddr "$iface" 2>/dev/null)
+        [[ -n "$ip" && "$ip" != 127.* ]] && { print -r -- "$ip"; return 0; }
+    fi
+    # 2. Fallback: linux `hostname -I`-equivalent walk over en*.
+    for iface in en0 en1 en2 en3 en4 en5 en6 en7 en8 en9 en10; do
+        ip=$(ipconfig getifaddr "$iface" 2>/dev/null)
+        [[ -n "$ip" && "$ip" != 127.* ]] && { print -r -- "$ip"; return 0; }
+    done
+    return 1
+}
+HOST_LAN_IP="$(_detect_host_lan_ip)" || HOST_LAN_IP=""
+if [[ -z "$HOST_LAN_IP" ]]; then
+    echo "WARN: no LAN IP detected -- S3 endpoint falling back to localhost." >&2
+    echo "WARN: Iceberg ops may fail because the lakekeeper container can't reach localhost:9000." >&2
+    HOST_LAN_IP="localhost"
+fi
+
 export STORAGE_JDBC_URL="${STORAGE_JDBC_URL:-jdbc:postgresql://localhost:5432/texera_db?currentSchema=texera_db,public}"
 export STORAGE_JDBC_USERNAME="${STORAGE_JDBC_USERNAME:-texera}"
 export STORAGE_JDBC_PASSWORD="${STORAGE_JDBC_PASSWORD:-password}"
-export STORAGE_S3_ENDPOINT="${STORAGE_S3_ENDPOINT:-http://localhost:9000}"
+export STORAGE_S3_ENDPOINT="${STORAGE_S3_ENDPOINT:-http://$HOST_LAN_IP:9000}"
 export STORAGE_S3_AUTH_USERNAME="${STORAGE_S3_AUTH_USERNAME:-texera_minio}"
 export STORAGE_S3_AUTH_PASSWORD="${STORAGE_S3_AUTH_PASSWORD:-password}"
 export STORAGE_S3_REGION="${STORAGE_S3_REGION:-us-west-2}"
@@ -694,6 +725,56 @@ infra_down() {
     tui_ok "infra: stopped"
 }
 
+# Ensure the texera_db schema exists in the postgres container. The compose
+# file mounts sql/*.sql to /docker-entrypoint-initdb.d, but Postgres only
+# runs those on first init (empty data dir). If the volume was carried over
+# from an older texera version (e.g. before the `feedback` table was added)
+# the schema will be missing relations that current code references, the
+# jOOQ codegen produces an incomplete Tables.java, and sbt compile fails on
+# `not found: value FEEDBACK`. Probe for a canonical table and re-run
+# texera_ddl.sql if it's absent.
+infra_ensure_db_schema() {
+    local pg="texera-postgres"
+    # Wait briefly for postgres to be ready — `up -d` returned but the
+    # container may still be running its own init sequence.
+    local i=0
+    while (( i < 30 )); do
+        if docker exec "$pg" pg_isready -U texera -d texera_db -q 2>/dev/null; then
+            break
+        fi
+        sleep 1
+        i=$((i+1))
+    done
+    if (( i >= 30 )); then
+        tui_warn "postgres: not ready after 30s -- skipping schema check"
+        return 0
+    fi
+    # `feedback` is one of the newer tables; if it exists we assume the
+    # whole schema is current. (texera_ddl.sql is idempotent with
+    # CREATE TABLE IF NOT EXISTS, so re-applying it is safe even if some
+    # tables already exist, but skipping the copy + exec is faster.)
+    local has_feedback=""
+    has_feedback=$(docker exec "$pg" psql -U texera -d texera_db -tAc \
+        "SELECT 1 FROM pg_tables WHERE schemaname='texera_db' AND tablename='feedback'" \
+        2>/dev/null || true)
+    if [[ "$has_feedback" == "1" ]]; then
+        tui_skip "postgres: schema already current"
+        return 0
+    fi
+    tui_step "postgres: applying sql/texera_ddl.sql (one-time bootstrap)"
+    local ddl="$REPO_ROOT/sql/texera_ddl.sql"
+    if [[ ! -f "$ddl" ]]; then
+        tui_warn "postgres: $ddl not found -- skipping (jOOQ codegen may fail)"
+        return 0
+    fi
+    docker cp "$ddl" "$pg":/tmp/texera_ddl.sql >/dev/null
+    if docker exec -u postgres "$pg" psql -U texera -f /tmp/texera_ddl.sql >/dev/null 2>&1; then
+        tui_ok "postgres: schema bootstrapped"
+    else
+        tui_warn "postgres: ddl exec returned non-zero (check container logs)"
+    fi
+}
+
 svc_running_pid() {
     listen_pid_for_port "${SVC_PORT[$1]}"
 }
@@ -1207,6 +1288,10 @@ cmd_up() {
                         printf "  ${DIM}docker compose -p texera-dev down${RESET}\n" ;;
             *)          infra_up || true ;;
         esac
+        # Whether infra is fresh or already up, make sure the texera_db
+        # schema is current — JVMs about to start expect it (jOOQ + Iceberg
+        # both need real tables).
+        infra_ensure_db_schema
     fi
 
     for svc in "${SERVICES[@]}"; do
