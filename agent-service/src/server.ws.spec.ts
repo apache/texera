@@ -90,9 +90,16 @@ function collect(ws: WebSocket): Collector {
       const found = buffer.find(predicate);
       if (found) return Promise.resolve(found);
       return new Promise((resolve, reject) => {
-        const w = { predicate, resolve };
+        let timer: ReturnType<typeof setTimeout>;
+        const w = {
+          predicate,
+          resolve: (m: any) => {
+            clearTimeout(timer);
+            resolve(m);
+          },
+        };
         waiters.push(w);
-        setTimeout(() => {
+        timer = setTimeout(() => {
           const idx = waiters.indexOf(w);
           if (idx >= 0) {
             waiters.splice(idx, 1);
@@ -148,7 +155,7 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const { ws, messages } = connect(id);
     await waitOpen(ws);
 
-    const snapshot = await messages.waitFor(m => m.type === "snapshot");
+    const snapshot = await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
     expect(snapshot.state).toBe("AVAILABLE");
     expect(Array.isArray(snapshot.steps)).toBe(true);
     expect(typeof snapshot.headId).toBe("string");
@@ -158,7 +165,7 @@ describe(`WS ${API}/agents/:id/react`, () => {
 
   test("errors and closes when connecting to an unknown agent", async () => {
     const { messages } = connect("agent-does-not-exist");
-    const err = await messages.waitFor(m => m.type === "error");
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
     expect(err.error).toBe("Agent not found");
   });
 
@@ -166,11 +173,11 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "snapshot");
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
 
-    ws.send(JSON.stringify({ type: "stop" }));
+    ws.send(JSON.stringify({ type: "WsClientStopCommand" }));
 
-    const status = await messages.waitFor(m => m.type === "status");
+    const status = await messages.waitFor(m => m.type === "WsServerStatusEvent");
     expect(status.state).toBe("STOPPING");
   });
 
@@ -178,11 +185,11 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "snapshot");
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
 
-    ws.send(JSON.stringify({ type: "prompt", content: "" }));
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "" }));
 
-    const err = await messages.waitFor(m => m.type === "error");
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
     expect(err.error).toBe("Message content is required");
   });
 
@@ -190,11 +197,11 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "snapshot");
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
 
     ws.send("this is not json");
 
-    const err = await messages.waitFor(m => m.type === "error");
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
     expect(err.error).toBe("Invalid message format");
   });
 
@@ -202,11 +209,11 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "snapshot");
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
 
     ws.send(JSON.stringify({ type: "bogus" }));
 
-    const err = await messages.waitFor(m => m.type === "error");
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
     expect(err.error).toBe("Unknown message type: bogus");
   });
 
@@ -252,18 +259,18 @@ describe(`WS ${API}/agents/:id/react`, () => {
 
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "snapshot");
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
 
-    ws.send(JSON.stringify({ type: "prompt", content: "hello" }));
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "hello" }));
 
-    const generating = await messages.waitFor(m => m.type === "status" && m.state === "GENERATING");
+    const generating = await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "GENERATING");
     expect(generating.state).toBe("GENERATING");
 
-    const step = await messages.waitFor(m => m.type === "step");
+    const step = await messages.waitFor(m => m.type === "WsServerStepEvent");
     expect(step.step.content).toBe("done");
     expect("operatorResults" in step).toBe(false);
 
-    const resting = await messages.waitFor(m => m.type === "status" && m.state === "AVAILABLE");
+    const resting = await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
     expect(resting.state).toBe("AVAILABLE");
   });
 
@@ -277,18 +284,18 @@ describe(`WS ${API}/agents/:id/react`, () => {
 
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "snapshot");
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
 
-    ws.send(JSON.stringify({ type: "prompt", content: "hello" }));
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "hello" }));
 
-    await messages.waitFor(m => m.type === "status" && m.state === "GENERATING");
+    await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "GENERATING");
 
-    const err = await messages.waitFor(m => m.type === "error");
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
     expect(err.error).toBe("boom");
 
     // The end-of-run status frame must still fire after a failure, so the client
     // is not left stuck on GENERATING.
-    const resting = await messages.waitFor(m => m.type === "status" && m.state === "AVAILABLE");
+    const resting = await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
     expect(resting.state).toBe("AVAILABLE");
   });
 
@@ -296,13 +303,13 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "snapshot");
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
 
     // Drop the agent while the socket stays open; the message handler re-looks it up.
     _resetAgentStoreForTests();
-    ws.send(JSON.stringify({ type: "prompt", content: "hello" }));
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "hello" }));
 
-    const err = await messages.waitFor(m => m.type === "error");
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
     expect(err.error).toBe("Agent not found");
   });
 
@@ -310,7 +317,7 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
     await waitOpen(ws);
-    await messages.waitFor(m => m.type === "snapshot");
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
 
     const closed = new Promise<void>(resolve => ws.addEventListener("close", () => resolve(), { once: true }));
     ws.close();

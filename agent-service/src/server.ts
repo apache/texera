@@ -40,7 +40,15 @@ import type {
   ReActStep,
 } from "./types/agent";
 import { AgentState, OperatorResultSerializationMode } from "./types/agent";
-import type { WsClientCommand, WsServerEvent, OperatorResultSummaryWs } from "./types/ws";
+import type { WsClientCommand, WsServerEvent } from "./types/ws";
+import {
+  WsServerSnapshotEvent,
+  WsServerStepEvent,
+  WsServerStatusEvent,
+  WsServerErrorEvent,
+  WsServerHeadChangeEvent,
+} from "./types/ws";
+import type { OperatorResultSummary } from "./types/execution";
 
 const agentStore = new Map<string, TexeraAgent>();
 let agentCounter = 0;
@@ -320,12 +328,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     const allSteps = agent.getAllSteps();
     const workflowContent = agent.getWorkflowState().getWorkflowContent();
 
-    broadcastToAgent(id, {
-      type: "headChange",
-      headId: stepId,
-      steps: allSteps,
-      workflowContent,
-    });
+    broadcastToAgent(id, new WsServerHeadChangeEvent(stepId, allSteps, workflowContent));
 
     return {
       status: "checked out",
@@ -410,10 +413,10 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   );
 
-function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummaryWs> {
+function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummary> {
   const resultState = agent.getWorkflowResultState();
   const visible = resultState.getAllVisible();
-  const results: Record<string, OperatorResultSummaryWs> = {};
+  const results: Record<string, OperatorResultSummary> = {};
   for (const [opId, entry] of visible) {
     const info = entry.operatorInfo;
     results[opId] = {
@@ -433,11 +436,18 @@ function getOperatorResultSummaries(agent: TexeraAgent): Record<string, Operator
   return results;
 }
 
-function broadcastToAgent(agentId: string, message: WsServerEvent): void {
+// Send a single server event to one client. Each event is constructed with
+// `new WsServer*Event(...)`, so the `type` tag is never hand-written here.
+function sendEvent(ws: { send(data: string): void }, event: WsServerEvent): void {
+  ws.send(JSON.stringify(event));
+}
+
+// Broadcast a server event to every client attached to the agent.
+function broadcastToAgent(agentId: string, event: WsServerEvent): void {
   const agent = agentStore.get(agentId);
   if (!agent) return;
 
-  const jsonMessage = JSON.stringify(message);
+  const jsonMessage = JSON.stringify(event);
   for (const ws of agent.getWebsockets()) {
     try {
       ws.send(jsonMessage);
@@ -466,20 +476,14 @@ export function buildApp() {
 
         const agent = agentStore.get(agentId);
         if (!agent) {
-          ws.send(JSON.stringify({ type: "error", error: "Agent not found" }));
+          sendEvent(ws, new WsServerErrorEvent("Agent not found"));
           ws.close();
           return;
         }
 
         agent.addWebsocket(ws);
 
-        const snapshotMessage: WsServerEvent = {
-          type: "snapshot",
-          state: agent.getState(),
-          steps: agent.getAllSteps(),
-          headId: agent.getHead(),
-        };
-        ws.send(JSON.stringify(snapshotMessage));
+        sendEvent(ws, new WsServerSnapshotEvent(agent.getState(), agent.getAllSteps(), agent.getHead()));
       },
 
       async message(ws, messageData) {
@@ -487,7 +491,7 @@ export function buildApp() {
         const agent = agentStore.get(agentId);
 
         if (!agent) {
-          ws.send(JSON.stringify({ type: "error", error: "Agent not found" }));
+          sendEvent(ws, new WsServerErrorEvent("Agent not found"));
           return;
         }
 
@@ -495,59 +499,61 @@ export function buildApp() {
         try {
           msg = typeof messageData === "string" ? JSON.parse(messageData) : (messageData as WsClientCommand);
         } catch {
-          ws.send(JSON.stringify({ type: "error", error: "Invalid message format" }));
+          sendEvent(ws, new WsServerErrorEvent("Invalid message format"));
           return;
         }
 
-        if (msg.type === "stop") {
-          agent.stop();
-          broadcastToAgent(agentId, { type: "status", state: AgentState.STOPPING });
-          return;
-        }
+        switch (msg.type) {
+          case "WsClientStopCommand":
+            agent.stop();
+            broadcastToAgent(agentId, new WsServerStatusEvent(AgentState.STOPPING));
+            return;
 
-        if (msg.type === "prompt") {
-          if (!msg.content || typeof msg.content !== "string") {
-            ws.send(JSON.stringify({ type: "error", error: "Message content is required" }));
+          case "WsClientPromptCommand": {
+            if (!msg.content || typeof msg.content !== "string") {
+              sendEvent(ws, new WsServerErrorEvent("Message content is required"));
+              return;
+            }
+
+            wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received message");
+
+            agent.setStepCallback((step: ReActStep) => {
+              broadcastToAgent(agentId, new WsServerStepEvent(step));
+            });
+
+            broadcastToAgent(agentId, new WsServerStatusEvent(AgentState.GENERATING));
+
+            try {
+              const result = await agent.sendMessage(msg.content, msg.messageSource);
+
+              agent.setStepCallback(null);
+
+              const allSteps = agent.getReActSteps();
+              const lastStep = allSteps[allSteps.length - 1];
+              if (lastStep && lastStep.isEnd) {
+                broadcastToAgent(agentId, new WsServerStepEvent(lastStep));
+              }
+
+              wsLog.info({ agentId, steps: result.messages.length }, "agent run complete");
+            } catch (error: any) {
+              agent.setStepCallback(null);
+              broadcastToAgent(agentId, new WsServerErrorEvent(error.message));
+            } finally {
+              // The run is over (success or failure) and TexeraAgent.sendMessage has
+              // reset the agent to its resting state (AVAILABLE) in its own finally.
+              // This status frame is the run-end signal (it also unsticks the client
+              // from GENERATING after errors).
+              broadcastToAgent(agentId, new WsServerStatusEvent(agent.getState()));
+            }
             return;
           }
 
-          wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received message");
-
-          agent.setStepCallback((step: ReActStep) => {
-            broadcastToAgent(agentId, { type: "step", step });
-          });
-
-          broadcastToAgent(agentId, { type: "status", state: AgentState.GENERATING });
-
-          try {
-            const result = await agent.sendMessage(msg.content, msg.messageSource);
-
-            agent.setStepCallback(null);
-
-            const allSteps = agent.getReActSteps();
-            const lastStep = allSteps[allSteps.length - 1];
-            if (lastStep && lastStep.isEnd) {
-              broadcastToAgent(agentId, { type: "step", step: lastStep });
-            }
-
-            wsLog.info({ agentId, steps: result.messages.length }, "agent run complete");
-          } catch (error: any) {
-            agent.setStepCallback(null);
-            broadcastToAgent(agentId, { type: "error", error: error.message });
-          } finally {
-            // The run is over (success or failure) and TexeraAgent.sendMessage has
-            // reset the agent to its resting state (AVAILABLE) in its own finally.
-            // This status frame is the run-end signal (it also unsticks the client
-            // from GENERATING after errors).
-            broadcastToAgent(agentId, { type: "status", state: agent.getState() });
-          }
-          return;
+          default:
+            // Frames are parsed from untrusted JSON; reject unknown discriminators
+            // explicitly instead of silently no-op'ing, so client/server mismatches
+            // are easy to diagnose.
+            sendEvent(ws, new WsServerErrorEvent(`Unknown message type: ${(msg as { type?: unknown }).type}`));
         }
-
-        // Frames are parsed from untrusted JSON; reject unknown discriminators
-        // explicitly instead of silently no-op'ing, so client/server mismatches
-        // are easy to diagnose.
-        ws.send(JSON.stringify({ type: "error", error: `Unknown message type: ${(msg as { type?: unknown }).type}` }));
       },
 
       close(ws) {
@@ -605,9 +611,11 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
     for (const route of wsRoutes) {
       console.log(`  WS     ${route.path}`);
     }
-    console.log("         Send: { type: 'prompt', content: '...' }");
-    console.log("         Send: { type: 'stop' }");
-    console.log("         Recv: { type: 'snapshot' | 'step' | 'status' | 'error' | 'headChange', ... }");
+    console.log("         Send: { type: 'WsClientPromptCommand', content: '...' }");
+    console.log("         Send: { type: 'WsClientStopCommand' }");
+    console.log(
+      "         Recv: { type: 'WsServerSnapshotEvent' | 'WsServerStepEvent' | 'WsServerStatusEvent' | 'WsServerErrorEvent' | 'WsServerHeadChangeEvent', ... }"
+    );
   }
 
   console.log("");

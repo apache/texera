@@ -18,77 +18,69 @@
  */
 
 // Server -> client WebSocket frames for this service's protocol
+// (`/agents/:id/react`). Each frame is a class whose `type` discriminator
+// equals its class name, so `new WsServerStatusEvent(...)` sets the wire tag
+// for you. `WsServerEvent` is their discriminated union.
 
 import type { AgentState, ReActStep } from "../agent";
 import type { WorkflowContent } from "../workflow";
-import type { CustomUnionType } from "../util";
-
-/**
- * Wire projection of one operator's execution result, summarized for the
- * client: counts and a small record sample instead of full payloads.
- */
-export interface OperatorResultSummaryWs {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
-  outputColumns?: number;
-  error?: string;
-  warnings?: string[];
-  consoleLogCount?: number;
-  totalRowCount?: number;
-  sampleRecords?: Record<string, unknown>[];
-  resultStatistics?: Record<string, string>;
-}
 
 /**
  * Full state pushed once when a client connects: the agent's current lifecycle
  * state, the complete step list, and the HEAD pointer. Operator results are not
- * included — they are pulled on demand via `GET /operator-results`.
+ * included — they are pulled on demand via `GET /agents/:id/operator-results`.
  */
-export interface WsServerSnapshotEvent extends Readonly<{
-  state: AgentState;
-  steps: ReActStep[];
-  headId: string;
-}> {}
+export class WsServerSnapshotEvent {
+  readonly type = "WsServerSnapshotEvent";
+  constructor(
+    readonly state: AgentState,
+    readonly steps: ReActStep[],
+    readonly headId: string
+  ) {}
+}
 
 /** A single ReAct step, streamed live as the agent runs. */
-export interface WsServerStepEvent extends Readonly<{
-  step: ReActStep;
-}> {}
+export class WsServerStepEvent {
+  readonly type = "WsServerStepEvent";
+  constructor(readonly step: ReActStep) {}
+}
 
 /**
  * An agent lifecycle transition (e.g. GENERATING when a run starts, the resting
  * state when it ends, STOPPING on stop).
  */
-export interface WsServerStatusEvent extends Readonly<{
-  state: AgentState;
-}> {}
+export class WsServerStatusEvent {
+  readonly type = "WsServerStatusEvent";
+  constructor(readonly state: AgentState) {}
+}
 
 /** An error surfaced to the client (agent not found, bad request, failed run). */
-export interface WsServerErrorEvent extends Readonly<{
-  error: string;
-}> {}
+export class WsServerErrorEvent {
+  readonly type = "WsServerErrorEvent";
+  constructor(readonly error: string) {}
+}
 
 /**
  * Emitted after a checkout: HEAD moved, carrying the full step list and the
  * workflow snapshot at the new head.
  *
- * @deprecated Redundant and unused. TODO: remove this message and related caller logics.
+ * @deprecated Unused by the frontend/UI — nothing invokes the client's
+ * `checkoutStep()`. The `/agents/:id/checkout` route (and its tests) still
+ * broadcast it, so it remains reachable; do not build new UI on it.
  */
-export interface WsServerHeadChangeEvent extends Readonly<{
-  headId: string;
-  steps: ReActStep[];
-  workflowContent?: WorkflowContent;
-}> {}
-
-export type WsServerEventTypeMap = {
-  snapshot: WsServerSnapshotEvent;
-  step: WsServerStepEvent;
-  status: WsServerStatusEvent;
-  error: WsServerErrorEvent;
-  headChange: WsServerHeadChangeEvent;
-};
+export class WsServerHeadChangeEvent {
+  readonly type = "WsServerHeadChangeEvent";
+  constructor(
+    readonly headId: string,
+    readonly steps: ReActStep[],
+    readonly workflowContent?: WorkflowContent
+  ) {}
+}
 
 /** Discriminated union of every server -> client frame. */
-export type WsServerEvent = CustomUnionType<WsServerEventTypeMap>;
+export type WsServerEvent =
+  | WsServerSnapshotEvent
+  | WsServerStepEvent
+  | WsServerStatusEvent
+  | WsServerErrorEvent
+  | WsServerHeadChangeEvent;

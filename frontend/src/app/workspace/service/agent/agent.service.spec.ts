@@ -134,7 +134,7 @@ describe("AgentService", () => {
 
       service.stopGeneration("agent-1");
 
-      expect(send).toHaveBeenCalledWith(JSON.stringify({ type: "stop" }));
+      expect(send).toHaveBeenCalledWith(JSON.stringify({ type: "WsClientStopCommand" }));
     });
 
     it("falls back to the REST stop endpoint when no websocket is open", () => {

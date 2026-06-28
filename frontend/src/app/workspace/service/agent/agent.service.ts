@@ -449,7 +449,7 @@ export class AgentService {
    */
   private handleWebSocketMessage(agentId: string, tracking: AgentStateTracking, message: any): void {
     switch (message.type) {
-      case "snapshot":
+      case "WsServerSnapshotEvent":
         // Initial state and steps
         if (message.state) {
           tracking.stateSubject.next(this.mapStateToAgentState(message.state));
@@ -473,7 +473,7 @@ export class AgentService {
         }
         break;
 
-      case "step":
+      case "WsServerStepEvent":
         // New step received - update existing step or append new one
         if (message.step) {
           const convertedStep = this.convertApiReActStep(message.step);
@@ -512,14 +512,14 @@ export class AgentService {
         }
         break;
 
-      case "status":
+      case "WsServerStatusEvent":
         // State update
         if (message.state) {
           tracking.stateSubject.next(this.mapStateToAgentState(message.state));
         }
         break;
 
-      case "headChange":
+      case "WsServerHeadChangeEvent":
         // HEAD moved (checkout) — update HEAD, visible steps, and workflow
         if (message.headId !== undefined) {
           tracking.headIdSubject.next(message.headId);
@@ -539,7 +539,7 @@ export class AgentService {
         }
         break;
 
-      case "error":
+      case "WsServerErrorEvent":
         // Error occurred
         console.error(`Agent ${agentId} error:`, message.error);
 
@@ -890,7 +890,7 @@ export class AgentService {
     }
 
     const wsMessage = {
-      type: "prompt",
+      type: "WsClientPromptCommand",
       content: message,
       messageSource,
     };
@@ -948,7 +948,7 @@ export class AgentService {
     if (tracking?.websocket && tracking.websocket.readyState === WebSocket.OPEN) {
       // Send stop via WebSocket for immediate effect
       try {
-        tracking.websocket.send(JSON.stringify({ type: "stop" }));
+        tracking.websocket.send(JSON.stringify({ type: "WsClientStopCommand" }));
       } catch (error) {
         console.error("Failed to send stop command:", error);
       }
