@@ -113,6 +113,17 @@ dev:
       - any-glob-to-any-file:
           - 'bin/**'
 
+infra:
+  # Dev-loop tooling for bringing up / tailing the local stack lives under
+  # bin/local-dev*. Tracked on its own label so the matching CI stack runs
+  # on changes here without dragging the broader `dev` label (which is a
+  # no-op stack-mapping-wise) into the equation.
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'bin/local-dev.sh'
+          - 'bin/local-dev-tui.py'
+          - 'bin/local-dev/**'
+
 dependencies:
   - changed-files:
       - any-glob-to-any-file:

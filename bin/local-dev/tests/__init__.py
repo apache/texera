@@ -14,24 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Test- and dev-only Python dependencies. Installed in CI after the
-# LICENSE-binary snapshot is taken, so packages here never appear in
-# pip-licenses output and never need to be tracked in LICENSE-binary
-# / NOTICE-binary. Not installed by packaging.
-
-# pytest test runner and plugins.
-pytest==9.0.3
-pytest-reraise==2.1.2
-pytest-timeout==2.4.0
-
-# Coverage instrumentation for pytest; emits coverage.xml consumed by
-# Codecov's Phase 1 upload.
-pytest-cov==7.1.0
-
-# protoc plugin for bin/python-proto-gen.sh; runtime needs only the
-# base `betterproto` in requirements.txt.
-betterproto[compiler]==2.0.0b7
-
-# Required by `bin/local-dev.sh -i` (the interactive Textual TUI).
-textual==8.2.7

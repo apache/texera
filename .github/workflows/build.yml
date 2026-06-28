@@ -60,6 +60,10 @@ on:
         required: false
         type: boolean
         default: true
+      run_infra:
+        required: false
+        type: boolean
+        default: true
       mode:
         # PR (default) | nightly | release. Only "PR" passes
         # --ignore-transitive-version to check_binary_deps.py.
@@ -917,3 +921,41 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+
+  infra:
+    # Tests for the dev-loop tooling under bin/local-dev*.
+    # Light job: bash syntax + smoke tests, plus pytest unit tests for the
+    # pure helpers in local-dev-tui.py. No docker / sbt / live stack — those
+    # belong in an e2e job we'll add when the tool is exercised more widely.
+    if: ${{ inputs.run_infra }}
+    name: ${{ format('infra{0} ({1})', inputs.job_name_suffix, matrix.os) }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.12"]
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Python test deps
+        # amber/dev-requirements.txt pins both `pytest` and `textual` — the
+        # latter so a fresh dev who follows the AGENTS.md venv-setup
+        # instructions ends up with the TUI working.
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r amber/dev-requirements.txt
+      - name: Run shell smoke tests (bash)
+        run: bash bin/local-dev/tests/test_local_dev_sh.sh
+      - name: Run Python unit tests
+        run: python -m pytest bin/local-dev/tests/ -v --tb=short
