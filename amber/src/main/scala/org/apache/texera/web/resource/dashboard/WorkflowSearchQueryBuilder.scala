@@ -29,6 +29,8 @@ import org.jooq.impl.DSL.groupConcatDistinct
 import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import software.amazon.awssdk.services.s3.endpoints.internal.Value.Str
 
 object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
 
@@ -56,6 +58,7 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
     val baseQuery = WORKFLOW
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .and(if (uid == null) DSL.falseCondition() else WORKFLOW_USER_ACCESS.UID.eq(uid))
       .leftJoin(WORKFLOW_OF_USER)
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
       .leftJoin(USER)
@@ -64,13 +67,14 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       .on(WORKFLOW_OF_PROJECT.WID.eq(WORKFLOW.WID))
       .leftJoin(PROJECT_USER_ACCESS)
       .on(PROJECT_USER_ACCESS.PID.eq(WORKFLOW_OF_PROJECT.PID))
+      .and(if (uid == null) DSL.falseCondition() else PROJECT_USER_ACCESS.UID.eq(uid))
 
     var condition: Condition = DSL.trueCondition()
     if (uid == null) {
       condition = WORKFLOW.IS_PUBLIC.eq(true)
     } else {
       val privateAccessCondition =
-        WORKFLOW_USER_ACCESS.UID.eq(uid).or(PROJECT_USER_ACCESS.UID.eq(uid))
+        WORKFLOW_USER_ACCESS.UID.eq(uid).or(PROJECT_USER_ACCESS.UID.isNotNull)
       if (includePublic) {
         condition = privateAccessCondition.or(WORKFLOW.IS_PUBLIC.eq(true))
       } else {
@@ -137,12 +141,18 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val pidField = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
+
+    val privilege: String = Option(record.get(WORKFLOW_USER_ACCESS.PRIVILEGE,classOf[PrivilegeEnum]))
+    .map(_.toString)
+    .getOrElse("NONE")
+
+    val ownerName: String = Option(record.into(USER).getName).getOrElse("")
+    val ownerUid: Integer = Option(record.into(USER).getUid).getOrElse(0)
+
     val dw = DashboardWorkflow(
       record.into(WORKFLOW_OF_USER).getUid.eq(uid),
-      record
-        .get(WORKFLOW_USER_ACCESS.PRIVILEGE)
-        .toString,
-      record.into(USER).getName,
+      privilege,
+      ownerName,
       record.into(WORKFLOW).into(classOf[Workflow]),
       if (record.get(pidField) == null) {
         List[Integer]()
@@ -154,7 +164,7 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
           .map(number => Integer.valueOf(number))
           .toList
       },
-      record.into(USER).getUid
+      ownerUid
     )
     DashboardClickableFileEntry(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE, workflow = Some(dw))
   }

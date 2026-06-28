@@ -66,31 +66,29 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder with LazyLogging {
       params: DashboardResource.SearchQueryParams,
       includePublic: Boolean = false
   ): TableLike[_] = {
+    // Select datasets that any `uid` has access to
+    // if `uid` is null the left join operation on USER_ACCESS is skipped
+    // if `uid` is not null find tables of specific `uid` filtered
     val baseJoin = DATASET
-      .leftJoin(DATASET_USER_ACCESS)
-      .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-      .leftJoin(USER)
-      .on(USER.UID.eq(DATASET.OWNER_UID))
+       .leftJoin(DATASET_USER_ACCESS)
+       .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+       .and(if (uid == null) DSL.falseCondition() else DATASET_USER_ACCESS.UID.eq(uid))
+       .leftJoin(USER)
+       .on(USER.UID.eq(DATASET.OWNER_UID))
 
-    // Default condition starts as true, ensuring all datasets are selected initially.
-    var condition: Condition = DSL.trueCondition()
-
-    if (uid == null) {
-      // If `uid` is null, the user is not logged in or performing a public search
-      // We only select datasets marked as public
-      condition = DATASET.IS_PUBLIC.eq(true)
-    } else {
-      // When `uid` is present, we add a condition to only include datasets with direct user access.
-      val userAccessCondition = DATASET_USER_ACCESS.UID.eq(uid)
-
-      if (includePublic) {
-        // If `includePublic` is true, we extend visibility to public datasets as well.
-        condition = userAccessCondition.or(DATASET.IS_PUBLIC.eq(true))
-      } else {
-        condition = userAccessCondition
-      }
-    }
-    baseJoin.where(condition)
+    // Set the `condition` where clause here    
+    val condition: Condition =
+       if (uid == null) {
+        // Get all the public datasets by default
+         DATASET.IS_PUBLIC.eq(true)
+       } else if (includePublic) {
+        // Get all the datasets that `uid` has access to and the publio datasets
+         DATASET.IS_PUBLIC.eq(true).or(DATASET_USER_ACCESS.UID.isNotNull)
+       } else {
+        // If `includePublic`` is false get only user accessible datasets
+         DATASET_USER_ACCESS.UID.isNotNull
+       }
+     baseJoin.where(condition)
   }
 
   override protected def constructWhereClause(
