@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,8 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Smoke tests for bin/local-dev.sh. Run from the repo root or anywhere:
-#   zsh bin/local-dev/tests/test_local_dev_sh.zsh
+# Smoke tests for bin/local-dev.sh. Runs under bash (the shebang) and
+# under zsh too (see the BASH_SOURCE/ZSH_SCRIPT/$0 resolver below).
+# Run it from the repo root, with either:
+#   bash bin/local-dev/tests/test_local_dev_sh.sh
+#   zsh  bin/local-dev/tests/test_local_dev_sh.sh
 # Exits 0 if every check passes, 1 otherwise.
 #
 # Kept deliberately small: bringing up the actual stack needs Docker /

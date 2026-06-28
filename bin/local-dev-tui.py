@@ -578,6 +578,15 @@ class LocalDevApp(App):
         padding: 0 2;
         border-bottom: heavy $primary;
     }
+    /* Collapsed mode: hide the wordmark, leave the title/sub two-liner.
+       Use `Ctrl-B` to toggle — useful on short terminals where the dashboard
+       gets cramped by the logo. */
+    #banner.-collapsed {
+        height: 3;
+    }
+    #banner.-collapsed #banner-logo {
+        display: none;
+    }
     #banner-logo  {
         color: #20b2aa;
         text-style: bold;
@@ -623,6 +632,7 @@ class LocalDevApp(App):
         Binding("escape", "escape_view",    "Exit log view",   priority=True, show=False),
         Binding("ctrl+l", "clear_log",      "Clear log",                         show=False),
         Binding("ctrl+r", "manual_refresh", "Refresh",                            show=False),
+        Binding("ctrl+b", "toggle_banner",  "Toggle banner",                      show=False),
     ]
 
     # Reactive state — Textual diffs widget content when these change.
@@ -845,6 +855,9 @@ class LocalDevApp(App):
             # Toggle log pane visibility manually.
             self._set_log_visible(not self._log_visible)
             return
+        if cmd in ("banner",):
+            self.action_toggle_banner()
+            return
         self._dispatch(cmd)
 
     def _show_help(self) -> None:
@@ -865,6 +878,7 @@ class LocalDevApp(App):
             "  s <svc>     stop one service",
             "  clear       clear the log pane",
             "  log         toggle log pane visibility",
+            "  banner      toggle banner (collapse the wordmark to save rows; Ctrl-B also works)",
             "  q           quit",
             "",
             "Mouse: double-click a service row to tail its log.",
@@ -1053,6 +1067,14 @@ class LocalDevApp(App):
         if self.active_cmd is None:
             self._set_log_visible(False)
         self._log_auto_hide_handle = None
+
+    def action_toggle_banner(self) -> None:
+        """Collapse / expand the ASCII wordmark to reclaim ~7 rows."""
+        banner = self.query_one("#banner")
+        if banner.has_class("-collapsed"):
+            banner.remove_class("-collapsed")
+        else:
+            banner.add_class("-collapsed")
 
     def action_clear_log(self) -> None:
         self.query_one("#log", RichLog).clear()

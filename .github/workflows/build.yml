@@ -967,7 +967,7 @@ jobs:
       - name: Run shell smoke tests (bash)
         # bin/local-dev.sh is bash-shebanged; CI mirrors that. zsh
         # portability is exercised by `bash -n` and `zsh -n` checks inside
-        # the harness itself (test 1a/1b in test_local_dev_sh.zsh).
-        run: bash bin/local-dev/tests/test_local_dev_sh.zsh
+        # the harness itself (test 1a/1b in test_local_dev_sh.sh).
+        run: bash bin/local-dev/tests/test_local_dev_sh.sh
       - name: Run Python unit tests
         run: python -m pytest bin/local-dev/tests/ -v --tb=short
