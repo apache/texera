@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { env } from "../config/env";
+import { getServiceEndpoints } from "../config/endpoints";
 import type { OperatorMetadata } from "../types/metadata";
 
 export type {
@@ -29,26 +29,9 @@ export type {
   OperatorMetadata,
 } from "../types/metadata";
 
-interface BackendConfig {
-  apiEndpoint: string;
-  modelsEndpoint: string;
-  compileEndpoint: string;
-  executionEndpoint: string;
-}
-
-const currentConfig: BackendConfig = {
-  apiEndpoint: env.TEXERA_DASHBOARD_SERVICE_ENDPOINT,
-  modelsEndpoint: env.LLM_ENDPOINT,
-  compileEndpoint: env.WORKFLOW_COMPILING_SERVICE_ENDPOINT,
-  executionEndpoint: env.WORKFLOW_EXECUTION_SERVICE_ENDPOINT,
-};
-
-export function getBackendConfig(): BackendConfig {
-  return { ...currentConfig };
-}
-
 export async function fetchOperatorMetadata(): Promise<OperatorMetadata> {
-  const url = `${currentConfig.apiEndpoint}/api/resources/operator-metadata`;
+  const { apiEndpoint } = getServiceEndpoints();
+  const url = `${apiEndpoint}/api/resources/operator-metadata`;
   const response = await fetch(url);
 
   if (!response.ok) {

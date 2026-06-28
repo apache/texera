@@ -109,11 +109,14 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   ],
 };
 
+/** Mirrors the backend UserRoleEnum. */
+export type UserRole = "INACTIVE" | "RESTRICTED" | "REGULAR" | "ADMIN";
+
 export interface UserInfo {
   uid: number;
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
 }
 
 export interface AgentDelegateConfig {
@@ -143,6 +146,12 @@ export interface AgentInfo {
   createdAt: Date;
   delegate?: AgentDelegateConfig;
   settings?: AgentSettingsApi;
+}
+
+/** `GET /agents/:id` response: an AgentInfo enriched with its loaded workflow. */
+export interface AgentDetail extends AgentInfo {
+  workflow?: WorkflowContent;
+  stepCount: number;
 }
 
 export interface CreateAgentRequest {

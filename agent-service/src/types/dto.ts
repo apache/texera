@@ -25,6 +25,12 @@ import type { WorkflowContent, OperatorPortSchemaMap } from "./workflow";
 
 // --- Dashboard Service: workflow persistence ---
 
+/**
+ * Parsed, in-memory workflow returned by the workflow client functions. The
+ * backend serializes `content` as a JSON string; the client decodes it into a
+ * WorkflowContent before returning, so this is distinct from the raw wire
+ * shapes below.
+ */
 export interface Workflow {
   wid: number;
   name: string;
@@ -32,7 +38,35 @@ export interface Workflow {
   content: WorkflowContent;
   creationTime?: number;
   lastModifiedTime?: number;
+}
+
+/**
+ * Raw JOOQ Workflow POJO returned by `POST /workflow/persist`. `content` is a
+ * JSON string and the published flag is `isPublic` (the column name).
+ */
+export interface WorkflowPojo {
+  wid: number;
+  name: string;
+  description?: string;
+  content: string;
+  creationTime?: number;
+  lastModifiedTime?: number;
+  isPublic?: boolean;
+}
+
+/**
+ * `GET /workflow/{wid}` response wrapper. `content` is a JSON string and the
+ * published flag is renamed to `isPublished`; it also adds `readonly`.
+ */
+export interface WorkflowWithPrivilege {
+  wid: number;
+  name: string;
+  description?: string;
+  content: string;
+  creationTime?: number;
+  lastModifiedTime?: number;
   isPublished?: boolean;
+  readonly?: boolean;
 }
 
 export interface WorkflowPersistRequest {
@@ -55,8 +89,26 @@ export interface WorkflowFatalError {
   timestamp?: { seconds: number; nanos: number };
 }
 
-export interface WorkflowCompilationResponse {
-  physicalPlan?: unknown;
+// `POST /api/compile` returns a Jackson polymorphic type discriminated by
+// `type`: a success carries the physical plan, a failure carries per-operator
+// errors. Both carry the output schemas computed so far.
+export interface WorkflowCompilationSuccess {
+  type: "success";
+  physicalPlan: unknown;
   operatorOutputSchemas: Record<string, OperatorPortSchemaMap>;
+}
+
+export interface WorkflowCompilationFailure {
+  type: "failure";
   operatorErrors: Record<string, WorkflowFatalError>;
+  operatorOutputSchemas: Record<string, OperatorPortSchemaMap>;
+}
+
+export type WorkflowCompilationResponse = WorkflowCompilationSuccess | WorkflowCompilationFailure;
+
+// --- Shared HTTP envelopes ---
+
+/** Error body returned by the agent-service REST routes. */
+export interface ErrorResponse {
+  error: string;
 }

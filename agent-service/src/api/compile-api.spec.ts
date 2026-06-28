@@ -32,10 +32,51 @@ const plan: LogicalPlan = {
 };
 
 describe("compileWorkflowAsync", () => {
-  test("POSTs to /api/compile and returns the parsed compilation response", async () => {
-    // operatorErrors uses the proto-accurate WorkflowFatalError shape (type is the enum name string).
-    const responseBody = {
-      physicalPlan: { nodes: [] },
+  function mockJson(body: unknown) {
+    const fn = mock(async () => ({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => body,
+      text: async () => "",
+    }));
+    globalThis.fetch = fn as unknown as typeof fetch;
+    return fn;
+  }
+
+  test("POSTs the logical plan to /api/compile", async () => {
+    const fn = mockJson({ type: "success", physicalPlan: { nodes: [] }, operatorOutputSchemas: {} });
+
+    await compileWorkflowAsync(plan);
+
+    const [url, init] = fn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toEndWith("/api/compile");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({
+      operators: plan.operators,
+      links: plan.links,
+      opsToReuseResult: [],
+      opsToViewResult: [],
+    });
+  });
+
+  test("parses a success response", async () => {
+    mockJson({ type: "success", physicalPlan: { nodes: [] }, operatorOutputSchemas: {} });
+
+    const result = await compileWorkflowAsync(plan);
+
+    expect(result).not.toBeNull();
+    const compiled = result!;
+    expect(compiled.type).toBe("success");
+    if (compiled.type === "success") {
+      expect(compiled.physicalPlan).toEqual({ nodes: [] });
+    }
+  });
+
+  test("parses a failure response with proto-accurate operator errors", async () => {
+    // operatorErrors uses the WorkflowFatalError shape (type is the enum name string).
+    mockJson({
+      type: "failure",
       operatorOutputSchemas: {},
       operatorErrors: {
         op1: {
@@ -47,30 +88,22 @@ describe("compileWorkflowAsync", () => {
           timestamp: { seconds: 1, nanos: 0 },
         },
       },
-    };
-    const fn = mock(async () => ({
-      ok: true,
-      status: 200,
-      statusText: "OK",
-      json: async () => responseBody,
-      text: async () => "",
-    }));
-    globalThis.fetch = fn as unknown as typeof fetch;
+    });
 
     const result = await compileWorkflowAsync(plan);
 
-    const [url, init] = fn.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toEndWith("/api/compile");
-    expect(init.method).toBe("POST");
-    expect(JSON.parse(init.body as string)).toEqual({
-      operators: plan.operators,
-      links: plan.links,
-      opsToReuseResult: [],
-      opsToViewResult: [],
-    });
     expect(result).not.toBeNull();
-    expect(result!.operatorErrors.op1.type).toBe("COMPILATION_ERROR");
-    expect(result!.operatorErrors.op1.message).toBe("bad attribute");
+    const compiled = result!;
+    expect(compiled.type).toBe("failure");
+    if (compiled.type === "failure") {
+      expect(compiled.operatorErrors.op1.type).toBe("COMPILATION_ERROR");
+      expect(compiled.operatorErrors.op1.message).toBe("bad attribute");
+    }
+  });
+
+  test("returns null on an unrecognized response shape", async () => {
+    mockJson({ somethingElse: true });
+    expect(await compileWorkflowAsync(plan)).toBeNull();
   });
 
   test("returns null on a non-ok response", async () => {

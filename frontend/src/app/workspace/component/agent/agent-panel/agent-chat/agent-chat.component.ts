@@ -320,8 +320,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     }
 
     this.hoveredMessageIndex = index;
-    const hoveredStep = index !== null && index >= 0 ? this.visibleSteps[index] : null;
-    this.agentService.setHoveredMessage(this.agentInfo.id, hoveredStep);
   }
 
   public showResponseDetails(response: ReActStep): void {
@@ -383,20 +381,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     }
     const toolResult = response.toolResults[toolCallIndex];
     return toolResult.output || toolResult.result || toolResult;
-  }
-
-  public getToolOperatorAccess(
-    response: ReActStep,
-    toolCallIndex: number
-  ): { viewedOperatorIds: string[]; modifiedOperatorIds: string[] } | null {
-    if (!response.operatorAccess) {
-      return null;
-    }
-    return response.operatorAccess.get(toolCallIndex) || null;
-  }
-
-  public hasOperatorAccess(response: ReActStep): boolean {
-    return !!response.operatorAccess && response.operatorAccess.size > 0;
   }
 
   public sendMessage(): void {
@@ -505,18 +489,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (steps: ReActStep[]) => {
-          // Convert steps to plain objects (handle Map -> object for operatorAccess)
-          const exportSteps = steps.map(step => {
-            const plain: any = { ...step };
-            if (step.operatorAccess) {
-              const accessObj: Record<string, any> = {};
-              step.operatorAccess.forEach((value, key) => {
-                accessObj[key] = value;
-              });
-              plain.operatorAccess = accessObj;
-            }
-            return plain;
-          });
+          const exportSteps = steps.map(step => ({ ...step }));
 
           const exportData = {
             agentId: this.agentInfo.id,

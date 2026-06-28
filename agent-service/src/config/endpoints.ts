@@ -37,3 +37,14 @@ const endpoints: ServiceEndpoints = {
 export function getServiceEndpoints(): ServiceEndpoints {
   return { ...endpoints };
 }
+
+/**
+ * Base URL of the execution service for a given computing unit. In k8s each
+ * computing unit is a separate pod, so EXECUTION_ENDPOINT_TEMPLATE (with a
+ * `{cuid}` placeholder) overrides the shared executionEndpoint when set.
+ */
+export function executionEndpointFor(computingUnitId: number): string {
+  return env.EXECUTION_ENDPOINT_TEMPLATE
+    ? env.EXECUTION_ENDPOINT_TEMPLATE.replace("{cuid}", String(computingUnitId))
+    : endpoints.executionEndpoint;
+}

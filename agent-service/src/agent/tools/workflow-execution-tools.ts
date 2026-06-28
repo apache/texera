@@ -21,10 +21,9 @@ import { z } from "zod";
 import { tool } from "ai";
 import { createErrorResult, formatExecuteOperatorResult, getVisibleResultHeaders } from "./tools-utility";
 import type { WorkflowState } from "../workflow-state";
-import { getBackendConfig } from "../../api/backend-api";
-import { env } from "../../config/env";
-import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
-import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
+import { executionEndpointFor } from "../../config/endpoints";
+import type { LogicalPlan, LogicalLink, LogicalOperator } from "../../types/workflow";
+import type { OperatorInfo, SyncExecutionResult, SyncExecutionRequest } from "../../types/execution";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
 import { createLogger } from "../../logger";
@@ -87,7 +86,7 @@ interface OperatorValidation {
   messages: Record<string, string>;
 }
 
-function validateOperatorSchema(operatorType: string, operatorProperties: Record<string, any>): OperatorValidation {
+function validateOperatorSchema(operatorType: string, operatorProperties: Record<string, unknown>): OperatorValidation {
   const metadataStore = WorkflowSystemMetadata.getInstance();
   const validation = metadataStore.validateOperatorProperties(operatorType, operatorProperties);
   return validation.isValid ? { isValid: true, messages: {} } : { isValid: false, messages: validation.messages };
@@ -183,7 +182,7 @@ function buildLogicalPlan(workflowState: WorkflowState, opsToViewResult?: string
   const useSubDAG = opsToViewResult && opsToViewResult.length === 1;
   const targetOperatorId = useSubDAG ? opsToViewResult[0] : undefined;
 
-  let operatorsList: { operatorID: string; operatorType: string; [key: string]: any }[];
+  let operatorsList: LogicalOperator[];
   let linksList: LogicalLink[];
 
   const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
@@ -256,23 +255,16 @@ async function executeWorkflowHttp(
   logicalPlan: LogicalPlan,
   options: { abortSignal?: AbortSignal } = {}
 ): Promise<SyncExecutionResult> {
-  const backendConfig = getBackendConfig();
-
   const workflowId = config.workflowId;
   const computingUnitId = config.computingUnitId ?? 0;
 
-  // In k8s each computing unit is a separate pod, so the endpoint varies per cuid.
-  const executionEndpoint = env.EXECUTION_ENDPOINT_TEMPLATE
-    ? env.EXECUTION_ENDPOINT_TEMPLATE.replace("{cuid}", String(computingUnitId))
-    : backendConfig.executionEndpoint;
-
-  const url = `${executionEndpoint}/api/execution/${workflowId}/${computingUnitId}/run`;
+  const url = `${executionEndpointFor(computingUnitId)}/api/execution/${workflowId}/${computingUnitId}/run`;
 
   const timeoutSeconds = config.executionTimeoutMs
     ? Math.ceil(config.executionTimeoutMs / 1000)
     : Math.ceil(DEFAULT_AGENT_SETTINGS.executionTimeoutMs / 1000);
 
-  const request = {
+  const request: SyncExecutionRequest = {
     executionName: "agent-execution",
     logicalPlan: {
       operators: logicalPlan.operators,
@@ -355,7 +347,8 @@ function formatInputOutput(
     .sort((a, b) => a.portIndex - b.portIndex)
     .map(p => {
       const name = portIndexToUpstream.get(p.portIndex) ?? `input${p.portIndex}`;
-      return `${name}(${p.rows}, ${p.columns})`;
+      // The backend reports only a row count per input port (no column count).
+      return `${name}(${p.rows} rows)`;
     })
     .join(", ");
 
@@ -393,7 +386,7 @@ function formatExecutionError(
   return lines.join("\n");
 }
 
-function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
+function jsonToTableFormat(jsonResult: Record<string, unknown>[]): string {
   if (!jsonResult || jsonResult.length === 0) return "";
 
   const hasRowIndex = jsonResult.length > 0 && "__row_index__" in jsonResult[0];
@@ -471,10 +464,7 @@ export async function executeOperatorAndFormat(
     });
 
     if (!result.success) {
-      const compilationErrors =
-        result.state === "CompilationFailed" || result.state === "ValidationFailed"
-          ? result.compilationErrors
-          : undefined;
+      const compilationErrors = result.state === "CompilationFailed" ? result.compilationErrors : undefined;
 
       const operatorErrors =
         result.state === "Failed"
@@ -519,7 +509,7 @@ export async function executeOperatorAndFormat(
       return "(no result data)";
     }
 
-    const jsonArray = opInfo.result as Record<string, any>[];
+    const jsonArray = opInfo.result;
     const headers = jsonArray.length > 0 ? getVisibleResultHeaders(jsonArray[0]) : [];
     const columns = headers.length;
 

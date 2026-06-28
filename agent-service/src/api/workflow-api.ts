@@ -17,12 +17,29 @@
  * under the License.
  */
 
-import { getBackendConfig } from "./backend-api";
+import { getServiceEndpoints } from "../config/endpoints";
 import { createAuthHeaders } from "../auth/jwt";
 import type { WorkflowContent } from "../types/workflow";
-import type { Workflow, WorkflowPersistRequest } from "../types/dto";
+import type { Workflow, WorkflowPojo, WorkflowWithPrivilege, WorkflowPersistRequest } from "../types/dto";
 
 const WORKFLOW_BASE_URL = "workflow";
+
+// The backend serializes `content` as a JSON string; decode it into the
+// in-memory WorkflowContent. Tolerate an already-parsed object too, since some
+// callers/tests pass one.
+function toWorkflow(raw: WorkflowPojo | WorkflowWithPrivilege): Workflow {
+  const rawContent: unknown = raw.content;
+  const content =
+    typeof rawContent === "string" ? (JSON.parse(rawContent) as WorkflowContent) : (rawContent as WorkflowContent);
+  return {
+    wid: raw.wid,
+    name: raw.name,
+    description: raw.description,
+    creationTime: raw.creationTime,
+    lastModifiedTime: raw.lastModifiedTime,
+    content,
+  };
+}
 
 export async function persistWorkflow(
   token: string,
@@ -31,8 +48,8 @@ export async function persistWorkflow(
   content: WorkflowContent,
   description?: string
 ): Promise<Workflow> {
-  const config = getBackendConfig();
-  const url = `${config.apiEndpoint}/api/${WORKFLOW_BASE_URL}/persist`;
+  const { apiEndpoint } = getServiceEndpoints();
+  const url = `${apiEndpoint}/api/${WORKFLOW_BASE_URL}/persist`;
 
   const response = await fetch(url, {
     method: "POST",
@@ -51,16 +68,12 @@ export async function persistWorkflow(
     throw new Error(`Failed to persist workflow: ${response.status} ${response.statusText} - ${errorText}`);
   }
 
-  const data = (await response.json()) as Workflow;
-  if (typeof data.content === "string") {
-    data.content = JSON.parse(data.content as unknown as string);
-  }
-  return data;
+  return toWorkflow((await response.json()) as WorkflowPojo);
 }
 
 export async function retrieveWorkflow(token: string, wid: number): Promise<Workflow> {
-  const config = getBackendConfig();
-  const url = `${config.apiEndpoint}/api/${WORKFLOW_BASE_URL}/${wid}`;
+  const { apiEndpoint } = getServiceEndpoints();
+  const url = `${apiEndpoint}/api/${WORKFLOW_BASE_URL}/${wid}`;
 
   const response = await fetch(url, {
     method: "GET",
@@ -72,9 +85,5 @@ export async function retrieveWorkflow(token: string, wid: number): Promise<Work
     throw new Error(`Failed to retrieve workflow: ${response.status} ${response.statusText} - ${errorText}`);
   }
 
-  const data = (await response.json()) as Workflow;
-  if (typeof data.content === "string") {
-    data.content = JSON.parse(data.content as unknown as string);
-  }
-  return data;
+  return toWorkflow((await response.json()) as WorkflowWithPrivilege);
 }

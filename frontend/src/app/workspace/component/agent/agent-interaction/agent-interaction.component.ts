@@ -76,7 +76,6 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   @Input() operatorId!: string;
   @Input() operatorDisplayName?: string;
   @Input() sampleRecords?: Record<string, any>[];
-  @Input() resultStatistics?: Record<string, string>;
 
   public availableAgents: Array<{ id: string; name: string; isConnected: boolean }> = [];
   public selectedAgentId: string | null = null;
@@ -208,60 +207,6 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   public getColumnDisplayName(col: string): string {
     if (col.startsWith("_") && col.includes("row_index")) return "Row";
     return col;
-  }
-
-  /**
-   * Parse resultStatistics into displayable column stats.
-   * Each entry in resultStatistics is a JSON string with { data_type, statistics: { ... } }.
-   */
-  public getParsedColumnStats(): Array<{
-    column: string;
-    dataType: string;
-    stats: Array<{ key: string; value: string }>;
-  }> {
-    if (!this.resultStatistics) return [];
-    const sampleCols = this.getSampleColumns().filter(c => !c.startsWith("_") || !c.includes("row_index"));
-    const columns = sampleCols.length > 0 ? sampleCols : Object.keys(this.resultStatistics);
-    const result: Array<{ column: string; dataType: string; stats: Array<{ key: string; value: string }> }> = [];
-    const excludedKeys = new Set(["count", "std", "p25", "median", "p75"]);
-
-    for (const colName of columns) {
-      const statsJson = this.resultStatistics[colName];
-      if (!statsJson) continue;
-      try {
-        const parsed = JSON.parse(statsJson);
-        const dataType: string = parsed.data_type ?? "unknown";
-        const statistics: Record<string, any> = parsed.statistics ?? {};
-        const statEntries: Array<{ key: string; value: string }> = [];
-
-        for (const [key, value] of Object.entries(statistics)) {
-          if (value === undefined || excludedKeys.has(key)) continue;
-          if (key === "top_10" && typeof value === "object") {
-            const topEntries = Object.entries(value as Record<string, any>)
-              .slice(0, 5)
-              .map(([k, v]) => `${k}: ${v}`)
-              .join(", ");
-            statEntries.push({ key: "top values", value: topEntries });
-          } else if (value === null || String(value) === "null") {
-            statEntries.push({ key, value: "NaN" });
-          } else if (typeof value !== "object") {
-            const formatted =
-              typeof value === "number" && !Number.isInteger(value)
-                ? Number(value.toPrecision(4)).toString()
-                : String(value);
-            statEntries.push({ key, value: formatted });
-          }
-        }
-        result.push({ column: colName, dataType, stats: statEntries });
-      } catch {
-        // skip unparseable
-      }
-    }
-    return result;
-  }
-
-  public hasColumnStats(): boolean {
-    return this.getParsedColumnStats().length > 0;
   }
 
   public getDisplayRows(): Array<{ record?: Record<string, any>; isEllipsis: boolean }> {

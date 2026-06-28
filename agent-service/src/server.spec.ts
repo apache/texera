@@ -339,7 +339,6 @@ describe("agent read routes", () => {
                 warnings: [],
                 consoleLogs: [],
                 totalRowCount: 2,
-                resultStatistics: {},
               },
             },
           ],

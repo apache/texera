@@ -176,7 +176,7 @@ function serializeDag(
   );
 
   const outputSchemas = compilationResult?.operatorOutputSchemas ?? {};
-  const compilationErrors = compilationResult?.operatorErrors ?? {};
+  const compilationErrors = compilationResult?.type === "failure" ? compilationResult.operatorErrors : {};
 
   lines.push("## Operators");
   lines.push("");

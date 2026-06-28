@@ -30,14 +30,14 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorInfo, w
     return "(no result data)";
   }
 
-  const jsonArray = opInfo.result as Record<string, any>[];
+  const jsonArray = opInfo.result;
   const headers = jsonArray.length > 0 ? getVisibleResultHeaders(jsonArray[0]) : [];
   const columns = headers.length;
 
   const isViz = jsonArray.length > 0 && jsonArray[0]["__is_visualization__"] === true;
   const serializableArray = isViz
     ? jsonArray.map(row => {
-        const cleaned: Record<string, any> = {};
+        const cleaned: Record<string, unknown> = {};
         for (const key of Object.keys(row)) {
           if (key === "__is_visualization__") continue;
           if (key === "html-content" || key === "json-content") {
@@ -89,14 +89,15 @@ function formatInputOutputMetadata(
     .sort((a, b) => a.portIndex - b.portIndex)
     .map(p => {
       const name = portIndexToUpstream.get(p.portIndex) ?? `input${p.portIndex}`;
-      return `${name}(${p.rows}, ${p.columns})`;
+      // The backend reports only a row count per input port (no column count).
+      return `${name}(${p.rows} rows)`;
     })
     .join(", ");
 
   return `Input operator(table shape): ${inputPart}\n${outputLine}`;
 }
 
-function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
+function jsonToTableFormat(jsonResult: Record<string, unknown>[]): string {
   if (!jsonResult || jsonResult.length === 0) return "";
 
   const hasRowIndex = "__row_index__" in jsonResult[0];

@@ -116,7 +116,18 @@ export interface WorkflowContent {
   readonly settings: WorkflowSettings;
 }
 
-type AttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";
+// Mirrors the backend AttributeType enum (its Jackson @JsonValue strings). ANY
+// serializes as "" and is not emitted in compiled output schemas.
+type AttributeType =
+  | "string"
+  | "integer"
+  | "double"
+  | "boolean"
+  | "long"
+  | "timestamp"
+  | "binary"
+  | "large_binary"
+  | "";
 
 export interface SchemaAttribute {
   readonly attributeName: string;

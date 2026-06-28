@@ -86,20 +86,6 @@ export class ReActStepDetailModalComponent {
     return toolResult.output || toolResult.result || toolResult;
   }
 
-  public getToolOperatorAccess(
-    step: ReActStep,
-    toolCallIndex: number
-  ): { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] } | null {
-    if (!step.operatorAccess) {
-      return null;
-    }
-    return step.operatorAccess.get(toolCallIndex) || null;
-  }
-
-  public hasOperatorAccess(step: ReActStep): boolean {
-    return !!step.operatorAccess && step.operatorAccess.size > 0;
-  }
-
   /**
    * Get tag color for a message role.
    */

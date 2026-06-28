@@ -190,7 +190,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleOperatorStatisticsUpdate();
     this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
-    this.handleAgentHoverHighlight();
     this.handleElementDelete();
     this.handleElementSelectAll();
     this.handleElementCopy();
@@ -1519,70 +1518,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Handle agent hover highlighting to show "viewed", "added", and "modified" labels on operators
-   */
-  private handleAgentHoverHighlight(): void {
-    const setupAgentHoverSubscription = () => {
-      this.agentService
-        .getAllAgents()
-        .pipe(untilDestroyed(this))
-        .subscribe(agents => {
-          agents.forEach(agent => {
-            // Subscribe to each agent's hover operators stream
-            this.agentService
-              .getHoveredMessageOperatorsObservable(agent.id)
-              .pipe(untilDestroyed(this))
-              .subscribe(({ viewedOperatorIds, addedOperatorIds, modifiedOperatorIds }) => {
-                // Clear all previous labels first
-                this.clearAllAgentActionLabels();
-
-                // Show "viewed" labels on viewed operators
-                viewedOperatorIds.forEach(operatorId => {
-                  if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
-                    this.jointUIService.showAgentActionLabel(this.paper, operatorId, "viewed", agent.name);
-                  }
-                });
-
-                // Show "added" labels on added operators
-                addedOperatorIds.forEach(operatorId => {
-                  if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
-                    this.jointUIService.showAgentActionLabel(this.paper, operatorId, "added", agent.name);
-                  }
-                });
-
-                // Show "modified" labels on modified operators
-                modifiedOperatorIds.forEach(operatorId => {
-                  if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
-                    this.jointUIService.showAgentActionLabel(this.paper, operatorId, "modified", agent.name);
-                  }
-                });
-              });
-          });
-        });
-    };
-
-    // Subscribe to agent changes to set up hover subscriptions
-    this.agentService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
-      setupAgentHoverSubscription();
-    });
-
-    // Initial setup
-    setupAgentHoverSubscription();
-  }
-
-  /**
-   * Clear all agent action labels from all operators
-   */
-  private clearAllAgentActionLabels(): void {
-    this.workflowActionService
-      .getTexeraGraph()
-      .getAllOperators()
-      .forEach(op => {
-        this.jointUIService.hideAgentActionLabel(this.paper, op.operatorID);
-      });
-  }
-
-  /**
    * Handle the chat button click on operators.
    * Opens a chat popover for the operator to interact with agents.
    */
@@ -1696,12 +1631,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.changeDetectorRef.detectChanges();
   }
 
-  getOperatorSampleRecords(operatorId: string): Record<string, any>[] | undefined {
+  getOperatorSampleRecords(operatorId: string): Record<string, unknown>[] | undefined {
     return this.operatorSummaries.get(operatorId)?.sampleRecords;
-  }
-
-  getOperatorResultStatistics(operatorId: string): Record<string, string> | undefined {
-    return this.operatorSummaries.get(operatorId)?.resultStatistics;
   }
 
   isOperatorVisualization(operatorId: string): boolean {

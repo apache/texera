@@ -103,7 +103,7 @@ describe("AgentService", () => {
       const req = httpMock.expectOne(r => r.method === "GET" && r.url === "/api/agents/agent-1/operator-results");
       req.flush({
         results: {
-          "op-1": { sampleRecords: [{ a: 1 }], resultStatistics: { a: "{}" } },
+          "op-1": { sampleRecords: [{ a: 1 }] },
         },
       });
 

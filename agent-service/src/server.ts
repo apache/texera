@@ -22,18 +22,20 @@ import { cors } from "@elysiajs/cors";
 import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
 import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
-import { getBackendConfig } from "./api/backend-api";
 import { extractBearerToken, extractUserFromToken, validateToken } from "./auth/jwt";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
+import { getServiceEndpoints } from "./config/endpoints";
 import { createLogger } from "./logger";
 
 const log = createLogger("Server");
 const wsLog = createLogger("WS");
 import type {
   AgentInfo,
+  AgentDetail,
   AgentDelegateConfig,
+  AgentSettings,
   CreateAgentRequest,
   UpdateAgentSettingsRequest,
   AgentSettingsApi,
@@ -43,6 +45,7 @@ import { AgentState, OperatorResultSerializationMode } from "./types/agent";
 import type { WsClientCommand, WsServerEvent } from "./types/ws";
 import { WsServerSnapshotEvent, WsServerStepEvent, WsServerStatusEvent, WsServerErrorEvent } from "./types/ws";
 import type { OperatorResultSummary } from "./types/execution";
+import type { ErrorResponse } from "./types/dto";
 
 const agentStore = new Map<string, TexeraAgent>();
 let agentCounter = 0;
@@ -53,10 +56,10 @@ async function createAgentInstance(
   customName?: string
 ): Promise<{ agentId: string; agent: TexeraAgent }> {
   const agentId = `agent-${++agentCounter}`;
-  const config = getBackendConfig();
+  const { modelsEndpoint } = getServiceEndpoints();
 
   const openai = createOpenAI({
-    baseURL: `${config.modelsEndpoint}/api`,
+    baseURL: `${modelsEndpoint}/api`,
     // The LLM gateway (access-control-service) enforces a REGULAR/ADMIN-role
     // JWT (apache/texera#5421) and injects the LiteLLM master key downstream,
     // so the delegating user's JWT is the only credential this service sends.
@@ -102,19 +105,26 @@ async function createAgentInstance(
   return { agentId, agent };
 }
 
-function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
-  const agentSettings = agent.getSettings();
-  const settingsApi: AgentSettingsApi = {
-    maxOperatorResultCharLimit: agentSettings.maxOperatorResultCharLimit,
-    maxOperatorResultCellCharLimit: agentSettings.maxOperatorResultCellCharLimit,
-    operatorResultSerializationMode: agentSettings.operatorResultSerializationMode,
-    toolTimeoutSeconds: Math.round(agentSettings.toolTimeoutMs / 1000),
-    executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
-    disabledTools: Array.from(agentSettings.disabledTools),
-    maxSteps: agentSettings.maxSteps,
-    allowedOperatorTypes: agentSettings.allowedOperatorTypes,
+// Project the internal AgentSettings onto the API/wire shape (ms -> s/min, Set
+// -> array). Single source for every route that returns settings.
+function toAgentSettingsApi(settings: AgentSettings): AgentSettingsApi {
+  return {
+    maxOperatorResultCharLimit: settings.maxOperatorResultCharLimit,
+    maxOperatorResultCellCharLimit: settings.maxOperatorResultCellCharLimit,
+    operatorResultSerializationMode: settings.operatorResultSerializationMode,
+    toolTimeoutSeconds: Math.round(settings.toolTimeoutMs / 1000),
+    executionTimeoutMinutes: Math.round(settings.executionTimeoutMs / 60000),
+    disabledTools: Array.from(settings.disabledTools),
+    maxSteps: settings.maxSteps,
+    allowedOperatorTypes: settings.allowedOperatorTypes,
   };
+}
 
+function errorResponse(message: string): ErrorResponse {
+  return { error: message };
+}
+
+function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
   const delegateConfig = agent.getDelegateConfig();
 
   return {
@@ -132,7 +142,7 @@ function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
           computingUnitId: delegateConfig.computingUnitId,
         }
       : undefined,
-    settings: settingsApi,
+    settings: toAgentSettingsApi(agent.getSettings()),
   };
 }
 
@@ -162,10 +172,10 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     // Body schema violations and malformed JSON are client errors, not 500s.
     if (code === "VALIDATION" || code === "PARSE") {
       set.status = 400;
-      return { error: errorMessage || "Invalid request body" };
+      return errorResponse(errorMessage || "Invalid request body");
     }
     set.status = ERROR_STATUS[errorMessage] ?? 500;
-    return { error: errorMessage || "Internal server error" };
+    return errorResponse(errorMessage || "Internal server error");
   })
   .get("/", () => {
     const agentList = Array.from(agentStore.entries()).map(([id, agent]) => getAgentInfo(id, agent));
@@ -255,14 +265,14 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       ...getAgentInfo(id, agent),
       workflow: agent.getWorkflowState().getWorkflowContent(),
       stepCount: agent.getReActSteps().length,
-    };
+    } satisfies AgentDetail;
   })
 
   .delete("/:id", ({ params: { id }, set }) => {
     const agent = agentStore.get(id);
     if (!agent) {
       set.status = 404;
-      return { error: "Agent not found" };
+      return errorResponse("Agent not found");
     }
 
     agent.destroy();
@@ -320,17 +330,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
 
   .get("/:id/settings", ({ params: { id } }) => {
     const agent = getAgent(id);
-    const agentSettings = agent.getSettings();
-    return {
-      maxOperatorResultCharLimit: agentSettings.maxOperatorResultCharLimit,
-      maxOperatorResultCellCharLimit: agentSettings.maxOperatorResultCellCharLimit,
-      operatorResultSerializationMode: agentSettings.operatorResultSerializationMode,
-      toolTimeoutSeconds: Math.round(agentSettings.toolTimeoutMs / 1000),
-      executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
-      disabledTools: Array.from(agentSettings.disabledTools),
-      maxSteps: agentSettings.maxSteps,
-      allowedOperatorTypes: agentSettings.allowedOperatorTypes,
-    };
+    return toAgentSettingsApi(agent.getSettings());
   })
 
   .patch(
@@ -362,17 +362,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         allowedOperatorTypes: settings.allowedOperatorTypes,
       });
 
-      const agentSettings = agent.getSettings();
-      return {
-        maxOperatorResultCharLimit: agentSettings.maxOperatorResultCharLimit,
-        maxOperatorResultCellCharLimit: agentSettings.maxOperatorResultCellCharLimit,
-        operatorResultSerializationMode: agentSettings.operatorResultSerializationMode,
-        toolTimeoutSeconds: Math.round(agentSettings.toolTimeoutMs / 1000),
-        executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
-        disabledTools: Array.from(agentSettings.disabledTools),
-        maxSteps: agentSettings.maxSteps,
-        allowedOperatorTypes: agentSettings.allowedOperatorTypes,
-      };
+      return toAgentSettingsApi(agent.getSettings());
     },
     {
       body: t.Object({
@@ -405,7 +395,6 @@ function getOperatorResultSummaries(agent: TexeraAgent): Record<string, Operator
       consoleLogCount: info.consoleLogs?.length,
       totalRowCount: info.totalRowCount,
       sampleRecords: info.result,
-      resultStatistics: info.resultStatistics,
     };
   }
   return results;
@@ -545,7 +534,7 @@ export function buildApp() {
       // Catch-all for non-router routes such as /api/healthcheck and the websocket route.
       log.error({ err: error }, "request error");
       set.status = 500;
-      return { error: error instanceof Error ? error.message : String(error) };
+      return errorResponse(error instanceof Error ? error.message : String(error));
     });
 }
 
@@ -595,9 +584,10 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
 
   console.log("");
   console.log("Environment:");
-  console.log(`  LLM_ENDPOINT: ${getBackendConfig().modelsEndpoint}`);
-  console.log(`  WORKFLOW_COMPILING_SERVICE_ENDPOINT: ${getBackendConfig().compileEndpoint}`);
-  console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${getBackendConfig().apiEndpoint}`);
+  const endpoints = getServiceEndpoints();
+  console.log(`  LLM_ENDPOINT: ${endpoints.modelsEndpoint}`);
+  console.log(`  WORKFLOW_COMPILING_SERVICE_ENDPOINT: ${endpoints.compileEndpoint}`);
+  console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${endpoints.apiEndpoint}`);
   console.log("");
   console.log("Features:");
   console.log("  - Auto-persistence with debounce (500ms)");
