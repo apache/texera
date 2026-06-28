@@ -39,14 +39,20 @@ class LambdaAttributeUnitSpec extends AnyFlatSpec with Matchers {
     val b = new LambdaAttributeUnit("score", "1 + 1", "scoreOut", AttributeType.INTEGER)
     a shouldBe b
     a.hashCode shouldBe b.hashCode
+    a should not be new LambdaAttributeUnit("other", "1 + 1", "scoreOut", AttributeType.INTEGER)
     a should not be new LambdaAttributeUnit("score", "1 + 2", "scoreOut", AttributeType.INTEGER)
+    a should not be new LambdaAttributeUnit("score", "1 + 1", "renamed", AttributeType.INTEGER)
+    a should not be new LambdaAttributeUnit("score", "1 + 1", "scoreOut", AttributeType.DOUBLE)
   }
 
   "LambdaAttributeUnit" should "round-trip through Jackson" in {
     val u = new LambdaAttributeUnit("score", "1 + 1", "scoreOut", AttributeType.INTEGER)
     val json = objectMapper.writeValueAsString(u)
-    json should include("\"attributeName\":\"score\"")
-    json should include("\"expression\":\"1 + 1\"")
+    val node = objectMapper.readTree(json)
+    node.get("attributeName").asText shouldBe "score"
+    node.get("expression").asText shouldBe "1 + 1"
+    node.get("newAttributeName").asText shouldBe "scoreOut"
+    node.get("attributeType").asText shouldBe "integer"
     objectMapper.readValue(json, classOf[LambdaAttributeUnit]) shouldBe u
   }
 }

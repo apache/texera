@@ -39,7 +39,9 @@ class TypeCastingUnitSpec extends AnyFlatSpec with Matchers {
     u.attribute = "amount"
     u.resultType = AttributeType.INTEGER
     val json = objectMapper.writeValueAsString(u)
-    json should include("\"attribute\":\"amount\"")
+    val node = objectMapper.readTree(json)
+    node.get("attribute").asText shouldBe "amount"
+    node.get("resultType").asText shouldBe "integer"
     val restored = objectMapper.readValue(json, classOf[TypeCastingUnit])
     restored.attribute shouldBe "amount"
     restored.resultType shouldBe AttributeType.INTEGER

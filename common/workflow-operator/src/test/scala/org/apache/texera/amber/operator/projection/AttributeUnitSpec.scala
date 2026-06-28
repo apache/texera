@@ -41,14 +41,15 @@ class AttributeUnitSpec extends AnyFlatSpec with Matchers {
     val b = new AttributeUnit("col", "x")
     a shouldBe b
     a.hashCode shouldBe b.hashCode
-    a should not be new AttributeUnit("col", "y")
+    a should not be new AttributeUnit("col", "y") // differs by alias
+    a should not be new AttributeUnit("other", "x") // differs by original attribute
   }
 
   "AttributeUnit" should "round-trip through Jackson" in {
     val u = new AttributeUnit("col", "renamed")
-    val json = objectMapper.writeValueAsString(u)
-    json should include("\"originalAttribute\":\"col\"")
-    json should include("\"alias\":\"renamed\"")
-    objectMapper.readValue(json, classOf[AttributeUnit]) shouldBe u
+    val node = objectMapper.readTree(objectMapper.writeValueAsString(u))
+    node.get("originalAttribute").asText shouldBe "col"
+    node.get("alias").asText shouldBe "renamed"
+    objectMapper.readValue(objectMapper.writeValueAsString(u), classOf[AttributeUnit]) shouldBe u
   }
 }
