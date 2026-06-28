@@ -1433,12 +1433,57 @@ needs_bun_install() {
     return 1
 }
 
+# Cache of per-service transitive src dirs, populated once at startup by
+# _precompute_src_dirs(). Bash assoc arrays only hold scalars, so each
+# entry is a newline-separated list — callers consume via `while read`
+# (same shape as the old _svc_src_dirs output).
+declare -A SVC_SRC_DIRS=()
+
+_precompute_src_dirs() {
+    local svc="" entry="" dirs=""
+    for svc in "${SERVICES[@]}"; do
+        [[ "${SVC_TYPE[$svc]}" == "jvm" ]] || continue
+        entry="${SVC_SBT[$svc]:-}"
+        # computing-unit-master rides amber's dist (no SVC_SBT of its
+        # own); enter the graph at the producing project explicitly.
+        if [[ -z "$entry" && "$svc" == "computing-unit-master" ]]; then
+            entry="WorkflowExecutionService"
+        fi
+        dirs=""
+        if [[ -n "$entry" && -n "${SBT_PATH[$entry]:-}" ]]; then
+            dirs="$(_sbt_transitive_src_dirs "$entry" 2>/dev/null)" || dirs=""
+        fi
+        if [[ -z "$dirs" ]]; then
+            # Fallback: build.sbt parse failed (or unknown service) —
+            # use the conservative common/* list so we over-report
+            # rather than silently miss source changes.
+            if [[ "$svc" == "texera-web" || "$svc" == "computing-unit-master" ]]; then
+                dirs="amber/src"
+            else
+                dirs="$svc/src"
+            fi
+            dirs+=$'\n'"common/dao/src"
+            dirs+=$'\n'"common/config/src"
+            dirs+=$'\n'"common/auth/src"
+            dirs+=$'\n'"common/workflow-core/src"
+            dirs+=$'\n'"common/workflow-operator/src"
+            dirs+=$'\n'"common/pybuilder/src"
+        fi
+        SVC_SRC_DIRS[$svc]="$dirs"
+    done
+}
+
+# Single lookup against the pre-populated cache. Falls back to a live
+# walk if SVC_SRC_DIRS was never populated (e.g. a test sourcing only
+# this function), so callers can rely on it being non-empty for any
+# known JVM service.
 _svc_src_dirs() {
     local svc="$1"
-    # Prefer the parsed build.sbt graph so each service only watches its
-    # actual transitive dependency tree. computing-unit-master rides
-    # amber's dist but has no SVC_SBT of its own — enter the graph at the
-    # producing project explicitly.
+    if [[ -n "${SVC_SRC_DIRS[$svc]:-}" ]]; then
+        printf '%s\n' "${SVC_SRC_DIRS[$svc]}"
+        return 0
+    fi
+    # Slow path — only reached if _precompute_src_dirs hasn't run.
     local entry="${SVC_SBT[$svc]:-}"
     if [[ -z "$entry" && "$svc" == "computing-unit-master" ]]; then
         entry="WorkflowExecutionService"
@@ -1449,9 +1494,6 @@ _svc_src_dirs() {
         printf '%s\n' "$out"
         return 0
     fi
-    # Fallback: build.sbt parse failed (or unknown service) — emit the old
-    # conservative common/* list so we over-report rather than miss
-    # changes. Same idea as the Python TUI's _FALLBACK_COMMON_SRC.
     if [[ "$svc" == "texera-web" || "$svc" == "computing-unit-master" ]]; then
         echo "amber/src"
     else
@@ -2302,6 +2344,11 @@ cmd_interactive() {
 }
 
 # --------- main ---------
+# Warm the per-service source-dir cache so dirty checks below skip the
+# repeated BFS over the sbt graph. ~5ms of one-time cost; saves N×BFS
+# work per `cmd_up` / `cmd_auto` / status loop.
+_precompute_src_dirs
+
 case "${1:-}" in
     ""|status)        cmd_status ;;             # default: one-shot dashboard (safe in scripts/CI)
     -i|--interactive) cmd_interactive ;;        # opt in to the live TUI

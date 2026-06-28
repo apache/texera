@@ -156,6 +156,20 @@ def _transitive_src_dirs(sbt_project: Optional[str], graph: dict[str, dict]) -> 
 
 _SBT_GRAPH = _parse_sbt_deps()
 
+
+# Per-sbt-project transitive closure, memoised. Computed once on first
+# touch; subsequent dirty checks are O(1) lookup vs the prior O(deps)
+# BFS per call.
+_SBT_TRANSITIVE_CACHE: dict[str, list[str]] = {}
+
+
+def _transitive_src_dirs_cached(sbt_project: Optional[str]) -> list[str]:
+    if sbt_project is None:
+        return _transitive_src_dirs(None, _SBT_GRAPH)
+    if sbt_project not in _SBT_TRANSITIVE_CACHE:
+        _SBT_TRANSITIVE_CACHE[sbt_project] = _transitive_src_dirs(sbt_project, _SBT_GRAPH)
+    return _SBT_TRANSITIVE_CACHE[sbt_project]
+
 POLL_INTERVAL_S = 1.0     # how often to refresh service state
 DIRTY_INTERVAL_S = 2.0    # how often to recompute dirty indicators
 
@@ -477,7 +491,7 @@ def _jvm_src_dirs(svc: Service) -> list[Path]:
         "computing-unit-master": "WorkflowExecutionService",
     }
     project = svc.sbt_project or SHARED_SBT_PROJECT.get(svc.name)
-    src_dirs = _transitive_src_dirs(project, _SBT_GRAPH) if _SBT_GRAPH else []
+    src_dirs = _transitive_src_dirs_cached(project) if _SBT_GRAPH else []
     if not src_dirs:
         # build.sbt parse failed (or this service was an unknown shape) —
         # fall back to the conservative pre-parse list so dirty detection
