@@ -126,5 +126,30 @@ else
     _fail "-i didn't refuse cleanly" "rc=$rc out=$(echo "$out" | head -1)"
 fi
 
+# 9) Regression: when no Python on the candidate list has textual, the
+#    error message + install hint must actually print. The bug it
+#    guards against: zsh's `set -e` aborts the script silently when a
+#    command substitution's command exits non-zero (`var=$(returns 1)`),
+#    so the install-hint code below the assignment never ran. `script`
+#    allocates a pty so the TTY check passes and we get to the python
+#    check.
+if command -v script >/dev/null 2>&1; then
+    bad_py="/usr/bin/python3"
+    if [[ -x "$bad_py" ]] && ! "$bad_py" -c "import textual" >/dev/null 2>&1; then
+        out=$(env -i HOME="$HOME" PATH=/usr/bin:/bin TERM="${TERM:-xterm}" \
+            script -q /dev/null sh -c "$SCRIPT -i; echo __rc=\$?" </dev/null 2>&1)
+        if [[ "$out" == *"requires Python"* && "$out" == *"install Python"* && "$out" == *"__rc=1"* ]]; then
+            _pass "-i with no textual prints the install hint (regression for zsh set -e bug)"
+        else
+            _fail "-i with no textual didn't print install hint" \
+                "got: $(echo "$out" | head -3 | tr '\n' '|')"
+        fi
+    else
+        _pass "skip: no textual-less python available to test against"
+    fi
+else
+    _pass "skip: 'script' not on PATH"
+fi
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))

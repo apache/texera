@@ -1813,11 +1813,16 @@ cmd_interactive() {
         tui_err "interactive mode requires a TTY"
         exit 1
     fi
+    # zsh + `set -e` kills the script when a command substitution's command
+    # exits non-zero (`var=$(false)` → silent abort). Suppress with || true
+    # so the error path below actually gets to print the install hint.
     local py=""
-    py="$(_find_python_with_textual)"
+    py="$(_find_python_with_textual)" || true
     if [[ -z "$py" ]]; then
         tui_err "interactive mode requires Python with the ${BOLD}textual${RESET} package"
-        printf "  ${DIM}tried interpreters:${RESET} %s\n" "$(_probed_pythons | paste -sd ' ' -)"
+        local tried=""
+        tried="$(_probed_pythons | paste -sd ' ' -)" || true
+        printf "  ${DIM}tried interpreters:${RESET} %s\n" "${tried:-(none found)}"
         printf "\n"
         _install_hint python
         exit 1
