@@ -53,11 +53,11 @@ From the repo root, run:
 bin/single-node.sh up
 ```
 
-This pre-flights Docker, then runs `docker compose --profile examples up -d` to start the stack and pre-create two example workflows and datasets. The command returns once containers are started; tail any service with `bin/single-node.sh logs <service>`.
+This pre-flights Docker, then runs `docker compose up -d` to start the stack in the background. The command returns once containers are started; tail any service with `bin/single-node.sh logs <service>`.
 
-If you don't want the examples pre-created, use raw `docker compose up` from this directory instead:
+To also pre-create two example workflows and datasets (the `examples` profile), add `--with-examples`:
 ```bash
-cd bin/single-node && docker compose up
+bin/single-node.sh up --with-examples
 ```
 
 > If you see the error message like `unable to get image 'nginx:alpine': Cannot connect to the Docker daemon at unix:///Users/kunwoopark/.docker/run/docker.sock. Is the docker daemon running?`, please make sure Docker Desktop is installed and running

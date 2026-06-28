@@ -99,6 +99,27 @@ else
     _fail "down should reject unknown flags" "rc=$rc out=$out"
 fi
 
+# 5b) `up` with an unknown flag refuses cleanly (same drift guard).
+out=$("$SCRIPT" up --not-a-real-flag 2>&1)
+rc=$?
+if (( rc != 0 )) && [[ "$out" == *"unknown flag"* ]]; then
+    _pass "up rejects unknown flags"
+else
+    _fail "up should reject unknown flags" "rc=$rc out=$out"
+fi
+
+# 5c) `up --with-examples` passes flag parsing (gets through to the
+#     docker pre-flight, which is the expected failure point when
+#     docker isn't installed — that's NOT a flag-parse error). The
+#     accepted flag must not bounce off the unknown-flag arm.
+out=$("$SCRIPT" up --with-examples 2>&1)
+rc=$?
+if [[ "$out" != *"unknown flag"* ]]; then
+    _pass "up --with-examples is accepted by flag parser"
+else
+    _fail "up --with-examples should be accepted" "rc=$rc out=$out"
+fi
+
 # 6) Regression: when docker is not running, every subcommand that
 #    actually talks to docker (up / down / status / logs) must abort
 #    cleanly with a "Docker daemon" hint rather than crashing or

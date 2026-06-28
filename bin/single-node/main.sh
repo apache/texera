@@ -20,10 +20,12 @@
 #
 # Subcommands:
 #   bin/single-node.sh                       same as `status` (no-arg default).
-#   bin/single-node.sh up                    pre-flight docker check, then
-#                                            `docker compose --profile examples
-#                                            up -d`. Detached so you can keep
-#                                            using the shell.
+#   bin/single-node.sh up [--with-examples]  pre-flight docker check, then
+#                                            `docker compose up -d`. Detached
+#                                            so you can keep using the shell.
+#                                            Add `--with-examples` to also
+#                                            pre-create two demo workflows +
+#                                            datasets (the `examples` profile).
 #   bin/single-node.sh down [--volumes]      stop every container. `--volumes`
 #                                            also drops data volumes
 #                                            (full reset — destroys workflows,
@@ -41,7 +43,6 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 COMPOSE_FILE="$REPO_ROOT/bin/single-node/docker-compose.yml"
-COMPOSE_PROFILE="examples"
 
 # --------- output helpers ---------
 if [[ -t 1 ]]; then
@@ -94,10 +95,24 @@ print_url_tip() {
 
 # --------- subcommands ---------
 cmd_up() {
+    local with_examples=false
+    case "${1:-}" in
+        "")              ;;
+        --with-examples) with_examples=true ;;
+        *)
+            tui_err "unknown flag for up: $1 (only --with-examples is accepted)"
+            exit 1
+            ;;
+    esac
     need_docker
     tui_header "Texera single-node — up"
-    tui_step "docker compose --profile $COMPOSE_PROFILE up -d"
-    compose --profile "$COMPOSE_PROFILE" up -d
+    if $with_examples; then
+        tui_step "docker compose --profile examples up -d  (with demo workflows + datasets)"
+        compose --profile examples up -d
+    else
+        tui_step "docker compose up -d"
+        compose up -d
+    fi
     tui_ok "stack started (first boot pulls ~5 min of images)"
     printf "\n"
     print_url_tip
@@ -115,13 +130,17 @@ cmd_down() {
     esac
     need_docker
     tui_header "Texera single-node — down"
+    # Always include `--profile examples` so we also stop the demo
+    # containers if the user started with --with-examples. compose
+    # silently ignores profile services that aren't running, so this is
+    # safe in both modes.
     if $drop_volumes; then
-        tui_step "docker compose --profile $COMPOSE_PROFILE down --volumes"
-        compose --profile "$COMPOSE_PROFILE" down --volumes
+        tui_step "docker compose --profile examples down --volumes"
+        compose --profile examples down --volumes
         tui_ok "stack stopped & data volumes removed"
     else
-        tui_step "docker compose --profile $COMPOSE_PROFILE down"
-        compose --profile "$COMPOSE_PROFILE" down
+        tui_step "docker compose --profile examples down"
+        compose --profile examples down
         tui_ok "stack stopped (data volumes preserved)"
     fi
 }
