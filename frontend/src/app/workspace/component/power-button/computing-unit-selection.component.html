@@ -452,12 +452,6 @@
         (click)="closePveModal()">
         Close
       </button>
-      <button
-        nz-button
-        nzType="primary"
-        (click)="addEnvironment()">
-        Add Environment
-      </button>
     </div>
   </ng-template>
 
@@ -511,6 +505,33 @@
       </nz-collapse>
     </div>
 
+    <!-- Saved environments (from the user's Python Venv DB list) -->
+    <div class="saved-pves-section">
+      <nz-collapse>
+        <nz-collapse-panel
+          nzHeader="Saved Environments"
+          [nzActive]="true">
+          <div
+            *ngIf="availableDbPves.length === 0"
+            class="saved-pve-empty">
+            No saved environments yet. Create one from the Environments tab.
+          </div>
+          <div
+            *ngFor="let saved of availableDbPves"
+            class="saved-pve-row">
+            <span class="saved-pve-name">{{ saved.name }}</span>
+            <button
+              nz-button
+              nzType="primary"
+              nzSize="small"
+              (click)="installFromSavedPve(saved.veid)">
+              {{ isSavedPveInstalledInCu(saved.name) ? "Reinstall" : "Install" }}
+            </button>
+          </div>
+        </nz-collapse-panel>
+      </nz-collapse>
+    </div>
+
     <!-- Environments -->
     <nz-collapse>
       <nz-collapse-panel
@@ -521,7 +542,14 @@
         <!-- Custom header -->
         <ng-template #headerTpl>
           <div class="env-header">
-            <span class="env-title"> {{ pve.name }} </span>
+            <span class="env-title">
+              {{ pve.name }}
+              <span
+                *ngIf="pve.isLocked"
+                class="env-unsynced-note">
+                Manual changes here won’t update the saved environment.
+              </span>
+            </span>
             <span
               class="env-actions"
               (click)="$event.stopPropagation()">
