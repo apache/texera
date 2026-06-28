@@ -56,7 +56,11 @@ import {
   isComputingUnitShmTooLarge,
   getJvmMemorySliderConfig,
 } from "../../../common/util/computing-unit.util";
-import { PvePackageResponse, WorkflowPveService } from "../../service/virtual-environment/virtual-environment.service";
+import {
+  PvePackageResponse,
+  UserPveRecord,
+  WorkflowPveService,
+} from "../../service/virtual-environment/virtual-environment.service";
 import { NgClass, NgIf, NgFor, DecimalPipe, TitleCasePipe } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
@@ -144,6 +148,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
   // which can take 30–60s on the first request after a server restart.
   systemPackagesLoading = false;
   pveModalVisible = false;
+
+  // Saved PVE specs (name + packages) the user defined in the Python Venv
+  // dashboard. Fetched whenever the CU PVE modal opens so the user can pick
+  // one and have its packages installed into the active CU.
+  availableDbPves: UserPveRecord[] = [];
 
   // current workflow's Id, will change with wid in the workflowActionService.metadata
   protected readonly unitTypeMessageTemplate = unitTypeMessageTemplate;
@@ -755,11 +764,52 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
-  addEnvironment(): void {
+  showPVEmodalVisible(): void {
+    this.pveModalVisible = true;
+    this.getPVEs();
+    this.refreshAvailableDbPves();
+  }
+
+  isSavedPveInstalledInCu(name: string): boolean {
+    const trimmed = name.trim();
+    return this.pves.some(p => p.isLocked && p.name.trim() === trimmed);
+  }
+
+  private refreshAvailableDbPves(): void {
+    this.workflowPveService
+      .listUserPves()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: records => {
+          this.availableDbPves = records;
+        },
+        error: (err: unknown) => {
+          console.error("Failed to fetch saved Python environments", err);
+          this.availableDbPves = [];
+        },
+      });
+  }
+
+  // Triggered when the user picks a saved PVE in the picker. Builds a new
+  // env card from its name + packages and starts CU install flow
+  // (createVirtualEnvironment), so pip output streams into the same panel.
+  installFromSavedPve(veid: number): void {
+    const saved = this.availableDbPves.find(p => p.veid === veid);
+    if (!saved) return;
+
+    const trimmedName = saved.name.trim();
+    const dbRows = this.parseDbPackages(saved.packages);
+
+    const existingIndex = this.pves.findIndex(p => p.isLocked && p.name.trim() === trimmedName);
+    if (existingIndex !== -1) {
+      this.applySavedPveAsUpdate(existingIndex, saved.name, dbRows);
+      return;
+    }
+
     this.pves.push({
-      name: "",
+      name: saved.name,
       userPackages: [],
-      newPackages: [],
+      newPackages: dbRows,
       deletingPackages: [],
       pipOutput: "",
       prettyPipOutput: "",
@@ -767,11 +817,62 @@ export class ComputingUnitSelectionComponent implements OnInit {
       isInstalling: false,
       isLocked: false,
     });
+
+    const newIndex = this.pves.length - 1;
+
+    setTimeout(() => this.createVirtualEnvironment(newIndex), 0);
   }
 
-  showPVEmodalVisible(): void {
-    this.pveModalVisible = true;
-    this.getPVEs();
+  private parseDbPackages(packages: Record<string, string> | null | undefined): PveUserPackageRow[] {
+    return Object.entries(packages ?? {}).map(([name, raw]) => {
+      const match = raw?.match?.(/^(==|>=|<=)(.*)$/);
+      return {
+        name,
+        versionOp: (match ? match[1] : "==") as "==" | ">=" | "<=",
+        version: match ? match[2] : raw ?? "",
+      };
+    });
+  }
+
+  // Computes the diff between the saved DB record and the locked card's
+  // current user packages, then triggers the existing update path
+  private applySavedPveAsUpdate(index: number, displayName: string, dbRows: PveUserPackageRow[]): void {
+    const existing = this.pves[index];
+
+    const dbByName = new Map(dbRows.map(p => [p.name.trim().toLowerCase(), p]));
+    const existingByName = new Map(existing.userPackages.map(p => [p.name.trim().toLowerCase(), p]));
+
+    const toInstall: PveUserPackageRow[] = [];
+    const toDelete: { name: string; version: string }[] = [];
+
+    dbByName.forEach((db, key) => {
+      const cur = existingByName.get(key);
+      if (!cur) {
+        toInstall.push({ name: db.name, versionOp: db.versionOp, version: db.version });
+      } else if ((cur.version ?? "").trim() !== (db.version ?? "").trim()) {
+        toDelete.push({ name: cur.name, version: (cur.version ?? "").trim() });
+        toInstall.push({ name: db.name, versionOp: db.versionOp, version: db.version });
+      }
+    });
+
+    existingByName.forEach((cur, key) => {
+      if (!dbByName.has(key)) {
+        toDelete.push({ name: cur.name, version: (cur.version ?? "").trim() });
+      }
+    });
+
+    if (toInstall.length === 0 && toDelete.length === 0) {
+      this.notificationService.success(`"${displayName}" is already up to date in this computing unit.`);
+      return;
+    }
+
+    const deletingKeys = new Set(toDelete.map(p => p.name.trim().toLowerCase()));
+    existing.userPackages = existing.userPackages.filter(p => !deletingKeys.has(p.name.trim().toLowerCase()));
+    existing.newPackages = toInstall;
+    existing.deletingPackages = toDelete;
+    existing.expanded = true;
+
+    setTimeout(() => this.createVirtualEnvironment(index), 0);
   }
 
   closePveModal(): void {
@@ -781,6 +882,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       pve.isInstalling = false;
     });
 
+    this.availableDbPves = [];
     this.pveModalVisible = false;
   }
 
