@@ -67,6 +67,9 @@ import { FilesUploaderComponent } from "../../files-uploader/files-uploader.comp
 import { NzProgressComponent } from "ng-zorro-antd/progress";
 import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
 import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { DriveService } from "../../../../service/user/google-drive/drive.service";
 
 export const THROTTLE_TIME_MS = 1000;
 export const ABORT_RETRY_MAX_ATTEMPTS = 10;
@@ -110,6 +113,10 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzProgressComponent,
     UserDatasetStagedObjectsListComponent,
     NzInputDirective,
+    NzDropdownDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
@@ -131,6 +138,8 @@ export class DatasetDetailComponent implements OnInit {
 
   public isRightBarCollapsed = false;
   public isMaximized = false;
+  public fileExportMenuVisible = false;
+  public versionExportMenuVisible = false;
 
   public versions: ReadonlyArray<DatasetVersion> = [];
   public selectedVersion: DatasetVersion | undefined;
@@ -182,7 +191,8 @@ export class DatasetDetailComponent implements OnInit {
     private downloadService: DownloadService,
     private userService: UserService,
     private hubService: HubService,
-    private adminSettingsService: AdminSettingsService
+    private adminSettingsService: AdminSettingsService,
+    private driveService: DriveService
   ) {
     this.userService
       .userChanged()
@@ -282,6 +292,15 @@ export class DatasetDetailComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe();
     }
+  }
+
+  public onClickDriveExportVersion(): void {
+    this.driveService
+      .connect()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: () => this.notificationService.error("Failed to connect to Google Drive"),
+      });
   }
 
   onPublicStatusChange(checked: boolean): void {
@@ -401,6 +420,15 @@ export class DatasetDetailComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe();
   };
+
+  public onClickDriveExportFile(): void {
+    this.driveService
+      .connect()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: () => this.notificationService.error("Failed to connect to Google Drive"),
+      });
+  }
 
   onClickScaleTheView() {
     this.isMaximized = !this.isMaximized;

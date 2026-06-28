@@ -58,6 +58,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
 import { MarkdownDescriptionComponent } from "../../../dashboard/component/user/markdown-description/markdown-description.component";
+import { DriveService } from "../../../dashboard/service/user/google-drive/drive.service";
 import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -162,6 +163,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   // Computing unit status variables
   public selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   public computingUnitStatus: ComputingUnitState = ComputingUnitState.NoComputingUnit;
+  public exportMenuVisible = false;
 
   @ViewChild(ComputingUnitSelectionComponent) computingUnitSelectionComponent!: ComputingUnitSelectionComponent;
 
@@ -187,7 +189,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
-    private router: Router
+    private router: Router,
+    private driveService: DriveService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -640,6 +643,15 @@ export class MenuComponent implements OnInit, OnDestroy {
     const workflowContentJson = JSON.stringify(workflowContent, null, 2);
     const fileName = this.currentWorkflowName + ".json";
     saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
+  }
+
+  public onClickDriveExportWorkflow(): void {
+    this.driveService
+      .connect()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: () => this.notificationService.error("Failed to connect to Google Drive"),
+      });
   }
 
   /**

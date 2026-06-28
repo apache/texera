@@ -22,7 +22,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
-import { BehaviorSubject, of, Subject, throwError } from "rxjs";
+import { BehaviorSubject, of, Subject, throwError, EMPTY } from "rxjs"; // of used by other tests
 
 import { MenuComponent } from "./menu.component";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
@@ -50,6 +50,7 @@ import { WorkflowContent } from "../../../common/type/workflow";
 import { Router } from "@angular/router";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
 import type { Mocked } from "vitest";
+import { DriveService } from "../../../dashboard/service/user/google-drive/drive.service";
 
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
 
@@ -66,8 +67,11 @@ describe("MenuComponent", () => {
   let notificationService: NotificationService;
   let location: Location;
   let validationStream$: BehaviorSubject<ValidationOutput>;
+  let driveServiceMock: Mocked<DriveService>;
 
   beforeEach(async () => {
+    driveServiceMock = { connect: vi.fn().mockReturnValue(EMPTY) } as unknown as Mocked<DriveService>;
+
     await TestBed.configureTestingModule({
       imports: [MenuComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([]), NzModalModule],
       providers: [
@@ -84,6 +88,7 @@ describe("MenuComponent", () => {
           },
         },
         { provide: UserService, useClass: StubUserService },
+        { provide: DriveService, useValue: driveServiceMock },
         ...commonTestProviders,
       ],
     }).compileComponents();
@@ -389,6 +394,22 @@ describe("MenuComponent", () => {
       expect(fileNameArg).toBe("my-workflow.json");
       expect(blobArg).toBeInstanceOf(Blob);
       expect(blobArg.type).toBe("text/plain;charset=utf-8");
+    });
+  });
+
+  describe("onClickDriveExportWorkflow", () => {
+    it("calls driveService.connect()", () => {
+      component.onClickDriveExportWorkflow();
+      expect(driveServiceMock.connect).toHaveBeenCalled();
+    });
+
+    it("shows error notification when connect fails", () => {
+      const errorSpy = vi.spyOn(notificationService, "error");
+      driveServiceMock.connect.mockReturnValue(throwError(() => new Error("blocked")));
+
+      component.onClickDriveExportWorkflow();
+
+      expect(errorSpy).toHaveBeenCalledWith("Failed to connect to Google Drive");
     });
   });
 
