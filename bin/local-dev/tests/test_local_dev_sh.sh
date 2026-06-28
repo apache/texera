@@ -16,11 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Smoke tests for bin/local-dev.sh. Runs under bash (the shebang) and
-# under zsh too (see the BASH_SOURCE/ZSH_SCRIPT/$0 resolver below).
-# Run it from the repo root, with either:
+# Smoke tests for bin/local-dev.sh. Run from the repo root:
 #   bash bin/local-dev/tests/test_local_dev_sh.sh
-#   zsh  bin/local-dev/tests/test_local_dev_sh.sh
 # Exits 0 if every check passes, 1 otherwise.
 #
 # Kept deliberately small: bringing up the actual stack needs Docker /
@@ -30,18 +27,7 @@
 
 set -u
 
-# Resolve this script's path in a way that works under both bash and zsh.
-# bash: $BASH_SOURCE[0] is reliable when sourced or executed.
-# zsh:  $ZSH_SCRIPT is the path zsh was invoked with; falls back to $0.
-# Pure $0 differs by invocation style across shells, so we don't rely on it.
-if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
-    _self="${BASH_SOURCE[0]}"
-elif [[ -n "${ZSH_SCRIPT:-}" ]]; then
-    _self="${ZSH_SCRIPT}"
-else
-    _self="$0"
-fi
-REPO_ROOT="$(cd "$(dirname "$_self")/../../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SCRIPT="$REPO_ROOT/bin/local-dev.sh"
 
 PASS=0
@@ -54,22 +40,12 @@ _fail() {
     FAIL=$((FAIL+1))
 }
 
-# 1a) bash -n: syntax check under bash 4+. Catches everything from typos
-#     to unbalanced heredocs without executing a line of the script.
+# 1) bash -n: syntax check. Catches everything from typos to unbalanced
+#    heredocs without executing a line of the script.
 if bash -n "$SCRIPT" 2>/tmp/.local-dev-syntax.err; then
     _pass "bash -n bin/local-dev.sh"
 else
     _fail "bash -n bin/local-dev.sh" "$(cat /tmp/.local-dev-syntax.err)"
-fi
-rm -f /tmp/.local-dev-syntax.err
-
-# 1b) zsh -n: same syntax check under zsh — confirms portability between
-#     shells, since both bash and zsh users may end up sourcing or
-#     hand-running pieces of this in their own session.
-if zsh -n "$SCRIPT" 2>/tmp/.local-dev-syntax.err; then
-    _pass "zsh -n bin/local-dev.sh"
-else
-    _fail "zsh -n bin/local-dev.sh" "$(cat /tmp/.local-dev-syntax.err)"
 fi
 rm -f /tmp/.local-dev-syntax.err
 

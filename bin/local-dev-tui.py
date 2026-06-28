@@ -76,16 +76,7 @@ SOURCE_SUFFIXES = {".scala", ".java", ".proto"}
 # graph in build.sbt. We parse it instead of hardcoding `common/*` so that
 # adding a `lazy val NewCommon = (project in file("common/new"))` and a
 # corresponding `.dependsOn(NewCommon)` automatically flows through to
-# dirty-detection without anyone touching this file. Fallback list below
-# is only used if parsing fails (very old / very new build.sbt format).
-_FALLBACK_COMMON_SRC = [
-    "common/dao/src",
-    "common/config/src",
-    "common/auth/src",
-    "common/workflow-core/src",
-    "common/workflow-operator/src",
-    "common/pybuilder/src",
-]
+# dirty-detection without anyone touching this file.
 
 
 def _parse_sbt_deps() -> dict[str, dict]:
@@ -138,10 +129,16 @@ def _parse_sbt_deps() -> dict[str, dict]:
 def _transitive_src_dirs(sbt_project: Optional[str], graph: dict[str, dict]) -> list[str]:
     """Return source dirs for sbt_project AND every project it transitively
     depends on. Each dir is `<project_path>/src` (the canonical sbt source
-    location). Order is stable; duplicates removed."""
+    location). Order is stable; duplicates removed. Raises if the graph
+    is empty or `sbt_project` isn't in it — silently falling back to a
+    hardcoded common/* list would mask a real build.sbt drift."""
+    if not graph:
+        raise RuntimeError("build.sbt dependency graph is empty — parse failed")
     if not sbt_project or sbt_project not in graph:
-        # Conservative fallback: every known common/* dir.
-        return list(_FALLBACK_COMMON_SRC)
+        raise RuntimeError(
+            f"sbt project {sbt_project!r} not found in build.sbt graph; "
+            f"known projects: {sorted(graph.keys())}"
+        )
     visited: set[str] = set()
     out: list[str] = []
 
@@ -203,11 +200,17 @@ def texera_version() -> str:
     if env:
         return env
     bs = REPO_ROOT / "build.sbt"
-    if bs.exists():
-        m = _VERSION_RE.search(bs.read_text(errors="replace"))
-        if m:
-            return m.group(1)
-    return "1.3.0-incubating-SNAPSHOT"   # last-ditch fallback
+    if not bs.exists():
+        raise RuntimeError(
+            f"build.sbt not found at {bs} — set TEXERA_VERSION to bypass"
+        )
+    m = _VERSION_RE.search(bs.read_text(errors="replace"))
+    if not m:
+        raise RuntimeError(
+            f"could not find `ThisBuild / version := \"…\"` in {bs} — "
+            f"set TEXERA_VERSION to bypass"
+        )
+    return m.group(1)
 
 
 TEXERA_VERSION = texera_version()
@@ -510,23 +513,20 @@ def container_uptime(svc_name: str) -> str:
 
 
 def _jvm_src_dirs(svc: Service) -> list[Path]:
-    # Derive the source-dir set from the SBT dependency graph rather than a
-    # hardcoded `common/*` list. For services that share another's sbt
-    # project (e.g. computing-unit-master rides amber's dist), we still
-    # need to enter the graph at the *producing* project — we map them
-    # explicitly via SHARED_SBT_PROJECT below.
+    # Derive the source-dir set from the SBT dependency graph in build.sbt.
+    # Services that share another's sbt project (e.g. computing-unit-master
+    # rides amber's dist) enter the graph at the *producing* project via
+    # SHARED_SBT_PROJECT.
     SHARED_SBT_PROJECT = {
         "computing-unit-master": "WorkflowExecutionService",
     }
     project = svc.sbt_project or SHARED_SBT_PROJECT.get(svc.name)
-    src_dirs = _transitive_src_dirs_cached(project) if _SBT_GRAPH else []
-    if not src_dirs:
-        # build.sbt parse failed (or this service was an unknown shape) —
-        # fall back to the conservative pre-parse list so dirty detection
-        # at least over-reports rather than silently missing changes.
-        src_dirs = list(_FALLBACK_COMMON_SRC)
-        if svc.own_src and svc.own_src not in src_dirs:
-            src_dirs.insert(0, svc.own_src)
+    if not project:
+        raise RuntimeError(
+            f"service {svc.name!r} has no sbt_project and no SHARED_SBT_PROJECT "
+            f"mapping — can't compute its source-dir closure"
+        )
+    src_dirs = _transitive_src_dirs_cached(project)
     return [REPO_ROOT / d for d in src_dirs if (REPO_ROOT / d).exists()]
 
 

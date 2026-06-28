@@ -52,13 +52,22 @@ def test_texera_version_env_var_wins(tmp_path, monkeypatch, tui):
     assert tui.texera_version() == "from-env"
 
 
-def test_texera_version_falls_back_when_missing(tmp_path, monkeypatch, tui):
-    # No build.sbt in tmp_path
+def test_texera_version_raises_when_build_sbt_missing(tmp_path, monkeypatch, tui):
+    # No build.sbt in tmp_path. No fallback — must raise so a stale or
+    # broken checkout doesn't silently pick the wrong version.
     monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
     monkeypatch.delenv("TEXERA_VERSION", raising=False)
-    out = tui.texera_version()
-    # Fallback string is intentionally last-ditch; just assert it's well-formed.
-    assert out and out != ""
+    with pytest.raises(RuntimeError, match="build.sbt not found"):
+        tui.texera_version()
+
+
+def test_texera_version_raises_when_version_unparseable(tmp_path, monkeypatch, tui):
+    # build.sbt exists but the `ThisBuild / version := "…"` line isn't there.
+    (tmp_path / "build.sbt").write_text("name := \"texera\"\n")
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    monkeypatch.delenv("TEXERA_VERSION", raising=False)
+    with pytest.raises(RuntimeError, match="could not find.*version"):
+        tui.texera_version()
 
 
 # ─────────────────── docker_state() ───────────────────
@@ -338,12 +347,20 @@ def test_sbt_transitive_for_amber_includes_workflow_chain(tui):
     assert expected <= set(dirs), f"missing: {expected - set(dirs)}"
 
 
-def test_sbt_unknown_project_falls_back(tui):
-    """Asking the graph for an unknown sbt project name yields the
-    conservative fallback common/* list — never an empty result, never a
-    crash."""
-    dirs = tui._transitive_src_dirs("NoSuchProject", tui._SBT_GRAPH)
-    assert "common/dao/src" in dirs
+def test_sbt_unknown_project_raises(tui):
+    """Asking the graph for an unknown sbt project name raises rather
+    than silently falling back to a hardcoded list — that fallback would
+    mask a real build.sbt drift / typo."""
+    with pytest.raises(RuntimeError, match="not found in build.sbt graph"):
+        tui._transitive_src_dirs("NoSuchProject", tui._SBT_GRAPH)
+
+
+def test_sbt_empty_graph_raises(tui):
+    """A parse that returned no projects (very old / mangled build.sbt)
+    must raise. Silently using the prior pre-parse list would let dirty
+    detection report wrong results without anyone noticing."""
+    with pytest.raises(RuntimeError, match="graph is empty"):
+        tui._transitive_src_dirs("ConfigService", {})
 
 
 def test_sbt_test_scope_deps_ignored(tui):

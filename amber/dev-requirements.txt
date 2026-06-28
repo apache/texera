@@ -33,9 +33,5 @@ pytest-cov==7.1.0
 # base `betterproto` in requirements.txt.
 betterproto[compiler]==2.0.0b7
 
-# Textual powers bin/local-dev-tui.py — the interactive dashboard that
-# `bin/local-dev.sh` launches by default. Optional at runtime (the script
-# falls back to plain-CLI subcommands if it's missing), but bundled here
-# so `pip install -r amber/dev-requirements.txt` gives a fresh dev the
-# full tool out of the box.
+# Required by `bin/local-dev.sh -i` (the interactive Textual TUI).
 textual==8.2.7

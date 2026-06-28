@@ -301,17 +301,33 @@ _detect_host_lan_ip() {
     done
     return 1
 }
-HOST_LAN_IP="$(_detect_host_lan_ip)" || HOST_LAN_IP=""
-if [[ -z "$HOST_LAN_IP" ]]; then
-    echo "WARN: no LAN IP detected -- S3 endpoint falling back to localhost." >&2
-    echo "WARN: Iceberg ops may fail because the lakekeeper container can't reach localhost:9000." >&2
-    HOST_LAN_IP="localhost"
-fi
+# Lazy resolver — called from subcommands that actually need to publish a
+# host-reachable S3 endpoint (cmd_up, cmd_auto). Subcommands like
+# `version`, `status`, `--help`, or `-i` don't talk to MinIO and shouldn't
+# refuse to run just because the laptop is offline.
+_require_host_lan_ip() {
+    [[ -n "${HOST_LAN_IP:-}" ]] && return 0
+    HOST_LAN_IP="$(_detect_host_lan_ip)" || HOST_LAN_IP=""
+    if [[ -z "$HOST_LAN_IP" ]]; then
+        echo "FATAL: could not detect a host LAN IP." >&2
+        echo "       MinIO needs an address reachable from both docker (lakekeeper" >&2
+        echo "       does S3 ops) and the host (JVMs read signed URLs back); none" >&2
+        echo "       of \`route get default\` / en0-en10 had a non-loopback IPv4." >&2
+        echo "       Connect to a network or export HOST_LAN_IP=<your-IP> explicitly." >&2
+        exit 1
+    fi
+    export HOST_LAN_IP
+    # STORAGE_S3_ENDPOINT below uses the parameter-default form so it
+    # picks up HOST_LAN_IP once we set it here.
+    export STORAGE_S3_ENDPOINT="${STORAGE_S3_ENDPOINT:-http://$HOST_LAN_IP:9000}"
+}
 
 export STORAGE_JDBC_URL="${STORAGE_JDBC_URL:-jdbc:postgresql://localhost:5432/texera_db?currentSchema=texera_db,public}"
 export STORAGE_JDBC_USERNAME="${STORAGE_JDBC_USERNAME:-texera}"
 export STORAGE_JDBC_PASSWORD="${STORAGE_JDBC_PASSWORD:-password}"
-export STORAGE_S3_ENDPOINT="${STORAGE_S3_ENDPOINT:-http://$HOST_LAN_IP:9000}"
+# STORAGE_S3_ENDPOINT is set lazily by _require_host_lan_ip — only the
+# subcommands that actually touch MinIO (infra_up + cmd_up + cmd_auto)
+# trigger that detection, so `version` / `status` / `-i` work offline.
 export STORAGE_S3_AUTH_USERNAME="${STORAGE_S3_AUTH_USERNAME:-texera_minio}"
 export STORAGE_S3_AUTH_PASSWORD="${STORAGE_S3_AUTH_PASSWORD:-password}"
 export STORAGE_S3_REGION="${STORAGE_S3_REGION:-us-west-2}"
@@ -1043,6 +1059,10 @@ docker_svc_state() {
 }
 
 infra_up() {
+    # Resolve the host LAN IP now (lazy) — both the docker compose stack
+    # (lakekeeper-init reads STORAGE_S3_ENDPOINT) and the host JVMs about
+    # to start need it pointing at a host-reachable MinIO.
+    _require_host_lan_ip
     if [[ "$(infra_state)" == external:* ]]; then
         tui_err "infra: ports already taken by non-script containers"
         printf "  ${DIM}Likely an old project (e.g. \`texera-dev\`) is running. Stop it first:${RESET}\n"
@@ -1353,6 +1373,12 @@ start_one() {
     local svc="$1"
     local type=""
     type=$(amap_get SVC_TYPE "$svc")
+    # JVMs and docker services need STORAGE_S3_ENDPOINT exported before
+    # launch (JVM clients dial MinIO; lakekeeper bakes the URL into the
+    # warehouse storage profile). yarn/bun watch services don't.
+    if [[ "$type" == "jvm" || "$type" == "docker" ]]; then
+        _require_host_lan_ip
+    fi
     if [[ "$type" == "docker" ]]; then
         local dstate=""
         dstate=$(docker_svc_state "$svc")
@@ -1516,65 +1542,38 @@ _precompute_src_dirs() {
         if [[ -z "$entry" && "$svc" == "computing-unit-master" ]]; then
             entry="WorkflowExecutionService"
         fi
-        dirs=""
-        if [[ -n "$entry" ]] && amap_has SBT_PATH "$entry"; then
-            dirs="$(_sbt_transitive_src_dirs "$entry" 2>/dev/null)" || dirs=""
+        if [[ -z "$entry" ]]; then
+            echo "FATAL: service '$svc' has no SVC_SBT entry and no" >&2
+            echo "       SHARED_SBT_PROJECT mapping — can't compute its" >&2
+            echo "       transitive source-dir closure." >&2
+            exit 1
         fi
+        if ! amap_has SBT_PATH "$entry"; then
+            echo "FATAL: sbt project '$entry' (for service '$svc') is not" >&2
+            echo "       in the parsed build.sbt graph. Either build.sbt" >&2
+            echo "       parsing failed or the project was renamed/removed." >&2
+            exit 1
+        fi
+        dirs="$(_sbt_transitive_src_dirs "$entry")"
         if [[ -z "$dirs" ]]; then
-            # Fallback: build.sbt parse failed (or unknown service) —
-            # use the conservative common/* list so we over-report
-            # rather than silently miss source changes.
-            if [[ "$svc" == "texera-web" || "$svc" == "computing-unit-master" ]]; then
-                dirs="amber/src"
-            else
-                dirs="$svc/src"
-            fi
-            dirs+=$'\n'"common/dao/src"
-            dirs+=$'\n'"common/config/src"
-            dirs+=$'\n'"common/auth/src"
-            dirs+=$'\n'"common/workflow-core/src"
-            dirs+=$'\n'"common/workflow-operator/src"
-            dirs+=$'\n'"common/pybuilder/src"
+            echo "FATAL: transitive source-dir closure for '$svc' is empty." >&2
+            exit 1
         fi
         amap_set SVC_SRC_DIRS "$svc" "$dirs"
     done
 }
 
-# Single lookup against the pre-populated cache. Falls back to a live
-# walk if SVC_SRC_DIRS was never populated (e.g. a test sourcing only
-# this function), so callers can rely on it being non-empty for any
-# known JVM service.
+# Look up the pre-populated cache.
 _svc_src_dirs() {
     local svc="$1"
     local cached=""
     cached=$(amap_get SVC_SRC_DIRS "$svc")
-    if [[ -n "$cached" ]]; then
-        printf '%s\n' "$cached"
-        return 0
+    if [[ -z "$cached" ]]; then
+        echo "FATAL: _svc_src_dirs: '$svc' missing from SVC_SRC_DIRS" >&2
+        echo "       (did _precompute_src_dirs run?)" >&2
+        exit 1
     fi
-    # Slow path — only reached if _precompute_src_dirs hasn't run.
-    local entry=""
-    entry=$(amap_get SVC_SBT "$svc")
-    if [[ -z "$entry" && "$svc" == "computing-unit-master" ]]; then
-        entry="WorkflowExecutionService"
-    fi
-    local out=""
-    out=$(_sbt_transitive_src_dirs "$entry" 2>/dev/null) || out=""
-    if [[ -n "$out" ]]; then
-        printf '%s\n' "$out"
-        return 0
-    fi
-    if [[ "$svc" == "texera-web" || "$svc" == "computing-unit-master" ]]; then
-        echo "amber/src"
-    else
-        echo "$svc/src"
-    fi
-    echo "common/dao/src"
-    echo "common/config/src"
-    echo "common/auth/src"
-    echo "common/workflow-core/src"
-    echo "common/workflow-operator/src"
-    echo "common/pybuilder/src"
+    printf '%s\n' "$cached"
 }
 
 # Compute a SHA-1 over the content of every .scala/.java/.proto file that

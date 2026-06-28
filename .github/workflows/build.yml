@@ -924,7 +924,7 @@ jobs:
 
   infra:
     # Tests for the dev-loop tooling under bin/local-dev*.
-    # Light job: zsh syntax + smoke tests, plus pytest unit tests for the
+    # Light job: bash syntax + smoke tests, plus pytest unit tests for the
     # pure helpers in local-dev-tui.py. No docker / sbt / live stack — those
     # belong in an e2e job we'll add when the tool is exercised more widely.
     if: ${{ inputs.run_infra }}
@@ -944,15 +944,6 @@ jobs:
       - name: Prepare backport workspace
         if: ${{ inputs.backport_target_branch != '' }}
         run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
-      - name: Setup zsh
-        # ubuntu-latest doesn't ship zsh; macOS does.
-        run: |
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            sudo apt-get update
-            sudo apt-get install -y zsh
-          fi
-          zsh --version
-        shell: bash
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -965,9 +956,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r amber/dev-requirements.txt
       - name: Run shell smoke tests (bash)
-        # bin/local-dev.sh is bash-shebanged; CI mirrors that. zsh
-        # portability is exercised by `bash -n` and `zsh -n` checks inside
-        # the harness itself (test 1a/1b in test_local_dev_sh.sh).
         run: bash bin/local-dev/tests/test_local_dev_sh.sh
       - name: Run Python unit tests
         run: python -m pytest bin/local-dev/tests/ -v --tb=short
