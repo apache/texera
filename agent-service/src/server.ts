@@ -328,7 +328,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     const allSteps = agent.getAllSteps();
     const workflowContent = agent.getWorkflowState().getWorkflowContent();
 
-    broadcastToAgent(id, new WsServerHeadChangeEvent(stepId, allSteps, workflowContent));
+    broadcastToAgentClients(id, new WsServerHeadChangeEvent(stepId, allSteps, workflowContent));
 
     return {
       status: "checked out",
@@ -438,12 +438,12 @@ function getOperatorResultSummaries(agent: TexeraAgent): Record<string, Operator
 
 // Send a single server event to one client. Each event is constructed with
 // `new WsServer*Event(...)`, so the `type` tag is never hand-written here.
-function sendEvent(ws: { send(data: string): void }, event: WsServerEvent): void {
+function sendEventToClient(ws: { send(data: string): void }, event: WsServerEvent): void {
   ws.send(JSON.stringify(event));
 }
 
 // Broadcast a server event to every client attached to the agent.
-function broadcastToAgent(agentId: string, event: WsServerEvent): void {
+function broadcastToAgentClients(agentId: string, event: WsServerEvent): void {
   const agent = agentStore.get(agentId);
   if (!agent) return;
 
@@ -476,14 +476,14 @@ export function buildApp() {
 
         const agent = agentStore.get(agentId);
         if (!agent) {
-          sendEvent(ws, new WsServerErrorEvent("Agent not found"));
+          sendEventToClient(ws, new WsServerErrorEvent("Agent not found"));
           ws.close();
           return;
         }
 
         agent.addWebsocket(ws);
 
-        sendEvent(ws, new WsServerSnapshotEvent(agent.getState(), agent.getAllSteps(), agent.getHead()));
+        sendEventToClient(ws, new WsServerSnapshotEvent(agent.getState(), agent.getAllSteps(), agent.getHead()));
       },
 
       async message(ws, messageData) {
@@ -491,7 +491,7 @@ export function buildApp() {
         const agent = agentStore.get(agentId);
 
         if (!agent) {
-          sendEvent(ws, new WsServerErrorEvent("Agent not found"));
+          sendEventToClient(ws, new WsServerErrorEvent("Agent not found"));
           return;
         }
 
@@ -499,29 +499,29 @@ export function buildApp() {
         try {
           msg = typeof messageData === "string" ? JSON.parse(messageData) : (messageData as WsClientCommand);
         } catch {
-          sendEvent(ws, new WsServerErrorEvent("Invalid message format"));
+          sendEventToClient(ws, new WsServerErrorEvent("Invalid message format"));
           return;
         }
 
         switch (msg.type) {
           case "WsClientStopCommand":
             agent.stop();
-            broadcastToAgent(agentId, new WsServerStatusEvent(AgentState.STOPPING));
+            broadcastToAgentClients(agentId, new WsServerStatusEvent(AgentState.STOPPING));
             return;
 
           case "WsClientPromptCommand": {
             if (!msg.content || typeof msg.content !== "string") {
-              sendEvent(ws, new WsServerErrorEvent("Message content is required"));
+              sendEventToClient(ws, new WsServerErrorEvent("Message content is required"));
               return;
             }
 
             wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received message");
 
             agent.setStepCallback((step: ReActStep) => {
-              broadcastToAgent(agentId, new WsServerStepEvent(step));
+              broadcastToAgentClients(agentId, new WsServerStepEvent(step));
             });
 
-            broadcastToAgent(agentId, new WsServerStatusEvent(AgentState.GENERATING));
+            broadcastToAgentClients(agentId, new WsServerStatusEvent(AgentState.GENERATING));
 
             try {
               const result = await agent.sendMessage(msg.content, msg.messageSource);
@@ -531,19 +531,19 @@ export function buildApp() {
               const allSteps = agent.getReActSteps();
               const lastStep = allSteps[allSteps.length - 1];
               if (lastStep && lastStep.isEnd) {
-                broadcastToAgent(agentId, new WsServerStepEvent(lastStep));
+                broadcastToAgentClients(agentId, new WsServerStepEvent(lastStep));
               }
 
               wsLog.info({ agentId, steps: result.messages.length }, "agent run complete");
             } catch (error: any) {
               agent.setStepCallback(null);
-              broadcastToAgent(agentId, new WsServerErrorEvent(error.message));
+              broadcastToAgentClients(agentId, new WsServerErrorEvent(error.message));
             } finally {
               // The run is over (success or failure) and TexeraAgent.sendMessage has
               // reset the agent to its resting state (AVAILABLE) in its own finally.
               // This status frame is the run-end signal (it also unsticks the client
               // from GENERATING after errors).
-              broadcastToAgent(agentId, new WsServerStatusEvent(agent.getState()));
+              broadcastToAgentClients(agentId, new WsServerStatusEvent(agent.getState()));
             }
             return;
           }
@@ -552,7 +552,7 @@ export function buildApp() {
             // Frames are parsed from untrusted JSON; reject unknown discriminators
             // explicitly instead of silently no-op'ing, so client/server mismatches
             // are easy to diagnose.
-            sendEvent(ws, new WsServerErrorEvent(`Unknown message type: ${(msg as { type?: unknown }).type}`));
+            sendEventToClient(ws, new WsServerErrorEvent(`Unknown message type: ${(msg as { type?: unknown }).type}`));
         }
       },
 
