@@ -607,7 +607,13 @@ tui_wait_panel() {
     local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
     local n_frames=${#frames[@]}
     local start_ts=$SECONDS
-    local timeout=90
+    # JVM + docker services bind their port within ~10-30s; 90s leaves slack
+    # for cold-cache machines. The frontend's `ng serve` does a full Angular
+    # compile before listening — on a fresh checkout that's 90-180s easily,
+    # so give yarn-typed services 5 minutes. bun is in between.
+    local timeout_default=90
+    local timeout_yarn=300
+    local timeout_bun=120
     local frame_idx=0
     local first_render=true
     local n_done=0
@@ -631,7 +637,12 @@ tui_wait_panel() {
                 esac
                 continue
             fi
-            if wait_for_port "${SVC_PORT[$svc]}" "$timeout"; then
+            local svc_timeout=$timeout_default
+            case "${SVC_TYPE[$svc]}" in
+                yarn) svc_timeout=$timeout_yarn ;;
+                bun)  svc_timeout=$timeout_bun  ;;
+            esac
+            if wait_for_port "${SVC_PORT[$svc]}" "$svc_timeout"; then
                 printf "  %s  %-32s :%-6s  %s\n" "$SYM_OK" "$svc" "${SVC_PORT[$svc]}" "healthy"
                 n_done=$((n_done+1))
             else
@@ -659,6 +670,13 @@ tui_wait_panel() {
 
         for svc in "${svcs[@]}"; do
             state_color="" state_sym=""
+            # Per-service wait budget — yarn (ng serve cold compile) gets the
+            # most slack, bun a moderate amount, everything else the default.
+            local svc_timeout=$timeout_default
+            case "${SVC_TYPE[$svc]}" in
+                yarn) svc_timeout=$timeout_yarn ;;
+                bun)  svc_timeout=$timeout_bun  ;;
+            esac
             if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
                 local dstate=""
                 dstate=$(docker_svc_state "$svc")
@@ -675,7 +693,7 @@ tui_wait_panel() {
                         state_color="$RED"; state_sym="${RED}${SYM_ERR}${RESET}"
                         n_failed=$((n_failed+1)) ;;
                     *)
-                        if (( elapsed >= timeout )); then
+                        if (( elapsed >= svc_timeout )); then
                             state="timeout"
                             state_color="$RED"; state_sym="${RED}${SYM_ERR}${RESET}"
                             n_failed=$((n_failed+1))
@@ -690,7 +708,7 @@ tui_wait_panel() {
                     state="healthy"
                     state_color="$GREEN"; state_sym="${GREEN}${SYM_OK}${RESET}"
                     n_done=$((n_done+1))
-                elif (( elapsed >= timeout )); then
+                elif (( elapsed >= svc_timeout )); then
                     state="timeout — see bin/local-dev.sh logs $svc"
                     state_color="$RED"; state_sym="${RED}${SYM_ERR}${RESET}"
                     n_failed=$((n_failed+1))
