@@ -111,9 +111,11 @@ cd "$(dirname "$0")"
 # pylsp + y-websocket-server build stages below keep working (they use
 # relative paths like ./pylsp and ./y-websocket-server from here), and so
 # the build context `..` still resolves to the repo root.
+# `[[ ! -e ... ]]` guards the bash-default-glob case where a no-match glob
+# stays as the literal pattern instead of becoming an empty array.
 dockerfiles=( dockerfiles/*.dockerfile )
-if [[ ${#dockerfiles[@]} -eq 0 ]]; then
-  echo "❌ No Dockerfiles found (dockerfiles/*.dockerfile) in bin/."
+if [[ ${#dockerfiles[@]} -eq 0 ]] || [[ ! -e "${dockerfiles[0]}" ]]; then
+  echo "❌ No Dockerfiles found (*.dockerfile) in bin/dockerfiles/."
   exit 1
 fi
 
