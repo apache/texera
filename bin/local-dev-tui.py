@@ -124,15 +124,17 @@ class Service:
     artifact_jar: Optional[str] = None    # for jvm
 
 
-def _jvm(name: str, port: int, project: str, own_src: str) -> Service:
+def _jvm(name: str, port: int, project: Optional[str], own_src: str) -> Service:
     """sbt-native-packager lays the dist out as
     `target/<artifact>-<VERSION>/lib/org.apache.texera.<artifact>-<VERSION>.jar`
-    for every subproject. The single exception is amber: its sbt subproject
-    name is `amber` (not `texera-web`) and the dist goes under `amber/target/`
-    rather than the repo-level `target/`."""
-    is_amber = name == "texera-web"
-    artifact = "amber" if is_amber else name
-    target_prefix = "amber/" if is_amber else ""
+    for every subproject. amber is the exception: its sbt subproject is
+    named `amber` (not `texera-web`) and the dist goes under `amber/target/`
+    rather than the repo-level `target/`. computing-unit-master rides that
+    same amber dist as a sibling launcher — its `project` is None because
+    no separate sbt invocation produces it."""
+    is_amber_svc = name in ("texera-web", "computing-unit-master")
+    artifact = "amber" if is_amber_svc else name
+    target_prefix = "amber/" if is_amber_svc else ""
     jar = (
         f"{target_prefix}target/{artifact}-{TEXERA_VERSION}/lib/"
         f"org.apache.texera.{artifact}-{TEXERA_VERSION}.jar"
@@ -155,6 +157,8 @@ SERVICES: list[Service] = [
          "file-service/src"),
     _jvm("workflow-compiling-service",      9090, "WorkflowCompilingService",
          "workflow-compiling-service/src"),
+    _jvm("computing-unit-master",           8085, None,
+         "amber/src"),
     _jvm("computing-unit-managing-service", 8082, "ComputingUnitManagingService",
          "computing-unit-managing-service/src"),
     _jvm("texera-web",                      8080, "WorkflowExecutionService",

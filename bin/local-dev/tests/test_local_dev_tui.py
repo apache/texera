@@ -206,12 +206,25 @@ def test_service_ports_unique(tui):
 def test_jvm_services_have_sbt_project_and_src(tui):
     for s in tui.SERVICES:
         if s.type == "jvm":
-            assert s.sbt_project, f"{s.name} missing sbt_project"
+            # sbt_project is optional: sibling services (e.g.
+            # computing-unit-master) ride another service's dist and have
+            # no separate sbt invocation. own_src + artifact_jar are still
+            # required so dirty-detection and start_one work.
             assert s.own_src, f"{s.name} missing own_src"
             assert s.artifact_jar, f"{s.name} missing artifact_jar"
             assert tui.TEXERA_VERSION in s.artifact_jar, (
                 f"{s.name}'s jar path should embed the dynamic version, got {s.artifact_jar}"
             )
+
+
+def test_jvm_siblings_share_artifact_jar(tui):
+    """computing-unit-master is a launcher shipped inside amber's dist; it must
+    point at the same canary jar as texera-web so dirty-state stays in sync."""
+    cum = tui.SERVICES_BY_NAME["computing-unit-master"]
+    web = tui.SERVICES_BY_NAME["texera-web"]
+    assert cum.sbt_project is None, "computing-unit-master must not own an sbt project"
+    assert cum.artifact_jar == web.artifact_jar
+    assert cum.own_src == web.own_src
 
 
 def test_docker_services_have_no_jar(tui):

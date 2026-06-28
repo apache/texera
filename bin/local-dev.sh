@@ -52,6 +52,7 @@
 #   workflow-compiling-service     :9090  JVM (sbt WorkflowCompilingService)
 #   computing-unit-managing-service :8082 JVM (sbt ComputingUnitManagingService)
 #   texera-web                     :8080  JVM (sbt WorkflowExecutionService, amber)
+#   computing-unit-master          :8085  JVM (rides amber dist; no own sbt project)
 #   agent-service                  :3001  Bun --watch (cd agent-service && bun run dev)
 #   frontend                       :4200  ng serve via cd frontend && yarn start
 #
@@ -150,6 +151,7 @@ SERVICES=(
     access-control-service
     file-service
     workflow-compiling-service
+    computing-unit-master
     computing-unit-managing-service
     texera-web
     agent-service
@@ -220,6 +222,22 @@ SVC_CWD[texera-web]="amber"
 SVC_ZIP_GLOB[texera-web]="amber/target/universal/amber-*.zip"
 SVC_UNZIP_DEST[texera-web]="amber/target/"
 SVC_HEALTH[texera-web]="/api/healthcheck"
+
+# computing-unit-master shares the amber dist with texera-web: sbt-native-
+# packager emits both `bin/texera-web-application` and `bin/computing-unit-master`
+# launchers under `amber/target/amber-<VERSION>/`. We register it as a separate
+# service for status/start/stop but leave SVC_SBT / SVC_ZIP_GLOB empty so the
+# build pipeline knows to skip it (the texera-web build path already produces
+# its launcher). Source-dir and canary-jar lookups treat it identically to
+# texera-web — see _svc_src_dirs / svc_src_changed / svc_artifact_mtime.
+SVC_TYPE[computing-unit-master]=jvm
+SVC_PORT[computing-unit-master]=8085
+SVC_SBT[computing-unit-master]=""
+SVC_LAUNCHER[computing-unit-master]="target/amber-${TEXERA_VERSION}/bin/computing-unit-master"
+SVC_CWD[computing-unit-master]="amber"
+SVC_ZIP_GLOB[computing-unit-master]=""
+SVC_UNZIP_DEST[computing-unit-master]=""
+SVC_HEALTH[computing-unit-master]=""
 
 SVC_TYPE[agent-service]=bun
 SVC_PORT[agent-service]=3001
@@ -609,7 +627,7 @@ svc_artifact_mtime() {
             jar_dir="$(dirname "$(dirname "$launcher")")/lib"
             if [[ -d "$jar_dir" ]]; then
                 local main_jars=("$jar_dir"/org.apache.texera.${svc}-*.jar(NoL[1]))
-                if [[ ${#main_jars[@]} -eq 0 && "$svc" == "texera-web" ]]; then
+                if [[ ${#main_jars[@]} -eq 0 && ( "$svc" == "texera-web" || "$svc" == "computing-unit-master" ) ]]; then
                     main_jars=("$jar_dir"/org.apache.texera.amber-*.jar(NoL[1]))
                 fi
                 if [[ ${#main_jars[@]} -gt 0 ]]; then
@@ -712,6 +730,15 @@ start_one() {
 build_one_jvm() {
     local svc="$1" proj="${SVC_SBT[$svc]}"
     local log="$LOG_DIR/sbt-${svc}.log"
+    # Empty SVC_SBT means this service rides another service's dist (e.g.
+    # computing-unit-master shares amber's). Nothing to build directly — the
+    # launcher is produced when its sibling builds. Stamp `svc` so the dirty
+    # indicator can clear if amber/src actually matches.
+    if [[ -z "$proj" ]]; then
+        tui_skip "$svc: no own sbt project (built with its sibling)"
+        svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc" 2>/dev/null || true
+        return 0
+    fi
     if tui_run_with_spinner "$log" "sbt $proj/dist  ${DIM}(log: $log)${RESET}" \
         sbt -no-colors "$proj/dist"; then
         tui_step "unzip ${SVC_ZIP_GLOB[$svc]} → ${SVC_UNZIP_DEST[$svc]}"
@@ -776,7 +803,8 @@ needs_bun_install() {
 
 _svc_src_dirs() {
     local svc="$1"
-    if [[ "$svc" == "texera-web" ]]; then
+    # texera-web and computing-unit-master both live under amber/.
+    if [[ "$svc" == "texera-web" || "$svc" == "computing-unit-master" ]]; then
         echo "amber/src"
     else
         echo "$svc/src"
@@ -829,7 +857,7 @@ svc_src_changed() {
             # checkout pays this once (~100 ms) and is clean afterwards.
             if [[ ! -s "$stamp" ]]; then
                 local jar=""
-                if [[ "$svc" == "texera-web" ]]; then
+                if [[ "$svc" == "texera-web" || "$svc" == "computing-unit-master" ]]; then
                     jar="amber/target/amber-${TEXERA_VERSION}/lib/org.apache.texera.amber-${TEXERA_VERSION}.jar"
                 else
                     jar="target/${svc}-${TEXERA_VERSION}/lib/org.apache.texera.${svc}-${TEXERA_VERSION}.jar"
@@ -922,6 +950,13 @@ build_all() {
     tui_step "unzipping dist artifacts"
     for svc in "${SERVICES[@]}"; do
         [[ "${SVC_TYPE[$svc]}" == "jvm" ]] || continue
+        # Sibling services (empty ZIP_GLOB) share another service's dist —
+        # just stamp them as clean since the unzip already happened for the
+        # twin holding the build.
+        if [[ -z "${SVC_ZIP_GLOB[$svc]}" ]]; then
+            svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc" 2>/dev/null || true
+            continue
+        fi
         # shellcheck disable=SC2086
         if unzip -oq ${SVC_ZIP_GLOB[$svc]} -d "${SVC_UNZIP_DEST[$svc]}" 2>/dev/null; then
             svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc"
@@ -1364,7 +1399,11 @@ cmd_update_one() {
             start_one "$svc"
             ;;
         jvm)
-            tui_banner "Updating ${svc}" "sbt ${SVC_SBT[$svc]}/dist + bounce"
+            if [[ -n "${SVC_SBT[$svc]}" ]]; then
+                tui_banner "Updating ${svc}" "sbt ${SVC_SBT[$svc]}/dist + bounce"
+            else
+                tui_banner "Updating ${svc}" "bounce only (shares dist with its sibling)"
+            fi
             tui_section "Build"
             build_one_jvm "$svc"
             tui_section "Bounce"
