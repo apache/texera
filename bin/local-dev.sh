@@ -1399,6 +1399,7 @@ build_one_jvm() {
         svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc" 2>/dev/null || true
         return 0
     fi
+    phase_set "$svc" building
     if tui_run_with_spinner "$log" "sbt $proj/dist  ${DIM}(log: $log)${RESET}" \
         sbt -no-colors "$proj/dist"; then
         tui_step "unzip ${SVC_ZIP_GLOB[$svc]} → ${SVC_UNZIP_DEST[$svc]}"
@@ -1408,7 +1409,12 @@ build_one_jvm() {
         # lets us tell content-vs-mtime apart on the next dirty check.
         svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc"
         tui_ok "$svc: build done"
+        # Don't clear the phase yet — the caller (cmd_update_one) will
+        # transition us through stop_one/start_one which overwrite it.
+        # If something else is the caller, the TUI's "phase cleared once
+        # poller sees running" rule covers us.
     else
+        phase_clear "$svc"
         tui_err "$svc: sbt $proj/dist FAILED  ${DIM}(tail -f $log)${RESET}"
         return 1
     fi
@@ -2005,9 +2011,19 @@ cmd_auto() {
     # get pre-bounced just because the build ran.
     if (( ${#dirty_jvms[@]} > 0 )); then
         tui_section "Build  ${DIM}(${#dirty_jvms[@]} JVM service(s) dirty)${RESET}"
+        # Mark each dirty service as "building" so the TUI shows the
+        # animation across the whole sbt window (~30s+). Without this the
+        # dashboard stays on the prior STATE during the slow build.
+        local _s=""
+        for _s in "${dirty_jvms[@]}"; do
+            phase_set "$_s" building
+        done
         local log="$LOG_DIR/sbt-dist.log"
         if ! tui_run_with_spinner "$log" "sbt dist  ${DIM}(log: $log)${RESET}" \
                 sbt -no-colors dist; then
+            for _s in "${dirty_jvms[@]}"; do
+                phase_clear "$_s"
+            done
             tui_err "sbt dist failed  ${DIM}(tail -f $log)${RESET}"
             return 1
         fi
@@ -2035,6 +2051,11 @@ cmd_auto() {
             pid=$(svc_running_pid "$svc")
             _was_running[$svc]="$pid"
             if [[ -n "$pid" ]]; then
+                # Flip the dashboard from `building` to `stopping` while we
+                # SIGTERM/SIGKILL the JVM, then back to `building` for the
+                # unzip step below. Without these the user only sees one
+                # state during the whole bounce.
+                phase_set "$svc" stopping
                 tui_step "$svc: stopping PID $pid before unzip"
                 kill "$pid" 2>/dev/null || true
                 local i=0
