@@ -19,13 +19,17 @@
 # bin/local-dev.sh -- Manage the Texera local dev stack from a single script.
 #
 # Subcommands:
-#   bin/local-dev.sh                          DEFAULT — launches the Textual
-#                                             TUI dashboard (live service
-#                                             states, SRC dirty indicator,
-#                                             command prompt, double-click for
-#                                             logs, ↑/↓ history, Ctrl-C twice
-#                                             to quit).
-#   bin/local-dev.sh status                   one-shot text dashboard (no TUI).
+#   bin/local-dev.sh                          DEFAULT — one-shot text
+#                                             dashboard (same as `status`).
+#                                             Non-interactive, prints once and
+#                                             exits — safe in scripts/CI.
+#   bin/local-dev.sh -i  | --interactive      Launch the Textual TUI dashboard
+#                                             (live states, SRC dirty
+#                                             indicator, command prompt,
+#                                             double-click for logs, ↑/↓
+#                                             history, Ctrl-C twice to quit).
+#                                             Requires Python + textual.
+#   bin/local-dev.sh status                   same as no-arg invocation.
 #   bin/local-dev.sh up   [--fresh|--build|--no-build] [--skip=svc1,svc2]
 #                                             Default: skip build if no source/lock
 #                                             changes since last build. --build forces
@@ -625,6 +629,61 @@ tui_wait_panel() {
     return $((n_failed > 0))
 }
 
+# --------- toolchain install hints ---------
+# Print install instructions for a missing toolchain. Used by both startup
+# detection failures and runtime "command not found" surfaces. Keeps the
+# guidance in one place so every failure mode looks the same.
+_install_hint() {
+    local tool="$1"
+    case "$tool" in
+        java)
+            printf "  ${BOLD}install JDK 17:${RESET}\n"
+            printf "    macOS:   brew install openjdk@17\n"
+            printf "    Linux:   apt install openjdk-17-jdk    ${DIM}# or yum/dnf equivalent${RESET}\n"
+            printf "    SDKMAN:  sdk install java 17.0.13-tem\n"
+            printf "  or set JAVA_HOME=/path/to/jdk-17 explicitly\n"
+            ;;
+        python)
+            printf "  ${BOLD}install Python 3.10+ and the TUI deps:${RESET}\n"
+            printf "    macOS:   brew install python@3.12\n"
+            printf "    Linux:   apt install python3 python3-pip\n"
+            printf "    then:    python3 -m pip install -r %s/amber/dev-requirements.txt\n" "$REPO_ROOT"
+            printf "  or set TEXERA_PYTHON=/path/to/python explicitly (must have textual installed)\n"
+            ;;
+        node)
+            printf "  ${BOLD}install Node 20+ (needed for frontend & agent-service):${RESET}\n"
+            printf "    macOS:   brew install node\n"
+            printf "    nvm:     nvm install --lts && nvm use --lts\n"
+            printf "    fnm:     fnm install --lts\n"
+            printf "    volta:   volta install node\n"
+            ;;
+        yarn)
+            printf "  ${BOLD}install yarn (needed for the frontend):${RESET}\n"
+            printf "    macOS:   brew install yarn\n"
+            printf "    npm:     npm install -g yarn\n"
+            printf "    corepack: corepack enable\n"
+            ;;
+        bun)
+            printf "  ${BOLD}install bun (needed for agent-service):${RESET}\n"
+            printf "    macOS:   brew install oven-sh/bun/bun\n"
+            printf "    curl:    curl -fsSL https://bun.sh/install | bash\n"
+            ;;
+        sbt)
+            printf "  ${BOLD}install sbt (needed to build the JVM services):${RESET}\n"
+            printf "    macOS:   brew install sbt\n"
+            printf "    Linux:   see https://www.scala-sbt.org/download.html\n"
+            ;;
+        docker)
+            printf "  ${BOLD}install Docker (needed for postgres/minio/lakefs/lakekeeper/litellm):${RESET}\n"
+            printf "    macOS:   download Docker Desktop from https://docker.com/products/docker-desktop\n"
+            printf "    Linux:   apt install docker.io docker-compose-plugin\n"
+            ;;
+        *)
+            printf "  ${DIM}no install hint for: %s${RESET}\n" "$tool"
+            ;;
+    esac
+}
+
 # --------- helpers ---------
 listen_pid_for_port() {
     # || true so pipefail doesn't kill us when nothing is listening
@@ -881,9 +940,23 @@ start_one() {
             ( cd "$cwd" && nohup "./$launcher" >"$log" 2>&1 </dev/null & )
             ;;
         bun)
+            if ! command -v bun >/dev/null 2>&1; then
+                tui_err "$svc: \`bun\` not found on PATH"
+                _install_hint bun
+                return 1
+            fi
             ( cd "$cwd" && nohup bun run dev >"$log" 2>&1 </dev/null & )
             ;;
         yarn)
+            if ! command -v yarn >/dev/null 2>&1; then
+                tui_err "$svc: \`yarn\` not found on PATH"
+                if ! command -v node >/dev/null 2>&1; then
+                    _install_hint node
+                else
+                    _install_hint yarn
+                fi
+                return 1
+            fi
             ( cd "$cwd" && nohup yarn start >"$log" 2>&1 </dev/null & )
             ;;
     esac
@@ -1684,292 +1757,6 @@ cmd_watch() {
 }
 
 # Pause and let the user read command output before re-rendering the dashboard.
-tui_pause_before_redraw() {
-    printf "\n${DIM}↩ to return to dashboard...${RESET}"
-    read -r _ 2>/dev/null || true
-}
-
-# Proper-TUI primitives. Real terminal UIs (htop, k9s, vim …) don't append-and-
-# refresh; they enter the alternate screen buffer + raw mode so they own every
-# key and can redraw whatever they want while the user types. We do the same.
-
-_tui_saved_stty=""
-_tui_in_alt_screen=false
-_tui_status_line=""
-_tui_log_file=""
-_tui_last_cmd=""
-_tui_cmd_pid=""
-_tui_cmd_start_ts=0
-_tui_log_lines=8   # height of the log region inside the dashboard
-
-_tui_enter_alt() {
-    _tui_saved_stty=$(stty -g 2>/dev/null)
-    # -icanon: deliver each char immediately (no line buffering)
-    # -echo:   we render the input ourselves
-    # -isig:   Ctrl-C/Ctrl-Z don't kill us; we receive them as bytes
-    # min 0 time 0: non-blocking reads
-    stty -icanon -echo -isig min 0 time 0 2>/dev/null
-    printf '\e[?1049h\e[?25l\e[H'   # alt screen + hide cursor + home
-    _tui_in_alt_screen=true
-}
-
-_tui_leave_alt() {
-    $_tui_in_alt_screen || return 0
-    printf '\e[?25h\e[?1049l'
-    [[ -n "$_tui_saved_stty" ]] && stty "$_tui_saved_stty" 2>/dev/null
-    _tui_in_alt_screen=false
-}
-
-# Is a backgrounded command from the REPL still running?
-_tui_cmd_running() {
-    [[ -n "$_tui_cmd_pid" ]] && kill -0 "$_tui_cmd_pid" 2>/dev/null
-}
-
-# Full screen redraw. Called at most ~once per second (or on Enter/state change)
-# because the per-row work (lsof per service, find for SRC) costs ~50-100 ms.
-# Keystroke echo uses the cheap `_tui_draw_prompt` instead.
-_tui_draw_full() {
-    local input="$1"
-    # Synchronized update if the terminal supports it (iTerm, kitty, recent
-    # alacritty) — avoids partial-frame flicker while we paint top-to-bottom.
-    # \e[H\e[J = move home + clear entire screen.  Doing this every frame is
-    # the only sure way to wipe residue when a new frame is shorter than the
-    # previous on any individual row (e.g. state was 'external:5/5' and is now
-    # just 'running' — the row's tail must be cleared).
-    printf '\e[?2026h\e[H\e[J'
-
-    local branch="" sha=""
-    branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
-    sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
-    tui_banner "Texera Local Dev — interactive" \
-        "branch: $branch @ $sha · $(date '+%H:%M:%S') · live; input is preserved"
-    printf '\n'
-
-    printf "    ${BOLD}%-32s %-7s %-9s %-18s %-3s %s${RESET}\n" \
-        "SERVICE" "PORT" "PID" "ARTIFACT MTIME" "SRC" "STATE"
-    printf "    ${GRAY}"; tui_hline "─" 32; printf " "
-    tui_hline "─" 7; printf " "; tui_hline "─" 9; printf " "
-    tui_hline "─" 18; printf " "; tui_hline "─" 3; printf " "
-    tui_hline "─" 12; printf "${RESET}\n"
-
-    local n_run=0 n_total=0 n_dirty=0 svc=""
-    for svc in "${SERVICES[@]}"; do
-        n_total=$((n_total+1))
-        local pid="—" state="stopped" mtime="—" port_str="—" src_disp="   "
-        if [[ "${SVC_TYPE[$svc]}" == "docker" ]]; then
-            state=$(docker_svc_state "$svc")
-            mtime="docker"
-            port_str=":${SVC_PORT[$svc]}"
-        else
-            local found_pid=""
-            found_pid=$(svc_running_pid "$svc")
-            if [[ -n "$found_pid" ]]; then state="running"; pid="$found_pid"; fi
-            mtime=$(svc_artifact_mtime "$svc")
-            port_str=":${SVC_PORT[$svc]}"
-        fi
-        [[ "$state" == "running" ]] && n_run=$((n_run+1))
-        if svc_src_changed "$svc" 2>/dev/null; then
-            src_disp="${YELLOW}${BOLD}*${RESET}  "
-            n_dirty=$((n_dirty+1))
-        fi
-        local sym="" color=""
-        sym=$(tui_state_symbol "$state")
-        color=$(tui_state_color "$state")
-        printf "  %s " "$sym"
-        printf "${color}%-32s${RESET} %-7s ${DIM}%-9s${RESET} %-18s %s ${color}%s${RESET}\n" \
-            "$svc" "$port_str" "$pid" "$mtime" "$src_disp" "$state"
-    done
-
-    printf '\n'
-    local sum_color="$YELLOW"
-    (( n_run == n_total )) && sum_color="$GREEN"
-    (( n_run == 0 ))       && sum_color="$GRAY"
-    printf "  ${BOLD}${sum_color}%d of %d running${RESET}" "$n_run" "$n_total"
-    if (( n_dirty > 0 )); then
-        printf "    ${YELLOW}${BOLD}*${RESET} ${DIM}%d with source changes${RESET}" "$n_dirty"
-    fi
-    printf '\n\n'
-
-    printf "  ${DIM}Commands:${RESET}  "
-    printf "${BOLD}u${RESET}p · ${BOLD}d${RESET}own · ${BOLD}b${RESET}uild · "
-    printf "${BOLD}<svc>${RESET} ${DIM}rebuild+bounce${RESET} · "
-    printf "${BOLD}l${RESET}ogs ${DIM}<svc>${RESET} · "
-    printf "${BOLD}s${RESET}top ${DIM}<svc>${RESET} · "
-    printf "${BOLD}q${RESET}uit\n\n"
-
-    # ── Log region ─────────────────────────────────────────────────────────
-    # Always renders ${_tui_log_lines} body rows so the prompt below stays at
-    # a stable row (no flicker, no rows-from-an-old-frame leakage).
-    local log_header="log"
-    if [[ -n "$_tui_last_cmd" ]]; then log_header="log: ${BOLD}$_tui_last_cmd${RESET}"; fi
-    local log_status=""
-    if _tui_cmd_running; then
-        local elapsed=$((SECONDS - _tui_cmd_start_ts))
-        log_status="  ${YELLOW}● running (${elapsed}s)${RESET}"
-    elif [[ -n "$_tui_last_cmd" ]]; then
-        log_status="  ${DIM}(done)${RESET}"
-    fi
-    printf "  ${GRAY}── ${RESET}%s%s\n" "$log_header" "$log_status"
-
-    local lines_printed=0 line=""
-    # During up/down — and only while the command is actually running — we
-    # replace the raw log tail with a docker-compose-style per-container
-    # panel. Once the command finishes we fall back to tailing the REPL log
-    # so messages like the pre-flight "nothing to do" survive.
-    local show_docker_panel=false
-    case "$_tui_last_cmd" in
-        u|up|d|down) _tui_cmd_running && show_docker_panel=true ;;
-    esac
-    case "$show_docker_panel" in
-        true)
-            local frames="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-            local frame_idx=$((SECONDS % ${#frames}))
-            local spin="${frames[frame_idx + 1]}"
-            # All bare in zsh — must initialize, otherwise the first assignment
-            # of each (inside the loop) is echoed to stdout by `typeset`.
-            local cname="" cstate="" cstatus="" sym="" color=""
-            while IFS='|' read -r cname cstate cstatus; do
-                (( lines_printed >= _tui_log_lines )) && break
-                case "$cstate" in
-                    running)
-                        if [[ "$cstatus" == *'(healthy)'* ]]; then
-                            sym="${GREEN}${SYM_OK}${RESET}"; color="$GREEN"
-                        elif [[ "$cstatus" == *'(health: starting)'* ]]; then
-                            sym="${YELLOW}${spin}${RESET}"; color="$YELLOW"
-                        elif [[ "$cstatus" == *'(unhealthy)'* ]]; then
-                            sym="${RED}${SYM_ERR}${RESET}"; color="$RED"
-                        else
-                            sym="${GREEN}${SYM_OK}${RESET}"; color="$GREEN"
-                        fi ;;
-                    exited)
-                        if [[ "$cstatus" == 'Exited (0)'* ]]; then
-                            sym="${GRAY}${SYM_OK}${RESET}"; color="$GRAY"
-                        else
-                            sym="${RED}${SYM_ERR}${RESET}"; color="$RED"
-                        fi ;;
-                    created|restarting|paused|removing)
-                        sym="${YELLOW}${spin}${RESET}"; color="$YELLOW" ;;
-                    *)
-                        sym="${GRAY}${SYM_STOP}${RESET}"; color="$GRAY" ;;
-                esac
-                printf "  ${DIM}│${RESET} %s  %-26s ${color}%s${RESET}\n" \
-                    "$sym" "${cname:0:26}" "${cstatus:0:$((TUI_WIDTH - 36))}"
-                lines_printed=$((lines_printed + 1))
-            done < <(docker compose -p "$DOCKER_PROJECT" ps -a \
-                --format '{{.Name}}|{{.State}}|{{.Status}}' 2>/dev/null)
-            ;;
-        *)
-            if [[ -n "$_tui_log_file" && -f "$_tui_log_file" ]]; then
-                # Strip ALL CSI sequences and CRs in one sed pass. Keeping colors
-                # is tempting, but the truncation below is by byte length and
-                # ANSI codes inflate byte length unpredictably — truncating
-                # mid-escape corrupts subsequent rendering. Plain text truncates
-                # cleanly.
-                while IFS= read -r line; do
-                    (( lines_printed >= _tui_log_lines )) && break
-                    printf "  ${DIM}│${RESET} %s\n" "${line:0:$((TUI_WIDTH - 4))}"
-                    lines_printed=$((lines_printed + 1))
-                done < <(tail -n "$_tui_log_lines" "$_tui_log_file" 2>/dev/null \
-                    | LC_ALL=C sed $'s/\033\\[[0-9;?]*[A-Za-z]//g' \
-                    | tr -d '\r')
-            fi ;;
-    esac
-    while (( lines_printed < _tui_log_lines )); do
-        printf "  ${DIM}│${RESET}\n"
-        lines_printed=$((lines_printed + 1))
-    done
-    printf "  ${GRAY}"; tui_hline "─" $((TUI_WIDTH - 4)); printf "${RESET}\n"
-    printf "\n"
-
-    # Prompt + input + fake cursor (reverse-video block). Hardware cursor is
-    # kept hidden so it can't flicker between renders.
-    printf "${BOLD}${CYAN}local-dev${RESET} ${DIM}›${RESET} %s\e[7m \e[27m" "$input"
-
-    # Wipe any residue from a previous taller frame, then commit the frame.
-    printf '\e[J'
-    printf '\e[?2026l'
-}
-
-# Cheap redraw of just the prompt line — used on every keystroke so typing
-# feels instant. Assumes the cursor is still on the prompt line, which it
-# always is after `_tui_draw_full` (it leaves the cursor on the fake-cursor
-# block) and after a previous `_tui_draw_prompt` (same).
-_tui_draw_prompt() {
-    local input="$1"
-    printf '\r\e[K'
-    printf "${BOLD}${CYAN}local-dev${RESET} ${DIM}›${RESET} %s\e[7m \e[27m" "$input"
-}
-
-# Dispatch one entered line. Caller has already left the alt screen and
-# restored normal stty, so we can run sbt / docker-compose / etc. as usual.
-_tui_exec_cmd() {
-    local input="$1"
-    local verb="" arg=""
-    verb="${input%% *}"
-    arg=""
-    [[ "$input" != "$verb" ]] && arg="${input#* }"
-
-    case "$verb" in
-        ""|r|refresh) ;;
-        \?|h|help)
-            printf "Commands:\n"
-            printf "  r           refresh dashboard (also: ↩ on empty input)\n"
-            printf "  u  up       build (incremental) and start every service\n"
-            printf "  d  down     stop every service\n"
-            printf "  b  build    force incremental sbt dist + yarn/bun install\n"
-            printf "  <svc>       rebuild that JVM service and bounce it\n"
-            printf "  l <svc>     tail the service log (Ctrl-C returns)\n"
-            printf "  s <svc>     stop one service\n"
-            printf "  q  quit     leave\n" ;;
-        u|up)
-            if [[ -n "$arg" ]]; then
-                # `u <svc>` = bring up that one service only. No build, no
-                # touching other services. Use the bare `<svc>` form if you
-                # want rebuild+bounce instead.
-                if [[ -z "${SVC_TYPE[$arg]+x}" ]]; then
-                    tui_err "unknown service: $arg  ${DIM}(known: ${SERVICES[*]})${RESET}"
-                else
-                    start_one "$arg"
-                fi
-            else
-                BUILD=auto FRESH=false SKIP_LIST=""; cmd_up
-            fi ;;
-        d|down)
-            if [[ -n "$arg" ]]; then
-                if [[ -z "${SVC_TYPE[$arg]+x}" ]]; then
-                    tui_err "unknown service: $arg  ${DIM}(known: ${SERVICES[*]})${RESET}"
-                else
-                    stop_one "$arg"
-                fi
-            else
-                SKIP_LIST=""; cmd_down
-            fi ;;
-        b|build) BUILD=force FRESH=false SKIP_LIST=""; build_all; refresh_node_deps ;;
-        s|stop)
-            if [[ -z "${SVC_TYPE[$arg]+x}" ]]; then
-                tui_err "usage: stop <service>"
-            else
-                stop_one "$arg"
-            fi ;;
-        l|logs|tail)
-            if [[ -z "${SVC_TYPE[$arg]+x}" ]]; then
-                tui_err "usage: logs <service>"
-            else
-                printf "${DIM}Tailing $arg (Ctrl-C returns)...${RESET}\n\n"
-                if [[ "${SVC_TYPE[$arg]}" == "docker" ]]; then
-                    ( trap 'exit 0' INT; docker compose -p "$DOCKER_PROJECT" logs -f "$arg" )
-                else
-                    ( trap 'exit 0' INT; tail -f "$LOG_DIR/$arg.log" )
-                fi
-            fi ;;
-        *)
-            if [[ -n "${SVC_TYPE[$verb]+x}" ]]; then
-                cmd_update_one "$verb"
-            else
-                tui_err "unknown: ${BOLD}$verb${RESET}  ${DIM}(type 'h' for help)${RESET}"
-            fi ;;
-    esac
-}
 
 # Print the ordered list of Python interpreters we consider for launching the
 # Textual TUI: an explicit override, then any active venv, then the canonical
@@ -2006,157 +1793,31 @@ _find_python_with_textual() {
     return 1
 }
 
+# Hand off to the Python + Textual TUI. Hard requirement now (no more zsh
+# REPL fallback) — if we can't find a Python with `textual` installed,
+# print install instructions and exit non-zero. Use the non-interactive
+# `status` (or any other subcommand) when you don't have Python set up.
 cmd_interactive() {
     if [[ ! -t 0 || ! -t 1 ]]; then
         tui_err "interactive mode requires a TTY"
         exit 1
     fi
-    # Prefer the Python (Textual) TUI — much smoother than the zsh repl below
-    # (diff rendering, real input editing, no scrollback growth). Probe a
-    # handful of plausible interpreters and use the first one with textual
-    # importable; fall through to the zsh REPL otherwise.
     local py=""
     py="$(_find_python_with_textual)"
-    if [[ -n "$py" ]]; then
-        exec "$py" "$REPO_ROOT/bin/local-dev-tui.py"
+    if [[ -z "$py" ]]; then
+        tui_err "interactive mode requires Python with the ${BOLD}textual${RESET} package"
+        printf "  ${DIM}tried interpreters:${RESET} %s\n" "$(_probed_pythons | paste -sd ' ' -)"
+        printf "\n"
+        _install_hint python
+        exit 1
     fi
-    tui_warn "Falling back to zsh REPL (no Python with textual found)"
-    tui_warn "  tried: $(_probed_pythons | paste -sd ' ' -)"
-    tui_warn "  install: pip install -r $REPO_ROOT/amber/dev-requirements.txt"
-    tui_warn "  or set TEXERA_PYTHON=/path/to/python explicitly"
-    set +e
-
-    _tui_log_file="$LOG_DIR/repl.log"
-    : > "$_tui_log_file"
-    _tui_last_cmd=""
-    _tui_cmd_pid=""
-
-    _tui_enter_alt
-    trap '_tui_leave_alt' EXIT
-    trap '_tui_leave_alt; exit 130' INT
-    trap '_tui_leave_alt; exit 143' TERM
-
-    local input=""
-    local last_full_ts=0
-    local ch="" rest=""
-    local need_full=true   # force first frame
-    local need_prompt=false
-
-    while true; do
-        # 1 Hz full redraw, or whenever an event flips need_full.
-        if $need_full || (( SECONDS - last_full_ts >= 1 )); then
-            _tui_draw_full "$input"
-            last_full_ts=$SECONDS
-            need_full=false
-            need_prompt=false
-        elif $need_prompt; then
-            _tui_draw_prompt "$input"
-            need_prompt=false
-        fi
-
-        # Detect command completion so the next full redraw shows "(done)"
-        # and gets a single forced refresh out of the 1 Hz cadence.
-        if [[ -n "$_tui_cmd_pid" ]] && ! _tui_cmd_running; then
-            _tui_cmd_pid=""
-            need_full=true
-            continue
-        fi
-
-        # 100 ms non-blocking read. Long enough to keep CPU at near-zero while
-        # idle, short enough that the user can't notice the polling.
-        if ! read -r -k 1 -t 0.1 ch 2>/dev/null; then
-            continue
-        fi
-
-        case "$ch" in
-            $'\n'|$'\r')   # Enter
-                if [[ -z "$input" ]]; then
-                    need_full=true   # blank Enter = manual refresh
-                    continue
-                fi
-                local cmd_input="$input"
-                input=""
-
-                case "$cmd_input" in
-                    q|quit|exit) break ;;
-                    \?|h|help)
-                        : > "$_tui_log_file"
-                        {
-                            printf "Commands:\n"
-                            printf "  r           refresh dashboard (or just ↩)\n"
-                            printf "  u           build + start every service\n"
-                            printf "  u <svc>     start one service (no rebuild)\n"
-                            printf "  d           stop every service\n"
-                            printf "  d <svc>     stop one service\n"
-                            printf "  b           force incremental sbt + node deps\n"
-                            printf "  <svc>       rebuild that service and bounce it\n"
-                            printf "  l <svc>     tail the service log (Ctrl-C returns)\n"
-                            printf "  s <svc>     alias: stop one service\n"
-                            printf "  q          leave\n"
-                        } > "$_tui_log_file"
-                        _tui_last_cmd="$cmd_input"
-                        _tui_cmd_pid=""
-                        ;;
-                    *)
-                        # Run the command in the background, with output piped
-                        # to the REPL log. The spinner / wait_panel / docker
-                        # `--progress auto` all see a non-TTY stdout there and
-                        # fall back to their plain modes, which makes a clean
-                        # log we can tail.
-                        _tui_last_cmd="$cmd_input"
-                        _tui_cmd_start_ts=$SECONDS
-                        : > "$_tui_log_file"
-                        ( _tui_exec_cmd "$cmd_input" ) >"$_tui_log_file" 2>&1 &
-                        _tui_cmd_pid=$!
-                        ;;
-                esac
-                need_full=true ;;
-            $'\x7f'|$'\b')  # Backspace / DEL
-                input="${input%?}"
-                need_prompt=true ;;
-            $'\x03')  # Ctrl-C
-                if _tui_cmd_running; then
-                    kill "$_tui_cmd_pid" 2>/dev/null || true
-                    need_full=true
-                elif [[ -n "$input" ]]; then
-                    input=""
-                    need_prompt=true
-                else
-                    break
-                fi ;;
-            $'\x04')  # Ctrl-D
-                [[ -z "$input" ]] && break
-                need_prompt=true ;;
-            $'\x0c')  # Ctrl-L
-                need_full=true ;;
-            $'\x15')  # Ctrl-U: clear input line
-                input=""
-                need_prompt=true ;;
-            $'\x17')  # Ctrl-W: delete previous word
-                input="${input% *}"
-                need_prompt=true ;;
-            $'\x1b')  # ESC — eat any follow-up arrow-key escape sequence
-                read -r -k 2 -t 0.01 rest 2>/dev/null || true ;;
-            *)
-                if [[ "$ch" == [[:print:]] ]]; then
-                    input="${input}${ch}"
-                    need_prompt=true
-                fi ;;
-        esac
-    done
-
-    if _tui_cmd_running; then
-        kill "$_tui_cmd_pid" 2>/dev/null || true
-    fi
-    _tui_leave_alt
-    printf "${DIM}bye${RESET}\n"
-    trap - EXIT INT TERM
+    exec "$py" "$REPO_ROOT/bin/local-dev-tui.py"
 }
 
 # --------- main ---------
 case "${1:-}" in
-    "")               cmd_interactive ;;      # no args → launch the TUI
-    status)           cmd_status ;;
+    ""|status)        cmd_status ;;             # default: one-shot dashboard (safe in scripts/CI)
+    -i|--interactive) cmd_interactive ;;        # opt in to the live TUI
     up)               shift; cmd_up "$@" ;;
     auto)             shift; cmd_auto "$@" ;;
     down)             shift; cmd_down "$@" ;;
@@ -2165,6 +1826,6 @@ case "${1:-}" in
     logs)             shift; cmd_logs "${1:-}" ;;
     w|watch)          shift; cmd_watch "${1:-2}" ;;
     version)          printf "%s\n" "$TEXERA_VERSION" ;;
-    -h|--help)        sed -n '17,45p' "$0" ;;
+    -h|--help)        sed -n '17,49p' "$0" ;;
     *)                cmd_update_one "$1" ;;
 esac

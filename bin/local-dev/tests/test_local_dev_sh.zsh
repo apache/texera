@@ -103,5 +103,28 @@ else
     _fail "start without arg should refuse" "rc=$rc out=$out"
 fi
 
+# 7) No-arg invocation must be non-interactive (= `status`). Previously the
+#    default launched the TUI, which made the script unsafe to drop into
+#    cron jobs or CI smoke tests. Anything that prints the banner without
+#    hanging counts.
+out=$("$SCRIPT" 2>&1 | head -5)
+rc=$?
+if (( rc == 0 )) && [[ "$out" == *"Texera Local Dev"* ]]; then
+    _pass "no-arg invocation prints status (non-interactive)"
+else
+    _fail "no-arg invocation didn't print status" "rc=$rc out=$(echo "$out" | head -1)"
+fi
+
+# 8) `-i` without a TTY must refuse cleanly, not crash or hang. We pipe
+#    stdin from /dev/null so the TTY check fires. Avoid piping into `head`
+#    here — that masks the script's exit code under zsh.
+out=$("$SCRIPT" -i </dev/null 2>&1)
+rc=$?
+if (( rc != 0 )) && [[ "$out" == *"requires a TTY"* || "$out" == *"requires Python"* ]]; then
+    _pass "-i refuses cleanly without a TTY or Python"
+else
+    _fail "-i didn't refuse cleanly" "rc=$rc out=$(echo "$out" | head -1)"
+fi
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))
