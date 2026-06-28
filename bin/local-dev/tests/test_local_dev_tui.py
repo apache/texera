@@ -289,3 +289,71 @@ def test_command_history_max_size(tmp_path, tui):
     reloaded = tui.CommandHistory(history_file=tmp_path / "h", max_size=3)
     # On-disk cap: only the most recent 3 survive a reload.
     assert reloaded._history == ["c", "d", "e"]
+
+
+# ─────────────────── build.sbt dependency parsing ───────────────────
+
+def test_sbt_graph_parsed_from_real_build_sbt(tui):
+    """The parser must extract at least the well-known subset of projects
+    (DAO, Config, Auth, the seven JVM services) and their direct deps from
+    the live repo's build.sbt. If any of these go missing we've drifted
+    from sbt's view of the world and dirty-detection is silently wrong."""
+    g = tui._SBT_GRAPH
+    assert "DAO" in g and "Config" in g and "Auth" in g
+    assert "ConfigService" in g
+    assert "WorkflowExecutionService" in g
+    # Auth depends on DAO + Config — anchor invariant from build.sbt.
+    assert set(g["Auth"]["deps"]) >= {"DAO", "Config"}
+    # WorkflowCore depends on DAO/Config/PyBuilder.
+    assert set(g["WorkflowCore"]["deps"]) >= {"DAO", "Config", "PyBuilder"}
+
+
+def test_sbt_transitive_closure_skips_unrelated(tui):
+    """config-service should NOT pull workflow-operator/workflow-core into
+    its dep set. That's the whole point of using build.sbt as source of
+    truth instead of a shared common/* list."""
+    dirs = tui._transitive_src_dirs("ConfigService", tui._SBT_GRAPH)
+    assert "common/workflow-operator/src" not in dirs
+    assert "common/workflow-core/src" not in dirs
+    # Should still include its own + Auth's reach (DAO/Config).
+    assert "config-service/src" in dirs
+    assert "common/auth/src" in dirs
+    assert "common/dao/src" in dirs
+    assert "common/config/src" in dirs
+
+
+def test_sbt_transitive_for_amber_includes_workflow_chain(tui):
+    """texera-web / computing-unit-master ride WorkflowExecutionService;
+    its closure must include WorkflowOperator → WorkflowCore → DAO/Config/PyBuilder."""
+    dirs = tui._transitive_src_dirs("WorkflowExecutionService", tui._SBT_GRAPH)
+    expected = {
+        "amber/src",
+        "common/workflow-operator/src",
+        "common/workflow-core/src",
+        "common/dao/src",
+        "common/config/src",
+        "common/pybuilder/src",
+        "common/auth/src",
+    }
+    assert expected <= set(dirs), f"missing: {expected - set(dirs)}"
+
+
+def test_sbt_unknown_project_falls_back(tui):
+    """Asking the graph for an unknown sbt project name yields the
+    conservative fallback common/* list — never an empty result, never a
+    crash."""
+    dirs = tui._transitive_src_dirs("NoSuchProject", tui._SBT_GRAPH)
+    assert "common/dao/src" in dirs
+
+
+def test_sbt_test_scope_deps_ignored(tui):
+    """`X % "test->test"` is test-only — must not pollute the runtime dep
+    list (services would otherwise rebuild on test-only edits, defeating
+    the build skip)."""
+    # Auth has a `.dependsOn(DAO % "test->test")` next to its main
+    # `.dependsOn(DAO, Config)`. The test-scope reference should not
+    # appear as a second entry.
+    auth_deps = tui._SBT_GRAPH["Auth"]["deps"]
+    # DAO appears once (from the main-scope dependsOn) — not twice from
+    # the test-scope one.
+    assert auth_deps.count("DAO") == 1

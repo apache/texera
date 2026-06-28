@@ -65,7 +65,15 @@ DOCKER_PROJECT = "texera-local-dev"
 HISTORY_FILE = STATE_DIR / "tui-history"
 MAX_HISTORY = 500
 
-COMMON_SRC = [
+SOURCE_SUFFIXES = {".scala", ".java", ".proto"}
+
+# Single source of truth for per-JVM-service source dirs is the SBT build
+# graph in build.sbt. We parse it instead of hardcoding `common/*` so that
+# adding a `lazy val NewCommon = (project in file("common/new"))` and a
+# corresponding `.dependsOn(NewCommon)` automatically flows through to
+# dirty-detection without anyone touching this file. Fallback list below
+# is only used if parsing fails (very old / very new build.sbt format).
+_FALLBACK_COMMON_SRC = [
     "common/dao/src",
     "common/config/src",
     "common/auth/src",
@@ -73,7 +81,80 @@ COMMON_SRC = [
     "common/workflow-operator/src",
     "common/pybuilder/src",
 ]
-SOURCE_SUFFIXES = {".scala", ".java", ".proto"}
+
+
+def _parse_sbt_deps() -> dict[str, dict]:
+    """Walk `build.sbt` and return a dependency graph keyed by sbt project
+    name. Each entry is `{"path": <repo-relative dir>, "deps": [..main-scope
+    deps..]}`. Test-only `% "test->test"` deps are filtered out — they
+    can't affect a service's runtime artifact, so they don't drive dirty.
+    """
+    bs = REPO_ROOT / "build.sbt"
+    try:
+        text = bs.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {}
+
+    proj_re = re.compile(
+        r'^lazy\s+val\s+([A-Z][A-Za-z0-9]*)\s*=\s*\(project\s+in\s+file\("([^"]+)"\)\)',
+        re.MULTILINE,
+    )
+    matches = list(proj_re.finditer(text))
+    if not matches:
+        return {}
+
+    graph: dict[str, dict] = {}
+    for i, m in enumerate(matches):
+        name = m.group(1)
+        path = m.group(2)
+        # The "block" for this project spans from this match to the next
+        # `lazy val ... = (project in file(...))` (or end of file). All the
+        # chained `.dependsOn(...)` calls live in there.
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        block = text[m.start():end]
+
+        deps: list[str] = []
+        for arg_list in re.findall(r"\.dependsOn\(([^)]*)\)", block):
+            for arg in arg_list.split(","):
+                arg = arg.strip()
+                # Skip test-scope (`X % "test->test"`) — runtime build
+                # doesn't ship those classes.
+                if "%" in arg:
+                    continue
+                # Strip any trailing whitespace / comments. Project refs
+                # are bare identifiers.
+                ref = arg.split()[0] if arg else ""
+                if ref and ref[0].isupper():
+                    deps.append(ref)
+        graph[name] = {"path": path, "deps": deps}
+    return graph
+
+
+def _transitive_src_dirs(sbt_project: Optional[str], graph: dict[str, dict]) -> list[str]:
+    """Return source dirs for sbt_project AND every project it transitively
+    depends on. Each dir is `<project_path>/src` (the canonical sbt source
+    location). Order is stable; duplicates removed."""
+    if not sbt_project or sbt_project not in graph:
+        # Conservative fallback: every known common/* dir.
+        return list(_FALLBACK_COMMON_SRC)
+    visited: set[str] = set()
+    out: list[str] = []
+
+    def walk(name: str) -> None:
+        if name in visited or name not in graph:
+            return
+        visited.add(name)
+        path = graph[name]["path"]
+        src = f"{path}/src"
+        if src not in out:
+            out.append(src)
+        for d in graph[name]["deps"]:
+            walk(d)
+    walk(sbt_project)
+    return out
+
+
+_SBT_GRAPH = _parse_sbt_deps()
 
 POLL_INTERVAL_S = 1.0     # how often to refresh service state
 DIRTY_INTERVAL_S = 2.0    # how often to recompute dirty indicators
@@ -387,10 +468,24 @@ def container_uptime(svc_name: str) -> str:
 
 
 def _jvm_src_dirs(svc: Service) -> list[Path]:
-    dirs = [REPO_ROOT / d for d in COMMON_SRC]
-    if svc.own_src:
-        dirs.insert(0, REPO_ROOT / svc.own_src)
-    return [d for d in dirs if d.exists()]
+    # Derive the source-dir set from the SBT dependency graph rather than a
+    # hardcoded `common/*` list. For services that share another's sbt
+    # project (e.g. computing-unit-master rides amber's dist), we still
+    # need to enter the graph at the *producing* project — we map them
+    # explicitly via SHARED_SBT_PROJECT below.
+    SHARED_SBT_PROJECT = {
+        "computing-unit-master": "WorkflowExecutionService",
+    }
+    project = svc.sbt_project or SHARED_SBT_PROJECT.get(svc.name)
+    src_dirs = _transitive_src_dirs(project, _SBT_GRAPH) if _SBT_GRAPH else []
+    if not src_dirs:
+        # build.sbt parse failed (or this service was an unknown shape) —
+        # fall back to the conservative pre-parse list so dirty detection
+        # at least over-reports rather than silently missing changes.
+        src_dirs = list(_FALLBACK_COMMON_SRC)
+        if svc.own_src and svc.own_src not in src_dirs:
+            src_dirs.insert(0, svc.own_src)
+    return [REPO_ROOT / d for d in src_dirs if (REPO_ROOT / d).exists()]
 
 
 def _jvm_source_files(svc: Service) -> list[Path]:
