@@ -45,13 +45,13 @@ concurrency:
 jobs:
   # Precheck decides which downstream jobs run for this event:
   #   - On PR events, wait for the Pull Request Labeler workflow to finish so
-  #     the labels it applies (frontend, docs, dev, ...) are available, then
+  #     the labels it applies (frontend, docs, infra, ...) are available, then
   #     gate run_* outputs on those labels.
   #   - run_frontend / run_amber / run_platform / run_pyamber /
   #     run_agent_service: gate the main build stacks. Each labeler-applied
   #     label maps to the stacks it requires (LABEL_STACKS below); the run
   #     set is the union across all PR labels. Empty union (e.g. docs-only
-  #     / dev-only PRs) skips every stack. Push and workflow_dispatch
+  #     PRs) skips every stack. Push and workflow_dispatch
   #     events run every stack.
   #   - backport_targets: JSON array of release/* labels currently on the PR.
   #     Drives the backport matrix; empty array means no backport runs.
@@ -132,8 +132,8 @@ jobs:
             //                                                                             config)
             //   ddl-change        |          |   x   |      x      |    x     |         |
             //   ci                |    x     |   x   |      x      |    x     |    x    |     x
-            //   docs / dev /      |          |       |             |          |         |
-            //   deps / release/   |          |       |             |          |         |
+            //   docs / deps /     |          |       |             |          |         |
+            //   release/*         |          |       |             |          |         |
             //   * / branch        |          |       |             |          |         |
             //
             // amber-integration runs the Scala tests tagged
