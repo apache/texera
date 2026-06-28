@@ -1005,6 +1005,12 @@ class LocalDevApp(App):
         try:
             assert proc.stdout
             async for raw in proc.stdout:
+                # If a newer action (e.g. `up`) has claimed _cmd_proc, our
+                # exclusive-group cancellation is in flight but hasn't hit
+                # the next await yet — stop writing to the widget *now* so
+                # we don't leak frontend.log lines into the up output.
+                if self._cmd_proc is not proc:
+                    break
                 log_widget.write(_strip_ansi_motion(raw.decode(errors="replace").rstrip("\n")))
         finally:
             # ESC fires _cancel_active_cmd which terminates this proc AND
@@ -1026,6 +1032,12 @@ class LocalDevApp(App):
             with contextlib.suppress(Exception):
                 self._log_auto_hide_handle.stop()
             self._log_auto_hide_handle = None
+        # Trip _tail_service_log's ownership check (`self._cmd_proc is not
+        # proc → break`) immediately. Otherwise the tail keeps draining
+        # frontend.log into the log widget across our log.clear() + the
+        # async point at create_subprocess_exec below, and the user sees
+        # frontend output mixed into the up panel.
+        self._cmd_proc = None
         # Truncate REPL_LOG so the log pane only shows this command's output.
         REPL_LOG.write_text("")
         log.clear()
