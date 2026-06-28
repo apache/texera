@@ -969,6 +969,22 @@ class LocalDevApp(App):
     # `update_cell(row, "STATE", ...)` silently fails.
     _COL_LABELS = ("●", "SERVICE", "PORT", "PID", "UPTIME", "CPU%", "MEM", "ARTIFACT", "BUILD", "STATE")
     _COL_KEYS   = ("sym", "svc",     "port", "pid", "uptime", "cpu",  "mem", "mtime",    "src",   "state")
+    # Min width per column key. Without these, Textual sizes the column to
+    # its header (e.g. PID = 3 chars), then truncates wider cell values
+    # like "76348" → "763", which made every JVM look like it shared a
+    # PID. Numeric/timestamp columns deserve enough room for the
+    # widest plausible value.
+    _COL_MIN_WIDTH = {
+        "svc":    32,
+        "port":   6,
+        "pid":    7,    # up to 7-digit PIDs (Linux default max is 4194304)
+        "uptime": 10,
+        "cpu":    7,
+        "mem":    7,
+        "mtime":  18,
+        "src":    5,
+        "state":  12,
+    }
 
     # ── Layout ──
     def compose(self) -> ComposeResult:
@@ -980,7 +996,7 @@ class LocalDevApp(App):
         )
         table = DataTable(zebra_stripes=False, cursor_type="row")
         for label, key in zip(self._COL_LABELS, self._COL_KEYS):
-            table.add_column(label, key=key)
+            table.add_column(label, key=key, width=self._COL_MIN_WIDTH.get(key))
         for s in SERVICES:
             table.add_row("○", s.name, f":{s.port}", "—", "—", "—", "—", "—", "  ", "stopped", key=s.name)
         yield table
