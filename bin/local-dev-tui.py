@@ -82,7 +82,10 @@ SOURCE_SUFFIXES = {".scala", ".java", ".proto"}
 # graph. `X % "test->test"`, `X % "test"`, `X % Test`. Tighter than the
 # previous "any %" check, which would have silently dropped a future
 # `.dependsOn(X % "compile->compile")` and broken dirty-detection on X.
-_TEST_SCOPE_RE = re.compile(r'%\s*(?:"test(?:->[^"]*)?"|Test)\b')
+# No trailing `\b` — `\b` after a literal `"` doesn't match because both
+# sides are non-word chars; we anchor the end of the quoted form on the
+# closing `"` itself, and the `Test` form on (?:\b|$).
+_TEST_SCOPE_RE = re.compile(r'%\s*(?:"test(?:->[^"]*)?"|Test(?:\b|$))')
 
 
 def _parse_sbt_deps() -> dict[str, dict]:

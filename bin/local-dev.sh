@@ -443,10 +443,18 @@ _parse_sbt() {
         [[ -z "$current" ]] && continue
         # Scan ALL `.dependsOn(...)` matches on this line — some lines
         # chain `.dependsOn(A).dependsOn(B % "test->test")` and we must
-        # see both to filter correctly.
+        # see both to filter correctly. Snapshot BASH_REMATCH BEFORE
+        # calling `_absorb` — that helper does its own `[[ … =~ … ]]`
+        # for the test-scope filter, which clobbers `BASH_REMATCH[0]`
+        # under us. Without the snapshot the `#*…` trim referenced the
+        # wrong value, the strip silently no-op'd, and the outer while
+        # looped forever on the first `.dependsOn(…)`.
+        local _match="" _captured=""
         while [[ "$rest" =~ $deps_re ]]; do
-            _absorb "${BASH_REMATCH[1]}"
-            rest="${rest#*"${BASH_REMATCH[0]}"}"
+            _match="${BASH_REMATCH[0]}"
+            _captured="${BASH_REMATCH[1]}"
+            _absorb "$_captured"
+            rest="${rest#*"$_match"}"
         done
     done < "$file"
     # Trim leading space on every entry.
