@@ -957,17 +957,20 @@ jobs:
       - name: Run shell smoke tests
         # Discover + run every `test_*.sh` under bin/. New shell test
         # suites picked up automatically — no edits to this workflow.
+        # `find -print0` instead of bash's `**` glob so this works on
+        # macOS's pinned /bin/bash 3.2 (no `shopt -s globstar`).
         run: |
           set -e
-          shopt -s globstar nullglob
-          tests=( bin/**/test_*.sh )
-          if (( ${#tests[@]} == 0 )); then
-              echo "no shell tests found under bin/" >&2; exit 1
-          fi
-          for t in "${tests[@]}"; do
+          found=0
+          while IFS= read -r -d '' t; do
+              found=1
               echo "==> $t"
               bash "$t"
-          done
+          done < <(find bin -type f -name "test_*.sh" -print0)
+          if [ "$found" = 0 ]; then
+              echo "no shell tests found under bin/" >&2
+              exit 1
+          fi
       - name: Run Python unit tests
         # `pytest bin/` discovers every `test_*.py` recursively — covers
         # bin/local-dev/tests (TUI helpers, dirty detection) and
