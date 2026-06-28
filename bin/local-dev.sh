@@ -2062,11 +2062,32 @@ cmd_auto() {
                 tui_warn "$svc: ${SVC_ZIP_GLOB[$svc]} not produced — skipping"
             fi
         done
-        # Pass 2: start the ones that had been running. By now every
+        # amber's two siblings (texera-web + computing-unit-master) are
+        # *intended* to run together — they share the dist and they're
+        # both required for a working stack. If either was running before
+        # the auto pass, treat the whole group as "should be running" so
+        # the other doesn't end up silently dead just because it had
+        # already crashed / been left stopped from an earlier session.
+        local AMBER_SIBLINGS=(texera-web computing-unit-master)
+        local amber_group_active=false
+        local s=""
+        for s in "${AMBER_SIBLINGS[@]}"; do
+            [[ -n "${_was_running[$s]:-}" ]] && amber_group_active=true
+        done
+
+        # Pass 2: start the ones that had been running, plus any amber
+        # sibling that is dirty when the group is "active". By now every
         # sibling's launcher is on disk (the twin's unzip in pass 1
         # populated `amber/target/amber-<VERSION>/bin/*`).
         for svc in "${dirty_jvms[@]}"; do
+            local should_start=false
             if [[ -n "${_was_running[$svc]:-}" ]]; then
+                should_start=true
+            elif $amber_group_active && { [[ "$svc" == "texera-web" ]] || [[ "$svc" == "computing-unit-master" ]]; }; then
+                should_start=true
+                tui_step "$svc: was stopped but its sibling is active — starting too"
+            fi
+            if $should_start; then
                 start_one "$svc"
                 n_bounced=$((n_bounced+1))
             else
@@ -2197,8 +2218,25 @@ cmd_update_one() {
             tui_section "Build"
             build_one_jvm "$svc"
             tui_section "Bounce"
+            # amber's two siblings share a dist — rebuilding one moves the
+            # jar bytes underneath the other. Always bounce them together
+            # so neither ends up running stale code (or silently dead).
+            local sibling=""
+            case "$svc" in
+                texera-web)            sibling="computing-unit-master" ;;
+                computing-unit-master) sibling="texera-web" ;;
+            esac
+            local sibling_was_running=false
+            if [[ -n "$sibling" ]] && [[ -n "$(svc_running_pid "$sibling")" ]]; then
+                sibling_was_running=true
+                tui_step "$sibling: stopping (shares amber dist with $svc)"
+                stop_one "$sibling"
+            fi
             stop_one "$svc"
             start_one "$svc"
+            if $sibling_was_running; then
+                start_one "$sibling"
+            fi
             ;;
     esac
     tui_section "Health"
