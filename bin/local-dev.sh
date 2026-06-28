@@ -73,20 +73,101 @@ LOG_DIR="$STATE_DIR/logs"
 BUILD_STAMP_DIR="$STATE_DIR/build-stamps"
 mkdir -p "$LOG_DIR" "$BUILD_STAMP_DIR"
 
-# --------- toolchain (JDK 17 + nvm node) ---------
-export JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@17}"
-if [[ ! -x "$JAVA_HOME/bin/java" ]]; then
-    echo "FATAL: $JAVA_HOME/bin/java missing. Install with: brew install openjdk@17" >&2
+# --------- toolchain (JDK 17 + node) ---------
+# Detect a JDK 17 installation rather than pinning one path. We try, in
+# order: (1) caller-set $JAVA_HOME if it really is 17, (2) macOS's official
+# locator `/usr/libexec/java_home -v 17`, (3) Homebrew on Apple Silicon +
+# Intel, (4) common Linux distro paths (openjdk / temurin / corretto / zulu),
+# (5) SDKMAN, (6) asdf, (7) the `java` on PATH if its `-version` says 17.
+# Fall through to a clear install hint if none match.
+_java_is_17() {
+    local home="$1"
+    [[ -x "$home/bin/java" ]] || return 1
+    "$home/bin/java" -version 2>&1 | head -1 | grep -q '"17[.]' || return 1
+    return 0
+}
+
+_find_jdk17() {
+    local cand=""
+    # 1. Respect $JAVA_HOME if the caller already set it AND it's 17.
+    if [[ -n "${JAVA_HOME:-}" ]] && _java_is_17 "$JAVA_HOME"; then
+        print -r -- "$JAVA_HOME"; return 0
+    fi
+    # 2. macOS native locator (works for any vendor installed via /Library).
+    if command -v /usr/libexec/java_home >/dev/null 2>&1; then
+        cand=$(/usr/libexec/java_home -v 17 2>/dev/null) || cand=""
+        if [[ -n "$cand" ]] && _java_is_17 "$cand"; then
+            print -r -- "$cand"; return 0
+        fi
+    fi
+    # 3. Homebrew — try `brew --prefix openjdk@17` first, then both well-
+    #    known prefixes as a fallback (script may run without brew on PATH
+    #    if /etc/zprofile didn't fire).
+    if command -v brew >/dev/null 2>&1; then
+        cand=$(brew --prefix openjdk@17 2>/dev/null) || cand=""
+        [[ -n "$cand" ]] && _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
+    fi
+    for cand in /opt/homebrew/opt/openjdk@17 /usr/local/opt/openjdk@17; do
+        _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
+    done
+    # 4. Linux distro layouts. Glob first match.
+    local glob=""
+    for glob in \
+        /usr/lib/jvm/java-17-openjdk* \
+        /usr/lib/jvm/temurin-17-jdk* \
+        /usr/lib/jvm/java-17-amazon-corretto* \
+        /usr/lib/jvm/zulu-17* \
+        /usr/lib/jvm/jdk-17* ; do
+        for cand in $~glob(N); do
+            _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
+        done
+    done
+    # 5. SDKMAN (`sdk install java 17.x-...`) — pick the lex-largest 17.* dir.
+    if [[ -d "$HOME/.sdkman/candidates/java" ]]; then
+        for cand in "$HOME"/.sdkman/candidates/java/17.*(N); do
+            _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
+        done
+    fi
+    # 6. asdf.
+    if [[ -d "$HOME/.asdf/installs/java" ]]; then
+        for cand in "$HOME"/.asdf/installs/java/*17*(N); do
+            _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
+        done
+    fi
+    # 7. Whatever `java` is on PATH, IF it's 17 — covers cases like Docker
+    #    images or distro-managed defaults.
+    cand=$(command -v java 2>/dev/null) || cand=""
+    if [[ -n "$cand" ]]; then
+        cand="$(dirname "$(dirname "$cand")")"
+        _java_is_17 "$cand" && { print -r -- "$cand"; return 0; }
+    fi
+    return 1
+}
+
+JAVA_HOME_DETECTED="$(_find_jdk17)" || {
+    echo "FATAL: could not find a JDK 17 install." >&2
+    echo "  tried: \$JAVA_HOME, /usr/libexec/java_home -v 17, Homebrew, Linux /usr/lib/jvm/*, SDKMAN, asdf, \$PATH" >&2
+    echo "  install one of: brew install openjdk@17 · apt install openjdk-17-jdk · sdk install java 17.0.x-tem" >&2
+    echo "  or set JAVA_HOME=/path/to/jdk-17 explicitly" >&2
     exit 1
-fi
+}
+export JAVA_HOME="$JAVA_HOME_DETECTED"
 export PATH="$JAVA_HOME/bin:$PATH"
 
+# Node: source the user's version manager (if any) so the right `node` is on
+# PATH for yarn/bun/ng. Try nvm, fnm, volta in that order; `command -v node`
+# remains the ultimate fallback.
 if [[ -z "${NVM_DIR:-}" && -d "$HOME/.nvm" ]]; then
     export NVM_DIR="$HOME/.nvm"
 fi
 if [[ -n "${NVM_DIR:-}" && -s "$NVM_DIR/nvm.sh" ]]; then
     # shellcheck disable=SC1091
     \. "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
+elif command -v fnm >/dev/null 2>&1; then
+    eval "$(fnm env --use-on-cd 2>/dev/null)" || true
+elif [[ -s "$HOME/.volta/load.sh" ]]; then
+    # shellcheck disable=SC1091
+    \. "$HOME/.volta/load.sh" >/dev/null 2>&1 || true
 fi
 
 # --------- runtime env for backend ---------
