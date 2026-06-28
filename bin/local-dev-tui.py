@@ -492,20 +492,21 @@ class HistoricInput(Input):
 
 # ─────────────────── Textual app ───────────────────
 
-# Stylised side-profile peacock (Apache Texera's brand mark) — three crest
-# spheres on top, a long S-curve neck, and a fanned tail with eye-feathers.
-# 9 rows tall, ~30 cols wide. Coloured teal to match the actual brand
-# (gradient teal→deep-blue in the PNG at frontend/src/assets/logos/logo.png).
+# "Apache Texera" wordmark in box-drawing block characters. APACHE stacked
+# above TEXERA, 12 rows × ~48 cols. Coloured teal to match the brand.
 LOGO_TEXERA = (
-    "        ● ● ●                 \n"
-    "         ╲│╱                  \n"
-    "        ╭─┴─╮◀                \n"
-    "       ╱  ◉  ╲                \n"
-    "       ╲__╤__╱                \n"
-    "          │╲_____             \n"
-    "          │      ╲___         \n"
-    "          ╰─◉ ◉ ◉ ◉ ◉╮        \n"
-    "             ╲◉_◉_◉_╱         "
+    " █████╗ ██████╗  █████╗  ██████╗██╗  ██╗███████╗\n"
+    "██╔══██╗██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝\n"
+    "███████║██████╔╝███████║██║     ███████║█████╗  \n"
+    "██╔══██║██╔═══╝ ██╔══██║██║     ██╔══██║██╔══╝  \n"
+    "██║  ██║██║     ██║  ██║╚██████╗██║  ██║███████╗\n"
+    "╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝\n"
+    "████████╗███████╗██╗  ██╗███████╗██████╗  █████╗ \n"
+    "╚══██╔══╝██╔════╝╚██╗██╔╝██╔════╝██╔══██╗██╔══██╗\n"
+    "   ██║   █████╗   ╚███╔╝ █████╗  ██████╔╝███████║\n"
+    "   ██║   ██╔══╝   ██╔██╗ ██╔══╝  ██╔══██╗██╔══██║\n"
+    "   ██║   ███████╗██╔╝ ██╗███████╗██║  ██║██║  ██║\n"
+    "   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝"
 )
 
 
@@ -530,7 +531,7 @@ class LocalDevApp(App):
     CSS = """
     Screen { layout: vertical; }
     #banner {
-        height: 14;
+        height: 17;
         background: $boost;
         color: $text;
         padding: 0 2;
@@ -539,7 +540,7 @@ class LocalDevApp(App):
     #banner-logo  {
         color: #20b2aa;
         text-style: bold;
-        height: 10;
+        height: 13;
     }
     #banner-title { text-style: bold; }
     #banner-sub  { color: $text-muted; }
