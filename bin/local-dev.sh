@@ -1715,7 +1715,9 @@ build_all() {
             continue
         fi
         # shellcheck disable=SC2086
-        if unzip -oq ${zip_glob} -d "${unzip_dest}" 2>/dev/null; then
+        local zip_file=""
+        zip_file=$(ls -t ${zip_glob} 2>/dev/null | head -1)
+        if [[ -n "$zip_file" ]] && unzip -oq "$zip_file" -d "${unzip_dest}" 2>/dev/null; then
             svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc"
         else
             tui_warn "${zip_glob} not produced"
@@ -2123,7 +2125,9 @@ cmd_auto() {
             fi
             phase_set "$svc" building
             # shellcheck disable=SC2086
-            if unzip -oq ${zip_glob} -d "${unzip_dest}" 2>/dev/null; then
+            local zip_file=""
+            zip_file=$(ls -t ${zip_glob} 2>/dev/null | head -1)
+            if [[ -n "$zip_file" ]] && unzip -oq "$zip_file" -d "${unzip_dest}" 2>/dev/null; then
                 svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc"
                 n_rebuilt=$((n_rebuilt+1))
             else
