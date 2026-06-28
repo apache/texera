@@ -163,5 +163,22 @@ else
     _pass "skip: 'script' not on PATH"
 fi
 
+# 10) Regression: dual-zip selection in target/universal/. Closes #5991.
+#     Leftover `<svc>-1.2.0-incubating.zip` next to a fresh
+#     `<svc>-1.3.0-incubating-SNAPSHOT.zip` used to break `unzip -oq <glob>`:
+#     the shell expanded the unquoted glob to two filenames, unzip read the
+#     second as a member to extract from the first, exit 11, and the script
+#     silently logged "not produced — skipping". Both call sites
+#     (`build_all` + `cmd_auto`) must now pick the newest match via
+#     `ls -t <glob> | head -1` and feed unzip a single file.
+n_naked=$(grep -cE '^[[:space:]]*if unzip -oq \$\{zip_glob\}' "$SCRIPT" 2>/dev/null || true)
+n_picker=$(grep -cE 'ls -t \$\{?zip_glob\}?.*head -1' "$SCRIPT" 2>/dev/null || true)
+if (( n_naked == 0 )) && (( n_picker >= 2 )); then
+    _pass "unzip step picks newest dist zip (regression for #5991)"
+else
+    _fail "unzip step is missing the newest-zip picker" \
+        "naked-glob unzip count=$n_naked  picker count=$n_picker  (expected naked=0, picker>=2)"
+fi
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))
