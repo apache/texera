@@ -492,21 +492,62 @@ class HistoricInput(Input):
 
 # ─────────────────── Textual app ───────────────────
 
-# "Apache Texera" wordmark in box-drawing block characters. APACHE stacked
-# above TEXERA, 12 rows × ~48 cols. Coloured teal to match the brand.
+class LogResizeHandle(Static):
+    """The one-row grip above the log pane. Drag it up/down with the mouse
+    to resize the log; the height is clamped by the RichLog CSS min/max.
+    Doubles as the static "drag to resize" label when idle."""
+
+    DEFAULT_LABEL = " ⇅  log  (drag this row to resize)"
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(self.DEFAULT_LABEL, **kwargs)
+        self._dragging = False
+        self._drag_origin_y = 0
+        self._drag_origin_h = 0
+
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+        # We only care about the primary button.
+        if event.button != 1:
+            return
+        log = self.app.query_one("#log", RichLog)
+        # `region.height` is the current rendered height in cells. Lock it
+        # in as the baseline so we can compute deltas without races against
+        # auto-layout while the user drags.
+        self._drag_origin_y = event.screen_y
+        self._drag_origin_h = log.region.height
+        self._dragging = True
+        self.capture_mouse(True)
+        # Replace the label so users know they grabbed it.
+        self.update(f" ⇅  resizing… (height {self._drag_origin_h})")
+
+    def on_mouse_move(self, event: events.MouseMove) -> None:
+        if not self._dragging:
+            return
+        # Dragging UP (smaller screen_y) should GROW the log since the log
+        # sits below this handle. Invert the delta and clamp; CSS max/min
+        # are a fallback but the explicit clamp keeps the label honest.
+        delta = self._drag_origin_y - event.screen_y
+        new_h = max(4, min(60, int(self._drag_origin_h + delta)))
+        self.app.query_one("#log", RichLog).styles.height = new_h
+        self.update(f" ⇅  resizing… (height {new_h})")
+
+    def on_mouse_up(self, event: events.MouseUp) -> None:
+        if not self._dragging:
+            return
+        self._dragging = False
+        self.capture_mouse(False)
+        self.update(self.DEFAULT_LABEL)
+
+
+# "Apache Texera" wordmark in box-drawing block characters. Single line,
+# 6 rows × ~104 cols. Coloured teal to match the brand.
 LOGO_TEXERA = (
-    " █████╗ ██████╗  █████╗  ██████╗██╗  ██╗███████╗\n"
-    "██╔══██╗██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝\n"
-    "███████║██████╔╝███████║██║     ███████║█████╗  \n"
-    "██╔══██║██╔═══╝ ██╔══██║██║     ██╔══██║██╔══╝  \n"
-    "██║  ██║██║     ██║  ██║╚██████╗██║  ██║███████╗\n"
-    "╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝\n"
-    "████████╗███████╗██╗  ██╗███████╗██████╗  █████╗ \n"
-    "╚══██╔══╝██╔════╝╚██╗██╔╝██╔════╝██╔══██╗██╔══██╗\n"
-    "   ██║   █████╗   ╚███╔╝ █████╗  ██████╔╝███████║\n"
-    "   ██║   ██╔══╝   ██╔██╗ ██╔══╝  ██╔══██╗██╔══██║\n"
-    "   ██║   ███████╗██╔╝ ██╗███████╗██║  ██║██║  ██║\n"
-    "   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝"
+    " █████╗ ██████╗  █████╗  ██████╗██╗  ██╗███████╗    ████████╗███████╗██╗  ██╗███████╗██████╗  █████╗ \n"
+    "██╔══██╗██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝    ╚══██╔══╝██╔════╝╚██╗██╔╝██╔════╝██╔══██╗██╔══██╗\n"
+    "███████║██████╔╝███████║██║     ███████║█████╗         ██║   █████╗   ╚███╔╝ █████╗  ██████╔╝███████║\n"
+    "██╔══██║██╔═══╝ ██╔══██║██║     ██╔══██║██╔══╝         ██║   ██╔══╝   ██╔██╗ ██╔══╝  ██╔══██╗██╔══██║\n"
+    "██║  ██║██║     ██║  ██║╚██████╗██║  ██║███████╗       ██║   ███████╗██╔╝ ██╗███████╗██║  ██║██║  ██║\n"
+    "╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝       ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝"
 )
 
 
@@ -531,7 +572,7 @@ class LocalDevApp(App):
     CSS = """
     Screen { layout: vertical; }
     #banner {
-        height: 17;
+        height: 11;
         background: $boost;
         color: $text;
         padding: 0 2;
@@ -540,7 +581,7 @@ class LocalDevApp(App):
     #banner-logo  {
         color: #20b2aa;
         text-style: bold;
-        height: 13;
+        height: 7;
     }
     #banner-title { text-style: bold; }
     #banner-sub  { color: $text-muted; }
@@ -551,11 +592,15 @@ class LocalDevApp(App):
     #log-header {
         height: 1;
         color: $text-muted;
+        background: $primary-darken-3;
         padding: 0 2;
     }
     #log-header.-hidden { display: none; }
+    #log-header:hover { color: $accent; background: $primary-darken-2; }
     RichLog {
-        height: 12;
+        height: 18;
+        min-height: 4;
+        max-height: 60;
         background: $surface;
         scrollbar-size: 1 1;
         padding: 0 1;
@@ -608,7 +653,7 @@ class LocalDevApp(App):
     def _set_log_visible(self, show: bool) -> None:
         self._log_visible = show
         log = self.query_one("#log", RichLog)
-        header = self.query_one("#log-header", Static)
+        header = self.query_one("#log-header", LogResizeHandle)
         if show:
             log.remove_class("-hidden")
             header.remove_class("-hidden")
@@ -637,7 +682,7 @@ class LocalDevApp(App):
         for s in SERVICES:
             table.add_row("○", s.name, f":{s.port}", "—", "—", "  ", "stopped", key=s.name)
         yield table
-        yield Static("log:", id="log-header", classes="-hidden")
+        yield LogResizeHandle(id="log-header", classes="-hidden")
         yield RichLog(id="log", highlight=False, markup=False, wrap=False,
                       auto_scroll=True, classes="-hidden")
         yield Static("", id="status-bar")
