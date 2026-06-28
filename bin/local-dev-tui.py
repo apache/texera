@@ -1097,6 +1097,13 @@ class LocalDevApp(App):
         if proc and proc.returncode is None:
             with contextlib.suppress(ProcessLookupError, OSError):
                 proc.terminate()
+        # Cancel the worker too. proc.terminate() races with stdout draining
+        # — until the worker's `async for` actually returns, Textual still
+        # considers it alive in group "cmd", which can block the next
+        # `@work(exclusive=True, group="cmd")` from ever starting. That's
+        # the bug behind "tap into a log → ESC → `down` does nothing".
+        with contextlib.suppress(Exception):
+            self.workers.cancel_group(self, "cmd")
         self.active_cmd = None
         self._cmd_proc = None
 
