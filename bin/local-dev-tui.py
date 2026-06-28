@@ -488,6 +488,18 @@ class HistoricInput(Input):
 
 # ─────────────────── Textual app ───────────────────
 
+# Apache Texera wordmark in box-drawing block characters. ~52 cols wide, 6
+# rows tall. Rendered orange to evoke the Apache feather.
+LOGO_TEXERA = (
+    "████████╗███████╗██╗  ██╗███████╗██████╗  █████╗ \n"
+    "╚══██╔══╝██╔════╝╚██╗██╔╝██╔════╝██╔══██╗██╔══██╗\n"
+    "   ██║   █████╗   ╚███╔╝ █████╗  ██████╔╝███████║\n"
+    "   ██║   ██╔══╝   ██╔██╗ ██╔══╝  ██╔══██╗██╔══██║\n"
+    "   ██║   ███████╗██╔╝ ██╗███████╗██║  ██║██║  ██║\n"
+    "   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝"
+)
+
+
 STATE_STYLE = {
     "running":   ("●", "green"),
     "starting":  ("⚠", "yellow"),
@@ -509,11 +521,16 @@ class LocalDevApp(App):
     CSS = """
     Screen { layout: vertical; }
     #banner {
-        height: 3;
+        height: 11;
         background: $boost;
         color: $text;
         padding: 0 2;
         border-bottom: heavy $primary;
+    }
+    #banner-logo  {
+        color: #d2691e;
+        text-style: bold;
+        height: 7;
     }
     #banner-title { text-style: bold; }
     #banner-sub  { color: $text-muted; }
@@ -599,6 +616,7 @@ class LocalDevApp(App):
     # ── Layout ──
     def compose(self) -> ComposeResult:
         yield Vertical(
+            Static(LOGO_TEXERA, id="banner-logo"),
             Static("", id="banner-title"),
             Static("", id="banner-sub"),
             id="banner",
@@ -786,6 +804,7 @@ class LocalDevApp(App):
             "  d           stop every service",
             "  d <svc>     stop one service",
             "  b           force incremental sbt + node deps",
+            "  a / auto    scan for dirty services and rebuild+bounce only those",
             "  <svc>       rebuild that service and bounce it",
             "  l <svc>     tail that service's log (Ctrl-C returns)",
             "  s <svc>     stop one service",
@@ -844,6 +863,9 @@ class LocalDevApp(App):
             # Force an incremental build; the shell handles the "is this
             # really needed" decision itself (it pre-bounces JVMs etc.).
             argv = ["up", "--build"]
+        elif verb in ("a", "auto"):
+            # Scan for dirty services and rebuild + bounce only those.
+            argv = ["auto"]
         elif verb in ("l", "logs", "tail"):
             if not arg or arg not in SERVICES_BY_NAME:
                 self._log_err(f"usage: l <service>  (known: {', '.join(s.name for s in SERVICES)})")

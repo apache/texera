@@ -1147,6 +1147,156 @@ cmd_up() {
     [[ $ec -eq 0 ]]
 }
 
+# `auto`: the minimal "make the running services match my current source" path.
+# Walks every service, identifies what's actually dirty (content-hash for JVM,
+# lock mtime for yarn/bun, never for docker), and only touches those:
+#   - dirty JVM, currently running   → rebuild + bounce
+#   - dirty JVM, currently stopped   → rebuild only (don't auto-start)
+#   - dirty yarn (frontend lock)     → yarn install + bounce frontend if up
+#   - dirty bun (agent-service lock) → bun install (bun --watch reloads itself)
+# Clean services are left alone — no pre-bounce, no restart.
+cmd_auto() {
+    SKIP_LIST=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --skip=*) SKIP_LIST="${1#--skip=}" ;;
+            *) tui_err "unknown flag: $1" >&2; exit 2 ;;
+        esac
+        shift
+    done
+
+    tui_banner "Texera Local Dev — auto bounce" \
+        "rebuild + bounce only what changed since last build"
+
+    # ── Scan ──────────────────────────────────────────────────────────────
+    tui_section "Scan"
+    local svc=""
+    local dirty_jvms=()
+    local need_yarn=false
+    local need_bun=false
+    for svc in "${SERVICES[@]}"; do
+        is_skipped "$svc" && continue
+        case "${SVC_TYPE[$svc]}" in
+            jvm)
+                if svc_src_changed "$svc"; then
+                    dirty_jvms+=("$svc")
+                    tui_warn "$svc: source changed since last build"
+                fi ;;
+            yarn)
+                if needs_yarn_install; then
+                    need_yarn=true
+                    tui_warn "frontend: yarn.lock newer than node_modules — needs install"
+                fi ;;
+            bun)
+                if needs_bun_install; then
+                    need_bun=true
+                    tui_warn "agent-service: bun.lock newer than node_modules — needs install"
+                fi ;;
+        esac
+    done
+
+    if (( ${#dirty_jvms[@]} == 0 )) && ! $need_yarn && ! $need_bun; then
+        tui_ok "everything up-to-date — nothing to bounce"
+        printf "\n"
+        return 0
+    fi
+
+    # ── Build ─────────────────────────────────────────────────────────────
+    # One `sbt dist` covers every dirty JVM in a single sbt invocation; sbt's
+    # own incremental compiler only recompiles the subprojects that need it,
+    # and we only unzip + bounce the dirty ones below — clean services don't
+    # get pre-bounced just because the build ran.
+    if (( ${#dirty_jvms[@]} > 0 )); then
+        tui_section "Build  ${DIM}(${#dirty_jvms[@]} JVM service(s) dirty)${RESET}"
+        local log="$LOG_DIR/sbt-dist.log"
+        if ! tui_run_with_spinner "$log" "sbt dist  ${DIM}(log: $log)${RESET}" \
+                sbt -no-colors dist; then
+            tui_err "sbt dist failed  ${DIM}(tail -f $log)${RESET}"
+            return 1
+        fi
+        tui_ok "sbt: dist done"
+    fi
+
+    # ── Bounce dirty JVMs ────────────────────────────────────────────────
+    local n_bounced=0 n_rebuilt=0
+    if (( ${#dirty_jvms[@]} > 0 )); then
+        tui_section "Bounce"
+        for svc in "${dirty_jvms[@]}"; do
+            local pid=""
+            pid=$(svc_running_pid "$svc")
+            if [[ -n "$pid" ]]; then
+                tui_step "$svc: stopping PID $pid before unzip"
+                kill "$pid" 2>/dev/null || true
+                local i=0
+                while (( i < 30 )) && kill -0 "$pid" 2>/dev/null; do
+                    sleep 0.5
+                    i=$((i+1))
+                done
+                kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null
+            fi
+            # shellcheck disable=SC2086
+            if unzip -oq ${SVC_ZIP_GLOB[$svc]} -d "${SVC_UNZIP_DEST[$svc]}" 2>/dev/null; then
+                svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc"
+                n_rebuilt=$((n_rebuilt+1))
+            else
+                tui_warn "$svc: ${SVC_ZIP_GLOB[$svc]} not produced — skipping"
+                continue
+            fi
+            if [[ -n "$pid" ]]; then
+                start_one "$svc"
+                n_bounced=$((n_bounced+1))
+            else
+                tui_skip "$svc: was stopped — rebuilt but not started"
+            fi
+        done
+    fi
+
+    # ── Node deps ────────────────────────────────────────────────────────
+    if $need_yarn; then
+        tui_section "Frontend deps"
+        local log="$LOG_DIR/yarn-install.log"
+        if tui_run_with_spinner "$log" "yarn install  ${DIM}(log: $log)${RESET}" \
+                bash -c "cd frontend && yarn install"; then
+            tui_ok "yarn: deps refreshed"
+            # ng serve doesn't pick up dependency-tree changes from a running
+            # process; bounce if it was up.
+            if [[ -n "$(svc_running_pid frontend)" ]]; then
+                stop_one frontend
+                start_one frontend
+                n_bounced=$((n_bounced+1))
+            else
+                tui_skip "frontend: was stopped — deps refreshed but not started"
+            fi
+        else
+            tui_err "yarn install failed  ${DIM}(tail -f $log)${RESET}"
+        fi
+    fi
+
+    if $need_bun; then
+        tui_section "Agent-service deps"
+        local log="$LOG_DIR/bun-install.log"
+        if tui_run_with_spinner "$log" "bun install  ${DIM}(log: $log)${RESET}" \
+                bash -c "cd agent-service && bun install"; then
+            tui_ok "bun: deps refreshed"
+            # bun --watch reloads itself when node_modules changes; no manual
+            # bounce needed.
+            if [[ -n "$(svc_running_pid agent-service)" ]]; then
+                tui_skip "agent-service: bun --watch will reload"
+            else
+                tui_skip "agent-service: was stopped — deps refreshed but not started"
+            fi
+        else
+            tui_err "bun install failed  ${DIM}(tail -f $log)${RESET}"
+        fi
+    fi
+
+    # ── Summary + final dashboard ────────────────────────────────────────
+    printf "\n"
+    printf "  ${BOLD}${GREEN}${SYM_OK} auto bounce done${RESET}: %d rebuilt, %d bounced\n\n" \
+        "$n_rebuilt" "$n_bounced"
+    cmd_status
+}
+
 cmd_down() {
     SKIP_LIST=""
     while [[ $# -gt 0 ]]; do
@@ -1764,6 +1914,7 @@ case "${1:-}" in
     "")               cmd_interactive ;;      # no args → launch the TUI
     status)           cmd_status ;;
     up)               shift; cmd_up "$@" ;;
+    auto)             shift; cmd_auto "$@" ;;
     down)             shift; cmd_down "$@" ;;
     start)            shift; start_one "${1:?need service name}" ;;
     stop)             shift; stop_one "${1:?need service name}" ;;
