@@ -66,7 +66,7 @@ class GoogleDriveAuthResourceSpec extends AnyFlatSpec {
     val response = resource.getOAuth()
     val url = response.getEntity.toString
     assert(url.contains("localhost"))
-    assert(url.contains("auth%2Fgoogle%2Fdrive%2Fcallback"))
+    assert(url.contains("auth/google/drive/callback"))
   }
 
   it should "reject a state token that has already been used" in {
