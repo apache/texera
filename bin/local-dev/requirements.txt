@@ -1,0 +1,24 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+
+# Python deps for bin/local-dev-tui.py and bin/local-dev/tests/.
+#
+# Python >= 3.9 is required (transitively from textual). The texera dev
+# venv at ../venv312 ships 3.12 already.
+#
+# Install:
+#   pip install -r bin/local-dev/requirements.txt
+#
+# The shell script falls back to a static error message if textual isn't
+# importable, so the dev-loop CLI keeps working without these installed.
+# The TUI itself does need them.
+
+textual>=8.0,<9       # in-place rendering, no scrollback growth
+pytest>=7             # for bin/local-dev/tests/
