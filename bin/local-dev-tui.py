@@ -78,6 +78,12 @@ SOURCE_SUFFIXES = {".scala", ".java", ".proto"}
 # corresponding `.dependsOn(NewCommon)` automatically flows through to
 # dirty-detection without anyone touching this file.
 
+# Matches test-scope dependsOn args we want to drop from the runtime
+# graph. `X % "test->test"`, `X % "test"`, `X % Test`. Tighter than the
+# previous "any %" check, which would have silently dropped a future
+# `.dependsOn(X % "compile->compile")` and broken dirty-detection on X.
+_TEST_SCOPE_RE = re.compile(r'%\s*(?:"test(?:->[^"]*)?"|Test)\b')
+
 
 def _parse_sbt_deps() -> dict[str, dict]:
     """Walk `build.sbt` and return a dependency graph keyed by sbt project
@@ -113,9 +119,12 @@ def _parse_sbt_deps() -> dict[str, dict]:
         for arg_list in re.findall(r"\.dependsOn\(([^)]*)\)", block):
             for arg in arg_list.split(","):
                 arg = arg.strip()
-                # Skip test-scope (`X % "test->test"`) — runtime build
-                # doesn't ship those classes.
-                if "%" in arg:
+                # Skip ONLY test-scope deps — match `% "test->test"` and
+                # `% Test` exactly. Filtering all `%`-scoped args was too
+                # broad: a future `.dependsOn(X % "compile->compile")` or
+                # `% Provided` would silently disappear from the dep
+                # graph and break dirty-detection on `X`.
+                if _TEST_SCOPE_RE.search(arg):
                     continue
                 # Strip any trailing whitespace / comments. Project refs
                 # are bare identifiers.
@@ -536,13 +545,24 @@ def _jvm_source_files(svc: Service) -> list[Path]:
         for f in d.rglob("*"):
             if f.is_file() and f.suffix in SOURCE_SUFFIXES:
                 files.append(f)
-    files.sort()
+    # Sort by raw bytes of the string representation so the order matches
+    # GNU `sort -z` exactly (the shell-side `svc_source_hash` uses that).
+    # Python's default `Path.sort()` is component-wise and could disagree
+    # at e.g. `Foo.scala` vs `Foo/` sibling-name collisions, which would
+    # silently break stamp agreement between the two implementations.
+    files.sort(key=lambda p: str(p).encode())
     return files
 
 
-def source_hash(svc: Service) -> str:
+def source_hash(svc: Service, files: Optional[list[Path]] = None) -> str:
+    """SHA-1 of every source byte under `svc`'s transitive sbt deps.
+    Pass a pre-computed `files` list to skip the rglob walk — the
+    dirty-check fast path already needs the file list to compare mtimes
+    against the stamp, no point rglob'ing twice."""
+    if files is None:
+        files = _jvm_source_files(svc)
     h = hashlib.sha1()
-    for f in _jvm_source_files(svc):
+    for f in files:
         try:
             h.update(f.read_bytes())
         except OSError:
@@ -575,13 +595,13 @@ def is_dirty(svc: Service) -> bool:
     if svc.type == "yarn":
         nm = REPO_ROOT / "frontend" / "node_modules" / ".yarn-state.yml"
         lock = REPO_ROOT / "frontend" / "yarn.lock"
-        if not nm.exists():
+        if not nm.exists() or not lock.exists():
             return True
         return lock.stat().st_mtime > nm.stat().st_mtime
     if svc.type == "bun":
         nm = REPO_ROOT / "agent-service" / "node_modules"
         lock = REPO_ROOT / "agent-service" / "bun.lock"
-        if not nm.exists():
+        if not nm.exists() or not lock.exists():
             return True
         return lock.stat().st_mtime > nm.stat().st_mtime
     return False
@@ -605,9 +625,10 @@ def _jvm_is_dirty(svc: Service) -> bool:
     if not _newest_mtime_after(files, stamp_mtime):
         return False
 
-    # Slow path — did the content actually move?
+    # Slow path — did the content actually move? Reuse the file list above
+    # instead of having `source_hash` rglob the tree a second time.
     stored = stamp.read_text().strip()
-    current = source_hash(svc)
+    current = source_hash(svc, files)
     if current == stored:
         # Same content, only mtimes moved (git checkout / touch).  Refresh
         # the stamp's mtime so the fast filter passes next tick.

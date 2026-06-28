@@ -409,7 +409,13 @@ _parse_sbt() {
         for arg in "${parts[@]}"; do
             arg="${arg// /}"
             arg="${arg//$'\t'/}"
-            [[ "$arg" == *"%"* ]] && continue
+            # Drop ONLY test-scope deps. The previous catch-all `*"%"*`
+            # match silently swallowed any future `%`-scoped main dep
+            # (e.g. `X % "compile->compile"`, `X % Provided`) and would
+            # have broken dirty-detection on it.
+            if [[ "$arg" =~ %\"?test(-\>[^\"]*)?\"? ]] || [[ "$arg" =~ %Test$ ]]; then
+                continue
+            fi
             [[ "$arg" =~ ^[A-Z] ]] || continue
             existing=$(amap_get SBT_DEPS "$current")
             case " $existing " in
@@ -1420,6 +1426,7 @@ start_one() {
             ;;
         bun)
             if ! command -v bun >/dev/null 2>&1; then
+                phase_clear "$svc"
                 tui_err "$svc: \`bun\` not found on PATH"
                 _diagnose_node
                 _install_hint bun
@@ -1429,6 +1436,7 @@ start_one() {
             ;;
         yarn)
             if ! command -v yarn >/dev/null 2>&1; then
+                phase_clear "$svc"
                 tui_err "$svc: \`yarn\` not found on PATH"
                 _diagnose_node
                 if ! command -v node >/dev/null 2>&1; then
@@ -1493,24 +1501,6 @@ any_jvm_src_changed() {
         fi
     done
     return 1
-}
-
-# DEPRECATED — kept only as a documentation breadcrumb. Used to be the mtime-
-# based check `up --auto` consulted; replaced by any_jvm_src_changed because
-# git checkouts move mtimes without changing content.
-needs_jvm_build() {
-    local canary="amber/target/amber-${TEXERA_VERSION}/lib/org.apache.texera.amber-${TEXERA_VERSION}.jar"
-    [[ ! -f "$canary" ]] && return 0
-    local newer=""
-    newer=$(find amber/src common/dao/src common/config/src common/auth/src \
-        common/workflow-core/src common/workflow-operator/src common/pybuilder/src \
-        config-service/src access-control-service/src file-service/src \
-        workflow-compiling-service/src computing-unit-managing-service/src \
-        build.sbt amber/build.sbt config-service/build.sbt access-control-service/build.sbt \
-        file-service/build.sbt workflow-compiling-service/build.sbt \
-        computing-unit-managing-service/build.sbt project/JdkOptions.scala project/plugins.sbt \
-        \( -newer "$canary" \) -type f -print 2>/dev/null | head -1)
-    [[ -n "$newer" ]]
 }
 
 needs_yarn_install() {
@@ -2161,6 +2151,11 @@ cmd_auto() {
                 start_one "$svc"
                 n_bounced=$((n_bounced+1))
             else
+                # Pass 1 left phase=building set so the dashboard animates
+                # during sbt + unzip; clear it now since we won't be
+                # starting (otherwise the row spins building… until the
+                # 90s stale rule kicks in).
+                phase_clear "$svc"
                 tui_skip "$svc: was stopped — rebuilt but not started"
             fi
         done
