@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import type { OperatorExecutionSummary, SampleRow } from "../../types/execution";
+import { OperatorResultMode, type OperatorExecutionSummary, type SampleRow } from "../../types/execution";
 import { formatExecuteOperatorResult, getOperatorWarnings, getVisibleResultHeaders } from "./tools-utility";
 
 export function formatOperatorResult(operatorId: string, opInfo: OperatorExecutionSummary): string {
@@ -31,15 +31,11 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorExecuti
     return "(no result data)";
   }
 
-  const headers = sampleTuples.length > 0 ? getVisibleResultHeaders(sampleTuples[0].tuple) : [];
-  const columns = headers.length;
-
-  const isViz = sampleTuples.length > 0 && sampleTuples[0].tuple["__is_visualization__"] === true;
+  const isViz = opInfo.resultSummary?.resultMode === OperatorResultMode.VISUALIZATION;
   const rows: SampleRow[] = isViz
     ? sampleTuples.map(({ rowIndex, tuple }) => {
         const cleaned: Record<string, any> = {};
         for (const key of Object.keys(tuple)) {
-          if (key === "__is_visualization__") continue;
           if (key === "html-content" || key === "json-content") {
             cleaned[key] = "<skipped: visualization content>";
           } else {
@@ -49,6 +45,9 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorExecuti
         return { rowIndex, tuple: cleaned };
       })
     : sampleTuples;
+
+  const headers = rows.length > 0 ? getVisibleResultHeaders(rows[0].tuple) : [];
+  const columns = headers.length;
 
   const dataString = jsonToTableFormat(rows);
 
