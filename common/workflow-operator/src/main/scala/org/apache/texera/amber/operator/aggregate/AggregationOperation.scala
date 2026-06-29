@@ -60,7 +60,7 @@ case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
     {
       "if": {
         "properties": {
-          "aggFunction": { "const": "count(*)" }
+          "aggFunction": { "const": "count" }
         }
       },
       "then": {},
@@ -93,14 +93,13 @@ class AggregationOperation {
   @JsonIgnore
   def getAggregationAttribute(attrType: AttributeType): Attribute = {
     val resultAttrType = this.aggFunction match {
-      case AggregationFunction.SUM        => attrType
-      case AggregationFunction.COUNT      => AttributeType.INTEGER
-      case AggregationFunction.COUNT_STAR => AttributeType.INTEGER
-      case AggregationFunction.AVERAGE    => AttributeType.DOUBLE
-      case AggregationFunction.MIN        => attrType
-      case AggregationFunction.MAX        => attrType
-      case AggregationFunction.CONCAT     => AttributeType.STRING
-      case _                              => throw new RuntimeException("Unknown aggregation function: " + this.aggFunction)
+      case AggregationFunction.SUM     => attrType
+      case AggregationFunction.COUNT   => AttributeType.INTEGER
+      case AggregationFunction.AVERAGE => AttributeType.DOUBLE
+      case AggregationFunction.MIN     => attrType
+      case AggregationFunction.MAX     => attrType
+      case AggregationFunction.CONCAT  => AttributeType.STRING
+      case _                           => throw new RuntimeException("Unknown aggregation function: " + this.aggFunction)
     }
     new Attribute(resultAttribute, resultAttrType)
   }
@@ -108,13 +107,12 @@ class AggregationOperation {
   @JsonIgnore
   def getAggFunc(attrType: AttributeType): DistributedAggregation[Object] = {
     val aggFunc = aggFunction match {
-      case AggregationFunction.AVERAGE    => averageAgg()
-      case AggregationFunction.COUNT      => countAgg(countAllRows = false)
-      case AggregationFunction.COUNT_STAR => countAgg(countAllRows = true)
-      case AggregationFunction.MAX        => maxAgg(attrType)
-      case AggregationFunction.MIN        => minAgg(attrType)
-      case AggregationFunction.SUM        => sumAgg(attrType)
-      case AggregationFunction.CONCAT     => concatAgg()
+      case AggregationFunction.AVERAGE => averageAgg()
+      case AggregationFunction.COUNT   => countAgg()
+      case AggregationFunction.MAX     => maxAgg(attrType)
+      case AggregationFunction.MIN     => minAgg(attrType)
+      case AggregationFunction.SUM     => sumAgg(attrType)
+      case AggregationFunction.CONCAT  => concatAgg()
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
@@ -124,10 +122,9 @@ class AggregationOperation {
   @JsonIgnore
   def getFinal: AggregationOperation = {
     val newAggFunc = aggFunction match {
-      // Both COUNT variants emit partial counts locally; the global stage sums them.
-      case AggregationFunction.COUNT      => AggregationFunction.SUM
-      case AggregationFunction.COUNT_STAR => AggregationFunction.SUM
-      case a: AggregationFunction         => a
+      // COUNT emits partial counts locally; the global stage sums them.
+      case AggregationFunction.COUNT => AggregationFunction.SUM
+      case a: AggregationFunction    => a
     }
     val res = new AggregationOperation()
     res.aggFunction = newAggFunc
@@ -158,8 +155,10 @@ class AggregationOperation {
     )
   }
 
-  private def countAgg(countAllRows: Boolean): DistributedAggregation[Integer] = {
-    // COUNT(*) counts every row; COUNT(column) counts only rows with a non-null attribute.
+  private def countAgg(): DistributedAggregation[Integer] = {
+    // An empty attribute means COUNT(*): count every row. Otherwise count only the
+    // rows whose attribute value is non-null (COUNT(column)).
+    val countAllRows = attribute == null || attribute.trim.isEmpty
     new DistributedAggregation[Integer](
       () => 0,
       (partial, tuple) =>

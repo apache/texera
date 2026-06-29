@@ -88,11 +88,10 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
       Map(PortIdentity() -> Schema().add("avg", AttributeType.DOUBLE))
   }
 
-  it should "type a COUNT(*) result as INTEGER without looking up an input column" in {
-    // COUNT(*) ignores its attribute; even a stale/leaked attribute that does not exist
-    // in the input schema must not be dereferenced during schema propagation.
+  it should "type a COUNT(*) (empty attribute) result as INTEGER without looking up an input column" in {
+    // An empty attribute means COUNT(*); schema propagation must not dereference a column.
     val input = Schema().add("v", AttributeType.LONG)
-    descWith(List.empty, aggOp(AggregationFunction.COUNT_STAR, "ghost", "row_count"))
+    descWith(List.empty, aggOp(AggregationFunction.COUNT, "", "row_count"))
       .getExternalOutputSchemas(Map(PortIdentity() -> input)) shouldBe
       Map(PortIdentity() -> Schema().add("row_count", AttributeType.INTEGER))
   }

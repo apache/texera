@@ -13,12 +13,12 @@ tags: [data-cleaning, aggregate]
 | Property | Requirement | Type | Default | Description |
 |----------|-------------|------|---------|-------------|
 | Aggregations | ✓ | List<Aggregation> | - | Multiple aggregation functions (min: 1,<br>aggregations cannot be empty) |
-| ↳ Aggregate Func | ✓ | sum, count, count(*), average, min, max, concat | - | Sum, count, count(*), average, min, max, or concat |
-| ↳ Attribute | ✓ (hidden for `count(*)`) | String | - | Column to aggregate on. Required for every function except `count(*)`, which counts all rows and hides this field |
+| ↳ Aggregate Func | ✓ | sum, count, average, min, max, concat | - | Sum, count, average, min, max, or concat |
+| ↳ Attribute | ✓ (optional for `count`) | String | - | Column to aggregate on. Required for every function except `count`: leave it empty with `count` to count all rows (`COUNT(*)`), or pick a column to count its non-null values |
 | ↳ Result Attribute | ✓ | String | - | Column name of the aggregation result |
 | Group By Keys |  | List | - | Group by columns |
 
-> **Counting rows**: use `count(*)` to count every row (including rows with nulls) without selecting a column. Use `count` with a column to count only that column's non-null values.
+> **Counting rows**: with the `count` function, leave **Attribute** empty to count every row (`COUNT(*)`, including rows with nulls), or choose a column to count only that column's non-null values.
 
 ### Output Ports
 
