@@ -335,7 +335,7 @@ describe("agent read routes", () => {
                 errorMessages: [],
                 resultSummary: {
                   resultMode: "table",
-                  sampleTuples: [{ a: 1 }],
+                  sampleTuples: [{ rowIndex: 0, tuple: { a: 1 } }],
                   totalRowCount: 2,
                 },
               },
@@ -349,7 +349,7 @@ describe("agent read routes", () => {
     }>(await getJson(`${API}/agents/${id}/operator-results`));
     expect(body.results["op-1"].state).toBe("Completed");
     expect(body.results["op-1"].resultSummary.totalRowCount).toBe(2);
-    expect(body.results["op-1"].resultSummary.sampleTuples).toEqual([{ a: 1 }]);
+    expect(body.results["op-1"].resultSummary.sampleTuples).toEqual([{ rowIndex: 0, tuple: { a: 1 } }]);
   });
 });
 
