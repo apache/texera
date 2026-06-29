@@ -17,10 +17,18 @@
  * under the License.
  */
 
+import type { OperatorExecutionSummary } from "../../types/execution";
+
 export const INTERNAL_RESULT_KEYS: ReadonlySet<string> = new Set(["__row_index__", "__is_visualization__"]);
 
 export function getVisibleResultHeaders(row: Record<string, any>): string[] {
   return Object.keys(row).filter(k => !INTERNAL_RESULT_KEYS.has(k));
+}
+
+// Warnings are the console messages the engine tags with a "WARNING: " title
+// prefix; derive them rather than carrying a separate field on the summary.
+export function getOperatorWarnings(opInfo: OperatorExecutionSummary): string[] {
+  return (opInfo.consoleLogsSummary?.messages ?? []).filter(m => m.title.startsWith("WARNING: ")).map(m => m.title);
 }
 
 export function createToolResult(message: string): string {
