@@ -60,9 +60,10 @@
 #   agent-service                  :3001  Bun --watch (cd agent-service && bun run dev)
 #   frontend                       :4200  ng serve via cd frontend && yarn start
 #
-# Docker infra (postgres / minio / lakefs / lakekeeper / litellm) is NOT managed
-# here -- bring those up yourself before `up`. The script will warn if expected
-# ports are unreachable.
+# Docker infra (postgres / minio / lakefs / lakekeeper / litellm) IS managed
+# here: `up` brings it up via `docker compose` (project texera-local-dev) and
+# `down` tears down any docker targets. The script warns if expected ports are
+# unreachable.
 #
 # Logs and pid book-keeping live under: ${TEXERA_LOCAL_DEV_DIR:-/tmp/texera-local-dev}
 
