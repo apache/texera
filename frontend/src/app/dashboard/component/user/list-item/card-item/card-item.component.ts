@@ -176,6 +176,7 @@ export class CardItemComponent implements OnChanges {
     }
     try {
       this.customImage = await this.workflowCoverService.setCoverFromFile(this.entry.id, file);
+      this.coverImageSrc = this.customImage;
       this.cdr.markForCheck();
     } catch (e) {
       this.notificationService.error("Failed to set the cover image.");
@@ -192,6 +193,7 @@ export class CardItemComponent implements OnChanges {
       .subscribe({
         next: () => {
           this.customImage = undefined;
+          this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
           this.cdr.markForCheck();
         },
         error: () => this.notificationService.error("Failed to reset the cover image."),
@@ -214,6 +216,7 @@ export class CardItemComponent implements OnChanges {
           .pipe(untilDestroyed(this))
           .subscribe(image => {
             this.customImage = image;
+            this.coverImageSrc = image ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
             this.cdr.markForCheck();
           });
       }
