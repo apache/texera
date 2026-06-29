@@ -230,5 +230,89 @@ for fn in cmd_up cmd_auto; do
     fi
 done
 
+# 12) `status --json` emits a single machine-readable JSON object — the stable
+#     contract for agents/scripts that would otherwise grep the dashboard.
+#     Must parse, expose running/total/services, list every service exactly
+#     once, and stay internally consistent (len(services)==total, running<=total).
+if command -v python3 >/dev/null 2>&1; then
+    json_out=$("$SCRIPT" status --json 2>/dev/null)
+    if printf '%s' "$json_out" | python3 -c '
+import sys, json
+d = json.load(sys.stdin)
+assert isinstance(d["services"], list), "services not a list"
+assert isinstance(d["running"], int) and isinstance(d["total"], int)
+assert d["total"] == len(d["services"]), "total != len(services)"
+assert 0 <= d["running"] <= d["total"], "running out of range"
+names = {s["service"] for s in d["services"]}
+need = {"texera-web", "frontend", "postgres"}
+assert need <= names, f"missing services: {need - names}"
+for s in d["services"]:
+    assert isinstance(s["port"], int), "port not int"
+    assert s["type"] in {"jvm", "docker", "yarn", "bun"}, "bad service type"
+    assert s["pid"] is None or isinstance(s["pid"], int), "pid not int|null"
+' 2>/tmp/.local-dev-json.err; then
+        _pass "status --json emits valid, consistent JSON with all services"
+    else
+        _fail "status --json invalid/inconsistent" \
+            "$(tail -1 /tmp/.local-dev-json.err 2>/dev/null); out=$(printf '%s' "$json_out" | head -c 160)"
+    fi
+    rm -f /tmp/.local-dev-json.err
+
+    # 13) Exit code mirrors health: 0 iff running == total, else 1. Lets an
+    #     agent gate on `if status --json; then` without parsing the body.
+    running=$(printf '%s' "$json_out" | python3 -c 'import sys,json;print(json.load(sys.stdin)["running"])' 2>/dev/null)
+    total=$(printf '%s' "$json_out" | python3 -c 'import sys,json;print(json.load(sys.stdin)["total"])' 2>/dev/null)
+    "$SCRIPT" status --json >/dev/null 2>&1; rc_json=$?
+    if { [[ "$running" == "$total" ]] && (( rc_json == 0 )); } \
+       || { [[ "$running" != "$total" ]] && (( rc_json == 1 )); }; then
+        _pass "status --json exit code reflects health (running=$running total=$total rc=$rc_json)"
+    else
+        _fail "status --json exit code wrong" "running=$running total=$total rc=$rc_json"
+    fi
+else
+    _pass "skip: python3 not on PATH (status --json shape check)"
+fi
+
+# 14) Negative: an unknown flag to `status` must refuse with rc 2 and a clear
+#     message — bad input is not silently ignored.
+out=$("$SCRIPT" status --definitely-bogus 2>&1)
+rc=$?
+if (( rc == 2 )) && [[ "$out" == *"unknown flag"* ]]; then
+    _pass "status rejects unknown flag (rc=2, clear error)"
+else
+    _fail "status didn't reject unknown flag" "rc=$rc out=$(echo "$out" | head -1)"
+fi
+
+# 15) `--help` documents --json so the contract is discoverable.
+help_out=$("$SCRIPT" --help 2>&1)
+if [[ "$help_out" == *"--json"* ]]; then
+    _pass "--help documents --json"
+else
+    _fail "--help doesn't mention --json"
+fi
+
+# 16) Regression: in non-TTY mode tui_spinner can't spin in place, so a long
+#     silent step (sbt dist → log) must emit a heartbeat or it looks hung to a
+#     non-interactive caller. Guard the sentinel inside the function body.
+spinner_body=$(awk '/^tui_spinner\(\)/{f=1} f{print} f&&/^}/{exit}' "$REPO_ROOT/bin/local-dev/main.sh")
+if [[ "$spinner_body" == *"! -t 1"* && "$spinner_body" == *"still running"* && "$spinner_body" == *"kill -0"* ]]; then
+    _pass "tui_spinner emits a non-TTY heartbeat (no silent long-running steps)"
+else
+    _fail "tui_spinner missing non-TTY heartbeat loop"
+fi
+
+# 17) `up` and `down` accept --json (route the human stream to stderr, emit the
+#     JSON summary on stdout). Structural guard — invoking them for real would
+#     build/stop the stack, out of scope here.
+for fn in cmd_up cmd_down; do
+    body=$(awk -v fn="$fn" '$0 ~ "^" fn "\\(\\)" {f=1} f{print} f&&/^}/{exit}' \
+        "$REPO_ROOT/bin/local-dev/main.sh")
+    if [[ "$body" == *"--json"* && "$body" == *"emit_status_json"* ]]; then
+        _pass "$fn accepts --json and emits JSON summary"
+    else
+        _fail "$fn doesn't wire up --json"
+    fi
+done
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))
