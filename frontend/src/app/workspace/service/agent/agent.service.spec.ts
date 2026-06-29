@@ -20,7 +20,15 @@
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { of, throwError } from "rxjs";
-import { AgentService, AgentInfo, AgentSettingsApi, ModelType, OperatorExecutionSummary } from "./agent.service";
+import {
+  AgentService,
+  AgentInfo,
+  AgentSettingsApi,
+  ModelType,
+  OperatorExecutionSummary,
+  OperatorResultMode,
+  OperatorState,
+} from "./agent.service";
 import { AgentState, ReActStep } from "./agent-types";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
@@ -178,12 +186,12 @@ describe("AgentService", () => {
       req.flush({
         results: {
           "op-1": {
-            state: "Completed",
+            state: OperatorState.COMPLETED,
             errorMessages: [],
             resultSummary: {
-              resultMode: "table",
+              resultMode: OperatorResultMode.TABLE,
               sampleTuples: [{ rowIndex: 0, tuple: { a: 1 } }],
-              totalRowCount: 1,
+              tuplesCount: 1,
             },
           },
         },

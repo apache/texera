@@ -54,7 +54,7 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorExecuti
 
   // Output shape only; input-port shapes are derivable by the agent from the DAG
   // links plus each upstream operator's own output shape shown in context.
-  const outputRows = opInfo.resultSummary?.totalRowCount ?? 0;
+  const outputRows = opInfo.resultSummary?.tuplesCount ?? 0;
   const metadataLines = [`Output table shape: (${outputRows}, ${columns})`, ...getOperatorWarnings(opInfo)].filter(
     Boolean
   );
