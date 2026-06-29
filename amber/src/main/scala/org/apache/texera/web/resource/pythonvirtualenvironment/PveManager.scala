@@ -113,9 +113,17 @@ object PveManager extends LazyLogging {
     }
   }
 
+<<<<<<< Updated upstream
   private def locateRequirementsTxt(): Option[Path] =
     Seq(Paths.get("/tmp", "requirements.txt"), Paths.get("amber", "requirements.txt"))
       .find(Files.exists(_))
+=======
+  private def getSystemPath(isLocal: Boolean): Path = {
+    val deployPath = Paths.get("/tmp/system-requirements-lock.txt")
+    if (Files.exists(deployPath)) deployPath
+    else Paths.get("amber/system-requirements-lock.txt")
+  }
+>>>>>>> Stashed changes
 
   // Resolves the fully-pinned system package set by installing requirements.txt
   // into a throwaway venv and running `pip freeze`.
@@ -245,11 +253,23 @@ object PveManager extends LazyLogging {
   ): Unit = {
     queue.put(s"[PVE] Creating new PVE for cuid: $cuid with name: $pveName")
 
+<<<<<<< Updated upstream
     val requirementsPath = locateRequirementsTxt() match {
       case Some(p) => p
       case None =>
         queue.put(s"[PVE][ERR] System requirements not found")
         return
+=======
+    val requirementsPath = {
+      val deployPath = Paths.get("/tmp", "requirements.txt")
+      if (Files.exists(deployPath)) deployPath
+      else Paths.get("amber", "requirements.txt")
+    }
+
+    if (!Files.exists(requirementsPath)) {
+      queue.put(s"[PVE][ERR] System requirements not found")
+      return
+>>>>>>> Stashed changes
     }
 
     val venvDirPath = pveDir(cuid, pveName).toAbsolutePath
