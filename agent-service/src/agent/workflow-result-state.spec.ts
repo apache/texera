@@ -19,14 +19,13 @@
 
 import { describe, expect, test } from "bun:test";
 import { WorkflowResultState } from "./workflow-result-state";
-import type { OperatorInfo } from "../types/execution";
+import type { OperatorExecutionSummary } from "../types/execution";
 
-function makeInfo(outputTuples: number): OperatorInfo {
+function makeInfo(totalRowCount: number): OperatorExecutionSummary {
   return {
     state: "Completed",
-    inputTuples: 0,
-    outputTuples,
-    resultMode: "table",
+    errorMessages: [],
+    resultSummary: { resultMode: "table", sampleTuples: [], totalRowCount },
   };
 }
 
@@ -40,15 +39,15 @@ describe("WorkflowResultState - ancestor walk", () => {
     state.set("op1", "step-C", makeInfo(3));
 
     path = ["step-A", "step-B", "step-C"];
-    expect(state.get("op1")?.operatorInfo.outputTuples).toBe(3);
+    expect(state.get("op1")?.operatorInfo.resultSummary?.totalRowCount).toBe(3);
 
     // Rewind to step-B; step-C is no longer an ancestor.
     path = ["step-A", "step-B"];
-    expect(state.get("op1")?.operatorInfo.outputTuples).toBe(2);
+    expect(state.get("op1")?.operatorInfo.resultSummary?.totalRowCount).toBe(2);
 
     // Rewind further.
     path = ["step-A"];
-    expect(state.get("op1")?.operatorInfo.outputTuples).toBe(1);
+    expect(state.get("op1")?.operatorInfo.resultSummary?.totalRowCount).toBe(1);
   });
 
   test("returns undefined when no ancestor has a result", () => {
@@ -74,8 +73,8 @@ describe("WorkflowResultState - ancestor walk", () => {
     path = ["step-A", "step-B"];
     const visible = state.getAllVisible();
     expect(visible.size).toBe(2);
-    expect(visible.get("op1")?.operatorInfo.outputTuples).toBe(1);
-    expect(visible.get("op2")?.operatorInfo.outputTuples).toBe(7);
+    expect(visible.get("op1")?.operatorInfo.resultSummary?.totalRowCount).toBe(1);
+    expect(visible.get("op2")?.operatorInfo.resultSummary?.totalRowCount).toBe(7);
   });
 
   test("clear drops all stored results", () => {
@@ -90,6 +89,6 @@ describe("WorkflowResultState - ancestor walk", () => {
     const state = new WorkflowResultState(() => ["step-A"]);
     state.set("op1", "step-A", makeInfo(1));
     state.set("op1", "step-A", makeInfo(42));
-    expect(state.get("op1")?.operatorInfo.outputTuples).toBe(42);
+    expect(state.get("op1")?.operatorInfo.resultSummary?.totalRowCount).toBe(42);
   });
 });
