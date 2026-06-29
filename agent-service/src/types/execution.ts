@@ -17,44 +17,70 @@
  * under the License.
  */
 
+export enum WorkflowFatalErrorType {
+  COMPILATION_ERROR = "COMPILATION_ERROR",
+  EXECUTION_FAILURE = "EXECUTION_FAILURE",
+}
+
 // A fatal error reported for one operator. Reuses the engine's wire shape
-// (workflowruntimestate.proto): `type` is the FatalErrorType enum name. The same
-// type the workflow-compiling service returns for compilation errors, so compile
-// and execution errors share one shape. Re-exported by api/compile-api.ts.
+// (workflowruntimestate.proto). The same type the workflow-compiling service
+// returns for compilation errors, so compile and execution errors share one
+// shape. Re-exported by api/compile-api.ts.
 export interface WorkflowFatalError {
-  // FatalErrorType enum name, e.g. "COMPILATION_ERROR" | "EXECUTION_FAILURE".
-  type: string;
+  type: { name: WorkflowFatalErrorType };
+  timestamp: { seconds: number; nanos: number };
   message: string;
-  details?: string;
-  operatorId?: string;
-  workerId?: string;
-  timestamp?: { seconds: number; nanos: number };
+  details: string;
+  operatorId: string;
+  workerId: string;
 }
 
 // Lifecycle state of a single operator, as reported by the engine
 // (mirrors the backend's WorkflowAggregatedState string mapping).
-export type OperatorState =
-  | "Uninitialized"
-  | "Ready"
-  | "Running"
-  | "Pausing"
-  | "Paused"
-  | "Resuming"
-  | "Completed"
-  | "Failed"
-  | "Killed"
-  | "Terminated"
-  | "Unknown";
+export enum OperatorState {
+  UNINITIALIZED = "Uninitialized",
+  READY = "Ready",
+  RUNNING = "Running",
+  PAUSING = "Pausing",
+  PAUSED = "Paused",
+  RESUMING = "Resuming",
+  COMPLETED = "Completed",
+  FAILED = "Failed",
+  KILLED = "Killed",
+  TERMINATED = "Terminated",
+  UNKNOWN = "Unknown",
+}
 
 // Aggregated state of a whole workflow execution: the OperatorState values the
 // engine reports, plus the synthetic outcomes the sync-execution endpoint adds.
-export type WorkflowExecutionState = OperatorState | "Error" | "CompilationFailed";
+export enum WorkflowExecutionState {
+  UNINITIALIZED = "Uninitialized",
+  READY = "Ready",
+  RUNNING = "Running",
+  PAUSING = "Pausing",
+  PAUSED = "Paused",
+  RESUMING = "Resuming",
+  COMPLETED = "Completed",
+  FAILED = "Failed",
+  KILLED = "Killed",
+  TERMINATED = "Terminated",
+  UNKNOWN = "Unknown",
+  ERROR = "Error",
+  COMPILATION_FAILED = "CompilationFailed",
+}
+
+export enum ConsoleMessageType {
+  PRINT = "PRINT",
+  ERROR = "ERROR",
+  COMMAND = "COMMAND",
+  DEBUGGER = "DEBUGGER",
+}
 
 // A single console message emitted by an operator during execution.
 // `title` is the short header (Scala errors put their text here); `message` is
 // the body (Python errors / stack traces).
 export interface ConsoleMessage {
-  msgType: string;
+  msgType: ConsoleMessageType;
   title: string;
   message: string;
 }
@@ -66,16 +92,20 @@ export interface SampleRow {
   tuple: Record<string, unknown>;
 }
 
+export enum OperatorResultMode {
+  TABLE = "table",
+  VISUALIZATION = "visualization",
+}
+
 // An operator's output, summarized for the agent. `sampleTuples` are the
 // symmetrically-truncated output rows (the middle is dropped, so `rowIndex`
 // values may have gaps). `outputSchema` / per-column statistics are intended
 // future additions — the engine does not produce them yet.
 export interface OperatorResultSummary {
-  // "table" or "visualization".
-  resultMode: string;
+  resultMode: OperatorResultMode;
   sampleTuples: SampleRow[];
   // Total output rows before truncation (sampleTuples may hold fewer).
-  totalRowCount: number;
+  tuplesCount: number;
 }
 
 // An operator's console output. Warnings are not a separate field: they are the
