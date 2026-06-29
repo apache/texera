@@ -29,17 +29,10 @@ import {
   type SampleRow,
 } from "../../types/execution";
 
-// Convert flat test rows (with an optional embedded __row_index__) into the
-// structured SampleRow[] the summary now carries.
 function toSampleRows(rows: Record<string, any>[]): SampleRow[] {
-  return rows.map((row, i) => {
-    const { __row_index__, ...tuple } = row;
-    return { rowIndex: typeof __row_index__ === "number" ? __row_index__ : i, tuple };
-  });
+  return rows.map((tuple, rowIndex) => ({ rowIndex, tuple }));
 }
 
-// Test convenience: accept the (old) flat fields and assemble the structured
-// OperatorExecutionSummary, so the cases below stay terse.
 interface OpInfoOverrides {
   state?: OperatorState;
   error?: string;
@@ -47,6 +40,8 @@ interface OpInfoOverrides {
   tuplesCount?: number;
   warnings?: string[];
   result?: Record<string, any>[];
+  sampleTuples?: SampleRow[];
+  resultMode?: OperatorResultMode;
 }
 
 function makeExecutionFailure(message: string): WorkflowFatalError {
@@ -66,11 +61,13 @@ function makeOpInfo(overrides: OpInfoOverrides = {}): OperatorExecutionSummary {
     errorMessages: overrides.error ? [makeExecutionFailure(overrides.error)] : [],
   };
   // The result summary is present only when the operator produced a result.
-  if (overrides.result !== undefined) {
+  if (overrides.result !== undefined || overrides.sampleTuples !== undefined) {
     summary.resultSummary = {
-      resultMode: OperatorResultMode.TABLE,
+      resultMode: overrides.resultMode ?? OperatorResultMode.TABLE,
       // Non-arrays are passed through to exercise the "(no result data)" guard.
-      sampleTuples: Array.isArray(overrides.result) ? toSampleRows(overrides.result) : (overrides.result as any),
+      sampleTuples:
+        overrides.sampleTuples ??
+        (Array.isArray(overrides.result) ? toSampleRows(overrides.result) : (overrides.result as any)),
       tuplesCount: overrides.tuplesCount ?? overrides.outputTuples ?? 0,
     };
   }
@@ -125,16 +122,15 @@ describe("formatOperatorResult - table shape and metadata", () => {
     expect(out).toContain("Output table shape: (999, 2)");
   });
 
-  test("filters internal __is_visualization__ key from outer column count", () => {
+  test("counts every result tuple key as a column", () => {
     const out = formatOperatorResult(
       "op1",
       makeOpInfo({
         outputTuples: 1,
-        result: [{ __is_visualization__: true, "html-content": "<x/>" }],
+        result: [{ "html-content": "<x/>", label: "chart" }],
       })
     );
-    // 1 visible column ("html-content") since __is_visualization__ is filtered.
-    expect(out).toContain("Output table shape: (1, 1)");
+    expect(out).toContain("Output table shape: (1, 2)");
   });
 
   test("appends warnings after metadata lines", () => {
@@ -155,14 +151,14 @@ describe("formatOperatorResult - table shape and metadata", () => {
 });
 
 describe("formatOperatorResult - visualization rows", () => {
-  test("strips html-content and json-content payloads when row is flagged as visualization", () => {
+  test("strips html-content and json-content payloads when result mode is visualization", () => {
     const out = formatOperatorResult(
       "op1",
       makeOpInfo({
         outputTuples: 1,
+        resultMode: OperatorResultMode.VISUALIZATION,
         result: [
           {
-            __is_visualization__: true,
             "html-content": "<div>hidden</div>",
             "json-content": '{"big":1}',
             label: "chart",
@@ -176,24 +172,25 @@ describe("formatOperatorResult - visualization rows", () => {
     expect(out).toContain("chart");
   });
 
-  test("__is_visualization__ false leaves the visualization-only fields untouched", () => {
+  test("table result mode leaves visualization payload fields untouched", () => {
     const out = formatOperatorResult(
       "op1",
       makeOpInfo({
         outputTuples: 1,
-        result: [{ __is_visualization__: false, "html-content": "<keep/>" }],
+        resultMode: OperatorResultMode.TABLE,
+        result: [{ "html-content": "<keep/>" }],
       })
     );
     expect(out).toContain("<keep/>");
     expect(out).not.toContain("<skipped: visualization content>");
   });
 
-  test("__is_visualization__ column is excluded from rendered table body and shape agrees", () => {
+  test("table rows render all tuple columns and shape agrees", () => {
     const out = formatOperatorResult(
       "op1",
       makeOpInfo({
         outputTuples: 1,
-        result: [{ __is_visualization__: false, value: 1 }],
+        result: [{ value: 1 }],
       })
     );
     const lines = out.split("\n");
@@ -201,7 +198,6 @@ describe("formatOperatorResult - visualization rows", () => {
     // Header line is the third line (after brief summary and shape line).
     expect(lines[2]).toBe("\tvalue");
     expect(lines[3]).toBe("0\t1");
-    expect(out).not.toContain("__is_visualization__");
   });
 });
 
@@ -240,14 +236,14 @@ describe("jsonToTableFormat - cell coercion via formatOperatorResult", () => {
 });
 
 describe("jsonToTableFormat - row index gaps", () => {
-  test("inserts ... separator when __row_index__ skips ahead", () => {
+  test("inserts ... separator when rowIndex skips ahead", () => {
     const out = formatOperatorResult(
       "op1",
       makeOpInfo({
         outputTuples: 2,
-        result: [
-          { __row_index__: 0, v: "a" },
-          { __row_index__: 5, v: "b" },
+        sampleTuples: [
+          { rowIndex: 0, tuple: { v: "a" } },
+          { rowIndex: 5, tuple: { v: "b" } },
         ],
       })
     );
@@ -259,22 +255,25 @@ describe("jsonToTableFormat - row index gaps", () => {
     expect(lines[lines.length - 1]).toBe("5\tb");
   });
 
-  test("no separator is emitted between consecutive __row_index__ values", () => {
+  test("no separator is emitted between consecutive rowIndex values", () => {
     const out = formatOperatorResult(
       "op1",
       makeOpInfo({
         outputTuples: 2,
-        result: [
-          { __row_index__: 0, v: "a" },
-          { __row_index__: 1, v: "b" },
+        sampleTuples: [
+          { rowIndex: 0, tuple: { v: "a" } },
+          { rowIndex: 1, tuple: { v: "b" } },
         ],
       })
     );
     expect(out).not.toContain("...\t...");
   });
 
-  test("non-zero starting __row_index__ does not emit a leading gap marker", () => {
-    const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 1, result: [{ __row_index__: 9, v: "z" }] }));
+  test("non-zero starting rowIndex does not emit a leading gap marker", () => {
+    const out = formatOperatorResult(
+      "op1",
+      makeOpInfo({ outputTuples: 1, sampleTuples: [{ rowIndex: 9, tuple: { v: "z" } }] })
+    );
     expect(out).not.toContain("...\t...");
     expect(out.endsWith("9\tz")).toBe(true);
   });

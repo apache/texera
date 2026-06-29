@@ -85,8 +85,7 @@ export interface ConsoleMessage {
   message: string;
 }
 
-// One sampled output row: its original position plus the row's columns. (A viz
-// payload's tuple still carries an `__is_visualization__` marker.)
+// One sampled output row: its original position plus the row's columns.
 export interface SampleRow {
   rowIndex: number;
   tuple: Record<string, unknown>;
