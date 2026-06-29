@@ -97,4 +97,7 @@ class StartWorkerHandler(ControlHandler):
         elif self.context.input_manager.get_input_port_mat_reader_threads():
             self.context.input_manager.start_input_port_mat_reader_threads()
 
-        return WorkerStateResponse(self.context.state_manager.get_current_state())
+        return WorkerStateResponse(
+            self.context.state_manager.get_current_state(),
+            state_version=self.context.state_manager.get_state_version(),
+        )

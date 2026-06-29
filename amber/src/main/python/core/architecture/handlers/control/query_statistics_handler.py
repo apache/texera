@@ -30,5 +30,6 @@ class QueryStatisticsHandler(ControlHandler):
         metrics = WorkerMetrics(
             worker_state=self.context.state_manager.get_current_state(),
             worker_statistics=self.context.statistics_manager.get_statistics(),
+            state_version=self.context.state_manager.get_state_version(),
         )
         return WorkerMetricsResponse(metrics)
