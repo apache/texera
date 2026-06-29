@@ -128,4 +128,36 @@ class WorkerStateManagerSpec extends AnyFlatSpec {
       sm.transitTo(COMPLETED)
     }
   }
+
+  // -- State version (logical clock) --
+
+  it should "start the state version at 0" in {
+    assert(newManager(UNINITIALIZED).getStateVersion == 0L)
+  }
+
+  it should "bump the state version on every successful transition" in {
+    val sm = newManager(UNINITIALIZED)
+    assert(sm.getStateVersion == 0L)
+    sm.transitTo(READY)
+    assert(sm.getStateVersion == 1L)
+    sm.transitTo(RUNNING)
+    assert(sm.getStateVersion == 2L)
+    sm.transitTo(COMPLETED)
+    assert(sm.getStateVersion == 3L)
+  }
+
+  it should "not bump the state version on a no-op self-transition" in {
+    val sm = newManager(RUNNING)
+    val before = sm.getStateVersion
+    sm.transitTo(RUNNING) // no-op
+    assert(sm.getStateVersion == before)
+  }
+
+  it should "not bump the state version when a transition is rejected" in {
+    val sm = newManager(UNINITIALIZED)
+    intercept[InvalidTransitionException] {
+      sm.transitTo(RUNNING)
+    }
+    assert(sm.getStateVersion == 0L)
+  }
 }

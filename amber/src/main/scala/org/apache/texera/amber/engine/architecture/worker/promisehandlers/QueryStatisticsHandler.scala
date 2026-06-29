@@ -35,7 +35,13 @@ trait QueryStatisticsHandler {
       request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[WorkerMetricsResponse] = {
-    WorkerMetricsResponse(WorkerMetrics(dp.stateManager.getCurrentState, dp.collectStatistics()))
+    WorkerMetricsResponse(
+      WorkerMetrics(
+        dp.stateManager.getCurrentState,
+        dp.collectStatistics(),
+        dp.stateManager.getStateVersion
+      )
+    )
   }
 
 }

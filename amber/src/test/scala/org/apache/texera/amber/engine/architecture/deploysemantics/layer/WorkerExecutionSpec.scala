@@ -36,50 +36,109 @@ class WorkerExecutionSpec extends AnyFlatSpec {
     assert(we.getStats.controlProcessingTime == 0L)
   }
 
-  "WorkerExecution.update(state)" should "apply when the timestamp is newer" in {
+  // ---- state ordering by logical version ----
+
+  "WorkerExecution.updateState" should "apply a state with a newer version" in {
     val we = WorkerExecution()
-    we.update(timeStamp = 10L, state = WorkerState.RUNNING)
+    we.updateState(stateVersion = 1L, WorkerState.READY)
+    we.updateState(stateVersion = 2L, WorkerState.RUNNING)
     assert(we.getState == WorkerState.RUNNING)
   }
 
-  it should "ignore updates with a non-newer timestamp" in {
+  it should "apply the very first report (version 0)" in {
     val we = WorkerExecution()
-    we.update(timeStamp = 10L, state = WorkerState.RUNNING)
-    we.update(timeStamp = 10L, state = WorkerState.PAUSED) // not strictly newer
-    we.update(timeStamp = 5L, state = WorkerState.COMPLETED) // older
+    we.updateState(stateVersion = 0L, WorkerState.READY)
+    assert(we.getState == WorkerState.READY)
+  }
+
+  it should "ignore a stale report whose version is lower (out-of-order arrival)" in {
+    val we = WorkerExecution()
+    we.updateState(stateVersion = 5L, WorkerState.PAUSED)
+    we.updateState(stateVersion = 4L, WorkerState.RUNNING) // arrives late, older version
+    assert(we.getState == WorkerState.PAUSED)
+  }
+
+  it should "ignore a report whose version is not strictly newer" in {
+    val we = WorkerExecution()
+    we.updateState(stateVersion = 3L, WorkerState.RUNNING)
+    we.updateState(stateVersion = 3L, WorkerState.PAUSED) // same version
     assert(we.getState == WorkerState.RUNNING)
   }
 
-  "WorkerExecution.update(state, stats)" should "update both atomically when newer" in {
+  // ---- terminal-state absorption ----
+
+  it should "treat COMPLETED as absorbing even against a higher-version report" in {
     val we = WorkerExecution()
-    we.update(timeStamp = 10L, state = WorkerState.RUNNING, stats = stats(idle = 7L))
-    assert(we.getState == WorkerState.RUNNING)
-    assert(we.getStats.idleTime == 7L)
+    we.updateState(stateVersion = 2L, WorkerState.COMPLETED)
+    we.updateState(stateVersion = 99L, WorkerState.RUNNING) // higher version, but illegal
+    assert(we.getState == WorkerState.COMPLETED)
   }
 
-  it should "ignore updates with a non-newer timestamp" in {
+  it should "treat TERMINATED as absorbing" in {
     val we = WorkerExecution()
-    we.update(timeStamp = 10L, state = WorkerState.RUNNING, stats = stats(idle = 7L))
-    we.update(timeStamp = 5L, state = WorkerState.COMPLETED, stats = stats(idle = 99L))
-    assert(we.getState == WorkerState.RUNNING)
-    assert(we.getStats.idleTime == 7L)
+    we.updateState(stateVersion = 2L, WorkerState.TERMINATED)
+    we.updateState(stateVersion = 99L, WorkerState.RUNNING)
+    assert(we.getState == WorkerState.TERMINATED)
   }
 
-  "WorkerExecution.update(stats)" should "update only the stats when newer" in {
+  // Regression for issue #6010: a fast source's startWorker response carries a stale
+  // RUNNING snapshot that can reach the controller AFTER COMPLETED was recorded. With
+  // wall-clock ordering the late RUNNING won and the operator was stuck orange; with
+  // version ordering (and terminal absorption) COMPLETED must survive.
+  it should "not let a late startWorker RUNNING snapshot clobber COMPLETED (#6010)" in {
     val we = WorkerExecution()
-    we.update(timeStamp = 10L, state = WorkerState.RUNNING, stats = stats(idle = 7L))
-    we.update(timeStamp = 20L, stats = stats(idle = 42L))
+    we.updateState(stateVersion = 1L, WorkerState.READY)
+    we.updateState(stateVersion = 3L, WorkerState.COMPLETED) // via completion stats query
+    we.updateState(stateVersion = 2L, WorkerState.RUNNING) // late startWorker response
+    assert(we.getState == WorkerState.COMPLETED)
+  }
+
+  // ---- forceTerminate ----
+
+  "WorkerExecution.forceTerminate" should "move a non-terminal worker to TERMINATED" in {
+    val we = WorkerExecution()
+    we.updateState(stateVersion = 2L, WorkerState.RUNNING)
+    we.forceTerminate()
+    assert(we.getState == WorkerState.TERMINATED)
+  }
+
+  it should "leave a worker that already COMPLETED as COMPLETED" in {
+    val we = WorkerExecution()
+    we.updateState(stateVersion = 3L, WorkerState.COMPLETED)
+    we.forceTerminate()
+    assert(we.getState == WorkerState.COMPLETED)
+  }
+
+  // ---- stats ordering by timestamp ----
+
+  "WorkerExecution.updateStats" should "apply newer stats and keep state untouched" in {
+    val we = WorkerExecution()
+    we.updateState(stateVersion = 2L, WorkerState.RUNNING)
+    we.updateStats(timeStamp = 10L, stats(idle = 7L))
+    we.updateStats(timeStamp = 20L, stats(idle = 42L))
     assert(we.getState == WorkerState.RUNNING)
     assert(we.getStats.idleTime == 42L)
   }
 
-  it should "ignore stats updates with a non-newer timestamp" in {
+  it should "ignore stats with a non-newer timestamp" in {
     val we = WorkerExecution()
-    we.update(timeStamp = 20L, stats = stats(idle = 42L))
-    we.update(timeStamp = 20L, stats = stats(idle = 99L)) // not strictly newer
-    we.update(timeStamp = 5L, stats = stats(idle = 0L)) // older
+    we.updateStats(timeStamp = 20L, stats(idle = 42L))
+    we.updateStats(timeStamp = 20L, stats(idle = 99L)) // not strictly newer
+    we.updateStats(timeStamp = 5L, stats(idle = 0L)) // older
     assert(we.getStats.idleTime == 42L)
   }
+
+  it should "track state version and stats timestamp independently" in {
+    val we = WorkerExecution()
+    // A high stats timestamp must not block a later (higher-version) state update,
+    // and vice versa — the two orderings are independent.
+    we.updateStats(timeStamp = 1000L, stats(idle = 1L))
+    we.updateState(stateVersion = 1L, WorkerState.RUNNING)
+    assert(we.getState == WorkerState.RUNNING)
+    assert(we.getStats.idleTime == 1L)
+  }
+
+  // ---- port executions ----
 
   "WorkerExecution.getInputPortExecution" should "lazily create and reuse a port execution per port id" in {
     val we = WorkerExecution()

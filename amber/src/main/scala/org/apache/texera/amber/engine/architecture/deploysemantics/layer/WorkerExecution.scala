@@ -21,7 +21,11 @@ package org.apache.texera.amber.engine.architecture.deploysemantics.layer
 
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkerPortExecution
-import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
+import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState.{
+  COMPLETED,
+  TERMINATED,
+  UNINITIALIZED
+}
 import org.apache.texera.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 
 import scala.collection.mutable
@@ -37,50 +41,56 @@ case class WorkerExecution() extends Serializable {
   private var stats: WorkerStatistics = {
     WorkerStatistics(Seq.empty, Seq.empty, 0, 0, 0)
   }
-  private var lastUpdateTimeStamp = 0L
+  // Logical version of the last applied state, sourced from the worker's
+  // WorkerStateManager. Starts below any real version so the first report applies.
+  private var lastStateVersion = -1L
+  // Wall-clock (controller-side nanoTime) of the last applied stats snapshot.
+  private var lastStatsTimeStamp = 0L
+
+  private def isTerminal(s: WorkerState): Boolean = s == COMPLETED || s == TERMINATED
 
   /**
-    * Updates both the worker state and statistics if the provided timestamp is newer
-    * than the last recorded update timestamp. This ensures that only the most recent
-    * data is reflected in the execution state.
+    * Applies a worker state report, ordered causally by the worker's monotonic
+    * `stateVersion` rather than by wall-clock time. A report is applied only when it
+    * is strictly newer than the last applied one, so a stale state that arrives late
+    * (e.g. the RUNNING snapshot carried by a slow startWorker response) cannot clobber
+    * a newer state. In addition, terminal states (COMPLETED/TERMINATED) are absorbing:
+    * once reached, no later report can move the worker out of them.
     *
-    * @param timeStamp the nanosecond-timestamp of this update
-    * @param state the new WorkerState to set
-    * @param stats the new WorkerStatistics to set
+    * @param stateVersion the worker-side monotonic version of this state
+    * @param newState the reported WorkerState
     */
-  def update(timeStamp: Long, state: WorkerState, stats: WorkerStatistics): Unit = {
-    if (this.lastUpdateTimeStamp < timeStamp) {
-      this.stats = stats
-      this.state = state
-      this.lastUpdateTimeStamp = timeStamp
+  def updateState(stateVersion: Long, newState: WorkerState): Unit = {
+    if (isTerminal(this.state)) {
+      return
+    }
+    if (this.lastStateVersion < stateVersion) {
+      this.state = newState
+      this.lastStateVersion = stateVersion
     }
   }
 
   /**
-    * Updates only the worker state if the provided timestamp is newer than the
-    * last recorded update timestamp.
-    *
-    * @param timeStamp the nanosecond-timestamp of this update
-    * @param state the new WorkerState to set
+    * Forces the worker into TERMINATED, e.g. when the controller kills a region. This
+    * still respects terminal-state absorption: a worker that already COMPLETED on its
+    * own is left as COMPLETED. Uses the maximum version so it wins over any in-flight
+    * non-terminal report for a worker that had not yet reached a terminal state.
     */
-  def update(timeStamp: Long, state: WorkerState): Unit = {
-    if (this.lastUpdateTimeStamp < timeStamp) {
-      this.state = state
-      this.lastUpdateTimeStamp = timeStamp
-    }
-  }
+  def forceTerminate(): Unit = updateState(Long.MaxValue, TERMINATED)
 
   /**
     * Updates only the worker statistics if the provided timestamp is newer than the
-    * last recorded update timestamp.
+    * last recorded stats timestamp. Stats are monotonic snapshots, so newest-wins by
+    * wall-clock is sufficient (and necessary, since two snapshots taken within the same
+    * state share a state version).
     *
     * @param timeStamp the nanosecond-timestamp of this update
-    * @param stats the new WorkerStatistics to set
+    * @param newStats the new WorkerStatistics to set
     */
-  def update(timeStamp: Long, stats: WorkerStatistics): Unit = {
-    if (this.lastUpdateTimeStamp < timeStamp) {
-      this.stats = stats
-      this.lastUpdateTimeStamp = timeStamp
+  def updateStats(timeStamp: Long, newStats: WorkerStatistics): Unit = {
+    if (this.lastStatsTimeStamp < timeStamp) {
+      this.stats = newStats
+      this.lastStatsTimeStamp = timeStamp
     }
   }
 

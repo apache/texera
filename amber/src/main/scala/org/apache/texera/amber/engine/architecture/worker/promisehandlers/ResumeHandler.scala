@@ -43,7 +43,7 @@ trait ResumeHandler {
       dp.stateManager.transitTo(RUNNING)
       dp.adaptiveBatchingMonitor.resumeAdaptiveBatching()
     }
-    WorkerStateResponse(dp.stateManager.getCurrentState)
+    WorkerStateResponse(dp.stateManager.getCurrentState, dp.stateManager.getStateVersion)
   }
 
 }

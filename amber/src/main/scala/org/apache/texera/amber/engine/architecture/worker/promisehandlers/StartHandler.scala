@@ -56,12 +56,12 @@ trait StartHandler {
       dp.inputGateway.getChannel(channelId).setPortId(PortIdentity())
       startChannel(request, ctx)
       endChannel(request, ctx)
-      WorkerStateResponse(dp.stateManager.getCurrentState)
+      WorkerStateResponse(dp.stateManager.getCurrentState, dp.stateManager.getStateVersion)
     } else if (dp.inputManager.getInputPortReaderThreads.nonEmpty) {
       // This means the worker should read from materialized storage for its input ports.
       // Start the reader threads
       dp.inputManager.startInputPortReaderThreads()
-      WorkerStateResponse(dp.stateManager.getCurrentState)
+      WorkerStateResponse(dp.stateManager.getCurrentState, dp.stateManager.getStateVersion)
     } else {
       throw new WorkflowRuntimeException(
         s"non-source worker $actorId received unexpected StartWorker!"

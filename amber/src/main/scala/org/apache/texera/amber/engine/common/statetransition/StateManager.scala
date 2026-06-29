@@ -43,6 +43,16 @@ class StateManager[T](
 
   private var currentState: T = initialState
 
+  // Monotonically increasing version, bumped on every successful state transition.
+  // It is the state machine's logical clock: because a single owner drives all
+  // transitions, the version totally orders them in causal order. Reporting this
+  // version alongside the state lets remote observers (e.g. the controller) reject
+  // stale state reports that arrive out of order, without relying on wall-clock
+  // timestamps that cannot be compared across processes.
+  private var stateVersion: Long = 0L
+
+  def getStateVersion: Long = stateVersion
+
   def assertState(state: T): Unit = {
     if (currentState != state) {
       throw InvalidStateException(
@@ -84,6 +94,7 @@ class StateManager[T](
       throw InvalidTransitionException(s"cannot transit from $currentState to $state", actorId)
     }
     currentState = state
+    stateVersion += 1
   }
 
 }

@@ -46,7 +46,7 @@ trait PauseHandler {
       dp.pauseManager.pause(UserPause)
       dp.stateManager.transitTo(PAUSED)
     }
-    WorkerStateResponse(dp.stateManager.getCurrentState)
+    WorkerStateResponse(dp.stateManager.getCurrentState, dp.stateManager.getStateVersion)
   }
 
 }

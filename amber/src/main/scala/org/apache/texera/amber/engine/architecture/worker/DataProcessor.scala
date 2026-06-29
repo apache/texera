@@ -213,7 +213,10 @@ class DataProcessor(
           RUNNING,
           () => {
             asyncRPCClient.controllerInterface.workerStateUpdated(
-              WorkerStateUpdatedRequest(stateManager.getCurrentState),
+              WorkerStateUpdatedRequest(
+                stateManager.getCurrentState,
+                stateManager.getStateVersion
+              ),
               asyncRPCClient.mkContext(CONTROLLER)
             )
           }
