@@ -296,6 +296,8 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.restoreTaskState(tag);
     this.searchText = "";
     this.filteredModels = null;
+    // Cancel any in-flight server search for the previous task
+    this.searchSubject$.next("");
     this.loadAllModels();
   }
 
@@ -457,6 +459,11 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
       .pipe(
         debounceTime(300),
         switchMap(query => {
+          if (!query.trim()) {
+            this.searchLoading = false;
+            this.cdr.detectChanges();
+            return of(null);
+          }
           const tag = this.selectedTaskTag || "text-generation";
           this.searchLoading = true;
           this.cdr.detectChanges();
@@ -490,6 +497,8 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     if (!query.trim()) {
       this.filteredModels = null;
       this.searchLoading = false;
+      // Cancel any in-flight server search via switchMap
+      this.searchSubject$.next("");
       this.goToPage(0);
       return;
     }
@@ -508,6 +517,8 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.searchText = "";
     this.filteredModels = null;
     this.searchLoading = false;
+    // Cancel any in-flight server search via switchMap
+    this.searchSubject$.next("");
     this.goToPage(0);
   }
 
