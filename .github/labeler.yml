@@ -47,7 +47,7 @@ agent-service:
 engine:
   # Non-Python, non-integration parts of amber/. Pure Python changes
   # under amber/src/{main,test}/python/** intentionally fall through to
-  # the `pyamber` label (which the labeler also matches via **/*.py),
+  # the `pyamber` label (which the labeler also matches via amber/**/*.py),
   # so they only trigger the pyamber + amber-integration stacks rather
   # than the full Scala-only `amber` stack. Integration specs live
   # under amber/src/test/integration/** (added to sbt's Test sources
@@ -85,13 +85,14 @@ pyamber:
   # exercise the pyamber + amber-integration stacks. Without this a
   # bumped requirements.txt would only get `dependencies` (no stack
   # mapping) and silently skip CI for the very deps it's changing.
+  #
+  # Globs are scoped to amber/ so bin/ tooling Python (its own `infra`
+  # job) isn't dragged into the pyamber stack.
   - changed-files:
       - any-glob-to-any-file:
-          - 'amber/src/main/python/**'
-          - 'amber/src/test/python/**'
+          - 'amber/**/*.py'
           - 'amber/pyproject.toml'
-          - '**/*.py'
-          - '**/*requirements*.txt'
+          - 'amber/**/*requirements*.txt'
 
 docs:
   - changed-files:
@@ -108,7 +109,9 @@ ci:
           - '.asf.yaml'
           - 'codecov.yml'
 
-dev:
+infra:
+  # Anything under bin/ — project-tooling scripts, Dockerfiles, k8s
+  # manifests, license / deploy / dev-loop tooling.
   - changed-files:
       - any-glob-to-any-file:
           - 'bin/**'

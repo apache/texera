@@ -122,7 +122,17 @@ lazy val FileService = (project in file("file-service"))
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
-    )
+    ),
+    // Each testcontainers-based suite starts its own LakeFS/MinIO/Postgres stack
+    // and mutates JVM-wide singletons (StorageConfig endpoints, LakeFS client),
+    // so every suite gets its own forked JVM; sbt runs forked groups one at a
+    // time by default (Tags.ForkedTestGroup limit), keeping the stacks serial.
+    Test / fork := true,
+    Test / forkOptions := (Test / forkOptions).value
+      .withWorkingDirectory((ThisBuild / baseDirectory).value),
+    Test / testGrouping := (Test / definedTests).value.map { suite =>
+      Tests.Group(suite.name, Seq(suite), Tests.SubProcess((Test / forkOptions).value))
+    }
   )
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
