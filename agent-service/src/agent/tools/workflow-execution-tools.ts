@@ -19,13 +19,17 @@
 
 import { z } from "zod";
 import { tool } from "ai";
-import { createErrorResult } from "./tools-utility";
-import { formatOperatorResult } from "./result-formatting";
+import {
+  createErrorResult,
+  formatExecuteOperatorResult,
+  getOperatorWarnings,
+  getVisibleResultHeaders,
+} from "./tools-utility";
 import type { WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
 import { env } from "../../config/env";
 import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
-import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
+import type { OperatorExecutionSummary, SampleRow, WorkflowExecutionSummary } from "../../types/execution";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
 import { createLogger } from "../../logger";
@@ -246,7 +250,7 @@ async function executeWorkflowHttp(
   config: ExecutionConfig,
   logicalPlan: LogicalPlan,
   options: { abortSignal?: AbortSignal } = {}
-): Promise<SyncExecutionResult> {
+): Promise<WorkflowExecutionSummary> {
   const backendConfig = getBackendConfig();
 
   const workflowId = config.workflowId;
@@ -304,7 +308,7 @@ async function executeWorkflowHttp(
       throw new Error(`Execution request failed: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    return (await response.json()) as SyncExecutionResult;
+    return (await response.json()) as WorkflowExecutionSummary;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw error;
@@ -320,18 +324,10 @@ async function executeWorkflowHttp(
 }
 
 function formatExecutionError(
-  compilationErrors?: Record<string, string>,
   operatorErrors?: Array<{ operatorId: string; error: string }>,
   generalErrors?: string[]
 ): string {
   const lines: string[] = ["Execution failed due to the following error:"];
-
-  if (compilationErrors && Object.keys(compilationErrors).length > 0) {
-    lines.push("Compilation error:");
-    for (const [key, value] of Object.entries(compilationErrors)) {
-      lines.push(`  ${key}: ${value}`);
-    }
-  }
 
   if (operatorErrors && operatorErrors.length > 0) {
     lines.push("Execution error:");
@@ -350,13 +346,48 @@ function formatExecutionError(
   return lines.join("\n");
 }
 
+function jsonToTableFormat(rows: SampleRow[]): string {
+  if (!rows || rows.length === 0) return "";
+
+  const headers = getVisibleResultHeaders(rows[0].tuple);
+  if (headers.length === 0) return "";
+  // Leading tab aligns headers with the index column (pandas __repr__ style).
+  const headerLine = "\t" + headers.join("\t");
+
+  const formattedRows: string[] = [];
+  let prevIndex = -1;
+
+  for (const { rowIndex, tuple } of rows) {
+    if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
+      const dots = headers.map(() => "...").join("\t");
+      formattedRows.push(`...\t${dots}`);
+    }
+    prevIndex = rowIndex;
+
+    const cells = headers.map(h => {
+      const val = tuple[h];
+      if (val === null) return "NaN";
+      if (val === undefined) return "";
+      if (typeof val === "number" || typeof val === "boolean") return String(val);
+      if (typeof val === "string") {
+        if (val === "NULL") return "NaN";
+        return val.replace(/\t/g, "\\t").replace(/\n/g, "\\n");
+      }
+      return JSON.stringify(val);
+    });
+    formattedRows.push(`${rowIndex}\t${cells.join("\t")}`);
+  }
+
+  return [headerLine, ...formattedRows].join("\n");
+}
+
 export async function executeOperatorAndFormat(
   workflowState: WorkflowState,
   config: ExecutionConfig,
   operatorId: string,
   options: {
     abortSignal?: AbortSignal;
-    onResult?: (operatorId: string, operatorInfo: OperatorInfo) => void;
+    onResult?: (operatorId: string, operatorInfo: OperatorExecutionSummary) => void;
     onResultLegacy?: (operatorId: string, backendStats?: Record<string, string>) => void;
   } = {}
 ): Promise<string> {
@@ -384,34 +415,26 @@ export async function executeOperatorAndFormat(
       }
     }
 
-    const result: SyncExecutionResult = await executeWorkflowHttp(config, logicalPlan, {
+    const result: WorkflowExecutionSummary = await executeWorkflowHttp(config, logicalPlan, {
       abortSignal: options.abortSignal,
     });
 
     if (!result.success) {
-      const compilationErrors =
-        result.state === "CompilationFailed" || result.state === "ValidationFailed"
-          ? result.compilationErrors
-          : undefined;
-
       const operatorErrors =
         result.state === "Failed"
           ? Object.entries(result.operators)
-              .filter(([_, op]) => op.error)
-              .map(([opId, op]) => ({ operatorId: opId, error: op.error! }))
+              .filter(([_, op]) => op.errorMessages.length)
+              .map(([opId, op]) => ({ operatorId: opId, error: op.errorMessages.map(e => e.message).join("; ") }))
           : undefined;
 
       const generalErrors = result.state === "Killed" ? ["Workflow execution was killed (timeout)."] : result.errors;
 
-      const errorText = formatExecutionError(compilationErrors, operatorErrors, generalErrors);
+      const errorText = formatExecutionError(operatorErrors, generalErrors);
 
       if (options.onResult) {
-        const errorInfo: OperatorInfo = {
-          state: result.state,
-          inputTuples: 0,
-          outputTuples: 0,
-          resultMode: "table",
-          error: errorText,
+        const errorInfo: OperatorExecutionSummary = {
+          state: "Failed",
+          errorMessages: [{ type: "EXECUTION_FAILURE", message: errorText, operatorId }],
         };
         options.onResult(operatorId, errorInfo);
       }
@@ -421,34 +444,80 @@ export async function executeOperatorAndFormat(
 
     const opInfo = result.operators[operatorId];
     if (!opInfo) {
-      return createErrorResult(
-        formatExecutionError(undefined, undefined, [`No result found for operator: ${operatorId}`])
-      );
+      return createErrorResult(formatExecutionError(undefined, [`No result found for operator: ${operatorId}`]));
     }
 
-    if (opInfo.error) {
+    if (opInfo.errorMessages.length) {
       if (options.onResult) {
         options.onResult(operatorId, opInfo);
       }
-      return createErrorResult(formatExecutionError(undefined, [{ operatorId, error: opInfo.error }]));
+      const opError = opInfo.errorMessages.map(e => e.message).join("; ");
+      return createErrorResult(formatExecutionError([{ operatorId, error: opError }]));
     }
 
-    if (!opInfo.result || !Array.isArray(opInfo.result)) {
+    const sampleTuples = opInfo.resultSummary?.sampleTuples;
+    if (!sampleTuples || !Array.isArray(sampleTuples)) {
       return "(no result data)";
     }
+
+    const headers = sampleTuples.length > 0 ? getVisibleResultHeaders(sampleTuples[0].tuple) : [];
+    const columns = headers.length;
 
     // Notify for every operator in the execution so upstream stats are also stored.
     if (options.onResult) {
       for (const [opId, info] of Object.entries(result.operators)) {
-        if (info && !info.error) {
+        if (info && !info.errorMessages.length) {
           options.onResult(opId, info);
         }
       }
     }
 
+    let dataString = jsonToTableFormat(sampleTuples);
+
     // Safety-net: TSV serialization may add padding beyond backend's raw-record budget.
     const charLimit = config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
-    return formatOperatorResult(operatorId, opInfo, workflowState, charLimit);
+
+    if (dataString.length > charLimit) {
+      const allLines = dataString.split("\n");
+      const headerLine = allLines[0];
+      const dataRows = allLines.slice(1);
+
+      const reservedSize = headerLine.length + 1;
+
+      const halfLimit = Math.floor((charLimit - reservedSize) / 2);
+
+      let frontSize = 0;
+      const frontRows: string[] = [];
+      for (const row of dataRows) {
+        const rowLen = row.length + 1;
+        if (frontSize + rowLen > halfLimit && frontRows.length > 0) break;
+        frontRows.push(row);
+        frontSize += rowLen;
+      }
+
+      let backSize = 0;
+      const backRows: string[] = [];
+      for (let i = dataRows.length - 1; i >= frontRows.length; i--) {
+        const rowLen = dataRows[i].length + 1;
+        if (backSize + rowLen > halfLimit && backRows.length > 0) break;
+        backRows.unshift(dataRows[i]);
+        backSize += rowLen;
+      }
+
+      const keptRows = [...frontRows, ...backRows];
+      dataString = [headerLine, ...keptRows].join("\n");
+    }
+
+    // Output shape only; the agent derives input-port shapes from the DAG + the
+    // upstream operators' own output shapes shown in context.
+    const shapeLine = `Output table shape: (${opInfo.resultSummary?.totalRowCount ?? 0}, ${columns})`;
+
+    const warningLines = getOperatorWarnings(opInfo);
+
+    const metadataLines = [shapeLine, ...warningLines].filter(Boolean);
+
+    const briefSummary = formatExecuteOperatorResult(operatorId);
+    return [briefSummary, ...metadataLines, dataString].filter(Boolean).join("\n");
   } catch (error: any) {
     if (error.name === "AbortError") {
       throw error;
@@ -462,7 +531,7 @@ export async function executeOperatorAndFormat(
 export function createExecuteOperatorTool(
   workflowState: WorkflowState,
   getConfig: () => ExecutionConfig,
-  onResult?: (operatorId: string, operatorInfo: OperatorInfo) => void
+  onResult?: (operatorId: string, operatorInfo: OperatorExecutionSummary) => void
 ) {
   return tool({
     description:
