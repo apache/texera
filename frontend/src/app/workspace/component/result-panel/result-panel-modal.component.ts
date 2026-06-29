@@ -130,7 +130,7 @@ export class RowModalComponent implements OnChanges, OnDestroy {
     rowData: Record<string, unknown>
   ): { key: string; value: string; mediaSrc: string; isVideo: boolean; isImage: boolean; isAudio: boolean }[] {
     return Object.entries(rowData).map(([key, val]) => {
-      const value = typeof val === "string" ? val : (JSON.stringify(val) ?? String(val));
+      const value = typeof val === "string" ? val : JSON.stringify(val) ?? String(val);
       const isRemote = value.startsWith("http://") || value.startsWith("https://");
       const entry = {
         key,

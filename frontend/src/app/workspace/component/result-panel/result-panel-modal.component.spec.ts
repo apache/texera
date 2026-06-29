@@ -120,9 +120,7 @@ describe("RowModalComponent", () => {
   it("should not fetch media-proxy for non-media remote URLs", () => {
     const remoteUrl = "https://example.com/some-text-value";
     (component as any).buildRowEntries({ text: remoteUrl });
-    httpMock.expectNone(
-      `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`
-    );
+    httpMock.expectNone(`${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`);
   });
 
   it("should revoke blob URLs on destroy", () => {
