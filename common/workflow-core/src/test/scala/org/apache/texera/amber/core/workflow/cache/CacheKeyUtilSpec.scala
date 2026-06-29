@@ -63,6 +63,10 @@ class CacheKeyUtilSpec extends AnyFlatSpec with Matchers {
   private def outputPort(name: String): GlobalPortIdentity =
     GlobalPortIdentity(opId(name), PortIdentity(0), input = false)
 
+  /** The cache key of the named operator's output port, computed from its upstream sub-DAG. */
+  private def keyOf(plan: PhysicalPlan, name: String): StorageCacheKey =
+    CacheKeyUtil.computeCacheKey(plan.getTransitiveUpstreamSubPlan(opId(name)), outputPort(name))
+
   /** a -> b -> c */
   private def linearPlan(): PhysicalPlan =
     PhysicalPlan(
@@ -70,10 +74,10 @@ class CacheKeyUtilSpec extends AnyFlatSpec with Matchers {
       Set(link("a", "b"), link("b", "c"))
     )
 
-  "CacheKeyUtil.computeCacheKey" should "be stable for the same plan and port" in {
+  "CacheKeyUtil.computeCacheKey" should "be stable for the same sub-DAG and port" in {
     val plan = linearPlan()
-    val k1 = CacheKeyUtil.computeCacheKey(plan, outputPort("b"))
-    val k2 = CacheKeyUtil.computeCacheKey(plan, outputPort("b"))
+    val k1 = keyOf(plan, "b")
+    val k2 = keyOf(plan, "b")
     k1.hash shouldEqual k2.hash
     k1.json shouldEqual k2.json
     k1.hash should have length 64
@@ -81,22 +85,19 @@ class CacheKeyUtilSpec extends AnyFlatSpec with Matchers {
 
   it should "produce different keys for different ports in the same plan" in {
     val plan = linearPlan()
-    CacheKeyUtil.computeCacheKey(plan, outputPort("b")).hash should not equal
-      CacheKeyUtil.computeCacheKey(plan, outputPort("c")).hash
+    keyOf(plan, "b").hash should not equal keyOf(plan, "c").hash
   }
 
   it should "include only upstream operators, not downstream ones" in {
     val plan = linearPlan()
-    val key = CacheKeyUtil.computeCacheKey(plan, outputPort("b"))
+    val key = keyOf(plan, "b")
     key.json should include(opId("a").toString)
     key.json should not include opId("c").toString
   }
 
   it should "be stable for a source operator with no upstream" in {
     val plan = linearPlan()
-    val k1 = CacheKeyUtil.computeCacheKey(plan, outputPort("a"))
-    val k2 = CacheKeyUtil.computeCacheKey(plan, outputPort("a"))
-    k1.hash shouldEqual k2.hash
+    keyOf(plan, "a").hash shouldEqual keyOf(plan, "a").hash
   }
 
   it should "change when the upstream structure changes" in {
@@ -113,32 +114,28 @@ class CacheKeyUtilSpec extends AnyFlatSpec with Matchers {
         link("b", "c")
       )
     )
-    CacheKeyUtil.computeCacheKey(base, outputPort("b")).hash should not equal
-      CacheKeyUtil.computeCacheKey(widened, outputPort("b")).hash
+    keyOf(base, "b").hash should not equal keyOf(widened, "b").hash
   }
 
-  "CacheKeyUtil.sameComputation" should "treat two keys with the same hash and JSON as a match" in {
+  "CacheKeyUtil.isSameComputation" should "treat two keys with the same hash and JSON as a match" in {
     val plan = linearPlan()
-    CacheKeyUtil.sameComputation(
-      CacheKeyUtil.computeCacheKey(plan, outputPort("b")),
-      CacheKeyUtil.computeCacheKey(plan, outputPort("b"))
-    ) shouldBe true
+    CacheKeyUtil.isSameComputation(keyOf(plan, "b"), keyOf(plan, "b")) shouldBe true
   }
 
   it should "reject a hash collision by comparing the full JSON" in {
     // Two different computations that hash to the same value (fabricated, since a
     // real SHA-256 collision is infeasible to construct): the JSON differs, so the
     // match is rejected and a cached result is never reused for the wrong port.
-    CacheKeyUtil.sameComputation(
-      CacheKey("upstream-A", "same-hash"),
-      CacheKey("upstream-B", "same-hash")
+    CacheKeyUtil.isSameComputation(
+      StorageCacheKey("upstream-A", "same-hash"),
+      StorageCacheKey("upstream-B", "same-hash")
     ) shouldBe false
   }
 
   it should "reject keys with different hashes" in {
-    CacheKeyUtil.sameComputation(
-      CacheKey("upstream-A", "hash-1"),
-      CacheKey("upstream-A", "hash-2")
+    CacheKeyUtil.isSameComputation(
+      StorageCacheKey("upstream-A", "hash-1"),
+      StorageCacheKey("upstream-A", "hash-2")
     ) shouldBe false
   }
 }

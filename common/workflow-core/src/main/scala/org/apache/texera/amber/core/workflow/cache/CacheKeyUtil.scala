@@ -19,8 +19,7 @@
 
 package org.apache.texera.amber.core.workflow.cache
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.databind.{ObjectMapper, SerializationFeature}
+import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.workflow.{
@@ -29,93 +28,62 @@ import org.apache.texera.amber.core.workflow.{
   PhysicalOp,
   PhysicalPlan
 }
+import org.apache.texera.amber.util.JSONUtils
 
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-import scala.collection.mutable
 
 /**
   * The cache key of an output port.
   *
   * @param json the JSON describing the upstream sub-DAG the key is computed from
   * @param hash SHA-256 hash of `json`; cache lookups match on this hash and then
-  *             confirm the match with `json` (see [[CacheKeyUtil.sameComputation]])
+  *             confirm the match with `json` (see [[CacheKeyUtil.isSameComputation]])
   */
-case class CacheKey(json: String, hash: String)
+case class StorageCacheKey(json: String, hash: String)
 
 /**
-  * Computes deterministic cache keys from the upstream sub-DAG of an output port.
+  * Computes deterministic cache keys for an output port from its upstream sub-DAG.
   *
-  * The payload captures:
+  * The sub-DAG is the port's operator together with its transitive upstream operators
+  * (see [[PhysicalPlan.getTransitiveUpstreamSubPlan]]); the caller passes it in. The JSON
+  * payload captures:
   *   - the target output port,
-  *   - all upstream physical operators (sorted),
+  *   - all operators in the sub-DAG (sorted),
   *   - their exec init info (proto string),
   *   - their output schemas (string form when available),
   *   - all edges between those operators (sorted).
   *
-  * The payload is serialized with ordered keys and hashed with SHA-256. Identical
-  * input plans produce identical hashes; any change in structure or configuration
-  * changes the hash. Sort orders use the full port identity (id + internal flag) so
-  * the payload is stable regardless of Map/Set iteration order.
+  * The payload is serialized with ordered keys and hashed with SHA-256. Identical sub-DAGs
+  * produce identical hashes; any change in structure or configuration changes the hash. Sort
+  * orders use the full port identity (id + internal flag) so the payload is stable regardless
+  * of Map/Set iteration order.
   */
 object CacheKeyUtil {
 
   /**
-    * Compute the cache key of the upstream sub-DAG for the given output port.
+    * Compute the cache key of the given upstream `subDag` for the output `target`.
     * The payload uses sorted keys and is hashed with SHA-256.
     */
   def computeCacheKey(
-      plan: PhysicalPlan,
+      subDag: PhysicalPlan,
       target: GlobalPortIdentity
-  ): CacheKey = {
-    val subDag = collectUpstream(plan, target)
-    val payload = buildPayload(subDag.nodes, subDag.links, target)
+  ): StorageCacheKey = {
+    val payload = buildJSONPayload(subDag.operators, subDag.links, target)
     val json = objectMapper.writeValueAsString(payload)
-    CacheKey(json, sha256Hex(json))
+    StorageCacheKey(json, sha256Hex(json))
   }
 
   /**
     * Whether two cache keys identify the same upstream computation.
     *
-    * The hash is compared first; on a hash match the full JSON is compared as
-    * well. This keeps the match safe against a hash collision: if two different
-    * computations ever produced the same hash, their JSON would still differ, so
-    * they are reported as different and a cached result is never reused for a port
-    * it was not computed from.
+    * The hash is compared first; on a hash match the full JSON is compared as well. This
+    * keeps the match safe against a hash collision: if two different computations ever
+    * produced the same hash, their JSON would still differ, so they are reported as different
+    * and a cached result is never reused for a port it was not computed from.
     */
-  def sameComputation(a: CacheKey, b: CacheKey): Boolean =
+  def isSameComputation(a: StorageCacheKey, b: StorageCacheKey): Boolean =
     a.hash == b.hash && a.json == b.json
-
-  private case class SubDag(nodes: Set[PhysicalOp], links: Set[PhysicalLink])
-
-  /**
-    * Collect all operators and links reachable upstream of the target port's operator.
-    * This is limited to the connected component feeding the target.
-    */
-  private def collectUpstream(plan: PhysicalPlan, target: GlobalPortIdentity): SubDag = {
-    val visitedOps = mutable.Set(target.opId)
-    val visitedLinks = mutable.Set[PhysicalLink]()
-    val queue = mutable.Queue(target.opId)
-
-    while (queue.nonEmpty) {
-      val current = queue.dequeue()
-      val upstreamLinks = plan.getUpstreamPhysicalLinks(current)
-      upstreamLinks.foreach(link => {
-        visitedLinks.add(link)
-        if (!visitedOps.contains(link.fromOpId)) {
-          visitedOps.add(link.fromOpId)
-          queue.enqueue(link.fromOpId)
-        }
-      })
-    }
-
-    SubDag(
-      nodes = visitedOps.map(plan.getOperator).toSet,
-      links = visitedLinks.toSet.filter(link =>
-        visitedOps.contains(link.fromOpId) && visitedOps.contains(link.toOpId)
-      )
-    )
-  }
 
   /**
     * Build the JSON payload describing the sub-DAG:
@@ -123,7 +91,7 @@ object CacheKeyUtil {
     *  - sorted nodes with exec info and schemas
     *  - sorted edges
     */
-  private def buildPayload(
+  private def buildJSONPayload(
       nodes: Set[PhysicalOp],
       links: Set[PhysicalLink],
       target: GlobalPortIdentity
@@ -203,13 +171,12 @@ object CacheKeyUtil {
     edge
   }
 
-  private val objectMapper: ObjectMapper = {
-    val mapper = new ObjectMapper()
-    mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL)
-    mapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-    mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
-    mapper
-  }
+  // Derived from the shared JSONUtils.objectMapper so configuration stays in sync, with
+  // ORDER_MAP_ENTRIES_BY_KEYS added on top: the cache key must serialize map keys in a stable
+  // order so the same sub-DAG always produces the same hash. The shared mapper does not set
+  // this, so reusing it directly would risk non-deterministic keys.
+  private val objectMapper =
+    JSONUtils.objectMapper.copy().enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
 
   private def sha256Hex(value: String): String = {
     val digest = MessageDigest.getInstance("SHA-256")
@@ -218,11 +185,16 @@ object CacheKeyUtil {
   }
 
   /**
-    * Serialize op init info deterministically using its proto string.
+    * Serialize the operator's exec init info deterministically via its proto string.
+    *
+    * The cache key is computed at the physical-plan layer, where the operator Desc is not
+    * available on a `PhysicalOp`; only `opExecInitInfo` is. It is also the concrete execution
+    * definition the engine actually runs, so hashing it ties the key to exactly what produces a
+    * port's result, not to a higher-level description that could map to different executions. If
+    * what executes a port changes, the key changes, so a stale result is never reused.
     */
   private def serializeOpExec(opExecInitInfo: OpExecInitInfo): ObjectNode = {
     val n = objectMapper.createObjectNode()
-    // Use the proto string for a stable, deterministic representation.
     n.put("protoString", opExecInitInfo.asMessage.toProtoString)
     n
   }

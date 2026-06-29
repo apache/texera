@@ -338,6 +338,31 @@ class WorkflowCoreTypesSpec extends AnyFlatSpec {
     assert(sub.links == Set(link("a", "b")))
   }
 
+  "PhysicalPlan.getTransitiveUpstreamSubPlan" should "include the operator and all its transitive upstream, with the links between them" in {
+    val a = physicalOp("a")
+    val b = physicalOp("b")
+    val c = physicalOp("c")
+    val d = physicalOp("d")
+    // a -> b -> c -> d and a -> c; the upstream sub-DAG of c is {a, b, c} (d is downstream)
+    val plan =
+      PhysicalPlan(
+        Set(a, b, c, d),
+        Set(link("a", "b"), link("b", "c"), link("c", "d"), link("a", "c"))
+      )
+    val sub = plan.getTransitiveUpstreamSubPlan(c.id)
+    assert(sub.operators.map(_.id) == Set(a.id, b.id, c.id))
+    assert(sub.links == Set(link("a", "b"), link("b", "c"), link("a", "c")))
+  }
+
+  it should "return only the operator itself when it has no upstream" in {
+    val a = physicalOp("a")
+    val b = physicalOp("b")
+    val plan = PhysicalPlan(Set(a, b), Set(link("a", "b")))
+    val sub = plan.getTransitiveUpstreamSubPlan(a.id)
+    assert(sub.operators.map(_.id) == Set(a.id))
+    assert(sub.links.isEmpty)
+  }
+
   "PhysicalPlan.getPhysicalOpsOfLogicalOp" should "return every physical op sharing a logical id, in topological order" in {
     val a = physicalOp("a")
     val b = physicalOp("b")
