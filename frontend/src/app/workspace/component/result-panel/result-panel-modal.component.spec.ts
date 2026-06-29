@@ -22,11 +22,14 @@ import { RowModalComponent } from "./result-panel-modal.component";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { of } from "rxjs";
+import { AppSettings } from "../../../common/app-setting";
 
 describe("RowModalComponent", () => {
   let component: RowModalComponent;
   let fixture: ComponentFixture<RowModalComponent>;
+  let httpMock: HttpTestingController;
 
   const mockTupleResult = { tuple: { id: "123", value: "test_data" } };
   const workflowResultServiceSpy = {
@@ -41,7 +44,7 @@ describe("RowModalComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [RowModalComponent],
+      imports: [RowModalComponent, HttpClientTestingModule],
       providers: [
         { provide: NZ_MODAL_DATA, useValue: { operatorId: "op-1", rowIndex: 3 } },
         { provide: NzModalRef, useValue: { getConfig: () => ({}), close: vi.fn() } },
@@ -49,6 +52,12 @@ describe("RowModalComponent", () => {
         { provide: PanelResizeService, useValue: resizeServiceSpy },
       ],
     }).compileComponents();
+
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
   });
 
   beforeEach(() => {
@@ -64,5 +73,63 @@ describe("RowModalComponent", () => {
   it("should populate row data on ngOnChanges", () => {
     component.ngOnChanges();
     expect(component.currentDisplayRowData).toEqual(mockTupleResult.tuple);
+  });
+
+  it("should use data URL directly without fetching for base64 media", () => {
+    const dataUrl = "data:image/png;base64,abc123";
+    (component as any).buildRowEntries({ img: dataUrl });
+    httpMock.expectNone(`${AppSettings.getApiEndpoint()}/huggingface/media-proxy`);
+    const entry = (component as any).buildRowEntries({ img: dataUrl })[0];
+    expect(entry.mediaSrc).toBe(dataUrl);
+    expect(entry.isImage).toBe(true);
+  });
+
+  it("should fetch remote image URL via media-proxy and set blob URL on success", () => {
+    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-url");
+    const remoteUrl = "https://example.com/photo.png";
+    const entries = (component as any).buildRowEntries({ img: remoteUrl });
+    const entry = entries[0];
+
+    expect(entry.mediaSrc).toBe("");
+    expect(entry.isImage).toBe(true);
+
+    const req = httpMock.expectOne(
+      `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`
+    );
+    req.flush(new Blob(["fake"], { type: "image/png" }));
+
+    expect(createObjectURLSpy).toHaveBeenCalled();
+    expect(entry.mediaSrc).toBe("blob:fake-url");
+    createObjectURLSpy.mockRestore();
+  });
+
+  it("should fall back to raw URL when media-proxy request fails", () => {
+    const remoteUrl = "https://example.com/clip.mp4";
+    const entries = (component as any).buildRowEntries({ vid: remoteUrl });
+    const entry = entries[0];
+
+    const req = httpMock.expectOne(
+      `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`
+    );
+    req.error(new ProgressEvent("error"));
+
+    expect(entry.mediaSrc).toBe(remoteUrl);
+  });
+
+  it("should not fetch media-proxy for non-media remote URLs", () => {
+    const remoteUrl = "https://example.com/some-text-value";
+    (component as any).buildRowEntries({ text: remoteUrl });
+    httpMock.expectNone(
+      `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`
+    );
+  });
+
+  it("should revoke blob URLs on destroy", () => {
+    const revokeSpy = vi.spyOn(URL, "revokeObjectURL");
+    (component as any).allocatedBlobUrls.push("blob:url-1", "blob:url-2");
+    component.ngOnDestroy();
+    expect(revokeSpy).toHaveBeenCalledWith("blob:url-1");
+    expect(revokeSpy).toHaveBeenCalledWith("blob:url-2");
+    revokeSpy.mockRestore();
   });
 });

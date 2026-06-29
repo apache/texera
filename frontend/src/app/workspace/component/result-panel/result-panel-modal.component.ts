@@ -17,11 +17,12 @@
  * under the License.
  */
 
-import { Component, inject, OnChanges } from "@angular/core";
+import { Component, inject, OnChanges, OnDestroy } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzIconModule } from "ng-zorro-antd/icon";
+import { HttpClient } from "@angular/common/http";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
@@ -49,9 +50,10 @@ import { AppSettings } from "../../../common/app-setting";
   styleUrls: ["./result-panel-model.component.scss"],
   imports: [CommonModule, NzButtonModule, NzIconModule],
 })
-export class RowModalComponent implements OnChanges {
+export class RowModalComponent implements OnChanges, OnDestroy {
   rowEntries: { key: string; value: string; mediaSrc: string; isVideo: boolean; isImage: boolean; isAudio: boolean }[] =
     [];
+  private readonly allocatedBlobUrls: string[] = [];
   // Index of current displayed row in currentResult
   private readonly modalData: { operatorId: string; rowIndex: number; rowData?: Record<string, unknown> } =
     inject(NZ_MODAL_DATA);
@@ -61,6 +63,7 @@ export class RowModalComponent implements OnChanges {
 
   constructor(
     public modal: NzModalRef<any, number>,
+    private http: HttpClient,
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
     private notificationService: NotificationService
@@ -100,26 +103,47 @@ export class RowModalComponent implements OnChanges {
     return entry.key;
   }
 
-  private resolveMediaSrc(value: string): string {
-    if (!value.startsWith("http://") && !value.startsWith("https://")) {
-      return value;
+  ngOnDestroy(): void {
+    for (const url of this.allocatedBlobUrls) {
+      URL.revokeObjectURL(url);
     }
-    return `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(value)}`;
+  }
+
+  private fetchBlobSrc(entry: { mediaSrc: string }, remoteUrl: string): void {
+    const proxyUrl = `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`;
+    this.http
+      .get(proxyUrl, { responseType: "blob" })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          this.allocatedBlobUrls.push(blobUrl);
+          entry.mediaSrc = blobUrl;
+        },
+        error: () => {
+          entry.mediaSrc = remoteUrl;
+        },
+      });
   }
 
   private buildRowEntries(
     rowData: Record<string, unknown>
   ): { key: string; value: string; mediaSrc: string; isVideo: boolean; isImage: boolean; isAudio: boolean }[] {
     return Object.entries(rowData).map(([key, val]) => {
-      const value = typeof val === "string" ? val : JSON.stringify(val) ?? String(val);
-      return {
+      const value = typeof val === "string" ? val : (JSON.stringify(val) ?? String(val));
+      const isRemote = value.startsWith("http://") || value.startsWith("https://");
+      const entry = {
         key,
         value,
-        mediaSrc: this.resolveMediaSrc(value),
+        mediaSrc: isRemote ? "" : value,
         isVideo: typeof val === "string" && isVideoUrl(val),
         isImage: typeof val === "string" && isImageUrl(val),
         isAudio: typeof val === "string" && isAudioUrl(val),
       };
+      if (isRemote && (entry.isVideo || entry.isImage || entry.isAudio)) {
+        this.fetchBlobSrc(entry, value);
+      }
+      return entry;
     });
   }
 }
