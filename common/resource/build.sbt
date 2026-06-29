@@ -50,6 +50,7 @@ Compile / scalacOptions ++= Seq(
 
 // Core Dependencies
 libraryDependencies ++= Seq(
-  "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.0.0",          // JAX-RS annotations for shared REST resources
-  "jakarta.annotation" % "jakarta.annotation-api" % "2.1.1" // @PermitAll on shared REST resources
+  "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.0.0",           // JAX-RS annotations for shared REST resources
+  "jakarta.annotation" % "jakarta.annotation-api" % "2.1.1", // @PermitAll on shared REST resources
+  "org.scalatest" %% "scalatest" % "3.2.15" % Test           // ScalaTest (for unit tests)
 )
