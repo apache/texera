@@ -21,7 +21,6 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
-import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
 import { getBackendConfig } from "./api/backend-api";
 import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
@@ -42,7 +41,7 @@ import type {
 import { AgentState, OperatorResultSerializationMode } from "./types/agent";
 import type { WsClientCommand, WsServerEvent } from "./types/ws";
 import { WsServerSnapshotEvent, WsServerStepEvent, WsServerStatusEvent, WsServerErrorEvent } from "./types/ws";
-import type { OperatorResultSummary } from "./types/execution";
+import type { OperatorExecutionSummary } from "./types/execution";
 
 const agentStore = new Map<string, TexeraAgent>();
 let agentCounter = 0;
@@ -388,25 +387,12 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   );
 
-function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummary> {
+function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorExecutionSummary> {
   const resultState = agent.getWorkflowResultState();
   const visible = resultState.getAllVisible();
-  const results: Record<string, OperatorResultSummary> = {};
+  const results: Record<string, OperatorExecutionSummary> = {};
   for (const [opId, entry] of visible) {
-    const info = entry.operatorInfo;
-    results[opId] = {
-      state: info.state,
-      inputTuples: info.inputTuples,
-      outputTuples: info.outputTuples,
-      inputPortShapes: info.inputPortShapes,
-      outputColumns: info.result && info.result.length > 0 ? getVisibleResultHeaders(info.result[0]).length : undefined,
-      error: info.error,
-      warnings: info.warnings,
-      consoleLogCount: info.consoleLogs?.length,
-      totalRowCount: info.totalRowCount,
-      sampleRecords: info.result,
-      resultStatistics: info.resultStatistics,
-    };
+    results[opId] = entry.operatorInfo;
   }
   return results;
 }

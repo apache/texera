@@ -19,7 +19,12 @@
 
 import { getBackendConfig } from "./backend-api";
 import type { LogicalPlan, OperatorPortSchemaMap } from "../types/workflow";
+import type { WorkflowFatalError } from "../types/execution";
 import { createLogger } from "../logger";
+
+// WorkflowFatalError is defined in types/execution.ts (shared by compile and
+// execution errors); re-exported here for existing importers of this module.
+export type { WorkflowFatalError };
 
 const log = createLogger("CompileAPI");
 
@@ -29,12 +34,6 @@ export interface SchemaAttribute {
 }
 
 export type PortSchema = ReadonlyArray<SchemaAttribute>;
-
-export interface WorkflowFatalError {
-  type: string;
-  message: string;
-  operatorId?: string;
-}
 
 export interface WorkflowCompilationResponse {
   physicalPlan?: any;
