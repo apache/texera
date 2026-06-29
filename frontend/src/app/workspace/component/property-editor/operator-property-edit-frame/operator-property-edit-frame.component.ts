@@ -848,6 +848,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           "zero-shot-image-classification",
           "image-text-to-text",
           "image-to-image",
+          "image-to-video",
         ];
         const audioInputTasks = ["automatic-speech-recognition", "audio-classification"];
         const promptRequiredTasks = [
@@ -905,10 +906,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               message: () => "Upload an image or select an Input Image Column for this task.",
             },
           };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
-          };
         }
         if (hfKey === "audioInput") {
           mappedField.type = "huggingface-audio-upload";
@@ -936,10 +933,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               },
               message: () => "Upload audio or select an Input Audio Column for this task.",
             },
-          };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
           };
         }
         if (hfKey === "inputImageColumn") {
@@ -981,10 +974,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               },
               message: () => "Select a prompt column for this task.",
             },
-          };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
           };
         }
         if (["systemPrompt", "maxNewTokens", "temperature"].includes(hfKey)) {
