@@ -40,7 +40,8 @@
         <texera-agent-interaction
           [operatorId]="chatPopoverOperator.operatorId"
           [operatorDisplayName]="chatPopoverOperator.displayName"
-          [sampleTuples]="getOperatorSampleTuples(chatPopoverOperator.operatorId)">
+          [sampleTuples]="getOperatorSampleTuples(chatPopoverOperator.operatorId)"
+          [resultMode]="getOperatorResultMode(chatPopoverOperator.operatorId)">
         </texera-agent-interaction>
       </div>
     </div>
