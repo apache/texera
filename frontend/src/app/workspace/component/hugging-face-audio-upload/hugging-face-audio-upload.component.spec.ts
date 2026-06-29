@@ -76,6 +76,8 @@ describe("HuggingFaceAudioUploadComponent", () => {
       formControl.setValue("/uploads/my-clip.wav");
       component.ngOnInit();
       expect(component.fileName).toBe("my-clip.wav");
+      // ngOnInit fires an authenticated blob fetch for the server path
+      httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
     });
 
     it("should set fileName to 'Selected audio' for data:audio values", () => {
@@ -104,9 +106,9 @@ describe("HuggingFaceAudioUploadComponent", () => {
       expect(component.previewSrc).toBe("");
     });
 
-    it("should return server preview URL for a stored path", () => {
+    it("should return empty for a stored server path (blob URL loaded asynchronously)", () => {
       formControl.setValue("/uploads/clip.wav");
-      expect(component.previewSrc).toBe(`${API}/huggingface/audio-preview?path=%2Fuploads%2Fclip.wav`);
+      expect(component.previewSrc).toBe("");
     });
 
     it("should return data:audio value as-is", () => {
