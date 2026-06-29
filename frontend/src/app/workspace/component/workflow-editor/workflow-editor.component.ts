@@ -43,7 +43,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
-import { OperatorResultSummary, AgentService } from "../../service/agent/agent.service";
+import { AgentService, OperatorExecutionSummary, SampleRow } from "../../service/agent/agent.service";
 import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { NgIf } from "@angular/common";
@@ -133,14 +133,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
 
-  private operatorSummaries: Map<string, OperatorResultSummary> = new Map();
+  private operatorSummaries: Map<string, OperatorExecutionSummary> = new Map();
 
   ngOnInit(): void {
     // Cache the tool constructors
     this.removeButton = WorkflowEditorComponent.getRemoveButton();
     this.breakpointButton = WorkflowEditorComponent.getBreakpointButton();
 
-    this.agentService.operatorResultSummaries$.pipe(untilDestroyed(this)).subscribe(summaries => {
+    this.agentService.operatorExecutionSummaries$.pipe(untilDestroyed(this)).subscribe(summaries => {
       this.operatorSummaries = summaries;
       if (this.chatPopoverOperator) {
         this.changeDetectorRef.detectChanges();
@@ -1696,16 +1696,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.changeDetectorRef.detectChanges();
   }
 
-  getOperatorSampleRecords(operatorId: string): Record<string, any>[] | undefined {
-    return this.operatorSummaries.get(operatorId)?.sampleRecords;
-  }
-
-  getOperatorResultStatistics(operatorId: string): Record<string, string> | undefined {
-    return this.operatorSummaries.get(operatorId)?.resultStatistics;
+  getOperatorSampleTuples(operatorId: string): SampleRow[] | undefined {
+    return this.operatorSummaries.get(operatorId)?.resultSummary?.sampleTuples;
   }
 
   isOperatorVisualization(operatorId: string): boolean {
-    return this.operatorSummaries.get(operatorId)?.sampleRecords?.[0]?.["__is_visualization__"] === true;
+    return (
+      this.operatorSummaries.get(operatorId)?.resultSummary?.sampleTuples?.[0]?.tuple["__is_visualization__"] === true
+    );
   }
 
   /**

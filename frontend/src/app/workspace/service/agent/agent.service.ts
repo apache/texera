@@ -97,38 +97,44 @@ export interface ModelType {
  * API response types
  */
 /**
- * Summary of operator execution results for annotation display.
+ * Per-operator execution summary as sent by the agent-service over the
+ * operator-results endpoint (mirror of its OperatorExecutionSummary).
  */
-export interface OperatorResultSummary {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: { portIndex: number; rows: number }[];
-  outputColumns?: number;
-  error?: string;
-  warnings?: string[];
-  consoleLogCount?: number;
-  totalRowCount?: number;
-  sampleRecords?: Record<string, any>[];
-  resultStatistics?: Record<string, string>;
+export interface WorkflowFatalError {
+  type: string;
+  message: string;
+  details?: string;
+  operatorId?: string;
+  workerId?: string;
+  timestamp?: { seconds: number; nanos: number };
 }
 
-/**
- * Per-operator execution summary as sent by the agent-service over the
- * operator-results endpoint (mirror of its OperatorExecutionSummary). The flat
- * OperatorResultSummary above is derived from this for display.
- */
-interface WireOperatorExecutionSummary {
+export interface ConsoleMessage {
+  msgType: string;
+  title: string;
+  message: string;
+}
+
+export interface SampleRow {
+  rowIndex: number;
+  tuple: Record<string, any>;
+}
+
+export interface OperatorExecutionResultSummary {
+  resultMode: string;
+  sampleTuples: SampleRow[];
+  totalRowCount: number;
+}
+
+export interface OperatorConsoleLogsSummary {
+  messages: ConsoleMessage[];
+}
+
+export interface OperatorExecutionSummary {
   state: string;
-  errorMessages?: { type: string; message: string }[];
-  resultSummary?: {
-    resultMode: string;
-    sampleTuples: { rowIndex: number; tuple: Record<string, any> }[];
-    totalRowCount: number;
-  };
-  consoleLogsSummary?: {
-    messages: { msgType: string; title: string; message: string }[];
-  };
+  errorMessages: WorkflowFatalError[];
+  resultSummary?: OperatorExecutionResultSummary;
+  consoleLogsSummary?: OperatorConsoleLogsSummary;
 }
 
 interface ApiAgentInfo {
@@ -1244,50 +1250,32 @@ export class AgentService {
   // Operator Result Annotation Methods
   // ============================================================================
 
-  /** Current operator result summaries (operatorId → summary) */
-  private operatorResultSummariesSubject = new BehaviorSubject<Map<string, OperatorResultSummary>>(new Map());
-  public operatorResultSummaries$ = this.operatorResultSummariesSubject.asObservable();
+  /** Current operator execution summaries (operatorId -> summary) */
+  private operatorExecutionSummariesSubject = new BehaviorSubject<Map<string, OperatorExecutionSummary>>(new Map());
+  public operatorExecutionSummaries$ = this.operatorExecutionSummariesSubject.asObservable();
 
   /**
-   * Update operator result summaries from an API response.
+   * Update operator execution summaries from an API response.
    */
-  private updateOperatorResultSummaries(results: Record<string, WireOperatorExecutionSummary>): void {
-    const summaries = new Map<string, OperatorResultSummary>();
-    for (const [opId, data] of Object.entries(results)) {
-      summaries.set(opId, {
-        state: data.state,
-        // Tuple counts are no longer carried per-port; output rows come from the
-        // result summary, input shapes are derivable from the DAG when needed.
-        inputTuples: 0,
-        outputTuples: data.resultSummary?.totalRowCount ?? 0,
-        error: data.errorMessages?.map(e => e.message).join("; ") || undefined,
-        warnings: (data.consoleLogsSummary?.messages ?? [])
-          .filter(m => m.title.startsWith("WARNING: "))
-          .map(m => m.title),
-        consoleLogCount: data.consoleLogsSummary?.messages.length,
-        totalRowCount: data.resultSummary?.totalRowCount,
-        // Flatten back to embedded __row_index__ so the display components are unchanged.
-        sampleRecords: data.resultSummary?.sampleTuples?.map(r => ({ __row_index__: r.rowIndex, ...r.tuple })),
-      });
-    }
-    this.operatorResultSummariesSubject.next(summaries);
+  private updateOperatorExecutionSummaries(results: Record<string, OperatorExecutionSummary>): void {
+    this.operatorExecutionSummariesSubject.next(new Map(Object.entries(results)));
   }
 
   /**
    * Pull the agent's latest operator result summaries from the backend and push
-   * them to `operatorResultSummaries$`. Called on demand when the UI needs to
+   * them to `operatorExecutionSummaries$`. Called on demand when the UI needs to
    * show results (e.g. opening an operator's popover); results are no longer
    * pushed over the WebSocket.
    */
   public fetchOperatorResults(agentId: string): void {
     this.http
-      .get<{ results: Record<string, WireOperatorExecutionSummary> }>(
+      .get<{ results: Record<string, OperatorExecutionSummary> }>(
         `${this.AGENT_API_BASE}/agents/${agentId}/operator-results`,
         this.agentHeaders(agentId)
       )
-      .pipe(catchError(() => of({ results: {} as Record<string, WireOperatorExecutionSummary> })))
+      .pipe(catchError(() => of({ results: {} as Record<string, OperatorExecutionSummary> })))
       .subscribe(response => {
-        this.updateOperatorResultSummaries(response.results);
+        this.updateOperatorExecutionSummaries(response.results);
       });
   }
 }

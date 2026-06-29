@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { AgentService, AgentInfo, OperatorResultSummary } from "./agent.service";
+import { AgentService, AgentInfo, OperatorExecutionSummary } from "./agent.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
@@ -94,26 +94,34 @@ describe("AgentService", () => {
   });
 
   describe("fetchOperatorResults", () => {
-    it("pulls operator results over REST and pushes them to operatorResultSummaries$", () => {
-      let latest: Map<string, OperatorResultSummary> | undefined;
-      service.operatorResultSummaries$.subscribe(m => (latest = m));
+    it("pulls operator results over REST and pushes them to operatorExecutionSummaries$", () => {
+      let latest: Map<string, OperatorExecutionSummary> | undefined;
+      service.operatorExecutionSummaries$.subscribe(m => (latest = m));
 
       service.fetchOperatorResults("agent-1");
 
       const req = httpMock.expectOne(r => r.method === "GET" && r.url === "/api/agents/agent-1/operator-results");
       req.flush({
         results: {
-          "op-1": { sampleRecords: [{ a: 1 }], resultStatistics: { a: "{}" } },
+          "op-1": {
+            state: "Completed",
+            errorMessages: [],
+            resultSummary: {
+              resultMode: "table",
+              sampleTuples: [{ rowIndex: 0, tuple: { a: 1 } }],
+              totalRowCount: 1,
+            },
+          },
         },
       });
 
       expect(latest?.has("op-1")).toBe(true);
-      expect(latest?.get("op-1")?.sampleRecords).toEqual([{ a: 1 }]);
+      expect(latest?.get("op-1")?.resultSummary?.sampleTuples).toEqual([{ rowIndex: 0, tuple: { a: 1 } }]);
     });
 
     it("falls back to empty results when the request fails", () => {
-      let latest: Map<string, OperatorResultSummary> | undefined;
-      service.operatorResultSummaries$.subscribe(m => (latest = m));
+      let latest: Map<string, OperatorExecutionSummary> | undefined;
+      service.operatorExecutionSummaries$.subscribe(m => (latest = m));
 
       service.fetchOperatorResults("agent-1");
 
