@@ -29,7 +29,15 @@ import type { WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
 import { env } from "../../config/env";
 import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
-import type { OperatorExecutionSummary, SampleRow, WorkflowExecutionSummary } from "../../types/execution";
+import {
+  OperatorState,
+  WorkflowFatalErrorType,
+  WorkflowExecutionState,
+  type OperatorExecutionSummary,
+  type SampleRow,
+  type WorkflowFatalError,
+  type WorkflowExecutionSummary,
+} from "../../types/execution";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
 import { createLogger } from "../../logger";
@@ -325,7 +333,7 @@ async function executeWorkflowHttp(
     log.error({ err: error }, "execution failed");
     return {
       success: false,
-      state: "Error",
+      state: WorkflowExecutionState.ERROR,
       operators: {},
       errors: [error instanceof Error ? error.message : "Unknown error"],
     };
@@ -353,6 +361,18 @@ function formatExecutionError(
   }
 
   return lines.join("\n");
+}
+
+function makeExecutionFailure(message: string, operatorId: string): WorkflowFatalError {
+  const now = Date.now();
+  return {
+    type: { name: WorkflowFatalErrorType.EXECUTION_FAILURE },
+    timestamp: { seconds: Math.floor(now / 1000), nanos: (now % 1000) * 1_000_000 },
+    message,
+    details: "",
+    operatorId,
+    workerId: "",
+  };
 }
 
 function jsonToTableFormat(rows: SampleRow[]): string {
@@ -430,20 +450,21 @@ export async function executeOperatorAndFormat(
 
     if (!result.success) {
       const operatorErrors =
-        result.state === "Failed"
+        result.state === WorkflowExecutionState.FAILED
           ? Object.entries(result.operators)
               .filter(([_, op]) => op.errorMessages.length)
               .map(([opId, op]) => ({ operatorId: opId, error: op.errorMessages.map(e => e.message).join("; ") }))
           : undefined;
 
-      const generalErrors = result.state === "Killed" ? ["Workflow execution was killed (timeout)."] : result.errors;
+      const generalErrors =
+        result.state === WorkflowExecutionState.KILLED ? ["Workflow execution was killed (timeout)."] : result.errors;
 
       const errorText = formatExecutionError(operatorErrors, generalErrors);
 
       if (options.onResult) {
         const errorInfo: OperatorExecutionSummary = {
-          state: "Failed",
-          errorMessages: [{ type: "EXECUTION_FAILURE", message: errorText, operatorId }],
+          state: OperatorState.FAILED,
+          errorMessages: [makeExecutionFailure(errorText, operatorId)],
         };
         options.onResult(operatorId, errorInfo);
       }
@@ -519,7 +540,7 @@ export async function executeOperatorAndFormat(
 
     // Output shape only; the agent derives input-port shapes from the DAG + the
     // upstream operators' own output shapes shown in context.
-    const shapeLine = `Output table shape: (${opInfo.resultSummary?.totalRowCount ?? 0}, ${columns})`;
+    const shapeLine = `Output table shape: (${opInfo.resultSummary?.tuplesCount ?? 0}, ${columns})`;
 
     const warningLines = getOperatorWarnings(opInfo);
 

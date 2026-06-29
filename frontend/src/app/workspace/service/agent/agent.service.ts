@@ -101,18 +101,30 @@ export interface ModelType {
  * operator-results endpoint (mirror of its OperatorExecutionSummary).
  */
 export interface WorkflowFatalError {
-  type: string;
+  type: { name: WorkflowFatalErrorType };
+  timestamp: { seconds: number; nanos: number };
   message: string;
-  details?: string;
-  operatorId?: string;
-  workerId?: string;
-  timestamp?: { seconds: number; nanos: number };
+  details: string;
+  operatorId: string;
+  workerId: string;
+}
+
+export enum WorkflowFatalErrorType {
+  COMPILATION_ERROR = "COMPILATION_ERROR",
+  EXECUTION_FAILURE = "EXECUTION_FAILURE",
 }
 
 export interface ConsoleMessage {
-  msgType: string;
+  msgType: ConsoleMessageType;
   title: string;
   message: string;
+}
+
+export enum ConsoleMessageType {
+  PRINT = "PRINT",
+  ERROR = "ERROR",
+  COMMAND = "COMMAND",
+  DEBUGGER = "DEBUGGER",
 }
 
 export interface SampleRow {
@@ -121,9 +133,28 @@ export interface SampleRow {
 }
 
 export interface OperatorResultSummary {
-  resultMode: string;
+  resultMode: OperatorResultMode;
   sampleTuples: SampleRow[];
-  totalRowCount: number;
+  tuplesCount: number;
+}
+
+export enum OperatorResultMode {
+  TABLE = "table",
+  VISUALIZATION = "visualization",
+}
+
+export enum OperatorState {
+  UNINITIALIZED = "Uninitialized",
+  READY = "Ready",
+  RUNNING = "Running",
+  PAUSING = "Pausing",
+  PAUSED = "Paused",
+  RESUMING = "Resuming",
+  COMPLETED = "Completed",
+  FAILED = "Failed",
+  KILLED = "Killed",
+  TERMINATED = "Terminated",
+  UNKNOWN = "Unknown",
 }
 
 export interface OperatorConsoleLogsSummary {
@@ -131,7 +162,7 @@ export interface OperatorConsoleLogsSummary {
 }
 
 export interface OperatorExecutionSummary {
-  state: string;
+  state: OperatorState;
   errorMessages: WorkflowFatalError[];
   resultSummary?: OperatorResultSummary;
   consoleLogsSummary?: OperatorConsoleLogsSummary;

@@ -19,7 +19,15 @@
 
 import { describe, expect, test } from "bun:test";
 import { formatOperatorResult } from "./result-formatting";
-import type { OperatorExecutionSummary, OperatorState, SampleRow } from "../../types/execution";
+import {
+  ConsoleMessageType,
+  OperatorState,
+  OperatorResultMode,
+  WorkflowFatalErrorType,
+  type OperatorExecutionSummary,
+  type WorkflowFatalError,
+  type SampleRow,
+} from "../../types/execution";
 
 // Convert flat test rows (with an optional embedded __row_index__) into the
 // structured SampleRow[] the summary now carries.
@@ -36,29 +44,40 @@ interface OpInfoOverrides {
   state?: OperatorState;
   error?: string;
   outputTuples?: number;
-  totalRowCount?: number;
+  tuplesCount?: number;
   warnings?: string[];
   result?: Record<string, any>[];
 }
 
+function makeExecutionFailure(message: string): WorkflowFatalError {
+  return {
+    type: { name: WorkflowFatalErrorType.EXECUTION_FAILURE },
+    timestamp: { seconds: 0, nanos: 0 },
+    message,
+    details: "",
+    operatorId: "",
+    workerId: "",
+  };
+}
+
 function makeOpInfo(overrides: OpInfoOverrides = {}): OperatorExecutionSummary {
   const summary: OperatorExecutionSummary = {
-    state: overrides.state ?? "Completed",
-    errorMessages: overrides.error ? [{ type: "EXECUTION_FAILURE", message: overrides.error }] : [],
+    state: overrides.state ?? OperatorState.COMPLETED,
+    errorMessages: overrides.error ? [makeExecutionFailure(overrides.error)] : [],
   };
   // The result summary is present only when the operator produced a result.
   if (overrides.result !== undefined) {
     summary.resultSummary = {
-      resultMode: "table",
+      resultMode: OperatorResultMode.TABLE,
       // Non-arrays are passed through to exercise the "(no result data)" guard.
       sampleTuples: Array.isArray(overrides.result) ? toSampleRows(overrides.result) : (overrides.result as any),
-      totalRowCount: overrides.totalRowCount ?? overrides.outputTuples ?? 0,
+      tuplesCount: overrides.tuplesCount ?? overrides.outputTuples ?? 0,
     };
   }
   if (overrides.warnings) {
     // Warnings are derived from console messages whose title is "WARNING: ...".
     summary.consoleLogsSummary = {
-      messages: overrides.warnings.map(w => ({ msgType: "PRINT", title: w, message: "" })),
+      messages: overrides.warnings.map(w => ({ msgType: ConsoleMessageType.PRINT, title: w, message: "" })),
     };
   }
   return summary;
@@ -93,15 +112,15 @@ describe("formatOperatorResult - early returns", () => {
 });
 
 describe("formatOperatorResult - table shape and metadata", () => {
-  test("uses outputTuples for row count when totalRowCount missing", () => {
+  test("uses outputTuples for row count when tuplesCount missing", () => {
     const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 7, result: [{ a: 1, b: 2 }] }));
     expect(out).toContain("Output table shape: (7, 2)");
   });
 
-  test("totalRowCount overrides outputTuples in output shape", () => {
+  test("tuplesCount overrides outputTuples in output shape", () => {
     const out = formatOperatorResult(
       "op1",
-      makeOpInfo({ outputTuples: 7, totalRowCount: 999, result: [{ a: 1, b: 2 }] })
+      makeOpInfo({ outputTuples: 7, tuplesCount: 999, result: [{ a: 1, b: 2 }] })
     );
     expect(out).toContain("Output table shape: (999, 2)");
   });

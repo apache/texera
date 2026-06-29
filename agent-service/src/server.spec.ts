@@ -21,6 +21,7 @@ import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { buildApp, start, _resetAgentStoreForTests, _getAgentForTests } from "./server";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
+import { OperatorResultMode, OperatorState } from "./types/execution";
 
 const API = env.API_PREFIX;
 const app = buildApp();
@@ -331,12 +332,12 @@ describe("agent read routes", () => {
             "op-1",
             {
               operatorInfo: {
-                state: "Completed",
+                state: OperatorState.COMPLETED,
                 errorMessages: [],
                 resultSummary: {
-                  resultMode: "table",
+                  resultMode: OperatorResultMode.TABLE,
                   sampleTuples: [{ rowIndex: 0, tuple: { a: 1 } }],
-                  totalRowCount: 2,
+                  tuplesCount: 2,
                 },
               },
             },
@@ -345,10 +346,10 @@ describe("agent read routes", () => {
     });
 
     const body = await readJson<{
-      results: Record<string, { state: string; resultSummary: { totalRowCount: number; sampleTuples: unknown[] } }>;
+      results: Record<string, { state: string; resultSummary: { tuplesCount: number; sampleTuples: unknown[] } }>;
     }>(await getJson(`${API}/agents/${id}/operator-results`));
     expect(body.results["op-1"].state).toBe("Completed");
-    expect(body.results["op-1"].resultSummary.totalRowCount).toBe(2);
+    expect(body.results["op-1"].resultSummary.tuplesCount).toBe(2);
     expect(body.results["op-1"].resultSummary.sampleTuples).toEqual([{ rowIndex: 0, tuple: { a: 1 } }]);
   });
 });

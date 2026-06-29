@@ -94,7 +94,7 @@ case class SampleRow(
 case class OperatorResultSummary(
     resultMode: String, // "table" or "visualization"
     sampleTuples: List[SampleRow],
-    totalRowCount: Int
+    tuplesCount: Int
 )
 
 case class OperatorConsoleLogsSummary(
@@ -416,7 +416,7 @@ class SyncExecutionResource extends LazyLogging {
       val stats = operatorStats.get(opId)
       val state = stats.map(s => stateToString(s.operatorState)).getOrElse("Unknown")
 
-      val (resultMode, result, totalRowCount, _, _) =
+      val (resultMode, result, tuplesCount, _, _) =
         collectOperatorResult(
           executionId,
           opId,
@@ -455,12 +455,12 @@ class SyncExecutionResource extends LazyLogging {
 
 
       // Absent when the operator produced no materialized result. `result` and
-      // `totalRowCount` are populated together, so map over the former.
+      // `tuplesCount` are populated together, so map over the former.
       val resultSummary = result.map { tuples =>
         OperatorResultSummary(
           resultMode = resultMode,
           sampleTuples = tuples,
-          totalRowCount = totalRowCount.getOrElse(0)
+          tuplesCount = tuplesCount.getOrElse(0)
         )
       }
 
