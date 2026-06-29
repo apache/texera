@@ -193,5 +193,42 @@ else
         "naked-glob unzip count=$n_naked  picker count=$n_picker  (expected naked=0, picker>=2)"
 fi
 
+# 11) Regression: jOOQ codegen runs at sbt-build time and connects to
+#     postgres (common/dao's jooqGenerate sourceGenerator). On a fresh
+#     checkout the generated dir is empty (not git-tracked), so if
+#     postgres isn't reachable when sbt runs, the build fails. Both
+#     cmd_up and cmd_auto must run a postgres-ready step BEFORE the
+#     sbt build is launched. Closes #6007.
+MAIN_SH="$REPO_ROOT/bin/local-dev/main.sh"
+for fn in cmd_up cmd_auto; do
+    result=$(awk -v fn="$fn" '
+        BEGIN { in_fn = 0; depth = 0; schema_at = 0; build_at = 0 }
+        !in_fn && index($0, fn "()") == 1 { in_fn = 1; depth = 1; next }
+        in_fn {
+            for (i = 1; i <= length($0); i++) {
+                c = substr($0, i, 1)
+                if (c == "{") depth++
+                else if (c == "}") depth--
+            }
+            if (schema_at == 0 && match($0, /infra_ensure_db_schema|ensure_postgres_for_build/))
+                schema_at = NR
+            if (build_at == 0 && match($0, /build_all|sbt[[:space:]]+-no-colors[[:space:]]+dist/))
+                build_at = NR
+            if (depth == 0) {
+                printf "schema=%d build=%d", schema_at, build_at
+                exit
+            }
+        }
+    ' "$MAIN_SH")
+    schema_at=$(echo "$result" | sed -n 's/.*schema=\([0-9]*\).*/\1/p')
+    build_at=$(echo "$result" | sed -n 's/.*build=\([0-9]*\).*/\1/p')
+    if (( schema_at > 0 )) && (( build_at > 0 )) && (( schema_at < build_at )); then
+        _pass "$fn: postgres readiness check precedes sbt build (regression for #6007)"
+    else
+        _fail "$fn: postgres readiness must precede sbt build (regression for #6007)" \
+            "schema_at=$schema_at  build_at=$build_at"
+    fi
+done
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))
