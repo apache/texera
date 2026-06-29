@@ -122,7 +122,8 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
       this.formControl.markAsDirty();
       this.formControl.markAsTouched();
       this.formControl.updateValueAndValidity();
-    } catch {
+    } catch (err) {
+      console.error("Audio upload failed:", err);
       if (this.localPreviewUrl !== previewUrl) return;
       this.clearAudio(input, false);
       this.errorMessage = "Could not upload this audio file.";
@@ -163,7 +164,8 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
         this.revokePreviewUrl();
         this.localPreviewUrl = URL.createObjectURL(blob);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        console.error("Failed to load audio preview:", err);
         if (this.formControl.value !== serverPath) return;
         this.errorMessage = "Could not load audio preview.";
       });
