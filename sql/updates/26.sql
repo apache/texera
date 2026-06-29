@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS operator_port_cache
     global_port_id      VARCHAR(200) NOT NULL,
     cache_key           CHAR(64) NOT NULL,
     cache_key_json      TEXT NOT NULL,
-    result_uri          TEXT NOT NULL,
+    storage_uri         TEXT NOT NULL,
     tuple_count         BIGINT,
     source_execution_id BIGINT,
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
