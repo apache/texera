@@ -91,7 +91,7 @@ case class SampleRow(
     tuple: ObjectNode
 )
 
-case class OperatorOutputSummary(
+case class OperatorResultSummary(
     resultMode: String, // "table" or "visualization"
     sampleTuples: List[SampleRow],
     totalRowCount: Int
@@ -108,7 +108,7 @@ case class OperatorConsoleLogsSummary(
 case class OperatorExecutionSummary(
     state: String,
     errorMessages: List[WorkflowFatalError], // empty means the operator did not fail
-    resultSummary: Option[OperatorOutputSummary],
+    resultSummary: Option[OperatorResultSummary],
     consoleLogsSummary: Option[OperatorConsoleLogsSummary]
 )
 
@@ -457,7 +457,7 @@ class SyncExecutionResource extends LazyLogging {
       // Absent when the operator produced no materialized result. `result` and
       // `totalRowCount` are populated together, so map over the former.
       val resultSummary = result.map { tuples =>
-        OperatorOutputSummary(
+        OperatorResultSummary(
           resultMode = resultMode,
           sampleTuples = tuples,
           totalRowCount = totalRowCount.getOrElse(0)

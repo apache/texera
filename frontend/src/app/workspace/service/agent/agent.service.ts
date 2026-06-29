@@ -120,7 +120,7 @@ export interface SampleRow {
   tuple: Record<string, any>;
 }
 
-export interface OperatorExecutionResultSummary {
+export interface OperatorResultSummary {
   resultMode: string;
   sampleTuples: SampleRow[];
   totalRowCount: number;
@@ -133,7 +133,7 @@ export interface OperatorConsoleLogsSummary {
 export interface OperatorExecutionSummary {
   state: string;
   errorMessages: WorkflowFatalError[];
-  resultSummary?: OperatorExecutionResultSummary;
+  resultSummary?: OperatorResultSummary;
   consoleLogsSummary?: OperatorConsoleLogsSummary;
 }
 
