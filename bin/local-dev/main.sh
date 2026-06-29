@@ -1149,6 +1149,27 @@ infra_ensure_db_schema() {
     fi
 }
 
+# Build precondition: ensure ONLY the postgres container is up + schema
+# bootstrapped. common/dao's jooqGenerate sourceGenerator connects to
+# postgres via JDBC at sbt-compile time; if postgres isn't reachable the
+# catch block in common/dao/build.sbt logs "Continuing compilation with
+# existing generated files..." but the generated dir is not git-tracked,
+# so fresh checkouts have nothing to fall back on and the downstream
+# Scala compile fails on missing Tables/Keys/etc. (#6007)
+#
+# Used by cmd_auto, which only wants to touch what its scan said is
+# dirty. cmd_up uses the heavier infra_up + infra_ensure_db_schema pair
+# instead so minio/lakefs/litellm warm up in parallel with the build.
+ensure_postgres_for_build() {
+    if [[ "$(docker_svc_state postgres)" != "running" ]]; then
+        tui_step "postgres: starting (required for jOOQ codegen at build time)"
+        local files=($(docker_compose_files))
+        docker compose --progress auto -p "$DOCKER_PROJECT" --env-file "$DOCKER_ENV_FILE" "${files[@]}" \
+            up -d postgres >/dev/null 2>&1 || true
+    fi
+    infra_ensure_db_schema
+}
+
 svc_running_pid() {
     listen_pid_for_port "$(amap_get SVC_PORT "$1")"
 }
@@ -1898,6 +1919,32 @@ cmd_up() {
         fi
     fi
 
+    # ── Infra (must precede Build) ────────────────────────────────────────
+    # common/dao's jooqGenerate sourceGenerator runs at sbt-compile time
+    # and connects to postgres via JDBC; if postgres isn't reachable the
+    # generator returns Seq.empty and the downstream Scala compile fails
+    # on missing Tables/Keys/etc (the generated dir is not git-tracked).
+    # Bring infra up first so postgres is ready when the build fires.
+    # As a bonus minio/lakefs/litellm warm up while sbt runs. (#6007)
+    local svc=""
+    local has_docker_targets=false
+    for svc in "${SERVICES[@]}"; do
+        [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]] || continue
+        is_skipped "$svc" && continue
+        has_docker_targets=true
+        break
+    done
+    if $has_docker_targets; then
+        tui_section "Infra"
+        case "$(infra_state)" in
+            running)    tui_ok "infra: already running" ;;
+            external:*) tui_err "infra: ports taken by non-script containers"
+                        printf "  ${DIM}docker compose -p texera-dev down${RESET}\n" ;;
+            *)          infra_up || true ;;
+        esac
+        infra_ensure_db_schema
+    fi
+
     if [[ "$BUILD" != "no" ]]; then
         tui_section "Build"
         build_all
@@ -1907,38 +1954,16 @@ cmd_up() {
         tui_skip "build: --no-build (using existing artifacts)"
     fi
 
-    # ▸ Services -- docker compose has its own TTY panel; native services we
-    # kick off silently in the background, then a single redrawing panel below
-    # shows progress for ALL of them.
+    # ▸ Services -- native services only; docker rows were handled by the
+    # Infra section above. We kick each one off silently in the background
+    # and a single redrawing panel below shows progress for ALL of them.
     tui_section "Services  ${DIM}(launching)${RESET}"
-    local svc="" cwd="" log="" type="" launcher=""
-
-    # One project-level `docker compose up -d` for every non-skipped docker
-    # row — much faster than five separate calls.
-    local has_docker_targets=false
-    for svc in "${SERVICES[@]}"; do
-        [[ "$(amap_get SVC_TYPE "$svc")" == "docker" ]] || continue
-        is_skipped "$svc" && continue
-        has_docker_targets=true
-        break
-    done
-    if $has_docker_targets; then
-        case "$(infra_state)" in
-            running)    tui_ok "infra: already running" ;;
-            external:*) tui_err "infra: ports taken by non-script containers"
-                        printf "  ${DIM}docker compose -p texera-dev down${RESET}\n" ;;
-            *)          infra_up || true ;;
-        esac
-        # Whether infra is fresh or already up, make sure the texera_db
-        # schema is current — JVMs about to start expect it (jOOQ + Iceberg
-        # both need real tables).
-        infra_ensure_db_schema
-    fi
+    local cwd="" log="" type="" launcher=""
 
     for svc in "${SERVICES[@]}"; do
         is_skipped "$svc" && { tui_skip "$svc: --skip"; continue; }
         type=$(amap_get SVC_TYPE "$svc")
-        [[ "$type" == "docker" ]] && continue   # already handled by infra_up
+        [[ "$type" == "docker" ]] && continue   # handled by Infra section above
         if [[ -n "$(svc_running_pid "$svc")" ]]; then
             tui_ok "$svc: already running ${DIM}(PID $(svc_running_pid "$svc"))${RESET}"
             continue
@@ -2050,6 +2075,11 @@ cmd_auto() {
     # get pre-bounced just because the build ran.
     if (( ${#dirty_jvms[@]} > 0 )); then
         tui_section "Build  ${DIM}(${#dirty_jvms[@]} JVM service(s) dirty)${RESET}"
+        # sbt build precondition: common/dao's jooqGenerate connects to
+        # postgres at compile time; a `down` + `auto` sequence on a
+        # fresh-ish checkout otherwise fails before any service launches.
+        # See #6007.
+        ensure_postgres_for_build
         # Mark each dirty service as "building" so the TUI shows the
         # animation across the whole sbt window (~30s+). Without this the
         # dashboard stays on the prior STATE during the slow build.

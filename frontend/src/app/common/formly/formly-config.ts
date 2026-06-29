@@ -30,6 +30,7 @@ import { FormlyRepeatDndComponent } from "./repeat-dnd/repeat-dnd.component";
 import { UiUdfParametersComponent } from "../../workspace/component/ui-udf-parameters/ui-udf-parameters.component";
 import { DatasetVersionSelectorComponent } from "../../workspace/component/dataset-version-selector/dataset-version-selector.component";
 import { HuggingFaceImageUploadComponent } from "../../workspace/component/hugging-face-image-upload/hugging-face-image-upload.component";
+import { HuggingFaceComponent } from "../../workspace/component/hugging-face/hugging-face.component";
 
 /**
  * Configuration for using Json Schema with Formly.
@@ -81,6 +82,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "codearea", component: CodeareaCustomTemplateComponent },
     { name: "inputautocomplete", component: DatasetFileSelectorComponent, wrappers: ["form-field"] },
     { name: "datasetversionselector", component: DatasetVersionSelectorComponent, wrappers: ["form-field"] },
+    { name: "huggingface", component: HuggingFaceComponent, wrappers: ["form-field"] },
     { name: "huggingface-image-upload", component: HuggingFaceImageUploadComponent, wrappers: ["form-field"] },
     { name: "repeat-section-dnd", component: FormlyRepeatDndComponent },
     { name: "ui-udf-parameters", component: UiUdfParametersComponent, wrappers: ["form-field"] },
