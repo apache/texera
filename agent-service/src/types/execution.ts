@@ -70,7 +70,7 @@ export interface SampleRow {
 // symmetrically-truncated output rows (the middle is dropped, so `rowIndex`
 // values may have gaps). `outputSchema` / per-column statistics are intended
 // future additions — the engine does not produce them yet.
-export interface OperatorOutputSummary {
+export interface OperatorResultSummary {
   // "table" or "visualization".
   resultMode: string;
   sampleTuples: SampleRow[];
@@ -91,7 +91,7 @@ export interface OperatorExecutionSummary {
   // Empty means the operator did not fail.
   errorMessages: ReadonlyArray<WorkflowFatalError>;
   // Absent when the operator produced no materialized result.
-  resultSummary?: OperatorOutputSummary;
+  resultSummary?: OperatorResultSummary;
   // Absent when the operator produced no console output.
   consoleLogsSummary?: OperatorConsoleLogsSummary;
 }
