@@ -40,7 +40,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzInputDirective, NzAutosizeDirective } from "ng-zorro-antd/input";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { SampleRow } from "../../../service/agent/agent.service";
+import { OperatorResultMode, SampleRow } from "../../../service/agent/agent.service";
 
 /**
  * AgentInteractionComponent provides a compact interface for users to send feedback
@@ -77,6 +77,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   @Input() operatorId!: string;
   @Input() operatorDisplayName?: string;
   @Input() sampleTuples?: SampleRow[];
+  @Input() resultMode?: OperatorResultMode;
 
   public availableAgents: Array<{ id: string; name: string; isConnected: boolean }> = [];
   public selectedAgentId: string | null = null;
@@ -102,10 +103,9 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["sampleTuples"]) {
+    if (changes["sampleTuples"] || changes["resultMode"]) {
       // Only update cached visualization HTML when the actual content changes
-      const newRows = changes["sampleTuples"].currentValue as SampleRow[] | undefined;
-      const htmlContent = newRows?.[0]?.tuple["html-content"];
+      const htmlContent = this.sampleTuples?.[0]?.tuple["html-content"];
       const newHtml = typeof htmlContent === "string" ? htmlContent : null;
       if (newHtml !== this.cachedVisualizationRawHtml) {
         this.cachedVisualizationRawHtml = newHtml;
@@ -177,12 +177,8 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
     return !!this.selectedAgentId && !!this.feedbackMessage.trim();
   }
 
-  /**
-   * Check if sample rows represent a visualization (has __is_visualization__ flag).
-   */
   public isVisualization(): boolean {
-    if (!this.sampleTuples || this.sampleTuples.length === 0) return false;
-    return this.sampleTuples[0].tuple["__is_visualization__"] === true;
+    return this.resultMode === OperatorResultMode.VISUALIZATION;
   }
 
   /**
@@ -197,7 +193,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
    */
   public getSampleColumns(): string[] {
     if (!this.sampleTuples || this.sampleTuples.length === 0) return [];
-    return Object.keys(this.sampleTuples[0].tuple).filter(k => k !== "__is_visualization__");
+    return Object.keys(this.sampleTuples[0].tuple);
   }
 
   /**

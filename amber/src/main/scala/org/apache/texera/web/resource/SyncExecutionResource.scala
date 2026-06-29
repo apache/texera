@@ -571,7 +571,6 @@ class SyncExecutionResource extends LazyLogging {
           if (totalCount == 1 && isVisualizationTuple(firstTuple)) {
             val jsonResults =
               TupleUtils.convertTuplesToJson(List(firstTuple), isVisualization = true)
-            jsonResults.foreach(_.put("__is_visualization__", true))
             val rows = jsonResults.zipWithIndex.map { case (json, idx) => SampleRow(idx, json) }
             return ("visualization", Some(rows), Some(totalCount), Some(1), Some(false))
           }

@@ -19,10 +19,8 @@
 
 import type { OperatorExecutionSummary } from "../../types/execution";
 
-export const INTERNAL_RESULT_KEYS: ReadonlySet<string> = new Set(["__row_index__", "__is_visualization__"]);
-
 export function getVisibleResultHeaders(row: Record<string, any>): string[] {
-  return Object.keys(row).filter(k => !INTERNAL_RESULT_KEYS.has(k));
+  return Object.keys(row);
 }
 
 // Warnings are the console messages the engine tags with a "WARNING: " title
