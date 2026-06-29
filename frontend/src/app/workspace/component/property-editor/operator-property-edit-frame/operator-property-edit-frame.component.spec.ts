@@ -719,4 +719,195 @@ describe("OperatorPropertyEditFrameComponent", () => {
     const taskField = getHfField("task");
     expect(taskField?.hide).toBe(true);
   });
+
+  // ── Field type assignments ──
+
+  it("should set modelId field type to 'huggingface' for HF operators", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("modelId");
+    expect(field?.type).toBe("huggingface");
+  });
+
+  it("should set imageInput field type to 'huggingface-image-upload'", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("imageInput");
+    expect(field?.type).toBe("huggingface-image-upload");
+  });
+
+  it("should set audioInput field type to 'huggingface-audio-upload'", () => {
+    initHfOperator("automatic-speech-recognition");
+    const field = getHfField("audioInput");
+    expect(field?.type).toBe("huggingface-audio-upload");
+  });
+
+  // ── Visibility when task is undefined ──
+
+  it("should hide imageInput when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("imageInput");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide audioInput when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("audioInput");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide inputImageColumn when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("inputImageColumn");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide inputAudioColumn when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("inputAudioColumn");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  // ── Additional image task visibility ──
+
+  it("should show imageInput for image-to-video task", () => {
+    initHfOperator("image-to-video");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  it("should show imageInput for image-to-image task", () => {
+    initHfOperator("image-to-image");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  it("should show imageInput for document-question-answering task", () => {
+    initHfOperator("document-question-answering");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  it("should show imageInput for image-text-to-text task", () => {
+    initHfOperator("image-text-to-text");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  // ── Audio task visibility ──
+
+  it("should show audioInput for audio-classification task", () => {
+    initHfOperator("audio-classification");
+    expect(evalHide(getHfField("audioInput"))).toBe(false);
+  });
+
+  it("should show inputAudioColumn for audio-classification task", () => {
+    initHfOperator("audio-classification");
+    expect(evalHide(getHfField("inputAudioColumn"))).toBe(false);
+  });
+
+  // ── promptColumn visibility for mixed tasks ──
+
+  it("should show promptColumn for visual-question-answering (image + prompt)", () => {
+    initHfOperator("visual-question-answering");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for document-question-answering (image + prompt)", () => {
+    initHfOperator("document-question-answering");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for zero-shot-classification", () => {
+    initHfOperator("zero-shot-classification");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for summarization", () => {
+    initHfOperator("summarization");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for translation", () => {
+    initHfOperator("translation");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  // ── Validator with formControl value ──
+
+  it("requiredImageInput validator should pass when image task has formControl value", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    const mockField = {
+      ...field,
+      model: { task: "image-classification", imageInput: "", inputImageColumn: "" },
+      formControl: { value: "data:image/png;base64,abc" },
+    } as unknown as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredAudioInput validator should pass when audio task has formControl value", () => {
+    initHfOperator("automatic-speech-recognition");
+    const field = getHfField("audioInput");
+    const validator = field?.validators?.["requiredAudioInput"];
+    const mockField = {
+      ...field,
+      model: { task: "automatic-speech-recognition", audioInput: "", inputAudioColumn: "" },
+      formControl: { value: "/tmp/clip.wav" },
+    } as unknown as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredPromptColumn validator should pass when formControl has value", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("promptColumn");
+    const validator = field?.validators?.["requiredPromptColumn"];
+    const mockField = {
+      ...field,
+      model: { task: "text-generation", promptColumn: "" },
+      formControl: { value: "text_col" },
+    } as unknown as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  // ── Additional task preview tests ──
+
+  it("should return audio kind preview for automatic-speech-recognition task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "automatic-speech-recognition", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("audio");
+  });
+
+  it("should return image kind preview for image-to-image task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-to-image", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("image");
+  });
+
+  it("should return null huggingFaceTaskPreview when operator is deleted", () => {
+    workflowActionService.addOperator(mockHuggingFacePredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockHuggingFacePredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    workflowActionService.deleteOperator(mockHuggingFacePredicate.operatorID);
+    expect(component.huggingFaceTaskPreview).toBeNull();
+  });
 });
