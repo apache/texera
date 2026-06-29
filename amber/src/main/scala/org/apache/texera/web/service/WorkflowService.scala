@@ -279,8 +279,7 @@ class WorkflowService(
     // throw; it registers its error/state diff handler up front. Once published
     // via `executionService.onNext`, any failure in `executeWorkflow()` is
     // recorded by `errorHandler` into the metadata store, whose handler emits a
-    // WorkflowErrorEvent that `connectToExecution` forwards -- a single
-    // reporting site, no separate pre-publish fallback needed.
+    // WorkflowErrorEvent that `connectToExecution` forwards.
     try {
       val execution = new WorkflowExecutionService(
         controllerConf,

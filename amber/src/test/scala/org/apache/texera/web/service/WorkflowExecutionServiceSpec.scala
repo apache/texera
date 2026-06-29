@@ -23,7 +23,10 @@ import com.google.protobuf.timestamp.Timestamp
 import org.apache.texera.amber.core.workflow.{WorkflowContext, WorkflowSettings}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.RUNNING
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  FAILED,
+  RUNNING
+}
 import org.apache.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
   WorkflowErrorEvent,
@@ -31,6 +34,7 @@ import org.apache.texera.web.model.websocket.event.{
 }
 import org.apache.texera.web.model.websocket.request.{LogicalPlanPojo, WorkflowExecuteRequest}
 import org.apache.texera.web.storage.ExecutionStateStore
+import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -43,7 +47,7 @@ import scala.collection.mutable
   * `WorkflowExecutionService` registers its metadata-store diff handler at
   * construction, so a fatalErrors update -- e.g. the one `errorHandler` records
   * when `executeWorkflow` fails -- surfaces as a `WorkflowErrorEvent` through the
-  * normal websocket-event observable, with no separate pre-publish fallback.
+  * normal websocket-event observable.
   *
   * The unused `controllerConfig` / `resultService` are passed as `null` on
   * purpose: construction must stay side-effect-free (all throwing work is in
@@ -52,7 +56,10 @@ import scala.collection.mutable
   */
 class WorkflowExecutionServiceSpec extends AnyFlatSpec with Matchers {
 
-  private def buildService(store: ExecutionStateStore): WorkflowExecutionService = {
+  private def buildService(
+      store: ExecutionStateStore,
+      errorHandler: Throwable => Unit = (_: Throwable) => ()
+  ): WorkflowExecutionService = {
     val request = WorkflowExecuteRequest(
       executionName = "test",
       engineVersion = "test",
@@ -68,7 +75,7 @@ class WorkflowExecutionServiceSpec extends AnyFlatSpec with Matchers {
       null,
       request,
       store,
-      (_: Throwable) => (),
+      errorHandler,
       None,
       new URI("vfs:///test")
     )
@@ -98,6 +105,32 @@ class WorkflowExecutionServiceSpec extends AnyFlatSpec with Matchers {
     val errorEvents = events.collect { case e: WorkflowErrorEvent => e }
     errorEvents should have size 1
     errorEvents.head.fatalErrors should contain(err)
+  }
+
+  it should "report fatal errors recorded at successive phases through the same handler" in {
+    val store = new ExecutionStateStore()
+    // Mirror WorkflowService's real errorHandler, which records into the
+    // metadata store. The service invokes this same handler at every phase
+    // (compile, runtime creation, startWorkflow failure), so invoking it
+    // repeatedly here stands in for failures arising at different phases.
+    val recordError: Throwable => Unit = t =>
+      store.metadataStore.updateState(metadataStore =>
+        updateWorkflowState(FAILED, metadataStore).addFatalErrors(
+          WorkflowFatalError(EXECUTION_FAILURE, Timestamp(Instant.now), t.toString, "", "", "")
+        )
+      )
+    buildService(store, recordError)
+    val events = collectEvents(store)
+
+    recordError(new RuntimeException("init phase"))
+    recordError(new RuntimeException("runtime phase"))
+
+    val errorEvents = events.collect { case e: WorkflowErrorEvent => e }
+    errorEvents should have size 2
+    errorEvents.last.fatalErrors.map(_.message) should contain allOf (
+      "java.lang.RuntimeException: init phase",
+      "java.lang.RuntimeException: runtime phase"
+    )
   }
 
   it should "emit a WorkflowStateEvent when the execution state changes" in {

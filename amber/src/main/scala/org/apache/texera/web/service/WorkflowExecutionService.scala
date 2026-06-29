@@ -69,9 +69,8 @@ class WorkflowExecutionService(
   // Wire error/state reporting first, before any other construction work, so a
   // fatalErrors update (recorded by errorHandler) always has an emitter.
   // Construction itself does no external work and cannot throw; the throwing
-  // work lives in executeWorkflow(), which runs after this execution is
-  // published, so its failures reach the UI through this same handler -- no
-  // separate pre-publish reporting path is needed.
+  // work lives in executeWorkflow(), whose failures reach the UI through this
+  // same handler.
   addSubscription(
     executionStateStore.metadataStore.registerDiffHandler((oldState, newState) => {
       val outputEvents = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
