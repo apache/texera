@@ -53,6 +53,8 @@ class HealthCheckResourceSpec extends AnyFlatSpec {
   }
 
   it should "expose healthCheck as an HTTP GET" in {
-    assert(classOf[HealthCheckResource].getMethod("healthCheck").getAnnotation(classOf[GET]) != null)
+    assert(
+      classOf[HealthCheckResource].getMethod("healthCheck").getAnnotation(classOf[GET]) != null
+    )
   }
 }
