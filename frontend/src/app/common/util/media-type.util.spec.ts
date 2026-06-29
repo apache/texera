@@ -125,4 +125,24 @@ describe("isVideoUrl", () => {
     expect(isVideoUrl("hello world")).toBe(false);
     expect(isVideoUrl("")).toBe(false);
   });
+
+  it("should return false for non-string types", () => {
+    expect(isVideoUrl(null as unknown as string)).toBe(false);
+    expect(isVideoUrl(undefined as unknown as string)).toBe(false);
+    expect(isVideoUrl(42 as unknown as string)).toBe(false);
+  });
+});
+
+describe("non-string type guard (shared)", () => {
+  it("isAudioUrl should return false for non-string types", () => {
+    expect(isAudioUrl(null as unknown as string)).toBe(false);
+    expect(isAudioUrl(undefined as unknown as string)).toBe(false);
+    expect(isAudioUrl(true as unknown as string)).toBe(false);
+  });
+
+  it("isImageUrl should return false for non-string types", () => {
+    expect(isImageUrl(null as unknown as string)).toBe(false);
+    expect(isImageUrl(undefined as unknown as string)).toBe(false);
+    expect(isImageUrl([] as unknown as string)).toBe(false);
+  });
 });

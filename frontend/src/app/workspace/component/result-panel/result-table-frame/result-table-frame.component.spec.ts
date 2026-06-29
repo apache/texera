@@ -95,4 +95,51 @@ describe("ResultTableFrameComponent", () => {
     expect(isAudioUrl("text")).toBe(false);
     expect(isImageUrl("text")).toBe(false);
   });
+
+  describe("media cell rendering in table", () => {
+    beforeEach(() => {
+      component.operatorId = "test-op";
+    });
+
+    it("should render Play Video indicator for video URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/clip.mp4" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("Play Video");
+    });
+
+    it("should render Play Audio indicator for audio URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/clip.mp3" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("Play Audio");
+    });
+
+    it("should render View Image indicator for image URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/photo.jpg" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("View Image");
+    });
+
+    it("should render plain text for non-media cell values", () => {
+      (component as any).setupResultTable([{ label: "just text" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("just text");
+    });
+
+    it("should render column headers matching the row keys", () => {
+      (component as any).setupResultTable([{ score: "0.95", url: "https://example.com/a.png" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("score");
+      expect(el.textContent).toContain("url");
+    });
+  });
 });

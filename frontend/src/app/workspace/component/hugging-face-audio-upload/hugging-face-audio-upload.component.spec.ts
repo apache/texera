@@ -119,6 +119,21 @@ describe("HuggingFaceAudioUploadComponent", () => {
       formControl.setValue("   ");
       expect(component.previewSrc).toBe("");
     });
+
+    it("should return localPreviewUrl when a file has been selected but upload is in progress", async () => {
+      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
+      vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
+
+      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
+      const uploadPromise = component.onFileSelected(makeFileEvent(file));
+
+      expect(component.previewSrc).toBe("blob:fake-preview");
+
+      httpTestingController
+        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
+        .flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
+      await uploadPromise;
+    });
   });
 
   // ── File upload ──
@@ -237,6 +252,43 @@ describe("HuggingFaceAudioUploadComponent", () => {
       req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
       await uploadPromise;
     });
+
+    it("should discard stale upload response when cleared during upload", async () => {
+      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
+      vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
+
+      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
+      const { event, input } = makeFileEventWithInput(file);
+      const uploadPromise = component.onFileSelected(event);
+
+      component.clearAudio(input);
+
+      httpTestingController
+        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
+        .flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
+      await uploadPromise;
+
+      expect(formControl.value).toBe("");
+      expect(component.fileName).toBe("");
+    });
+
+    it("should discard stale upload error when cleared during upload", async () => {
+      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
+      vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
+
+      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
+      const { event, input } = makeFileEventWithInput(file);
+      const uploadPromise = component.onFileSelected(event);
+
+      component.clearAudio(input);
+
+      httpTestingController
+        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
+        .error(new ProgressEvent("error"));
+      await uploadPromise;
+
+      expect(component.errorMessage).toBe("");
+    });
   });
 
   // ── clearAudio ──
@@ -288,6 +340,22 @@ describe("HuggingFaceAudioUploadComponent", () => {
   describe("ngOnDestroy", () => {
     it("should not throw on destroy", () => {
       expect(() => component.ngOnDestroy()).not.toThrow();
+    });
+
+    it("should revoke localPreviewUrl on destroy when upload preview exists", async () => {
+      const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
+      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
+
+      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
+      const uploadPromise = component.onFileSelected(makeFileEvent(file));
+
+      httpTestingController
+        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
+        .flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
+      await uploadPromise;
+
+      component.ngOnDestroy();
+      expect(revokeSpy).toHaveBeenCalledWith("blob:fake-preview");
     });
   });
 });

@@ -25,6 +25,7 @@ import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { of } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 
 describe("RowModalComponent", () => {
   let component: RowModalComponent;
@@ -131,5 +132,109 @@ describe("RowModalComponent", () => {
     expect(revokeSpy).toHaveBeenCalledWith("blob:url-1");
     expect(revokeSpy).toHaveBeenCalledWith("blob:url-2");
     revokeSpy.mockRestore();
+  });
+
+  it("prettyRowJson should return pretty-printed JSON of currentDisplayRowData", () => {
+    component.currentDisplayRowData = { name: "test", value: 42 };
+    expect(component.prettyRowJson).toBe(JSON.stringify({ name: "test", value: 42 }, null, 2));
+  });
+
+  it("trackByEntryKey should return the entry key", () => {
+    expect(component.trackByEntryKey(0, { key: "myKey" })).toBe("myKey");
+    expect(component.trackByEntryKey(5, { key: "another" })).toBe("another");
+  });
+
+  it("should JSON-stringify non-string values in buildRowEntries", () => {
+    const entries = (component as any).buildRowEntries({ count: 42, arr: [1, 2, 3] });
+    expect(entries[0].value).toBe("42");
+    expect(entries[0].isImage).toBe(false);
+    expect(entries[0].isVideo).toBe(false);
+    expect(entries[0].isAudio).toBe(false);
+    expect(entries[1].value).toBe("[1,2,3]");
+    expect(entries[1].mediaSrc).toBe("[1,2,3]");
+  });
+
+  it("should not update row data when tuple is null", () => {
+    vi.spyOn(workflowResultServiceSpy, "getPaginatedResultService").mockReturnValueOnce({
+      selectTuple: vi.fn().mockReturnValue(of({ tuple: null })),
+    } as any);
+    component.currentDisplayRowData = { existing: "data" };
+    component.ngOnChanges();
+    expect(component.currentDisplayRowData).toEqual({ existing: "data" });
+  });
+
+  it("should call notificationService.success on successful clipboard copy", async () => {
+    const notifService = TestBed.inject(NotificationService);
+    const successSpy = vi.spyOn(notifService, "success").mockImplementation(() => undefined as any);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+      writable: true,
+    });
+    component.copyText("hello world");
+    await new Promise(r => setTimeout(r, 0));
+    expect(successSpy).toHaveBeenCalledWith("Copied to clipboard");
+    successSpy.mockRestore();
+  });
+
+  it("should call notificationService.error on clipboard copy failure", async () => {
+    const notifService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notifService, "error").mockImplementation(() => undefined as any);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+      configurable: true,
+      writable: true,
+    });
+    component.copyText("hello world");
+    await new Promise(r => setTimeout(r, 0));
+    expect(errorSpy).toHaveBeenCalledWith("Failed to copy");
+    errorSpy.mockRestore();
+  });
+});
+
+describe("RowModalComponent (with pre-loaded rowData)", () => {
+  let component: RowModalComponent;
+  let httpMock: HttpTestingController;
+
+  const rowData = { id: "123", imgUrl: "data:image/png;base64,abc" };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [RowModalComponent, HttpClientTestingModule],
+      providers: [
+        { provide: NZ_MODAL_DATA, useValue: { operatorId: "op-2", rowIndex: 0, rowData } },
+        { provide: NzModalRef, useValue: { getConfig: () => ({}), close: vi.fn() } },
+        {
+          provide: WorkflowResultService,
+          useValue: { getPaginatedResultService: vi.fn().mockReturnValue(null) },
+        },
+        { provide: PanelResizeService, useValue: { pageSize: 10 } },
+      ],
+    }).compileComponents();
+
+    httpMock = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(RowModalComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it("should initialize currentDisplayRowData from rowData in modal data", () => {
+    expect(component.currentDisplayRowData).toEqual(rowData);
+  });
+
+  it("should build rowEntries immediately for data URL images in rowData", () => {
+    const imageEntry = component.rowEntries.find(e => e.key === "imgUrl");
+    expect(imageEntry?.isImage).toBe(true);
+    expect(imageEntry?.mediaSrc).toBe(rowData.imgUrl);
+  });
+
+  it("should build rowEntries for all fields in rowData", () => {
+    expect(component.rowEntries.length).toBe(2);
+    const idEntry = component.rowEntries.find(e => e.key === "id");
+    expect(idEntry?.value).toBe("123");
   });
 });
