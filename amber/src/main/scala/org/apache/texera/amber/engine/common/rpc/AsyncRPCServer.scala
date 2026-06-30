@@ -100,12 +100,12 @@ class AsyncRPCServer(
 
     } catch {
       case err: Throwable =>
-        // if error occurs, return it to the sender.
+        // Reply to the sender with the error so the caller can handle it.
         logger.error("Exception occurred", err)
         returnResult(senderID, id, mkControlError(err))
-      // if throw this exception right now, the above message might not be able
-      // to be sent out. We do not throw for now.
-      //        throw err
+        // Re-throw Errors (e.g. failed assertions) after replying; only
+        // Exceptions are returned to the sender and recovered from.
+        if (err.isInstanceOf[Error]) throw err
     }
   }
 
