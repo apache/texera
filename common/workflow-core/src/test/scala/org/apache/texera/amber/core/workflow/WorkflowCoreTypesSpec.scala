@@ -363,6 +363,44 @@ class WorkflowCoreTypesSpec extends AnyFlatSpec {
     assert(sub.links.isEmpty)
   }
 
+  it should "include all branches when an operator has multiple inputs (join or union)" in {
+    val s1 = physicalOp("s1")
+    val s2 = physicalOp("s2")
+    val j = newPhysicalOp("j")
+      .withInputPorts(List(InputPort(PortIdentity(0)), InputPort(PortIdentity(1))))
+      .withOutputPorts(List(OutputPort(PortIdentity(0))))
+    val l1 = PhysicalLink(s1.id, PortIdentity(0), j.id, PortIdentity(0))
+    val l2 = PhysicalLink(s2.id, PortIdentity(0), j.id, PortIdentity(1))
+    val plan = PhysicalPlan(Set(s1, s2, j), Set(l1, l2))
+    val sub = plan.getTransitiveUpstreamSubPlan(j.id)
+    assert(sub.operators.map(_.id) == Set(s1.id, s2.id, j.id))
+    assert(sub.links == Set(l1, l2))
+  }
+
+  it should "follow only the target's upstream with multiple sources and sinks" in {
+    val a = physicalOp("a")
+    val b = physicalOp("b")
+    val c = newPhysicalOp("c")
+      .withInputPorts(List(InputPort(PortIdentity(0)), InputPort(PortIdentity(1))))
+      .withOutputPorts(List(OutputPort(PortIdentity(0))))
+    val d = physicalOp("d")
+    val e = physicalOp("e")
+    // sources a, b converge at c; c fans out to sinks d and e
+    val plan = PhysicalPlan(
+      Set(a, b, c, d, e),
+      Set(
+        PhysicalLink(a.id, PortIdentity(0), c.id, PortIdentity(0)),
+        PhysicalLink(b.id, PortIdentity(0), c.id, PortIdentity(1)),
+        link("c", "d"),
+        link("c", "e")
+      )
+    )
+    // the sub-DAG of sink d is {a, b, c, d}; the other sink e is excluded
+    val sub = plan.getTransitiveUpstreamSubPlan(d.id)
+    assert(sub.operators.map(_.id) == Set(a.id, b.id, c.id, d.id))
+    assert(!sub.operators.map(_.id).contains(e.id))
+  }
+
   "PhysicalPlan.getPhysicalOpsOfLogicalOp" should "return every physical op sharing a logical id, in topological order" in {
     val a = physicalOp("a")
     val b = physicalOp("b")
