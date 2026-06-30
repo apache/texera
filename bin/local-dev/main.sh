@@ -29,14 +29,22 @@
 #                                             double-click for logs, ↑/↓
 #                                             history, Ctrl-C twice to quit).
 #                                             Requires Python + textual.
-#   bin/local-dev.sh status                   same as no-arg invocation.
-#   bin/local-dev.sh up   [--fresh|--build|--no-build] [--skip=svc1,svc2]
+#   bin/local-dev.sh status [--json]          same as no-arg invocation. With
+#                                             --json, print one machine-readable
+#                                             JSON object (no table) and exit 0
+#                                             iff every service is running — the
+#                                             contract for agents/scripts.
+#   bin/local-dev.sh up   [--fresh|--build|--no-build] [--skip=svc1,svc2] [--json]
 #                                             Default: skip build if no source/lock
 #                                             changes since last build. --build forces
 #                                             incremental sbt dist + yarn/bun install.
 #                                             --fresh runs `sbt clean dist`. --no-build
-#                                             skips the build step entirely.
-#   bin/local-dev.sh down [--skip=svc1,svc2]  stop every non-skipped service.
+#                                             skips the build step entirely. --json
+#                                             sends progress to stderr and the final
+#                                             status JSON to stdout.
+#   bin/local-dev.sh down [--skip=svc1,svc2] [--json]
+#                                             stop every non-skipped service
+#                                             (--json: summary JSON on stdout).
 #   bin/local-dev.sh start <service>          start one service (no rebuild).
 #   bin/local-dev.sh stop  <service>          stop one service.
 #   bin/local-dev.sh <service>                rebuild only that service incrementally
@@ -60,9 +68,10 @@
 #   agent-service                  :3001  Bun --watch (cd agent-service && bun run dev)
 #   frontend                       :4200  ng serve via cd frontend && yarn start
 #
-# Docker infra (postgres / minio / lakefs / lakekeeper / litellm) is NOT managed
-# here -- bring those up yourself before `up`. The script will warn if expected
-# ports are unreachable.
+# Docker infra (postgres / minio / lakefs / lakekeeper / litellm) IS managed
+# here: `up` brings it up via `docker compose` (project texera-local-dev) and
+# `down` tears down any docker targets. The script warns if expected ports are
+# unreachable.
 #
 # Logs and pid book-keeping live under: ${TEXERA_LOCAL_DEV_DIR:-/tmp/texera-local-dev}
 
@@ -716,7 +725,24 @@ tui_state_color() {
 tui_spinner() {
     local pid="$1" msg="$2"
     if [[ ! -t 1 ]]; then
-        printf "  ${BLUE}${SYM_PROG}${RESET}  ${DIM}%s (no-TTY, no spinner)${RESET}\n" "$msg"
+        # No cursor control on a pipe, so we can't spin in place. Print one
+        # line up front, then a heartbeat every TUI_HEARTBEAT_SECS while the
+        # job runs — otherwise a long silent step (e.g. `sbt dist`, whose
+        # output is redirected to a log) looks hung to a non-interactive
+        # caller polling the stream.
+        printf "  ${BLUE}${SYM_PROG}${RESET}  ${DIM}%s (no-TTY)${RESET}\n" "$msg"
+        # Poll every 1s (so we return within ~1s of the job finishing — no
+        # trailing dead time) but only print a heartbeat every
+        # TUI_HEARTBEAT_SECS so the log stays readable.
+        local hb_start=$SECONDS hb_every="${TUI_HEARTBEAT_SECS:-15}" hb_last=0 hb_now=0
+        while kill -0 "$pid" 2>/dev/null; do
+            sleep 1
+            hb_now=$((SECONDS - hb_start))
+            if (( hb_now - hb_last >= hb_every )); then
+                printf "  ${BLUE}${SYM_PROG}${RESET}  ${DIM}… still running (%ds)${RESET}\n" "$hb_now"
+                hb_last=$hb_now
+            fi
+        done
         return
     fi
     # Use an array (vs a single multibyte string + byte indexing) because
@@ -1777,7 +1803,49 @@ refresh_node_deps() {
 }
 
 # --------- subcommands ---------
+# Machine-readable counterpart to cmd_status: one JSON object on stdout, no
+# colours, no decorative table. The stable contract for agents/scripts that
+# would otherwise scrape the dashboard. Exit code mirrors health: 0 iff every
+# service is running, else 1.
+emit_status_json() {
+    local branch="" sha=""
+    branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
+    sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
+
+    local n_running=0 n_total=0 first=true svc="" type="" port="" state="" pid="" rows=""
+    for svc in "${SERVICES[@]}"; do
+        n_total=$((n_total+1))
+        type=$(amap_get SVC_TYPE "$svc")
+        port=$(amap_get SVC_PORT "$svc")
+        pid="null"
+        if [[ "$type" == "docker" ]]; then
+            state=$(docker_svc_state "$svc")
+            case "$state" in running|exited) n_running=$((n_running+1)) ;; esac
+        else
+            local p=""
+            p=$(svc_running_pid "$svc")
+            if [[ -n "$p" ]]; then
+                state="running"; pid="$p"; n_running=$((n_running+1))
+            else
+                state="stopped"
+            fi
+        fi
+        $first || rows+=","
+        first=false
+        rows+=$(printf '{"service":"%s","port":%s,"type":"%s","pid":%s,"state":"%s"}' \
+            "$svc" "$port" "$type" "$pid" "$state")
+    done
+    printf '{"branch":"%s","sha":"%s","running":%d,"total":%d,"services":[%s]}\n' \
+        "$branch" "$sha" "$n_running" "$n_total" "$rows"
+    (( n_running == n_total ))
+}
+
 cmd_status() {
+    case "${1:-}" in
+        --json) emit_status_json; return $? ;;
+        "")     ;;
+        *)      tui_err "unknown flag: $1" >&2; exit 2 ;;
+    esac
     local branch="" sha=""
     branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
     sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
@@ -1874,16 +1942,24 @@ cmd_up() {
     SKIP_LIST=""
     FRESH=false
     BUILD=auto       # auto (skip if no source change) | force | no
+    JSON_OUT=false
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --skip=*)   SKIP_LIST="${1#--skip=}" ;;
             --fresh)    FRESH=true; BUILD=force ;;
             --build)    BUILD=force ;;
             --no-build) BUILD=no ;;
+            --json)     JSON_OUT=true ;;
             *) tui_err "unknown flag: $1" >&2; exit 2 ;;
         esac
         shift
     done
+
+    # --json: the final summary on stdout must be pure JSON, so push all the
+    # human progress (banner, sections, in-place health panel) to stderr and
+    # keep the real stdout on fd 3 for emit_status_json. stderr is unbuffered,
+    # so a non-interactive caller still sees progress live on the side stream.
+    if $JSON_OUT; then exec 3>&1 1>&2; fi
 
     local n_skip=0
     [[ -n "$SKIP_LIST" ]] && n_skip=$(echo "$SKIP_LIST" | tr ',' '\n' | wc -l | tr -d ' ')
@@ -1915,6 +1991,7 @@ cmd_up() {
             tui_ok "no source/lock changes since last build"
             tui_ok "all ${#SERVICES[@]} services already running"
             printf "\n  ${BOLD}${GREEN}${SYM_OK} nothing to do${RESET}  ${DIM}(use \`u --build\` to force a rebuild, or \`<svc>\` to bounce just one)${RESET}\n\n"
+            $JSON_OUT && { emit_status_json >&3 || true; }
             return 0
         fi
     fi
@@ -2010,7 +2087,7 @@ cmd_up() {
     fi
     printf "\n"
 
-    cmd_status
+    if $JSON_OUT; then emit_status_json >&3 || true; else cmd_status; fi
     [[ $ec -eq 0 ]]
 }
 
@@ -2251,13 +2328,17 @@ cmd_auto() {
 
 cmd_down() {
     SKIP_LIST=""
+    JSON_OUT=false
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --skip=*) SKIP_LIST="${1#--skip=}" ;;
+            --json)   JSON_OUT=true ;;
             *) tui_err "unknown flag: $1" >&2; exit 2 ;;
         esac
         shift
     done
+    # See cmd_up: human progress to stderr, JSON summary on real stdout (fd 3).
+    if $JSON_OUT; then exec 3>&1 1>&2; fi
     tui_banner "Texera Local Dev — stopping stack" "skip=${SKIP_LIST:-none}"
     tui_section "Stopping (reverse order)"
     local svc=""
@@ -2284,6 +2365,8 @@ cmd_down() {
     done
     $has_docker_targets && infra_down
     printf "\n"
+    $JSON_OUT && { emit_status_json >&3 || true; }
+    return 0
 }
 
 cmd_update_one() {
@@ -2555,7 +2638,8 @@ cmd_interactive() {
 _precompute_src_dirs
 
 case "${1:-}" in
-    ""|status)        cmd_status ;;             # default: one-shot dashboard (safe in scripts/CI)
+    "")               cmd_status ;;             # default: one-shot dashboard (safe in scripts/CI)
+    status)           shift; cmd_status "$@" ;; # `status [--json]`
     -i|--interactive) cmd_interactive ;;        # opt in to the live TUI
     up)               shift; cmd_up "$@" ;;
     auto)             shift; cmd_auto "$@" ;;
@@ -2565,6 +2649,6 @@ case "${1:-}" in
     logs)             shift; cmd_logs "${1:-}" ;;
     w|watch)          shift; cmd_watch "${1:-2}" ;;
     version)          printf "%s\n" "$TEXERA_VERSION" ;;
-    -h|--help)        sed -n '18,67p' "$0" ;;
+    -h|--help)        sed -n '18,75p' "$0" ;;
     *)                cmd_update_one "$1" ;;
 esac

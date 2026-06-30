@@ -43,8 +43,14 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
   private localPreviewUrl = "";
 
   ngOnInit(): void {
-    if (typeof this.formControl.value === "string" && this.formControl.value.trim().length > 0) {
-      this.fileName = this.getDisplayName(this.formControl.value);
+    const value = this.formControl.value;
+    if (typeof value === "string" && value.trim().length > 0) {
+      this.fileName = this.getDisplayName(value);
+      // If the saved value is a server path, fetch the audio via HttpClient
+      // (which carries the JWT) and create a blob URL for the <audio> element.
+      if (!value.startsWith("data:audio/")) {
+        this.loadServerAudioPreview(value);
+      }
     }
   }
 
@@ -63,7 +69,9 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
     if (value.startsWith("data:audio/")) {
       return value;
     }
-    return `${AppSettings.getApiEndpoint()}/huggingface/audio-preview?path=${encodeURIComponent(value)}`;
+    // Server path — blob URL is created asynchronously via loadServerAudioPreview.
+    // Return empty until it's ready; the <audio> element is hidden when previewSrc is empty.
+    return "";
   }
 
   ngOnDestroy(): void {
@@ -114,7 +122,8 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
       this.formControl.markAsDirty();
       this.formControl.markAsTouched();
       this.formControl.updateValueAndValidity();
-    } catch {
+    } catch (err) {
+      console.error("Audio upload failed:", err);
       if (this.localPreviewUrl !== previewUrl) return;
       this.clearAudio(input, false);
       this.errorMessage = "Could not upload this audio file.";
@@ -138,6 +147,28 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
     this.formControl.markAsDirty();
     this.formControl.markAsTouched();
     this.formControl.updateValueAndValidity();
+  }
+
+  private loadServerAudioPreview(serverPath: string): void {
+    firstValueFrom(
+      this.http.get(
+        `${AppSettings.getApiEndpoint()}/huggingface/audio-preview?path=${encodeURIComponent(serverPath)}`,
+        {
+          responseType: "blob",
+        }
+      )
+    )
+      .then(blob => {
+        // Guard against clear/re-upload racing with the fetch
+        if (this.formControl.value !== serverPath) return;
+        this.revokePreviewUrl();
+        this.localPreviewUrl = URL.createObjectURL(blob);
+      })
+      .catch((err: unknown) => {
+        console.error("Failed to load audio preview:", err);
+        if (this.formControl.value !== serverPath) return;
+        this.errorMessage = "Could not load audio preview.";
+      });
   }
 
   private revokePreviewUrl(): void {

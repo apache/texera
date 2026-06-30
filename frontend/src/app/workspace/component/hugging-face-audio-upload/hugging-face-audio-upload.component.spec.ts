@@ -76,6 +76,8 @@ describe("HuggingFaceAudioUploadComponent", () => {
       formControl.setValue("/uploads/my-clip.wav");
       component.ngOnInit();
       expect(component.fileName).toBe("my-clip.wav");
+      // ngOnInit fires an authenticated blob fetch for the server path
+      httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
     });
 
     it("should set fileName to 'Selected audio' for data:audio values", () => {
@@ -107,6 +109,9 @@ describe("HuggingFaceAudioUploadComponent", () => {
     it("should return server preview URL for a stored path", () => {
       formControl.setValue("/uploads/clip.wav");
       expect(component.previewSrc).toBe(`${API}/huggingface/audio-preview?path=%2Fuploads%2Fclip.wav`);
+    it("should return empty for a stored server path (blob URL loaded asynchronously)", () => {
+      formControl.setValue("/uploads/clip.wav");
+      expect(component.previewSrc).toBe("");
     });
 
     it("should return data:audio value as-is", () => {
@@ -335,6 +340,147 @@ describe("HuggingFaceAudioUploadComponent", () => {
     });
   });
 
+  // ── loadServerAudioPreview (via ngOnInit) ──
+
+  describe("loadServerAudioPreview", () => {
+    it("should set localPreviewUrl on successful blob fetch", async () => {
+      const blobUrl = "blob:http://localhost/fake-audio";
+      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
+
+      formControl.setValue("/uploads/clip.wav");
+      component.ngOnInit();
+
+      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
+      expect(req.request.responseType).toBe("blob");
+      req.flush(new Blob(["audio-data"], { type: "audio/wav" }));
+
+      // Allow microtask (promise .then) to settle
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(component.previewSrc).toBe(blobUrl);
+    });
+
+    it("should set errorMessage on blob fetch failure", async () => {
+      formControl.setValue("/uploads/clip.wav");
+      component.ngOnInit();
+
+      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
+      req.error(new ProgressEvent("error"));
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(component.errorMessage).toBe("Could not load audio preview.");
+    });
+
+    it("should discard blob fetch result if formControl value changed", async () => {
+      const blobUrl = "blob:http://localhost/fake-audio";
+      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
+
+      formControl.setValue("/uploads/clip.wav");
+      component.ngOnInit();
+
+      // User cleared the field before fetch completes
+      formControl.setValue("");
+
+      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
+      req.flush(new Blob(["audio-data"], { type: "audio/wav" }));
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(component.previewSrc).toBe("");
+    });
+
+    it("should discard error if formControl value changed before fetch fails", async () => {
+      formControl.setValue("/uploads/clip.wav");
+      component.ngOnInit();
+
+      formControl.setValue("");
+
+      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
+      req.error(new ProgressEvent("error"));
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(component.errorMessage).toBe("");
+    });
+
+    it("should not fetch for data:audio values in ngOnInit", () => {
+      formControl.setValue("data:audio/wav;base64,abc123");
+      component.ngOnInit();
+
+      httpTestingController.expectNone(r => r.url.includes("/huggingface/audio-preview"));
+    });
+
+    it("should encode server path in the fetch URL", () => {
+      formControl.setValue("/uploads/my clip.wav");
+      component.ngOnInit();
+
+      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
+      expect(req.request.url).toContain("path=%2Fuploads%2Fmy%20clip.wav");
+    });
+  });
+
+  // ── previewSrc with localPreviewUrl ──
+
+  describe("previewSrc with localPreviewUrl", () => {
+    it("should return localPreviewUrl when set via file upload", async () => {
+      const blobUrl = "blob:http://localhost/local-preview";
+      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
+      vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+
+      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
+      const uploadPromise = component.onFileSelected(makeFileEvent(file));
+
+      // After file selection, localPreviewUrl should be set
+      expect(component.previewSrc).toBe(blobUrl);
+
+      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
+      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
+      await uploadPromise;
+    });
+  });
+
+  // ── Stale upload guards ──
+
+  describe("stale upload guards", () => {
+    it("should discard successful upload if cleared during flight", async () => {
+      const blobUrl = "blob:http://localhost/local-preview";
+      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
+      vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+
+      const { event, input } = makeFileEventWithInput(new File(["audio-data"], "clip.wav", { type: "audio/wav" }));
+      const uploadPromise = component.onFileSelected(event);
+
+      // Clear while upload is in flight
+      component.clearAudio(input);
+
+      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
+      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
+      await uploadPromise;
+
+      // Upload result should be discarded — formControl stays empty
+      expect(formControl.value).toBe("");
+    });
+
+    it("should discard upload error if cleared during flight", async () => {
+      const blobUrl = "blob:http://localhost/local-preview";
+      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
+      vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+
+      const { event, input } = makeFileEventWithInput(new File(["audio-data"], "clip.wav", { type: "audio/wav" }));
+      const uploadPromise = component.onFileSelected(event);
+
+      component.clearAudio(input);
+
+      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
+      req.error(new ProgressEvent("error"));
+      await uploadPromise;
+
+      // Error should be discarded — errorMessage stays empty (clearAudio clears it)
+      expect(component.errorMessage).toBe("");
+    });
+  });
+
   // ── ngOnDestroy ──
 
   describe("ngOnDestroy", () => {
@@ -356,6 +502,52 @@ describe("HuggingFaceAudioUploadComponent", () => {
 
       component.ngOnDestroy();
       expect(revokeSpy).toHaveBeenCalledWith("blob:fake-preview");
+    it("should revoke localPreviewUrl on destroy", async () => {
+      const blobUrl = "blob:http://localhost/local-preview";
+      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
+      const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+
+      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
+      const uploadPromise = component.onFileSelected(makeFileEvent(file));
+
+      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
+      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
+      await uploadPromise;
+
+      component.ngOnDestroy();
+      expect(revokeSpy).toHaveBeenCalledWith(blobUrl);
+    });
+  });
+
+  // ── getDisplayName edge cases ──
+
+  describe("getDisplayName (via ngOnInit)", () => {
+    it("should extract filename from path with forward slashes", () => {
+      formControl.setValue("/path/to/my-clip.wav");
+      component.ngOnInit();
+      expect(component.fileName).toBe("my-clip.wav");
+      httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
+    });
+
+    it("should extract filename from path with backslashes", () => {
+      formControl.setValue("C:\\uploads\\my-clip.wav");
+      component.ngOnInit();
+      expect(component.fileName).toBe("my-clip.wav");
+      httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
+    });
+
+    it("should return 'Selected audio' for path ending with separator", () => {
+      formControl.setValue("/uploads/");
+      component.ngOnInit();
+      expect(component.fileName).toBe("Selected audio");
+      httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
+    });
+
+    it("should return filename for flat name without path", () => {
+      formControl.setValue("clip.wav");
+      component.ngOnInit();
+      expect(component.fileName).toBe("clip.wav");
+      httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
     });
   });
 });
