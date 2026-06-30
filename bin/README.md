@@ -62,7 +62,6 @@ binary `NOTICE`/`LICENSE` files (`audit_jar_licenses.py`,
 
 | Path | Purpose |
 | --- | --- |
-| `bootstrap-lakekeeper.sh` | Set up a local Lakekeeper (Iceberg REST catalog) instance for Texera. |
 | `utils/` | Shared shell helpers (`resolve-texera-home.sh`, `texera-logging.sh`) sourced by other scripts. |
 | `pylsp/` | Dockerized Python language server used by the UDF editor. |
 | `y-websocket-server/` | Dockerized Yjs websocket server backing collaborative editing. |
