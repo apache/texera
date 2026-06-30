@@ -373,9 +373,17 @@ CREATE TABLE operator_port_executions
 );
 
 -- operator_port_cache
--- Caches a materialized output port result across executions, keyed by the cache
--- key (a SHA-256 hash of the upstream sub-DAG). cache_key_json holds the JSON
--- the cache key is computed from.
+-- Caches a materialized output port result so it can be reused across executions.
+-- A row is identified by (workflow_id, global_port_id, cache_key), where cache_key is a
+-- SHA-256 hash of the upstream sub-DAG that produces the port (its operators, their
+-- parameters and exec info, schemas, and wiring). cache_key is the lookup key;
+-- cache_key_json is the JSON the hash was computed from, kept so a hash match can be
+-- confirmed against the full content (collision safety). A different upstream computation
+-- (for example an operator parameter or version change) produces a different cache_key and
+-- therefore a new row, so existing entries are never overwritten: each row is the result of
+-- one specific computation of one port. tuple_count is the result's row count, kept so the
+-- coordinator can report a reused region's output stats without a second query to the
+-- Iceberg catalog.
 CREATE TABLE operator_port_cache
 (
     workflow_id         INT NOT NULL,
