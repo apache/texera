@@ -1170,6 +1170,17 @@ listen_pid_for_port() {
     lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null | head -1 || true
 }
 
+# Branch + short-sha of the deploy source ($REPO_ROOT), tab-separated, each
+# falling back to "?" when git can't answer. Single source of truth for the
+# banners and the status JSON. Read with:
+#   IFS=$'\t' read -r branch sha < <(_git_head)
+_git_head() {
+    local branch="" sha=""
+    branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
+    sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
+    printf '%s\t%s\n' "$branch" "$sha"
+}
+
 # Returns the count of long-lived infra services currently running under our project.
 infra_running_count() {
     docker compose -p "$DOCKER_PROJECT" ps --services --filter status=running 2>/dev/null | grep -cxE "$(IFS=\|; echo "${DOCKER_INFRA_LONGLIVED[*]}")" || true
@@ -1952,8 +1963,7 @@ refresh_node_deps() {
 # service is running, else 1.
 emit_status_json() {
     local branch="" sha="" worktree=""
-    branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
-    sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
+    IFS=$'\t' read -r branch sha < <(_git_head)
     worktree="$(basename "$REPO_ROOT")"
 
     local n_running=0 n_total=0 first=true svc="" type="" port="" state="" pid="" rows=""
@@ -1991,8 +2001,7 @@ cmd_status() {
         *)      tui_err "unknown flag: $1" >&2; exit 2 ;;
     esac
     local branch="" sha="" wt=""
-    branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
-    sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
+    IFS=$'\t' read -r branch sha < <(_git_head)
     [[ "$REPO_ROOT" != "$SELF_ROOT" ]] && wt="  ·  worktree: $(basename "$REPO_ROOT")"
     tui_banner "Texera Local Dev" "branch: $branch  @  $sha$wt"
 
@@ -2119,8 +2128,7 @@ cmd_up() {
     # Mark exactly what we are about to build and run, so it is unambiguous in
     # the log which branch/worktree/commit this deployment reflects.
     local _db="" _ds=""
-    _db=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
-    _ds=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
+    IFS=$'\t' read -r _db _ds < <(_git_head)
     tui_section "Deploy target"
     if [[ "$REPO_ROOT" == "$SELF_ROOT" ]]; then
         tui_info "checkout: $(basename "$REPO_ROOT")  ${DIM}(self / canonical)${RESET}"
@@ -2629,8 +2637,7 @@ cmd_logs() {
 tui_render_dashboard() {
     printf "\e[2J\e[H"   # clear screen + home cursor (scrollback preserved)
     local branch="" sha="" wt=""
-    branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
-    sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
+    IFS=$'\t' read -r branch sha < <(_git_head)
     [[ "$REPO_ROOT" != "$SELF_ROOT" ]] && wt="worktree: $(basename "$REPO_ROOT") · "
     tui_banner "Texera Local Dev — interactive" "${wt}branch: $branch @ $sha · $(date '+%H:%M:%S') · type ? for help"
     printf "\n"
