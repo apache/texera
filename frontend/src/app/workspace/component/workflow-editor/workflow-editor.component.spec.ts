@@ -28,6 +28,7 @@ import { workflowEditorTestImports, workflowEditorTestProviders } from "./workfl
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../../service/joint-ui/joint-ui.service";
+import { AgentService } from "../../service/agent/agent.service";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as joint from "jointjs";
@@ -289,6 +290,34 @@ describe("WorkflowEditorComponent", () => {
       // the highlighter element should not exist
       const jointHighlighterElementAfterUnhighlight = jointCellView.$el.children(".joint-highlight-stroke");
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
+    });
+
+    it("pulls the active agent's operator results when an operator's chat popover opens", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      const agentService = TestBed.inject(AgentService);
+      vi.spyOn(agentService, "getActivelyConnectedAgentIds").mockReturnValue(["agent-1"]);
+      const fetchSpy = vi.spyOn(agentService, "fetchOperatorResults").mockImplementation(() => {});
+
+      // The operator's chat button fires `element:chat` (cell view, DOM event, x, y);
+      // opening the popover should pull the active agent's results on demand.
+      (component.paper as any).trigger("element:chat", jointCellView, new Event("click"), 0, 0);
+
+      expect(fetchSpy).toHaveBeenCalledWith("agent-1");
+    });
+
+    it("does not pull operator results when no agent is connected", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      const agentService = TestBed.inject(AgentService);
+      vi.spyOn(agentService, "getActivelyConnectedAgentIds").mockReturnValue([]);
+      const fetchSpy = vi.spyOn(agentService, "fetchOperatorResults").mockImplementation(() => {});
+
+      (component.paper as any).trigger("element:chat", jointCellView, new Event("click"), 0, 0);
+
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it("should react to operator validation and change the color of operator box if the operator is valid ", () => {

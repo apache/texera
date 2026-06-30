@@ -60,6 +60,10 @@ on:
         required: false
         type: boolean
         default: true
+      run_infra:
+        required: false
+        type: boolean
+        default: true
       mode:
         # PR (default) | nightly | release. Only "PR" passes
         # --ignore-transitive-version to check_binary_deps.py.
@@ -768,11 +772,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Unit-test licensing scripts
-        # Stdlib only, no install needed. Runs on every matrix row (3.10 →
-        # 3.13) so the script's behavior is guarded across all supported
-        # Python versions before the license check itself runs (3.12 only).
-        run: python3 -m unittest discover -s bin/licensing -p "test_*.py" -v
       - name: Install dependencies
         # 3.12 is the only leg that drives the binary-license check via
         # pip-licenses. Keep stock pip there so the resolved versions
@@ -917,3 +916,65 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+
+  infra:
+    # Generic project-tooling job — runs the lightweight (no docker, no
+    # sbt, no live stack) unit and smoke tests for anything under
+    # `bin/` that doesn't belong to a specific service. Today that's
+    #   • bin/local-dev*     dev-loop stack manager + TUI
+    #   • bin/licensing/*    LICENSE-binary version-drift checker
+    # New tooling test suites should land here too — bias against
+    # spinning up another CI job unless the suite needs docker / a
+    # heavy install / a different python matrix.
+    if: ${{ inputs.run_infra }}
+    name: ${{ format('infra{0} ({1})', inputs.job_name_suffix, matrix.os) }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.12"]
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Python test deps
+        # amber/dev-requirements.txt pins both `pytest` and `textual` — the
+        # latter so a fresh dev who follows the AGENTS.md venv-setup
+        # instructions ends up with the TUI working.
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r amber/dev-requirements.txt
+      - name: Run shell smoke tests
+        # Discover + run every `test_*.sh` under bin/. New shell test
+        # suites picked up automatically — no edits to this workflow.
+        # `find -print0` instead of bash's `**` glob so this works on
+        # macOS's pinned /bin/bash 3.2 (no `shopt -s globstar`).
+        run: |
+          set -e
+          found=0
+          while IFS= read -r -d '' t; do
+              found=1
+              echo "==> $t"
+              bash "$t"
+          done < <(find bin -type f -name "test_*.sh" -print0)
+          if [ "$found" = 0 ]; then
+              echo "no shell tests found under bin/" >&2
+              exit 1
+          fi
+      - name: Run Python unit tests
+        # `pytest bin/` discovers every `test_*.py` recursively — covers
+        # bin/local-dev/tests (TUI helpers, dirty detection) and
+        # bin/licensing (LICENSE-binary version-drift checker) in one
+        # pass, and any future tooling test suite under bin/ comes
+        # along without this workflow being edited.
+        run: python -m pytest bin/ -v --tb=short

@@ -17,9 +17,9 @@
  * under the License.
  */
 
-@import "../../dashboard.component.scss";
-@import "../../section-style";
-@import "../../button-style";
+@use "../../dashboard.component.scss" as *;
+@use "../../section-style" as *;
+@use "../../button-style" as *;
 
 ::ng-deep .ant-badge-dot {
   right: 8px;
