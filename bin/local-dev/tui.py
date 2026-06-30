@@ -16,13 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""bin/local-dev-tui.py — Textual dashboard for the Texera local dev stack.
+"""bin/local-dev.sh -i — Textual dashboard for the Texera local dev stack.
 
-Lives next to bin/local-dev.sh; the shell script remains the canonical engine
-(build, start, stop, status) and this TUI shells out to it for every action.
-The dashboard itself owns state polling, dirty-source detection, and the
-prompt loop.  Textual handles diff rendering so the screen doesn't accrete in
-scrollback the way the old zsh `\\e[H` redraw did.
+Lives next to bin/local-dev.sh; that shell script remains the canonical
+engine (build, start, stop, status) and this TUI shells out to it for every
+action. The dashboard itself owns state polling, dirty-source detection,
+and the prompt loop. Textual handles diff rendering so the screen doesn't
+accrete in scrollback the way the old zsh `\\e[H` redraw did.
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ from textual.widgets import DataTable, Input, RichLog, Static
 
 # ─────────────────── Constants ───────────────────
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 STATE_DIR = Path(os.environ.get("TEXERA_LOCAL_DEV_DIR", "/tmp/texera-local-dev"))
 LOG_DIR = STATE_DIR / "logs"
 BUILD_STAMP_DIR = STATE_DIR / "build-stamps"
