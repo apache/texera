@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,14 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-(
-  cd amber || { echo "Error: amber directory not found"; exit 1; }
+# Entry point for the Texera single-node Docker stack. See
+# `bin/single-node.sh --help`.
 
-  if [ -n "$1" ]; then
-    echo "Starting worker with server address: $1"
-    target/texera-0.1-SNAPSHOT/bin/computing-unit-worker --serverAddr "$1"
-  else
-    echo "Starting worker without explicit server address"
-    target/texera-0.1-SNAPSHOT/bin/computing-unit-worker
-  fi
-)
+exec "$(dirname "$0")/single-node/main.sh" "$@"

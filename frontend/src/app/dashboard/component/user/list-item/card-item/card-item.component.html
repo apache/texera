@@ -153,7 +153,7 @@
         (click)="toggleLike(); $event.stopPropagation()">
         <i
           nz-icon
-          nzType="heart"
+          nzType="like"
           [nzTheme]="isLiked ? 'fill' : 'outline'"></i>
         <span>{{ formatCount(this.likeCount) }}</span>
       </button>

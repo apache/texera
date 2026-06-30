@@ -17,10 +17,11 @@
 
 """pytest fixtures for the local-dev TUI tests.
 
-The TUI lives as `bin/local-dev-tui.py` rather than a package, so we load it
-once here with `importlib.util` and expose the resulting module via the
-`tui` fixture. `sys.modules` registration is required so the module's
-`@dataclass` decorators can resolve `__module__` lookups."""
+The TUI sits behind `bin/local-dev.sh -i` rather than being a Python
+package, so we load it once here with `importlib.util` and expose the
+resulting module via the `tui` fixture. `sys.modules` registration is
+required so the module's `@dataclass` decorators can resolve `__module__`
+lookups."""
 
 from __future__ import annotations
 
@@ -31,7 +32,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-TUI_PATH = REPO_ROOT / "bin" / "local-dev-tui.py"
+TUI_PATH = REPO_ROOT / "bin" / "local-dev" / "tui.py"
 
 
 @pytest.fixture(scope="session")

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-@import "../../section-style";
+@use "../../section-style" as *;
 
 .load-more {
   text-align: center;

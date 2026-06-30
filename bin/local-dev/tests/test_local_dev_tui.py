@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Unit tests for `bin/local-dev-tui.py`.
+"""Unit tests for `bin/local-dev.sh -i` (the Textual dashboard).
 
 We cover the pure helper functions that don't need a running Textual app:
 version detection, docker state mapping, ANSI scrubbing, source-hash
