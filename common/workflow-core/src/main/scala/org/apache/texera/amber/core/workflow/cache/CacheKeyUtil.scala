@@ -62,8 +62,12 @@ case class StorageCacheKey(json: String, hash: String)
 object CacheKeyUtil {
 
   /**
-    * Compute the cache key of the given upstream `subDag` for the output `target`.
-    * The payload uses sorted keys and is hashed with SHA-256.
+    * Compute the cache key of the given upstream `subDag` for the output port `target`.
+    *
+    * Contract: the caller provides `target` as an output port and `subDag` as the sub-DAG that
+    * produces it, that is `plan.getTransitiveUpstreamSubPlan(target.opId)`. This method does not
+    * re-validate that relationship; it hashes whatever sub-DAG it is handed. The payload uses
+    * sorted keys and is hashed with SHA-256.
     */
   def computeCacheKey(
       subDag: PhysicalPlan,

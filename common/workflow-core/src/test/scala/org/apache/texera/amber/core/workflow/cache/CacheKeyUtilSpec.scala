@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.core.workflow.cache
 
-import org.apache.texera.amber.core.executor.OpExecInitInfo
+import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -115,6 +115,45 @@ class CacheKeyUtilSpec extends AnyFlatSpec with Matchers {
       )
     )
     keyOf(base, "b").hash should not equal keyOf(widened, "b").hash
+  }
+
+  it should "change the cache key when an upstream operator's exec info changes" in {
+    def planWith(code: String): PhysicalPlan =
+      PhysicalPlan(
+        Set(
+          PhysicalOp
+            .oneToOnePhysicalOp(opId("a"), workflowId, executionId, OpExecWithCode(code, "python"))
+            .withInputPorts(List(InputPort(PortIdentity(0))))
+            .withOutputPorts(List(OutputPort(PortIdentity(0))))
+        ),
+        Set.empty
+      )
+    keyOf(planWith("def f(t): return t"), "a").hash should not equal
+      keyOf(planWith("def f(t): return t + 1"), "a").hash
+  }
+
+  it should "ignore output-port attributes that do not change the result (blocking, mode, reuseStorage)" in {
+    def planWith(out: OutputPort): PhysicalPlan =
+      PhysicalPlan(
+        Set(
+          PhysicalOp
+            .oneToOnePhysicalOp(opId("a"), workflowId, executionId, OpExecInitInfo.Empty)
+            .withInputPorts(List(InputPort(PortIdentity(0))))
+            .withOutputPorts(List(out))
+        ),
+        Set.empty
+      )
+    // blocking (scheduling), reuseStorage (storage), and mode (how the stored result is
+    // presented to the UI) do not change the materialized data, so they are intentionally
+    // not part of the cache identity.
+    val plain = OutputPort(PortIdentity(0))
+    val decorated = OutputPort(
+      PortIdentity(0),
+      blocking = true,
+      mode = OutputPort.OutputMode.SET_DELTA,
+      reuseStorage = true
+    )
+    keyOf(planWith(plain), "a").hash shouldEqual keyOf(planWith(decorated), "a").hash
   }
 
   "CacheKeyUtil.isSameComputation" should "treat two keys with the same hash and JSON as a match" in {
