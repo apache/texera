@@ -58,7 +58,6 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
-import { FormlyRepeatDndComponent } from "../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 export const DEFAULT_WIDTH = 800;
 export const DEFAULT_HEIGHT = 500;
@@ -90,7 +89,6 @@ export const DEFAULT_HEIGHT = 500;
     NgFor,
     NgComponentOutlet,
     NzResizeHandlesComponent,
-    FormlyRepeatDndComponent,
     KeyValuePipe,
   ],
 })

@@ -44,7 +44,6 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
-import { FormlyRepeatDndComponent } from "../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -73,7 +72,6 @@ import { FormlyRepeatDndComponent } from "../../../common/formly/repeat-dnd/repe
     CdkDragHandle,
     NgComponentOutlet,
     NzResizeHandlesComponent,
-    FormlyRepeatDndComponent,
   ],
 })
 export class PropertyEditorComponent implements OnInit, OnDestroy {

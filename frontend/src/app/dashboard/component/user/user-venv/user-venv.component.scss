@@ -17,8 +17,8 @@
  * under the License.
  */
 
-@import "../../section-style";
-@import "../../button-style";
+@use "../../section-style" as *;
+@use "../../button-style" as *;
 
 .subsection-grid-container {
   min-width: 100%;

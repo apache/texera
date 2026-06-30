@@ -22,17 +22,30 @@ package org.apache.texera.amber.engine.architecture.pythonworker
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
 class PythonWorkflowWorkerStartupConfigSpec extends AnyFlatSpec {
 
-  "encodeStartupConfig" should "serialize entries to a JSON object keyed by name" in {
-    val json = PythonWorkflowWorker.encodeStartupConfig(
+  private def decode(encoded: String): String =
+    new String(Base64.getDecoder.decode(encoded), StandardCharsets.UTF_8)
+
+  "encodeStartupConfig" should "serialize entries to a Base64-encoded JSON object keyed by name" in {
+    val encoded = PythonWorkflowWorker.encodeStartupConfig(
       Seq("workerId" -> "w-1", "outputPort" -> "5005", "s3Region" -> "us-west-2")
     )
-    val parsed = objectMapper.readValue(json, classOf[java.util.Map[String, String]])
+    val parsed = objectMapper.readValue(decode(encoded), classOf[java.util.Map[String, String]])
     assert(parsed.get("workerId") == "w-1")
     assert(parsed.get("outputPort") == "5005")
     assert(parsed.get("s3Region") == "us-west-2")
     assert(parsed.size() == 3)
+  }
+
+  it should "produce output free of quotes and whitespace so it survives argv quoting on Windows" in {
+    val encoded = PythonWorkflowWorker.encodeStartupConfig(
+      Seq("workerId" -> "w-1", "s3Region" -> "us-west-2")
+    )
+    assert(!encoded.exists(c => c == '"' || c.isWhitespace))
   }
 
   it should "fail loudly when the same key appears more than once" in {
@@ -80,10 +93,10 @@ class PythonWorkflowWorkerStartupConfigSpec extends AnyFlatSpec {
   }
 
   it should "produce a config that round-trips through encodeStartupConfig" in {
-    val json = PythonWorkflowWorker.encodeStartupConfig(
+    val encoded = PythonWorkflowWorker.encodeStartupConfig(
       PythonWorkflowWorker.buildStartupConfig("w", "1", "", "uri")
     )
-    val parsed = objectMapper.readValue(json, classOf[java.util.Map[String, String]])
+    val parsed = objectMapper.readValue(decode(encoded), classOf[java.util.Map[String, String]])
     assert(parsed.get("workerId") == "w")
     assert(parsed.get("s3LargeBinariesBaseUri") == "uri")
     assert(parsed.size() == expectedKeys.size)

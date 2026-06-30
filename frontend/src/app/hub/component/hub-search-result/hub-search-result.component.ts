@@ -28,7 +28,7 @@ import {
   SearchResultsViewMode,
 } from "../../../dashboard/component/user/search-results/search-results.component";
 import { FiltersComponent } from "../../../dashboard/component/user/filters/filters.component";
-import { DatasetCardItemComponent } from "../../../dashboard/component/user/dataset-card-item/dataset-card-item.component";
+import { CardItemComponent } from "../../../dashboard/component/user/list-item/card-item/card-item.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SortMethod } from "../../../dashboard/type/sort-method";
 import { UserService } from "../../../common/service/user/user.service";
@@ -53,7 +53,7 @@ const HUB_DATASET_VIEW_MODE_STORAGE_KEY = "texera.hub.dataset.viewMode";
     SortButtonComponent,
     FiltersComponent,
     SearchResultsComponent,
-    DatasetCardItemComponent,
+    CardItemComponent,
   ],
 })
 export class HubSearchResultComponent implements OnInit, AfterViewInit {

@@ -88,7 +88,8 @@ libraryDependencies ++= Seq(
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
   "com.novocode" % "junit-interface" % "0.11" % Test,               // SBT interface for JUnit
   "com.dimafeng" %% "testcontainers-scala-scalatest" % testcontainersVersion % Test,   // Testcontainers ScalaTest integration
-  "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test        // MinIO Testcontainer Scala integration
+  "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test,       // MinIO Testcontainer Scala integration
+  "com.dimafeng" %% "testcontainers-scala-postgresql" % testcontainersVersion % Test   // Postgres Testcontainer (LakeFS metadata store)
 )
 
 
