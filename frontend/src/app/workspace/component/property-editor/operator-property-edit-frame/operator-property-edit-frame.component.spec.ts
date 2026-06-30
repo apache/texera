@@ -719,4 +719,121 @@ describe("OperatorPropertyEditFrameComponent", () => {
     const taskField = getHfField("task");
     expect(taskField?.hide).toBe(true);
   });
+
+  // ── Real template rendering ──
+  // A nested describe that resets the module so overrideComponent is not applied,
+  // allowing the actual HTML template to render.
+
+  describe("real template rendering", () => {
+    let realFixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
+    let realComponent: OperatorPropertyEditFrameComponent;
+
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          WorkflowActionService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+          DatePipe,
+          ...commonTestProviders,
+        ],
+        imports: [
+          OperatorPropertyEditFrameComponent,
+          BrowserAnimationsModule,
+          FormsModule,
+          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+          FormlyNgZorroAntdModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule,
+        ],
+      }).compileComponents();
+
+      realFixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
+      realComponent = realFixture.componentInstance;
+    });
+
+    it("should render the title section when editingTitle is false and formTitle is set", () => {
+      realComponent.editingTitle = false;
+      realComponent.formTitle = "My Operator";
+      realFixture.detectChanges();
+      const titleEl = realFixture.debugElement.query(By.css("#formly-title"));
+      expect(titleEl).toBeTruthy();
+      const h3 = realFixture.debugElement.query(By.css("h3.texera-workspace-property-editor-title"));
+      expect(h3).toBeTruthy();
+      expect((h3.nativeElement as HTMLElement).textContent?.trim()).toBe("My Operator");
+    });
+
+    it("should not render the h3 title when formTitle is undefined", () => {
+      realComponent.editingTitle = false;
+      realComponent.formTitle = undefined;
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css("h3.texera-workspace-property-editor-title"))).toBeNull();
+    });
+
+    it("should disable the edit button when interactive is false", () => {
+      realComponent.editingTitle = false;
+      realComponent.interactive = false;
+      realFixture.detectChanges();
+      const btn = realFixture.debugElement.query(By.css("#formly-title button")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+    });
+
+    it("should enable the edit button when interactive is true", () => {
+      realComponent.editingTitle = false;
+      realComponent.interactive = true;
+      realFixture.detectChanges();
+      const btn = realFixture.debugElement.query(By.css("#formly-title button")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+
+    it("should hide the title section when editingTitle is true", () => {
+      realComponent.editingTitle = true;
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css("#formly-title"))).toBeNull();
+    });
+
+    it("should hide the customName div when editingTitle is false", () => {
+      realComponent.editingTitle = false;
+      realFixture.detectChanges();
+      const customName = realFixture.debugElement.query(By.css("#customName"));
+      expect(customName).toBeTruthy();
+      expect((customName.nativeElement as HTMLElement).hidden).toBe(true);
+    });
+
+    it("should show the customName div when editingTitle is true", () => {
+      realComponent.editingTitle = true;
+      realFixture.detectChanges();
+      const customName = realFixture.debugElement.query(By.css("#customName"));
+      expect(customName).toBeTruthy();
+      expect((customName.nativeElement as HTMLElement).hidden).toBe(false);
+    });
+
+    it("should show the PythonLambdaFunction icon when currentOperatorId includes PythonLambdaFunction", () => {
+      realComponent.editingTitle = false;
+      realComponent.currentOperatorId = "PythonLambdaFunction-abc";
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".question-circle-button"))).toBeTruthy();
+    });
+
+    it("should not show the PythonLambdaFunction icon for other operator types", () => {
+      realComponent.editingTitle = false;
+      realComponent.currentOperatorId = "ScanSource-abc";
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".question-circle-button"))).toBeNull();
+    });
+
+    it("should not render the form section when formlyFields is undefined", () => {
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".property-editor-form"))).toBeNull();
+    });
+
+    it("should render the operator version span", () => {
+      realComponent.operatorVersion = "v1.2.3";
+      realFixture.detectChanges();
+      const versionEl = realFixture.debugElement.query(By.css(".operator-version span"));
+      expect(versionEl).toBeTruthy();
+      expect((versionEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Operator Version: v1.2.3");
+    });
+  });
 });
