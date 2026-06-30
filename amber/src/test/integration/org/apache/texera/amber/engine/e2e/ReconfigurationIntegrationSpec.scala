@@ -167,9 +167,7 @@ class ReconfigurationIntegrationSpec
     TestUtils.shouldReconfigure(system, ctx, operators, links, targetOps, newOpExecInitInfo)
 
   private def boundedCsvSource() = {
-    val src = TestOperators.mediumCsvScanOpDesc()
-    src.limit = Some(10000)
-    src
+    TestOperators.mediumCsvScanOpDesc()
   }
 
   "Engine" should "be able to modify a python UDF worker in workflow" in {
