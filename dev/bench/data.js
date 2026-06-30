@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782742627785,
+  "lastUpdate": 1782826181788,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -2148,6 +2148,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 561.3799878376168,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Yicong Huang",
+            "username": "Yicong-Huang",
+            "email": "17627829+Yicong-Huang@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "1a584332af50eb21e715df91a108a3d7c81736cc",
+          "message": "test(amber): make PveResourceSpec hermetic via process-runner seam (#6024)\n\n### What changes were proposed in this PR?\n\n`PveResourceSpec` runs in the `amber` unit CI job\n(`AMBER_TEST_FILTER=skip-integration`) but is not tagged\n`@IntegrationTest`, so every run shelled out to **real `pip` over the\nnetwork**:\n\n- each `createNewPve` ran `pip install -r requirements.txt` (the full\namber dependency set), and\n- the lazy `resolveSystemPackages()` installed `requirements.txt` into a\nthrowaway venv, then `pip freeze`\n\n— roughly 6 full installs per spec run. That made a PR-blocking unit\nspec **network-dependent (flaky)** and **slow**.\n\nThis PR funnels every child process in `PveManager` (venv creation, pip\ninstall / uninstall / freeze) through a single injectable seam:\n\n```scala\nprivate[pythonvirtualenvironment] var runProcess: ProcessRunner =\n  (command, env, logger) => Process(command, None, env: _*).!(logger)\n```\n\nProduction wiring is unchanged (the default runner executes the command\nfor real). `PveResourceSpec` swaps in a **ScalaMock `mockFunction`**\nwhose handler fabricates the `<venv>/bin/{python,pip}` layout, emits the\nresolved system set on `freeze`, and returns a configurable exit code —\nso the spec is **fully hermetic: no venv, no pip, no network**.\n`PveManager` still owns the metadata files (`user-packages.txt`) and\nqueue messages, so that logic stays under test.\n\nBecause failures are now cheap to trigger, this also adds negative\ncoverage that was previously impractical: venv-create failure,\nrequirements-install failure, user-package install failure, and\nsystem-package rejection (using `pyarrow`, a hard amber dependency).\n\n| Before | After |\n| --- | --- |\n| ~6 real `pip install` per run, hits PyPI | 0 network calls |\n| flaky on network hiccups, ~minutes | deterministic, ~8s |\n| only happy-path assertions | + 4 negative/failure cases |\n\n### Any related issues, documentation, discussions?\n\nCloses #6023\n\n### How was this PR tested?\n\n`PveManager` is an `object`, so the test points the shared `runProcess`\nat the ScalaMock `mockFunction` in `beforeAll` and restores the real\nrunner in `afterAll`. ScalaMock expectations are per-test, so\n`expectProcessCalls()` (an `anyNumberOfTimes` handler) is invoked at the\ntop of each test that exercises a process. Run with JDK 17:\n\n```bash\nSTORAGE_JDBC_USERNAME=texera STORAGE_JDBC_PASSWORD=password \\\n  sbt \"WorkflowExecutionService/testOnly org.apache.texera.web.resource.pythonvirtualenvironment.PveResourceSpec\"\n# -> Tests: succeeded 25, failed 0, in ~8s\n```\n\nAlso green:\n\n```bash\nsbt scalafmtCheckAll\nsbt \"WorkflowExecutionService/scalafixAll --check\"\n```\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 4.8)",
+          "timestamp": "2026-06-30T04:15:16Z",
+          "url": "https://github.com/apache/texera/commit/1a584332af50eb21e715df91a108a3d7c81736cc"
+        },
+        "date": 1782826181223,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 681.2959889589445,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1312.778569827959,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1423.978197080452,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 922.5130691803814,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1369.736165246893,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1428.764271018029,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 971.8370741462542,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1356.8031697475005,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1433.183283986549,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 782.4761747047497,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1064.4517303000414,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1122.727218782603,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 818.4003571171799,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1075.655070655937,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1112.4987833349658,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 816.1147854673045,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1061.2812101651248,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1092.8918803895347,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 459.6282325675716,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 558.0175195359557,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 586.7974078997694,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 485.14321046614253,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 575.4585023055071,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 581.6297953131998,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 447.2204251042123,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 550.1748854002384,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 554.2242150100697,
             "unit": "tuples/sec"
           }
         ]
