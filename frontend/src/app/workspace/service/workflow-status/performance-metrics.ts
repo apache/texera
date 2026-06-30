@@ -23,13 +23,12 @@ import { OperatorStatistics } from "../../types/execute-workflow.interface";
  * Derived per-operator performance metrics.
  *
  * This is the ground-truth model captured by {@link WorkflowStatusService}. It is
- * a flat, defensively-defaulted projection of the raw {@link OperatorStatistics}
- * the backend streams over the websocket — every field is a finite, non-negative
- * number, so downstream consumers never have to re-validate.
+ * a flat projection of the raw {@link OperatorStatistics} the backend streams over
+ * the websocket, with missing optional fields defaulted. Keyed by operator id at
+ * the map level (mirroring {@link OperatorStatistics}), so the id is not repeated here.
  */
 export interface OperatorPerformanceMetrics
   extends Readonly<{
-    operatorId: string;
     dataProcessingTimeNs: number;
     controlProcessingTimeNs: number;
     idleTimeNs: number;
@@ -41,29 +40,24 @@ export interface OperatorPerformanceMetrics
   }> {}
 
 /**
- * Coerce an untrusted numeric field (it arrives over the websocket) into a
- * finite, non-negative number. Anything missing, non-numeric, NaN, infinite, or
- * negative collapses to 0 so no NaN/Infinity can leak into downstream consumers.
+ * Project a single raw {@link OperatorStatistics} into the flat performance model.
+ *
+ * Several fields are optional on {@link OperatorStatistics} because the frontend
+ * builds partial objects (e.g. WorkflowStatusService.resetStatus, which omits the
+ * timing/size/worker fields). A missing metric defaults to 0; a missing worker
+ * count defaults to 1, since an operator always runs on at least one worker.
+ * Data and control processing time are kept separate so consumers can choose how
+ * to combine them.
  */
-function toFiniteNonNegative(value: number | undefined): number {
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
-}
-
-/**
- * Project a single raw {@link OperatorStatistics} into the flat performance model,
- * defaulting every optional/missing field to 0. Data and control processing time
- * are kept as separate fields so consumers can choose how to combine them.
- */
-export function toPerformanceMetrics(operatorId: string, stats: OperatorStatistics): OperatorPerformanceMetrics {
+export function extractPerformanceMetrics(stats: OperatorStatistics): OperatorPerformanceMetrics {
   return {
-    operatorId,
-    dataProcessingTimeNs: toFiniteNonNegative(stats.aggregatedDataProcessingTime),
-    controlProcessingTimeNs: toFiniteNonNegative(stats.aggregatedControlProcessingTime),
-    idleTimeNs: toFiniteNonNegative(stats.aggregatedIdleTime),
-    inputRows: toFiniteNonNegative(stats.aggregatedInputRowCount),
-    outputRows: toFiniteNonNegative(stats.aggregatedOutputRowCount),
-    inputSize: toFiniteNonNegative(stats.aggregatedInputSize),
-    outputSize: toFiniteNonNegative(stats.aggregatedOutputSize),
-    numWorkers: toFiniteNonNegative(stats.numWorkers),
+    dataProcessingTimeNs: stats.aggregatedDataProcessingTime ?? 0,
+    controlProcessingTimeNs: stats.aggregatedControlProcessingTime ?? 0,
+    idleTimeNs: stats.aggregatedIdleTime ?? 0,
+    inputRows: stats.aggregatedInputRowCount,
+    outputRows: stats.aggregatedOutputRowCount,
+    inputSize: stats.aggregatedInputSize ?? 0,
+    outputSize: stats.aggregatedOutputSize ?? 0,
+    numWorkers: stats.numWorkers ?? 1,
   };
 }

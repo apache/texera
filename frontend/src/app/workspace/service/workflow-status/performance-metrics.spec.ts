@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { OperatorPerformanceMetrics, toPerformanceMetrics } from "./performance-metrics";
+import { OperatorPerformanceMetrics, extractPerformanceMetrics } from "./performance-metrics";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 
 /**
@@ -51,11 +51,10 @@ const partialStats: OperatorStatistics = {
   outputPortMetrics: {},
 };
 
-describe("toPerformanceMetrics", () => {
+describe("extractPerformanceMetrics", () => {
   it("maps every field from a full statistics object", () => {
-    const m: OperatorPerformanceMetrics = toPerformanceMetrics("Filter-operator-a1b2", fullStats);
+    const m: OperatorPerformanceMetrics = extractPerformanceMetrics(fullStats);
     expect(m).toEqual({
-      operatorId: "Filter-operator-a1b2",
       dataProcessingTimeNs: 8_500_000_000,
       controlProcessingTimeNs: 120_000_000,
       idleTimeNs: 300_000_000,
@@ -68,15 +67,14 @@ describe("toPerformanceMetrics", () => {
   });
 
   it("keeps data and control processing time as separate fields", () => {
-    const m = toPerformanceMetrics("op", fullStats);
+    const m = extractPerformanceMetrics(fullStats);
     expect(m.dataProcessingTimeNs).toBe(fullStats.aggregatedDataProcessingTime);
     expect(m.controlProcessingTimeNs).toBe(fullStats.aggregatedControlProcessingTime);
   });
 
-  it("defaults every optional/missing field to 0 (no NaN, no undefined)", () => {
-    const m = toPerformanceMetrics("op", partialStats);
+  it("defaults missing metric fields to 0 and numWorkers to 1 (no NaN, no undefined)", () => {
+    const m = extractPerformanceMetrics(partialStats);
     expect(m).toEqual({
-      operatorId: "op",
       dataProcessingTimeNs: 0,
       controlProcessingTimeNs: 0,
       idleTimeNs: 0,
@@ -84,7 +82,8 @@ describe("toPerformanceMetrics", () => {
       outputRows: 0,
       inputSize: 0,
       outputSize: 0,
-      numWorkers: 0,
+      // an operator always runs on at least one worker
+      numWorkers: 1,
     });
     // explicit guard: nothing leaked through as NaN
     for (const value of Object.values(m)) {
@@ -94,23 +93,8 @@ describe("toPerformanceMetrics", () => {
     }
   });
 
-  it("coerces non-finite / negative inputs to 0", () => {
-    const malformed = {
-      operatorState: OperatorState.Running,
-      aggregatedInputRowCount: Number.POSITIVE_INFINITY,
-      inputPortMetrics: {},
-      aggregatedOutputRowCount: -5,
-      outputPortMetrics: {},
-      aggregatedDataProcessingTime: Number.NaN,
-    } as unknown as OperatorStatistics;
-    const m = toPerformanceMetrics("op", malformed);
-    expect(m.inputRows).toBe(0);
-    expect(m.outputRows).toBe(0);
-    expect(m.dataProcessingTimeNs).toBe(0);
-  });
-
-  it("preserves a unicode operator id verbatim", () => {
-    const id = "算子-✓-1";
-    expect(toPerformanceMetrics(id, fullStats).operatorId).toBe(id);
+  it("defaults a missing worker count to 1 and passes a real count through", () => {
+    expect(extractPerformanceMetrics({ ...partialStats, numWorkers: 8 }).numWorkers).toBe(8);
+    expect(extractPerformanceMetrics({ ...partialStats, numWorkers: undefined }).numWorkers).toBe(1);
   });
 });

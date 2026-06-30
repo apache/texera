@@ -88,7 +88,6 @@ describe("WorkflowStatusService", () => {
     // BehaviorSubject seeds {} then emits the derived map.
     const latest = emissions[emissions.length - 1];
     expect(latest["op1"]).toEqual({
-      operatorId: "op1",
       dataProcessingTimeNs: 5_000_000,
       controlProcessingTimeNs: 1_000_000,
       idleTimeNs: 700_000,
@@ -99,6 +98,12 @@ describe("WorkflowStatusService", () => {
       numWorkers: 2,
     });
     expect(service.getCurrentPerformanceMetrics()).toEqual(latest);
+  });
+
+  it("keys the derived metrics by operator id, including unicode ids", () => {
+    const id = "算子-✓-1";
+    websocketEventSubject.next(statsEvent({ [id]: sampleStats }));
+    expect(Object.keys(service.getCurrentPerformanceMetrics())).toEqual([id]);
   });
 
   it("seeds the performance-metrics stream with an empty map for late subscribers", () => {
@@ -123,18 +128,8 @@ describe("WorkflowStatusService", () => {
     expect(m.controlProcessingTimeNs).toBe(0);
     expect(m.idleTimeNs).toBe(0);
     expect(m.inputSize).toBe(0);
-    expect(m.numWorkers).toBe(0);
-  });
-
-  it("setExternalStatus feeds both the status and performance-metrics streams", () => {
-    const statuses: Record<string, OperatorStatistics>[] = [];
-    service.getStatusUpdateStream().subscribe(s => statuses.push(s));
-
-    service.setExternalStatus({ historical: sampleStats });
-
-    expect(statuses[statuses.length - 1]).toEqual({ historical: sampleStats });
-    expect(service.getCurrentStatus()).toEqual({ historical: sampleStats });
-    expect(service.getCurrentPerformanceMetrics()["historical"].dataProcessingTimeNs).toBe(5_000_000);
+    // an operator always runs on at least one worker
+    expect(m.numWorkers).toBe(1);
   });
 
   it("resetStatus zeros the metrics for known operators", () => {
@@ -143,7 +138,6 @@ describe("WorkflowStatusService", () => {
 
     const m = service.getCurrentPerformanceMetrics()["op1"];
     expect(m).toEqual({
-      operatorId: "op1",
       dataProcessingTimeNs: 0,
       controlProcessingTimeNs: 0,
       idleTimeNs: 0,
@@ -151,7 +145,7 @@ describe("WorkflowStatusService", () => {
       outputRows: 0,
       inputSize: 0,
       outputSize: 0,
-      numWorkers: 0,
+      numWorkers: 1,
     });
   });
 

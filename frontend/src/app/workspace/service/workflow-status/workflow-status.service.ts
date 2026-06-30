@@ -21,7 +21,7 @@ import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable, Subject } from "rxjs";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
-import { OperatorPerformanceMetrics, toPerformanceMetrics } from "./performance-metrics";
+import { OperatorPerformanceMetrics, extractPerformanceMetrics } from "./performance-metrics";
 
 @Injectable({
   providedIn: "root",
@@ -70,21 +70,12 @@ export class WorkflowStatusService {
     return this.performanceMetricsSubject.getValue();
   }
 
-  /**
-   * Feed externally-sourced statistics (e.g. restored historical runtime stats)
-   * through the same pipeline as live websocket updates, so derived metrics and
-   * all subscribers update identically.
-   */
-  public setExternalStatus(status: Record<string, OperatorStatistics>): void {
-    this.statusSubject.next(status);
-  }
-
   private buildPerformanceMetrics(
     status: Record<string, OperatorStatistics>
   ): Record<string, OperatorPerformanceMetrics> {
     const metrics: Record<string, OperatorPerformanceMetrics> = {};
     for (const operatorId of Object.keys(status)) {
-      metrics[operatorId] = toPerformanceMetrics(operatorId, status[operatorId]);
+      metrics[operatorId] = extractPerformanceMetrics(status[operatorId]);
     }
     return metrics;
   }
