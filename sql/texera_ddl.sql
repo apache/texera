@@ -374,27 +374,27 @@ CREATE TABLE operator_port_executions
 
 -- operator_port_cache
 -- Caches a materialized output port result so it can be reused across executions.
--- A row is identified by (workflow_id, global_port_id, cache_key), where cache_key is a
--- SHA-256 hash of the upstream sub-DAG that produces the port (its operators, their
--- parameters and exec info, schemas, and wiring). cache_key is the lookup key;
--- cache_key_json is the JSON the hash was computed from, kept so a hash match can be
--- confirmed against the full content (collision safety). A different upstream computation
--- (for example an operator parameter or version change) produces a different cache_key and
--- therefore a new row, so existing entries are never overwritten: each row is the result of
--- one specific computation of one port. tuple_count is the result's row count, kept so the
--- coordinator can report a reused region's output stats without a second query to the
--- Iceberg catalog.
+-- A row is identified by (workflow_id, global_port_id, cache_key_hash), where
+-- cache_key_hash is a SHA-256 hash of the upstream sub-DAG that produces the port (its
+-- operators, their parameters and exec info, schemas, and wiring). cache_key_hash is the
+-- lookup key; cache_key_json is the JSON the hash was computed from, kept so a hash match
+-- can be confirmed against the full content (collision safety). A different upstream
+-- computation (for example an operator parameter or version change) produces a different
+-- cache_key_hash and therefore a new row, so existing entries are never overwritten: each
+-- row is the result of one specific computation of one port. tuple_count is the result's
+-- row count, kept so the coordinator can report a reused region's output stats without a
+-- second query to the Iceberg catalog.
 CREATE TABLE operator_port_cache
 (
     workflow_id         INT NOT NULL,
     global_port_id      VARCHAR(200) NOT NULL,
-    cache_key           CHAR(64) NOT NULL,
+    cache_key_hash      CHAR(64) NOT NULL,
     cache_key_json      TEXT NOT NULL,
     storage_uri         TEXT NOT NULL,
     tuple_count         BIGINT,
     source_execution_id BIGINT,
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (workflow_id, global_port_id, cache_key),
+    PRIMARY KEY (workflow_id, global_port_id, cache_key_hash),
     FOREIGN KEY (workflow_id) REFERENCES workflow(wid) ON DELETE CASCADE
 );
 
