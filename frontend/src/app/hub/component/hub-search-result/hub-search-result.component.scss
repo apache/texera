@@ -17,7 +17,7 @@
  * under the License.
  */
 
-@import "../../../dashboard/component/user/search/search.component";
+@use "../../../dashboard/component/user/search/search.component" as *;
 
 .filter {
   flex: 1;
@@ -28,28 +28,6 @@
 
 .view-toggle {
   display: inline-flex;
-  background: #f5f5f5;
-  border-radius: 6px;
-  padding: 2px;
+  gap: 8px;
   margin-left: auto;
-
-  button {
-    height: 28px;
-    padding: 0 10px;
-    border: none;
-    background: transparent;
-    color: #8c8c8c;
-    border-radius: 4px;
-
-    &:hover {
-      color: #595959;
-      background: rgba(255, 255, 255, 0.6);
-    }
-
-    &.active {
-      background: #fff;
-      color: #1f1f1f;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-    }
-  }
 }

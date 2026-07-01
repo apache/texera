@@ -45,6 +45,7 @@ export interface GuiConfig {
   limitColumns: number;
   attributionEnabled: boolean;
   pythonNotebookMigrationEnabled: boolean;
+  deploymentVersionCheckEnabled: boolean;
 }
 
 export interface SidebarTabs {
