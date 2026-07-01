@@ -179,14 +179,13 @@ def test_state_written_by_output_manager_is_replayed_by_reader():
 
     # 3. Drive a state through the producer-side path. The loop bookkeeping
     # rides alongside the State (not inside it) and is materialized as its own
-    # set of columns. Use non-default values for all three so a regression in
-    # any single column's plumbing is caught, not just loop_counter's.
+    # set of columns. Use non-default values for both so a regression in
+    # either column's plumbing is caught, not just loop_counter's.
     state = State({"flag": True, "name": "outer"})
     producer.save_state_to_storage_if_needed(
         state,
         loop_counter=7,
         loop_start_id="outer-loop",
-        loop_start_state_uri="vfs:///wf/outer-state",
     )
 
     # 4. Force the writer threads to flush + commit by closing them.
@@ -250,10 +249,6 @@ def test_state_written_by_output_manager_is_replayed_by_reader():
         f"loop_start_id must round-trip through its own column; "
         f"got {state_frames[0].loop_start_id!r}"
     )
-    assert state_frames[0].loop_start_state_uri == "vfs:///wf/outer-state", (
-        f"loop_start_state_uri must round-trip through its own column; "
-        f"got {state_frames[0].loop_start_state_uri!r}"
-    )
 
 
 def test_state_table_persists_across_writer_close():
@@ -276,7 +271,6 @@ def test_state_table_persists_across_writer_close():
         state,
         loop_counter=3,
         loop_start_id="inner-loop",
-        loop_start_state_uri="vfs:///wf/inner-state",
     )
     producer.close_port_storage_writers()
 
@@ -290,4 +284,3 @@ def test_state_table_persists_across_writer_close():
     assert State.from_tuple(rows[0]) == state
     assert rows[0][State.LOOP_COUNTER] == 3
     assert rows[0][State.LOOP_START_ID] == "inner-loop"
-    assert rows[0][State.LOOP_START_STATE_URI] == "vfs:///wf/inner-state"

@@ -109,7 +109,7 @@ class TestSaveStateToStorageIfNeeded:
     def test_defaults_loop_columns_when_omitted(self, output_manager, state, port_a):
         # Dormancy: callers that pass no loop bookkeeping (every non-loop
         # caller, e.g. MainLoop.process_input_state) still produce a valid
-        # 4-column state tuple with the loop columns at their no-loop defaults.
+        # 3-column state tuple with the loop columns at their no-loop defaults.
         queue_a, _, _ = _stub_state_writer(output_manager, port_a)
 
         output_manager.save_state_to_storage_if_needed(state)  # no loop_counter
@@ -117,4 +117,3 @@ class TestSaveStateToStorageIfNeeded:
         data_tuple = queue_a.put.call_args.args[0].data_tuple
         assert data_tuple[State.LOOP_COUNTER] == 0
         assert data_tuple[State.LOOP_START_ID] == ""
-        assert data_tuple[State.LOOP_START_STATE_URI] == ""

@@ -109,7 +109,6 @@ class NetworkSender(StoppableQueueBlockingRunnable):
                 data_payload.frame.to_json(),
                 data_payload.loop_counter,
                 data_payload.loop_start_id,
-                data_payload.loop_start_state_uri,
             )
             table = pa.Table.from_pydict(
                 {name: [value] for name, value in columns.items()},

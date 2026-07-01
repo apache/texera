@@ -220,9 +220,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
 
     val writer = stateDocument.writer(UUID.randomUUID().toString)
     writer.open()
-    writer.putOne(
-      state.toTuple(loopCounter = 7L, loopStartId = "ls", loopStartStateUri = "vfs:///outer")
-    )
+    writer.putOne(state.toTuple(loopCounter = 7L, loopStartId = "ls"))
     writer.close()
 
     val storedRows = stateDocument.get().toList
@@ -230,7 +228,6 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     // Loop bookkeeping is materialized as its own columns, not in the content JSON.
     assert(storedRows.head.getField[java.lang.Long]("loop_counter").toLong == 7L)
     assert(storedRows.head.getField[String]("loop_start_id") == "ls")
-    assert(storedRows.head.getField[String]("loop_start_state_uri") == "vfs:///outer")
     // User state round-trips through the content column (fromTuple reads only content).
     val deserialized = State.fromTuple(storedRows.head).values
     assert(deserialized("i") == 3L)

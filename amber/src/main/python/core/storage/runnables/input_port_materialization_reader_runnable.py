@@ -164,7 +164,6 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                         State.from_tuple(state_row),
                         loop_counter=state_row[State.LOOP_COUNTER],
                         loop_start_id=state_row[State.LOOP_START_ID],
-                        loop_start_state_uri=state_row[State.LOOP_START_STATE_URI],
                     )
                 )
 

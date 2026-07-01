@@ -192,7 +192,6 @@ class OutputManager:
         state: State,
         loop_counter: int = 0,
         loop_start_id: str = "",
-        loop_start_state_uri: str = "",
         port_id=None,
     ) -> None:
         # When port_id is omitted the same state row is fanned out to
@@ -202,7 +201,7 @@ class OutputManager:
         # (and every worker reading the materialization) needs the full
         # set.
         element = PortStorageWriterElement(
-            data_tuple=state.to_tuple(loop_counter, loop_start_id, loop_start_state_uri)
+            data_tuple=state.to_tuple(loop_counter, loop_start_id)
         )
         if port_id is None:
             for writer_queue, _, _ in self._port_state_writers.values():
@@ -285,7 +284,6 @@ class OutputManager:
         state: State,
         loop_counter: int = 0,
         loop_start_id: str = "",
-        loop_start_state_uri: str = "",
     ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         return chain(
             *(
@@ -297,7 +295,6 @@ class OutputManager:
                                 payload,
                                 loop_counter=loop_counter,
                                 loop_start_id=loop_start_id,
-                                loop_start_state_uri=loop_start_state_uri,
                             )
                             if isinstance(payload, State)
                             else self.tuple_to_frame(payload)
