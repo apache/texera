@@ -84,4 +84,89 @@ describe("WorkflowCoverService", () => {
 
     await expect(resultPromise).resolves.toBe(dataUrl);
   });
+
+  describe("fileToResizedDataUrl", () => {
+    const realImage = (globalThis as any).Image;
+    const realFileReader = globalThis.FileReader;
+    const realCreateElement = document.createElement.bind(document);
+
+    // jsdom never fires Image onload/onerror and cannot rasterize a canvas,
+    // so stub Image and the canvas element to drive the resize deterministically.
+    function stubImage(behavior: "load" | "error", width = 1280, height = 640): void {
+      class FakeImage {
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        width = width;
+        height = height;
+        set src(_value: string) {
+          queueMicrotask(() => (behavior === "load" ? this.onload?.() : this.onerror?.()));
+        }
+      }
+      (globalThis as any).Image = FakeImage;
+    }
+
+    function stubCanvas(ctx: unknown, dataUrl = "data:image/jpeg;base64,RESIZED") {
+      const canvas = {
+        width: 0,
+        height: 0,
+        getContext: vi.fn().mockReturnValue(ctx),
+        toDataURL: vi.fn().mockReturnValue(dataUrl),
+      };
+      vi.spyOn(document, "createElement").mockImplementation(((tag: string) =>
+        tag === "canvas" ? canvas : realCreateElement(tag)) as any);
+      return canvas;
+    }
+
+    const resize = (file: File): Promise<string> => (service as any).fileToResizedDataUrl(file);
+    const imageFile = () => new File(["x"], "pic.png", { type: "image/png" });
+
+    afterEach(() => {
+      (globalThis as any).Image = realImage;
+      (globalThis as any).FileReader = realFileReader;
+      vi.restoreAllMocks();
+    });
+
+    it("downscales a large image along its longest edge and re-encodes it as jpeg", async () => {
+      stubImage("load", 1280, 640);
+      const canvas = stubCanvas({ drawImage: vi.fn() });
+
+      await expect(resize(imageFile())).resolves.toBe("data:image/jpeg;base64,RESIZED");
+      // Longest edge 1280 scales to the 640px cap, halving both dimensions.
+      expect(canvas.width).toBe(640);
+      expect(canvas.height).toBe(320);
+      expect(canvas.toDataURL).toHaveBeenCalledWith("image/jpeg", 0.8);
+    });
+
+    it("leaves an already-small image at its natural size", async () => {
+      stubImage("load", 100, 50);
+      const canvas = stubCanvas({ drawImage: vi.fn() });
+
+      await resize(imageFile());
+      expect(canvas.width).toBe(100);
+      expect(canvas.height).toBe(50);
+    });
+
+    it("rejects when a 2d canvas context is unavailable", async () => {
+      stubImage("load");
+      stubCanvas(null);
+      await expect(resize(imageFile())).rejects.toThrow("Unable to process the selected image.");
+    });
+
+    it("rejects when the file is not a decodable image", async () => {
+      stubImage("error");
+      await expect(resize(imageFile())).rejects.toThrow("The selected file is not a valid image.");
+    });
+
+    it("rejects when the file cannot be read", async () => {
+      class FailingFileReader {
+        onload: ((e: Event) => void) | null = null;
+        onerror: ((e: Event) => void) | null = null;
+        readAsDataURL() {
+          queueMicrotask(() => this.onerror?.(new Event("error")));
+        }
+      }
+      (globalThis as any).FileReader = FailingFileReader;
+      await expect(resize(imageFile())).rejects.toThrow("Failed to read the selected image.");
+    });
+  });
 });

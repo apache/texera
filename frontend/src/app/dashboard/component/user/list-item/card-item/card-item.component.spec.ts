@@ -286,6 +286,36 @@ describe("CardItemComponent", () => {
     expect(component.hasCustomImage).toBe(true);
   });
 
+  it("openImagePicker clicks the hidden file input", () => {
+    const clickSpy = vi.fn();
+    (component as any).backgroundInput = { nativeElement: { click: clickSpy } };
+    component.openImagePicker();
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("openImagePicker is a no-op when the file input is absent", () => {
+    (component as any).backgroundInput = undefined;
+    expect(() => component.openImagePicker()).not.toThrow();
+  });
+
+  it("should do nothing when no file is selected", async () => {
+    await component.onImageSelected({ target: { files: [], value: "" } } as any);
+    expect(workflowCoverService.setCoverFromFile).not.toHaveBeenCalled();
+  });
+
+  it("should not upload when the entry id is not numeric", async () => {
+    component.entry = makeWorkflowEntry({ id: "not-a-number" as any });
+    const file = new File(["x"], "pic.png", { type: "image/png" });
+    await component.onImageSelected({ target: { files: [file], value: "pic.png" } } as any);
+    expect(workflowCoverService.setCoverFromFile).not.toHaveBeenCalled();
+  });
+
+  it("resetImage does nothing when the entry id is not numeric", () => {
+    component.entry = makeWorkflowEntry({ id: "not-a-number" as any });
+    component.resetImage();
+    expect(workflowCoverService.clearCover).not.toHaveBeenCalled();
+  });
+
   it("should load the dataset cover into the preview when the entry has a cover", () => {
     datasetService.getDatasetCoverUrl.mockReturnValue(of({ url: "https://cover.example/img.png" }));
     component.entry = makeDatasetEntry({ id: 5, coverImageUrl: "cover/path.png" });
