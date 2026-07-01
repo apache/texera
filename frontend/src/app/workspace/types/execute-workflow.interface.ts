@@ -82,10 +82,15 @@ export interface OperatorStatistics
   extends Readonly<{
     operatorState: OperatorState;
     aggregatedInputRowCount: number;
+    aggregatedInputSize?: number;
     inputPortMetrics: Record<string, number>;
     aggregatedOutputRowCount: number;
+    aggregatedOutputSize?: number;
     outputPortMetrics: Record<string, number>;
     numWorkers?: number;
+    aggregatedDataProcessingTime?: number;
+    aggregatedControlProcessingTime?: number;
+    aggregatedIdleTime?: number;
   }> {}
 
 export interface OperatorStatsUpdate

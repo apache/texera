@@ -1616,6 +1616,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
               displayName,
               position,
             };
+            // Results are pulled on demand (not pushed over the socket); refresh
+            // the active agent's summaries so the popover shows current data.
+            const activeAgentId = this.agentService.getActivelyConnectedAgentIds()[0];
+            if (activeAgentId) {
+              this.agentService.fetchOperatorResults(activeAgentId);
+            }
           }
         }
         this.changeDetectorRef.detectChanges();

@@ -688,7 +688,7 @@
               nz-button
               nzType="primary"
               (click)="createVirtualEnvironment(envIndex)"
-              [disabled]="!pve.name?.trim()"
+              [disabled]="isCreateDisabled(pve)"
               [nzLoading]="pve.isInstalling">
               OK
             </button>

@@ -37,7 +37,6 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
-import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
@@ -79,7 +78,6 @@ import { isDefined } from "../../../../../common/util/predicate";
     NzIconDirective,
     NzButtonComponent,
     NzPopconfirmDirective,
-    NzWaveDirective,
     ɵNzTransitionPatchDirective,
   ],
 })
@@ -137,6 +135,7 @@ export class CardItemComponent implements OnChanges {
   ) {}
 
   initializeEntry() {
+    this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.workflow.isOwner;
