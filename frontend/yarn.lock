@@ -30,6 +30,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@ai-sdk/openai@npm:2.0.67":
+  version: 2.0.67
+  resolution: "@ai-sdk/openai@npm:2.0.67"
+  dependencies:
+    "@ai-sdk/provider": "npm:2.0.0"
+    "@ai-sdk/provider-utils": "npm:3.0.17"
+  peerDependencies:
+    zod: ^3.25.76 || ^4.1.8
+  checksum: 10c0/7e5c407504d7902c17c816aaccd83f642a3b82012cd8467c8f58aef5f08a49b6c31fff775439d541d40b0c8b5b94cc384f18096d1968e23670e22a56fe82d8bd
+  languageName: node
+  linkType: hard
+
 "@ai-sdk/provider-utils@npm:3.0.17":
   version: 3.0.17
   resolution: "@ai-sdk/provider-utils@npm:3.0.17"
@@ -10617,6 +10629,7 @@ __metadata:
   resolution: "gui@workspace:."
   dependencies:
     "@abacritt/angularx-social-login": "npm:2.3.0"
+    "@ai-sdk/openai": "npm:2.0.67"
     "@ali-hm/angular-tree-component": "npm:12.0.5"
     "@angular-builders/custom-webpack": "npm:21.0.3"
     "@angular-devkit/build-angular": "npm:21.2.8"

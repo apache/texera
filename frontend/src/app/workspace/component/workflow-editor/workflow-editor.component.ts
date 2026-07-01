@@ -25,7 +25,7 @@ import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
-import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
+import { Validation, ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
@@ -397,10 +397,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * Centralizing this here avoids the race where the validation pass
    * overwrites a state-derived stroke (or vice versa) for an operator that
    * is both invalid and has a cached execution status.
+   *
+   * Callers that already have a Validation result (the validation stream
+   * subscriber) may pass it in to avoid recomputing it; callers without one
+   * (the operator-add stream subscriber) let the helper fetch it lazily.
    */
-  private applyOperatorBorder(operatorID: string): void {
-    const validation = this.validationWorkflowService.validateOperator(operatorID);
-    if (!validation.isValid) {
+  private applyOperatorBorder(operatorID: string, validation?: Validation): void {
+    const resolved = validation ?? this.validationWorkflowService.validateOperator(operatorID);
+    if (!resolved.isValid) {
       this.jointUIService.changeOperatorColor(this.paper, operatorID, false);
       return;
     }
@@ -1025,7 +1029,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.validationWorkflowService
       .getOperatorValidationStream()
       .pipe(untilDestroyed(this))
-      .subscribe(value => this.applyOperatorBorder(value.operatorID));
+      .subscribe(value => this.applyOperatorBorder(value.operatorID, value.validation));
   }
 
   /**
@@ -1612,6 +1616,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
               displayName,
               position,
             };
+            // Results are pulled on demand (not pushed over the socket); refresh
+            // the active agent's summaries so the popover shows current data.
+            const activeAgentId = this.agentService.getActivelyConnectedAgentIds()[0];
+            if (activeAgentId) {
+              this.agentService.fetchOperatorResults(activeAgentId);
+            }
           }
         }
         this.changeDetectorRef.detectChanges();

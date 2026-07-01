@@ -48,4 +48,113 @@ describe("AdminUserComponent", () => {
   it("should create", inject([HttpTestingController], () => {
     expect(component).toBeTruthy();
   }));
+
+  it("should search email case-insensitively", () => {
+    component.userList = [
+      {
+        name: "Alice",
+        email: "alice@example.com",
+        comment: "Needs review",
+      } as any,
+      {
+        name: "Bob",
+        email: "bob@example.com",
+        comment: "Approved",
+      } as any,
+    ];
+
+    component.emailSearchValue = "ALICE@EXAMPLE.COM";
+    component.searchByEmail();
+
+    expect(component.listOfDisplayUser.length).toBe(1);
+    expect(component.listOfDisplayUser[0].email).toBe("alice@example.com");
+  });
+
+  it("should search comment case-insensitively", () => {
+    component.userList = [
+      {
+        name: "Alice",
+        email: "alice@example.com",
+        comment: "Needs review",
+      } as any,
+      {
+        name: "Bob",
+        email: "bob@example.com",
+        comment: "Approved",
+      } as any,
+    ];
+
+    component.commentSearchValue = "NEEDS REVIEW";
+    component.searchByComment();
+
+    expect(component.listOfDisplayUser.length).toBe(1);
+    expect(component.listOfDisplayUser[0].comment).toBe("Needs review");
+  });
+
+  it("should trim active email search value without lowercasing the stored input", () => {
+    component.userList = [
+      {
+        name: "Alice",
+        email: "alice@example.com",
+        comment: "Needs review",
+      } as any,
+    ];
+
+    component.emailSearchValue = "  ALICE@EXAMPLE.COM  ";
+    component.searchByEmail();
+
+    expect(component.emailSearchValue).toBe("ALICE@EXAMPLE.COM");
+    expect(component.listOfDisplayUser.length).toBe(1);
+    expect(component.listOfDisplayUser[0].email).toBe("alice@example.com");
+  });
+
+  it("should trim active comment search value without lowercasing the stored input", () => {
+    component.userList = [
+      {
+        name: "Alice",
+        email: "alice@example.com",
+        comment: "Needs review",
+      } as any,
+    ];
+
+    component.commentSearchValue = "  Needs review  ";
+    component.searchByComment();
+
+    expect(component.commentSearchValue).toBe("Needs review");
+    expect(component.listOfDisplayUser.length).toBe(1);
+    expect(component.listOfDisplayUser[0].comment).toBe("Needs review");
+  });
+
+  it("should clear inactive search values when searching by name", () => {
+    component.emailSearchValue = "alice@example.com";
+    component.commentSearchValue = "Needs review";
+
+    component.nameSearchValue = "Alice";
+    component.searchByName();
+
+    expect(component.emailSearchValue).toBe("");
+    expect(component.commentSearchValue).toBe("");
+  });
+
+  it("should clear inactive search values when searching by email", () => {
+    component.nameSearchValue = "Alice";
+    component.commentSearchValue = "Needs review";
+
+    component.emailSearchValue = "bob@example.com";
+    component.searchByEmail();
+
+    expect(component.nameSearchValue).toBe("");
+    expect(component.commentSearchValue).toBe("");
+  });
+
+  it("should clear inactive search values when searching by comment", () => {
+    component.nameSearchValue = "Alice";
+    component.emailSearchValue = "alice@example.com";
+
+    component.commentSearchValue = "Approved";
+    component.searchByComment();
+
+    expect(component.nameSearchValue).toBe("");
+    expect(component.emailSearchValue).toBe("");
+  });
 });

@@ -20,11 +20,18 @@
 package org.apache.texera.service
 
 import io.dropwizard.core.setup.Environment
+import io.dropwizard.jersey.DropwizardResourceConfig
 import io.dropwizard.jersey.setup.JerseyEnvironment
 import io.dropwizard.jetty.MutableServletContextHandler
 import io.dropwizard.jetty.setup.ServletEnvironment
-import org.apache.texera.auth.UnauthorizedExceptionMapper
+import org.apache.texera.auth.{RoleAnnotationEnforcer, UnauthorizedExceptionMapper}
 import org.apache.texera.service.activity.UserActivityEventListener
+import org.apache.texera.service.resource.{
+  AccessControlResource,
+  HealthCheckResource,
+  LiteLLMModelsResource,
+  LiteLLMProxyResource
+}
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.mockito.ArgumentMatchers.isA
 import org.mockito.Mockito.{mock, verify, when}
@@ -41,6 +48,7 @@ class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
     when(env.jersey).thenReturn(jersey)
     when(env.servlets).thenReturn(servlets)
     when(env.getApplicationContext).thenReturn(context)
+    when(jersey.getResourceConfig).thenReturn(DropwizardResourceConfig.forTesting())
 
     val service = new AccessControlService
     service.run(mock(classOf[AccessControlServiceConfiguration]), env)
@@ -50,5 +58,17 @@ class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
     // Without this feature Jersey ignores @RolesAllowed on the LiteLLM proxies.
     verify(jersey).register(classOf[RolesAllowedDynamicFeature])
     verify(jersey).setUrlPattern("/api/*")
+  }
+
+  // Every endpoint this service registers declares @RolesAllowed/@PermitAll/@DenyAll.
+  "AccessControlService's registered resources" should "all declare access control" in {
+    RoleAnnotationEnforcer.findUnannotatedEndpoints(
+      Seq(
+        classOf[AccessControlResource],
+        classOf[LiteLLMProxyResource],
+        classOf[LiteLLMModelsResource],
+        classOf[HealthCheckResource]
+      )
+    ) shouldBe empty
   }
 }

@@ -19,32 +19,17 @@
 
 package org.apache.texera.service
 
-import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
-import io.dropwizard.core.setup.Environment
-import io.dropwizard.jersey.setup.JerseyEnvironment
-import org.apache.texera.auth.UnauthorizedExceptionMapper
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
-import org.mockito.Mockito.{mock, verify, when}
+import org.apache.texera.auth.RoleAnnotationEnforcer
+import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class WorkflowCompilingServiceRunSpec extends AnyFlatSpec with Matchers {
 
-  // Verifies that the @RolesAllowed annotations on resource methods are actually
-  // enforced by Jersey, which requires RolesAllowedDynamicFeature, AuthDynamicFeature,
-  // and AuthValueFactoryProvider.Binder to be registered on the Jersey environment.
-  "WorkflowCompilingService.registerAuthFeatures" should "register auth + RolesAllowedDynamicFeature on the Jersey environment" in {
-    val jersey = mock(classOf[JerseyEnvironment])
-    val env = mock(classOf[Environment])
-    when(env.jersey).thenReturn(jersey)
-
-    WorkflowCompilingService.registerAuthFeatures(env)
-
-    verify(jersey).register(classOf[RolesAllowedDynamicFeature])
-    verify(jersey).register(classOf[UnauthorizedExceptionMapper])
-    verify(jersey).register(org.mockito.ArgumentMatchers.any(classOf[AuthDynamicFeature]))
-    verify(jersey).register(
-      org.mockito.ArgumentMatchers.any(classOf[AuthValueFactoryProvider.Binder[_]])
-    )
+  // Every endpoint this service registers declares @RolesAllowed/@PermitAll/@DenyAll.
+  "WorkflowCompilingService's registered resources" should "all declare access control" in {
+    RoleAnnotationEnforcer.findUnannotatedEndpoints(
+      Seq(classOf[WorkflowCompilationResource], classOf[HealthCheckResource])
+    ) shouldBe empty
   }
 }
