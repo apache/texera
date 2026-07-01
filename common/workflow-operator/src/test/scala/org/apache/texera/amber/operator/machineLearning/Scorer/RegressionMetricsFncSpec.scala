@@ -23,21 +23,21 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class classificationMetricsFncSpec extends AnyFlatSpec with Matchers {
+class RegressionMetricsFncSpec extends AnyFlatSpec with Matchers {
 
-  "classificationMetricsFnc" should "map each constant to its wire value" in {
-    classificationMetricsFnc.accuracy.getName shouldBe "Accuracy"
-    classificationMetricsFnc.precisionScore.getName shouldBe "Precision Score"
-    classificationMetricsFnc.recallScore.getName shouldBe "Recall Score"
-    classificationMetricsFnc.f1Score.getName shouldBe "F1 Score"
-    classificationMetricsFnc.values() should have length 4
+  "regressionMetricsFnc" should "map each constant to its wire value" in {
+    regressionMetricsFnc.mse.getName shouldBe "MSE"
+    regressionMetricsFnc.rmse.getName shouldBe "RMSE"
+    regressionMetricsFnc.mae.getName shouldBe "MAE"
+    regressionMetricsFnc.r2.getName shouldBe "R2"
+    regressionMetricsFnc.values() should have length 4
   }
 
-  "classificationMetricsFnc" should "round-trip through Jackson using its wire value" in {
-    objectMapper.writeValueAsString(classificationMetricsFnc.f1Score) shouldBe "\"F1 Score\""
+  "regressionMetricsFnc" should "round-trip through Jackson using its wire value" in {
+    objectMapper.writeValueAsString(regressionMetricsFnc.rmse) shouldBe "\"RMSE\""
     objectMapper.readValue(
-      "\"F1 Score\"",
-      classOf[classificationMetricsFnc]
-    ) shouldBe classificationMetricsFnc.f1Score
+      "\"RMSE\"",
+      classOf[regressionMetricsFnc]
+    ) shouldBe regressionMetricsFnc.rmse
   }
 }
