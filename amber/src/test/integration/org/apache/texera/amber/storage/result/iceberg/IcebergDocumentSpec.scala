@@ -32,6 +32,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
+import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
@@ -44,6 +45,7 @@ import java.sql.Timestamp
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
+@IntegrationTest
 class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfterAll {
 
   var amberSchema: Schema = _
