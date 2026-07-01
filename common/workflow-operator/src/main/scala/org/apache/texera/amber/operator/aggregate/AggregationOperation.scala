@@ -67,7 +67,7 @@ case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
       "else": {
         "required": ["attribute"],
         "properties": {
-          "attribute": { "minLength": 1 }
+          "attribute": { "pattern": "\\S" }
         }
       }
     }
