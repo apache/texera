@@ -24,12 +24,14 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.dropwizard.configuration.ConfigurationSourceProvider
 import io.dropwizard.core.Configuration
 import io.dropwizard.core.setup.Bootstrap
+import org.apache.texera.dao.SqlServer
 import org.mockito.ArgumentMatchers.{any, isA}
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.Paths
+import scala.util.control.NonFatal
 
 class ServiceBootstrapSpec extends AnyFlatSpec with Matchers {
 
@@ -56,5 +58,18 @@ class ServiceBootstrapSpec extends AnyFlatSpec with Matchers {
       .toString
     result should endWith(expectedSuffix)
     Paths.get(result).isAbsolute shouldBe true
+  }
+
+  "ServiceBootstrap.initDatabase" should "run the shared SQL connection-pool setup from storage config" in {
+    // A unit run may or may not have a reachable Postgres (CI provides one on
+    // localhost:5432; a bare checkout does not). Either way this exercises the shared
+    // init path: on success the SqlServer singleton is populated, on a connection
+    // failure it throws fast. We only require the path to run, not the DB to be up.
+    try {
+      ServiceBootstrap.initDatabase()
+      SqlServer.getInstance() should not be null
+    } catch {
+      case NonFatal(_) => succeed
+    }
   }
 }

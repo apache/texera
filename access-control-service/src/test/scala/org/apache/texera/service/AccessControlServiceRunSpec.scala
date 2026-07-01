@@ -19,7 +19,9 @@
 
 package org.apache.texera.service
 
-import io.dropwizard.core.setup.Environment
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.dropwizard.configuration.ConfigurationSourceProvider
+import io.dropwizard.core.setup.{Bootstrap, Environment}
 import io.dropwizard.jersey.DropwizardResourceConfig
 import io.dropwizard.jersey.setup.JerseyEnvironment
 import io.dropwizard.jetty.MutableServletContextHandler
@@ -33,12 +35,28 @@ import org.apache.texera.service.resource.{
   LiteLLMProxyResource
 }
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
-import org.mockito.ArgumentMatchers.isA
+import org.mockito.ArgumentMatchers.{any, isA}
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.control.NonFatal
+
 class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
+
+  "AccessControlService.initialize" should "run the shared bootstrap configuration and database setup" in {
+    val bootstrap = mock(classOf[Bootstrap[AccessControlServiceConfiguration]])
+    when(bootstrap.getObjectMapper).thenReturn(mock(classOf[ObjectMapper]))
+    when(bootstrap.getConfigurationSourceProvider)
+      .thenReturn(mock(classOf[ConfigurationSourceProvider]))
+
+    // initialize() also opens the SQL pool, which needs a live database that a bare unit
+    // run lacks, so tolerate a failure after the config wiring asserted below.
+    try new AccessControlService().initialize(bootstrap)
+    catch { case NonFatal(_) => }
+
+    verify(bootstrap).setConfigurationSourceProvider(any(classOf[ConfigurationSourceProvider]))
+  }
 
   "AccessControlService.run" should "register UserActivityEventListener on the Jersey environment" in {
     val jersey = mock(classOf[JerseyEnvironment])

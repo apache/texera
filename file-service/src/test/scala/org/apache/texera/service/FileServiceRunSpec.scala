@@ -19,12 +19,17 @@
 
 package org.apache.texera.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.dropwizard.configuration.ConfigurationSourceProvider
+import io.dropwizard.core.setup.Bootstrap
 import org.apache.texera.auth.RoleAnnotationEnforcer
 import org.apache.texera.service.resource.{
   DatasetAccessResource,
   DatasetResource,
   HealthCheckResource
 }
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -39,5 +44,19 @@ class FileServiceRunSpec extends AnyFlatSpec with Matchers {
         classOf[HealthCheckResource]
       )
     ) shouldBe empty
+  }
+
+  "FileService.initialize" should "run the shared bootstrap and register the dataset serializer module" in {
+    val bootstrap = mock(classOf[Bootstrap[FileServiceConfiguration]])
+    val objectMapper = mock(classOf[ObjectMapper])
+    when(bootstrap.getObjectMapper).thenReturn(objectMapper)
+    when(bootstrap.getConfigurationSourceProvider)
+      .thenReturn(mock(classOf[ConfigurationSourceProvider]))
+
+    new FileService().initialize(bootstrap)
+
+    verify(bootstrap).setConfigurationSourceProvider(any(classOf[ConfigurationSourceProvider]))
+    // Scala module (via ServiceBootstrap.configure) + the DatasetFileNode serializer module.
+    verify(objectMapper, org.mockito.Mockito.atLeastOnce()).registerModule(any())
   }
 }

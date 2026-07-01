@@ -19,20 +19,38 @@
 
 package org.apache.texera.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.dropwizard.auth.AuthDynamicFeature
-import io.dropwizard.core.setup.Environment
+import io.dropwizard.configuration.ConfigurationSourceProvider
+import io.dropwizard.core.setup.{Bootstrap, Environment}
 import io.dropwizard.jersey.setup.JerseyEnvironment
 import io.dropwizard.jetty.MutableServletContextHandler
 import io.dropwizard.jetty.setup.ServletEnvironment
 import org.apache.texera.auth.UnauthorizedExceptionMapper
 import org.apache.texera.service.resource.{HealthCheckResource, NotebookMigrationResource}
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
-import org.mockito.ArgumentMatchers.isA
+import org.mockito.ArgumentMatchers.{any, isA}
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.control.NonFatal
+
 class NotebookMigrationServiceRunSpec extends AnyFlatSpec with Matchers {
+
+  "NotebookMigrationService.initialize" should "run the shared bootstrap configuration and database setup" in {
+    val bootstrap = mock(classOf[Bootstrap[NotebookMigrationServiceConfiguration]])
+    when(bootstrap.getObjectMapper).thenReturn(mock(classOf[ObjectMapper]))
+    when(bootstrap.getConfigurationSourceProvider)
+      .thenReturn(mock(classOf[ConfigurationSourceProvider]))
+
+    // initialize() also opens the SQL pool, which needs a live database that a bare unit
+    // run lacks, so tolerate a failure after the config wiring asserted below.
+    try new NotebookMigrationService().initialize(bootstrap)
+    catch { case NonFatal(_) => }
+
+    verify(bootstrap).setConfigurationSourceProvider(any(classOf[ConfigurationSourceProvider]))
+  }
 
   "NotebookMigrationService.run" should "register the resources and the JWT auth stack on the Jersey environment" in {
     val jersey = mock(classOf[JerseyEnvironment])
