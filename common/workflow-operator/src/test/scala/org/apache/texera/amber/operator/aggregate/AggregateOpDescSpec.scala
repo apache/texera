@@ -95,4 +95,14 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
       .getExternalOutputSchemas(Map(PortIdentity() -> input)) shouldBe
       Map(PortIdentity() -> Schema().add("row_count", AttributeType.INTEGER))
   }
+
+  it should "fail fast for a non-COUNT function with an empty attribute (only COUNT allows it)" in {
+    // Only COUNT tolerates a blank attribute; SUM/etc. must resolve the column and fail
+    // fast rather than propagate a null-typed output.
+    val input = Schema().add("v", AttributeType.LONG)
+    assertThrows[Exception] {
+      descWith(List.empty, aggOp(AggregationFunction.SUM, "", "total"))
+        .getExternalOutputSchemas(Map(PortIdentity() -> input))
+    }
+  }
 }

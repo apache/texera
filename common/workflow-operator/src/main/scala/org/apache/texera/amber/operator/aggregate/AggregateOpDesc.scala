@@ -79,10 +79,14 @@ class AggregateOpDesc extends LogicalOp {
           val outputSchema = Schema(
             groupByKeys.map(key => inputSchema.getAttribute(key)) ++
               localAggregations.map { agg =>
-                // An empty attribute (COUNT(*)) has no input column to look up; COUNT's
-                // result type is INTEGER regardless, so a null attrType is safe here.
+                // Only COUNT with an empty attribute (COUNT(*)) skips the column lookup:
+                // its result type is INTEGER regardless. Every other function resolves
+                // the input attribute (failing fast if it is missing/invalid).
                 val attrType =
-                  if (agg.attribute == null || agg.attribute.trim.isEmpty) null
+                  if (
+                    agg.aggFunction == AggregationFunction.COUNT &&
+                    (agg.attribute == null || agg.attribute.trim.isEmpty)
+                  ) null
                   else inputSchema.getAttribute(agg.attribute).getType
                 agg.getAggregationAttribute(attrType)
               }
