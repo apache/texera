@@ -166,7 +166,7 @@ class SklearnOpDescRegistrySpec extends AnyFlatSpec {
     val desc = new SklearnLogisticRegressionOpDesc()
     desc.target = "y"
     desc.countVectorizer = false
-    // `tfidfTransformer` is a val on the base class, defaults to false.
+    // `tfidfTransformer` is defined on the shared base class, defaults to false.
     val code = desc.generatePythonCode()
     assert(code.contains("from sklearn.linear_model import LogisticRegression"))
     // Classifier OpDescs emit a UDFTableOperator pipeline.
