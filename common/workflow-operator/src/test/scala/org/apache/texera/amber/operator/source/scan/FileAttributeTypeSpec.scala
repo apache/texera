@@ -37,7 +37,7 @@ class FileAttributeTypeSpec extends AnyFlatSpec with Matchers {
     FileAttributeType.BINARY.getName shouldBe "binary"
     FileAttributeType.LARGE_BINARY.getName shouldBe "large binary"
     FileAttributeType.values() should have length 9
-    FileAttributeType.SINGLE_STRING.toString shouldBe "single string"
+    FileAttributeType.values().foreach(t => t.toString shouldBe t.getName)
   }
 
   "FileAttributeType.getType" should "map to the corresponding core AttributeType" in {
