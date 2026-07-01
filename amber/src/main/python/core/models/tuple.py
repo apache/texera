@@ -34,6 +34,17 @@ from .schema.attribute_type import TO_PYOBJECT_MAPPING, AttributeType
 from .schema.field import Field
 from .schema.schema import Schema
 
+# Ranges within which an integral float can be safely cast back to int.
+# INT is bounded by Arrow int32 capacity. LONG is bounded by the float64
+# exact-integer window rather than int64 capacity: above 2**53 float64
+# rounds, so the received float may already be a corrupted rendition of
+# the original integer. The endpoint 2**53 itself is excluded because it
+# is ambiguous (2**53 + 1 also rounds to float 2**53).
+INTEGRAL_TYPE_RANGES = {
+    AttributeType.INT: (-(2**31), 2**31 - 1),
+    AttributeType.LONG: (-(2**53) + 1, 2**53 - 1),
+}
+
 
 @runtime_checkable
 class TupleLike(Protocol):
@@ -303,9 +314,10 @@ class Tuple:
         """
         Safely cast each field value to match the target schema.
         If failed, the value will stay not changed.
-        This current conducts two kinds of casts:
+        This current conducts three kinds of casts:
             1. cast NaN to None;
-            2. cast any object to bytes (using pickle).
+            2. cast integral floats to int for INT/LONG fields;
+            3. cast any object to bytes (using pickle).
         :param schema: The target Schema that describes the target AttributeType to
             cast.
         :return:
@@ -317,10 +329,33 @@ class Tuple:
                 # convert NaN to None to support null value conversion
                 if checknull(field_value):
                     self[field_name] = None
-
-                if field_value is not None:
+                elif field_value is not None:
                     field_type = schema.get_attr_type(field_name)
-                    if field_type == AttributeType.BINARY and not isinstance(
+                    if (
+                        field_type in INTEGRAL_TYPE_RANGES
+                        and isinstance(field_value, float)
+                        and field_value.is_integer()
+                    ):
+                        # pandas promotes an int column holding nulls to
+                        # float64 (119 -> 119.0), so convert integral floats
+                        # destined for INT/LONG back to int — but only within
+                        # the safe range above; out-of-range floats are left
+                        # unchanged so validation still fails. Compare on the
+                        # int result to avoid float rounding at the endpoints.
+                        min_value, max_value = INTEGRAL_TYPE_RANGES[field_type]
+                        int_value = int(field_value)
+                        if min_value <= int_value <= max_value:
+                            self[field_name] = int_value
+                        else:
+                            logger.warning(
+                                f"Field '{field_name}': integral float "
+                                f"{field_value} is outside the safely coercible "
+                                f"range of {field_type}; leaving it unchanged "
+                                f"(schema validation will fail). Consider "
+                                f"casting the column to STRING or DOUBLE (or "
+                                f"LONG for large integers in an INT field)."
+                            )
+                    elif field_type == AttributeType.BINARY and not isinstance(
                         field_value, bytes
                     ):
                         self[field_name] = b"pickle    " + pickle.dumps(field_value)
