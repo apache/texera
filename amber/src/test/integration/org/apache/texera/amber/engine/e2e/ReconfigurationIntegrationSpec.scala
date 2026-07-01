@@ -105,26 +105,31 @@ class ReconfigurationIntegrationSpec
   }
 
   /**
-    * Run a trivial pure-Scala workflow (TextInput → terminal) once before the
-    * timed tests start, so the first 5-second `startWorkflow` await in
-    * [[TestUtils.shouldReconfigure]] doesn't have to absorb JVM JIT
-    * warmup, pekko dispatcher first-touch, and `RegionExecutionCoordinator`
-    * class loading.
-    *
-    * Hard-capped at 10 seconds total, defensively wrapped: if warmup itself
-    * times out or throws, log and continue — the existing `Retries` mixin
-    * still backs up individual test cases. This ensures warmup can never
-    * hang the suite.
+    * Runs a TextInput -> Python UDF workflow once before the timed tests so
+    * Python worker cold-start is paid here, not inside a timed test. Capped and
+    * wrapped so warmup can never fail or hang the suite.
     */
   private def warmupOnce(): Unit = {
-    val warmupCap = Duration.fromSeconds(10)
+    val warmupCap = Duration.fromSeconds(60)
     setUpWorkflowExecutionData(specId)
     var client: AmberClient = null
     try {
       val src = new TextInputSourceOpDesc()
       src.textInput = "warmup"
+      val udf = TestOperators.pythonOpDesc()
       val warmupCtx = TestUtils.workflowContext(specId)
-      val workflow = buildWorkflow(List(src), List.empty, warmupCtx)
+      val workflow = buildWorkflow(
+        List(src, udf),
+        List(
+          LogicalLink(
+            src.operatorIdentifier,
+            PortIdentity(),
+            udf.operatorIdentifier,
+            PortIdentity()
+          )
+        ),
+        warmupCtx
+      )
       client = new AmberClient(
         system,
         workflow.context,
