@@ -22,9 +22,11 @@ package org.apache.texera.amber.operator.aggregate
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.jdk.CollectionConverters._
 
 class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -104,5 +106,29 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
       descWith(List.empty, aggOp(AggregationFunction.SUM, "", "total"))
         .getExternalOutputSchemas(Map(PortIdentity() -> input))
     }
+  }
+
+  "AggregateOpDesc JSON schema" should
+    "make the attribute optional only for count and required for every other function" in {
+    val aggDef = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[AggregateOpDesc])
+      .get("definitions")
+      .get("AggregationOperation")
+
+    // attribute is not unconditionally required (aggFunction still is)
+    val baseRequired = aggDef.get("required").elements().asScala.map(_.asText()).toSet
+    baseRequired should contain("aggFunction")
+    baseRequired should not contain "attribute"
+
+    // conditional rule: count -> no attribute requirement; any other function -> attribute required
+    val rule = aggDef
+      .get("allOf")
+      .elements()
+      .asScala
+      .find(node => node.has("if") && node.has("else"))
+      .getOrElse(fail("expected a conditional if/else rule in the AggregationOperation schema"))
+    rule.get("if").get("properties").get("aggFunction").get("const").asText() shouldBe "count"
+    val elseRequired = rule.get("else").get("required").elements().asScala.map(_.asText()).toList
+    elseRequired should contain("attribute")
   }
 }

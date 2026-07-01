@@ -82,6 +82,12 @@ Quill.register("modules/cursors", QuillCursors);
 // attribute is optional.
 export const AGGREGATE_COUNT = "count";
 
+// The Aggregate attribute is required for every function except `count` (an empty
+// attribute on count means COUNT(*), which needs no column).
+export function isAggregateAttributeRequired(aggFunction: unknown): boolean {
+  return aggFunction !== AGGREGATE_COUNT;
+}
+
 /**
  * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
  * For example, the JSON Schema of Sentiment Analysis could be:
@@ -556,7 +562,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       if (this.currentOperatorSchema?.operatorType === "Aggregate" && mappedField.key === "attribute") {
         mappedField.expressions = {
           ...mappedField.expressions,
-          "props.required": (field: FormlyFieldConfig) => field.parent?.model?.aggFunction !== AGGREGATE_COUNT,
+          "props.required": (field: FormlyFieldConfig) =>
+            isAggregateAttributeRequired(field.parent?.model?.aggFunction),
         };
       }
 

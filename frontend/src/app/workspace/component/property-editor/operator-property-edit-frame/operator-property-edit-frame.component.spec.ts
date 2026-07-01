@@ -19,7 +19,11 @@
 
 import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from "@angular/core/testing";
 
-import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
+import {
+  AGGREGATE_COUNT,
+  isAggregateAttributeRequired,
+  OperatorPropertyEditFrameComponent,
+} from "./operator-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
@@ -52,6 +56,18 @@ import { MockComputingUnitStatusService } from "../../../../common/service/compu
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 const { marbles } = configure({ run: false });
+
+describe("Aggregate attribute requirement", () => {
+  it("makes the attribute optional for count and required for every other function", () => {
+    // count -> optional (empty attribute means COUNT(*))
+    expect(isAggregateAttributeRequired(AGGREGATE_COUNT)).toBe(false);
+    // every other aggregate function -> attribute required
+    ["sum", "average", "min", "max", "concat"].forEach(fn => {
+      expect(isAggregateAttributeRequired(fn)).toBe(true);
+    });
+  });
+});
+
 describe("OperatorPropertyEditFrameComponent", () => {
   let component: OperatorPropertyEditFrameComponent;
   let fixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
