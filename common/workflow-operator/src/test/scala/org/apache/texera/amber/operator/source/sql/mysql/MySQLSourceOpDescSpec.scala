@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.source.sql.mysql
 
-import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.workflow.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
@@ -65,16 +64,10 @@ class MySQLSourceOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "MySQLSourceOpDesc.getPhysicalOp" should
-    "wire the MySQL exec as a source op with no input port and one output port" in {
+    "throw because the operator is no longer executable" in {
     val d = new MySQLSourceOpDesc
-    val physical = d.getPhysicalOp(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
-    physical.opExecInitInfo match {
-      case OpExecWithClassName(className, _) =>
-        className shouldBe "org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpExec"
-      case other => fail(s"expected OpExecWithClassName, got $other")
-    }
-    physical.inputPorts.keySet shouldBe empty
-    physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
+    an[UnsupportedOperationException] should be thrownBy
+      d.getPhysicalOp(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
   }
 
   "MySQLSourceOpDesc" should "round-trip its config fields through the polymorphic base" in {

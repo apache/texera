@@ -19,15 +19,10 @@
 
 package org.apache.texera.amber.operator.source.sql.mysql
 
-import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.sql.SQLSourceOpDesc
-import org.apache.texera.amber.operator.source.sql.mysql.MySQLConnUtil.connect
-import org.apache.texera.amber.util.JSONUtils.objectMapper
-
-import java.sql.{Connection, SQLException}
 
 @deprecated("MySQL source operator is no longer executable.", "1.1.0-incubating")
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
@@ -36,21 +31,7 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp =
-    PhysicalOp
-      .sourcePhysicalOp(
-        workflowId,
-        executionId,
-        this.operatorIdentifier,
-        OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpExec",
-          objectMapper.writeValueAsString(this)
-        )
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
-      )
+    throw new UnsupportedOperationException("MySQL Source operator is no longer executable.")
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -60,9 +41,6 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
-
-  @throws[SQLException]
-  override def establishConn: Connection = connect(host, port, database, username, password)
 
   override def updatePort(): Unit = port = if (port.trim().equals("default")) "3306" else port
 
