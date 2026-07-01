@@ -80,7 +80,7 @@ export class DatasetSelectionModalComponent implements OnInit {
         if (selectedPath) {
           const segments = selectedPath.split("/").filter(part => part.length > 0);
           // Drop the resource-type prefix ("datasets") if present, so owner/dataset/version
-          // line up whether the stored path is prefixed (file mode) or not (version mode).
+          // line up. Tolerates legacy paths saved before the prefix existed.
           if (segments[0] === "datasets") {
             segments.shift();
           }
@@ -119,7 +119,7 @@ export class DatasetSelectionModalComponent implements OnInit {
           this.fileTree = data.fileNodes;
         });
       if (!this.data.fileMode) {
-        this.selectedPath = `/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
+        this.selectedPath = `/datasets/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
       }
     }
   }

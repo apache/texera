@@ -60,6 +60,22 @@ class TestDatasetFileDocumentInit:
         assert doc.owner_email == "bob@x.com"
         assert doc.file_relative_path == "file.csv"
 
+    def test_strips_datasets_resource_type_prefix(self, auth_env):
+        doc = DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
+        assert doc.owner_email == "bob@x.com"
+        assert doc.dataset_name == "ds"
+        assert doc.version_name == "v1"
+        assert doc.file_relative_path == "file.csv"
+
+    def test_only_datasets_prefix_is_stripped(self, auth_env):
+        # Any other leading segment (e.g. "models") is treated as the owner email,
+        # matching the backend which only registers "datasets" as a prefix.
+        doc = DatasetFileDocument("/models/bob@x.com/ds/v1/file.csv")
+        assert doc.owner_email == "models"
+        assert doc.dataset_name == "bob@x.com"
+        assert doc.version_name == "ds"
+        assert doc.file_relative_path == "v1/file.csv"
+
     def test_rejects_path_with_fewer_than_four_segments(self, auth_env):
         with pytest.raises(ValueError, match="Invalid file path format"):
             DatasetFileDocument("/bob@x.com/ds/v1")
@@ -127,6 +143,18 @@ class TestGetPresignedUrl:
             assert "data%20file.csv" in file_path
             assert "bob%40x.com" in file_path
             assert file_path.startswith("/")
+
+    def test_sends_datasets_prefixed_filepath(self, monkeypatch):
+        # The reconstructed filePath is re-emitted with the "datasets" prefix,
+        # even when the input path was the legacy unprefixed form.
+        doc = self._make_doc(monkeypatch, path="/bob@x.com/ds/v1/file.csv")
+        with patch(
+            "pytexera.storage.dataset_file_document.requests.Session.get"
+        ) as mock_get:
+            mock_get.return_value = make_response(200, body={"presignedUrl": "u"})
+            doc.get_presigned_url()
+            _, kwargs = mock_get.call_args
+            assert kwargs["params"]["filePath"].startswith("/datasets/")
 
     def test_calls_configured_endpoint(self, monkeypatch):
         doc = self._make_doc(monkeypatch)

@@ -24,6 +24,11 @@ from urllib3.util.retry import Retry
 
 
 class DatasetFileDocument:
+    # Leading resource-type segment on dataset logical paths. It is stripped when
+    # parsing and re-emitted when calling the file-service, mirroring FileResolver
+    # on the backend. The legacy unprefixed format is still accepted.
+    RESOURCE_TYPE_PREFIX = "datasets"
+
     # (connect, read) timeout and retry settings for the file-service GETs below.
     # Read timeout bounds inactivity between bytes, not total download time.
     _CONNECT_TIMEOUT_SECONDS = 5
@@ -56,14 +61,24 @@ class DatasetFileDocument:
         Parses the file path into dataset metadata.
 
         :param file_path:
-           Expected format - "/ownerEmail/datasetName/versionName/fileRelativePath"
-           Example: "/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv"
+           Expected format -
+             "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
+           Example:
+             "/datasets/bob@texera.com/twitterDataset/v1/california/tw1.csv"
+           A leading "datasets" resource-type segment is stripped if present; the
+           legacy unprefixed format is still accepted for backward compatibility.
         """
         parts = file_path.strip("/").split("/")
+
+        # Strip the resource-type prefix ("datasets") if present, keeping legacy
+        # unprefixed paths working. Mirrors FileResolver on the backend.
+        if parts and parts[0] == self.RESOURCE_TYPE_PREFIX:
+            parts = parts[1:]
+
         if len(parts) < 4:
             raise ValueError(
-                "Invalid file path format. "
-                "Expected: /ownerEmail/datasetName/versionName/fileRelativePath"
+                "Invalid file path format. Expected: "
+                "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
             )
 
         self.owner_email = parts[0]
@@ -90,6 +105,7 @@ class DatasetFileDocument:
         """
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
         encoded_file_path = urllib.parse.quote(
+            f"/{self.RESOURCE_TYPE_PREFIX}"
             f"/{self.owner_email}"
             f"/{self.dataset_name}"
             f"/{self.version_name}"
