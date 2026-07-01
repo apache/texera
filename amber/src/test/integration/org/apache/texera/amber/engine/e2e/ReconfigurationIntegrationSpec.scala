@@ -171,12 +171,13 @@ class ReconfigurationIntegrationSpec
   ): Map[OperatorIdentity, List[Tuple]] =
     TestUtils.shouldReconfigure(system, ctx, operators, links, targetOps, newOpExecInitInfo)
 
-  private def boundedCsvSource() = {
-    TestOperators.mediumCsvScanOpDesc()
-  }
+  // Small source that emits slowly (30 rows, 0.25s apart) so a pause lands
+  // mid-run and the workflow still completes quickly after resume.
+  private def slowSource() =
+    TestOperators.slowRegionSourceOpDesc(numTuple = 30, delaySeconds = 0.25)
 
   "Engine" should "be able to modify a python UDF worker in workflow" in {
-    val sourceOpDesc = boundedCsvSource()
+    val sourceOpDesc = slowSource()
     val udfOpDesc = TestOperators.pythonOpDesc()
     val code = """
                  |from pytexera import *
@@ -207,7 +208,7 @@ class ReconfigurationIntegrationSpec
   }
 
   "Engine" should "propagate reconfiguration through a source operator in workflow" in {
-    val sourceOpDesc = TestOperators.pythonSourceOpDesc(10000)
+    val sourceOpDesc = slowSource()
     val udfOpDesc = TestOperators.pythonOpDesc()
     val code = """
                  |from pytexera import *
@@ -215,7 +216,7 @@ class ReconfigurationIntegrationSpec
                  |class ProcessTupleOperator(UDFOperatorV2):
                  |    @overrides
                  |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-                 |        tuple_['field_1'] = tuple_['field_1'] + '_reconfigured'
+                 |        tuple_['Region'] = tuple_['Region'] + '_reconfigured'
                  |        yield tuple_
                  |""".stripMargin
     val result = shouldReconfigure(
@@ -232,12 +233,12 @@ class ReconfigurationIntegrationSpec
       OpExecWithCode(code, "python")
     )
     assert(result(udfOpDesc.operatorIdentifier).exists { t =>
-      t.getField("field_1").asInstanceOf[String].contains("_reconfigured")
+      t.getField("Region").asInstanceOf[String].contains("_reconfigured")
     })
   }
 
   "Engine" should "be able to modify two python UDFs in workflow" in {
-    val sourceOpDesc = boundedCsvSource()
+    val sourceOpDesc = slowSource()
     val udfOpDesc1 = TestOperators.pythonOpDesc()
     val udfOpDesc2 = TestOperators.pythonOpDesc()
     val code = """
