@@ -1,0 +1,68 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.operator.source.scan
+
+import org.apache.texera.amber.core.tuple.AttributeType
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+class FileAttributeTypeSpec extends AnyFlatSpec with Matchers {
+
+  "FileAttributeType" should "map each constant to its wire name (also its toString)" in {
+    FileAttributeType.STRING.getName shouldBe "string"
+    FileAttributeType.SINGLE_STRING.getName shouldBe "single string"
+    FileAttributeType.INTEGER.getName shouldBe "integer"
+    FileAttributeType.LONG.getName shouldBe "long"
+    FileAttributeType.DOUBLE.getName shouldBe "double"
+    FileAttributeType.BOOLEAN.getName shouldBe "boolean"
+    FileAttributeType.TIMESTAMP.getName shouldBe "timestamp"
+    FileAttributeType.BINARY.getName shouldBe "binary"
+    FileAttributeType.LARGE_BINARY.getName shouldBe "large binary"
+    FileAttributeType.values() should have length 9
+    FileAttributeType.values().foreach(t => t.toString shouldBe t.getName)
+  }
+
+  "FileAttributeType.getType" should "map to the corresponding core AttributeType" in {
+    FileAttributeType.STRING.getType shouldBe AttributeType.STRING
+    FileAttributeType.SINGLE_STRING.getType shouldBe AttributeType.STRING
+    FileAttributeType.INTEGER.getType shouldBe AttributeType.INTEGER
+    FileAttributeType.LONG.getType shouldBe AttributeType.LONG
+    FileAttributeType.DOUBLE.getType shouldBe AttributeType.DOUBLE
+    FileAttributeType.BOOLEAN.getType shouldBe AttributeType.BOOLEAN
+    FileAttributeType.TIMESTAMP.getType shouldBe AttributeType.TIMESTAMP
+    FileAttributeType.BINARY.getType shouldBe AttributeType.BINARY
+    FileAttributeType.LARGE_BINARY.getType shouldBe AttributeType.LARGE_BINARY
+  }
+
+  "FileAttributeType.isSingle" should "hold only for the single-value types" in {
+    FileAttributeType.SINGLE_STRING.isSingle shouldBe true
+    FileAttributeType.BINARY.isSingle shouldBe true
+    FileAttributeType.LARGE_BINARY.isSingle shouldBe true
+    FileAttributeType.STRING.isSingle shouldBe false
+    FileAttributeType.INTEGER.isSingle shouldBe false
+  }
+
+  "FileAttributeType" should "round-trip through Jackson using its wire name" in {
+    objectMapper.writeValueAsString(FileAttributeType.SINGLE_STRING) shouldBe "\"single string\""
+    objectMapper.readValue("\"large binary\"", classOf[FileAttributeType]) shouldBe
+      FileAttributeType.LARGE_BINARY
+  }
+}

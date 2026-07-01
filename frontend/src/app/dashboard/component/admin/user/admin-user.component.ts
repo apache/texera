@@ -37,6 +37,9 @@ import { AdminUserService } from "../../../service/admin/user/admin-user.service
 import { MilliSecond, Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
+import { FeedbackComponent } from "../../user/feedback/feedback.component";
+import { FeedbackService } from "../../../service/user/feedback/feedback.service";
+import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { replaceOneImmutable } from "../../../../common/util/array-utils";
 import { NzCardComponent } from "ng-zorro-antd/card";
@@ -82,6 +85,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzSelectComponent,
     NzOptionComponent,
     NzTooltipDirective,
+    NzBadgeComponent,
     DatePipe,
   ],
 })
@@ -101,6 +105,7 @@ export class AdminUserComponent implements OnInit {
   commentSearchVisible = false;
   listOfDisplayUser = [...this.userList];
   currentUid: number | undefined = 0;
+  feedbackCounts = new Map<number, number>();
 
   @ViewChild("nameInput") nameInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild("emailInput") emailInputRef?: ElementRef<HTMLInputElement>;
@@ -111,7 +116,8 @@ export class AdminUserComponent implements OnInit {
     private userService: UserService,
     private modalService: NzModalService,
     private messageService: NzMessageService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private feedbackService: FeedbackService
   ) {
     this.currentUid = this.userService.getCurrentUser()?.uid;
   }
@@ -124,6 +130,30 @@ export class AdminUserComponent implements OnInit {
         this.userList = userList;
         this.reset();
       });
+    this.loadFeedbackCounts();
+  }
+
+  loadFeedbackCounts(): void {
+    this.feedbackService
+      .getFeedbackCounts()
+      .pipe(untilDestroyed(this))
+      .subscribe(counts => {
+        this.feedbackCounts = new Map(counts.map(c => [c.uid, c.count]));
+      });
+  }
+
+  getFeedbackCount(uid: number): number {
+    return this.feedbackCounts.get(uid) ?? 0;
+  }
+
+  clickToViewFeedbacks(uid: number): void {
+    this.modalService.create({
+      nzContent: FeedbackComponent,
+      nzData: { uid: uid },
+      nzFooter: null,
+      nzWidth: "60%",
+      nzCentered: true,
+    });
   }
 
   public updateRole(user: User, role: Role): void {
@@ -258,20 +288,38 @@ export class AdminUserComponent implements OnInit {
     this.listOfDisplayUser = [...this.userList];
   }
 
+  private trimSearchValue(value: string | null | undefined): string {
+    return (value ?? "").trim();
+  }
+
   searchByName(): void {
     this.nameSearchVisible = false;
-    const q = (this.nameSearchValue ?? "").trim().toLowerCase();
-    this.listOfDisplayUser = this.userList.filter(u => (u.name ?? "").toLowerCase().includes(q));
+    this.nameSearchValue = this.trimSearchValue(this.nameSearchValue);
+    this.emailSearchValue = "";
+    this.commentSearchValue = "";
+
+    const q = this.nameSearchValue.toLowerCase();
+    this.listOfDisplayUser = this.userList.filter(user => (user.name ?? "").toLowerCase().includes(q));
   }
 
   searchByEmail(): void {
     this.emailSearchVisible = false;
-    this.listOfDisplayUser = this.userList.filter(user => (user.email || "").indexOf(this.emailSearchValue) !== -1);
+    this.emailSearchValue = this.trimSearchValue(this.emailSearchValue);
+    this.nameSearchValue = "";
+    this.commentSearchValue = "";
+
+    const q = this.emailSearchValue.toLowerCase();
+    this.listOfDisplayUser = this.userList.filter(user => (user.email ?? "").toLowerCase().includes(q));
   }
 
   searchByComment(): void {
     this.commentSearchVisible = false;
-    this.listOfDisplayUser = this.userList.filter(user => (user.comment || "").indexOf(this.commentSearchValue) !== -1);
+    this.commentSearchValue = this.trimSearchValue(this.commentSearchValue);
+    this.nameSearchValue = "";
+    this.emailSearchValue = "";
+
+    const q = this.commentSearchValue.toLowerCase();
+    this.listOfDisplayUser = this.userList.filter(user => (user.comment ?? "").toLowerCase().includes(q));
   }
 
   clickToViewQuota(uid: number) {

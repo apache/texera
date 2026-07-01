@@ -30,6 +30,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@ai-sdk/openai@npm:2.0.67":
+  version: 2.0.67
+  resolution: "@ai-sdk/openai@npm:2.0.67"
+  dependencies:
+    "@ai-sdk/provider": "npm:2.0.0"
+    "@ai-sdk/provider-utils": "npm:3.0.17"
+  peerDependencies:
+    zod: ^3.25.76 || ^4.1.8
+  checksum: 10c0/7e5c407504d7902c17c816aaccd83f642a3b82012cd8467c8f58aef5f08a49b6c31fff775439d541d40b0c8b5b94cc384f18096d1968e23670e22a56fe82d8bd
+  languageName: node
+  linkType: hard
+
 "@ai-sdk/provider-utils@npm:3.0.17":
   version: 3.0.17
   resolution: "@ai-sdk/provider-utils@npm:3.0.17"
@@ -10617,6 +10629,7 @@ __metadata:
   resolution: "gui@workspace:."
   dependencies:
     "@abacritt/angularx-social-login": "npm:2.3.0"
+    "@ai-sdk/openai": "npm:2.0.67"
     "@ali-hm/angular-tree-component": "npm:12.0.5"
     "@angular-builders/custom-webpack": "npm:21.0.3"
     "@angular-devkit/build-angular": "npm:21.2.8"
@@ -10690,7 +10703,7 @@ __metadata:
     monaco-editor: "npm:@codingame/monaco-vscode-editor-api@8.0.4"
     monaco-editor-wrapper: "npm:5.5.3"
     monaco-languageclient: "npm:8.8.3"
-    ng-zorro-antd: "npm:21.2.2"
+    ng-zorro-antd: "npm:21.3.1"
     ngx-color-picker: "npm:12.0.1"
     ngx-file-drop: "npm:16.0.0"
     ngx-json-viewer: "npm:3.2.1"
@@ -13155,9 +13168,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ng-zorro-antd@npm:21.2.2":
-  version: 21.2.2
-  resolution: "ng-zorro-antd@npm:21.2.2"
+"ng-zorro-antd@npm:21.3.1":
+  version: 21.3.1
+  resolution: "ng-zorro-antd@npm:21.3.1"
   dependencies:
     "@angular/cdk": "npm:^21.0.0"
     "@ant-design/icons-angular": "npm:^21.0.0"
@@ -13170,7 +13183,7 @@ __metadata:
     "@angular/forms": ^21.0.0
     "@angular/platform-browser": ^21.0.0
     "@angular/router": ^21.0.0
-  checksum: 10c0/bbc68d56cde3b3ae65b4d32e70daff71e6318343d88f1f8cdb0aeaa557014e050cbd5c27a79b4998f3b38fb640293ce317f8b7ad7112f351613176534cb36437
+  checksum: 10c0/ecb07144ffacd7c42bf5a2bbc0e1cbabccf0d4dc371082e3629e738d8907a858163a72193fce428554e37e0ea41f7c440b64bba2101deed84968c4d7d857c428
   languageName: node
   linkType: hard
 

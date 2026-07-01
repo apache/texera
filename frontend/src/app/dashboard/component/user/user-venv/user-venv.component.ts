@@ -175,6 +175,11 @@ export class UserVenvComponent implements OnInit {
       return;
     }
 
+    if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
+      this.notificationService.error("Environment name must contain only letters and numbers.");
+      return;
+    }
+
     const conflict = this.pves.find(p => p.name.trim() === trimmedName && p.veid !== draft.veid);
     if (conflict) {
       this.notificationService.error(`An environment named "${trimmedName}" already exists.`);
