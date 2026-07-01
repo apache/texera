@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782826184502,
+  "lastUpdate": 1782913460355,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -2305,6 +2305,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 554.2242150100697,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xiaozhen Liu",
+            "username": "Xiao-zhen-Liu",
+            "email": "xiaozl3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "104bcc40cbda04621b37bcc5fb6f3ca58cb99f46",
+          "message": "feat(dao): add operator_port_cache table (#5967)\n\n### What changes were proposed in this PR?\n\nAdds the `operator_port_cache` table that records a materialized output\nport\nresult so it can be reused across executions. It is keyed by\n`(workflow_id, global_port_id, cache_key)` and stores the JSON the cache\nkey was\ncomputed from, the result location, an optional tuple count and source\nexecution\nid, and a database-managed `updated_at`. The foreign key to\n`workflow(wid)` is\n`ON DELETE CASCADE`. The stored JSON (`cache_key_json`) lets a lookup\nconfirm a\nhash match by comparing the full JSON, so a hash collision never reuses\nthe wrong\nresult.\n\nThe change is additive: a new table in `sql/texera_ddl.sql` (fresh\ninstalls) plus\na Liquibase migration `sql/updates/26.sql` registered in\n`sql/changelog.xml`\n(existing deployments). No code reads or writes the table yet; the cache\nread/write\nlogic and its tests land with the cache service that uses it, following\nthe\nconvention of testing a table through its consumer (as `feedback` is\ntested via\n`FeedbackResourceSpec`).\n\n### Any related issues, documentation, discussions?\n\nCloses #5969. Part of the storage foundation #5882 (umbrella #5881).\nDesign discussion: #5880.\n\n### How was this PR tested?\n\nVerified the schema directly against Postgres: the migration applies\ncleanly, the\ncolumns and primary key `(workflow_id, global_port_id, cache_key)` are\ncorrect,\nthe foreign key's delete rule is `CASCADE`, the schema file and the\nmigration\ndefine identical columns/keys, and `changelog.xml` is well-formed and\nregisters\n`26.sql`. The generated jOOQ classes build from the table. The table's\nruntime\nbehavior is exercised by the cache service tests in the follow-up PR.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Opus 4.8 (Claude Code)",
+          "timestamp": "2026-07-01T06:34:40Z",
+          "url": "https://github.com/apache/texera/commit/104bcc40cbda04621b37bcc5fb6f3ca58cb99f46"
+        },
+        "date": 1782913459858,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 735.5412473372833,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1361.5029699251231,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1456.9297938896964,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 961.6253730547503,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1367.0123255004726,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1446.6996873600917,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 956.6016199407511,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1372.2447323163062,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1449.5385930758175,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 796.5419564735224,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1080.471507907829,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1147.1421266106638,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 860.247949275022,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1090.805486640292,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1137.9854322159567,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 845.3061099513875,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1086.6339264063856,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1117.912791870422,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 505.1695367707192,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 597.0213782475134,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 608.1181272359718,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 505.01037508969904,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 592.3938463528016,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 597.2740486594646,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 477.84133266602794,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 558.6807736696218,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 571.1931372419966,
             "unit": "tuples/sec"
           }
         ]
