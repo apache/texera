@@ -281,6 +281,8 @@ jobs:
         # those run in the amber-integration job below.
         env:
           AMBER_TEST_FILTER: skip-integration
+          # unit job uses its provisioned postgres catalog; default (rest) needs a Lakekeeper not run here
+          STORAGE_ICEBERG_CATALOG_TYPE: postgres
         run: |
           sbt "DAO/jacoco" \
               "Auth/jacoco" \
