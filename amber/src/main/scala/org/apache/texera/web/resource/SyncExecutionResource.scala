@@ -453,7 +453,6 @@ class SyncExecutionResource extends LazyLogging {
         }
       )
 
-
       // Absent when the operator produced no materialized result. `result` and
       // `tuplesCount` are populated together, so map over the former.
       val resultSummary = result.map { tuples =>
@@ -472,7 +471,9 @@ class SyncExecutionResource extends LazyLogging {
       // EXECUTION_FAILURE WorkflowFatalErrors (same type the compiler emits for
       // COMPILATION_ERRORs). Empty list means the operator did not fail.
       val errorMessages = errorMsg
-        .map(msg => List(WorkflowFatalError(EXECUTION_FAILURE, Timestamp(Instant.now), msg, "", opId)))
+        .map(msg =>
+          List(WorkflowFatalError(EXECUTION_FAILURE, Timestamp(Instant.now), msg, "", opId))
+        )
         .getOrElse(List.empty)
 
       operatorInfos(opId) = OperatorExecutionSummary(
@@ -563,7 +564,13 @@ class SyncExecutionResource extends LazyLogging {
           val firstSize = estimateTupleSize(truncatedFirst, mapper)
 
           if (firstSize >= maxOperatorResultCharLimit) {
-            return ("table", Some(List(SampleRow(rowIndex, truncatedFirst))), Some(totalCount), Some(1), Some(true))
+            return (
+              "table",
+              Some(List(SampleRow(rowIndex, truncatedFirst))),
+              Some(totalCount),
+              Some(1),
+              Some(true)
+            )
           }
 
           val halfLimit = maxOperatorResultCharLimit / 2
@@ -607,7 +614,13 @@ class SyncExecutionResource extends LazyLogging {
 
               val allRows = frontRows.toList ++ backBuffer.map(_._1).toList
               val skippedRows = totalCount - allRows.size
-              return ("table", Some(allRows), Some(totalCount), Some(allRows.size), Some(skippedRows > 0))
+              return (
+                "table",
+                Some(allRows),
+                Some(totalCount),
+                Some(allRows.size),
+                Some(skippedRows > 0)
+              )
             }
           }
 
