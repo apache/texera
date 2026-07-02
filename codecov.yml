@@ -25,7 +25,7 @@
 #   3. Default status checks fail on any project drop and require 100%
 #      patch coverage, so non-test refactors get a red Codecov check
 #      even when behavior is preserved. Allow 1% slack on project and
-#      keep patch coverage informational.
+#      require 60% patch coverage.
 
 flag_management:
   default_rules:
@@ -68,10 +68,14 @@ coverage:
         threshold: 1%
     patch:
       default:
-        # Surface patch coverage in the Codecov report but don't gate
-        # PRs on it: a 100%-patch policy blocks plenty of legitimate
-        # refactors / config-only changes that have no tests to add.
-        informational: true
+        # Require new/changed lines in a PR to be at least 60% covered.
+        # Lower than a 100%-patch policy so legitimate refactors and
+        # config-only changes aren't blocked, but high enough that net-new
+        # code ships with tests. The 10% threshold softens the quantization
+        # on tiny diffs (e.g. a 2-coverable-line change passes at 1 line /
+        # 50%) — patch passes when coverage is >= target - threshold = 50%.
+        target: 60%
+        threshold: 10%
 
 comment:
   # `flag_management.default_rules.carryforward: true` above already

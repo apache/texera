@@ -17,8 +17,8 @@
  * under the License.
  */
 
-@import "../../../section-style";
-@import "../../../dashboard.component.scss";
+@use "../../../section-style" as *;
+@use "../../../dashboard.component.scss" as *;
 
 /**
   * css for project label, shared by workflow section and file section

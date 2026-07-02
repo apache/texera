@@ -68,4 +68,9 @@ export class SortButtonComponent {
     this.sortMethod = SortMethod.NameDesc;
     this.sortMethodChange.emit(this.sortMethod);
   }
+
+  public execSort(): void {
+    this.sortMethod = SortMethod.ExecutionTimeDesc;
+    this.sortMethodChange.emit(this.sortMethod);
+  }
 }

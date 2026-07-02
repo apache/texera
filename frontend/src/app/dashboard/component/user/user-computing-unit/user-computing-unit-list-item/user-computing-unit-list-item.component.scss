@@ -17,8 +17,8 @@
  * under the License.
  */
 
-@import "../../../section-style";
-@import "../../../dashboard.component.scss";
+@use "../../../section-style" as *;
+@use "../../../dashboard.component.scss" as *;
 
 .computing-unit-list-item-card {
   padding: 3px;

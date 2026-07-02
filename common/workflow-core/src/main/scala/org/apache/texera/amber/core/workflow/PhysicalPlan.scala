@@ -84,6 +84,22 @@ case class PhysicalPlan(
     PhysicalPlan(newOps, newLinks)
   }
 
+  /**
+    * Returns the sub-plan made up of the given operator and all of its transitive
+    * upstream operators (the connected component feeding it), with the links among them.
+    */
+  def getTransitiveUpstreamSubPlan(physicalOpId: PhysicalOpIdentity): PhysicalPlan = {
+    @scala.annotation.tailrec
+    def upstreamClosure(
+        frontier: Set[PhysicalOpIdentity],
+        collected: Set[PhysicalOpIdentity]
+    ): Set[PhysicalOpIdentity] = {
+      val next = frontier.flatMap(getUpstreamPhysicalOpIds) -- collected
+      if (next.isEmpty) collected else upstreamClosure(next, collected ++ next)
+    }
+    getSubPlan(upstreamClosure(Set(physicalOpId), Set(physicalOpId)))
+  }
+
   def getUpstreamPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
     dag.incomingEdgesOf(physicalOpId).asScala.map(e => dag.getEdgeSource(e)).toSet
   }

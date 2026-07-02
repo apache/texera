@@ -25,13 +25,50 @@ from .tuple import Tuple
 
 class State(dict):
     CONTENT = "content"
-    SCHEMA = Schema(raw_schema={CONTENT: "STRING"})
+    # Loop-control bookkeeping owned by the worker runtime, NOT user state -- it
+    # never appears in the content JSON. In memory it rides on the StateFrame
+    # envelope; it is materialized/serialized as its own column (parallel to
+    # content) by to_tuple(...). from_tuple() returns the bare State; callers
+    # that need these values read the corresponding columns off the tuple.
+    LOOP_COUNTER = "loop_counter"
+    LOOP_START_ID = "loop_start_id"
+    SCHEMA = Schema(
+        raw_schema={
+            CONTENT: "STRING",
+            LOOP_COUNTER: "LONG",
+            LOOP_START_ID: "STRING",
+        }
+    )
 
     def to_json(self) -> str:
         return json.dumps(_to_json_value(self), separators=(",", ":"))
 
-    def to_tuple(self) -> Tuple:
-        return Tuple({State.CONTENT: self.to_json()}, schema=State.SCHEMA)
+    @staticmethod
+    def to_columns(
+        content_json: str,
+        loop_counter: int = 0,
+        loop_start_id: str = "",
+    ) -> dict:
+        """The single column-name -> value mapping for the State wire/storage
+        format. Both ``to_tuple`` (iceberg materialization) and the network
+        sender build from this, so adding a column is a one-line change here
+        rather than in every serializer.
+        """
+        return {
+            State.CONTENT: content_json,
+            State.LOOP_COUNTER: int(loop_counter),
+            State.LOOP_START_ID: loop_start_id,
+        }
+
+    def to_tuple(
+        self,
+        loop_counter: int = 0,
+        loop_start_id: str = "",
+    ) -> Tuple:
+        return Tuple(
+            State.to_columns(self.to_json(), loop_counter, loop_start_id),
+            schema=State.SCHEMA,
+        )
 
     @classmethod
     def from_json(cls, payload: str) -> "State":
