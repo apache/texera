@@ -73,4 +73,14 @@ describe("ResultTableFrameComponent", () => {
   it("should set columnLimit from gui-config", () => {
     expect(component.columnLimit).toEqual(GUI_CONFIG_LIMIT);
   });
+
+  it("populates currentResult, columns, and totalNumTuples when given non-empty data", () => {
+    component.operatorId = "op-1";
+
+    (component as any).setupResultTable([{ colA: "x", colB: 1 }], 42);
+
+    expect(component.currentResult).toEqual([{ colA: "x", colB: 1 }]);
+    expect(component.totalNumTuples).toEqual(42);
+    expect(component.currentColumns!.length).toBeGreaterThan(0);
+  });
 });
