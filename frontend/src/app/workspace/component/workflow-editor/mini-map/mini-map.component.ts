@@ -30,7 +30,6 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 @UntilDestroy()
 @Component({
@@ -44,7 +43,6 @@ import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/r
     ɵNzTransitionPatchDirective,
     NzIconDirective,
     CdkDrag,
-    FormlyRepeatDndComponent,
   ],
 })
 export class MiniMapComponent implements AfterViewInit, OnDestroy {

@@ -32,32 +32,41 @@ class State(dict):
     # that need these values read the corresponding columns off the tuple.
     LOOP_COUNTER = "loop_counter"
     LOOP_START_ID = "loop_start_id"
-    LOOP_START_STATE_URI = "loop_start_state_uri"
     SCHEMA = Schema(
         raw_schema={
             CONTENT: "STRING",
             LOOP_COUNTER: "LONG",
             LOOP_START_ID: "STRING",
-            LOOP_START_STATE_URI: "STRING",
         }
     )
 
     def to_json(self) -> str:
         return json.dumps(_to_json_value(self), separators=(",", ":"))
 
+    @staticmethod
+    def to_columns(
+        content_json: str,
+        loop_counter: int = 0,
+        loop_start_id: str = "",
+    ) -> dict:
+        """The single column-name -> value mapping for the State wire/storage
+        format. Both ``to_tuple`` (iceberg materialization) and the network
+        sender build from this, so adding a column is a one-line change here
+        rather than in every serializer.
+        """
+        return {
+            State.CONTENT: content_json,
+            State.LOOP_COUNTER: int(loop_counter),
+            State.LOOP_START_ID: loop_start_id,
+        }
+
     def to_tuple(
         self,
         loop_counter: int = 0,
         loop_start_id: str = "",
-        loop_start_state_uri: str = "",
     ) -> Tuple:
         return Tuple(
-            {
-                State.CONTENT: self.to_json(),
-                State.LOOP_COUNTER: int(loop_counter),
-                State.LOOP_START_ID: loop_start_id,
-                State.LOOP_START_STATE_URI: loop_start_state_uri,
-            },
+            State.to_columns(self.to_json(), loop_counter, loop_start_id),
             schema=State.SCHEMA,
         )
 

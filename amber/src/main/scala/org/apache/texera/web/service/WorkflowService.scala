@@ -101,7 +101,6 @@ class WorkflowService(
     with LazyLogging {
 
   // state across execution:
-  private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val stateStore = new WorkflowStateStore()
   var executionService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
 
@@ -150,8 +149,7 @@ class WorkflowService(
         evtPub.subscribe { evts: Iterable[TexeraWebSocketEvent] => evts.foreach(onNext) }
       )
       .toSeq
-    val errorSubscription = errorSubject.subscribe { evt: TexeraWebSocketEvent => onNext(evt) }
-    new CompositeDisposable(subscriptions :+ errorSubscription: _*)
+    new CompositeDisposable(subscriptions: _*)
   }
 
   def connectToExecution(onNext: TexeraWebSocketEvent => Unit): Disposable = {
@@ -277,6 +275,11 @@ class WorkflowService(
         }
       }
     }
+    // WorkflowExecutionService construction does no external work and cannot
+    // throw; it registers its error/state diff handler up front. Once published
+    // via `executionService.onNext`, any failure in `executeWorkflow()` is
+    // recorded by `errorHandler` into the metadata store, whose handler emits a
+    // WorkflowErrorEvent that `connectToExecution` forwards.
     try {
       val execution = new WorkflowExecutionService(
         controllerConf,

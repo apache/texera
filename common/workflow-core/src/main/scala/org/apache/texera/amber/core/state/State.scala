@@ -33,12 +33,11 @@ final case class State(values: Map[String, Any]) {
 
   def toTuple(
       loopCounter: Long = 0L,
-      loopStartId: String = "",
-      loopStartStateUri: String = ""
+      loopStartId: String = ""
   ): Tuple =
     Tuple
       .builder(State.schema)
-      .addSequentially(Array(toJson, Long.box(loopCounter), loopStartId, loopStartStateUri))
+      .addSequentially(Array(toJson, Long.box(loopCounter), loopStartId))
       .build()
 }
 
@@ -50,7 +49,6 @@ object State {
   // Python-only), so toTuple defaults these to the "no loop" values.
   private val LoopCounter = "loop_counter"
   private val LoopStartId = "loop_start_id"
-  private val LoopStartStateUri = "loop_start_state_uri"
   private val BytesTypeMarker = "__texera_type__"
   private val BytesValue = "bytes"
   private val PayloadMarker = "payload"
@@ -58,8 +56,7 @@ object State {
   val schema: Schema = new Schema(
     new Attribute(Content, AttributeType.STRING),
     new Attribute(LoopCounter, AttributeType.LONG),
-    new Attribute(LoopStartId, AttributeType.STRING),
-    new Attribute(LoopStartStateUri, AttributeType.STRING)
+    new Attribute(LoopStartId, AttributeType.STRING)
   )
 
   def fromJson(payload: String): State =

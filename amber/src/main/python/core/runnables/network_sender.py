@@ -105,13 +105,13 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             self._proxy_client.send_data(bytes(data_header), data_payload.frame)
         elif isinstance(data_payload, StateFrame):
             data_header = PythonDataHeader(tag=to, payload_type="State")
+            columns = State.to_columns(
+                data_payload.frame.to_json(),
+                data_payload.loop_counter,
+                data_payload.loop_start_id,
+            )
             table = pa.Table.from_pydict(
-                {
-                    State.CONTENT: [data_payload.frame.to_json()],
-                    State.LOOP_COUNTER: [int(data_payload.loop_counter)],
-                    State.LOOP_START_ID: [data_payload.loop_start_id],
-                    State.LOOP_START_STATE_URI: [data_payload.loop_start_state_uri],
-                },
+                {name: [value] for name, value in columns.items()},
                 schema=State.SCHEMA.as_arrow_schema(),
             )
             self._proxy_client.send_data(bytes(data_header), table)

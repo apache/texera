@@ -100,7 +100,6 @@ class NetworkReceiver(Runnable, Stoppable):
                     State.from_json(table[State.CONTENT][0].as_py()),
                     loop_counter=int(table[State.LOOP_COUNTER][0].as_py()),
                     loop_start_id=table[State.LOOP_START_ID][0].as_py(),
-                    loop_start_state_uri=table[State.LOOP_START_STATE_URI][0].as_py(),
                 ),
                 "ECM",
                 lambda _: EmbeddedControlMessage().parse(table["payload"][0].as_py()),

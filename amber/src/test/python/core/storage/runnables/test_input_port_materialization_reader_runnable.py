@@ -70,12 +70,10 @@ class TestRunStateReadingBlock:
         row_a = {
             State.LOOP_COUNTER: 0,
             State.LOOP_START_ID: "loop-a",
-            State.LOOP_START_STATE_URI: "vfs:///a",
         }
         row_b = {
             State.LOOP_COUNTER: 1,
             State.LOOP_START_ID: "loop-b",
-            State.LOOP_START_STATE_URI: "vfs:///b",
         }
         result_doc = MagicMock()
         result_doc.get.return_value = iter([])  # No materialized tuples.
@@ -109,8 +107,4 @@ class TestRunStateReadingBlock:
         assert [sf.payload.frame for sf in state_frames] == [state_a, state_b]
         assert [sf.payload.loop_counter for sf in state_frames] == [0, 1]
         assert [sf.payload.loop_start_id for sf in state_frames] == ["loop-a", "loop-b"]
-        assert [sf.payload.loop_start_state_uri for sf in state_frames] == [
-            "vfs:///a",
-            "vfs:///b",
-        ]
         assert runnable._finished is True

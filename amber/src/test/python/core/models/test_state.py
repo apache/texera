@@ -31,14 +31,12 @@ class TestState:
         assert State.CONTENT == "content"
         assert State.LOOP_COUNTER == "loop_counter"
         assert State.LOOP_START_ID == "loop_start_id"
-        assert State.LOOP_START_STATE_URI == "loop_start_state_uri"
         # The loop-control columns are runtime-owned bookkeeping, sibling to
         # content, not part of the user state JSON.
         assert State.SCHEMA.get_attr_names() == [
             "content",
             "loop_counter",
             "loop_start_id",
-            "loop_start_state_uri",
         ]
 
     def test_json_round_trip_primitives(self):
