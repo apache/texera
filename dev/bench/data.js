@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782913462607,
+  "lastUpdate": 1782999506573,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -2462,6 +2462,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 571.1931372419966,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "24b587fcbf30bce1a4614a22bbf1c5a6ad1e158e",
+          "message": "test(workflow-core): fill uncovered branches in tuple and type utilities (#6055)\n\n### What changes were proposed in this PR?\n\nFill uncovered code paths in five `workflow-core` tuple/type utility\nclasses, selected from the Codecov report (not spec-name gaps). No\nproduction-code changes.\n\n| File | Codecov before | Missed lines targeted |\n| --- | --- | --- |\n| `Tuple.scala` | 54.1% | 24 — `getField` miss/Attribute overload,\n`enforceSchema`, equals branches (incl. binary contents / non-Tuple),\n`getPartialTuple`, `toString`, size/type-mismatch throws, 3-arg builder\n`add` + null guards, case-class synthetics |\n| `TupleLike.scala` | 12.8% | 32 — `SeqTupleLike`/`MapTupleLike`\n`enforceSchema` (positional vs name-based, null fill, extras dropped),\n`inMemSize` `???`, all seven `TupleLike.apply` overloads, the\n`NotAnIterable` guard implicit |\n| `AttributeType.java` | 47.2% | 18 — `getName` ANY branch (`\"\"`), the\nfull `getAttributeType(Class)` mapping incl. primitive/unknown fallback\nto ANY |\n| `AttributeTypeUtils.scala` | 71.7% | 20 (+29 partials) —\n`SchemaCasting`, `tupleCasting`, both `parseFields` overloads,\nnull-inference early-returns, BINARY/ANY inference fallback, LONG/DOUBLE\n`compare`, unsupported-type throws, forced-parse failures |\n| `ArrowUtils.scala` | 67.8% | 15 —\n`appendTexeraTuple`/`setTexeraTuple`/`getTexeraTuple` round-trip (all 7\ntypes + nulls + row indices), parse-failure → null field,\n`fromAttributeType(null)` throw, unrecognized `texera_type` metadata\nfallback |\n\nExtends the existing `TupleSpec`, `AttributeTypeUtilsSpec`, and\n`ArrowUtilsSpec` (the operator-module `ArrowUtilsSpec` doesn't attribute\ncoverage to `workflow-core` sources), and adds `TupleLikeSpec` /\n`AttributeTypeSpec`.\n\nBehavior notes pinned along the way: `$attrType` error messages render\nthe lowercase wire name; the `NotAnIterable` iterable-guard implicit is\nnot summoned for multi-iterable varargs under Scala 2.13 inference\n(pinned by direct invocation).\n\n### Any related issues, documentation, discussions?\n\nFollow-up to the review feedback on #6043: prioritize tests that fill\nuncovered code paths.\n\n### How was this PR tested?\n\n- `sbt \"WorkflowCore/testOnly *TupleSpec *TupleLikeSpec\n*AttributeTypeSpec *AttributeTypeUtilsSpec\norg.apache.texera.amber.util.ArrowUtilsSpec\"` — 105 tests, all green\n- `sbt \"WorkflowCore/Test/scalafmtCheck\"` and `sbt\n\"WorkflowCore/scalafixAll --check\"` — clean\n- CI + Codecov delta to confirm\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-07-02T07:11:04Z",
+          "url": "https://github.com/apache/texera/commit/24b587fcbf30bce1a4614a22bbf1c5a6ad1e158e"
+        },
+        "date": 1782999506038,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 588.7047598450578,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1064.1000721050223,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1142.975328040915,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 797.0912768311435,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1089.8785455299235,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1139.8040062760597,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 808.0953662045206,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1103.1893799261784,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1129.5223204413157,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 653.6539914390048,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 886.0517365004655,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 910.5230187065033,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 663.7194633103622,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 875.0491161896864,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 912.0864069663311,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 676.2363125890427,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 858.6936003507558,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 898.5233819225396,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 420.8437738133003,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 503.09077355980054,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 516.4183775008889,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 422.43115820320907,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 500.9279268690094,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 509.01057304311416,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 414.0423321467976,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 485.72921753212154,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 494.40281862077387,
             "unit": "tuples/sec"
           }
         ]
