@@ -91,4 +91,16 @@ describe("WorkflowResultState - ancestor walk", () => {
     state.set("op1", "step-A", makeInfo(42));
     expect(state.get("op1")?.operatorInfo.resultSummary?.tuplesCount).toBe(42);
   });
+
+  test("getOperatorInfo returns the visible operator summary", () => {
+    const state = new WorkflowResultState(() => ["step-A"]);
+    state.set("op1", "step-A", makeInfo(7));
+    expect(state.getOperatorInfo("op1")?.resultSummary?.tuplesCount).toBe(7);
+  });
+
+  test("getOperatorInfo returns undefined when nothing is visible", () => {
+    const state = new WorkflowResultState(() => ["step-X"]);
+    state.set("op1", "step-A", makeInfo(1));
+    expect(state.getOperatorInfo("op1")).toBeUndefined();
+  });
 });
