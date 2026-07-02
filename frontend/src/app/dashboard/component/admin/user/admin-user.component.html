@@ -107,6 +107,7 @@
       </th>
       <th>Quota</th>
       <th>Feedbacks</th>
+      <th>Login As</th>
       <th
         [nzSortFn]="sortByAccountCreation"
         [nzSortDirections]="['ascend', 'descend']">
@@ -331,6 +332,19 @@
               nzTheme="outline"
               nzType="message"></i>
           </nz-badge>
+        </button>
+      </td>
+      <td>
+        <button
+          (click)="impersonateUser(user)"
+          [disabled]="currentUid===user.uid"
+          nz-button
+          [nz-tooltip]="currentUid===user.uid ? 'you cannot impersonate yourself' : 'log in as this user'"
+          type="button">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="reload"></i>
         </button>
       </td>
       <td>

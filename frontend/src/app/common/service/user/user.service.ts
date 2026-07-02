@@ -88,6 +88,37 @@ export class UserService {
   }
 
   /**
+   * Starts impersonating another user with a token issued for that user by the
+   * admin-only impersonate endpoint. The current (admin) token is stashed so the
+   * session can be restored later via stopImpersonation().
+   * @param accessToken the JWT minted for the target user
+   */
+  public startImpersonation(accessToken: string): Observable<void> {
+    const adminToken = AuthService.getAccessToken();
+    if (adminToken) {
+      AuthService.setImpersonatorToken(adminToken);
+    }
+    return this.handleAccessToken(accessToken);
+  }
+
+  /**
+   * Restores the admin session that was stashed when impersonation started. If no
+   * impersonator token exists, this is a no-op.
+   */
+  public stopImpersonation(): Observable<void> {
+    const adminToken = AuthService.getImpersonatorToken();
+    if (!adminToken) {
+      return of(undefined);
+    }
+    AuthService.removeImpersonatorToken();
+    return this.handleAccessToken(adminToken);
+  }
+
+  public isImpersonating(): boolean {
+    return AuthService.isImpersonating();
+  }
+
+  /**
    * changes the current user and triggers currentUserSubject
    * @param user
    */

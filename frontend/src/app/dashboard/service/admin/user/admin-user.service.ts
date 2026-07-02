@@ -37,6 +37,7 @@ export const USER_ACCESS_WORKFLOWS = `${USER_BASE_URL}/access_workflows`;
 export const USER_ACCESS_FILES = `${USER_BASE_URL}/access_files`;
 export const USER_QUOTA_SIZE = `${USER_BASE_URL}/user_quota_size`;
 export const USER_DELETE_EXECUTION_COLLECTION = `${USER_BASE_URL}/deleteCollection`;
+export const USER_IMPERSONATE_URL = `${USER_BASE_URL}/impersonate`;
 
 @Injectable({
   providedIn: "root",
@@ -93,5 +94,14 @@ export class AdminUserService {
 
   public deleteExecutionCollection(eid: number): Observable<void> {
     return this.http.delete<void>(`${USER_DELETE_EXECUTION_COLLECTION}/${eid.toString()}`);
+  }
+
+  /**
+   * Requests a JWT that lets the current admin log in as (impersonate) the given user.
+   * The backend endpoint is guarded by @RolesAllowed("ADMIN").
+   * @param uid the uid of the user to impersonate
+   */
+  public impersonateUser(uid: number): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.post<Readonly<{ accessToken: string }>>(`${USER_IMPERSONATE_URL}/${uid.toString()}`, {});
   }
 }

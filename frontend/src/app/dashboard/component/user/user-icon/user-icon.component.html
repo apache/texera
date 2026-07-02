@@ -30,6 +30,12 @@
 <nz-dropdown-menu #menu="nzDropdownMenu">
   <ul nz-menu>
     <li
+      *ngIf="isImpersonating"
+      (click)="onClickStopImpersonating()"
+      nz-menu-item>
+      Stop impersonating
+    </li>
+    <li
       (click)="onClickLogout()"
       nz-menu-item>
       Sign Out

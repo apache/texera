@@ -31,6 +31,9 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { RegistrationRequestModalComponent } from "./registration-request-modal/registration-request-modal.component";
 
 export const TOKEN_KEY = "access_token";
+// When an admin impersonates another user, the admin's own token is stashed here
+// so the session can be restored on "Stop impersonating".
+export const IMPERSONATOR_TOKEN_KEY = "impersonator_access_token";
 
 /**
  * User Service contains the function of registering and logging the user.
@@ -110,6 +113,7 @@ export class AuthService {
    */
   public logout(): undefined {
     AuthService.removeAccessToken();
+    AuthService.removeImpersonatorToken();
     this.tokenExpirationSubscription?.unsubscribe();
     return undefined;
   }
@@ -193,6 +197,26 @@ export class AuthService {
 
   static removeAccessToken(): void {
     localStorage.removeItem(TOKEN_KEY);
+  }
+
+  static setImpersonatorToken(token: string): void {
+    localStorage.setItem(IMPERSONATOR_TOKEN_KEY, token);
+  }
+
+  static getImpersonatorToken(): string | null {
+    return localStorage.getItem(IMPERSONATOR_TOKEN_KEY);
+  }
+
+  static removeImpersonatorToken(): void {
+    localStorage.removeItem(IMPERSONATOR_TOKEN_KEY);
+  }
+
+  /**
+   * True when the current session is an admin impersonating another user, i.e.
+   * an impersonator token has been stashed and can be restored.
+   */
+  static isImpersonating(): boolean {
+    return localStorage.getItem(IMPERSONATOR_TOKEN_KEY) !== null;
   }
 
   /**

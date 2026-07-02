@@ -19,6 +19,7 @@
 
 import { Component, ElementRef, OnInit, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { switchMap } from "rxjs/operators";
 import {
   NzTableFilterFn,
   NzTableSortFn,
@@ -144,6 +145,36 @@ export class AdminUserComponent implements OnInit {
 
   getFeedbackCount(uid: number): number {
     return this.feedbackCounts.get(uid) ?? 0;
+  }
+
+  /**
+   * Logs the admin in as the given user (impersonation). Prompts for confirmation,
+   * requests a token for the target user, stashes the admin's own session, then does
+   * a full page reload as the target user. Return to the admin session via
+   * "Stop impersonating" in the account menu.
+   */
+  impersonateUser(user: User): void {
+    this.modalService.confirm({
+      nzTitle: `Log in as ${user.name}?`,
+      nzContent:
+        'You will be signed in as this user. Use "Stop impersonating" in the account menu to return to your admin session.',
+      nzOkText: "Log in as user",
+      nzOnOk: () =>
+        this.adminUserService
+          .impersonateUser(user.uid)
+          .pipe(
+            switchMap(({ accessToken }) => this.userService.startImpersonation(accessToken)),
+            untilDestroyed(this)
+          )
+          .subscribe({
+            // Full reload so the entire app re-initializes as the impersonated user.
+            next: () => (window.location.href = "/dashboard"),
+            error: (err: unknown) => {
+              const errorMessage = (err as any).error?.message || (err as Error).message;
+              this.messageService.error(errorMessage);
+            },
+          }),
+    });
   }
 
   clickToViewFeedbacks(uid: number): void {

@@ -27,6 +27,7 @@ import { UserAvatarComponent } from "../user-avatar/user-avatar.component";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NgIf } from "@angular/common";
 
 /**
  * UserIconComponent is used to control user system on the top right corner
@@ -45,16 +46,19 @@ import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
     NzDropdownMenuComponent,
     NzMenuDirective,
     NzMenuItemComponent,
+    NgIf,
   ],
 })
 export class UserIconComponent {
   public user: User | undefined;
+  public isImpersonating: boolean;
 
   constructor(
     private userService: UserService,
     private router: Router
   ) {
     this.user = this.userService.getCurrentUser();
+    this.isImpersonating = this.userService.isImpersonating();
   }
 
   /**
@@ -64,5 +68,15 @@ export class UserIconComponent {
     this.userService.logout();
     document.cookie = "flarum_remember=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     this.router.navigate([ABOUT]);
+  }
+
+  /**
+   * Restores the admin session that was stashed when impersonation started, then
+   * does a full reload back to the admin user dashboard.
+   */
+  public onClickStopImpersonating(): void {
+    this.userService.stopImpersonation().subscribe({
+      complete: () => (window.location.href = "/dashboard/admin/user"),
+    });
   }
 }

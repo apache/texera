@@ -19,12 +19,14 @@
 
 package org.apache.texera.web.resource.dashboard.admin.user
 
+import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.UserLastActiveTime.USER_LAST_ACTIVE_TIME
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.EmailTemplate.createRoleChangeTemplate
 import org.apache.texera.web.resource.GmailResource.sendEmail
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
@@ -149,5 +151,31 @@ class AdminUserResource {
   @Path("/deleteCollection/{eid}")
   def deleteCollection(@PathParam("eid") eid: Integer): Unit = {
     deleteExecutionCollection(eid)
+  }
+
+  /**
+    * Issues a JWT for the target user so that an admin can log in as (impersonate)
+    * that user. The returned token is identical to one obtained via a normal login
+    * for the target user. This endpoint is restricted to admins by the class-level
+    * `@RolesAllowed("ADMIN")` guard.
+    *
+    * @param uid the uid of the user to impersonate
+    * @return a TokenIssueResponse wrapping the JWT minted for the target user
+    */
+  @POST
+  @Path("/impersonate/{uid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def impersonate(@PathParam("uid") uid: Integer): TokenIssueResponse = {
+    val user = userDao.fetchOneByUid(uid)
+    if (user == null) {
+      throw new WebApplicationException("User not found", Response.Status.NOT_FOUND)
+    }
+    if (user.getRole == UserRoleEnum.INACTIVE) {
+      throw new WebApplicationException(
+        "Cannot impersonate an inactive user",
+        Response.Status.BAD_REQUEST
+      )
+    }
+    TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
   }
 }

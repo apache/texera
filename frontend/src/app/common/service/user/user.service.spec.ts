@@ -22,7 +22,7 @@ import "zone.js/testing";
 import { fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { UserService } from "./user.service";
 import { AuthService } from "./auth.service";
-import { StubAuthService } from "./stub-auth.service";
+import { MOCK_TOKEN, StubAuthService } from "./stub-auth.service";
 import { skip } from "rxjs/operators";
 import { firstValueFrom, Subject, throwError } from "rxjs";
 import { commonTestProviders } from "../../testing/test-utils";
@@ -169,5 +169,68 @@ describe("UserService", () => {
     vi.spyOn(config, "loadPostLogin").mockReturnValue(throwError(() => new Error("simulated 500")));
     await firstValueFrom(service.login("test", "password"));
     expect(service.isLogin()).toBe(true);
+  });
+
+  // ─── admin impersonation token stash / restore ────────────────────────────
+
+  describe("impersonation", () => {
+    // The stashed admin token must be a value the StubAuthService recognizes as a
+    // valid session (MOCK_TOKEN), so that restoring it logs the admin back in.
+    const ADMIN_TOKEN = MOCK_TOKEN.accessToken;
+    // Any other value stands in for the target user's freshly minted token.
+    const TARGET_TOKEN = "target-user-token";
+
+    beforeEach(() => {
+      AuthService.removeAccessToken();
+      AuthService.removeImpersonatorToken();
+    });
+
+    afterEach(() => {
+      AuthService.removeAccessToken();
+      AuthService.removeImpersonatorToken();
+    });
+
+    it("stashes the admin token and swaps to the target token on start", async () => {
+      AuthService.setAccessToken(ADMIN_TOKEN);
+
+      await firstValueFrom(service.startImpersonation(TARGET_TOKEN));
+
+      // Active session is now the target user's token; the admin token is stashed.
+      expect(AuthService.getAccessToken()).toBe(TARGET_TOKEN);
+      expect(AuthService.getImpersonatorToken()).toBe(ADMIN_TOKEN);
+      expect(service.isImpersonating()).toBe(true);
+    });
+
+    it("restores the stashed admin token and clears the stash on stop", async () => {
+      // Simulate an in-progress impersonation: target session active, admin stashed.
+      AuthService.setAccessToken(TARGET_TOKEN);
+      AuthService.setImpersonatorToken(ADMIN_TOKEN);
+
+      await firstValueFrom(service.stopImpersonation());
+
+      // The admin token is restored as the active session and the stash is cleared.
+      expect(AuthService.getAccessToken()).toBe(ADMIN_TOKEN);
+      expect(AuthService.getImpersonatorToken()).toBeNull();
+      expect(service.isImpersonating()).toBe(false);
+      expect(service.isLogin()).toBe(true);
+    });
+
+    it("is a no-op on stop when not impersonating", async () => {
+      AuthService.setAccessToken(TARGET_TOKEN);
+
+      await firstValueFrom(service.stopImpersonation());
+
+      // Nothing stashed, so the active token is left untouched.
+      expect(AuthService.getAccessToken()).toBe(TARGET_TOKEN);
+      expect(service.isImpersonating()).toBe(false);
+    });
+
+    it("reflects impersonation state via isImpersonating()", () => {
+      expect(service.isImpersonating()).toBe(false);
+      AuthService.setImpersonatorToken(ADMIN_TOKEN);
+      expect(service.isImpersonating()).toBe(true);
+      AuthService.removeImpersonatorToken();
+      expect(service.isImpersonating()).toBe(false);
+    });
   });
 });

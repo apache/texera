@@ -75,6 +75,18 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     return of();
   }
 
+  startImpersonation(accessToken: string): Observable<void> {
+    return of(void 0);
+  }
+
+  stopImpersonation(): Observable<void> {
+    return of(void 0);
+  }
+
+  isImpersonating(): boolean {
+    return false;
+  }
+
   userChanged(): Observable<User | undefined> {
     return this.userChangeSubject.asObservable();
   }
