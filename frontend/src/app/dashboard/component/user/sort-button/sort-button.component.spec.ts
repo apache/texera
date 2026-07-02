@@ -69,4 +69,11 @@ describe("SortButtonComponent", () => {
     expect(component.sortMethod).toBe(SortMethod.NameDesc);
     expect(emitSpy).toHaveBeenCalledWith(SortMethod.NameDesc);
   });
+
+  it("should handle execSort() correctly", () => {
+    const emitSpy = vi.spyOn(component.sortMethodChange, "emit");
+    component.execSort();
+    expect(component.sortMethod).toBe(SortMethod.ExecutionTimeDesc);
+    expect(emitSpy).toHaveBeenCalledWith(SortMethod.ExecutionTimeDesc);
+  });
 });

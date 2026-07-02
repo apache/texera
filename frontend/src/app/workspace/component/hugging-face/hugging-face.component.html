@@ -1,0 +1,208 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="hf-model-select-container">
+  <!-- Task dropdown selector -->
+  <label class="hf-section-label">Task</label>
+  <nz-select
+    [(ngModel)]="selectedTaskTag"
+    (ngModelChange)="onTaskSelected($event)"
+    nzPlaceHolder="Select a task"
+    [nzLoading]="tasksLoading"
+    style="width: 100%; margin-bottom: 4px">
+    <nz-option
+      *ngFor="let task of taskOptions"
+      [nzLabel]="task.label"
+      [nzValue]="task.tag">
+    </nz-option>
+  </nz-select>
+
+  <!-- Tasks fetch error (non-blocking: static list is still shown) -->
+  <div
+    *ngIf="tasksError && !tasksLoading"
+    class="hf-error">
+    <span class="error-text">{{ tasksError }}</span>
+    <button
+      nz-button
+      nzType="link"
+      nzSize="small"
+      (click)="retryTasksLoad()">
+      <i
+        nz-icon
+        nzType="reload"></i>
+      Retry
+    </button>
+  </div>
+
+  <!-- Models label -->
+  <label
+    class="hf-section-label"
+    style="margin-top: 8px">
+    <span class="hf-required">*</span> Models
+  </label>
+
+  <!-- Search input -->
+  <nz-input-group
+    [nzSuffix]="searchClearTpl"
+    nzSize="small"
+    style="margin-bottom: 8px">
+    <input
+      nz-input
+      placeholder="Search all models..."
+      [ngModel]="searchText"
+      (ngModelChange)="onSearchInput($event)" />
+  </nz-input-group>
+  <ng-template #searchClearTpl>
+    <nz-spin
+      *ngIf="searchLoading"
+      nzSimple
+      nzSize="small"
+      style="display: inline-block; margin-right: 4px"></nz-spin>
+    <i
+      *ngIf="searchText && !searchLoading"
+      nz-icon
+      nzType="close-circle"
+      nzTheme="fill"
+      style="cursor: pointer; color: #999"
+      (click)="clearSearch()"></i>
+  </ng-template>
+
+  <!-- Loading state -->
+  <div
+    *ngIf="loading"
+    class="hf-loading">
+    <nz-spin
+      nzSimple
+      nzSize="small"></nz-spin>
+    <span class="loading-text">Loading models...</span>
+  </div>
+
+  <!-- Error state -->
+  <div
+    *ngIf="errorMessage && !loading"
+    class="hf-error">
+    <span class="error-text">{{ errorMessage }}</span>
+    <button
+      nz-button
+      nzType="link"
+      nzSize="small"
+      (click)="retryLoad()">
+      <i
+        nz-icon
+        nzType="reload"></i>
+      Retry
+    </button>
+  </div>
+
+  <!-- Truncation notice -->
+  <div
+    *ngIf="truncated && !loading && !errorMessage"
+    class="hf-truncation-notice">
+    Results may be incomplete. Use the search bar to find models not shown here.
+  </div>
+
+  <!-- Model list -->
+  <div
+    *ngIf="!loading && !errorMessage"
+    class="hf-model-list">
+    <!-- Selected model display -->
+    <div
+      *ngIf="formControl.value"
+      class="hf-selected-model">
+      <span class="hf-selected-label">Selected:</span>
+      <span class="hf-selected-value">{{ formControl.value }}</span>
+      <i
+        nz-icon
+        nzType="close"
+        nzTheme="outline"
+        style="cursor: pointer; color: #999; margin-left: 4px"
+        (click)="formControl.setValue('')"></i>
+    </div>
+
+    <!-- No results message -->
+    <div
+      *ngIf="pagedModels.length === 0"
+      class="hf-empty">
+      {{ isSearching ? 'No models found for "' + searchText + '".' : 'No models available.' }}
+    </div>
+
+    <!-- Model items -->
+    <div
+      *ngFor="let model of pagedModels"
+      class="hf-model-item"
+      [class.hf-model-item-selected]="formControl.value === model.id"
+      (click)="onModelSelected(model.id)">
+      <span class="hf-model-id">{{ model.id }}</span>
+      <span class="hf-model-meta">
+        <span *ngIf="model.downloads !== undefined">
+          <i
+            nz-icon
+            nzType="download"
+            nzTheme="outline"></i>
+          {{ model.downloads | number }}
+        </span>
+        <span
+          *ngIf="model.likes !== undefined"
+          style="margin-left: 8px">
+          <i
+            nz-icon
+            nzType="heart"
+            nzTheme="outline"></i>
+          {{ model.likes | number }}
+        </span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Pagination controls (outside scrollable list so always visible) -->
+  <div
+    *ngIf="!loading && !errorMessage && totalPages > 1"
+    class="hf-pagination">
+    <button
+      nz-button
+      nzType="default"
+      nzSize="small"
+      [disabled]="currentPage === 0"
+      (click)="prevPage()">
+      <i
+        nz-icon
+        nzType="left"></i>
+      Prev
+    </button>
+    <span class="hf-page-info">Page {{ currentPage + 1 }} of {{ totalPages }}</span>
+    <button
+      nz-button
+      nzType="default"
+      nzSize="small"
+      [disabled]="!hasNextPage"
+      (click)="nextPage()">
+      Next
+      <i
+        nz-icon
+        nzType="right"></i>
+    </button>
+  </div>
+</div>
+
+<div
+  class="alert alert-danger"
+  role="alert"
+  *ngIf="props.showError && formControl.errors">
+  <formly-validation-message [field]="field"></formly-validation-message>
+</div>
