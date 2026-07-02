@@ -1322,9 +1322,9 @@ class TestMainLoop:
 
         # Priority pulls control before data when both are queued.
         output_control_element = output_queue.get()
-        assert isinstance(
-            output_control_element, DCMElement
-        ), f"expected control reply first (priority), got {type(output_control_element).__name__}"
+        assert isinstance(output_control_element, DCMElement), (
+            f"expected control reply first (priority), got {type(output_control_element).__name__}"
+        )
         assert output_control_element.tag == control_reply_channel
         assert output_control_element.payload.return_invocation.command_id == 98
         assert (
@@ -1333,9 +1333,9 @@ class TestMainLoop:
         )
 
         output_data_element = output_queue.get()
-        assert isinstance(
-            output_data_element, DataElement
-        ), f"expected data element second, got {type(output_data_element).__name__}"
+        assert isinstance(output_data_element, DataElement), (
+            f"expected data element second, got {type(output_data_element).__name__}"
+        )
         assert output_data_element.tag == mock_data_output_channel
         assert isinstance(output_data_element.payload, DataFrame)
         data_frame: DataFrame = output_data_element.payload
