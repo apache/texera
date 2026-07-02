@@ -24,6 +24,7 @@ import org.apache.texera.amber.core.storage.result.ResultSchema
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity._
+import org.apache.texera.amber.tags.IntegrationTest
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -32,6 +33,7 @@ import java.net.URI
 import scala.util.Using.Releasable
 import scala.util.{Try, Using}
 
+@IntegrationTest
 class IcebergDocumentConsoleMessagesSpec
     extends AnyFlatSpec
     with Matchers
