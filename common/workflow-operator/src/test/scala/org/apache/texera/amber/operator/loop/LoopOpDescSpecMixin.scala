@@ -31,8 +31,8 @@ import java.util.Base64
 
 /**
   * Shared scaffolding for `LoopStartOpDescSpec` and `LoopEndOpDescSpec`. Both
-  * specs assert the same PhysicalOp invariants (non-parallelizable, one worker,
-  * ports carried forward, OpExecWithCode wiring) and both need a base64 helper
+  * specs assert the same PhysicalOp invariants (non-parallelizable, ports
+  * carried forward, OpExecWithCode wiring) and both need a base64 helper
   * for verifying that user-supplied Python expressions are emitted through the
   * `self.decode_python_template('...')` wrapper instead of inlined as raw text.
   *
@@ -58,11 +58,12 @@ trait LoopOpDescSpecMixin extends Matchers {
   protected def decodeExpr(rawInput: String): String =
     s"self.decode_python_template('${b64(rawInput)}')"
 
-  protected def assertNonParallelizableSingleWorker(physical: PhysicalOp): Assertion = {
+  protected def assertNonParallelizable(physical: PhysicalOp): Assertion = {
     // LoopStart and LoopEnd both keep iteration state and the accumulated
     // table on a single worker; fanning out would break the loop body.
+    // WorkerConfig forces workerCount = 1 for non-parallelizable ops, so
+    // this flag alone pins the single worker.
     physical.parallelizable shouldBe false
-    physical.suggestedWorkerNum shouldBe Some(1)
   }
 
   protected def assertPortsCarriedForward(

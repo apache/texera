@@ -1924,13 +1924,16 @@ class TestMainLoop:
         assert emitted_id == "outer-loop"
         assert reset_calls == [], "a LoopStart never resets output storage"
 
-    def test_loopend_passthrough_decrements_counter_and_skips_operator(
+    def test_loopend_passthrough_decrements_resets_output_and_skips_operator(
         self, main_loop, monkeypatch
     ):
         # loop_counter > 0 at a LoopEnd means the state belongs to an outer
-        # loop: the runtime decrements and forwards, skipping the operator. It
-        # also resets this (inner) LoopEnd's output storage -- the outer loop
-        # advancing is the signal to drop the previous outer iteration's rows.
+        # loop: the runtime decrements and forwards, skipping the operator.
+        # Reviewer feedback (#discussion_r3400851478): it also resets this
+        # (inner) LoopEnd's output storage -- the outer loop advancing is the
+        # signal to drop the previous outer iteration's rows; see the
+        # reset_output_storage call site in _process_state_frame for the
+        # full story.
         main_loop.context.executor_manager.executor = _FalseLoopEnd()
         emitted, switched, reset_calls = self._capture_state_emit(
             main_loop, monkeypatch
@@ -1959,65 +1962,15 @@ class TestMainLoop:
         # loop_counter == 0 is the matching loop: the runtime runs the operator
         # (consume) via the context switch. The operator returns None, so no
         # state is emitted; the loop-back is driven by complete() separately.
+        # Reviewer feedback (#discussion_r3285892237): the envelope's loop
+        # metadata (loop_counter / loop_start_id) is internal runtime data --
+        # the runtime captures it onto its own instance state, and the
+        # user-facing State handed to the operator carries only the inner
+        # State's keys, never the envelope names.
         main_loop.context.executor_manager.executor = _FalseLoopEnd()
         emitted, switched, reset_calls = self._capture_state_emit(
             main_loop, monkeypatch
         )
-
-        main_loop._process_state_frame(StateFrame(State({"i": 0}), loop_counter=0))
-
-        assert switched == [True], "consume branch must invoke the operator"
-        assert emitted == [], "operator returned None -> nothing emitted"
-        assert reset_calls == [], "consume / single loop must not reset output"
-
-    def test_inner_loop_end_passthrough_resets_output_storage(
-        self, main_loop, monkeypatch
-    ):
-        # Reviewer feedback (#discussion_r3400851478): a LoopEnd accumulates the
-        # results of all of its own iterations, but an INNER LoopEnd of a nested
-        # loop must accumulate only within the current outer iteration. The
-        # outer loop's boundary state passing through (loop_counter > 0) is the
-        # "outer advanced" signal, and is where reset_output_storage fires so
-        # the previous outer iteration's rows are dropped before this outer
-        # iteration's inner results accumulate. It must NOT invoke the operator,
-        # and forwards the outer state one level out (loop_counter - 1).
-        main_loop.context.executor_manager.executor = _FalseLoopEnd()
-        emitted, switched, reset_calls = self._capture_state_emit(
-            main_loop, monkeypatch
-        )
-
-        main_loop._process_state_frame(
-            StateFrame(
-                State({"i": 7}),
-                loop_counter=1,
-                loop_start_id="outer-loop",
-            )
-        )
-
-        assert reset_calls == [True], "inner pass-through resets once per outer iter"
-        assert switched == [], "reset path must not invoke the operator"
-        assert len(emitted) == 1
-        _, emitted_counter, emitted_id = emitted[0]
-        assert emitted_counter == 0  # 1 - 1, forwarded to the outer LoopEnd
-        assert emitted_id == "outer-loop"
-
-    def test_user_state_excludes_envelope_metadata_on_consume_branch(
-        self, main_loop, monkeypatch
-    ):
-        # Reviewer feedback (#discussion_r3285892237): the envelope's
-        # loop metadata (loop_counter / loop_start_id) is internal
-        # runtime data and user code must not see it. The metadata is
-        # typed StateFrame fields, never keys in user State. This test
-        # pins that end to end: a StateFrame whose envelope carries the
-        # metadata must yield a user-facing `current_input_state` that
-        # contains only the inner State's keys -- never the envelope
-        # names.
-        main_loop.context.executor_manager.executor = _FalseLoopEnd()
-        # Standard stubs: emit/save/switch don't fire real work. The
-        # consume branch sets `current_input_state` to the inner State
-        # BEFORE the (stubbed) context switch, so the assertion below
-        # captures exactly what the operator would have received.
-        self._capture_state_emit(main_loop, monkeypatch)
         # No output from the operator -> no emit work after consume.
         monkeypatch.setattr(
             main_loop.context.state_processing_manager,
@@ -2025,20 +1978,23 @@ class TestMainLoop:
             lambda: None,
         )
 
-        inner_state = State({"i": 42, "acc": [1, 2, 3]})
         main_loop._process_state_frame(
             StateFrame(
-                inner_state,
+                State({"i": 42, "acc": [1, 2, 3]}),
                 loop_counter=0,
                 loop_start_id="outer-loop",
             )
         )
 
-        # The runtime captured the envelope metadata onto its own
-        # instance state...
+        assert switched == [True], "consume branch must invoke the operator"
+        assert emitted == [], "operator returned None -> nothing emitted"
+        assert reset_calls == [], "consume / single loop must not reset output"
+        # The runtime captured the envelope metadata onto its own instance
+        # state...
         assert main_loop._loop_start_id == "outer-loop"
-        # ...but never wrote it into the user-facing State that the
-        # operator's process_state receives.
+        # ...but never wrote it into the user-facing State the operator sees.
+        # (The consume branch sets `current_input_state` BEFORE the stubbed
+        # context switch, so this is exactly what the operator would receive.)
         passed_to_operator = (
             main_loop.context.state_processing_manager.current_input_state
         )
@@ -2049,30 +2005,16 @@ class TestMainLoop:
         assert "loop_counter" not in passed_to_operator
 
     # ------------------------------------------------------------------ #
-    # _compute_loop_start_id / _jump_to_loop_start
+    # _jump_to_loop_start
     #
-    # Reviewer feedback (#discussion_r3285892249) flagged these as the
-    # most fragile loop-runtime methods. The worker-id parse is delegated
-    # to the canonical `get_logical_op_id`, and the loop-back write
-    # address is no longer computed here at all: the scheduler resolves
-    # it at setup and delivers it via
-    # InitializeExecutorRequest.loopStartStateUris (the old reader-mining
-    # code and its single-port/single-reader guards moved controller-side
-    # to WorkflowExecutionCoordinator.loopStartStateUris).
+    # Reviewer feedback (#discussion_r3285892249) flagged the loop-back
+    # path as the most fragile loop-runtime code. The id a LoopStart
+    # stamps is now computed inline in process_input_state via the
+    # canonical `get_logical_op_id` (pinned by that helper's own suite),
+    # and the loop-back write address is not computed worker-side at all:
+    # it is setup config (InitializeExecutorRequest.loopStartStateUris --
+    # see the proto comment for the full story).
     # ------------------------------------------------------------------ #
-
-    def test_compute_loop_start_id_parses_worker_id_via_canonical_helper(
-        self, main_loop
-    ):
-        # Pin that we delegate the worker-id parse to `get_logical_op_id` --
-        # the inline `split("-")` style flagged in the reviewer comment is
-        # gone, and the test would fail loudly if a future refactor put it
-        # back. The parsed id is also the key a LoopEnd later uses to look
-        # up the loop-back URI in context.loop_start_state_uris, so a
-        # format drift here would break the pairing.
-        main_loop.context.worker_id = "Worker:WF211-LoopStart-operator-d71e0ab4-main-0"
-
-        assert main_loop._compute_loop_start_id() == "LoopStart-operator-d71e0ab4"
 
     @staticmethod
     def _stub_controller(record):
@@ -2120,89 +2062,51 @@ class TestMainLoop:
             _create,
         )
 
-    def test_jump_to_loop_start_sends_rpc_with_stamped_loop_start_id(
+    def test_jump_to_loop_start_sends_rpc_then_writes_state_in_order(
         self, main_loop, monkeypatch
     ):
+        # One shared event log for the jump RPC and the storage calls, so
+        # the cross-channel ordering is pinned along with each contract.
         main_loop._loop_start_id = "outer-loop"
         # The write address is setup-injected config keyed by the captured id.
         main_loop.context.loop_start_state_uris = {
             "outer-loop": "vfs:///wf/state/outer"
         }
 
-        rpc_calls = []
-        write_log = []
-        self._patch_create_document(monkeypatch, write_log)
+        events = []
+        self._patch_create_document(monkeypatch, events)
+
+        class _Controller:
+            def jump_to_operator_region(self, request):
+                events.append(("jump", request))
 
         class _Executor:
             state = State({"i": 7})
 
-        main_loop._jump_to_loop_start(_Executor(), self._stub_controller(rpc_calls))
+        main_loop._jump_to_loop_start(_Executor(), _Controller())
 
-        assert len(rpc_calls) == 1
-        # The request carries the loop_start_id we captured from the
-        # incoming StateFrame envelope -- never read off user state.
-        assert rpc_calls[0].target_operator_id.id == "outer-loop"
-
-    def test_jump_to_loop_start_strips_user_scratch_keys_but_preserves_user_vars(
-        self, main_loop, monkeypatch
-    ):
-        # `table` and `output` are runtime scratch the LoopStart's exec
-        # path stuffs into self.state; they must not survive into the
-        # state written back to LoopStart's input. Any other key is the
-        # user's own loop variable and must.
-        main_loop._loop_start_id = "outer"
-        main_loop.context.loop_start_state_uris = {"outer": "vfs:///wf/state/outer"}
-
-        write_log = []
-        self._patch_create_document(monkeypatch, write_log)
-
-        class _Executor:
-            state = State(
-                {"i": 7, "acc": [1, 2, 3], "table": "scratch", "output": "scratch"}
-            )
-
-        executor = _Executor()
-        main_loop._jump_to_loop_start(executor, self._stub_controller([]))
-
-        # Post-call: scratch keys gone, user vars survive.
-        assert "table" not in executor.state
-        assert "output" not in executor.state
-        assert executor.state["i"] == 7
-        assert executor.state["acc"] == [1, 2, 3]
-
-    def test_jump_to_loop_start_writes_state_via_create_document_then_close(
-        self, main_loop, monkeypatch
-    ):
-        # Pin the exact iceberg write contract: create_document with the
-        # stamped URI and State.SCHEMA, then open writer("0"), then a
-        # single put_one with `State(state).to_tuple(0)` (the trailing 0
-        # is the loop_counter for the next iteration's depth -- starts
-        # back at 0 because this fires only when an outer LoopEnd
-        # consumed at loop_counter == 0), then close. The URI comes from
-        # the setup-injected config, selected by the captured id.
-        main_loop._loop_start_id = "outer"
-        main_loop.context.loop_start_state_uris = {"outer": "vfs:///wf/state/outer"}
-
-        write_log = []
-        self._patch_create_document(monkeypatch, write_log)
-
-        class _Executor:
-            state = State({"i": 7})
-
-        main_loop._jump_to_loop_start(_Executor(), self._stub_controller([]))
-
-        assert write_log[0] == (
+        assert len(events) == 5
+        # (i) The jump RPC fires before any storage event, carrying the
+        # loop_start_id we captured from the incoming StateFrame envelope
+        # -- never read off user state.
+        kind, request = events[0]
+        assert kind == "jump"
+        assert request.target_operator_id.id == "outer-loop"
+        # (ii) Then the exact iceberg write contract, in order:
+        # create_document with the configured URI and State.SCHEMA, open
+        # writer("0"), a single put_one with the State as a depth-0 tuple
+        # (the back-edge fires only after the matching LoopEnd consumed at
+        # loop_counter == 0, so the next iteration starts at depth 0),
+        # then close. The tuple object's internals are exercised elsewhere.
+        assert events[1] == (
             "create_document",
             "vfs:///wf/state/outer",
             State.SCHEMA,
         )
-        assert write_log[1] == ("writer", "0")
-        # Call (1) put_one with the trimmed State as a depth-0 tuple,
-        # then (2) close. Match the structure; the tuple object's
-        # internals are exercised elsewhere.
-        assert write_log[2][0] == "put_one"
-        assert write_log[2][1] == State({"i": 7}).to_tuple(0)
-        assert write_log[3] == ("close",)
+        assert events[2] == ("writer", "0")
+        assert events[3][0] == "put_one"
+        assert events[3][1] == State({"i": 7}).to_tuple(0)
+        assert events[4] == ("close",)
 
     def test_jump_to_loop_start_raises_when_uri_not_configured(
         self, main_loop, monkeypatch

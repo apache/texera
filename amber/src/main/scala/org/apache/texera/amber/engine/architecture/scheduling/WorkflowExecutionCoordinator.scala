@@ -58,16 +58,12 @@ class WorkflowExecutionCoordinator(
   }
 
   /**
-    * Loop-back write addresses, delivered to every worker at setup via
-    * `InitializeExecutorRequest.loopStartStateUris`: Loop Start logical
-    * operator id -> the state URI of that Loop Start's single input port.
-    * A Loop End worker selects the entry by the `loop_start_id` carried on
-    * the StateFrame it consumes and writes the next iteration's state there.
+    * Loop-back write addresses shipped to every worker at setup; semantics are
+    * documented on `InitializeExecutorRequest.loopStartStateUris` (controlcommands.proto).
     *
     * Derived from the final (resource-allocated) schedule, so the URIs are
     * exactly the ones `AssignPort` later ships to the Loop Start's input
-    * readers; constant per execution, and the empty map for plans without
-    * loops. Kept a `def`: `schedule` is a `var` that is only populated after
+    * readers. Kept a `def`: `schedule` is a `var` that is only populated after
     * `StartWorkflow`, and the first use is inside `coordinateRegionExecutors`.
     */
   private def loopStartStateUris: Map[String, String] =

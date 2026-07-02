@@ -67,7 +67,8 @@ abstract class LoopOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withSuggestedWorkerNum(1)
+      // WorkerConfig forces workerCount = 1 for non-parallelizable ops, which
+      // keeps the loop state and accumulated table on a single worker.
       .withParallelizable(false)
       // A loop's back-edge is the cross-region materialized state channel, so
       // the loop operators only run correctly under a fully-materialized

@@ -208,10 +208,8 @@ case class PhysicalOp(
     // restricting it to only the requiring operator's regions is a possible
     // future optimization. Default false.
     requiresMaterializedExecution: Boolean = false,
-    // Marks the Loop Start operator of a loop. The scheduler uses it to resolve
-    // the loop-back state write address (the state URI of this operator's single
-    // input port) delivered to workers at setup via
-    // InitializeExecutorRequest.loopStartStateUris. Default false.
+    // Marks the Loop Start operator of a loop; the scheduler resolves the loop-back
+    // write address from it (see InitializeExecutorRequest.loopStartStateUris). Default false.
     isLoopStart: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None,

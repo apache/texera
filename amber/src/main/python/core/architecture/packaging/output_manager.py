@@ -221,26 +221,14 @@ class OutputManager:
         """Drop and recreate this operator's result and state tables, then
         reopen the storage writers against the empty tables.
 
-        Called only for the *inner* Loop End of a *nested* loop, once per
-        *outer* iteration, from the outer pass-through branch in
-        ``MainLoop._process_state_frame`` (the ``loop_counter > 0`` branch).
-        A Loop End accumulates the results of all of its own iterations; the
-        inner Loop End must, in addition, drop the previous outer iteration's
-        rows when the outer loop advances, so each outer iteration accumulates
-        from empty rather than concatenating across outer iterations. A single
-        / outermost Loop End never reaches that branch and so never resets --
-        it keeps all of its iterations.
+        Called only for the inner Loop End of a nested loop, once per outer
+        iteration (see the ``MainLoop._process_state_frame`` call site).
+        Truncating live storage is safe because loop workflows run in
+        MATERIALIZED mode, so no reader observes the intermediate truncation.
 
-        Truncating live storage is safe here because a workflow containing a
-        loop runs in MATERIALIZED execution mode: downstream operators do not
-        start reading this output until the loop region has fully completed,
-        so no reader can observe an intermediate truncation.
-
-        Preconditions (always satisfied by a Loop End worker): the operator
-        has exactly one output port, and ``set_up_port_storage_writer`` has
-        already run for it (so ``_storage_uri_base`` is populated). Both are
-        checked so future misuse fails loudly instead of silently resetting
-        the wrong port or dereferencing ``None``.
+        Preconditions, checked so misuse fails loudly: the operator has
+        exactly one output port, and ``set_up_port_storage_writer`` has
+        already run for it.
         """
         port_ids = self.get_port_ids()
         if len(port_ids) != 1:

@@ -304,35 +304,33 @@ class TableOperator(TupleOperatorV2):
         yield
 
 
-# Names the loop runtime owns inside the eval namespaces and across the loop
-# boundary; explicitly stripped from every state dict that crosses Loop
-# Start / Loop End so user code can neither read nor persist them.
-# Other reserved names that used to live in user state -- ``loop_counter``,
-# ``LoopStartId`` -- are no longer in ``self.state`` at all; they ride the
-# StateFrame envelope (see ``core.models.payload``) and are stamped/captured
-# by ``MainLoop._process_state_frame``. The loop-back write address is not
-# state at all: it is setup config (``Context.loop_start_state_uris``).
-_RESERVED_STATE_KEYS: frozenset = frozenset({"table", "output"})
+# ``table`` is seeded into the eval/exec namespaces the loop expressions run
+# in and stripped from every state dict that crosses Loop Start / Loop End,
+# so user code can neither persist nor clobber it. The envelope names
+# (``loop_counter`` / ``loop_start_id``) never enter user state -- they ride
+# the StateFrame envelope (see ``core.models.payload``). The loop-back write
+# address is setup config, not state (see ``loopStartStateUris`` on the
+# ``InitializeExecutorRequest`` proto).
+_RESERVED_STATE_KEYS: frozenset = frozenset({"table"})
 
 
 def _strip_reserved(state: State) -> State:
-    """Return ``state`` without the runtime-reserved keys (``table`` / ``output``)."""
+    """Return ``state`` without the runtime-reserved keys (``_RESERVED_STATE_KEYS``)."""
     return {
         key: value for key, value in state.items() if key not in _RESERVED_STATE_KEYS
     }
 
 
 def _eval_loop_expr(expr: str, state: State, table: Optional[Table]):
-    """Evaluate ``expr`` as ``output`` against the loop variables plus ``table``.
+    """Evaluate ``expr`` directly against the loop variables plus ``table``.
 
     Runs in a throwaway namespace seeded with the loop variables and ``table``
-    so those reserved names neither leak into nor are clobbered out of the
+    so the seeded ``table`` neither leaks into nor is clobbered out of the
     persistent loop ``state``. Shared by LoopStart's ``output`` expression and
     LoopEnd's ``condition``.
     """
     namespace = {**state, "table": table}
-    exec("output = " + expr, {}, namespace)
-    return namespace["output"]
+    return eval(expr, {}, namespace)
 
 
 class LoopStartOperator(TableOperator):
@@ -345,15 +343,16 @@ class LoopStartOperator(TableOperator):
 
     ``open()`` seeds ``self.state`` with the user's loop variables;
     ``process_state`` merges upstream state in; ``produce_state_on_finish``
-    emits those variables plus the input table (Arrow IPC, not pickle) to the
-    matching LoopEnd. ``loop_counter`` and the nested pass-through are owned by
+    emits those variables plus the input table (Arrow IPC; see
+    ``table_to_ipc_bytes`` in ``core.models.table``) to the matching LoopEnd.
+    ``loop_counter`` and the nested pass-through are owned by
     ``MainLoop._process_state_frame``, not this operator.
 
     Subclass contract: the generated subclass overrides ``open()`` and
     ``process_table()`` only; all other methods are ``@overrides.final``. After
     ``open()`` returns ``self.state`` holds only the user's loop variables --
-    none of the reserved names; see the ``_RESERVED_STATE_KEYS`` module comment
-    for the ``table``/``output`` vs envelope-borne counter/id split.
+    not the reserved ``table``; see the ``_RESERVED_STATE_KEYS`` module comment
+    for the ``table`` vs envelope-borne counter/id split.
     """
 
     @overrides.final
@@ -373,11 +372,10 @@ class LoopStartOperator(TableOperator):
     @overrides.final
     def produce_state_on_finish(self, port: int) -> State:
         # Emit the user's loop variables plus the buffered input table for the
-        # matching LoopEnd. The table rides as an Apache Arrow IPC stream, not
-        # pickle bytes: the receiving LoopEnd would otherwise have to
-        # `pickle.loads` data that lives in iceberg, a remote-code-execution
-        # surface. Reads the buffer through `_buffered_table` so a rename of
-        # `TableOperator` doesn't silently break this.
+        # matching LoopEnd. The table rides as an Arrow IPC stream, not pickle
+        # (see `table_to_ipc_bytes` in core.models.table for why). Reads the
+        # buffer through `_buffered_table` so a rename of `TableOperator`
+        # doesn't silently break this.
         produced = _strip_reserved(self.state)
         produced["table"] = table_to_ipc_bytes(self._buffered_table(port))
         return produced
@@ -426,12 +424,11 @@ class LoopEndOperator(TableOperator):
     @overrides.final
     def run_update(self, update_code: str, state: State) -> None:
         # Run the user's `update` in a throwaway namespace seeded with the
-        # incoming loop variables and the input table, then persist only the
-        # user variables back into self.state. The table arrives as an Apache
-        # Arrow IPC stream (see LoopStartOperator.produce_state_on_finish), so
-        # it is decoded structurally rather than via pickle.loads -- no
-        # remote-code-execution surface. The real input table is kept on
-        # self._loop_table so condition() can read it after the update.
+        # incoming loop variables and the input table, then persist the user
+        # variables back into self.state. The table arrives as an Arrow IPC
+        # stream, not pickle (see `table_to_ipc_bytes` in core.models.table
+        # for why); the decoded table is kept on self._loop_table so
+        # condition() can read it after the update.
         table = table_from_ipc_bytes(state["table"])
         namespace = _strip_reserved(state)
         namespace["table"] = table

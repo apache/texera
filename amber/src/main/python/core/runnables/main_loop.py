@@ -84,12 +84,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         super().__init__(self.__class__.__name__, queue=input_queue)
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
-        # Captured from the input StateFrame when a matching LoopEnd
-        # (loop_counter == 0) consumes a state, so complete()/_jump_to_loop_start
-        # knows which LoopStart to jump back to. This metadata rides the
-        # StateFrame envelope (not user state), so it is no longer read off
-        # executor.state. The corresponding write address is setup config
-        # (context.loop_start_state_uris), keyed by this id.
+        # Captured from the consumed StateFrame envelope when a matching
+        # LoopEnd (loop_counter == 0) takes a state; used for the jump RPC
+        # and the setup-config URI lookup (context.loop_start_state_uris).
         self._loop_start_id: str = ""
 
         self.context = Context(worker_id, input_queue)
@@ -101,20 +98,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
             target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
 
-    def _compute_loop_start_id(self) -> str:
-        # A LoopStart stamps its own operator id onto the state it emits; the
-        # matching LoopEnd reads it back to jump. It rides the StateFrame
-        # envelope, not user state. The loop-back write address is NOT stamped:
-        # it is constant per-execution config the scheduler resolves and
-        # delivers at setup (context.loop_start_state_uris), keyed by this id.
-        return get_logical_op_id(self.context.worker_id)
-
     def _jump_to_loop_start(
         self, executor: LoopEndOperator, controller_interface
     ) -> None:
         state = executor.state
-        # The write address is setup-injected config: the state URI of the
-        # matching LoopStart's input port, selected by the captured id. Fail
+        # The write address is setup config, keyed by the captured id. Fail
         # loud BEFORE the jump RPC so a misconfigured loop does not rewind the
         # schedule without a back-edge write.
         uri = self.context.loop_start_state_uris.get(self._loop_start_id)
@@ -127,12 +115,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         controller_interface.jump_to_operator_region(
             JumpToOperatorRegionRequest(OperatorIdentity(self._loop_start_id))
         )
-        # Strip the per-iteration scratch (`table`, `output`) so only the
-        # user-visible loop state is written back to LoopStart's input. The
-        # loop metadata (counter, LoopStartId) is owned by the runtime and
-        # never lived in this dict.
-        for key in ("table", "output"):
-            state.pop(key, None)
         writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
         # The back-edge fires only after the matching LoopEnd consumed at
         # loop_counter == 0, so the next iteration's input starts at depth 0.
@@ -265,8 +247,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if output_state is not None:
             executor = self.context.executor_manager.executor
             if isinstance(executor, LoopStartOperator):
-                # A LoopStart stamps its own id onto the state it emits.
-                output_loop_start_id = self._compute_loop_start_id()
+                # A LoopStart stamps its own logical op id; the write address
+                # is setup config (InitializeExecutorRequest.loop_start_state_uris).
+                output_loop_start_id = get_logical_op_id(self.context.worker_id)
             self._emit_and_save_state(
                 output_state,
                 output_loop_counter,
@@ -379,10 +362,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
             return
 
         if isinstance(executor, LoopEndOperator):
-            # Matching LoopEnd (in_counter == 0): it will consume this state and
-            # jump back. Remember which LoopStart to jump to -- it rides the
-            # envelope now, not user state -- for complete()/_jump_to_loop_start;
-            # the write address is looked up from setup config by this id.
+            # Matching LoopEnd (in_counter == 0): it will consume this state
+            # and jump back. Remember which LoopStart to jump to (it rides
+            # the envelope) for complete()/_jump_to_loop_start.
             self._loop_start_id = frame.loop_start_id
 
         self.context.state_processing_manager.current_input_state = state

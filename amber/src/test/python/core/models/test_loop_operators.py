@@ -27,16 +27,17 @@ runtime.
 Coverage:
   - LoopStart's first-entry state merge into self.state.
   - LoopEnd's process_table identity yield; condition is abstract.
-  - The guarded exec helpers (eval_output / run_update / eval_condition)
-    keep the reserved `table` / `output` names out of the persistent loop
-    state, so user code cannot silently clobber loop machinery.
+  - The guarded eval/exec helpers (eval_output / run_update / eval_condition)
+    keep the reserved `table` name out of the persistent loop state, so user
+    code cannot silently clobber loop machinery. The table crosses the loop
+    boundary as Arrow IPC bytes (see table_to_ipc_bytes in core.models.table).
   - A multi-iteration loop driven to completion through the operators and the
     State to_tuple/from_tuple round-trip (TestLoopRunsToCompletion).
 
 loop_counter and the LoopStart jump metadata (LoopStartId) are owned by the
 worker runtime, not these operators -- they ride the StateFrame envelope as
 their own columns (the loop-back write address is setup config, not state) --
-so their handling is covered in test_main_loop.py::TestLoopCounterRuntime.
+so their handling is covered in test_main_loop.py::TestMainLoop.
 """
 
 from typing import Iterator, Optional
@@ -88,8 +89,7 @@ class _StubLoopEnd(LoopEndOperator):
     Consume-only: the runtime owns loop_counter and the nested pass-through, so
     the operator only runs the matching-loop path. run_update / eval_condition
     run the user's `update` / `condition` in a guarded namespace (user vars +
-    table) so `table`/`output` never persist in or get clobbered out of
-    self.state.
+    table) so `table` never persists in or gets clobbered out of self.state.
     """
 
     def __init__(self, update="i += 1", condition_expr="i < 3"):
@@ -134,7 +134,7 @@ class TestLoopStartProcessState:
 
     # NOTE: LoopStart re-entry (+1) is owned by the worker runtime now, not the
     # operator (which only does the first-entry merge above). It and the nested
-    # pass-through are covered in test_main_loop.py::TestLoopCounterRuntime.
+    # pass-through are covered in test_main_loop.py::TestMainLoop.
 
 
 # ---------------------------------------------------------------------------
@@ -171,10 +171,9 @@ class TestBufferedTableAccessor:
 class TestLoopStartProduceStateOnFinish:
     def test_serializes_buffered_table_as_arrow_into_state_table_field(self):
         # produce_state_on_finish serializes the buffered table as an Apache
-        # Arrow IPC stream (NOT pickle -- the receiving LoopEnd would otherwise
-        # have to pickle.loads data from iceberg, a remote-code-execution
-        # surface). The bytes must round-trip back to the same tuples and parse
-        # as a real Arrow stream.
+        # Arrow IPC stream, not pickle (see table_to_ipc_bytes in
+        # core.models.table for why). The bytes must round-trip back to the
+        # same tuples and parse as a real Arrow stream.
         op = _StubLoopStart()
         op.open()
         # Drive a couple of tuples through to populate the per-port buffer.
@@ -250,20 +249,10 @@ class TestLoopEndBase:
         # AttributeError on self._loop_table / self.state, or NameError when
         # the user's condition references undefined loop variables.
         op = _StubLoopEnd(condition_expr="i < len(table)")
-        assert op.condition() is False
-
-    def test_loop_table_set_after_run_update(self):
-        # _loop_table is None until a matching state is consumed (that None is
-        # what condition() short-circuits on); after run_update it holds the
-        # decoded table and the real condition is evaluated.
-        op = _StubLoopEnd(update="i += 1", condition_expr="i < 3")
+        # _loop_table stays None until a matching state is consumed; that
+        # None is what condition() short-circuits on.
         assert op._loop_table is None
-        op.process_state(
-            State({"i": 0, "table": _ipc_one_row()}),
-            port=0,
-        )
-        assert op._loop_table is not None
-        assert op.condition() is True  # i became 1, 1 < 3
+        assert op.condition() is False
 
 
 # ---------------------------------------------------------------------------
@@ -332,7 +321,7 @@ class TestLoopEndMatchingBranch:
 # Nested-loop counter behaviour -- LoopStart +1, LoopEnd -1, and the
 # depth-symmetric invariant -- is now owned by the worker runtime (the
 # operators no longer read or mutate loop_counter), so it is covered in
-# test_main_loop.py::TestLoopCounterRuntime rather than here.
+# test_main_loop.py::TestMainLoop rather than here.
 # ---------------------------------------------------------------------------
 
 
@@ -389,61 +378,38 @@ class TestLoopRunsToCompletion:
             # Only the user loop variables cross the back-edge.
             back_edge = State(end.state)
 
-    def test_single_loop_iterates_once_per_row_then_stops(self):
-        rows = [Tuple({"v": 1}), Tuple({"v": 2}), Tuple({"v": 3})]
+    def test_accumulator_persists_and_reserved_names_never_leak(self):
+        # The one-iteration-per-row scenario itself is exercised end-to-end
+        # (byte-identical expressions) by LoopIntegrationSpec; this test pins
+        # the operator-level composition and the reserved-name filtering.
+        rows = [Tuple({"v": 10}), Tuple({"v": 20}), Tuple({"v": 30})]
         iterations, emitted, final_vars = self._drive_single_loop(
             rows,
-            init="i = 0",
+            init="i = 0; total = 0",
             output_expr="table.iloc[i]",
-            update="i += 1",
+            update="total += int(table.iloc[i]['v']); i += 1; output = total",
             condition_expr="i < len(table)",
         )
         assert iterations == 3
         assert len(emitted) == 3  # one loop-body row emitted per iteration
         assert final_vars["i"] == 3
-
-    def test_accumulator_persists_and_reserved_names_never_leak(self):
-        rows = [Tuple({"v": 10}), Tuple({"v": 20}), Tuple({"v": 30})]
-        iterations, _, final_vars = self._drive_single_loop(
-            rows,
-            init="i = 0; total = 0",
-            output_expr="table.iloc[i]",
-            update="total += int(table.iloc[i]['v']); i += 1",
-            condition_expr="i < len(table)",
-        )
-        assert iterations == 3
-        assert final_vars["i"] == 3
         assert final_vars["total"] == 60  # 10 + 20 + 30 carried across iterations
-        # `table`/`output` are runtime-reserved; they must never persist in the
-        # loop state that crosses the back-edge.
+        # `table` is runtime-reserved; it must never persist in the loop state
+        # that crosses the back-edge. `output` is an ordinary user variable
+        # (loop expressions are eval'd directly), so it persists like any other.
         assert "table" not in final_vars
-        assert "output" not in final_vars
+        assert final_vars["output"] == 60
 
 
 class TestReservedStateKeysConstant:
-    """The reviewer flagged that the reserved-name set was a string
-    convention rather than encoded as code. The filtering in
-    ``eval_output`` / ``run_update`` / ``produce_state_on_finish`` now
-    reads against a single ``_RESERVED_STATE_KEYS`` constant; this test
-    pins that the constant carries exactly the names documented on the
-    loop-operator class docstrings."""
+    """The reserved-name filtering in ``run_update`` /
+    ``produce_state_on_finish`` reads against a single
+    ``_RESERVED_STATE_KEYS`` constant; pin its exact (frozen) contents."""
 
-    def test_contains_table_and_output(self):
-        assert "table" in _RESERVED_STATE_KEYS
-        assert "output" in _RESERVED_STATE_KEYS
-
-    def test_does_not_contain_envelope_only_names(self):
-        # loop_counter / LoopStartId live on the StateFrame envelope, never
-        # in user state -- so they shouldn't appear in this filter list
-        # either. LoopStartStateURI is a historical reserved name (the
-        # loop-back write address is setup config now); pin that it never
-        # returns to the filter list.
-        assert "loop_counter" not in _RESERVED_STATE_KEYS
-        assert "LoopStartId" not in _RESERVED_STATE_KEYS
-        assert "LoopStartStateURI" not in _RESERVED_STATE_KEYS
-
-    def test_is_frozen(self):
-        # Mutability would let a future caller silently expand the
-        # reserved set; the constant is meant to be the single source of
-        # truth, so freeze it.
+    def test_reserved_state_keys_is_exactly_frozen_table(self):
+        # Envelope names (loop_counter / LoopStartId) are deliberately NOT
+        # reserved -- they ride the StateFrame envelope and never touch user
+        # state. Neither is "output": loop expressions are eval'd directly,
+        # so it is an ordinary user variable.
+        assert _RESERVED_STATE_KEYS == frozenset({"table"})
         assert isinstance(_RESERVED_STATE_KEYS, frozenset)

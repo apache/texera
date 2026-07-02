@@ -172,10 +172,9 @@ class LoopIntegrationSpec
       List(link(src, start), link(start, end))
     )
     // LoopStart emits one row per iteration (table.iloc[i]); i advances 0,1,2
-    // and stops at i == 3, so the body runs exactly 3 times. A single
-    // (outermost) LoopEnd is an identity pass-through that accumulates every
-    // iteration and never resets, so its materialized result holds all 3 rows.
-    // An off-by-one counter bug that still terminated would land on 2 or 4.
+    // and stops at i == 3, so the body runs exactly 3 times. The outermost
+    // LoopEnd never resets, so its materialized result holds all 3 rows. An
+    // off-by-one counter bug that still terminated would land on 2 or 4.
     val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
     assert(
       endRows == 3,
@@ -194,12 +193,11 @@ class LoopIntegrationSpec
     // terminal outer LoopEnd.
     //
     // This is the case that exercises the loop_counter increment/decrement and
-    // the LoopStartId routing carried on the StateFrame envelope (each LoopEnd
-    // selects its loop-back write URI from the setup-injected map by that id):
-    // the outer loop's state passes THROUGH the inner LoopStart (+1) and inner
-    // LoopEnd (-1) untouched, and is consumed only at the outer LoopEnd
-    // (counter == 0). A routing or counter bug would change the 9, or
-    // mis-consume and hang.
+    // the loop_start_id routing on the StateFrame envelope (write addresses:
+    // see InitializeExecutorRequest.loopStartStateUris): the outer loop's state
+    // passes THROUGH the inner LoopStart (+1) and inner LoopEnd (-1) untouched,
+    // and is consumed only at the outer LoopEnd (counter == 0). A routing or
+    // counter bug would change the 9, or mis-consume and hang.
     val src = textInput("1\n2\n3")
     val outerStart = loopStart("i = 0", "table")
     val innerStart = loopStart("j = 0", "table.iloc[j]")
@@ -214,12 +212,10 @@ class LoopIntegrationSpec
         link(innerEnd, outerEnd)
       )
     )
-    // Materialized results distinguish accumulate-vs-reset: the terminal outer
-    // LoopEnd accumulates all 9 inner-iteration rows that flowed through, but
-    // the INNER LoopEnd resets once per outer iteration, so its materialized
-    // result holds only the final outer iteration's 3 inner rows -- not 9.
-    // The inner == 3 assertion is the one that fails against the pre-fix code
-    // (where the inner reset never fired and it accumulated all 9).
+    // The outer LoopEnd accumulates all 9 rows; the INNER LoopEnd resets once
+    // per outer iteration (see main_loop's reset_output_storage call site), so
+    // it holds only the last outer iteration's 3 rows. The inner == 3
+    // assertion is the one that fails against the pre-fix code.
     val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier, -1L)
     val innerRows = materialized.getOrElse(innerEnd.operatorIdentifier, -1L)
     assert(

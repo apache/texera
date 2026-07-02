@@ -103,43 +103,13 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     code should include(s"return self.eval_condition(${decodeExpr("i < 3")})")
   }
 
-  // ---- codegen robustness -------------------------------------------------
-  //
-  // These tests address PR #4206 reviewer feedback that the old s"..."
-  // template was vulnerable to user input containing quotes / newlines /
-  // backslashes. With the `pyb` interpolator and an `EncodableString`-typed
-  // field, the raw user text never appears in the generated source -- only
-  // its base64-encoded form does -- so quotes etc. can never break the
-  // surrounding Python syntax.
-
-  it should "encode a user update containing double quotes" in {
-    val tricky = """name = "alice""""
-    val code = desc(update = tricky).generatePythonCode()
-    assertUserInputIsBase64Wrapped(code, tricky)
-  }
-
-  it should "encode a user condition containing single quotes" in {
-    val tricky = "name != 'bob'"
-    val code = desc(condition = tricky).generatePythonCode()
-    assertUserInputIsBase64Wrapped(code, tricky)
-  }
-
-  it should "encode a user update containing newlines" in {
-    val tricky = "i += 1\nj += 1"
-    val code = desc(update = tricky).generatePythonCode()
-    assertUserInputIsBase64Wrapped(code, tricky)
-  }
-
-  it should "encode a user condition containing backslashes" in {
-    val tricky = """i < len("a\\b")"""
-    val code = desc(condition = tricky).generatePythonCode()
-    assertUserInputIsBase64Wrapped(code, tricky)
-  }
+  // Tricky-input round-trips (quotes / newlines / backslashes / unicode)
+  // through the base64 codegen are pinned exhaustively by PythonTemplateBuilderSpec.
 
   // ---- PhysicalOp wiring --------------------------------------------------
 
-  "LoopEndOpDesc.getPhysicalOp" should "produce a non-parallelizable PhysicalOp pinned to a single worker" in {
-    assertNonParallelizableSingleWorker(desc().getPhysicalOp(workflowId, executionId))
+  "LoopEndOpDesc.getPhysicalOp" should "produce a non-parallelizable PhysicalOp" in {
+    assertNonParallelizable(desc().getPhysicalOp(workflowId, executionId))
   }
 
   "LoopEndOpDesc.getPhysicalOp" should "require materialized execution" in {
