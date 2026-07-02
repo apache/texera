@@ -34,9 +34,6 @@ import scala.io.Source
   * extract the embedded Postgres binaries into the same directory in parallel.
   */
 object MockTexeraDB {
-
-  private var dbInstance: Option[EmbeddedPostgres] = None
-  private var dslContext: Option[DSLContext] = None
   private val database: String = "texera_db"
   private val username: String = "postgres"
   private val password: String = ""
