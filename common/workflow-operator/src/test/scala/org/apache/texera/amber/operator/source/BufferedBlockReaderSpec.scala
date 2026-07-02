@@ -29,15 +29,22 @@ class BufferedBlockReaderSpec extends AnyFlatSpec {
 
   // The reader only ever calls read(byte[]) and close(); each chunk arrives
   // as one read so buffer-boundary paths can be forced without 4 KB inputs.
+  // Reads are bounded by the buffer length, carrying any chunk remainder
+  // into the next call per the InputStream contract.
   private class ChunkedInputStream(chunks: Seq[String]) extends java.io.InputStream {
     private val iterator = chunks.iterator
+    private var pending: Array[Byte] = Array.emptyByteArray
     override def read(): Int = -1
-    override def read(buffer: Array[Byte]): Int =
-      if (iterator.hasNext) {
-        val chunk = iterator.next().getBytes("UTF-8")
-        System.arraycopy(chunk, 0, buffer, 0, chunk.length)
-        chunk.length
-      } else -1
+    override def read(buffer: Array[Byte]): Int = {
+      if (pending.isEmpty) {
+        if (!iterator.hasNext) return -1
+        pending = iterator.next().getBytes("UTF-8")
+      }
+      val length = math.min(pending.length, buffer.length)
+      System.arraycopy(pending, 0, buffer, 0, length)
+      pending = pending.drop(length)
+      length
+    }
   }
 
   // ----- readLine: splitting -----

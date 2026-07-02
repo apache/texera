@@ -106,7 +106,7 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
   }
 
   "DualInputPortsPythonUDFOpDescV2 schema propagation" should
-    "emit only the output columns when input columns are not retained (default)" in {
+    "emit only the output columns when input columns are not retained" in {
     val d = new DualInputPortsPythonUDFOpDescV2
     d.outputColumns = List(new Attribute("res", AttributeType.INTEGER))
     val out = d.getExternalOutputSchemas(
