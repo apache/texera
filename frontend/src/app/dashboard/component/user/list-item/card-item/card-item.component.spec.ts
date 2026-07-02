@@ -211,7 +211,7 @@ describe("CardItemComponent", () => {
 
     expect(workflowCoverService.getCover).toHaveBeenCalledWith(7);
     expect(component.hasCustomImage).toBe(true);
-    expect(component.previewImage).toBe(cover);
+    expect(component.coverImageSrc).toBe(cover);
   });
 
   it("should fall back to the default preview image when no cover is set", () => {
@@ -221,7 +221,7 @@ describe("CardItemComponent", () => {
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
     expect(component.hasCustomImage).toBe(false);
-    expect(component.previewImage).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
 
   it("should upload a selected image and use the returned data URL as the cover", async () => {
@@ -233,7 +233,7 @@ describe("CardItemComponent", () => {
     await component.onImageSelected({ target: { files: [file], value: "pic.png" } } as any);
 
     expect(workflowCoverService.setCoverFromFile).toHaveBeenCalledWith(7, file);
-    expect(component.previewImage).toBe(dataUrl);
+    expect(component.coverImageSrc).toBe(dataUrl);
     expect(component.hasCustomImage).toBe(true);
   });
 
@@ -258,7 +258,7 @@ describe("CardItemComponent", () => {
     await component.onImageSelected({ target: { files: [file], value: "pic.png" } } as any);
 
     expect(errorSpy).toHaveBeenCalled();
-    expect(component.previewImage).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
 
   it("should clear the cover and revert to the default image on reset", () => {
@@ -270,7 +270,7 @@ describe("CardItemComponent", () => {
 
     expect(workflowCoverService.clearCover).toHaveBeenCalledWith(7);
     expect(component.hasCustomImage).toBe(false);
-    expect(component.previewImage).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
 
   it("should notify and keep the cover when reset fails", () => {

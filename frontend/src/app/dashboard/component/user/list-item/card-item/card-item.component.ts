@@ -140,11 +140,6 @@ export class CardItemComponent implements OnChanges {
     private workflowCoverService: WorkflowCoverService
   ) {}
 
-  /** The top image src: the user's custom cover if present, otherwise the default. */
-  get previewImage(): string {
-    return this.customImage ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
-  }
-
   get hasCustomImage(): boolean {
     return this.customImage !== undefined;
   }
