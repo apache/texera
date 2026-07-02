@@ -17,7 +17,13 @@
  * under the License.
  */
 
-import { HeatmapView, normalizeScores, rawMetricForView } from "./heatmap-scoring";
+import {
+  formatMetricForView,
+  HeatmapView,
+  heatmapViewTitle,
+  normalizeScores,
+  rawMetricForView,
+} from "./heatmap-scoring";
 import { OperatorPerformanceMetrics } from "../workflow-status/performance-metrics";
 
 function makeMetrics(overrides: Partial<OperatorPerformanceMetrics>): OperatorPerformanceMetrics {
@@ -118,5 +124,39 @@ describe("normalizeScores", () => {
     expect(scores["small"]).toBe(0);
     expect(scores["big"]).toBe(1);
     expect(scores["mid"]).toBeGreaterThan(0.5);
+  });
+});
+
+describe("formatMetricForView", () => {
+  it("formats Runtime nanoseconds as a human duration", () => {
+    expect(formatMetricForView(8_620_000_000, HeatmapView.Runtime)).toBe("8.62 s");
+    expect(formatMetricForView(5_000_000, HeatmapView.Runtime)).toBe("5 ms");
+    expect(formatMetricForView(2_000, HeatmapView.Runtime)).toBe("2 µs");
+    expect(formatMetricForView(500, HeatmapView.Runtime)).toBe("500 ns");
+  });
+
+  it("formats Throughput as time-per-row", () => {
+    expect(formatMetricForView(2, HeatmapView.Throughput)).toBe("2.00 s/row");
+    expect(formatMetricForView(0.0015, HeatmapView.Throughput)).toBe("1.5 ms/row");
+    expect(formatMetricForView(0.0005, HeatmapView.Throughput)).toBe("500 µs/row");
+  });
+
+  it("formats I/O imbalance as a 2-decimal ratio", () => {
+    expect(formatMetricForView(0.75, HeatmapView.IoImbalance)).toBe("0.75");
+    expect(formatMetricForView(4, HeatmapView.IoImbalance)).toBe("4.00");
+  });
+
+  it("renders 0 for non-positive or non-finite values", () => {
+    expect(formatMetricForView(0, HeatmapView.Runtime)).toBe("0");
+    expect(formatMetricForView(Number.NaN, HeatmapView.Throughput)).toBe("0");
+    expect(formatMetricForView(Number.POSITIVE_INFINITY, HeatmapView.IoImbalance)).toBe("0");
+  });
+});
+
+describe("heatmapViewTitle", () => {
+  it("returns a human-readable title for each view", () => {
+    expect(heatmapViewTitle(HeatmapView.Runtime)).toBe("Runtime");
+    expect(heatmapViewTitle(HeatmapView.Throughput)).toBe("Throughput");
+    expect(heatmapViewTitle(HeatmapView.IoImbalance)).toBe("I/O imbalance");
   });
 });

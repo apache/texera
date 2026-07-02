@@ -21,7 +21,7 @@ import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "./heatmap-color";
 
 describe("scoreToColor", () => {
   it("maps 0 to the cold stop (blue)", () => {
-    expect(scoreToColor(0)).toBe("#2c7bb6");
+    expect(scoreToColor(0)).toBe("#5b9bd5");
   });
 
   it("maps 0.5 to the mid stop (pale yellow)", () => {
@@ -29,7 +29,7 @@ describe("scoreToColor", () => {
   });
 
   it("maps 1 to the hot stop (red)", () => {
-    expect(scoreToColor(1)).toBe("#d7191c");
+    expect(scoreToColor(1)).toBe("#e05a52");
   });
 
   it("clamps values below 0 to the cold stop", () => {

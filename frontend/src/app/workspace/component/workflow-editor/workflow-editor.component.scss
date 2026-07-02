@@ -19,10 +19,39 @@
 
 #workflow-editor-wrapper {
   height: 100%;
+  // Anchors absolutely-positioned canvas overlays (e.g. the heat-map legend).
+  position: relative;
 }
 
 #workflow-editor {
   height: 100%;
+}
+
+// Smoothly animate operator body fill changes (e.g. heat-map recolor on view switch / toggle).
+::ng-deep #workflow-editor .body {
+  transition: fill 0.25s ease;
+}
+
+.heatmap-tooltip {
+  position: absolute;
+  z-index: 11;
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+
+  &__title {
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  &__row {
+    color: #eee;
+  }
 }
 
 ::ng-deep .agent-action {

@@ -28,6 +28,13 @@ import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../
 import { Validation, ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
+import {
+  formatMetricForView,
+  HeatmapView,
+  heatmapViewTitle,
+  normalizeScores,
+  rawMetricForView,
+} from "../../service/heatmap/heatmap-scoring";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
@@ -48,6 +55,7 @@ import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { NgIf } from "@angular/common";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
+import { HeatmapLegendComponent } from "../heatmap-legend/heatmap-legend.component";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -88,12 +96,27 @@ export const MAIN_CANVAS = {
   selector: "texera-workflow-editor",
   templateUrl: "workflow-editor.component.html",
   styleUrls: ["workflow-editor.component.scss"],
-  imports: [NzDropdownMenuComponent, NzNoAnimationDirective, ContextMenuComponent, NgIf, AgentInteractionComponent],
+  imports: [
+    NzDropdownMenuComponent,
+    NzNoAnimationDirective,
+    ContextMenuComponent,
+    NgIf,
+    AgentInteractionComponent,
+    HeatmapLegendComponent,
+  ],
 })
 export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   editor!: HTMLElement;
   editorWrapper!: HTMLElement;
   paper!: joint.dia.Paper;
+  // Heat-map hover tooltip (shown while the Performance overlay is on). Null when hidden.
+  public heatmapTooltip: {
+    x: number;
+    y: number;
+    title: string;
+    metricLabel: string;
+    heatLabel: string;
+  } | null = null;
   private interactive: boolean = true;
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
   private wrapper;
@@ -188,6 +211,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
+    this.handleHeatmapOverlay();
+    this.handleHeatmapHover();
     this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
@@ -384,6 +409,105 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         }
         this.applyOperatorBorder(operator.operatorID);
       });
+  }
+
+  /**
+   * Drives the performance heat-map overlay (Layers > Performance). The overlay colors only the
+   * operator body fill, so it coexists with the execution-status border. Colors are derived from
+   * the WorkflowStatusService performance metrics via the pure heatmap-scoring helpers, so both the
+   * main canvas and the mini-map (shared model) update.
+   */
+  private handleHeatmapOverlay(): void {
+    // Repaint whenever the active view or the metrics change (only while a view is active).
+    combineLatest([this.wrapper.getHeatmapViewStream(), this.workflowStatusService.getPerformanceMetricsStream()])
+      .pipe(untilDestroyed(this))
+      .subscribe(([view]) => {
+        if (view !== null) {
+          this.repaintHeatmapColors(view);
+        }
+      });
+
+    // Restore default fills when the overlay is turned off.
+    this.wrapper
+      .getHeatmapViewStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(view => {
+        if (view === null) {
+          this.restoreAllOperatorFills();
+          this.heatmapTooltip = null;
+        }
+      });
+
+    // Paint newly (re)added operators when the overlay is active (e.g. after reload).
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorAddStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        const view = this.wrapper.getHeatmapView();
+        if (view !== null) {
+          this.repaintHeatmapColors(view);
+        }
+      });
+  }
+
+  private heatmapScores(view: HeatmapView): Record<string, number> {
+    const metrics = this.workflowStatusService.getCurrentPerformanceMetrics();
+    const rawById: Record<string, number> = {};
+    for (const operatorId of Object.keys(metrics)) {
+      rawById[operatorId] = rawMetricForView(metrics[operatorId], view);
+    }
+    return normalizeScores(rawById);
+  }
+
+  private repaintHeatmapColors(view: HeatmapView): void {
+    const scores = this.heatmapScores(view);
+    this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .forEach(op => this.jointUIService.applyHeatmapColor(this.paper, op.operatorID, scores[op.operatorID]));
+  }
+
+  private restoreAllOperatorFills(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .forEach(op => this.jointUIService.restoreOperatorFill(this.paper, op));
+  }
+
+  /**
+   * Shows a small tooltip with the hovered operator's metric value and heat score for the active
+   * view. Only active while the heat-map overlay is on.
+   */
+  private handleHeatmapHover(): void {
+    fromJointPaperEvent(this.paper, "element:mouseenter")
+      .pipe(untilDestroyed(this))
+      .subscribe(([elementView, evt]) => {
+        const view = this.wrapper.getHeatmapView();
+        if (view === null) {
+          return;
+        }
+        const operatorId = elementView.model.id.toString();
+        if (!this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+          return;
+        }
+        const metrics = this.workflowStatusService.getCurrentPerformanceMetrics()[operatorId];
+        const rawValue = metrics ? rawMetricForView(metrics, view) : 0;
+        const score = this.heatmapScores(view)[operatorId];
+        const rect = this.editor.getBoundingClientRect();
+        const mouseEvent = evt as unknown as MouseEvent;
+        this.heatmapTooltip = {
+          x: mouseEvent.clientX - rect.left + 12,
+          y: mouseEvent.clientY - rect.top + 12,
+          title: heatmapViewTitle(view),
+          metricLabel: formatMetricForView(rawValue, view),
+          heatLabel: score === undefined ? "—" : `${Math.round(score * 100)}%`,
+        };
+      });
+
+    fromJointPaperEvent(this.paper, "element:mouseleave")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => (this.heatmapTooltip = null));
   }
 
   /**

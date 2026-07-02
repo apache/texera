@@ -26,6 +26,7 @@ import * as joint from "jointjs";
 import { fromEventPattern, Observable } from "rxjs";
 import { Coeditor } from "../../../common/type/user";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
+import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "../heatmap/heatmap-color";
 
 /**
  * Defines the SVG path for the delete button
@@ -500,6 +501,24 @@ export class JointUIService {
 
   public changeOperatorDisableStatus(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {
     jointPaper.getModelById(operator.operatorID).attr("rect.body/fill", JointUIService.getOperatorFillColor(operator));
+  }
+
+  /**
+   * Paints an operator's body fill for the performance heat-map overlay. The heat-map owns only
+   * `rect.body/fill`, so it coexists with the execution-status border (`rect.body/stroke`).
+   * A `score` of undefined means "no metrics captured yet" and paints a neutral color.
+   */
+  public applyHeatmapColor(jointPaper: joint.dia.Paper, operatorID: string, score: number | undefined): void {
+    const fill = score === undefined ? HEATMAP_NO_DATA_COLOR : scoreToColor(score);
+    jointPaper.getModelById(operatorID)?.attr("rect.body/fill", fill);
+  }
+
+  /**
+   * Restores an operator's default body fill (used when the heat-map overlay is turned off),
+   * reusing the same source as the normal type/disable coloring.
+   */
+  public restoreOperatorFill(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {
+    jointPaper.getModelById(operator.operatorID)?.attr("rect.body/fill", JointUIService.getOperatorFillColor(operator));
   }
 
   public changeOperatorViewResultStatus(

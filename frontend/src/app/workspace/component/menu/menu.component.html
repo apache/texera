@@ -197,6 +197,39 @@
                   >Status</label
                 >
               </li>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="showHeatmap"
+                  (ngModelChange)="toggleHeatmap()"
+                  >Performance</label
+                >
+              </li>
+              <li
+                nz-menu-item
+                *ngIf="showHeatmap"
+                class="heatmap-view-options"
+                [nzDisabled]="true">
+                <nz-radio-group
+                  [(ngModel)]="heatmapView"
+                  (ngModelChange)="setHeatmapView($event)">
+                  <label
+                    nz-radio
+                    [nzValue]="HeatmapView.Runtime"
+                    >Runtime</label
+                  >
+                  <label
+                    nz-radio
+                    [nzValue]="HeatmapView.Throughput"
+                    >Throughput</label
+                  >
+                  <label
+                    nz-radio
+                    [nzValue]="HeatmapView.IoImbalance"
+                    >I/O imbalance</label
+                  >
+                </nz-radio-group>
+              </li>
             </ul>
           </nz-dropdown-menu>
           <button

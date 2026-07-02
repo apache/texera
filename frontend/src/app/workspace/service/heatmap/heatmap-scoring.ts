@@ -55,6 +55,52 @@ export function rawMetricForView(metrics: OperatorPerformanceMetrics, view: Heat
   }
 }
 
+/** Human-readable title for a view, shown in the legend and hover tooltip. */
+export function heatmapViewTitle(view: HeatmapView): string {
+  switch (view) {
+    case HeatmapView.Runtime:
+      return "Runtime";
+    case HeatmapView.Throughput:
+      return "Throughput";
+    case HeatmapView.IoImbalance:
+      return "I/O imbalance";
+  }
+}
+
+function formatNanos(ns: number): string {
+  if (ns >= 1e9) return `${(ns / 1e9).toFixed(2)} s`;
+  if (ns >= 1e6) return `${(ns / 1e6).toFixed(0)} ms`;
+  if (ns >= 1e3) return `${(ns / 1e3).toFixed(0)} µs`;
+  return `${Math.round(ns)} ns`;
+}
+
+function formatSeconds(seconds: number): string {
+  if (seconds >= 1) return `${seconds.toFixed(2)} s`;
+  if (seconds >= 1e-3) return `${(seconds * 1e3).toFixed(1)} ms`;
+  return `${(seconds * 1e6).toFixed(0)} µs`;
+}
+
+/**
+ * Human-readable label for a raw view metric, used by the legend to show the actual value range
+ * behind the color scale. Units match each view: Runtime is a duration, Throughput is time-per-row,
+ * I/O imbalance is a unitless ratio.
+ */
+export function formatMetricForView(value: number, view: HeatmapView): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "0";
+  }
+  switch (view) {
+    case HeatmapView.Runtime:
+      return formatNanos(value);
+    case HeatmapView.Throughput:
+      return `${formatSeconds(value)}/row`;
+    case HeatmapView.IoImbalance:
+      return value.toFixed(2);
+    default:
+      return String(value);
+  }
+}
+
 /**
  * Normalize per-operator raw costs into [0, 1] heat scores.
  *

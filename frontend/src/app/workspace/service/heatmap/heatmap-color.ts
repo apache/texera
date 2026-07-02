@@ -23,9 +23,9 @@ type Rgb = readonly [number, number, number];
  * Cold -> hot ramp (ColorBrewer RdYlBu, reversed): blue -> pale yellow -> red.
  * Chosen because it is colorblind-safer than a rainbow ramp.
  */
-const COLD: Rgb = [44, 123, 182]; // #2c7bb6
-const MID: Rgb = [255, 255, 191]; // #ffffbf
-const HOT: Rgb = [215, 25, 28]; // #d7191c
+const COLD: Rgb = [91, 155, 213]; // #5b9bd5 — bright blue (still light enough for readable labels)
+const MID: Rgb = [255, 255, 191]; // #ffffbf — pale yellow
+const HOT: Rgb = [224, 90, 82]; // #e05a52 — bright red
 
 /** Neutral fill for an operator that has no score (no metrics captured yet). */
 export const HEATMAP_NO_DATA_COLOR = "#eeeeee";
