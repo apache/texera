@@ -50,7 +50,7 @@ import org.apache.texera.amber.error.ErrorUtils.{
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.service.util.LargeBinaryManager
-import org.apache.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent}
+import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.service.WorkflowService.mkWorkflowStateId
@@ -295,11 +295,7 @@ class WorkflowService(
       executionService.onNext(execution)
       execution.executeWorkflow()
     } catch {
-      case e: Throwable =>
-        errorHandler(e)
-        errorSubject.onNext(
-          WorkflowErrorEvent(executionStateStore.metadataStore.getState.fatalErrors)
-        )
+      case e: Throwable => errorHandler(e)
     }
 
   }

@@ -148,6 +148,12 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     desc().getPhysicalOp(workflowId, executionId).requiresMaterializedExecution shouldBe true
   }
 
+  it should "not mark the physical op as a loop start" in {
+    // Only Loop Start is a jump / write-back target; the scheduler must not
+    // mint a loop-back entry for a Loop End.
+    desc().getPhysicalOp(workflowId, executionId).isLoopStart shouldBe false
+  }
+
   it should "reuse its output storage across re-execution so RegionExecutionCoordinator skips iceberg recreation" in {
     // The output port's `reuseStorage` flag drives the create-or-reuse
     // decision in DocumentFactory.createOrReuseDocument (called by

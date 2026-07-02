@@ -208,6 +208,11 @@ case class PhysicalOp(
     // restricting it to only the requiring operator's regions is a possible
     // future optimization. Default false.
     requiresMaterializedExecution: Boolean = false,
+    // Marks the Loop Start operator of a loop. The scheduler uses it to resolve
+    // the loop-back state write address (the state URI of this operator's single
+    // input port) delivered to workers at setup via
+    // InitializeExecutorRequest.loopStartStateUris. Default false.
+    isLoopStart: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None,
     // name of the PVE to execute within
@@ -332,6 +337,13 @@ case class PhysicalOp(
     */
   def withRequiresMaterializedExecution(requiresMaterializedExecution: Boolean): PhysicalOp =
     this.copy(requiresMaterializedExecution = requiresMaterializedExecution)
+
+  /**
+    * creates a copy specifying whether this operator is the Loop Start of a
+    * loop (see the field doc)
+    */
+  def withIsLoopStart(isLoopStart: Boolean): PhysicalOp =
+    this.copy(isLoopStart = isLoopStart)
 
   /**
     * Creates a copy of the PhysicalOp with the schema of a specified input port updated.

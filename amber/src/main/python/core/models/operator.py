@@ -308,9 +308,10 @@ class TableOperator(TupleOperatorV2):
 # boundary; explicitly stripped from every state dict that crosses Loop
 # Start / Loop End so user code can neither read nor persist them.
 # Other reserved names that used to live in user state -- ``loop_counter``,
-# ``LoopStartId``, ``LoopStartStateURI`` -- are no longer in ``self.state``
-# at all; they ride the StateFrame envelope (see ``core.models.payload``)
-# and are stamped/captured by ``MainLoop._process_state_frame``.
+# ``LoopStartId`` -- are no longer in ``self.state`` at all; they ride the
+# StateFrame envelope (see ``core.models.payload``) and are stamped/captured
+# by ``MainLoop._process_state_frame``. The loop-back write address is not
+# state at all: it is setup config (``Context.loop_start_state_uris``).
 _RESERVED_STATE_KEYS: frozenset = frozenset({"table", "output"})
 
 
@@ -352,13 +353,13 @@ class LoopStartOperator(TableOperator):
     ``process_table()`` only; all other methods are ``@overrides.final``. After
     ``open()`` returns ``self.state`` holds only the user's loop variables --
     none of the reserved names; see the ``_RESERVED_STATE_KEYS`` module comment
-    for the ``table``/``output`` vs envelope-borne counter/id/uri split.
+    for the ``table``/``output`` vs envelope-borne counter/id split.
     """
 
     @overrides.final
     def process_state(self, state: State, port: int) -> Optional[State]:
         # First-entry only: merge upstream state into self.state. The nested
-        # pass-through (state already carrying LoopStartStateURI) and all
+        # pass-through (a frame already stamped with a LoopStartId) and all
         # loop_counter bookkeeping are owned by the worker runtime
         # (main_loop._process_state_frame), so this operator never sees the
         # counter and never mutates the State it is handed.

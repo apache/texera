@@ -93,13 +93,6 @@ class _FalseLoopEnd(LoopEndOperator):
         return False
 
 
-class _MatReader:
-    """Minimal input-port materialization reader stub carrying a uri."""
-
-    def __init__(self, uri):
-        self.uri = uri
-
-
 class TestMainLoop:
     @pytest.fixture
     def command_sequence(self):
@@ -1329,9 +1322,9 @@ class TestMainLoop:
 
         # Priority pulls control before data when both are queued.
         output_control_element = output_queue.get()
-        assert isinstance(output_control_element, DCMElement), (
-            f"expected control reply first (priority), got {type(output_control_element).__name__}"
-        )
+        assert isinstance(
+            output_control_element, DCMElement
+        ), f"expected control reply first (priority), got {type(output_control_element).__name__}"
         assert output_control_element.tag == control_reply_channel
         assert output_control_element.payload.return_invocation.command_id == 98
         assert (
@@ -1340,9 +1333,9 @@ class TestMainLoop:
         )
 
         output_data_element = output_queue.get()
-        assert isinstance(output_data_element, DataElement), (
-            f"expected data element second, got {type(output_data_element).__name__}"
-        )
+        assert isinstance(
+            output_data_element, DataElement
+        ), f"expected data element second, got {type(output_data_element).__name__}"
         assert output_data_element.tag == mock_data_output_channel
         assert isinstance(output_data_element.payload, DataFrame)
         data_frame: DataFrame = output_data_element.payload
@@ -1863,12 +1856,15 @@ class TestMainLoop:
     def _capture_state_emit(self, main_loop, monkeypatch):
         """Stub emit/save/switch/reset; return (emitted, switched, reset_calls).
 
-        Each `emitted` entry is (state, loop_counter, loop_start_id,
-        loop_start_state_uri) so tests can assert the loop metadata the runtime
-        attaches to the StateFrame envelope. `reset_calls` records each
-        `output_manager.reset_output_storage()` call (stubbed so the real
-        iceberg-truncation never runs in the unit test); the inner-LoopEnd
-        pass-through is expected to fire it once, the consume path never.
+        Each `emitted` entry is (state, loop_counter, loop_start_id) so tests
+        can assert the loop metadata the runtime attaches to the StateFrame
+        envelope. The emit stub mirrors the real 3-arg
+        `OutputManager.emit_state` signature, so a signature drift between the
+        runtime and the manager fails here instead of being masked.
+        `reset_calls` records each `output_manager.reset_output_storage()` call
+        (stubbed so the real iceberg-truncation never runs in the unit test);
+        the inner-LoopEnd pass-through is expected to fire it once, the consume
+        path never.
         """
         emitted = []
         switched = []
@@ -1883,26 +1879,23 @@ class TestMainLoop:
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "emit_state",
-            lambda state, loop_counter, loop_start_id="", loop_start_state_uri="": (
-                emitted.append(
-                    (state, loop_counter, loop_start_id, loop_start_state_uri)
-                )
-                or []
+            lambda state, loop_counter, loop_start_id="": (
+                emitted.append((state, loop_counter, loop_start_id)) or []
             ),
         )
         monkeypatch.setattr(
             main_loop.context.output_manager,
             "save_state_to_storage_if_needed",
-            lambda state, loop_counter, *_: None,
+            lambda state, loop_counter, loop_start_id="": None,
         )
         return emitted, switched, reset_calls
 
     def test_loopstart_reentry_increments_counter_and_skips_operator(
         self, main_loop, monkeypatch
     ):
-        # A state arriving with a loop_start_state_uri on its envelope is an
+        # A state arriving with a loop_start_id stamped on its envelope is an
         # outer loop's state passing through this inner LoopStart. The runtime
-        # forwards it with loop_counter + 1 (keeping the outer id/uri) and must
+        # forwards it with loop_counter + 1 (keeping the outer id) and must
         # NOT invoke the operator.
         class StubLoopStart(LoopStartOperator):
             def process_table(self, table, port):
@@ -1918,18 +1911,17 @@ class TestMainLoop:
                 State({"i": 5}),
                 loop_counter=1,
                 loop_start_id="outer-loop",
-                loop_start_state_uri="vfs:///outer",
             )
         )
 
         assert switched == [], "nested pass-through must not invoke the operator"
         assert len(emitted) == 1
-        emitted_state, emitted_counter, emitted_id, emitted_uri = emitted[0]
+        emitted_state, emitted_counter, emitted_id = emitted[0]
         assert emitted_counter == 2  # 1 + 1
         assert emitted_state["i"] == 5
         assert "loop_counter" not in emitted_state  # never leaks into State
-        # the outer loop's id/uri ride through unchanged
-        assert (emitted_id, emitted_uri) == ("outer-loop", "vfs:///outer")
+        # the outer loop's id rides through unchanged
+        assert emitted_id == "outer-loop"
         assert reset_calls == [], "a LoopStart never resets output storage"
 
     def test_loopend_passthrough_decrements_counter_and_skips_operator(
@@ -1949,18 +1941,17 @@ class TestMainLoop:
                 State({"outer_var": "v"}),
                 loop_counter=2,
                 loop_start_id="outer-loop",
-                loop_start_state_uri="vfs:///outer",
             )
         )
 
         assert switched == [], "pass-through must not invoke the operator"
         assert reset_calls == [True], "pass-through resets the inner LoopEnd output"
         assert len(emitted) == 1
-        emitted_state, emitted_counter, emitted_id, emitted_uri = emitted[0]
+        emitted_state, emitted_counter, emitted_id = emitted[0]
         assert emitted_counter == 1  # 2 - 1
         assert emitted_state["outer_var"] == "v"
-        # the outer loop's id/uri ride through unchanged
-        assert (emitted_id, emitted_uri) == ("outer-loop", "vfs:///outer")
+        # the outer loop's id rides through unchanged
+        assert emitted_id == "outer-loop"
 
     def test_loopend_consume_invokes_operator_at_counter_zero(
         self, main_loop, monkeypatch
@@ -2000,25 +1991,23 @@ class TestMainLoop:
                 State({"i": 7}),
                 loop_counter=1,
                 loop_start_id="outer-loop",
-                loop_start_state_uri="vfs:///outer",
             )
         )
 
         assert reset_calls == [True], "inner pass-through resets once per outer iter"
         assert switched == [], "reset path must not invoke the operator"
         assert len(emitted) == 1
-        _, emitted_counter, emitted_id, emitted_uri = emitted[0]
+        _, emitted_counter, emitted_id = emitted[0]
         assert emitted_counter == 0  # 1 - 1, forwarded to the outer LoopEnd
-        assert (emitted_id, emitted_uri) == ("outer-loop", "vfs:///outer")
+        assert emitted_id == "outer-loop"
 
     def test_user_state_excludes_envelope_metadata_on_consume_branch(
         self, main_loop, monkeypatch
     ):
         # Reviewer feedback (#discussion_r3285892237): the envelope's
-        # loop metadata (loop_counter / loop_start_id /
-        # loop_start_state_uri) is internal runtime data and user code
-        # must not see it. After commit 30ba48c39f the URI is a typed
-        # StateFrame field, no longer a key in user State. This test
+        # loop metadata (loop_counter / loop_start_id) is internal
+        # runtime data and user code must not see it. The metadata is
+        # typed StateFrame fields, never keys in user State. This test
         # pins that end to end: a StateFrame whose envelope carries the
         # metadata must yield a user-facing `current_input_state` that
         # contains only the inner State's keys -- never the envelope
@@ -2042,14 +2031,12 @@ class TestMainLoop:
                 inner_state,
                 loop_counter=0,
                 loop_start_id="outer-loop",
-                loop_start_state_uri="vfs:///wf/state/outer",
             )
         )
 
         # The runtime captured the envelope metadata onto its own
         # instance state...
         assert main_loop._loop_start_id == "outer-loop"
-        assert main_loop._loop_start_state_uri == "vfs:///wf/state/outer"
         # ...but never wrote it into the user-facing State that the
         # operator's process_state receives.
         passed_to_operator = (
@@ -2065,105 +2052,27 @@ class TestMainLoop:
     # _compute_loop_start_id / _jump_to_loop_start
     #
     # Reviewer feedback (#discussion_r3285892249) flagged these as the
-    # most fragile loop-runtime methods. Most of the original concerns
-    # have since been addressed (worker-id parsing moved to the canonical
-    # `get_logical_op_id`; LoopStartId / LoopStartStateURI now ride the
-    # StateFrame envelope, not user state). What remained: the silent
-    # first-port pick in `_compute_loop_start_id`, and no unit coverage
-    # for either method. The cases below close both gaps.
+    # most fragile loop-runtime methods. The worker-id parse is delegated
+    # to the canonical `get_logical_op_id`, and the loop-back write
+    # address is no longer computed here at all: the scheduler resolves
+    # it at setup and delivers it via
+    # InitializeExecutorRequest.loopStartStateUris (the old reader-mining
+    # code and its single-port/single-reader guards moved controller-side
+    # to WorkflowExecutionCoordinator.loopStartStateUris).
     # ------------------------------------------------------------------ #
 
-    @staticmethod
-    def _stub_reader_runnables(uri):
-        """Build the dict shape that
-        `input_manager.get_input_port_mat_reader_threads` returns: one
-        port -> one reader runnable carrying the given URI."""
-
-        return {PortIdentity(0, internal=False): [_MatReader(uri)]}
-
     def test_compute_loop_start_id_parses_worker_id_via_canonical_helper(
-        self, main_loop, monkeypatch
+        self, main_loop
     ):
         # Pin that we delegate the worker-id parse to `get_logical_op_id` --
         # the inline `split("-")` style flagged in the reviewer comment is
         # gone, and the test would fail loudly if a future refactor put it
-        # back.
+        # back. The parsed id is also the key a LoopEnd later uses to look
+        # up the loop-back URI in context.loop_start_state_uris, so a
+        # format drift here would break the pairing.
         main_loop.context.worker_id = "Worker:WF211-LoopStart-operator-d71e0ab4-main-0"
-        monkeypatch.setattr(
-            main_loop.context.input_manager,
-            "get_input_port_mat_reader_threads",
-            lambda: self._stub_reader_runnables("vfs:///wf/result/foo"),
-        )
 
-        op_id, _ = main_loop._compute_loop_start_id()
-
-        assert op_id == "LoopStart-operator-d71e0ab4"
-
-    def test_compute_loop_start_id_returns_state_uri_derived_from_reader(
-        self, main_loop, monkeypatch
-    ):
-        # The URI returned must be the state-channel form of the upstream
-        # reader's result URI, not the raw result URI -- the conversion
-        # via `VFSURIFactory.state_uri` must not be silently dropped.
-        main_loop.context.worker_id = "Worker:WF1-LoopStart-op-abc-main-0"
-        result_uri = "vfs:///wf/result/foo"
-        monkeypatch.setattr(
-            main_loop.context.input_manager,
-            "get_input_port_mat_reader_threads",
-            lambda: self._stub_reader_runnables(result_uri),
-        )
-
-        _, state_uri = main_loop._compute_loop_start_id()
-
-        from core.storage.vfs_uri_factory import VFSURIFactory
-
-        assert state_uri == VFSURIFactory.state_uri(result_uri)
-        # And the converted URI is genuinely different from the result
-        # URI (i.e. the conversion did something), so a no-op replacement
-        # would fail here too.
-        assert state_uri != result_uri
-
-    def test_compute_loop_start_id_raises_when_more_than_one_input_port(
-        self, main_loop, monkeypatch
-    ):
-        # Today a LoopStart with multiple input ports would silently pick
-        # whichever the dict iterator yields first. The defensive guard
-        # surfaces the misconfiguration loudly instead.
-        main_loop.context.worker_id = "Worker:WF1-LoopStart-op-abc-main-0"
-
-        two_ports = {
-            PortIdentity(0, internal=False): [_MatReader("vfs:///a")],
-            PortIdentity(1, internal=False): [_MatReader("vfs:///b")],
-        }
-        monkeypatch.setattr(
-            main_loop.context.input_manager,
-            "get_input_port_mat_reader_threads",
-            lambda: two_ports,
-        )
-
-        with pytest.raises(RuntimeError, match="exactly one input port"):
-            main_loop._compute_loop_start_id()
-
-    def test_compute_loop_start_id_raises_when_port_has_multiple_readers(
-        self, main_loop, monkeypatch
-    ):
-        # Same defensive guard for the second axis: a port with > 1
-        # reader runnable would have silently picked the first.
-        main_loop.context.worker_id = "Worker:WF1-LoopStart-op-abc-main-0"
-
-        monkeypatch.setattr(
-            main_loop.context.input_manager,
-            "get_input_port_mat_reader_threads",
-            lambda: {
-                PortIdentity(0, internal=False): [
-                    _MatReader("vfs:///a"),
-                    _MatReader("vfs:///b"),
-                ]
-            },
-        )
-
-        with pytest.raises(RuntimeError, match="exactly one input reader"):
-            main_loop._compute_loop_start_id()
+        assert main_loop._compute_loop_start_id() == "LoopStart-operator-d71e0ab4"
 
     @staticmethod
     def _stub_controller(record):
@@ -2215,7 +2124,10 @@ class TestMainLoop:
         self, main_loop, monkeypatch
     ):
         main_loop._loop_start_id = "outer-loop"
-        main_loop._loop_start_state_uri = "vfs:///wf/state/outer"
+        # The write address is setup-injected config keyed by the captured id.
+        main_loop.context.loop_start_state_uris = {
+            "outer-loop": "vfs:///wf/state/outer"
+        }
 
         rpc_calls = []
         write_log = []
@@ -2239,7 +2151,7 @@ class TestMainLoop:
         # state written back to LoopStart's input. Any other key is the
         # user's own loop variable and must.
         main_loop._loop_start_id = "outer"
-        main_loop._loop_start_state_uri = "vfs:///wf/state/outer"
+        main_loop.context.loop_start_state_uris = {"outer": "vfs:///wf/state/outer"}
 
         write_log = []
         self._patch_create_document(monkeypatch, write_log)
@@ -2266,9 +2178,10 @@ class TestMainLoop:
         # single put_one with `State(state).to_tuple(0)` (the trailing 0
         # is the loop_counter for the next iteration's depth -- starts
         # back at 0 because this fires only when an outer LoopEnd
-        # consumed at loop_counter == 0), then close.
+        # consumed at loop_counter == 0), then close. The URI comes from
+        # the setup-injected config, selected by the captured id.
         main_loop._loop_start_id = "outer"
-        main_loop._loop_start_state_uri = "vfs:///wf/state/outer"
+        main_loop.context.loop_start_state_uris = {"outer": "vfs:///wf/state/outer"}
 
         write_log = []
         self._patch_create_document(monkeypatch, write_log)
@@ -2290,3 +2203,27 @@ class TestMainLoop:
         assert write_log[2][0] == "put_one"
         assert write_log[2][1] == State({"i": 7}).to_tuple(0)
         assert write_log[3] == ("close",)
+
+    def test_jump_to_loop_start_raises_when_uri_not_configured(
+        self, main_loop, monkeypatch
+    ):
+        # A LoopEnd whose captured id has no entry in the setup-injected
+        # config (misconfigured plan, or the scheduler failed to resolve
+        # the LoopStart's input port) must fail loudly BEFORE the jump
+        # RPC and before any storage write -- rewinding the schedule
+        # without a back-edge write would hang the loop.
+        main_loop._loop_start_id = "outer"
+        main_loop.context.loop_start_state_uris = {}
+
+        rpc_calls = []
+        write_log = []
+        self._patch_create_document(monkeypatch, write_log)
+
+        class _Executor:
+            state = State({"i": 7})
+
+        with pytest.raises(RuntimeError, match="no loop-back state URI"):
+            main_loop._jump_to_loop_start(_Executor(), self._stub_controller(rpc_calls))
+
+        assert rpc_calls == [], "must fail before the jump RPC"
+        assert write_log == [], "must fail before touching storage"

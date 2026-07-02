@@ -33,10 +33,10 @@ Coverage:
   - A multi-iteration loop driven to completion through the operators and the
     State to_tuple/from_tuple round-trip (TestLoopRunsToCompletion).
 
-loop_counter and the LoopStart jump metadata (LoopStartId / LoopStartStateURI)
-are owned by the worker runtime, not these operators -- they ride the
-StateFrame envelope as their own columns -- so their handling is covered in
-test_main_loop.py::TestLoopCounterRuntime.
+loop_counter and the LoopStart jump metadata (LoopStartId) are owned by the
+worker runtime, not these operators -- they ride the StateFrame envelope as
+their own columns (the loop-back write address is setup config, not state) --
+so their handling is covered in test_main_loop.py::TestLoopCounterRuntime.
 """
 
 from typing import Iterator, Optional
@@ -120,7 +120,7 @@ def _ipc_one_row():
 
 class TestLoopStartProcessState:
     def test_first_time_state_is_merged_into_self_state_and_none_is_returned(self):
-        # First entry: state from upstream (no LoopStartStateURI). The
+        # First entry: state from upstream (no LoopStartId stamped). The
         # base class must merge it into self.state and return None so
         # nothing flows downstream of LoopStart until the table is in.
         op = _StubLoopStart()
@@ -281,8 +281,8 @@ class TestLoopEndMatchingBranch:
         # Simulate LoopStart's produced state arriving here. The table rides as
         # Arrow IPC bytes (see produce_state_on_finish), not pickle.
         # The content carries only user data (i) and the per-iteration table
-        # scratch. loop_counter / LoopStartId / LoopStartStateURI are
-        # runtime-owned and ride the StateFrame envelope, never the content.
+        # scratch. loop_counter / LoopStartId are runtime-owned and ride the
+        # StateFrame envelope, never the content.
         incoming = State(
             {
                 "i": 2,
@@ -433,9 +433,11 @@ class TestReservedStateKeysConstant:
         assert "output" in _RESERVED_STATE_KEYS
 
     def test_does_not_contain_envelope_only_names(self):
-        # loop_counter / LoopStartId / LoopStartStateURI live on the
-        # StateFrame envelope, never in user state -- so they shouldn't
-        # appear in this filter list either.
+        # loop_counter / LoopStartId live on the StateFrame envelope, never
+        # in user state -- so they shouldn't appear in this filter list
+        # either. LoopStartStateURI is a historical reserved name (the
+        # loop-back write address is setup config now); pin that it never
+        # returns to the filter list.
         assert "loop_counter" not in _RESERVED_STATE_KEYS
         assert "LoopStartId" not in _RESERVED_STATE_KEYS
         assert "LoopStartStateURI" not in _RESERVED_STATE_KEYS

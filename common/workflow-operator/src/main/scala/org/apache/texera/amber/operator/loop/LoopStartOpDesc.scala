@@ -38,6 +38,10 @@ class LoopStartOpDesc extends LoopOpDesc {
   override protected def operatorDescription: String =
     "Begin a loop that iterates over rows of the input table; pairs with Loop End."
 
+  // The jump/write-back target of the loop's back-edge: the scheduler resolves
+  // this operator's input-port state URI and ships it to workers at setup.
+  override protected def isLoopStart: Boolean = true
+
   // User-supplied `initialization` and `output` are interpolated via the `pyb`
   // builder, which base64-encodes each EncodableString and renders it as a
   // `self.decode_python_template('<b64>')` expression. So an arbitrary user

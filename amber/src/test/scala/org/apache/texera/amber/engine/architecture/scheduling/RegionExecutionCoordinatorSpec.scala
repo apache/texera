@@ -354,8 +354,8 @@ class RegionExecutionCoordinatorSpec
       ControllerConfig(None, None, None, None),
       controller.actorService,
       controller.actorRefService,
-      maxTerminationAttempts,
-      killRetryDelay
+      maxTerminationAttempts = maxTerminationAttempts,
+      killRetryDelay = killRetryDelay
     )
 
     SingleRegionFixture(
@@ -402,8 +402,8 @@ class RegionExecutionCoordinatorSpec
       ControllerConfig(None, None, None, None),
       controller.actorService,
       controller.actorRefService,
-      maxTerminationAttempts,
-      killRetryDelay
+      maxTerminationAttempts = maxTerminationAttempts,
+      killRetryDelay = killRetryDelay
     )
 
     MultiWorkerFixture(coordinator, rpcProbe, workerIds)

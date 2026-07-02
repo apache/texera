@@ -48,6 +48,12 @@ abstract class LoopOpDesc extends LogicalOp {
     */
   protected def reuseStorage: Boolean = false
 
+  /**
+    * Marks the Loop Start operator; the scheduler resolves each Loop Start's
+    * loop-back state write address from this flag (see PhysicalOp.isLoopStart).
+    */
+  protected def isLoopStart: Boolean = false
+
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
@@ -67,6 +73,7 @@ abstract class LoopOpDesc extends LogicalOp {
       // the loop operators only run correctly under a fully-materialized
       // schedule; the scheduler forces it when this flag is set.
       .withRequiresMaterializedExecution(true)
+      .withIsLoopStart(isLoopStart)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

@@ -84,6 +84,11 @@ class Context:
         self.debug_manager = DebugManager(
             self.tuple_processing_manager.context_switch_condition
         )
+        # Loop-back write addresses delivered at setup via
+        # InitializeExecutorRequest: Loop Start logical op id -> the state URI
+        # of that Loop Start's input port. A Loop End worker selects the entry
+        # by the loop_start_id carried on the StateFrame it consumes.
+        self.loop_start_state_uris: Dict[str, str] = {}
 
     def close(self):
         self.executor_manager.close()

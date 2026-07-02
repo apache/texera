@@ -37,7 +37,8 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   cleanupWorkflowExecutionData,
   initiateTexeraDBForTestCases,
   runWorkflowAndReadResults,
-  setUpWorkflowExecutionData
+  setUpWorkflowExecutionData,
+  workflowContext
 }
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
@@ -90,9 +91,14 @@ class LoopIntegrationSpec
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  override protected def beforeEach(): Unit = setUpWorkflowExecutionData()
+  // Unique per-suite id so the seeded user/workflow/version/execution rows
+  // (and the context's workflow/execution ids) don't collide with the other
+  // integration suites running against the shared test database (#5888).
+  private val specId = 5
 
-  override protected def afterEach(): Unit = cleanupWorkflowExecutionData()
+  override protected def beforeEach(): Unit = setUpWorkflowExecutionData(specId)
+
+  override protected def afterEach(): Unit = cleanupWorkflowExecutionData(specId)
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
@@ -105,10 +111,12 @@ class LoopIntegrationSpec
   }
 
   // Loops require MATERIALIZED execution mode (the cross-region state channel
-  // is the loop back-edge).
+  // is the loop back-edge). Built on the suite's specId so the context's
+  // workflow/execution ids match the rows seeded by setUpWorkflowExecutionData.
   private def materializedContext(): WorkflowContext =
-    new WorkflowContext(
-      workflowSettings = WorkflowSettings(
+    workflowContext(
+      specId,
+      WorkflowSettings(
         dataTransferBatchSize = 400,
         executionMode = ExecutionMode.MATERIALIZED
       )
@@ -186,10 +194,11 @@ class LoopIntegrationSpec
     // terminal outer LoopEnd.
     //
     // This is the case that exercises the loop_counter increment/decrement and
-    // the LoopStartId/LoopStartStateURI routing carried on the StateFrame
-    // envelope: the outer loop's state passes THROUGH the inner LoopStart (+1)
-    // and inner LoopEnd (-1) untouched, and is consumed only at the outer
-    // LoopEnd (counter == 0). A routing or counter bug would change the 9, or
+    // the LoopStartId routing carried on the StateFrame envelope (each LoopEnd
+    // selects its loop-back write URI from the setup-injected map by that id):
+    // the outer loop's state passes THROUGH the inner LoopStart (+1) and inner
+    // LoopEnd (-1) untouched, and is consumed only at the outer LoopEnd
+    // (counter == 0). A routing or counter bug would change the 9, or
     // mis-consume and hang.
     val src = textInput("1\n2\n3")
     val outerStart = loopStart("i = 0", "table")

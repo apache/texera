@@ -127,6 +127,13 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     desc().getPhysicalOp(workflowId, executionId).requiresMaterializedExecution shouldBe true
   }
 
+  it should "mark the physical op as the loop start" in {
+    // The scheduler resolves each Loop Start's loop-back write address (the
+    // state URI of its input port) from this flag and delivers it to workers
+    // at setup via InitializeExecutorRequest.loopStartStateUris.
+    desc().getPhysicalOp(workflowId, executionId).isLoopStart shouldBe true
+  }
+
   it should "not reuse output storage across re-execution" in {
     // The output port's `reuseStorage` flag is consumed by
     // RegionExecutionCoordinator (via DocumentFactory.createOrReuseDocument) to
