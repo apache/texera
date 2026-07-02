@@ -31,6 +31,7 @@ import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
 import { HUB_WORKFLOW_RESULT_DETAIL, USER_WORKSPACE } from "../../../../../app-routing.constant";
+import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 
 function makeWorkflowEntry(overrides: Partial<DashboardEntry> = {}): DashboardEntry {
   return {
@@ -48,18 +49,37 @@ function makeWorkflowEntry(overrides: Partial<DashboardEntry> = {}): DashboardEn
   } as unknown as DashboardEntry;
 }
 
+function makeDatasetEntry(overrides: Partial<DashboardEntry> = {}): DashboardEntry {
+  return {
+    id: 5,
+    name: "ds",
+    description: "",
+    type: "dataset",
+    dataset: { isOwner: true },
+    accessibleUserIds: [],
+    likeCount: 0,
+    viewCount: 0,
+    isLiked: false,
+    size: 0,
+    ...overrides,
+  } as unknown as DashboardEntry;
+}
+
 describe("CardItemComponent", () => {
   let component: CardItemComponent;
   let fixture: ComponentFixture<CardItemComponent>;
   let workflowPersistService: Mocked<WorkflowPersistService>;
+  let datasetService: Mocked<DatasetService>;
 
   beforeEach(async () => {
     const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
+    const datasetServiceSpy = { getDatasetCoverUrl: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [CardItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
       providers: [
         { provide: WorkflowPersistService, useValue: workflowPersistServiceSpy },
+        { provide: DatasetService, useValue: datasetServiceSpy },
         { provide: UserService, useClass: StubUserService },
         NzModalService,
         ...commonTestProviders,
@@ -69,6 +89,7 @@ describe("CardItemComponent", () => {
     fixture = TestBed.createComponent(CardItemComponent);
     component = fixture.componentInstance;
     workflowPersistService = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
+    datasetService = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
     component.entry = makeWorkflowEntry();
     fixture.detectChanges();
   });
@@ -156,5 +177,50 @@ describe("CardItemComponent", () => {
 
     expect((entry as any).checked).toBe(true);
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("should load the dataset cover into the preview when the entry has a cover", () => {
+    datasetService.getDatasetCoverUrl.mockReturnValue(of({ url: "https://cover.example/img.png" }));
+    component.entry = makeDatasetEntry({ id: 5, coverImageUrl: "cover/path.png" });
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+
+    expect(datasetService.getDatasetCoverUrl).toHaveBeenCalledWith(5);
+    expect(component.coverImageSrc).toBe("https://cover.example/img.png");
+  });
+
+  it("should fall back to the default preview when the cover fetch fails", () => {
+    datasetService.getDatasetCoverUrl.mockReturnValue(throwError(() => new Error("cover fetch failed")));
+    component.entry = makeDatasetEntry({ coverImageUrl: "cover/path.png" });
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("should reset the preview to the default image on cover load error", () => {
+    component.coverImageSrc = "https://cover.example/img.png";
+    component.onCoverError();
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("should keep the default preview for non-dataset entries", () => {
+    component.entry = makeWorkflowEntry();
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("should not fetch a cover when the dataset has no cover image", () => {
+    component.entry = makeDatasetEntry({ coverImageUrl: undefined });
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+
+    expect(datasetService.getDatasetCoverUrl).not.toHaveBeenCalled();
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("should use the default preview when the cover url resolves to null", () => {
+    datasetService.getDatasetCoverUrl.mockReturnValue(of({ url: null }));
+    component.entry = makeDatasetEntry({ coverImageUrl: "cover/path.png" });
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
 });

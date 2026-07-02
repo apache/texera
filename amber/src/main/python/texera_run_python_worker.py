@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import base64
 import json
 import sys
 from loguru import logger
@@ -79,15 +80,18 @@ EXPECTED_CONFIG_KEYS = frozenset(
 
 
 def parse_startup_config(raw_config: str) -> dict:
-    """Parse and validate the JSON startup configuration.
+    """Parse and validate the startup configuration.
 
     The configuration is passed by name (see PythonWorkflowWorker on the JVM
-    side), so the two sides must agree on an exact key set. Key order is
-    irrelevant since it is a JSON object. Any drift fails loudly:
+    side) as a Base64-encoded JSON object. Base64 is used so the argument carries
+    no quotes or spaces and survives command-line argv quoting on every platform
+    (a raw JSON string loses its quotes on Windows). The two sides must agree on
+    an exact key set; key order is irrelevant since it is a JSON object. Any drift
+    fails loudly:
       - a missing or unexpected key raises ValueError;
       - a non-string value raises TypeError.
     """
-    config = json.loads(raw_config)
+    config = json.loads(base64.b64decode(raw_config).decode("utf-8"))
     if not isinstance(config, dict):
         raise TypeError(
             f"startup config must be a JSON object, got {type(config).__name__}"
@@ -112,7 +116,7 @@ def parse_startup_config(raw_config: str) -> dict:
 
 
 def main(raw_config: str) -> None:
-    """Start a Python worker from its validated JSON startup configuration."""
+    """Start a Python worker from its validated Base64-encoded JSON startup config."""
     config = parse_startup_config(raw_config)
 
     init_loguru_logger(config["loggerLevel"])

@@ -45,13 +45,13 @@ concurrency:
 jobs:
   # Precheck decides which downstream jobs run for this event:
   #   - On PR events, wait for the Pull Request Labeler workflow to finish so
-  #     the labels it applies (frontend, docs, dev, ...) are available, then
+  #     the labels it applies (frontend, docs, infra, ...) are available, then
   #     gate run_* outputs on those labels.
   #   - run_frontend / run_amber / run_platform / run_pyamber /
   #     run_agent_service: gate the main build stacks. Each labeler-applied
   #     label maps to the stacks it requires (LABEL_STACKS below); the run
   #     set is the union across all PR labels. Empty union (e.g. docs-only
-  #     / dev-only PRs) skips every stack. Push and workflow_dispatch
+  #     PRs) skips every stack. Push and workflow_dispatch
   #     events run every stack.
   #   - backport_targets: JSON array of release/* labels currently on the PR.
   #     Drives the backport matrix; empty array means no backport runs.
@@ -65,6 +65,7 @@ jobs:
       run_platform: ${{ steps.decide.outputs.run_platform }}
       run_pyamber: ${{ steps.decide.outputs.run_pyamber }}
       run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
+      run_infra: ${{ steps.decide.outputs.run_infra }}
       backport_targets: ${{ steps.decide.outputs.backport_targets }}
     steps:
       - name: Wait for Pull Request Labeler
@@ -131,8 +132,8 @@ jobs:
             //                                                                             config)
             //   ddl-change        |          |   x   |      x      |    x     |         |
             //   ci                |    x     |   x   |      x      |    x     |    x    |     x
-            //   docs / dev /      |          |       |             |          |         |
-            //   deps / release/   |          |       |             |          |         |
+            //   docs / deps /     |          |       |             |          |         |
+            //   release/*         |          |       |             |          |         |
             //   * / branch        |          |       |             |          |         |
             //
             // amber-integration runs the Scala tests tagged
@@ -153,7 +154,8 @@ jobs:
               "agent-service": ["agent-service"],
               common: ["amber", "amber-integration", "platform"],
               "ddl-change": ["amber", "amber-integration", "platform"],
-              ci: ["frontend", "amber", "amber-integration", "platform", "pyamber", "agent-service"],
+              infra: ["infra"],
+              ci: ["frontend", "amber", "amber-integration", "platform", "pyamber", "agent-service", "infra"],
             };
 
             let runFrontend = true;
@@ -162,6 +164,7 @@ jobs:
             let runPlatform = true;
             let runPyamber = true;
             let runAgentService = true;
+            let runInfra = true;
 
             if (eventName === "pull_request") {
               const stacks = new Set();
@@ -176,6 +179,7 @@ jobs:
               runPlatform = stacks.has("platform");
               runPyamber = stacks.has("pyamber");
               runAgentService = stacks.has("agent-service");
+              runInfra = stacks.has("infra");
               core.info(
                 `Stacks selected by label union: ${[...stacks].sort().join(", ") || "(none)"}`
               );
@@ -187,6 +191,7 @@ jobs:
             core.setOutput("run_platform", runPlatform ? "true" : "false");
             core.setOutput("run_pyamber", runPyamber ? "true" : "false");
             core.setOutput("run_agent_service", runAgentService ? "true" : "false");
+            core.setOutput("run_infra", runInfra ? "true" : "false");
 
             // Backport targets: all current release/* labels on the PR.
             const targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
@@ -242,6 +247,7 @@ jobs:
       run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
       run_pyamber: ${{ needs.precheck.outputs.run_pyamber == 'true' }}
       run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
+      run_infra: ${{ needs.precheck.outputs.run_infra == 'true' }}
     secrets: inherit
 
   backport:
@@ -263,6 +269,7 @@ jobs:
       run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
       run_pyamber: ${{ needs.precheck.outputs.run_pyamber == 'true' }}
       run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
+      run_infra: ${{ needs.precheck.outputs.run_infra == 'true' }}
     secrets: inherit
 
   required-checks:
