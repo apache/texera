@@ -323,25 +323,11 @@ class SyncExecutionResource extends LazyLogging {
         inMemoryConsoleState
       )
 
-      val fatalErrors = finalState.fatalErrors
-        .map(err => s"${err.`type`}: ${err.message}")
-        .toList
-
-      val hasOperatorConsoleError = operatorInfos.values.exists(_.errorMessages.nonEmpty)
-
-      val stateString =
-        if (terminatedByConsoleError) "Failed"
-        else if (terminatedByTargetResults) "Completed"
-        else stateToString(finalState.state)
-
-      val isSuccess = (finalState.state == COMPLETED || terminatedByTargetResults) &&
-        !hasOperatorConsoleError && !terminatedByConsoleError
-
-      WorkflowExecutionSummary(
-        success = isSuccess,
-        state = stateString,
-        operators = operatorInfos,
-        errors = fatalErrors
+      assembleExecutionSummary(
+        finalState,
+        operatorInfos,
+        terminatedByConsoleError,
+        terminatedByTargetResults
       )
 
     } catch {
@@ -349,6 +335,40 @@ class SyncExecutionResource extends LazyLogging {
         logger.error(s"Sync execution error: ${e.getMessage}", e)
         handleExecutionError(e)
     }
+  }
+
+  /**
+    * Assemble the final workflow execution summary from the terminal metadata state, the
+    * per-operator summaries, and the termination flags. Extracted from `executeWorkflowSync`
+    * as a pure function so the success/state derivation can be unit-tested without a live
+    * engine. Behavior is identical to the inlined version.
+    */
+  private[resource] def assembleExecutionSummary(
+      finalState: ExecutionMetadataStore,
+      operatorInfos: Map[String, OperatorExecutionSummary],
+      terminatedByConsoleError: Boolean,
+      terminatedByTargetResults: Boolean
+  ): WorkflowExecutionSummary = {
+    val fatalErrors = finalState.fatalErrors
+      .map(err => s"${err.`type`}: ${err.message}")
+      .toList
+
+    val hasOperatorConsoleError = operatorInfos.values.exists(_.errorMessages.nonEmpty)
+
+    val stateString =
+      if (terminatedByConsoleError) "Failed"
+      else if (terminatedByTargetResults) "Completed"
+      else stateToString(finalState.state)
+
+    val isSuccess = (finalState.state == COMPLETED || terminatedByTargetResults) &&
+      !hasOperatorConsoleError && !terminatedByConsoleError
+
+    WorkflowExecutionSummary(
+      success = isSuccess,
+      state = stateString,
+      operators = operatorInfos,
+      errors = fatalErrors
+    )
   }
 
   private def shutdownPreviousExecution(workflowService: WorkflowService): Unit = {

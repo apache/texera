@@ -24,6 +24,9 @@ import com.google.protobuf.timestamp.Timestamp
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import org.apache.texera.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -351,5 +354,97 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     summary.resultSummary shouldBe None
     summary.consoleLogsSummary shouldBe None
     summary.errorMessages shouldBe empty
+  }
+
+  // --- assembleExecutionSummary (extracted from executeWorkflowSync) ----------------------
+
+  private def metadataStore(
+      state: WorkflowAggregatedState,
+      fatalErrors: Seq[WorkflowFatalError] = Seq.empty
+  ): ExecutionMetadataStore =
+    ExecutionMetadataStore(
+      state = state,
+      fatalErrors = fatalErrors,
+      executionId = ExecutionIdentity(0L)
+    )
+
+  private def failingOperatorSummary: OperatorExecutionSummary =
+    OperatorExecutionSummary(
+      state = "Failed",
+      errorMessages =
+        List(WorkflowFatalError(EXECUTION_FAILURE, Timestamp(Instant.now), "err", "", "op1")),
+      resultSummary = None,
+      consoleLogsSummary = None
+    )
+
+  "assembleExecutionSummary" should "report success for a COMPLETED run with no errors" in {
+    val summary = resource.assembleExecutionSummary(
+      finalState = metadataStore(WorkflowAggregatedState.COMPLETED),
+      operatorInfos = Map.empty,
+      terminatedByConsoleError = false,
+      terminatedByTargetResults = false
+    )
+    summary.success shouldBe true
+    summary.state shouldBe "Completed"
+    summary.errors shouldBe empty
+    summary.operators shouldBe empty
+  }
+
+  it should "map a non-terminal-success final state through stateToString" in {
+    val summary = resource.assembleExecutionSummary(
+      finalState = metadataStore(WorkflowAggregatedState.FAILED),
+      operatorInfos = Map.empty,
+      terminatedByConsoleError = false,
+      terminatedByTargetResults = false
+    )
+    summary.success shouldBe false
+    summary.state shouldBe "Failed"
+  }
+
+  it should "force a Failed state when terminated by a console error, regardless of final state" in {
+    val summary = resource.assembleExecutionSummary(
+      finalState = metadataStore(WorkflowAggregatedState.COMPLETED),
+      operatorInfos = Map.empty,
+      terminatedByConsoleError = true,
+      terminatedByTargetResults = false
+    )
+    summary.state shouldBe "Failed"
+    summary.success shouldBe false
+  }
+
+  it should "override to Completed/success when terminated by target results on a non-completed state" in {
+    val summary = resource.assembleExecutionSummary(
+      finalState = metadataStore(WorkflowAggregatedState.RUNNING),
+      operatorInfos = Map.empty,
+      terminatedByConsoleError = false,
+      terminatedByTargetResults = true
+    )
+    summary.state shouldBe "Completed"
+    summary.success shouldBe true
+  }
+
+  it should "mark the run unsuccessful when any operator reports console errors" in {
+    val summary = resource.assembleExecutionSummary(
+      finalState = metadataStore(WorkflowAggregatedState.COMPLETED),
+      operatorInfos = Map("op1" -> failingOperatorSummary),
+      terminatedByConsoleError = false,
+      terminatedByTargetResults = false
+    )
+    summary.success shouldBe false
+    summary.state shouldBe "Completed"
+  }
+
+  it should "surface each final-state fatal error as a formatted error string" in {
+    val summary = resource.assembleExecutionSummary(
+      finalState = metadataStore(
+        WorkflowAggregatedState.COMPLETED,
+        Seq(WorkflowFatalError(EXECUTION_FAILURE, Timestamp(Instant.now), "boom", "", "op1"))
+      ),
+      operatorInfos = Map.empty,
+      terminatedByConsoleError = false,
+      terminatedByTargetResults = false
+    )
+    summary.errors should have size 1
+    summary.errors.head should endWith("boom")
   }
 }
