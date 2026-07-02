@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-// Styled to match the dataset card view (dataset-card-item.component.scss) for
-// a consistent card look across the dashboard: 8px radius, 124px cover, a
+// A consistent card look across the dashboard: 8px radius, 124px cover, a
 // muted #8c8c8c / #595959 meta palette, #f0f0f0 dividers and a #e0506e like
-// accent. Markup/structure intentionally unchanged.
+// accent.
 
 .card-item {
   width: 100%;
@@ -206,9 +205,19 @@
 }
 
 .like-btn {
+  margin-left: auto;
+  padding: 0 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 999px;
+
+  &:hover {
+    background: transparent;
+  }
+
   &.liked,
   &:not([disabled]):hover {
     color: #e0506e;
+    border-color: #e0506e;
   }
 }
 
