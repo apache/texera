@@ -157,7 +157,7 @@ class AdminUserResource {
     * Issues a JWT for the target user so that an admin can log in as (impersonate)
     * that user. The returned token is identical to one obtained via a normal login
     * for the target user. This endpoint is restricted to admins by the class-level
-    * `@RolesAllowed("ADMIN")` guard.
+    * `@RolesAllowed("ADMIN")` guard, and admins may not impersonate other admins.
     *
     * @param uid the uid of the user to impersonate
     * @return a TokenIssueResponse wrapping the JWT minted for the target user
@@ -174,6 +174,12 @@ class AdminUserResource {
       throw new WebApplicationException(
         "Cannot impersonate an inactive user",
         Response.Status.BAD_REQUEST
+      )
+    }
+    if (user.getRole == UserRoleEnum.ADMIN) {
+      throw new WebApplicationException(
+        "Cannot impersonate another admin",
+        Response.Status.FORBIDDEN
       )
     }
     TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))

@@ -177,6 +177,22 @@ export class AdminUserComponent implements OnInit {
     });
   }
 
+  // Admins may not impersonate themselves or another admin; the backend enforces
+  // the same rules and this only mirrors them in the UI.
+  impersonateDisabled(user: User): boolean {
+    return this.currentUid === user.uid || user.role === Role.ADMIN;
+  }
+
+  impersonateTooltip(user: User): string {
+    if (this.currentUid === user.uid) {
+      return "you cannot impersonate yourself";
+    }
+    if (user.role === Role.ADMIN) {
+      return "you cannot impersonate another admin";
+    }
+    return "log in as this user";
+  }
+
   clickToViewFeedbacks(uid: number): void {
     this.modalService.create({
       nzContent: FeedbackComponent,

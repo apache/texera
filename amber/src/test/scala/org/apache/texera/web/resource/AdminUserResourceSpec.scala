@@ -41,6 +41,7 @@ class AdminUserResourceSpec
 
   private val regularUid = 9000 + scala.util.Random.nextInt(1000)
   private val inactiveUid = regularUid + 1
+  private val adminUid = regularUid + 2
   private val missingUid = regularUid + 999
   private val resource = new AdminUserResource
 
@@ -59,6 +60,7 @@ class AdminUserResourceSpec
     val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(makeUser(regularUid, "impersonate_spec_regular_user", UserRoleEnum.REGULAR))
     userDao.insert(makeUser(inactiveUid, "impersonate_spec_inactive_user", UserRoleEnum.INACTIVE))
+    userDao.insert(makeUser(adminUid, "impersonate_spec_admin_user", UserRoleEnum.ADMIN))
   }
 
   override protected def afterAll(): Unit = shutdownDB()
@@ -82,5 +84,10 @@ class AdminUserResourceSpec
   it should "reject impersonating an inactive user with 400" in {
     val thrown = the[WebApplicationException] thrownBy resource.impersonate(inactiveUid)
     thrown.getResponse.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
+  }
+
+  it should "reject impersonating another admin with 403" in {
+    val thrown = the[WebApplicationException] thrownBy resource.impersonate(adminUid)
+    thrown.getResponse.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
   }
 }
