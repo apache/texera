@@ -49,15 +49,15 @@ class TestSaveStateToStorageIfNeeded:
 
     @pytest.fixture
     def state(self):
-        return State({"loop_counter": 1, "i": 2})
+        return State({"i": 2})
 
     def test_no_state_writers_is_a_noop(self, output_manager, state):
         # With no port set up, save_state_to_storage_if_needed must not
         # touch any writer.
-        output_manager.save_state_to_storage_if_needed(state)  # no-op
+        output_manager.save_state_to_storage_if_needed(state, 0)  # no-op
 
     def test_unknown_port_id_is_a_noop(self, output_manager, state, port_a):
-        output_manager.save_state_to_storage_if_needed(state, port_id=port_a)
+        output_manager.save_state_to_storage_if_needed(state, 0, port_id=port_a)
         # No assertion needed -- the absence of any writer means nothing
         # was attempted.
 
@@ -67,7 +67,7 @@ class TestSaveStateToStorageIfNeeded:
         queue_a, _, _ = _stub_state_writer(output_manager, port_a)
         queue_b, _, _ = _stub_state_writer(output_manager, port_b)
 
-        output_manager.save_state_to_storage_if_needed(state)
+        output_manager.save_state_to_storage_if_needed(state, 0)
 
         # Each port's writer queue receives one PortStorageWriterElement.
         # Critically, save is non-blocking -- the call must not invoke
@@ -84,7 +84,7 @@ class TestSaveStateToStorageIfNeeded:
         queue_a, _, _ = _stub_state_writer(output_manager, port_a)
         queue_b, _, _ = _stub_state_writer(output_manager, port_b)
 
-        output_manager.save_state_to_storage_if_needed(state, port_id=port_a)
+        output_manager.save_state_to_storage_if_needed(state, 0, port_id=port_a)
 
         assert queue_a.put.call_count == 1
         queue_b.put.assert_not_called()
@@ -105,3 +105,15 @@ class TestSaveStateToStorageIfNeeded:
         thread_a.join.assert_called_once()
         thread_b.join.assert_called_once()
         assert output_manager._port_state_writers == {}
+
+    def test_defaults_loop_columns_when_omitted(self, output_manager, state, port_a):
+        # Dormancy: callers that pass no loop bookkeeping (every non-loop
+        # caller, e.g. MainLoop.process_input_state) still produce a valid
+        # 3-column state tuple with the loop columns at their no-loop defaults.
+        queue_a, _, _ = _stub_state_writer(output_manager, port_a)
+
+        output_manager.save_state_to_storage_if_needed(state)  # no loop_counter
+
+        data_tuple = queue_a.put.call_args.args[0].data_tuple
+        assert data_tuple[State.LOOP_COUNTER] == 0
+        assert data_tuple[State.LOOP_START_ID] == ""

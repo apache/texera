@@ -107,10 +107,15 @@ docker buildx create --name texera-builder --use --bootstrap > /dev/null 2>&1 ||
 
 cd "$(dirname "$0")"
 
-# Auto-detect Dockerfiles in current directory
-dockerfiles=( *.dockerfile )
-if [[ ${#dockerfiles[@]} -eq 0 ]]; then
-  echo "❌ No Dockerfiles found (*.dockerfile) in the current directory."
+# Auto-detect Dockerfiles in bin/dockerfiles/. We stay cd'd in bin/ so the
+# pylsp + y-websocket-server build stages below keep working (they use
+# relative paths like ./pylsp and ./y-websocket-server from here), and so
+# the build context `..` still resolves to the repo root.
+# `[[ ! -e ... ]]` guards the bash-default-glob case where a no-match glob
+# stays as the literal pattern instead of becoming an empty array.
+dockerfiles=( dockerfiles/*.dockerfile )
+if [[ ${#dockerfiles[@]} -eq 0 ]] || [[ ! -e "${dockerfiles[0]}" ]]; then
+  echo "❌ No Dockerfiles found (*.dockerfile) in bin/dockerfiles/."
   exit 1
 fi
 
