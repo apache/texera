@@ -40,6 +40,14 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       creationTime = WORKFLOW.CREATION_TIME,
       wid = WORKFLOW.WID,
       lastModifiedTime = WORKFLOW.LAST_MODIFIED_TIME,
+      executionTime = DSL.field(
+        DSL
+          .select(DSL.max(WORKFLOW_EXECUTIONS.STARTING_TIME))
+          .from(WORKFLOW_EXECUTIONS)
+          .join(WORKFLOW_VERSION)
+          .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
+          .where(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
+      ),
       workflowUserAccess = WORKFLOW_USER_ACCESS.PRIVILEGE,
       uid = WORKFLOW_OF_USER.UID,
       ownerId = WORKFLOW_OF_USER.UID,

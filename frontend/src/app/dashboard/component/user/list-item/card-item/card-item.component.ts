@@ -37,7 +37,6 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
-import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
@@ -79,7 +78,6 @@ import { isDefined } from "../../../../../common/util/predicate";
     NzIconDirective,
     NzButtonComponent,
     NzPopconfirmDirective,
-    NzWaveDirective,
     ɵNzTransitionPatchDirective,
   ],
 })
@@ -105,6 +103,8 @@ export class CardItemComponent implements OnChanges {
   hovering: boolean = false;
   /** The default top image, used when the user has not uploaded a custom one. */
   static readonly DEFAULT_PREVIEW_IMAGE = "assets/card_background.jpg";
+  /** Resolved preview/cover image; stays the placeholder until a dataset cover loads. */
+  coverImageSrc: string = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
 
   @Input()
   get entry(): DashboardEntry {
@@ -134,12 +134,8 @@ export class CardItemComponent implements OnChanges {
     private notificationService: NotificationService
   ) {}
 
-  /** The top image src for the card preview. */
-  get previewImage(): string {
-    return CardItemComponent.DEFAULT_PREVIEW_IMAGE;
-  }
-
   initializeEntry() {
+    this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.workflow.isOwner;
@@ -166,6 +162,7 @@ export class CardItemComponent implements OnChanges {
         }
         this.iconType = "database";
         this.size = this.entry.size;
+        this.loadDatasetCover(this.entry.id);
       }
     } else if (this.entry.type === "file") {
       // not sure where to redirect
@@ -182,6 +179,31 @@ export class CardItemComponent implements OnChanges {
     if (changes["entry"]) {
       this.initializeEntry();
     }
+  }
+
+  /** Loads the dataset cover into the preview slot, falling back to the placeholder. */
+  private loadDatasetCover(did: number): void {
+    if (!this.entry.coverImageUrl) {
+      return;
+    }
+    this.datasetService
+      .getDatasetCoverUrl(did)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: ({ url }) => {
+          this.coverImageSrc = url ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
+          this.cdr.markForCheck();
+        },
+      });
+  }
+
+  /** Falls the preview back to the placeholder if the cover image fails to load. */
+  onCoverError(): void {
+    this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
   }
 
   onCheckboxChange(entry: DashboardEntry): void {

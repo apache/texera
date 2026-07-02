@@ -54,6 +54,7 @@ export class MockGuiConfigService {
     limitColumns: 15,
     attributionEnabled: false,
     pythonNotebookMigrationEnabled: false,
+    deploymentVersionCheckEnabled: false,
   };
 
   get env(): GuiConfig {

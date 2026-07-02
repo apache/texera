@@ -19,9 +19,13 @@
 
 package org.apache.texera.service
 
+import io.dropwizard.core.setup.Environment
+import io.dropwizard.lifecycle.JettyManaged
+import org.apache.texera.service.util.StagedFileCleanupJob
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
 
 class FileServiceSpec extends AnyFlatSpec {
 
@@ -185,5 +189,70 @@ class FileServiceSpec extends AnyFlatSpec {
     assert(attempts == 1)
     assert(delays.isEmpty)
     assert(err.getMessage == "boom")
+  }
+
+  // ---------------------------------------------------------------------------
+  // registerStagedFileCleanup: conditional wiring of the staged-file cleanup job
+  // ---------------------------------------------------------------------------
+  /** The StagedFileCleanupJob instances registered on an environment's lifecycle. */
+  private def registeredCleanupJobs(environment: Environment): Seq[StagedFileCleanupJob] =
+    environment
+      .lifecycle()
+      .getManagedObjects
+      .asScala
+      .collect {
+        case managed: JettyManaged if managed.getManaged.isInstanceOf[StagedFileCleanupJob] =>
+          managed.getManaged.asInstanceOf[StagedFileCleanupJob]
+      }
+      .toSeq
+
+  "registerStagedFileCleanup" should "manage a StagedFileCleanupJob on the lifecycle when enabled" in {
+    val environment = new Environment("test-file-service")
+    service.registerStagedFileCleanup(
+      environment,
+      enabled = true,
+      retentionHours = 72,
+      intervalMinutes = 60
+    )
+    assert(registeredCleanupJobs(environment).size == 1)
+  }
+
+  it should "register nothing when disabled" in {
+    val environment = new Environment("test-file-service")
+    service.registerStagedFileCleanup(
+      environment,
+      enabled = false,
+      retentionHours = 72,
+      intervalMinutes = 60
+    )
+    assert(registeredCleanupJobs(environment).isEmpty)
+  }
+
+  it should "not construct the job (so not throw) when disabled even with invalid config" in {
+    // retentionHours/intervalMinutes are invalid (0), but because enabled = false the job is
+    // never constructed, so StagedFileCleanupJob's require(...) is never evaluated and nothing
+    // throws. This pins that the enabled check guards the construction, not just the registration.
+    val environment = new Environment("test-file-service")
+    service.registerStagedFileCleanup(
+      environment,
+      enabled = false,
+      retentionHours = 0,
+      intervalMinutes = 0
+    )
+    assert(registeredCleanupJobs(environment).isEmpty)
+  }
+
+  it should "fail fast with IllegalArgumentException when enabled with a non-positive retention" in {
+    // A non-positive retentionHours trips StagedFileCleanupJob's require(...) at construction, so a
+    // misconfigured-but-enabled cleanup surfaces loudly at startup rather than being swallowed.
+    val environment = new Environment("test-file-service")
+    assertThrows[IllegalArgumentException] {
+      service.registerStagedFileCleanup(
+        environment,
+        enabled = true,
+        retentionHours = 0,
+        intervalMinutes = 60
+      )
+    }
   }
 }
