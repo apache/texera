@@ -21,6 +21,7 @@ package org.apache.texera.web.resource
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.timestamp.Timestamp
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.scalatest.PrivateMethodTester
@@ -32,13 +33,16 @@ import java.time.Instant
 /**
   * Unit tests for the pure, wire-shape parts of [[SyncExecutionResource]] that this PR
   * introduced: the execution-summary case classes (SampleRow / OperatorResultSummary /
-  * OperatorConsoleLogsSummary / OperatorExecutionSummary / WorkflowExecutionSummary) and
-  * the `handleExecutionError` error-classification branch.
+  * OperatorConsoleLogsSummary / OperatorExecutionSummary / WorkflowExecutionSummary), the
+  * `handleExecutionError` error-classification branch, and the two behavior-preserving
+  * extract-method helpers `sampleAndTruncateTuples` (the result sampling/truncation logic
+  * lifted out of `collectOperatorResult`) and `buildOperatorExecutionSummary` (the
+  * per-operator summary construction lifted out of `collectOperatorInfos`).
   *
-  * The remaining changed code paths (`executeWorkflowSync`, `collectOperatorInfos`, and the
-  * result-truncation loop inside `collectOperatorResult`) require a live Pekko execution
-  * engine, an Iceberg-backed result store, and DB-persisted port executions, so they are
-  * exercised by integration tests rather than here.
+  * The remaining changed code paths (`executeWorkflowSync`, and the storage/DB plumbing in
+  * `collectOperatorResult` / `collectOperatorInfos` around these helpers) require a live
+  * Pekko execution engine, an Iceberg-backed result store, and DB-persisted port executions,
+  * so they are exercised by integration tests rather than here.
   */
 class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMethodTester {
 
@@ -190,5 +194,162 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     )
     summary.state shouldBe "Error"
     summary.errors shouldBe List("Unknown error")
+  }
+
+  // --- sampleAndTruncateTuples (extracted from collectOperatorResult) ---------------------
+
+  private val tableSchema = new Schema(List(new Attribute("col", AttributeType.STRING)))
+  private def tableTuple(v: String): Tuple =
+    Tuple.builder(tableSchema).add("col", AttributeType.STRING, v).build()
+
+  "sampleAndTruncateTuples" should "report an empty table for a zero-count / empty iterator" in {
+    val (mode, rows, total, returned, truncated) =
+      resource.sampleAndTruncateTuples(Iterator.empty, 0, 100000, 100000)
+    mode shouldBe "table"
+    rows shouldBe Some(List.empty[SampleRow])
+    total shouldBe Some(0)
+    returned shouldBe Some(0)
+    truncated shouldBe Some(false)
+  }
+
+  it should "return visualization mode for a single visualization tuple" in {
+    val vizSchema = new Schema(List(new Attribute("html-content", AttributeType.STRING)))
+    val vizTuple =
+      Tuple.builder(vizSchema).add("html-content", AttributeType.STRING, "<div>viz</div>").build()
+
+    val (mode, rows, total, returned, truncated) =
+      resource.sampleAndTruncateTuples(Iterator(vizTuple), 1, 100000, 100000)
+    mode shouldBe "visualization"
+    rows.get should have size 1
+    rows.get.head.rowIndex shouldBe 0
+    total shouldBe Some(1)
+    returned shouldBe Some(1)
+    truncated shouldBe Some(false)
+  }
+
+  it should "return every row untruncated when the whole table fits (front-only path)" in {
+    val tuples = List(tableTuple("a"), tableTuple("b"), tableTuple("c"))
+    val (mode, rows, total, returned, truncated) =
+      resource.sampleAndTruncateTuples(tuples.iterator, tuples.size, 100000, 100000)
+    mode shouldBe "table"
+    rows.get should have size 3
+    rows.get.map(_.rowIndex) shouldBe List(0, 1, 2)
+    rows.get.map(_.tuple.get("col").asText()) shouldBe List("a", "b", "c")
+    total shouldBe Some(3)
+    returned shouldBe Some(3)
+    truncated shouldBe Some(false)
+  }
+
+  it should "keep only the first (truncated) row when a single tuple exceeds the char limit" in {
+    // Tiny char limit so the first tuple's estimated size already exceeds it. The single
+    // tuple is not a visualization tuple, so the oversized-first early return fires.
+    val (mode, rows, total, returned, truncated) =
+      resource.sampleAndTruncateTuples(Iterator(tableTuple("hello world")), 1, 10, 100000)
+    mode shouldBe "table"
+    rows.get should have size 1
+    rows.get.head.rowIndex shouldBe 0
+    total shouldBe Some(1)
+    returned shouldBe Some(1)
+    truncated shouldBe Some(true)
+  }
+
+  it should "drop the middle rows when the front fills and a sliding back-window runs" in {
+    // ~31 chars/tuple, halfLimit = 100: the front fills after a few rows, then the inner
+    // else switches to the sliding back-window and drops the middle rows.
+    val tuples = (0 until 12).map(i => tableTuple("v" * 20)).toList
+    val (mode, rows, total, returned, truncated) =
+      resource.sampleAndTruncateTuples(tuples.iterator, tuples.size, 200, 100000)
+    mode shouldBe "table"
+    total shouldBe Some(12)
+    truncated shouldBe Some(true)
+    returned.get should be < 12
+    rows.get.size shouldBe returned.get
+    // Front rows keep their original positions; the tail keeps the most recent rows.
+    rows.get.head.rowIndex shouldBe 0
+    rows.get.last.rowIndex shouldBe 11
+  }
+
+  it should "run the trailing back-window when the first row alone fills the front half" in {
+    // First tuple's string is truncated by convertTuplesToJson to 103 chars, giving an
+    // estimated size >= halfLimit (100) but < the char limit (200), so the front while-loop
+    // never runs and the trailing back-window path handles the remaining rows.
+    val tuples = tableTuple("x" * 150) :: (0 until 5).map(_ => tableTuple("y" * 20)).toList
+    val (mode, rows, total, returned, truncated) =
+      resource.sampleAndTruncateTuples(tuples.iterator, tuples.size, 200, 100000)
+    mode shouldBe "table"
+    total shouldBe Some(6)
+    truncated shouldBe Some(true)
+    returned.get should be < 6
+    rows.get.size shouldBe returned.get
+    rows.get.head.rowIndex shouldBe 0
+    rows.get.last.rowIndex shouldBe 5
+  }
+
+  // --- buildOperatorExecutionSummary (extracted from collectOperatorInfos) ----------------
+
+  "buildOperatorExecutionSummary" should "wire a result summary and no errors when only a result is present" in {
+    val rows = List(sampleRow(0, "col", "v"))
+    val summary = resource.buildOperatorExecutionSummary(
+      opId = "op-1",
+      state = "Completed",
+      resultMode = "table",
+      result = Some(rows),
+      tuplesCount = Some(7),
+      consoleLogs = None
+    )
+    summary.state shouldBe "Completed"
+    summary.errorMessages shouldBe empty
+    summary.consoleLogsSummary shouldBe None
+    summary.resultSummary.get.resultMode shouldBe "table"
+    summary.resultSummary.get.sampleTuples shouldBe rows
+    summary.resultSummary.get.tuplesCount shouldBe 7
+  }
+
+  it should "surface a console ERROR as one EXECUTION_FAILURE error using the longer of title/message" in {
+    val logs = List(
+      ConsoleMessageInfo(msgType = "PRINT", title = "noise", message = "ignored"),
+      ConsoleMessageInfo(msgType = "ERROR", title = "short", message = "a much longer message")
+    )
+    val summary = resource.buildOperatorExecutionSummary(
+      opId = "op-9",
+      state = "Failed",
+      resultMode = "table",
+      result = None,
+      tuplesCount = None,
+      consoleLogs = Some(logs)
+    )
+    summary.errorMessages should have size 1
+    summary.errorMessages.head.`type` shouldBe EXECUTION_FAILURE
+    summary.errorMessages.head.message shouldBe "a much longer message"
+    summary.errorMessages.head.operatorId shouldBe "op-9"
+    summary.consoleLogsSummary.get.messages should have size 2
+  }
+
+  it should "keep the ERROR title when it is longer than the message" in {
+    val logs =
+      List(ConsoleMessageInfo(msgType = "ERROR", title = "a long descriptive title", message = ""))
+    val summary = resource.buildOperatorExecutionSummary(
+      opId = "op-2",
+      state = "Failed",
+      resultMode = "table",
+      result = None,
+      tuplesCount = None,
+      consoleLogs = Some(logs)
+    )
+    summary.errorMessages.head.message shouldBe "a long descriptive title"
+  }
+
+  it should "leave the result summary empty when no result was materialized" in {
+    val summary = resource.buildOperatorExecutionSummary(
+      opId = "op-3",
+      state = "Uninitialized",
+      resultMode = "table",
+      result = None,
+      tuplesCount = None,
+      consoleLogs = None
+    )
+    summary.resultSummary shouldBe None
+    summary.consoleLogsSummary shouldBe None
+    summary.errorMessages shouldBe empty
   }
 }
