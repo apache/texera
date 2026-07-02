@@ -83,8 +83,8 @@ class FileResolverSpec
 
   private val dataset1TxtFilePath = "/datasets/test_user@test.com/test_dataset/v1/1.txt"
 
-  // Legacy (pre-prefix) format, kept resolvable for backward compatibility.
-  private val legacyDataset1TxtFilePath = "/test_user@test.com/test_dataset/v1/1.txt"
+  // Unprefixed form (no resource-type segment); parsed the same way.
+  private val unprefixedDataset1TxtFilePath = "/test_user@test.com/test_dataset/v1/1.txt"
 
   // "models" is not (yet) a registered resource-type prefix, so it must NOT be stripped.
   private val unknownPrefixFilePath = "/models/test_user@test.com/test_dataset/v1/1.txt"
@@ -124,13 +124,13 @@ class FileResolverSpec
     )
   }
 
-  "FileResolver" should "resolve a legacy unprefixed dataset path identically to the prefixed path" in {
+  "FileResolver" should "resolve an unprefixed dataset path identically to the prefixed path" in {
     val prefixedUri = FileResolver.resolve(dataset1TxtFilePath)
-    val legacyUri = FileResolver.resolve(legacyDataset1TxtFilePath)
+    val unprefixedUri = FileResolver.resolve(unprefixedDataset1TxtFilePath)
 
-    assert(legacyUri == prefixedUri)
+    assert(unprefixedUri == prefixedUri)
     assert(
-      legacyUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getRepositoryName}/${testDatasetVersion1.getVersionHash}/1.txt"
+      unprefixedUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getRepositoryName}/${testDatasetVersion1.getVersionHash}/1.txt"
     )
   }
 

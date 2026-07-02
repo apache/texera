@@ -26,7 +26,7 @@ from urllib3.util.retry import Retry
 class DatasetFileDocument:
     # Leading resource-type segment on dataset logical paths. It is stripped when
     # parsing and re-emitted when calling the file-service, mirroring FileResolver
-    # on the backend. The legacy unprefixed format is still accepted.
+    # on the backend. An unprefixed path is parsed as-is.
     RESOURCE_TYPE_PREFIX = "datasets"
 
     # (connect, read) timeout and retry settings for the file-service GETs below.
@@ -65,13 +65,13 @@ class DatasetFileDocument:
              "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
            Example:
              "/datasets/bob@texera.com/twitterDataset/v1/california/tw1.csv"
-           A leading "datasets" resource-type segment is stripped if present; the
-           legacy unprefixed format is still accepted for backward compatibility.
+           A leading "datasets" resource-type segment is stripped if present; an
+           unprefixed path is parsed as-is.
         """
         parts = file_path.strip("/").split("/")
 
-        # Strip the resource-type prefix ("datasets") if present, keeping legacy
-        # unprefixed paths working. Mirrors FileResolver on the backend.
+        # Strip the resource-type prefix ("datasets") if present; an unprefixed
+        # path is parsed as-is. Mirrors FileResolver on the backend.
         if parts and parts[0] == self.RESOURCE_TYPE_PREFIX:
             parts = parts[1:]
 

@@ -79,8 +79,8 @@ export class DatasetSelectionModalComponent implements OnInit {
         const selectedPath = this.data.selectedPath;
         if (selectedPath) {
           const segments = selectedPath.split("/").filter(part => part.length > 0);
-          // Drop the resource-type prefix ("datasets") if present, so owner/dataset/version
-          // line up. Tolerates legacy paths saved before the prefix existed.
+          // Drop the resource-type prefix ("datasets") if present so owner/dataset/version
+          // line up (the stored path may or may not carry the prefix).
           if (segments[0] === "datasets") {
             segments.shift();
           }
