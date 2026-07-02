@@ -31,18 +31,32 @@ final case class State(values: Map[String, Any]) {
   def toJson: String =
     objectMapper.writeValueAsString(State.toJsonValue(values))
 
-  def toTuple: Tuple =
-    Tuple.builder(State.schema).addSequentially(Array(toJson)).build()
+  def toTuple(
+      loopCounter: Long = 0L,
+      loopStartId: String = ""
+  ): Tuple =
+    Tuple
+      .builder(State.schema)
+      .addSequentially(Array(toJson, Long.box(loopCounter), loopStartId))
+      .build()
 }
 
 object State {
   private val Content = "content"
+  // loop-control bookkeeping owned by the (Python) worker runtime; not user
+  // state and never in the content JSON. Materialized as its own columns,
+  // parallel to content. Scala never originates loop state (loop operators are
+  // Python-only), so toTuple defaults these to the "no loop" values.
+  private val LoopCounter = "loop_counter"
+  private val LoopStartId = "loop_start_id"
   private val BytesTypeMarker = "__texera_type__"
   private val BytesValue = "bytes"
   private val PayloadMarker = "payload"
 
   val schema: Schema = new Schema(
-    new Attribute(Content, AttributeType.STRING)
+    new Attribute(Content, AttributeType.STRING),
+    new Attribute(LoopCounter, AttributeType.LONG),
+    new Attribute(LoopStartId, AttributeType.STRING)
   )
 
   def fromJson(payload: String): State =

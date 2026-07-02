@@ -17,16 +17,22 @@
  * under the License.
  */
 
-package org.apache.texera.service.resource
+package org.apache.texera.amber.operator.sort
 
-import jakarta.annotation.security.PermitAll
-import jakarta.ws.rs.core.MediaType
-import jakarta.ws.rs.{GET, Path, Produces}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-@Path("/healthcheck")
-@PermitAll
-@Produces(Array(MediaType.APPLICATION_JSON))
-class HealthCheckResource {
-  @GET
-  def healthCheck: Map[String, String] = Map("status" -> "ok")
+class SortPreferenceSpec extends AnyFlatSpec with Matchers {
+
+  "SortPreference" should "expose exactly the ascending and descending constants" in {
+    SortPreference.values() should have length 2
+    SortPreference.valueOf("ASC") shouldBe SortPreference.ASC
+    SortPreference.valueOf("DESC") shouldBe SortPreference.DESC
+  }
+
+  "SortPreference" should "round-trip through Jackson using its constant name" in {
+    objectMapper.writeValueAsString(SortPreference.ASC) shouldBe "\"ASC\""
+    objectMapper.readValue("\"DESC\"", classOf[SortPreference]) shouldBe SortPreference.DESC
+  }
 }

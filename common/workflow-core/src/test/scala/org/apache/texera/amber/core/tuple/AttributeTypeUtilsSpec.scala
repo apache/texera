@@ -22,6 +22,7 @@ package org.apache.texera.amber.core.tuple
 import org.apache.texera.amber.core.tuple.AttributeType._
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.{
   AttributeTypeException,
+  SchemaCasting,
   add,
   compare,
   inferField,
@@ -29,6 +30,8 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.{
   maxValue,
   minValue,
   parseField,
+  parseFields,
+  tupleCasting,
   zeroValue
 }
 import org.scalatest.funsuite.AnyFunSuite
@@ -378,5 +381,98 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
     assertThrows[UnsupportedOperationException] {
       minValue(STRING)
     }
+  }
+
+  test("SchemaCasting casts the named attribute and retains the others") {
+    val schema = Schema(
+      List(new Attribute("a", STRING), new Attribute("b", STRING))
+    )
+    val casted = SchemaCasting(schema, "b", INTEGER)
+    assert(
+      casted.getAttributes == List(new Attribute("a", STRING), new Attribute("b", INTEGER))
+    )
+  }
+
+  test("SchemaCasting with an ANY result type retains the schema unchanged") {
+    val schema = Schema(
+      List(new Attribute("a", STRING), new Attribute("b", STRING))
+    )
+    assert(SchemaCasting(schema, "b", ANY) == schema)
+  }
+
+  test("tupleCasting parses targeted columns with forced number parsing") {
+    val schema = Schema(
+      List(new Attribute("a", STRING), new Attribute("b", STRING))
+    )
+    val tuple = Tuple.builder(schema).addSequentially(Array[Any]("1,234", "note")).build()
+    val result = tupleCasting(tuple, Map("a" -> INTEGER))
+    assert(result.getFields.sameElements(Array[Any](1234, "note")))
+  }
+
+  test("parseFields parses by attribute-type array and by schema") {
+    assert(
+      parseFields(Array[Any]("1", "2.5", "true"), Array(INTEGER, DOUBLE, BOOLEAN))
+        .sameElements(Array[Any](1, 2.5, true))
+    )
+    assert(
+      parseFields(Array[Any]("7"), Schema(List(new Attribute("x", INTEGER))))
+        .sameElements(Array[Any](7))
+    )
+    assertThrows[AttributeTypeException] {
+      parseFields(Array[Any]("abc"), Array(INTEGER))
+    }
+  }
+
+  test("inferField with a null value keeps the currently inferred type") {
+    assert(inferField(INTEGER, null) == INTEGER)
+    assert(inferField(LONG, null) == LONG)
+    assert(inferField(TIMESTAMP, null) == TIMESTAMP)
+    assert(inferField(DOUBLE, null) == DOUBLE)
+    assert(inferField(BOOLEAN, null) == BOOLEAN)
+  }
+
+  test("inferField falls back to STRING for BINARY and ANY bases") {
+    assert(inferField(BINARY, "anything") == STRING)
+    assert(inferField(ANY, "anything") == STRING)
+  }
+
+  test("compare orders LONG and DOUBLE values") {
+    assert(compare(1L, 2L, LONG) < 0)
+    assert(compare(2L, 1L, LONG) > 0)
+    assert(compare(5L, 5L, LONG) == 0)
+    assert(compare(1.5d, 2.5d, DOUBLE) < 0)
+    assert(compare(2.5d, 1.5d, DOUBLE) > 0)
+    assert(compare(3.14d, 3.14d, DOUBLE) == 0)
+  }
+
+  test("compare rejects unsupported types and orders binary unsigned") {
+    val ex = intercept[UnsupportedOperationException] {
+      compare("a", "b", LARGE_BINARY)
+    }
+    // the interpolated type renders via its lowercase wire name
+    assert(ex.getMessage == "Unsupported attribute type for compare: large_binary")
+    assert(compare(Array[Byte](0, 2, 0), Array[Byte](0, 1, 2), BINARY) > 0)
+    assert(compare(Array[Byte](1, 2), Array[Byte](1, 2), BINARY) == 0)
+    // bytes compare unsigned: 0xFF (-1) sorts above 0x01
+    assert(compare(Array[Byte](-1), Array[Byte](1), BINARY) > 0)
+  }
+
+  test("add rejects unsupported types and zero-fills all-null binary operands") {
+    val ex = intercept[UnsupportedOperationException] {
+      add("a", "b", STRING)
+    }
+    assert(ex.getMessage == "Unsupported attribute type for addition: string")
+    assert(add(null, null, BINARY).asInstanceOf[Array[Byte]].isEmpty)
+  }
+
+  test("parseField with force enabled raises AttributeTypeException on unparsable numbers") {
+    val intEx = intercept[AttributeTypeException] {
+      parseField("abc", INTEGER, force = true)
+    }
+    assert(intEx.getMessage == "Failed to parse type java.lang.String to Integer: abc")
+    val longEx = intercept[AttributeTypeException] {
+      parseField("abc", LONG, force = true)
+    }
+    assert(longEx.getMessage == "Failed to parse type java.lang.String to Long: abc")
   }
 }
