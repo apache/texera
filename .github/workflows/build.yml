@@ -285,6 +285,7 @@ jobs:
           sbt "DAO/jacoco" \
               "Auth/jacoco" \
               "Config/jacoco" \
+              "Resource/jacoco" \
               "PyBuilder/jacoco" \
               "WorkflowCore/jacoco" \
               "WorkflowOperator/jacoco" \

@@ -40,14 +40,25 @@ _fail() {
     FAIL=$((FAIL+1))
 }
 
-# 1) bash -n: syntax check. Catches everything from typos to unbalanced
-#    heredocs without executing a line of the script.
-if bash -n "$SCRIPT" 2>/tmp/.local-dev-syntax.err; then
+# 1) bash -n: syntax-check the entry wrapper and every shell file under
+#    bin/local-dev/. `bash -n` on the wrapper alone would only see the
+#    one-line exec, so internal helpers it routes to must be checked
+#    explicitly. Catches typos and unbalanced heredocs without executing
+#    a line. Uses find because macOS /bin/bash 3.2 lacks `globstar`.
+syntax_ok=true
+syntax_err=""
+while IFS= read -r -d '' f; do
+    if ! bash -n "$f" 2>/tmp/.local-dev-syntax.err; then
+        syntax_ok=false
+        syntax_err+="\n  $f: $(cat /tmp/.local-dev-syntax.err)"
+    fi
+done < <(printf '%s\0' "$SCRIPT"; find "$REPO_ROOT/bin/local-dev" -type f -name '*.sh' -print0)
+rm -f /tmp/.local-dev-syntax.err
+if $syntax_ok; then
     _pass "bash -n bin/local-dev.sh"
 else
-    _fail "bash -n bin/local-dev.sh" "$(cat /tmp/.local-dev-syntax.err)"
+    _fail "bash -n bin/local-dev.sh" "$(printf '%b' "$syntax_err")"
 fi
-rm -f /tmp/.local-dev-syntax.err
 
 # 2) `version` subcommand returns the same string we'd extract by hand
 #    from build.sbt. This is the single source of truth that all the
@@ -162,6 +173,146 @@ if command -v script >/dev/null 2>&1; then
 else
     _pass "skip: 'script' not on PATH"
 fi
+
+# 10) Regression: dual-zip selection in target/universal/. Closes #5991.
+#     Leftover `<svc>-1.2.0-incubating.zip` next to a fresh
+#     `<svc>-1.3.0-incubating-SNAPSHOT.zip` used to break `unzip -oq <glob>`:
+#     the shell expanded the unquoted glob to two filenames, unzip read the
+#     second as a member to extract from the first, exit 11, and the script
+#     silently logged "not produced — skipping". Both call sites
+#     (`build_all` + `cmd_auto`) must now pick the newest match via
+#     `ls -t <glob> | head -1` and feed unzip a single file.
+n_naked=$(grep -hE '^[[:space:]]*if unzip -oq \$\{zip_glob\}' \
+    "$REPO_ROOT"/bin/local-dev/*.sh 2>/dev/null | wc -l)
+n_picker=$(grep -hE 'ls -t \$\{?zip_glob\}?.*head -1' \
+    "$REPO_ROOT"/bin/local-dev/*.sh 2>/dev/null | wc -l)
+if (( n_naked == 0 )) && (( n_picker >= 2 )); then
+    _pass "unzip step picks newest dist zip (regression for #5991)"
+else
+    _fail "unzip step is missing the newest-zip picker" \
+        "naked-glob unzip count=$n_naked  picker count=$n_picker  (expected naked=0, picker>=2)"
+fi
+
+# 11) Regression: jOOQ codegen runs at sbt-build time and connects to
+#     postgres (common/dao's jooqGenerate sourceGenerator). On a fresh
+#     checkout the generated dir is empty (not git-tracked), so if
+#     postgres isn't reachable when sbt runs, the build fails. Both
+#     cmd_up and cmd_auto must run a postgres-ready step BEFORE the
+#     sbt build is launched. Closes #6007.
+MAIN_SH="$REPO_ROOT/bin/local-dev/main.sh"
+for fn in cmd_up cmd_auto; do
+    result=$(awk -v fn="$fn" '
+        BEGIN { in_fn = 0; depth = 0; schema_at = 0; build_at = 0 }
+        !in_fn && index($0, fn "()") == 1 { in_fn = 1; depth = 1; next }
+        in_fn {
+            for (i = 1; i <= length($0); i++) {
+                c = substr($0, i, 1)
+                if (c == "{") depth++
+                else if (c == "}") depth--
+            }
+            if (schema_at == 0 && match($0, /infra_ensure_db_schema|ensure_postgres_for_build/))
+                schema_at = NR
+            if (build_at == 0 && match($0, /build_all|sbt[[:space:]]+-no-colors[[:space:]]+dist/))
+                build_at = NR
+            if (depth == 0) {
+                printf "schema=%d build=%d", schema_at, build_at
+                exit
+            }
+        }
+    ' "$MAIN_SH")
+    schema_at=$(echo "$result" | sed -n 's/.*schema=\([0-9]*\).*/\1/p')
+    build_at=$(echo "$result" | sed -n 's/.*build=\([0-9]*\).*/\1/p')
+    if (( schema_at > 0 )) && (( build_at > 0 )) && (( schema_at < build_at )); then
+        _pass "$fn: postgres readiness check precedes sbt build (regression for #6007)"
+    else
+        _fail "$fn: postgres readiness must precede sbt build (regression for #6007)" \
+            "schema_at=$schema_at  build_at=$build_at"
+    fi
+done
+
+# 12) `status --json` emits a single machine-readable JSON object — the stable
+#     contract for agents/scripts that would otherwise grep the dashboard.
+#     Must parse, expose running/total/services, list every service exactly
+#     once, and stay internally consistent (len(services)==total, running<=total).
+if command -v python3 >/dev/null 2>&1; then
+    json_out=$("$SCRIPT" status --json 2>/dev/null)
+    if printf '%s' "$json_out" | python3 -c '
+import sys, json
+d = json.load(sys.stdin)
+assert isinstance(d["services"], list), "services not a list"
+assert isinstance(d["running"], int) and isinstance(d["total"], int)
+assert d["total"] == len(d["services"]), "total != len(services)"
+assert 0 <= d["running"] <= d["total"], "running out of range"
+names = {s["service"] for s in d["services"]}
+need = {"texera-web", "frontend", "postgres"}
+assert need <= names, f"missing services: {need - names}"
+for s in d["services"]:
+    assert isinstance(s["port"], int), "port not int"
+    assert s["type"] in {"jvm", "docker", "yarn", "bun"}, "bad service type"
+    assert s["pid"] is None or isinstance(s["pid"], int), "pid not int|null"
+' 2>/tmp/.local-dev-json.err; then
+        _pass "status --json emits valid, consistent JSON with all services"
+    else
+        _fail "status --json invalid/inconsistent" \
+            "$(tail -1 /tmp/.local-dev-json.err 2>/dev/null); out=$(printf '%s' "$json_out" | head -c 160)"
+    fi
+    rm -f /tmp/.local-dev-json.err
+
+    # 13) Exit code mirrors health: 0 iff running == total, else 1. Lets an
+    #     agent gate on `if status --json; then` without parsing the body.
+    running=$(printf '%s' "$json_out" | python3 -c 'import sys,json;print(json.load(sys.stdin)["running"])' 2>/dev/null)
+    total=$(printf '%s' "$json_out" | python3 -c 'import sys,json;print(json.load(sys.stdin)["total"])' 2>/dev/null)
+    "$SCRIPT" status --json >/dev/null 2>&1; rc_json=$?
+    if { [[ "$running" == "$total" ]] && (( rc_json == 0 )); } \
+       || { [[ "$running" != "$total" ]] && (( rc_json == 1 )); }; then
+        _pass "status --json exit code reflects health (running=$running total=$total rc=$rc_json)"
+    else
+        _fail "status --json exit code wrong" "running=$running total=$total rc=$rc_json"
+    fi
+else
+    _pass "skip: python3 not on PATH (status --json shape check)"
+fi
+
+# 14) Negative: an unknown flag to `status` must refuse with rc 2 and a clear
+#     message — bad input is not silently ignored.
+out=$("$SCRIPT" status --definitely-bogus 2>&1)
+rc=$?
+if (( rc == 2 )) && [[ "$out" == *"unknown flag"* ]]; then
+    _pass "status rejects unknown flag (rc=2, clear error)"
+else
+    _fail "status didn't reject unknown flag" "rc=$rc out=$(echo "$out" | head -1)"
+fi
+
+# 15) `--help` documents --json so the contract is discoverable.
+help_out=$("$SCRIPT" --help 2>&1)
+if [[ "$help_out" == *"--json"* ]]; then
+    _pass "--help documents --json"
+else
+    _fail "--help doesn't mention --json"
+fi
+
+# 16) Regression: in non-TTY mode tui_spinner can't spin in place, so a long
+#     silent step (sbt dist → log) must emit a heartbeat or it looks hung to a
+#     non-interactive caller. Guard the sentinel inside the function body.
+spinner_body=$(awk '/^tui_spinner\(\)/{f=1} f{print} f&&/^}/{exit}' "$REPO_ROOT/bin/local-dev/main.sh")
+if [[ "$spinner_body" == *"! -t 1"* && "$spinner_body" == *"still running"* && "$spinner_body" == *"kill -0"* ]]; then
+    _pass "tui_spinner emits a non-TTY heartbeat (no silent long-running steps)"
+else
+    _fail "tui_spinner missing non-TTY heartbeat loop"
+fi
+
+# 17) `up` and `down` accept --json (route the human stream to stderr, emit the
+#     JSON summary on stdout). Structural guard — invoking them for real would
+#     build/stop the stack, out of scope here.
+for fn in cmd_up cmd_down; do
+    body=$(awk -v fn="$fn" '$0 ~ "^" fn "\\(\\)" {f=1} f{print} f&&/^}/{exit}' \
+        "$REPO_ROOT/bin/local-dev/main.sh")
+    if [[ "$body" == *"--json"* && "$body" == *"emit_status_json"* ]]; then
+        _pass "$fn accepts --json and emits JSON summary"
+    else
+        _fail "$fn doesn't wire up --json"
+    fi
+done
 
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))

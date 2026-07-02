@@ -191,4 +191,126 @@ class TupleSpec extends AnyFlatSpec {
       .build()
     assert(inputTuple5.hashCode() == -2099556631)
   }
+
+  it should "reject getField for an attribute name that is not in the tuple" in {
+    val schema = Schema().add(stringAttribute)
+    val tuple = Tuple.builder(schema).add(stringAttribute, "v").build()
+    val ex = intercept[RuntimeException] {
+      tuple.getField[String]("col-missing")
+    }
+    assert(ex.getMessage == "col-missing is not in the tuple")
+  }
+
+  it should "get a field by Attribute" in {
+    val schema = Schema().add(stringAttribute)
+    val tuple = Tuple.builder(schema).add(stringAttribute, "v").build()
+    assert(tuple.getField[String](stringAttribute) == "v")
+  }
+
+  it should "enforce its own schema and reject a different one" in {
+    val schema = Schema().add(stringAttribute)
+    val tuple = Tuple.builder(schema).add(stringAttribute, "v").build()
+    assert(tuple.enforceSchema(schema) eq tuple)
+    val ex = intercept[AssertionError] {
+      tuple.enforceSchema(Schema().add(integerAttribute))
+    }
+    assert(ex.getMessage.contains("output tuple schema does not match the expected schema!"))
+  }
+
+  it should "compare tuples by value, including binary contents" in {
+    val schema = Schema().add(stringAttribute).add(binaryAttribute)
+    def tupleWith(s: String): Tuple =
+      Tuple
+        .builder(schema)
+        .add(stringAttribute, s)
+        .add(binaryAttribute, Array[Byte](1, 2, 3))
+        .build()
+    val tupleA = tupleWith("v")
+    val tupleB = tupleWith("v")
+    assert(tupleA == tupleB) // distinct Array[Byte] instances, same contents
+    val differentField = tupleWith("other")
+    assert(tupleA != differentField)
+    val differentSchema =
+      Tuple.builder(Schema().add(stringAttribute)).add(stringAttribute, "v").build()
+    assert(tupleA != differentSchema)
+    assert(!tupleA.equals("not a tuple"))
+    assert(!tupleA.equals(null))
+  }
+
+  it should "build a partial tuple following the requested attribute order" in {
+    val schema = Schema().add(stringAttribute).add(integerAttribute).add(boolAttribute)
+    val tuple = Tuple
+      .builder(schema)
+      .add(stringAttribute, "s")
+      .add(integerAttribute, 1)
+      .add(boolAttribute, true)
+      .build()
+    val partial = tuple.getPartialTuple(List("col-bool", "col-string"))
+    assert(partial.length == 2)
+    assert(partial.getField[Boolean]("col-bool"))
+    assert(partial.getField[String]("col-string") == "s")
+    assert(partial.getSchema == Schema().add(boolAttribute).add(stringAttribute))
+  }
+
+  it should "render toString with the schema and field values" in {
+    val schema = Schema().add(stringAttribute)
+    val tuple = Tuple.builder(schema).add(stringAttribute, "v").build()
+    assert(tuple.toString == s"Tuple [schema=$schema, fields=[v]]")
+  }
+
+  it should "reject construction when schema and field sizes differ" in {
+    val schema = Schema().add(stringAttribute)
+    val ex = intercept[RuntimeException] {
+      Tuple(schema, Array[Any]("a", "b"))
+    }
+    assert(ex.getMessage == "Schema size (1) and field size (2) are different")
+  }
+
+  it should "reject a field whose class does not match the attribute type" in {
+    val ex = intercept[RuntimeException] {
+      Tuple.builder(Schema().add(stringAttribute)).add(stringAttribute, Integer.valueOf(1))
+    }
+    assert(
+      ex.getMessage ==
+        "Attribute col-string's type (string) is different from field's type (integer)"
+    )
+  }
+
+  it should "accept any field class for an ANY-typed attribute" in {
+    val anyAttribute = new Attribute("col-any", AttributeType.ANY)
+    val tuple =
+      Tuple.builder(Schema().add(anyAttribute)).add(anyAttribute, List(1, 2, 3)).build()
+    assert(tuple.getField[List[Int]]("col-any") == List(1, 2, 3))
+  }
+
+  it should "support the three-argument builder add and reject null arguments" in {
+    val schema = Schema().add(stringAttribute)
+    val tuple =
+      Tuple.builder(schema).add("col-string", AttributeType.STRING, "v").build()
+    assert(tuple.getField[String]("col-string") == "v")
+    intercept[IllegalArgumentException] {
+      Tuple.builder(schema).add(null.asInstanceOf[String], null, "v")
+    }
+    intercept[IllegalArgumentException] {
+      Tuple.builder(schema).add(null.asInstanceOf[Attribute], "v")
+    }
+    intercept[IllegalArgumentException] {
+      Tuple.builder(schema).add(null.asInstanceOf[Tuple])
+    }
+    intercept[IllegalArgumentException] {
+      Tuple.builder(schema).addSequentially(null)
+    }
+  }
+
+  it should "expose the case-class members of Tuple" in {
+    val schema = Schema().add(stringAttribute)
+    val tuple = Tuple(schema, Array[Any]("hello"))
+    val copied = tuple.copy()
+    assert(copied == tuple)
+    assert(tuple.canEqual(copied))
+    assert(tuple.productArity == 2)
+    assert(tuple.productElement(0) == schema)
+    val Tuple(unappliedSchema, _) = tuple
+    assert(unappliedSchema == schema)
+  }
 }
