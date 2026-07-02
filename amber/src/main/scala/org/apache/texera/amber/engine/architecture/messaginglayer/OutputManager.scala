@@ -242,7 +242,7 @@ class OutputManager(
     // emit side: state is shared context, not per-key data, so every
     // downstream operator (and every worker reading the materialization)
     // needs the full set.
-    stateWriterThreads.values.foreach(_.queue.put(Left(state.toTuple)))
+    stateWriterThreads.values.foreach(_.queue.put(Left(state.toTuple())))
   }
 
   /**
