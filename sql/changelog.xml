@@ -38,6 +38,11 @@
         <sqlFile path="sql/updates/25.sql"/>
     </changeSet>
 
+    <!-- Add operator_port_cache table -->
+    <changeSet id="26" author="Xiao-zhen-Liu">
+        <sqlFile path="sql/updates/26.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>
