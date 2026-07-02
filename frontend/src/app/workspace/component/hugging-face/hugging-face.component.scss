@@ -1,0 +1,162 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.hf-model-select-container {
+  width: 100%;
+}
+
+.hf-section-label {
+  display: block;
+  font-size: 14px;
+  font-weight: normal;
+  color: rgba(0, 0, 0, 0.85);
+  line-height: 32px;
+  margin-top: 8px;
+
+  .hf-required {
+    display: inline-block;
+    color: #ff4d4f;
+    font-size: 14px;
+    font-family: SimSun, sans-serif;
+    line-height: 1;
+    margin-right: 4px;
+  }
+}
+
+.hf-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+
+  .loading-text {
+    font-size: 12px;
+    color: #999;
+  }
+}
+
+.hf-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+
+  .error-text {
+    font-size: 12px;
+    color: #ff4d4f;
+  }
+}
+
+.hf-truncation-notice {
+  font-size: 12px;
+  color: #faad14;
+  padding: 4px 0;
+  margin-bottom: 4px;
+}
+
+.hf-model-list {
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.hf-selected-model {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  background: #e6f7ff;
+  border-bottom: 1px solid #d9d9d9;
+  font-size: 12px;
+
+  .hf-selected-label {
+    font-weight: 500;
+    margin-right: 6px;
+    color: rgba(0, 0, 0, 0.65);
+  }
+
+  .hf-selected-value {
+    color: #1890ff;
+    font-weight: 500;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.hf-empty {
+  padding: 16px;
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+}
+
+.hf-model-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.15s;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: #fafafa;
+  }
+
+  &.hf-model-item-selected {
+    background: #e6f7ff;
+  }
+
+  .hf-model-id {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.85);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 8px;
+  }
+
+  .hf-model-meta {
+    font-size: 11px;
+    color: #999;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+.hf-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 0;
+  margin-top: 4px;
+
+  .hf-page-info {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.65);
+  }
+}

@@ -497,4 +497,19 @@ object LakeFSStorageClient extends LazyLogging {
       .getSizeBytes
       .longValue()
   }
+
+  /**
+    * Gets the last-modified time of a staged (uncommitted) object on the main branch.
+    *
+    * @param repoName Repository name.
+    * @param filePath Path to the staged object in the repository.
+    * @return Last-modified time as Unix epoch seconds.
+    */
+  def getStagedObjectMtime(repoName: String, filePath: String): Long = {
+    objectsApi
+      .statObject(repoName, branchName, filePath)
+      .execute()
+      .getMtime
+      .longValue()
+  }
 }

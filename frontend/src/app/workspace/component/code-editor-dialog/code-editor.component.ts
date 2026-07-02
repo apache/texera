@@ -57,7 +57,6 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NgFor, NgComponentOutlet, NgIf } from "@angular/common";
-import { FormlyRepeatDndComponent } from "../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 type MonacoEditor = monaco.editor.IStandaloneCodeEditor;
 
@@ -87,7 +86,6 @@ export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
     NgComponentOutlet,
     NgIf,
     AnnotationSuggestionComponent,
-    FormlyRepeatDndComponent,
   ],
 })
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {

@@ -40,7 +40,6 @@ import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { MarkdownDescriptionComponent } from "../../../../dashboard/component/user/markdown-description/markdown-description.component";
 import { WorkflowEditorComponent } from "../../../../workspace/component/workflow-editor/workflow-editor.component";
 import { MiniMapComponent } from "../../../../workspace/component/workflow-editor/mini-map/mini-map.component";
-import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/repeat-dnd.component";
 import { formatCount } from "../../../../common/util/format.util";
 
 export const THROTTLE_TIME_MS = 1000;
@@ -61,7 +60,6 @@ export const THROTTLE_TIME_MS = 1000;
     MarkdownDescriptionComponent,
     WorkflowEditorComponent,
     MiniMapComponent,
-    FormlyRepeatDndComponent,
   ],
 })
 export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnInit {

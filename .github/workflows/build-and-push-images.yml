@@ -209,9 +209,9 @@ jobs:
         run: |
           SERVICES="${{ needs.set-parameters.outputs.services }}"
 
-          # Discover all Dockerfiles in bin/ directory
+          # Discover all Dockerfiles in bin/dockerfiles/
           echo "Discovering services from Dockerfiles..."
-          cd bin
+          cd bin/dockerfiles
 
           # Standard services from *.dockerfile pattern (excluding postgres17-pgroonga)
           STANDARD_SERVICES=()
@@ -247,7 +247,7 @@ jobs:
           for service in "${SERVICES_LIST[@]}"; do
             # Determine dockerfile path and context
             if [[ " ${STANDARD_SERVICES[@]} " =~ " ${service} " ]]; then
-              dockerfile="bin/${service}.dockerfile"
+              dockerfile="bin/dockerfiles/${service}.dockerfile"
               context="."
 
               # Map dockerfile service names to Docker image names

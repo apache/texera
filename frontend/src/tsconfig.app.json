@@ -6,7 +6,17 @@
   },
   // ask Angular to check template error during the compilation process
   "angularCompilerOptions": {
-    "fullTemplateTypeCheck": true
+    "fullTemplateTypeCheck": true,
+    // Promote these template diagnostics to build errors so regressions fail
+    // the prod build (build:ci). Kept here rather than in the base tsconfig
+    // because extendedDiagnostics requires strictTemplates, which the test
+    // builds (tsconfig.test.json / tsconfig.spec.json) deliberately disable.
+    "extendedDiagnostics": {
+      "checks": {
+        "unusedStandaloneImports": "error",
+        "optionalChainNotNullable": "error"
+      }
+    }
   },
   "files": ["main.ts"],
   "include": ["**/*.d.ts"]
