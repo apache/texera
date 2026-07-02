@@ -29,7 +29,15 @@ class TestState:
 
     def test_class_attributes(self):
         assert State.CONTENT == "content"
-        assert State.SCHEMA.get_attr_names() == ["content"]
+        assert State.LOOP_COUNTER == "loop_counter"
+        assert State.LOOP_START_ID == "loop_start_id"
+        # The loop-control columns are runtime-owned bookkeeping, sibling to
+        # content, not part of the user state JSON.
+        assert State.SCHEMA.get_attr_names() == [
+            "content",
+            "loop_counter",
+            "loop_start_id",
+        ]
 
     def test_json_round_trip_primitives(self):
         original = State(
@@ -83,14 +91,20 @@ class TestState:
             State({"bad": Custom()}).to_json()
 
     def test_tuple_round_trip(self):
-        original = State({"loop_counter": 3, "label": "outer", "blob": b"\x01\x02"})
+        original = State({"i": 3, "label": "outer", "blob": b"\x01\x02"})
         decoded = State.from_tuple(original.to_tuple())
         assert decoded == original
 
-    def test_to_tuple_uses_state_schema(self):
-        tuple_ = State({"x": 1}).to_tuple()
-        # Single STRING column whose value is the JSON serialization.
+    def test_to_tuple_writes_content_and_loop_counter_columns(self):
+        tuple_ = State({"x": 1}).to_tuple(7)
+        # content holds the JSON serialization; loop_counter is its own column.
         assert tuple_[State.CONTENT] == '{"x":1}'
+        assert tuple_[State.LOOP_COUNTER] == 7
+        # loop_counter must not leak into the content JSON.
+        assert "loop_counter" not in tuple_[State.CONTENT]
+
+    def test_to_tuple_defaults_loop_counter_to_zero(self):
+        assert State({"x": 1}).to_tuple()[State.LOOP_COUNTER] == 0
 
     def test_nested_dict_decodes_to_plain_dict(self):
         # Top-level returns a State; nested dicts come back as plain dict.
