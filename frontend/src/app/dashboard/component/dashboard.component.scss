@@ -89,6 +89,8 @@ button {
 nz-content {
   position: relative;
   overflow-y: auto;
+  min-height: 0;
+  flex: 1;
 }
 
 .page-container {
