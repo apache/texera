@@ -34,7 +34,8 @@ engine, an Angular UI, and the agent service. JVM modules wired in
 | PR template | [.github/PULL_REQUEST_TEMPLATE](.github/PULL_REQUEST_TEMPLATE) |
 | Issue templates | [bug](.github/ISSUE_TEMPLATE/bug-template.yaml) / [task](.github/ISSUE_TEMPLATE/task-template.yaml) / [feature](.github/ISSUE_TEMPLATE/feature-template.yaml) |
 | License-header coverage; vendored `workflow-operator` | [.licenserc.yaml](.licenserc.yaml); [project/AddMetaInfLicenseFiles.scala](project/AddMetaInfLicenseFiles.scala) |
-| Local single-node / k8s deploy | [single-node](bin/single-node/README.md), [k8s](bin/k8s/README.md) |
+| Run the local dev stack (infra in Docker; backend/frontend/agent-service native) | [bin/local-dev.sh](bin/local-dev/README.md) |
+| Single-node / k8s deploy | [single-node](bin/single-node/README.md), [k8s](bin/k8s/README.md) |
 
 If a topic is above, **read that file** instead of asking here.
 
@@ -61,6 +62,13 @@ texera-worktrees/<branch>/   # one worktree per PR
 Reset to `upstream/main` at start; `git log upstream/main..HEAD` should
 contain only this PR's commits before pushing; remove the worktree after
 merge.
+
+Prefer [`bin/local-dev.sh`](bin/local-dev/README.md) to run the stack while
+developing. Its native services bind fixed ports and share one PID/state dir,
+so only one worktree's stack runs at a time: `bin/local-dev.sh down` in the
+old worktree before switching, then `up` in the new one. Use the
+non-interactive CLI subcommands (`up` / `down` / `status` / `logs`); the
+interactive TUI (`-i`) is for humans, not agents.
 
 ### Environment
 

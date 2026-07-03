@@ -32,3 +32,6 @@ pytest-cov==7.1.0
 # protoc plugin for bin/python-proto-gen.sh; runtime needs only the
 # base `betterproto` in requirements.txt.
 betterproto[compiler]==2.0.0b7
+
+# Required by `bin/local-dev.sh -i` (the interactive Textual TUI).
+textual==8.2.7

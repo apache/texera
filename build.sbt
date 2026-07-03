@@ -64,13 +64,14 @@ val jacksonVersion = "2.18.6"
 
 lazy val DAO = (project in file("common/dao")).settings(asfLicensingSettings)
 lazy val Config = (project in file("common/config")).settings(asfLicensingSettings)
+lazy val Resource = (project in file("common/resource")).settings(asfLicensingSettings)
 lazy val Auth = (project in file("common/auth"))
   .settings(asfLicensingSettings)
   .configs(Test)
   .dependsOn(DAO, Config)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val ConfigService = (project in file("config-service"))
-  .dependsOn(Auth, Config)
+  .dependsOn(Auth, Config, Resource)
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -79,7 +80,7 @@ lazy val ConfigService = (project in file("config-service"))
     )
   )
 lazy val AccessControlService = (project in file("access-control-service"))
-  .dependsOn(Auth, Config, DAO)
+  .dependsOn(Auth, Config, DAO, Resource)
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -103,7 +104,7 @@ lazy val WorkflowCore = (project in file("common/workflow-core"))
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
-  .dependsOn(WorkflowCore, Auth, Config)
+  .dependsOn(WorkflowCore, Auth, Config, Resource)
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -113,7 +114,7 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   )
 lazy val FileService = (project in file("file-service"))
   .settings(asfLicensingSettings)
-  .dependsOn(WorkflowCore, Auth, Config)
+  .dependsOn(WorkflowCore, Auth, Config, Resource)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
   .settings(
@@ -122,12 +123,22 @@ lazy val FileService = (project in file("file-service"))
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
-    )
+    ),
+    // Each testcontainers-based suite starts its own LakeFS/MinIO/Postgres stack
+    // and mutates JVM-wide singletons (StorageConfig endpoints, LakeFS client),
+    // so every suite gets its own forked JVM; sbt runs forked groups one at a
+    // time by default (Tags.ForkedTestGroup limit), keeping the stacks serial.
+    Test / fork := true,
+    Test / forkOptions := (Test / forkOptions).value
+      .withWorkingDirectory((ThisBuild / baseDirectory).value),
+    Test / testGrouping := (Test / definedTests).value.map { suite =>
+      Tests.Group(suite.name, Seq(suite), Tests.SubProcess((Test / forkOptions).value))
+    }
   )
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Auth, Config)
+  .dependsOn(WorkflowOperator, Auth, Config, Resource)
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -169,6 +180,16 @@ lazy val WorkflowExecutionService = (project in file("amber"))
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
+lazy val NotebookMigrationService = (project in file("notebook-migration-service"))
+  .dependsOn(Auth, Config, DAO, Resource)
+  .settings(asfLicensingSettings)
+  .settings(
+    dependencyOverrides ++= Seq(
+      // override it as io.dropwizard 4 require 2.16.1 or higher
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
+    )
+  )
+  .dependsOn(DAO % "test->test") // test scope dependency
 
 // root project definition
 lazy val TexeraProject = (project in file("."))
@@ -176,6 +197,7 @@ lazy val TexeraProject = (project in file("."))
     // common libraries
     Auth,
     Config,
+    Resource,
     DAO,
     PyBuilder,
     WorkflowCore,
@@ -186,7 +208,8 @@ lazy val TexeraProject = (project in file("."))
     ConfigService,
     FileService,
     WorkflowCompilingService,
-    WorkflowExecutionService
+    WorkflowExecutionService,
+    NotebookMigrationService
   )
   .settings(
     name := "texera",

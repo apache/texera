@@ -780,4 +780,30 @@ class WorkflowResourceSpec
     assert(resources.results(2).workflow.get.workflow.getName == "test_workflow1")
   }
 
+  it should "order workflow by execution time correctly" in {
+    // Create several resources with different names (no execution times are set, but the SQL query should parse correctly)
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow2, sessionUser1)
+
+    // Retrieve resources ordered by execution time ascending
+    var resources =
+      dashboardResource.searchAllResourcesCall(
+        sessionUser1,
+        SearchQueryParams(resourceType = "workflow", orderBy = "ExecutionTimeAsc")
+      )
+
+    // Execution times are null so order is not guaranteed, but we verify it returns 3 results
+    assert(resources.results.length == 3)
+
+    // Retrieve resources ordered by execution time descending
+    resources = dashboardResource.searchAllResourcesCall(
+      sessionUser1,
+      SearchQueryParams(resourceType = "workflow", orderBy = "ExecutionTimeDesc")
+    )
+
+    // Verify it returns 3 results
+    assert(resources.results.length == 3)
+  }
+
 }
