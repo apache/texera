@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782999509165,
+  "lastUpdate": 1783085357793,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -2619,6 +2619,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 494.40281862077387,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "48ab6ca5d627e6d8c9c23e5edfa6556a3681fb07",
+          "message": "test(workflow-operator): add unit test coverage for scan source executors (#6076)\n\n### What changes were proposed in this PR?\n\nAdd unit test coverage for the four file-reading scan source\n**executors**, selected from the Codecov report. No production-code\nchanges. Every test is driven by a local temp file (`file:` URI →\n`ReadonlyLocalFileDocument`); no live DB/network/S3/Iceberg.\n\n| File | Codecov before | Missed lines targeted |\n| --- | --- | --- |\n| `ParallelCSVScanSourceOpExec.scala` | 0% | 43 — construct + schema\ninit, `open` byte-range partitioning (both `endOffset` branches +\nmid-file partial-line skip + header skip), `produceTuple` happy path,\nshort-row null padding, all-null (blank) line discard, `close` |\n| `JSONLScanSourceOpExec.scala` | 0% | 23 — construct, `produceTuple`,\n`open` line counting + worker partitioning (both ternary branches), row\nlimit, `close` |\n| `CSVOldScanSourceOpExec.scala` | 0% | 21 — construct + header-based\nschema, `open` (header vs no-header start offset), `produceTuple` +\nlimit, `close` null-guard before open |\n| `ArrowSourceOpExec.scala` | 0% | 30 — construct, `open` success +\nerror-wrapping path, `produceTuple` batch iteration + offset/limit,\n`close` no-op before open |\n\nNew specs live in each executor's own package so their `private[...]`\nconstructors are reachable, mirroring the existing\n`FileScanSourceOpExecSpec` temp-file/URI pattern.\n\n### Any related issues, documentation, discussions?\n\nFollow-up to the review feedback on #6043: prioritize tests that fill\nuncovered code paths.\n\n### How was this PR tested?\n\n- `sbt \"WorkflowOperator/testOnly *ParallelCSVScanSourceOpExecSpec\n*JSONLScanSourceOpExecSpec *CSVOldScanSourceOpExecSpec\n*ArrowSourceOpExecSpec\"` — 17 tests, all green\n- `sbt \"WorkflowOperator/Test/scalafmtCheck\"` and `sbt\n\"WorkflowOperator/scalafixAll --check\"` — clean\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-07-03T09:24:10Z",
+          "url": "https://github.com/apache/texera/commit/48ab6ca5d627e6d8c9c23e5edfa6556a3681fb07"
+        },
+        "date": 1783085357287,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 697.0359116637802,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1176.9461154513542,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1222.9743218695237,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 895.5181221856138,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1206.4328288351471,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1231.1328003542994,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 913.1748307379884,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1214.901418223681,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1235.6412036604415,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 754.9730269578702,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 969.1679701417786,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 987.6712071705803,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 771.6571602890104,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 975.8931799457536,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 990.9893089660884,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 787.682331145418,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 953.7409171695004,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 985.6329380130454,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 479.5673381840291,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 556.1770524202138,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 557.9507054844521,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 482.88230563058374,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 548.4916041448256,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 563.7031353804261,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 468.20844216959523,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 529.7033333155732,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 521.699286930587,
             "unit": "tuples/sec"
           }
         ]
