@@ -21,7 +21,7 @@ import pyarrow
 import pytest
 import numpy as np
 from copy import deepcopy
-from loguru import logger as loguru_logger
+from loguru import logger
 
 from core.models import Table, Tuple, ArrowTableTupleProvider
 from core.models.schema.schema import Schema
@@ -260,12 +260,12 @@ class TestTuple:
         # validation error alone would not explain the pandas float64
         # promotion or how to work around it.
         messages = []
-        handler_id = loguru_logger.add(messages.append, level="WARNING")
+        handler_id = logger.add(messages.append, level="WARNING")
         try:
             tuple_ = Tuple({"weight": 3e9})
             tuple_.cast_to_schema(Schema(raw_schema={"weight": "INTEGER"}))
         finally:
-            loguru_logger.remove(handler_id)
+            logger.remove(handler_id)
         assert tuple_["weight"] == 3e9
         assert type(tuple_["weight"]) is float
         assert any("outside the safely coercible range" in str(m) for m in messages)
