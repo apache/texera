@@ -14,11 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Codecov configuration for apache/texera. The repo uploads four flags
-# (frontend, scala, pyamber, agent-service); without an explicit config,
-# defaults bite us in three places that this file fixes:
-#   1. Single-stack PRs leave non-uploaded flags as `?` in the comment
-#      and drop them from the rollup. Carry forward instead.
+# Codecov configuration for apache/texera. CI uploads 11 flags: frontend,
+# amber, amber-integration, pyamber, agent-service, and the six platform
+# services (config-service, access-control-service, file-service,
+# computing-unit-managing-service, workflow-compiling-service,
+# notebook-migration-service). Without an explicit config, defaults bite us
+# in three places that this file fixes:
+#   1. Single-stack PRs leave non-uploaded flags as `?` in the comment and
+#      drop them from the rollup; carrying forward the base-branch report
+#      backfills them.
+#      TEMPORARILY DISABLED for one main rebaseline (see #6079): older flag
+#      names (`python` -> `pyamber`, `scala` -> `amber`) linger in the
+#      carryforward chain and keep reappearing in every PR comment. Turning
+#      carryforward off for one full main build flushes the stale names;
+#      the follow-up PR restores it.
 #   2. Coverage of generated code (protobuf), build output, and the
 #      tests themselves dilutes the "real" coverage figure. Ignore
 #      those paths.
@@ -27,11 +36,9 @@
 #      even when behavior is preserved. Allow 1% slack on project and
 #      require 60% patch coverage.
 
-flag_management:
-  default_rules:
-    # If the current PR didn't run the job for a given flag, inherit
-    # the latest report on the base branch instead of showing `?`.
-    carryforward: true
+# flag_management.default_rules.carryforward is intentionally omitted here
+# for the one-time rebaseline described above (#6079). It is restored in the
+# follow-up PR once main has a full build under the current flag set.
 
 ignore:
   # Generated protobuf — line counts swamp real code.
@@ -78,10 +85,10 @@ coverage:
         threshold: 10%
 
 comment:
-  # `flag_management.default_rules.carryforward: true` above already
-  # backfills missing flags from main, but Codecov's default still
-  # hides those rows from the PR comment. Show them so a frontend-only
-  # or pyamber-only PR's table lists every flag — fresh-data rows track
-  # the patch and carryforward'd rows render with `<ø>` to make their
-  # unchanged status obvious.
+  # Once carryforward is restored (see #6079), it backfills missing flags
+  # from main, but Codecov's default still hides those rows from the PR
+  # comment. Show them so a frontend-only or pyamber-only PR's table lists
+  # every flag — fresh-data rows track the patch and carryforward'd rows
+  # render with `<ø>` to make their unchanged status obvious. (A harmless
+  # no-op while carryforward is temporarily off for the rebaseline.)
   show_carryforward_flags: true
