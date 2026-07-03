@@ -19,7 +19,9 @@
 
 package org.apache.texera.amber.operator.loop
 
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
 class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
@@ -84,6 +86,17 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
 
   // Tricky-input round-trips (quotes / newlines / backslashes / unicode)
   // through the base64 codegen are pinned exhaustively by PythonTemplateBuilderSpec.
+
+  "LoopStartOpDesc" should "round-trip its user expressions through the polymorphic base" in {
+    // Pins the @JsonSubTypes "LoopStart" registration on LogicalOp -- the only
+    // thing that makes this desc deserializable from a workflow JSON.
+    val d = desc(init = "j = 10", out = "table.head(j)")
+    val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
+    restored shouldBe a[LoopStartOpDesc]
+    val r = restored.asInstanceOf[LoopStartOpDesc]
+    r.initialization shouldBe "j = 10"
+    r.output shouldBe "table.head(j)"
+  }
 
   // ---- PhysicalOp wiring --------------------------------------------------
 

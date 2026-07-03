@@ -261,12 +261,12 @@ class TestLoopEndBase:
 
 
 class TestLoopEndMatchingBranch:
-    def test_loop_counter_zero_runs_user_update_and_returns_none(self):
+    def test_matching_branch_runs_update_and_condition_reads_result(self):
         # The matching-loop branch (loop_counter == 0) is where the user's
         # update expression runs. process_state must return None so no
         # state flows downstream; the actual loop-back is driven by
         # main_loop.complete() reading executor.state.
-        op = _StubLoopEnd(update="i += 1")
+        op = _StubLoopEnd(update="i += 1", condition_expr="i < 3")
         # Simulate LoopStart's produced state arriving here. The table rides as
         # Arrow IPC bytes (see produce_state_on_finish), not pickle.
         # The content carries only user data (i) and the per-iteration table
@@ -274,7 +274,7 @@ class TestLoopEndMatchingBranch:
         # StateFrame envelope, never the content.
         incoming = State(
             {
-                "i": 2,
+                "i": 1,
                 "table": _ipc_one_row(),
             }
         )
@@ -282,26 +282,12 @@ class TestLoopEndMatchingBranch:
         result = op.process_state(incoming, port=0)
 
         assert result is None, "matching-loop branch must not emit state downstream"
-        assert op.state["i"] == 3, "user's update did not run on the matching branch"
+        assert op.state["i"] == 2, "user's update did not run on the matching branch"
         # Only user variables persist in self.state; the decoded table is kept
         # off to the side (self._loop_table) for condition(), never in the state.
         assert "table" not in op.state
         assert isinstance(op._loop_table, Table)
-
-    def test_condition_evaluates_user_expression_against_stashed_state(self):
-        op = _StubLoopEnd(update="i += 1", condition_expr="i < 3")
-
-        # Drive process_state once so self.state is populated. The table rides
-        # as Arrow IPC bytes, not pickle.
-        op.process_state(
-            State(
-                {
-                    "i": 1,
-                    "table": _ipc_one_row(),
-                }
-            ),
-            port=0,
-        )
+        # condition() evaluates the user expression against the stashed state.
         assert op.condition() is True  # i became 2, 2 < 3
 
         # Run another iteration to push i past the threshold.
@@ -336,20 +322,20 @@ class TestLoopEndMatchingBranch:
 
 
 class TestLoopRunsToCompletion:
-    @staticmethod
-    def _drive_single_loop(rows, init, output_expr, update, condition_expr):
-        """Drive one LoopStart -> LoopEnd loop to completion.
+    def test_accumulator_persists_and_reserved_names_never_leak(self):
+        # The one-iteration-per-row scenario itself is exercised end-to-end
+        # (byte-identical expressions) by LoopIntegrationSpec; this test pins
+        # the operator-level composition and the reserved-name filtering.
+        #
+        # Each pass of the while loop mimics one engine iteration: the
+        # LoopStart region is re-executed (a fresh operator whose open() seeds
+        # the loop variables, the back-edge state overriding them, and the
+        # upstream table re-read), the produced state crosses the materialized
+        # channel (a State to_tuple/from_tuple round-trip), the LoopEnd runs
+        # the user update and evaluates the condition, and on continuation
+        # only the user loop variables cross the back-edge.
+        rows = [Tuple({"v": 10}), Tuple({"v": 20}), Tuple({"v": 30})]
 
-        Mimics how the engine runs each iteration: the LoopStart region is
-        re-executed (a fresh operator whose open() seeds the loop variables,
-        the back-edge state overriding them, and the upstream table re-read),
-        the produced state crosses the materialized channel (a State
-        to_tuple/from_tuple round-trip), the LoopEnd runs the user update and
-        evaluates the condition, and on continuation only the user loop
-        variables are handed back over the back-edge.
-
-        Returns (iteration_count, emitted_body_rows, final_loop_vars).
-        """
         back_edge = None
         iterations = 0
         emitted = []
@@ -357,7 +343,9 @@ class TestLoopRunsToCompletion:
             iterations += 1
             assert iterations <= 100, "loop failed to terminate"
 
-            start = _StubLoopStart(initialization=init, output_expr=output_expr)
+            start = _StubLoopStart(
+                initialization="i = 0; total = 0", output_expr="table.iloc[i]"
+            )
             start.open()
             if back_edge is not None:
                 start.process_state(back_edge, port=0)
@@ -370,35 +358,26 @@ class TestLoopRunsToCompletion:
             # materialized state channel does.
             forwarded = State.from_tuple(State(produced).to_tuple())
 
-            end = _StubLoopEnd(update=update, condition_expr=condition_expr)
-            end.run_update(update, forwarded)
+            end = _StubLoopEnd(
+                update="total += int(table.iloc[i]['v']); i += 1; output = total",
+                condition_expr="i < len(table)",
+            )
+            end.process_state(forwarded, port=0)
             if not end.condition():
-                return iterations, emitted, dict(end.state)
+                break
 
             # Only the user loop variables cross the back-edge.
             back_edge = State(end.state)
 
-    def test_accumulator_persists_and_reserved_names_never_leak(self):
-        # The one-iteration-per-row scenario itself is exercised end-to-end
-        # (byte-identical expressions) by LoopIntegrationSpec; this test pins
-        # the operator-level composition and the reserved-name filtering.
-        rows = [Tuple({"v": 10}), Tuple({"v": 20}), Tuple({"v": 30})]
-        iterations, emitted, final_vars = self._drive_single_loop(
-            rows,
-            init="i = 0; total = 0",
-            output_expr="table.iloc[i]",
-            update="total += int(table.iloc[i]['v']); i += 1; output = total",
-            condition_expr="i < len(table)",
-        )
         assert iterations == 3
         assert len(emitted) == 3  # one loop-body row emitted per iteration
-        assert final_vars["i"] == 3
-        assert final_vars["total"] == 60  # 10 + 20 + 30 carried across iterations
+        assert end.state["i"] == 3
+        assert end.state["total"] == 60  # 10 + 20 + 30 carried across iterations
         # `table` is runtime-reserved; it must never persist in the loop state
         # that crosses the back-edge. `output` is an ordinary user variable
         # (loop expressions are eval'd directly), so it persists like any other.
-        assert "table" not in final_vars
-        assert final_vars["output"] == 60
+        assert "table" not in end.state
+        assert end.state["output"] == 60
 
 
 class TestReservedStateKeysConstant:

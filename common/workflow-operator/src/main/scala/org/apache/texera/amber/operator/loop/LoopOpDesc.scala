@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.loop
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
@@ -35,7 +36,15 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
   */
 abstract class LoopOpDesc extends LogicalOp {
 
-  /** Generated ``ProcessLoop*Operator`` Python class wiring the user expressions. */
+  /**
+    * Generated ``ProcessLoop*Operator`` Python class wiring the user expressions.
+    *
+    * The user-supplied expressions are interpolated via the `pyb` builder, which
+    * base64-encodes each EncodableString and renders it as a
+    * `self.decode_python_template('<b64>')` expression. So an arbitrary user
+    * string -- including quotes, newlines, or backslashes -- can never break the
+    * surrounding Python syntax, because the text is no longer pasted in raw.
+    */
   def generatePythonCode(): String
 
   protected def operatorName: String
@@ -51,7 +60,11 @@ abstract class LoopOpDesc extends LogicalOp {
   /**
     * Marks the Loop Start operator; the scheduler resolves each Loop Start's
     * loop-back state write address from this flag (see PhysicalOp.isLoopStart).
+    * JsonIgnore: Jackson's is-getter convention would otherwise serialize this
+    * as a "loopStart" JSON property, which then fails deserialization as an
+    * unrecognized field (it is engine wiring, not a user-facing property).
     */
+  @JsonIgnore
   protected def isLoopStart: Boolean = false
 
   override def getPhysicalOp(

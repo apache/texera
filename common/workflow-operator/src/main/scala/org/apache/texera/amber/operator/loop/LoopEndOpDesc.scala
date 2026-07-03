@@ -40,11 +40,8 @@ class LoopEndOpDesc extends LoopOpDesc {
 
   override protected def reuseStorage: Boolean = true
 
-  // User-supplied `update` and `condition` are interpolated via the `pyb`
-  // builder, which base64-encodes each EncodableString and renders it as a
-  // `self.decode_python_template('<b64>')` expression. So an arbitrary user
-  // string -- including quotes, newlines, or backslashes -- can never break the
-  // surrounding Python syntax, because the text is no longer pasted in raw.
+  // `update` and `condition` are base64-wrapped by `pyb`; see
+  // LoopOpDesc.generatePythonCode.
   override def generatePythonCode(): String = {
     pyb"""
        |from pytexera import *

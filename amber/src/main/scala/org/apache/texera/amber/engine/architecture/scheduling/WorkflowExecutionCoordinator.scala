@@ -148,7 +148,7 @@ class WorkflowExecutionCoordinator(
               controllerConfig,
               actorService,
               actorRefService,
-              loopUris
+              loopStartStateUris = loopUris
             )
             regionExecutionCoordinators(region.id)
           })

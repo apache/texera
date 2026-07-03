@@ -316,9 +316,9 @@ _RESERVED_STATE_KEYS: frozenset = frozenset({"table"})
 
 def _strip_reserved(state: State) -> State:
     """Return ``state`` without the runtime-reserved keys (``_RESERVED_STATE_KEYS``)."""
-    return {
-        key: value for key, value in state.items() if key not in _RESERVED_STATE_KEYS
-    }
+    return State(
+        {key: value for key, value in state.items() if key not in _RESERVED_STATE_KEYS}
+    )
 
 
 def _eval_loop_expr(expr: str, state: State, table: Optional[Table]):
@@ -414,7 +414,7 @@ class LoopEndOperator(TableOperator):
         # self.state / self._loop_table, so initialize them here to avoid
         # AttributeError; a None _loop_table means "nothing consumed yet" and
         # condition() short-circuits to False (see eval_condition).
-        self.state: State = {}
+        self.state: State = State()
         self._loop_table: Optional[Table] = None
 
     @overrides.final
@@ -430,8 +430,10 @@ class LoopEndOperator(TableOperator):
         # for why); the decoded table is kept on self._loop_table so
         # condition() can read it after the update.
         table = table_from_ipc_bytes(state["table"])
-        namespace = _strip_reserved(state)
-        namespace["table"] = table
+        # Equivalent to stripping the reserved keys first: "table" is the only
+        # reserved key (pinned by TestReservedStateKeysConstant) and it is
+        # overwritten by the seeded value here anyway.
+        namespace = {**state, "table": table}
         exec(update_code, {}, namespace)
         self._loop_table = table
         self.state = _strip_reserved(namespace)

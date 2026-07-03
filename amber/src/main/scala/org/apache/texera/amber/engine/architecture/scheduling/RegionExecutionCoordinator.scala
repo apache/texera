@@ -107,12 +107,12 @@ class RegionExecutionCoordinator(
     controllerConfig: ControllerConfig,
     actorService: PekkoActorService,
     actorRefService: PekkoActorRefMappingService,
+    maxTerminationAttempts: Int = RegionExecutionCoordinator.DefaultMaxTerminationAttempts,
+    killRetryDelay: TwitterDuration = RegionExecutionCoordinator.DefaultKillRetryDelay,
     // Loop-back write addresses (Loop Start logical op id -> its input port's
     // state URI), shipped to every worker in InitializeExecutorRequest. See
     // WorkflowExecutionCoordinator.loopStartStateUris.
-    loopStartStateUris: Map[String, String] = Map.empty,
-    maxTerminationAttempts: Int = RegionExecutionCoordinator.DefaultMaxTerminationAttempts,
-    killRetryDelay: TwitterDuration = RegionExecutionCoordinator.DefaultKillRetryDelay
+    loopStartStateUris: Map[String, String] = Map.empty
 ) extends AmberLogging {
 
   initRegionExecution()

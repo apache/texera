@@ -42,11 +42,8 @@ class LoopStartOpDesc extends LoopOpDesc {
   // this operator's input-port state URI and ships it to workers at setup.
   override protected def isLoopStart: Boolean = true
 
-  // User-supplied `initialization` and `output` are interpolated via the `pyb`
-  // builder, which base64-encodes each EncodableString and renders it as a
-  // `self.decode_python_template('<b64>')` expression. So an arbitrary user
-  // string -- including quotes, newlines, or backslashes -- can never break the
-  // surrounding Python syntax, because the text is no longer pasted in raw.
+  // `initialization` and `output` are base64-wrapped by `pyb`; see
+  // LoopOpDesc.generatePythonCode.
   override def generatePythonCode(): String = {
     pyb"""
        |from pytexera import *

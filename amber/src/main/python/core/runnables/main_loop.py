@@ -101,7 +101,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _jump_to_loop_start(
         self, executor: LoopEndOperator, controller_interface
     ) -> None:
-        state = executor.state
         # The write address is setup config, keyed by the captured id. Fail
         # loud BEFORE the jump RPC so a misconfigured loop does not rewind the
         # schedule without a back-edge write.
@@ -118,7 +117,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
         # The back-edge fires only after the matching LoopEnd consumed at
         # loop_counter == 0, so the next iteration's input starts at depth 0.
-        writer.put_one(State(state).to_tuple(0))
+        writer.put_one(executor.state.to_tuple(0))
         writer.close()
 
     def complete(self) -> None:
@@ -146,8 +145,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self.context.console_message_manager.put_message(
                     create_error_console_message(self.context.worker_id, exc_info)
                 )
-                self._check_and_report_console_messages(force_flush=True)
-                self.context.pause_manager.pause(PauseType.EXCEPTION_PAUSE)
+                self._check_exception()
                 return
             if should_jump:
                 self._jump_to_loop_start(executor, controller_interface)
