@@ -910,4 +910,617 @@ describe("OperatorPropertyEditFrameComponent", () => {
     workflowActionService.deleteOperator(mockHuggingFacePredicate.operatorID);
     expect(component.huggingFaceTaskPreview).toBeNull();
   });
+
+  // ── formatTaskTitle via fallback preview ──
+
+  it("should title-case multi-segment unknown task in fallback preview", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "my-custom-pipeline", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.title).toBe("My Custom Pipeline");
+  });
+
+  it("should title-case single-word unknown task in fallback preview", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "embeddings", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.title).toBe("Embeddings");
+  });
+
+  // ── Task preview content validation ──
+
+  it("should include assetSrc and pills in image-classification preview", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.assetSrc).toBe("assets/sample-image.png");
+    expect(preview.pills).toEqual(["superhero", "cityscape", "action"]);
+    expect(preview.inputLabel).toBe("Image input");
+    expect(preview.outputLabel).toBe("Predicted labels");
+  });
+
+  it("should include outputBody in text-generation preview", () => {
+    workflowActionService.addOperator(mockHuggingFacePredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockHuggingFacePredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.outputBody).toBeDefined();
+    expect(preview.body).toBeDefined();
+    expect(preview.inputLabel).toBe("Prompt");
+    expect(preview.outputLabel).toBe("Generated text");
+  });
+
+  it("should return video kind preview for image-to-video task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-to-video", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("video");
+    expect(preview.assetSrc).toBe("assets/sample-video.mp4");
+  });
+
+  it("should return text kind preview for zero-shot-classification task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "zero-shot-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("text");
+    expect(preview.pills).toEqual(["business", "operations", "support"]);
+  });
+
+  it("should return text kind preview for fill-mask task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "fill-mask", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("text");
+    expect(preview.pills).toEqual(["city", "day", "crowd"]);
+  });
+
+  it("should return image kind preview for object-detection task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "object-detection", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("image");
+    expect(preview.pills).toEqual(["person", "building", "sky"]);
+  });
+
+  it("should return image kind preview for text-to-image task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "text-to-image", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("image");
+  });
+
+  it("should return text kind preview for text-classification task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "text-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("text");
+    expect(preview.pills).toEqual(["positive", "announcement"]);
+  });
+
+  it("should return text kind preview for token-classification task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "token-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return text kind preview for table-question-answering task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "table-question-answering", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return text kind preview for feature-extraction task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "feature-extraction", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return image kind preview for image-segmentation task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-segmentation", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("image");
+  });
+
+  it("should return image kind preview for image-to-text task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-to-text", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("image");
+    expect(preview.outputBody).toBeDefined();
+  });
+
+  it("should return image kind preview for document-question-answering task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "document-question-answering", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("image");
+  });
+
+  it("should return image kind preview for zero-shot-image-classification task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "zero-shot-image-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("image");
+  });
+
+  it("should return image kind preview for image-text-to-text task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-text-to-text", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("image");
+  });
+
+  it("should return text kind preview for sentence-similarity task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "sentence-similarity", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return text kind preview for text-ranking task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "text-ranking", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return text kind preview for translation task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "translation", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return text kind preview for summarization task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "summarization", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return audio kind preview for audio-classification task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "audio-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("audio");
+  });
+
+  // ── Validator message strings ──
+
+  it("requiredImageInput validator should return correct message", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    expect(validator!.message()).toBe("Upload an image or select an Input Image Column for this task.");
+  });
+
+  it("requiredAudioInput validator should return correct message", () => {
+    initHfOperator("automatic-speech-recognition");
+    const field = getHfField("audioInput");
+    const validator = field?.validators?.["requiredAudioInput"];
+    expect(validator!.message()).toBe("Upload audio or select an Input Audio Column for this task.");
+  });
+
+  it("requiredPromptColumn validator should return correct message", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("promptColumn");
+    const validator = field?.validators?.["requiredPromptColumn"];
+    expect(validator!.message()).toBe("Select a prompt column for this task.");
+  });
+
+  // ── Additional promptColumn visibility for remaining tasks ──
+
+  it("should show promptColumn for token-classification", () => {
+    initHfOperator("token-classification");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for table-question-answering", () => {
+    initHfOperator("table-question-answering");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for feature-extraction", () => {
+    initHfOperator("feature-extraction");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for fill-mask", () => {
+    initHfOperator("fill-mask");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for sentence-similarity", () => {
+    initHfOperator("sentence-similarity");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for text-ranking", () => {
+    initHfOperator("text-ranking");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for image-text-to-text", () => {
+    initHfOperator("image-text-to-text");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should hide promptColumn for object-detection (image-only)", () => {
+    initHfOperator("object-detection");
+    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+  });
+
+  it("should hide promptColumn for image-segmentation (image-only)", () => {
+    initHfOperator("image-segmentation");
+    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+  });
+
+  it("should hide promptColumn for image-to-text (image-only)", () => {
+    initHfOperator("image-to-text");
+    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+  });
+
+  // ── Field visibility for media-generation tasks ──
+
+  it("should hide imageInput for text-to-image task", () => {
+    initHfOperator("text-to-image");
+    expect(evalHide(getHfField("imageInput"))).toBe(true);
+  });
+
+  it("should hide imageInput for text-to-speech task", () => {
+    initHfOperator("text-to-speech");
+    expect(evalHide(getHfField("imageInput"))).toBe(true);
+  });
+
+  it("should hide audioInput for text-to-image task", () => {
+    initHfOperator("text-to-image");
+    expect(evalHide(getHfField("audioInput"))).toBe(true);
+  });
+
+  it("should hide audioInput for text-to-speech task", () => {
+    initHfOperator("text-to-speech");
+    expect(evalHide(getHfField("audioInput"))).toBe(true);
+  });
+
+  it("should show imageInput for zero-shot-image-classification task", () => {
+    initHfOperator("zero-shot-image-classification");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  it("should show inputImageColumn for zero-shot-image-classification", () => {
+    initHfOperator("zero-shot-image-classification");
+    expect(evalHide(getHfField("inputImageColumn"))).toBe(false);
+  });
+
+  it("should show inputImageColumn for image-to-image", () => {
+    initHfOperator("image-to-image");
+    expect(evalHide(getHfField("inputImageColumn"))).toBe(false);
+  });
+
+  it("should show inputImageColumn for image-to-video", () => {
+    initHfOperator("image-to-video");
+    expect(evalHide(getHfField("inputImageColumn"))).toBe(false);
+  });
+
+  // ── Validator edge cases: zero-shot-image-classification ──
+
+  it("requiredImageInput validator should fail for zero-shot-image-classification with no input", () => {
+    initHfOperator("zero-shot-image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    const mockField = {
+      ...field,
+      model: { task: "zero-shot-image-classification", imageInput: "", inputImageColumn: "" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  it("requiredImageInput validator should pass for zero-shot-image-classification with column", () => {
+    initHfOperator("zero-shot-image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    const mockField = {
+      ...field,
+      model: { task: "zero-shot-image-classification", imageInput: "", inputImageColumn: "img_col" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  // ── Validator edge cases: whitespace-only values ──
+
+  it("requiredPromptColumn validator should fail when value is whitespace-only", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("promptColumn");
+    const validator = field?.validators?.["requiredPromptColumn"];
+    const mockField = { ...field, model: { task: "text-generation", promptColumn: "   " } } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  it("requiredImageInput validator should fail when imageInput is whitespace-only", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    const mockField = {
+      ...field,
+      model: { task: "image-classification", imageInput: "   ", inputImageColumn: "" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  it("requiredAudioInput validator should fail when audioInput is whitespace-only", () => {
+    initHfOperator("automatic-speech-recognition");
+    const field = getHfField("audioInput");
+    const validator = field?.validators?.["requiredAudioInput"];
+    const mockField = {
+      ...field,
+      model: { task: "automatic-speech-recognition", audioInput: "   ", inputAudioColumn: "" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  // ── getSelectedTask fallback: form.get("task") ──
+
+  it("should use form.get task value for hide expression when model.task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("imageInput");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    // Simulate: model has no task but form has it
+    const mockField = {
+      model: {},
+      form: { get: (key: string) => (key === "task" ? { value: "image-classification" } : null) },
+    } as unknown as FormlyFieldConfig;
+    expect(hideFn(mockField)).toBe(false); // image-classification is an image task
+  });
+
+  it("should use formControl.parent.get task value when model and form are empty", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("audioInput");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    const mockField = {
+      model: {},
+      formControl: {
+        parent: { get: (key: string) => (key === "task" ? { value: "automatic-speech-recognition" } : null) },
+      },
+    } as unknown as FormlyFieldConfig;
+    expect(hideFn(mockField)).toBe(false); // ASR is an audio task
+  });
+
+  // ── Null / undefined preview edge cases ──
+
+  it("should return null preview when task is whitespace-only", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "   ", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview).toBeNull();
+  });
+
+  // ── systemPrompt/maxNewTokens/temperature visibility for more tasks ──
+
+  it("should hide systemPrompt for automatic-speech-recognition", () => {
+    initHfOperator("automatic-speech-recognition");
+    expect(evalHide(getHfField("systemPrompt"))).toBe(true);
+    expect(evalHide(getHfField("maxNewTokens"))).toBe(true);
+    expect(evalHide(getHfField("temperature"))).toBe(true);
+  });
+
+  it("should hide contextColumn for image-classification", () => {
+    initHfOperator("image-classification");
+    expect(evalHide(getHfField("contextColumn"))).toBe(true);
+  });
+
+  it("should hide candidateLabels for text-generation", () => {
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("candidateLabels"))).toBe(true);
+  });
+
+  it("should hide sentencesColumn for question-answering", () => {
+    initHfOperator("question-answering");
+    expect(evalHide(getHfField("sentencesColumn"))).toBe(true);
+  });
+
+  // ── Visibility when task is undefined for remaining fields ──
+
+  it("should hide promptColumn when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("promptColumn");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    // promptColumn hides when task is in imageOnlyTasks or audioInputTasks;
+    // with undefined task, those conditions are false, so it should NOT hide
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(false);
+  });
+
+  it("should hide systemPrompt when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("systemPrompt");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide contextColumn when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("contextColumn");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide candidateLabels when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("candidateLabels");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide sentencesColumn when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("sentencesColumn");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide maxNewTokens when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("maxNewTokens");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide temperature when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("temperature");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
 });

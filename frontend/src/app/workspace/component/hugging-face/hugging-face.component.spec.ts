@@ -661,4 +661,222 @@ describe("HuggingFaceComponent (TestBed)", () => {
       expect(() => component.ngOnDestroy()).not.toThrow();
     });
   });
+
+  // ── Pagination edge cases ──
+
+  describe("pagination edge cases", () => {
+    it("prevPage at page 0 should keep currentPage at 0", () => {
+      initComponent("text-generation", buildModels(120));
+
+      expect(component.currentPage).toBe(0);
+      component.prevPage();
+      expect(component.currentPage).toBe(0);
+      component.prevPage();
+      expect(component.currentPage).toBe(0);
+      expect(component.pagedModels[0].id).toBe("model/model-0");
+    });
+
+    it("goToPage(0) on empty list should not throw", () => {
+      initComponent("text-generation", []);
+      expect(() => component.goToPage(0)).not.toThrow();
+      expect(component.currentPage).toBe(0);
+      expect(component.pagedModels.length).toBe(0);
+    });
+  });
+
+  // ── Task state snapshot edge cases ──
+
+  describe("task state snapshots", () => {
+    it("should reset task-scoped fields to defaults on first visit to a new task", () => {
+      const { field, formGroup } = buildFieldWithFormGroup("text-generation");
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush([]);
+
+      // Set non-default values on text-generation
+      formGroup.get("systemPrompt")!.setValue("Custom prompt");
+      formGroup.get("maxNewTokens")!.setValue(512);
+      formGroup.get("temperature")!.setValue(0.9);
+
+      // Switch to image-classification (first visit)
+      component.onTaskSelected("image-classification");
+      http.expectOne(`${API}/huggingface/models?task=image-classification`).flush([]);
+
+      // First visit defaults should be applied
+      expect(formGroup.get("systemPrompt")!.value).toBe("You are a helpful assistant.");
+      expect(formGroup.get("maxNewTokens")!.value).toBe(256);
+      expect(formGroup.get("temperature")!.value).toBe(0.7);
+    });
+
+    it("should preserve task state across multiple switches", () => {
+      const { field, formGroup } = buildFieldWithFormGroup("text-generation");
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush([]);
+
+      // Set values on text-generation
+      formGroup.get("promptColumn")!.setValue("prompt_col");
+      formGroup.get("modelId")!.setValue("my-org/my-model");
+
+      // Switch away
+      component.onTaskSelected("image-classification");
+      http.expectOne(`${API}/huggingface/models?task=image-classification`).flush([]);
+
+      // Set values on image-classification
+      formGroup.get("modelId")!.setValue("img-org/img-model");
+
+      // Switch back to text-generation
+      component.onTaskSelected("text-generation");
+      expect(formGroup.get("promptColumn")!.value).toBe("prompt_col");
+      expect(formGroup.get("modelId")!.value).toBe("my-org/my-model");
+
+      // Switch back to image-classification
+      component.onTaskSelected("image-classification");
+      http.match(`${API}/huggingface/models?task=image-classification`); // might be cached
+      expect(formGroup.get("modelId")!.value).toBe("img-org/img-model");
+    });
+  });
+
+  // ── Server-side search edge cases ──
+
+  describe("server search edge cases", () => {
+    it("should handle server search error gracefully", fakeAsync(() => {
+      const { field } = buildFieldWithFormGroup();
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      const modelsReq = http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`));
+      modelsReq.flush(buildModels(5), { headers: { "X-Texera-Truncated": "true" } });
+
+      component.onSearchInput("fail-query");
+      tick(300);
+
+      const searchReq = http.expectOne(req => req.url.includes("search=fail-query"));
+      searchReq.error(new ProgressEvent("error"));
+
+      // Should not crash; searchLoading should be reset
+      expect(component.searchLoading).toBe(false);
+    }));
+
+    it("should replace search results when a new query supersedes the previous one", fakeAsync(() => {
+      const { field } = buildFieldWithFormGroup();
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      const modelsReq = http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`));
+      modelsReq.flush(buildModels(5), { headers: { "X-Texera-Truncated": "true" } });
+
+      // First search — complete it
+      component.onSearchInput("query-1");
+      tick(300);
+      const req1 = http.expectOne(req => req.url.includes("search=query-1"));
+      req1.flush([{ id: "result-1", label: "result-1" }]);
+
+      expect(component.pagedModels.length).toBe(1);
+      expect(component.pagedModels[0].id).toBe("result-1");
+
+      // Second search — results should replace the first
+      component.onSearchInput("query-2");
+      tick(300);
+      const req2 = http.expectOne(req => req.url.includes("search=query-2"));
+      req2.flush([
+        { id: "result-2a", label: "result-2a" },
+        { id: "result-2b", label: "result-2b" },
+      ]);
+
+      expect(component.pagedModels.length).toBe(2);
+      expect(component.pagedModels[0].id).toBe("result-2a");
+    }));
+  });
+
+  // ── getCurrentTaskTag fallbacks ──
+
+  describe("getCurrentTaskTag", () => {
+    it("should read task from model.task when available", () => {
+      const { field } = buildFieldWithFormGroup("image-classification");
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(`${API}/huggingface/models?task=image-classification`).flush(buildModels(2, "img"));
+
+      expect(component.selectedTaskTag).toBe("image-classification");
+    });
+
+    it("should read task from formControl.parent when model.task is empty", () => {
+      const { field, formGroup } = buildFieldWithFormGroup("");
+      // Clear model.task but set parent form control
+      field.model!["task"] = "";
+      formGroup.get("task")!.setValue("summarization");
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(`${API}/huggingface/models?task=summarization`).flush([]);
+
+      expect(component.selectedTaskTag).toBe("summarization");
+    });
+  });
+
+  // ── Model selection edge cases ──
+
+  describe("model selection edge cases", () => {
+    it("onModelSelected should mark formControl as dirty", () => {
+      const { field } = buildFieldWithFormGroup();
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(3));
+
+      component.onModelSelected("model/model-2");
+      expect(field.formControl!.value).toBe("model/model-2");
+    });
+
+    it("onModelSelected should overwrite previous selection", () => {
+      const { field } = buildFieldWithFormGroup();
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(3));
+
+      component.onModelSelected("model/model-0");
+      expect(field.formControl!.value).toBe("model/model-0");
+
+      component.onModelSelected("model/model-2");
+      expect(field.formControl!.value).toBe("model/model-2");
+    });
+  });
+
+  // ── retryLoad ──
+
+  describe("retryLoad", () => {
+    it("should clear the cached error and refetch models", () => {
+      const { field } = buildFieldWithFormGroup();
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).error(new ProgressEvent("error"));
+
+      expect(component.errorMessage).toBeTruthy();
+
+      // Retry should clear error and fetch again
+      component.retryLoad();
+      expect(component.errorMessage).toBeNull();
+
+      const retryReq = http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`));
+      retryReq.flush(buildModels(5));
+
+      expect(component.pagedModels.length).toBe(5);
+      expect(component.loading).toBe(false);
+    });
+  });
 });
