@@ -388,5 +388,30 @@ else
 fi
 rm -rf "$_ld_state"
 
+# 23) Tooling-drift boundary is surfaced: --help documents that the target's
+#     bin/local-dev/** changes are NOT in effect, and _warn_tooling_drift is
+#     wired into both cmd_up and cmd_auto (structural — firing it for real
+#     would need a full `up`).
+if [[ "$help_out" == *"NOT in effect"* ]]; then
+    _pass "--help documents the tooling-runs-from-self boundary"
+else
+    _fail "--help doesn't document the tooling boundary"
+fi
+drift_body=$(awk '/^_warn_tooling_drift\(\)/{f=1} f{print} f&&/^}/{exit}' "$REPO_ROOT/bin/local-dev/main.sh")
+if [[ "$drift_body" == *"diff -rq"* && "$drift_body" == *"bin/local-dev"* ]]; then
+    _pass "_warn_tooling_drift diffs the target's bin/local-dev/"
+else
+    _fail "_warn_tooling_drift missing or doesn't diff bin/local-dev/"
+fi
+for fn in cmd_up cmd_auto; do
+    body=$(awk -v fn="$fn" '$0 ~ "^" fn "\\(\\)" {f=1} f{print} f&&/^}/{exit}' \
+        "$REPO_ROOT/bin/local-dev/main.sh")
+    if [[ "$body" == *"_warn_tooling_drift"* ]]; then
+        _pass "$fn calls _warn_tooling_drift"
+    else
+        _fail "$fn doesn't call _warn_tooling_drift"
+    fi
+done
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))

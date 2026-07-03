@@ -53,7 +53,12 @@
 #                                             later status / down / logs / <svc> / auto
 #                                             all act on it (run a plain `up` to return
 #                                             to this checkout). local-dev.sh itself
-#                                             always runs from this checkout.
+#                                             always runs from this checkout — so if the
+#                                             target branch modifies bin/local-dev/**,
+#                                             those tooling changes are NOT in effect;
+#                                             checkout that branch and run its own
+#                                             local-dev.sh instead (a warning is printed
+#                                             when such drift is detected).
 #   bin/local-dev.sh down [--skip=svc1,svc2] [--json]
 #                                             stop every non-skipped service
 #                                             (--json: summary JSON on stdout).
@@ -1181,6 +1186,20 @@ _git_head() {
     printf '%s\t%s\n' "$branch" "$sha"
 }
 
+# When deploying a sibling worktree, the tooling (this script, tui.py, the
+# docker overlay) still runs from the self tree — deliberately. The one case
+# where that surprises people is a target branch that itself modifies
+# bin/local-dev/**: those changes are NOT in effect. Print a one-line warning
+# (informational, non-fatal) so the boundary is visible before someone burns
+# time debugging it.
+_warn_tooling_drift() {
+    [[ "$REPO_ROOT" == "$SELF_ROOT" ]] && return 0
+    if ! diff -rq "$SELF_ROOT/bin/local-dev" "$REPO_ROOT/bin/local-dev" >/dev/null 2>&1; then
+        tui_warn "target's bin/local-dev/ differs from this checkout's — the tooling runs from HERE, so those changes are NOT in effect"
+        printf "     ${DIM}(to exercise the target's tooling changes, run that worktree's own bin/local-dev.sh)${RESET}\n"
+    fi
+}
+
 # Returns the count of long-lived infra services currently running under our project.
 infra_running_count() {
     docker compose -p "$DOCKER_PROJECT" ps --services --filter status=running 2>/dev/null | grep -cxE "$(IFS=\|; echo "${DOCKER_INFRA_LONGLIVED[*]}")" || true
@@ -2137,6 +2156,7 @@ cmd_up() {
         tui_info "tooling : $(basename "$SELF_ROOT")  ${DIM}(local-dev.sh runs from here)${RESET}"
     fi
     tui_info "branch  : $_db @ $_ds"
+    _warn_tooling_drift
 
     # ── Pre-flight short-circuit ───────────────────────────────────────────
     # If nothing's changed AND every service is already running, just say so
@@ -2286,6 +2306,7 @@ cmd_auto() {
         "rebuild + bounce only what changed since last build"
     if [[ "$REPO_ROOT" != "$SELF_ROOT" ]]; then
         tui_info "deploy source: worktree $(basename "$REPO_ROOT")  ${DIM}$REPO_ROOT${RESET}"
+        _warn_tooling_drift
     fi
 
     # ── Scan ──────────────────────────────────────────────────────────────
@@ -2825,6 +2846,6 @@ case "${1:-}" in
     logs)             shift; cmd_logs "${1:-}" ;;
     w|watch)          shift; cmd_watch "${1:-2}" ;;
     version)          printf "%s\n" "$TEXERA_VERSION" ;;
-    -h|--help)        sed -n '18,87p' "$0" ;;
+    -h|--help)        sed -n '18,92p' "$0" ;;
     *)                cmd_update_one "$1" ;;
 esac
