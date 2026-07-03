@@ -36,25 +36,26 @@ class URLFetchUtilSpec extends AnyFlatSpec with Matchers {
     val attempts = new AtomicInteger(0)
     val requestProperties: mutable.Map[String, String] = mutable.Map.empty
 
-    override protected def openConnection(url: URL): URLConnection = new URLConnection(url) {
-      override def connect(): Unit = {}
+    override protected def openConnection(url: URL): URLConnection =
+      new URLConnection(url) {
+        override def connect(): Unit = {}
 
-      override def setRequestProperty(key: String, value: String): Unit = {
-        requestProperties.update(key, value)
-      }
+        override def setRequestProperty(key: String, value: String): Unit = {
+          requestProperties.update(key, value)
+        }
 
-      override def getRequestProperty(key: String): String = {
-        requestProperties.getOrElse(key, null)
-      }
+        override def getRequestProperty(key: String): String = {
+          requestProperties.getOrElse(key, null)
+        }
 
-      override def getInputStream: InputStream = {
-        val attempt = attempts.incrementAndGet()
-        behavior(attempt) match {
-          case Right(bytes) => new ByteArrayInputStream(bytes)
-          case Left(error)  => throw error
+        override def getInputStream: InputStream = {
+          val attempt = attempts.incrementAndGet()
+          behavior(attempt) match {
+            case Right(bytes) => new ByteArrayInputStream(bytes)
+            case Left(error)  => throw error
+          }
         }
       }
-    }
   }
 
   private def stubUrl(handler: StubHandler): URL = {
