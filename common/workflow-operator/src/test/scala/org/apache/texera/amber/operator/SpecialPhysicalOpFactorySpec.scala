@@ -59,7 +59,7 @@ class SpecialPhysicalOpFactorySpec extends AnyFlatSpec with Matchers {
       schema
     )
     op.id.logicalOpId shouldBe OperatorIdentity("srcOp")
-    // layerName: "${layerName}_source_${portId.id}_${downstreamLogicalId'}_${downstreamPort.id}"
+    // layerName: "${layerName}_source_${portId.id}_${downstreamLogicalId}_${downstreamPort.id}"
     // with '-' in the downstream logical id replaced by '_'
     op.id.layerName shouldBe "layerA_source_3_down_stream_5"
     op.workflowId shouldBe workflowId

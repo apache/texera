@@ -53,6 +53,9 @@ class FileScanUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll {
     super.afterAll()
   }
 
+  private def contents(tuples: Seq[org.apache.texera.amber.core.tuple.TupleLike]): Seq[Any] =
+    tuples.map(_.getFields.head)
+
   "FileScanUtils.createTuplesFromFile" should
     "extract every zip entry as a single-string tuple" in {
     val tuples = FileScanUtils
@@ -68,6 +71,7 @@ class FileScanUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll {
       )
       .toSeq
     assert(tuples.size == 2)
+    assert(contents(tuples).toSet == Set("Content A", "Content B"))
   }
 
   it should "drop __MACOSX metadata entries when extracting" in {
@@ -83,7 +87,7 @@ class FileScanUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll {
         fileScanLimit = None
       )
       .toSeq
-    assert(tuples.size == 1)
+    assert(contents(tuples) == Seq("keep me"))
   }
 
   it should "flat-map each line of an extracted entry for a per-line attribute type" in {
@@ -99,6 +103,6 @@ class FileScanUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll {
         fileScanLimit = None
       )
       .toSeq
-    assert(tuples.size == 3)
+    assert(contents(tuples) == Seq("l1", "l2", "l3"))
   }
 }
