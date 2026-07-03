@@ -329,7 +329,7 @@ class Tuple:
                         and isinstance(field_value, float)
                         and field_value.is_integer()
                     ):
-                        # pandas promotes an int column holding nulls to
+                        # pandas 2.2.3 promotes an int column holding nulls to
                         # float64 (119 -> 119.0), so convert integral floats
                         # destined for INT/LONG back to int — but only within
                         # the safe range above; out-of-range floats are left
