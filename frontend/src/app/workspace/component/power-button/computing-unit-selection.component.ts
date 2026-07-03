@@ -775,6 +775,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
     return this.pves.some(p => p.isLocked && p.name.trim() === trimmed);
   }
 
+  /**
+   * Whether the per-environment "OK" (create/install) button should be
+   * disabled: true until the environment name has non-whitespace content.
+   */
+  isCreateDisabled(pve: PveDraft): boolean {
+    return !pve.name.trim();
+  }
+
   private refreshAvailableDbPves(): void {
     this.workflowPveService
       .listUserPves()

@@ -27,11 +27,9 @@
         class="view-toggle">
         <button
           nz-button
-          nzType="text"
-          [class.active]="viewMode === 'list'"
+          title="List view"
           (click)="setViewMode('list')"
-          nz-tooltip="List view"
-          title="List view">
+          [nzType]="viewMode === 'list' ? 'primary' : 'default'">
           <i
             nz-icon
             nzType="bars"
@@ -39,14 +37,12 @@
         </button>
         <button
           nz-button
-          nzType="text"
-          [class.active]="viewMode === 'card'"
+          title="Card view"
           (click)="setViewMode('card')"
-          nz-tooltip="Card view"
-          title="Card view">
+          [nzType]="viewMode === 'card' ? 'primary' : 'default'">
           <i
             nz-icon
-            nzType="table"
+            nzType="appstore"
             nzTheme="outline"></i>
         </button>
       </div>
@@ -56,10 +52,10 @@
   <ng-template
     #datasetCardTpl
     let-entry>
-    <texera-dataset-card-item
+    <texera-card-item
       [entry]="entry"
       [currentUid]="currentUid">
-    </texera-dataset-card-item>
+    </texera-card-item>
   </ng-template>
 
   <div class="search-result">

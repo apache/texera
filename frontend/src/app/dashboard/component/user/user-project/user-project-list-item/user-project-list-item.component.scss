@@ -17,7 +17,7 @@
  * under the License.
  */
 
-@import "../../../dashboard.component.scss";
+@use "../../../dashboard.component.scss" as *;
 
 .project-name {
   font-size: 20px;

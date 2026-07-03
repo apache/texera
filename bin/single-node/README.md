@@ -48,16 +48,16 @@ If either command produces output, that port is occupied by another process. You
 
 ## Launch Texera
 
-Enter the extracted directory and run the following command to start Texera:
+From the repo root, run:
 ```bash
-docker compose --profile examples up
+bin/single-node.sh up
 ```
 
-This command will start docker containers that host the  Texera services, and pre-create two example workflows and datasets.
+This pre-flights Docker, then runs `docker compose up -d` to start the stack in the background. The command returns once containers are started; tail any service with `bin/single-node.sh logs <service>`.
 
-If you don't want to have these examples pre-created, run the following command instead:
+To also pre-create two example workflows and datasets (the `examples` profile), add `--with-examples`:
 ```bash
-docker compose up
+bin/single-node.sh up --with-examples
 ```
 
 > If you see the error message like `unable to get image 'nginx:alpine': Cannot connect to the Docker daemon at unix:///Users/kunwoopark/.docker/run/docker.sock. Is the docker daemon running?`, please make sure Docker Desktop is installed and running
@@ -84,21 +84,18 @@ Input the default account `texera` with password `texera`, and then click on the
 ## Stop, Restart, and Uninstall Texera
 
 ### Stop
-Press `Ctrl+C` in the terminal to stop Texera.
-
-If you already closed the terminal, you can go to the installation folder and run:
 ```bash
-docker compose --profile examples stop
+bin/single-node.sh down
 ```
-to stop Texera.
+Stops every container; data volumes are preserved so the next `bin/single-node.sh up` resumes where you left off.
 
 ### Restart
-Same as the way you [launch Texera](#launch-texera).
+Same as the way you [launch Texera](#launch-texera) (`bin/single-node.sh up`).
 
 ### Uninstall
-To remove Texera and all its data, go to the installation folder and run:
+To remove Texera and all its data:
 ```bash
-docker compose --profile examples down -v
+bin/single-node.sh down --volumes
 ```
 > ⚠️ Warning: This will permanently delete all the data used by Texera.
 
@@ -161,9 +158,9 @@ For example, to change the folder of storing `workflow_result_data` to `/Users/j
        device: /Users/johndoe/texera/data
 ```
 
-If you already launched texera and want to change the data locations, existing data volumes need to be recreated and override in the next boot-up, i.e. select `y` when running `docker compose up` again:
+If you already launched texera and want to change the data locations, existing data volumes need to be recreated and override in the next boot-up, i.e. select `y` when running `bin/single-node.sh up` again:
 ```
-$ docker compose up
+$ bin/single-node.sh up
 ? Volume "texera-single-node-release-1-1-0_workflow_result_data" exists but doesn't match configuration in compose file. Recreate (data will be lost)? (y/N)
 y // answer y to this prompt
 ```
@@ -222,13 +219,13 @@ Stop the conflicting process, or change Texera's ports following the instruction
 
 ### Volume conflicts
 
-PostgreSQL only runs the database initialization scripts on first startup (when its data volume is empty). If you previously started Texera and then ran `docker compose down` (without `-v`), the data volume still exists. On the next `docker compose up`, the initialization is skipped, which can cause services like lakeFS to fail because their required databases were never created.
+PostgreSQL only runs the database initialization scripts on first startup (when its data volume is empty). If you previously started Texera and then ran `bin/single-node.sh down` (without `--volumes`), the data volume still exists. On the next `bin/single-node.sh up`, the initialization is skipped, which can cause services like lakeFS to fail because their required databases were never created.
 
 To resolve this, remove all existing volumes and start fresh:
 
 ```
-docker compose --profile examples down -v
-docker compose --profile examples up
+bin/single-node.sh down --volumes
+bin/single-node.sh up
 ```
 
-> ⚠️ Warning: `docker compose --profile examples down -v` permanently deletes all Texera data.
+> ⚠️ Warning: `bin/single-node.sh down --volumes` permanently deletes all Texera data.

@@ -38,6 +38,7 @@ import org.apache.texera.service.resource.{
 }
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.LargeBinaryManager
+import org.apache.texera.service.util.StagedFileCleanupJob
 import org.eclipse.jetty.server.session.SessionHandler
 import java.nio.file.Path
 
@@ -93,7 +94,31 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)
+
+    // Periodically clean up uploaded but uncommitted (staged) dataset files
+    registerStagedFileCleanup(
+      environment,
+      StorageConfig.cleanupEnabled,
+      StorageConfig.cleanupRetentionHours,
+      StorageConfig.cleanupIntervalMinutes
+    )
   }
+
+  /**
+    * Registers the periodic staged-file cleanup job on the application lifecycle when enabled.
+    * Extracted from `run` (and kept free of any global config reads) so the conditional wiring
+    * can be unit-tested with a standalone `Environment`.
+    */
+  private[service] def registerStagedFileCleanup(
+      environment: Environment,
+      enabled: Boolean,
+      retentionHours: Int,
+      intervalMinutes: Int
+  ): Unit =
+    if (enabled)
+      environment
+        .lifecycle()
+        .manage(new StagedFileCleanupJob(retentionHours, intervalMinutes))
 
   /**
     * Runs `operation`, retrying with exponential backoff until it succeeds or `maxAttempts` is
