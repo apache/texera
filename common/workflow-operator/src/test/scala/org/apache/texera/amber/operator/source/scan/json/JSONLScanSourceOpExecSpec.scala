@@ -58,8 +58,9 @@ class JSONLScanSourceOpExecSpec extends AnyFlatSpec {
   }
 
   "JSONLScanSourceOpExec" should "read each JSON line, ordering fields by sorted attribute name" in {
+    // keys are written name-then-id; the output must be reordered to id-then-name
     val exec = new JSONLScanSourceOpExec(
-      descString(writeJsonl("""{"id":1,"name":"a"}""", """{"id":2,"name":"b"}"""))
+      descString(writeJsonl("""{"name":"a","id":1}""", """{"name":"b","id":2}"""))
     )
     val rows = drain(exec)
     assert(rows.size == 2)

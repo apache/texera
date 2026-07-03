@@ -86,10 +86,12 @@ class ParallelCSVScanSourceOpExecSpec extends AnyFlatSpec {
   it should "partition a headerless file across workers by byte range" in {
     // Two workers over the same file: worker 0 (idx != workerCount-1) takes the
     // first byte-range chunk; worker 1 seeks past its chunk start and drops the
-    // leading partial line. Exact boundary rows depend on the block reader
-    // reading one line past the boundary, so assert only that the union covers
-    // all rows without duplication.
-    val uri = writeCsv("1,aaaa\n2,bbbb\n3,cccc\n4,dddd\n")
+    // leading partial line. Rows are deliberately uneven widths so the split
+    // point (totalBytes/2 = 12) lands *inside* the second row rather than on a
+    // newline, exercising the partial-line skip. Exact boundary rows depend on
+    // the block reader reading one line past the boundary, so assert only that
+    // the union covers all rows without duplication.
+    val uri = writeCsv("1,aaaa\n2,bbb\n3,ccccc\n4,d\n")
     val rows0 = drain(
       new ParallelCSVScanSourceOpExec(descString(uri, header = false), idx = 0, workerCount = 2)
     )
