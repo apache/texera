@@ -66,9 +66,11 @@ class WorkflowExecutionService(
 ) extends SubscriptionManager
     with LazyLogging {
 
-  workflowContext.workflowSettings = request.workflowSettings
-  val wsInput = new WebsocketInput(errorHandler)
-
+  // Wire error/state reporting first, before any other construction work, so a
+  // fatalErrors update (recorded by errorHandler) always has an emitter.
+  // Construction itself does no external work and cannot throw; the throwing
+  // work lives in executeWorkflow(), whose failures reach the UI through this
+  // same handler.
   addSubscription(
     executionStateStore.metadataStore.registerDiffHandler((oldState, newState) => {
       val outputEvents = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
@@ -84,6 +86,9 @@ class WorkflowExecutionService(
       outputEvents
     })
   )
+
+  workflowContext.workflowSettings = request.workflowSettings
+  val wsInput = new WebsocketInput(errorHandler)
 
   private def createStateEvent(state: ExecutionMetadataStore): WorkflowStateEvent = {
     if (state.isRecovering && state.state != COMPLETED) {

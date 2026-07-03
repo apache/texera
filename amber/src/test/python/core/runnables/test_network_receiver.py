@@ -152,16 +152,19 @@ class TestNetworkReceiver:
         worker_id = ActorVirtualIdentity(name="test")
         channel_id = ChannelIdentity(worker_id, worker_id, False)
 
+        # loop_counter rides the StateFrame envelope (its own Arrow column),
+        # not the user content. Use a non-zero counter so the round-trip
+        # actually exercises the second column over the sender->receiver wire.
         input_queue.put(
             DataElement(
                 tag=channel_id,
-                payload=StateFrame(State({"loop_counter": 0, "i": 1})),
+                payload=StateFrame(State({"i": 1}), loop_counter=0),
             )
         )
         input_queue.put(
             DataElement(
                 tag=channel_id,
-                payload=StateFrame(State({"loop_counter": 1, "i": 2})),
+                payload=StateFrame(State({"i": 2}), loop_counter=5),
             )
         )
 
@@ -169,11 +172,13 @@ class TestNetworkReceiver:
         second_element: DataElement = output_queue.get()
 
         assert isinstance(first_element.payload, StateFrame)
-        assert first_element.payload.frame == {"loop_counter": 0, "i": 1}
+        assert first_element.payload.frame == {"i": 1}
+        assert first_element.payload.loop_counter == 0
         assert first_element.tag == channel_id
 
         assert isinstance(second_element.payload, StateFrame)
-        assert second_element.payload.frame == {"loop_counter": 1, "i": 2}
+        assert second_element.payload.frame == {"i": 2}
+        assert second_element.payload.loop_counter == 5
         assert second_element.tag == channel_id
 
     @pytest.mark.timeout(10)

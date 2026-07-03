@@ -19,7 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import { NzMessageDataOptions, NzMessageService } from "ng-zorro-antd/message";
-import { NzNotificationDataOptions, NzNotificationService } from "ng-zorro-antd/notification";
+import { NzNotificationDataOptions, NzNotificationRef, NzNotificationService } from "ng-zorro-antd/notification";
 
 /**
  * NotificationService is an entry service for sending notifications
@@ -33,9 +33,10 @@ export class NotificationService {
     private notification: NzNotificationService
   ) {}
 
-  // Only blank can be removed manually
-  blank(title: string, content: string, options: NzNotificationDataOptions = {}): void {
-    this.notification.blank(title, content, options);
+  // Only blank can be removed manually. Returns the notification ref so callers
+  // can react to clicks (e.g. an actionable "click to refresh" notification).
+  blank(title: string, content: string, options: NzNotificationDataOptions = {}): NzNotificationRef {
+    return this.notification.blank(title, content, options);
   }
 
   // Remove current blank notification only

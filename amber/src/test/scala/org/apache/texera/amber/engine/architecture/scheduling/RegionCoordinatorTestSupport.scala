@@ -176,10 +176,22 @@ object RegionCoordinatorTestSupport {
   def createWorkerId(physicalOp: PhysicalOp): ActorVirtualIdentity =
     VirtualIdentityUtils.createWorkerIdentity(DEFAULT_WORKFLOW_ID, physicalOp.id, 0)
 
+  def createWorkerIds(physicalOp: PhysicalOp, count: Int): Seq[ActorVirtualIdentity] =
+    (0 until count).map(i =>
+      VirtualIdentityUtils.createWorkerIdentity(DEFAULT_WORKFLOW_ID, physicalOp.id, i)
+    )
+
   def createSingleWorkerRegion(
       regionId: Long,
       physicalOp: PhysicalOp,
       workerId: ActorVirtualIdentity
+  ): Region =
+    createWorkerRegion(regionId, physicalOp, Seq(workerId))
+
+  def createWorkerRegion(
+      regionId: Long,
+      physicalOp: PhysicalOp,
+      workerIds: Seq[ActorVirtualIdentity]
   ): Region =
     Region(
       RegionIdentity(regionId),
@@ -187,7 +199,8 @@ object RegionCoordinatorTestSupport {
       physicalLinks = Set.empty,
       resourceConfig = Some(
         ResourceConfig(
-          operatorConfigs = Map(physicalOp.id -> OperatorConfig(List(WorkerConfig(workerId))))
+          operatorConfigs =
+            Map(physicalOp.id -> OperatorConfig(workerIds.map(WorkerConfig(_)).toList))
         )
       )
     )
@@ -197,13 +210,21 @@ object RegionCoordinatorTestSupport {
       seedRegionId: Long,
       physicalOp: PhysicalOp,
       workerId: ActorVirtualIdentity
+  ): Unit =
+    seedReusableWorkerExecutions(workflowExecution, seedRegionId, physicalOp, Seq(workerId))
+
+  def seedReusableWorkerExecutions(
+      workflowExecution: WorkflowExecution,
+      seedRegionId: Long,
+      physicalOp: PhysicalOp,
+      workerIds: Seq[ActorVirtualIdentity]
   ): Unit = {
     // RegionExecutionCoordinator skips real worker creation when an execution for this operator
     // already exists.
-    workflowExecution
-      .initRegionExecution(createSingleWorkerRegion(seedRegionId, physicalOp, workerId))
+    val operatorExecution = workflowExecution
+      .initRegionExecution(createWorkerRegion(seedRegionId, physicalOp, workerIds))
       .initOperatorExecution(physicalOp.id)
-      .initWorkerExecution(workerId)
+    workerIds.foreach(operatorExecution.initWorkerExecution)
   }
 
   def await[T](future: Future[T]): T = Await.result(future, testTimeout)
