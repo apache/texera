@@ -19,6 +19,7 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { By } from "@angular/platform-browser";
 import { ComputingUnitSelectionComponent } from "./computing-unit-selection.component";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { CommonModule } from "@angular/common";
@@ -38,6 +39,7 @@ import {
   WorkflowPveService,
 } from "../../service/virtual-environment/virtual-environment.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
+import { ComputingUnitCreateModalComponent } from "../../../common/component/computing-unit-create-modal/computing-unit-create-modal.component";
 
 describe("PowerButtonComponent", () => {
   let component: ComputingUnitSelectionComponent;
@@ -90,6 +92,16 @@ describe("PowerButtonComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  describe("showAddComputeUnitModalVisible", () => {
+    it("forwards the seeded default name to the embedded create modal", () => {
+      fixture.detectChanges();
+      component.showAddComputeUnitModalVisible("wf's Computing Unit");
+      const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
+      expect(modal.newComputingUnitName).toBe("wf's Computing Unit");
+      expect(component.addComputeUnitModalVisible).toBe(true);
+    });
   });
 
   describe("isSavedPveInstalledInCu", () => {

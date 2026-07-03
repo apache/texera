@@ -86,8 +86,7 @@
 .computing-unit-row,
 .computing-unit-name,
 .create-computing-unit,
-.metric-item,
-.shm-input-row {
+.metric-item {
   display: flex;
   align-items: center;
 }
@@ -135,50 +134,13 @@
   }
 }
 
-.memory-selection,
-.cpu-selection,
-.gpu-selection,
-.unit-name-input {
-  width: 100%;
-}
-
 .create-computing-unit {
   gap: 10px;
   justify-content: flex-start;
 }
 
-.create-compute-unit-container,
 .resource-metrics {
   display: grid;
-}
-
-.create-compute-unit-container {
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  justify-content: start;
-  align-items: center;
-}
-
-.select-unit {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 10px;
-
-  &.name-field {
-    grid-column: span 2;
-  }
-}
-
-.jvm-memory-slider {
-  width: 100%;
-  margin: 10px 0;
-}
-
-.memory-warning {
-  margin-top: 10px;
-  font-size: 0.9em;
 }
 
 .computing-units-dropdown-button {
@@ -313,34 +275,6 @@
   color: #555;
   font-size: 0.9em;
   font-weight: 500;
-}
-
-.shared-memory-group {
-  width: 100%;
-
-  .shm-input-row {
-    width: 100%;
-    gap: 8px;
-  }
-
-  .shm-size-input {
-    width: 60px;
-    min-width: 50px;
-    flex-shrink: 0;
-  }
-
-  .shm-unit-select {
-    width: 80px;
-    min-width: 70px;
-    flex-shrink: 0;
-  }
-
-  .shm-warning {
-    margin-top: 4px;
-    color: #faad14;
-    font-size: 12px;
-    white-space: nowrap;
-  }
 }
 
 .unit-name-edit-input {
