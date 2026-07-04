@@ -82,10 +82,8 @@ coverage:
         threshold: 10%
 
 comment:
-  # `flag_management.default_rules.carryforward: true` above already
-  # backfills missing flags from main, but Codecov's default still
-  # hides those rows from the PR comment. Show them so a frontend-only
-  # or pyamber-only PR's table lists every flag — fresh-data rows track
-  # the patch and carryforward'd rows render with `<ø>` to make their
-  # unchanged status obvious.
+  # CI is label-gated: a single-stack PR (e.g. a frontend-only change)
+  # uploads only its own flag. carryforward backfills the rest from main;
+  # this surfaces those carried rows (rendered `<ø>`) instead of hiding
+  # them, so every PR's table lists all flags.
   show_carryforward_flags: true
