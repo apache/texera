@@ -263,7 +263,7 @@ This command will optimize the frontend code to make it run faster. This step wi
 ## 3. Email Notification (Optional)
 </summary>
 
-1. Set `smtp` in `config/src/main/resources/user-system.conf`. You need an App password if the account has 2FA.
+1. Set `smtp` in `common/config/src/main/resources/user-system.conf`. You need an App password if the account has 2FA.
 2. Log in to Texera with an admin account.
 3. Open the Gmail dashboard under the admin tab.
 5. Send a test email.
@@ -286,10 +286,10 @@ This part is optional; you only need to do this if you are working on a specific
 Note: Jooq creates DAO for simple operations if the requested SQL query is complex, then the developer can use the generated Table classes to implement the operation
 
 ### Disable password login
-Edit `config/src/main/resources/gui.conf`, change `local-login` to `false`.
+Edit `common/config/src/main/resources/gui.conf`, change `local-login` to `false`.
 
 ### Enforce invite only
-Edit `config/src/main/resources/user-system.conf`, change `invite-only` to `true`.
+Edit `common/config/src/main/resources/user-system.conf`, change `invite-only` to `true`.
 
 ### Backend endpoints Role Annotation
 There are two types of permissions for the backend endpoints:

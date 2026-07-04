@@ -86,16 +86,15 @@ Avoid including:
    ```
 3. Execute tests:
    ```bash
-   cd core
    sbt test
    ```
 
-> For IntelliJ users: ensure the working directory matches the module (`amber` for engine tests, `core` for services).
+> For IntelliJ users: ensure the working directory matches the module (`amber` for engine tests, the repo root for services).
 
 ### Frontend (Angular)
 1. Run unit tests:
    ```bash
-   cd core/gui
+   cd frontend
    ng test --watch=false
    ```
 2. Format code:
