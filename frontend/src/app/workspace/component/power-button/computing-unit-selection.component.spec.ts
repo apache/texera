@@ -102,6 +102,34 @@ describe("PowerButtonComponent", () => {
       expect(modal.newComputingUnitName).toBe("wf's Computing Unit");
       expect(component.addComputeUnitModalVisible).toBe(true);
     });
+
+    it("opens the modal without touching the name when no default is given", () => {
+      fixture.detectChanges();
+      const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
+      const nameBefore = modal.newComputingUnitName;
+      component.showAddComputeUnitModalVisible();
+      expect(component.addComputeUnitModalVisible).toBe(true);
+      expect(modal.newComputingUnitName).toBe(nameBefore);
+    });
+
+    it("still opens when the embedded modal is not available", () => {
+      fixture.detectChanges();
+      // simulate the ViewChild not (yet) being resolved
+      (component as any).computingUnitCreateModal = undefined;
+      component.showAddComputeUnitModalVisible("Seed Name");
+      expect(component.addComputeUnitModalVisible).toBe(true);
+    });
+  });
+
+  describe("onComputingUnitCreated", () => {
+    it("selects the created unit for the current workflow when the modal emits unitCreated", () => {
+      fixture.detectChanges();
+      component.workflowId = 7;
+      const selectSpy = vi.spyOn(component, "selectComputingUnit").mockImplementation(() => {});
+      const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
+      modal.unitCreated.emit({ computingUnit: { cuid: 42 } } as unknown as DashboardWorkflowComputingUnit);
+      expect(selectSpy).toHaveBeenCalledWith(7, 42);
+    });
   });
 
   describe("isSavedPveInstalledInCu", () => {

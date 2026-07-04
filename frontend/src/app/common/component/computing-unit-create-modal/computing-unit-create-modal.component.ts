@@ -37,6 +37,7 @@ import { NotificationService } from "../../service/notification/notification.ser
 import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../type/workflow-computing-unit";
 import { extractErrorMessage } from "../../util/error";
 import {
+  buildLocalComputingUnitUri,
   findNearestValidStep,
   getJvmMemorySliderConfig,
   isComputingUnitShmTooLarge,
@@ -115,7 +116,7 @@ export class ComputingUnitCreateModalComponent implements OnInit {
 
   ngOnInit(): void {
     // Fetch available computing unit types
-    this.localComputingUnitUri = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ""}/wsapi`;
+    this.localComputingUnitUri = buildLocalComputingUnitUri(window.location);
     this.newComputingUnitName = "My Computing Unit";
     this.computingUnitService
       .getComputingUnitTypes()
