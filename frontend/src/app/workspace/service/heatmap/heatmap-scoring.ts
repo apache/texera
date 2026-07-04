@@ -37,8 +37,9 @@ export enum HeatmapView {
  * - Runtime:     data + control processing time — slower operators are hotter.
  * - Throughput:  seconds per output tuple — slow producers (low throughput) are
  *                hotter; no output -> 0 (cold).
- * - IoImbalance: |1 - out/in| — operators that drop OR amplify rows are hotter;
- *                a balanced operator or missing input -> 0 (cold).
+ * - IoImbalance: |out - in| / (out + in) — operators that drop OR amplify rows are
+ *                hotter; a balanced operator or missing input -> 0 (cold). Normalized
+ *                to [0, 1] so an extreme amplifier can't dominate the scale.
  */
 export function rawMetricForView(metrics: OperatorPerformanceMetrics, view: HeatmapView): number {
   switch (view) {
@@ -49,7 +50,9 @@ export function rawMetricForView(metrics: OperatorPerformanceMetrics, view: Heat
       return metrics.outputRows > 0 ? timeSec / metrics.outputRows : 0;
     }
     case HeatmapView.IoImbalance:
-      return metrics.inputRows > 0 ? Math.abs(1 - metrics.outputRows / metrics.inputRows) : 0;
+      return metrics.inputRows > 0
+        ? Math.abs(metrics.outputRows - metrics.inputRows) / (metrics.outputRows + metrics.inputRows)
+        : 0;
     default:
       return 0;
   }

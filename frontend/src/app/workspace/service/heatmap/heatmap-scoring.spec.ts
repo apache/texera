@@ -63,13 +63,27 @@ describe("rawMetricForView", () => {
   });
 
   it("IoImbalance scores a row-dropping operator (out < in)", () => {
+    // |250 - 1000| / (250 + 1000) = 0.6
     const m = makeMetrics({ inputRows: 1_000, outputRows: 250 });
-    expect(rawMetricForView(m, HeatmapView.IoImbalance)).toBe(0.75);
+    expect(rawMetricForView(m, HeatmapView.IoImbalance)).toBe(0.6);
   });
 
   it("IoImbalance scores an amplifying operator (out > in)", () => {
-    const m = makeMetrics({ inputRows: 100, outputRows: 500 });
-    expect(rawMetricForView(m, HeatmapView.IoImbalance)).toBe(4);
+    // |300 - 100| / (300 + 100) = 0.5
+    const m = makeMetrics({ inputRows: 100, outputRows: 300 });
+    expect(rawMetricForView(m, HeatmapView.IoImbalance)).toBe(0.5);
+  });
+
+  it("IoImbalance scores a total drop (out = 0) as maximally imbalanced", () => {
+    const m = makeMetrics({ inputRows: 1_000, outputRows: 0 });
+    expect(rawMetricForView(m, HeatmapView.IoImbalance)).toBe(1);
+  });
+
+  it("IoImbalance stays within [0, 1] even for an extreme amplifier", () => {
+    const m = makeMetrics({ inputRows: 1, outputRows: 1_000_000 });
+    const score = rawMetricForView(m, HeatmapView.IoImbalance);
+    expect(score).toBeGreaterThan(0.99);
+    expect(score).toBeLessThanOrEqual(1);
   });
 
   it("IoImbalance is 0 for a balanced operator (out == in)", () => {
@@ -79,7 +93,9 @@ describe("rawMetricForView", () => {
 
   it("IoImbalance is 0 when there is no input (cold)", () => {
     const m = makeMetrics({ inputRows: 0, outputRows: 250 });
-    expect(rawMetricForView(m, HeatmapView.IoImbalance)).toBe(0);
+    const score = rawMetricForView(m, HeatmapView.IoImbalance);
+    expect(score).toBe(0);
+    expect(Number.isFinite(score)).toBe(true);
   });
 });
 
