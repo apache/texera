@@ -85,4 +85,13 @@ describe("UserComputingUnitComponent", () => {
     modal.unitCreated.emit({} as unknown as DashboardWorkflowComputingUnit);
     expect(refreshSpy).toHaveBeenCalledTimes(1);
   });
+
+  it("syncs visibility when the embedded modal closes itself", () => {
+    fixture.detectChanges();
+    component.showAddComputeUnitModalVisible();
+    expect(component.addComputeUnitModalVisible).toBe(true);
+    const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
+    modal.visibleChange.emit(false);
+    expect(component.addComputeUnitModalVisible).toBe(false);
+  });
 });
