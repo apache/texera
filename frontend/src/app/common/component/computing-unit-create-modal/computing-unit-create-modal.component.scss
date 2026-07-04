@@ -86,8 +86,7 @@
 // Collapsed by default; houses the shared-memory and JVM-heap knobs so the
 // common path (name / RAM / CPU) stays uncluttered.
 
-// The inner panel's padding. Reused for the slider's bottom margin so the mark
-// labels keep the same breathing room as every other edge of the box.
+// The inner panel's padding, also reused for the slider's bottom margin.
 $advanced-panel-padding: 16px;
 
 .advanced-settings {
