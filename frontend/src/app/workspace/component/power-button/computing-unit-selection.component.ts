@@ -165,6 +165,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   // GPU limit options, used by the metrics popover's GPU row via showGpuSelection()
   gpuOptions: string[] = [];
+  // True when the limit-options fetch failed; showGpuSelection() then falls back
+  // to permissive so the metrics popover doesn't silently hide the GPU row.
+  private gpuOptionsFetchFailed = false;
 
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
@@ -183,15 +186,20 @@ export class ComputingUnitSelectionComponent implements OnInit {
   ngOnInit(): void {
     // GPU options drive the GPU row in the metrics popover. The shared
     // create modal fetches these options itself and owns the user-facing
-    // error toast for this endpoint.
+    // error toast for this endpoint, so on failure this only logs and falls
+    // back to showing GPU metrics based on the unit's own allocation.
     this.computingUnitService
       .getComputingUnitLimitOptions()
       .pipe(untilDestroyed(this))
       .subscribe({
         next: ({ gpuLimitOptions }) => {
           this.gpuOptions = gpuLimitOptions;
+          this.gpuOptionsFetchFailed = false;
         },
-        error: () => {},
+        error: (err: unknown) => {
+          this.gpuOptionsFetchFailed = true;
+          console.error("Failed to fetch computing unit limit options for the GPU metric row", err);
+        },
       });
 
     // Subscribe to the current selected unit from the status service
@@ -330,6 +338,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   // Determines if the GPU selection dropdown should be shown
   showGpuSelection(): boolean {
+    // If the options fetch failed, err on the side of showing the GPU row —
+    // the metrics template additionally requires the unit's own GPU limit to
+    // be non-zero, so this cannot show a GPU row for a GPU-less unit.
+    if (this.gpuOptionsFetchFailed) {
+      return true;
+    }
     // Don't show GPU selection if there are no options or only "0" option
     return this.gpuOptions.length > 1 || (this.gpuOptions.length === 1 && this.gpuOptions[0] !== "0");
   }

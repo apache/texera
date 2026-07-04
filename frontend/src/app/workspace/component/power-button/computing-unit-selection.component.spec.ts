@@ -28,6 +28,7 @@ import { ActivatedRoute, ActivatedRouteSnapshot, convertToParamMap, Data, Params
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { UserPveRecord } from "../../service/virtual-environment/virtual-environment.service";
@@ -129,6 +130,39 @@ describe("PowerButtonComponent", () => {
       const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
       modal.unitCreated.emit({ computingUnit: { cuid: 42 } } as unknown as DashboardWorkflowComputingUnit);
       expect(selectSpy).toHaveBeenCalledWith(7, 42);
+    });
+  });
+
+  describe("showGpuSelection", () => {
+    it("reflects the fetched GPU limit options", () => {
+      const managingService = TestBed.inject(WorkflowComputingUnitManagingService);
+      vi.spyOn(managingService, "getComputingUnitLimitOptions").mockReturnValue(
+        of({ cpuLimitOptions: [], memoryLimitOptions: [], gpuLimitOptions: ["0", "1"] })
+      );
+      const gpuFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      gpuFixture.detectChanges();
+      expect(gpuFixture.componentInstance.showGpuSelection()).toBe(true);
+    });
+
+    it("hides the GPU row when the deployment reports no GPU support", () => {
+      const managingService = TestBed.inject(WorkflowComputingUnitManagingService);
+      vi.spyOn(managingService, "getComputingUnitLimitOptions").mockReturnValue(
+        of({ cpuLimitOptions: [], memoryLimitOptions: [], gpuLimitOptions: ["0"] })
+      );
+      const gpuFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      gpuFixture.detectChanges();
+      expect(gpuFixture.componentInstance.showGpuSelection()).toBe(false);
+    });
+
+    it("falls back to showing GPU metrics when the limit-options fetch fails", () => {
+      const managingService = TestBed.inject(WorkflowComputingUnitManagingService);
+      vi.spyOn(managingService, "getComputingUnitLimitOptions").mockReturnValue(throwError(() => new Error("boom")));
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const failedFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      failedFixture.detectChanges();
+      expect(failedFixture.componentInstance.showGpuSelection()).toBe(true);
+      expect(errorSpy).toHaveBeenCalled();
+      errorSpy.mockRestore();
     });
   });
 
