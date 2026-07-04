@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.udf.java
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.UnknownPartition
 import org.apache.texera.amber.operator.{LogicalOp, PortDescription}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -133,7 +134,7 @@ class JavaUDFOpDescSpec extends AnyFlatSpec with Matchers {
         displayName = "left",
         disallowMultiInputs = true,
         isDynamicPort = false,
-        partitionRequirement = null,
+        partitionRequirement = UnknownPartition(),
         dependencies = List.empty
       )
     )
@@ -143,6 +144,7 @@ class JavaUDFOpDescSpec extends AnyFlatSpec with Matchers {
     // also drives the getPhysicalOp inputPorts != null partitionRequirement branch
     val physical = d.getPhysicalOp(workflowId, executionId)
     physical.inputPorts.keySet shouldBe info.inputPorts.map(_.id).toSet
+    physical.partitionRequirement shouldBe List(Some(UnknownPartition()))
   }
 
   it should "derive output ports from a configured outputPorts list" in {
@@ -153,7 +155,7 @@ class JavaUDFOpDescSpec extends AnyFlatSpec with Matchers {
         displayName = "result",
         disallowMultiInputs = false,
         isDynamicPort = false,
-        partitionRequirement = null,
+        partitionRequirement = UnknownPartition(),
         dependencies = List.empty
       )
     )
