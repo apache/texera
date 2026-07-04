@@ -189,9 +189,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       textInputSourceOpDesc.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
     physical.opExecInitInfo match {
       case OpExecWithClassName(className, _) =>
-        assert(
-          className == "org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpExec"
-        )
+        assert(className == classOf[TextInputSourceOpExec].getName)
       case other => fail(s"expected OpExecWithClassName, got $other")
     }
     assert(physical.inputPorts.isEmpty)

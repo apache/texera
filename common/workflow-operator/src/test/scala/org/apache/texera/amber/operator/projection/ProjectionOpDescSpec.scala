@@ -131,6 +131,13 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(out == RangePartition(List("field2"), 0L, 100L))
   }
 
+  it should "downgrade an empty RangePartition to UnknownPartition" in {
+    // RangePartition's companion apply already rewrites empty attributes to UnknownPartition,
+    // so an empty range never reaches the range arm; either way the result is UnknownPartition.
+    val out = projectionOpDesc.derivePartition()(List(RangePartition(List.empty, 0L, 100L)))
+    assert(out == UnknownPartition())
+  }
+
   it should "pass through partitions that are neither hash nor range" in {
     val out = projectionOpDesc.derivePartition()(List(SinglePartition()))
     assert(out == SinglePartition())

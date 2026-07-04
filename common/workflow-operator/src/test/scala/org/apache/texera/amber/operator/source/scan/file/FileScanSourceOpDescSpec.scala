@@ -194,9 +194,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       fileScanSourceOpDesc.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
     physical.opExecInitInfo match {
       case OpExecWithClassName(className, descString) =>
-        assert(
-          className == "org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpExec"
-        )
+        assert(className == classOf[FileScanSourceOpExec].getName)
         assert(descString.nonEmpty)
       case other => fail(s"expected OpExecWithClassName, got $other")
     }

@@ -104,7 +104,7 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val physical = fileScanOpDesc.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
     physical.opExecInitInfo match {
       case OpExecWithClassName(className, payload) =>
-        assert(className == "org.apache.texera.amber.operator.source.scan.file.FileScanOpExec")
+        assert(className == classOf[FileScanOpExec].getName)
         assert(payload.nonEmpty)
       case other => fail(s"expected OpExecWithClassName, got $other")
     }
