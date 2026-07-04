@@ -32,10 +32,13 @@ class ObjectMapperUtilsSpec extends AnyFlatSpec with Matchers {
 
   "warmupObjectMapperForOperatorsSerde" should "spawn the named warmup thread and complete" in {
     noException should be thrownBy ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
-    // join the spawned thread so its run() body (operator-metadata generation) actually executes
-    findWarmupThread().foreach { thread =>
-      thread.join(60000)
-      thread.isAlive shouldBe false
+    // the warmup runs a full operator-metadata scan (seconds), so the thread is observable
+    // right after start(); assert it was actually spawned, then join so its body runs
+    val thread = findWarmupThread()
+    thread shouldBe defined
+    thread.foreach { t =>
+      t.join(60000)
+      t.isAlive shouldBe false
     }
   }
 }
