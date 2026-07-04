@@ -19,20 +19,37 @@
 
 package org.apache.texera.service.resource
 
+import com.fasterxml.jackson.annotation.JsonProperty
+import io.dropwizard.auth.Auth
 import jakarta.annotation.security.{PermitAll, RolesAllowed}
-import jakarta.ws.rs.core.MediaType
-import jakarta.ws.rs.{GET, Path, Produces}
+import jakarta.ws.rs.core.{MediaType, Response}
+import jakarta.ws.rs.{Consumes, GET, POST, PUT, Path, PathParam, Produces}
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.{
   ApplicationConfig,
   AuthConfig,
   ComputingUnitConfig,
+  DefaultsConfig,
   GuiConfig,
   UserSystemConfig
 }
+import org.apache.texera.dao.SqlServer
+import org.jooq.impl.DSL
+
+case class ConfigSettingPojo(
+    @JsonProperty("key") settingKey: String,
+    @JsonProperty("value") settingValue: String
+)
 
 @Path("/config")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class ConfigResource {
+
+  private def ctx = SqlServer.getInstance().createDSLContext()
+  private val siteSettings = DSL.table("site_settings")
+  private val key = DSL.field("key", classOf[String])
+  private val value = DSL.field("value", classOf[String])
+  private val updatedBy = DSL.field("updated_by", classOf[String])
 
   // Anonymous endpoint loaded by the frontend's APP_INITIALIZER before any user has
   // logged in. Only fields that the login page (or the logged-out branches of the
@@ -99,4 +116,70 @@ class ConfigResource {
       // flags from the user-system.conf
       "inviteOnly" -> UserSystemConfig.inviteOnly
     )
+
+  // Write side of the config API, backed by the site_settings table this
+  // service seeds at startup. Reads stay open to any logged-in user because
+  // non-admin pages (dashboard logo/tabs, dataset upload limits) consume
+  // individual keys; only mutation is ADMIN-gated.
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/settings/{key}")
+  def getSetting(@PathParam("key") keyParam: String): ConfigSettingPojo = {
+    ctx
+      .select(key, value)
+      .from(siteSettings)
+      .where(key.eq(keyParam))
+      .fetchOneInto(classOf[ConfigSettingPojo])
+  }
+
+  @PUT
+  @RolesAllowed(Array("ADMIN"))
+  @Path("/settings/{key}")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def updateSetting(
+      @Auth currentUser: SessionUser,
+      @PathParam("key") keyParam: String,
+      setting: ConfigSettingPojo
+  ): Response = {
+    if (setting.settingValue != null && keyParam.nonEmpty) {
+      upsertSetting(keyParam, setting.settingValue, currentUser.getName)
+    }
+    Response.ok().build()
+  }
+
+  /**
+    * Resets the specified configuration key to its default value defined in default.conf.
+    */
+  @POST
+  @RolesAllowed(Array("ADMIN"))
+  @Path("/settings/reset/{key}")
+  def resetSetting(
+      @Auth currentUser: SessionUser,
+      @PathParam("key") keyParam: String
+  ): Response = {
+    DefaultsConfig.allDefaults.get(keyParam) match {
+      case Some(defaultValue) =>
+        upsertSetting(keyParam, defaultValue, currentUser.getName)
+        Response.ok().build()
+      case None =>
+        Response
+          .status(Response.Status.NOT_FOUND)
+          .entity(s"No default for key '$keyParam'")
+          .build()
+    }
+  }
+
+  private def upsertSetting(keyParam: String, valueParam: String, userName: String): Unit = {
+    ctx
+      .insertInto(siteSettings)
+      .set(key, keyParam)
+      .set(value, valueParam)
+      .set(updatedBy, userName)
+      .onConflict(key)
+      .doUpdate()
+      .set(value, valueParam)
+      .set(updatedBy, userName)
+      .set(DSL.field("updated_at", classOf[java.sql.Timestamp]), DSL.currentTimestamp())
+      .execute()
+  }
 }

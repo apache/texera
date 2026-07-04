@@ -31,7 +31,7 @@ import { map } from "rxjs/operators";
   providedIn: "root",
 })
 export class AdminSettingsService {
-  private readonly BASE_URL = "/api/admin/settings";
+  private readonly BASE_URL = "/api/config/settings";
   constructor(private http: HttpClient) {}
 
   getSetting(key: string): Observable<string> {

@@ -21,12 +21,14 @@ package org.apache.texera.service.resource
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import io.dropwizard.auth.AuthValueFactoryProvider
 import io.dropwizard.jackson.Jackson
 import io.dropwizard.testing.junit5.ResourceExtension
 import jakarta.annotation.security.RolesAllowed
+import jakarta.ws.rs.client.Entity
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
-import org.apache.texera.auth.{JwtAuth, JwtAuthFilter, UnauthorizedExceptionMapper}
+import org.apache.texera.auth.{JwtAuth, JwtAuthFilter, SessionUser, UnauthorizedExceptionMapper}
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
@@ -56,6 +58,10 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     .addProvider(classOf[JwtAuthFilter])
     .addProvider(classOf[UnauthorizedExceptionMapper])
     .addProvider(classOf[RolesAllowedDynamicFeature])
+    // Production (AuthFeatures.register) binds this so @Auth SessionUser
+    // parameters resolve; without it the /config/settings write endpoints
+    // fail resource-model validation at startup.
+    .addProvider(new AuthValueFactoryProvider.Binder(classOf[SessionUser]))
     .addResource(new ConfigResource)
     .addResource(new ConfigResourceAuthSpec.ProtectedProbe)
     .build()
@@ -186,6 +192,54 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
       .header("Authorization", s"Bearer ${regularToken()}")
       .get(classOf[Map[String, Any]])
     guiPayload.keySet should not contain "defaultDataTransferBatchSize"
+  }
+
+  // /config/settings is the write side over site_settings: reads are open to
+  // any logged-in user (non-admin pages consume individual keys), mutation is
+  // ADMIN-only. Positive read/write paths need a database, so this spec only
+  // pins the auth gates plus the one ADMIN path that never reaches the DB
+  // (reset of a key absent from default.conf → 404).
+  "GET /config/settings/{key}" should "return 401 with a Bearer challenge without an Authorization header" in {
+    val response =
+      resources.target("/config/settings/logo").request(MediaType.APPLICATION_JSON).get()
+    response.getStatus shouldBe 401
+    response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
+  }
+
+  "PUT /config/settings/{key}" should "return 401 without an Authorization header" in {
+    val response = resources
+      .target("/config/settings/logo")
+      .request(MediaType.APPLICATION_JSON)
+      .put(Entity.json("""{"key":"logo","value":"x"}"""))
+    response.getStatus shouldBe 401
+    response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
+  }
+
+  it should "return 403 for a REGULAR user" in {
+    val response = resources
+      .target("/config/settings/logo")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${regularToken()}")
+      .put(Entity.json("""{"key":"logo","value":"x"}"""))
+    response.getStatus shouldBe 403
+  }
+
+  "POST /config/settings/reset/{key}" should "return 403 for a REGULAR user" in {
+    val response = resources
+      .target("/config/settings/reset/logo")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${regularToken()}")
+      .post(Entity.json("{}"))
+    response.getStatus shouldBe 403
+  }
+
+  it should "pass the role gate for an ADMIN (404 for a key with no default)" in {
+    val response = resources
+      .target("/config/settings/reset/no-such-key")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${adminToken()}")
+      .post(Entity.json("{}"))
+    response.getStatus shouldBe 404
   }
 
   "GET an @RolesAllowed probe endpoint" should "return 401 without an Authorization header" in {
