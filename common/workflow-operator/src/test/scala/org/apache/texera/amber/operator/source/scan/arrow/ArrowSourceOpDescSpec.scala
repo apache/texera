@@ -19,19 +19,60 @@
 
 package org.apache.texera.amber.operator.source.scan.arrow
 
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.io.{File, FileOutputStream}
+import java.nio.channels.Channels
+import java.nio.file.Files
 
 class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
+
+  private val arrowSchema = Schema(List(new Attribute("s", AttributeType.STRING)))
+
+  private def writeArrowFile(rows: Seq[String]): File = {
+    val file = File.createTempFile("arrow-src-", ".arrow")
+    file.deleteOnExit()
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(arrowSchema), allocator)
+    val out = new FileOutputStream(file)
+    val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
+    try {
+      writer.start()
+      root.allocateNew()
+      rows.zipWithIndex.foreach {
+        case (value, i) =>
+          ArrowUtils.setTexeraTuple(
+            Tuple.builder(arrowSchema).addSequentially(Array[Any](value)).build(),
+            i,
+            root
+          )
+      }
+      root.setRowCount(rows.size)
+      writer.writeBatch()
+      writer.end()
+    } finally {
+      writer.close()
+      root.close()
+      allocator.close()
+      out.close()
+    }
+    file
+  }
 
   "ArrowSourceOpDesc.operatorInfo" should
     "advertise the Arrow file-scan name in the Data Input group with no input and one output" in {
@@ -80,5 +121,25 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     r.fileName shouldBe Some("file:///tmp/data.arrow")
     r.limit shouldBe Some(7)
     r.offset shouldBe Some(3)
+  }
+
+  "ArrowSourceOpDesc.inferSchema" should "infer the Texera schema from a valid Arrow file" in {
+    val file = writeArrowFile(Seq("a", "b"))
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    val schema = d.inferSchema()
+    schema.getAttributes should have length 1
+    schema.getAttributes.head.getName shouldBe "s"
+    schema.getAttributes.head.getType shouldBe AttributeType.STRING
+  }
+
+  it should "throw an IOException when the file is not a valid Arrow file" in {
+    val bogus = File.createTempFile("not-arrow-", ".arrow")
+    bogus.deleteOnExit()
+    Files.write(bogus.toPath, "this is not arrow".getBytes)
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(bogus.toURI.toString)
+    val ex = intercept[java.io.IOException](d.inferSchema())
+    ex.getMessage shouldBe "Failed to infer schema from Arrow file."
   }
 }
