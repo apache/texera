@@ -46,13 +46,12 @@ class SleepOpExecSpec extends AnyFlatSpec {
   "SleepOpExec.processTuple" should "return the input tuple unchanged" in {
     // sleepTime = 0 -> Thread.sleep(0), instant
     val exec = new SleepOpExec(descString(0))
-    val emitted = exec.processTuple(tuple(7), 0).toList
-    assert(emitted.map(_.asInstanceOf[Tuple]) == List(tuple(7)))
+    assert(exec.processTuple(tuple(7), 0).toList == List(tuple(7)))
   }
 
   it should "emit exactly one tuple per input" in {
     val exec = new SleepOpExec(descString(0))
     val emitted = (0 until 5).flatMap(i => exec.processTuple(tuple(i), 0).toList)
-    assert(emitted.map(_.asInstanceOf[Tuple]) == (0 until 5).map(tuple).toList)
+    assert(emitted == (0 until 5).map(tuple).toList)
   }
 }

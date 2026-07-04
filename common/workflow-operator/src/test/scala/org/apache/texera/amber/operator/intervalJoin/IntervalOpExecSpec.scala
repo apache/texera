@@ -510,11 +510,12 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       val desc = new IntervalJoinOpDesc("point", "range", 3L, true, true, unit)
       val exec = new IntervalJoinOpExec(objectMapper.writeValueAsString(desc))
       exec.open()
-      assert(exec.processTuple(timeStampTuple("range", 1, base), right).isEmpty)
-      val out = exec.processTuple(timeStampTuple("point", 1, base), left).toList
-      assert(out.size == 1, s"expected a match for unit $unit")
-      assert(out.head.getFields.length == 4)
-      exec.close()
+      try {
+        assert(exec.processTuple(timeStampTuple("range", 1, base), right).isEmpty)
+        val out = exec.processTuple(timeStampTuple("point", 1, base), left).toList
+        assert(out.size == 1, s"expected a match for unit $unit")
+        assert(out.head.getFields.length == 4)
+      } finally exec.close()
     }
   }
 
