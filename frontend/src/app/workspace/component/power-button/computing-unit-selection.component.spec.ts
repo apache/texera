@@ -19,6 +19,7 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { By } from "@angular/platform-browser";
 import { ComputingUnitSelectionComponent } from "./computing-unit-selection.component";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { CommonModule } from "@angular/common";
@@ -27,6 +28,7 @@ import { ActivatedRoute, ActivatedRouteSnapshot, convertToParamMap, Data, Params
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { UserPveRecord } from "../../service/virtual-environment/virtual-environment.service";
@@ -38,6 +40,7 @@ import {
   WorkflowPveService,
 } from "../../service/virtual-environment/virtual-environment.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
+import { ComputingUnitCreateModalComponent } from "../../../common/component/computing-unit-create-modal/computing-unit-create-modal.component";
 
 describe("PowerButtonComponent", () => {
   let component: ComputingUnitSelectionComponent;
@@ -90,6 +93,86 @@ describe("PowerButtonComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  describe("showAddComputeUnitModalVisible", () => {
+    it("forwards the seeded default name to the embedded create modal", () => {
+      fixture.detectChanges();
+      component.showAddComputeUnitModalVisible("wf's Computing Unit");
+      const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
+      expect(modal.newComputingUnitName).toBe("wf's Computing Unit");
+      expect(component.addComputeUnitModalVisible).toBe(true);
+    });
+
+    it("opens the modal without touching the name when no default is given", () => {
+      fixture.detectChanges();
+      const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
+      const nameBefore = modal.newComputingUnitName;
+      component.showAddComputeUnitModalVisible();
+      expect(component.addComputeUnitModalVisible).toBe(true);
+      expect(modal.newComputingUnitName).toBe(nameBefore);
+    });
+
+    it("still opens when the embedded modal is not available", () => {
+      fixture.detectChanges();
+      // simulate the ViewChild not (yet) being resolved
+      (component as any).computingUnitCreateModal = undefined;
+      component.showAddComputeUnitModalVisible("Seed Name");
+      expect(component.addComputeUnitModalVisible).toBe(true);
+    });
+
+    it("syncs visibility when the embedded modal closes itself", () => {
+      fixture.detectChanges();
+      component.showAddComputeUnitModalVisible();
+      expect(component.addComputeUnitModalVisible).toBe(true);
+      const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
+      modal.visibleChange.emit(false);
+      expect(component.addComputeUnitModalVisible).toBe(false);
+    });
+  });
+
+  describe("onComputingUnitCreated", () => {
+    it("selects the created unit for the current workflow when the modal emits unitCreated", () => {
+      fixture.detectChanges();
+      component.workflowId = 7;
+      const selectSpy = vi.spyOn(component, "selectComputingUnit").mockImplementation(() => {});
+      const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
+      modal.unitCreated.emit({ computingUnit: { cuid: 42 } } as unknown as DashboardWorkflowComputingUnit);
+      expect(selectSpy).toHaveBeenCalledWith(7, 42);
+    });
+  });
+
+  describe("showGpuSelection", () => {
+    it("reflects the fetched GPU limit options", () => {
+      const managingService = TestBed.inject(WorkflowComputingUnitManagingService);
+      vi.spyOn(managingService, "getComputingUnitLimitOptions").mockReturnValue(
+        of({ cpuLimitOptions: [], memoryLimitOptions: [], gpuLimitOptions: ["0", "1"] })
+      );
+      const gpuFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      gpuFixture.detectChanges();
+      expect(gpuFixture.componentInstance.showGpuSelection()).toBe(true);
+    });
+
+    it("hides the GPU row when the deployment reports no GPU support", () => {
+      const managingService = TestBed.inject(WorkflowComputingUnitManagingService);
+      vi.spyOn(managingService, "getComputingUnitLimitOptions").mockReturnValue(
+        of({ cpuLimitOptions: [], memoryLimitOptions: [], gpuLimitOptions: ["0"] })
+      );
+      const gpuFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      gpuFixture.detectChanges();
+      expect(gpuFixture.componentInstance.showGpuSelection()).toBe(false);
+    });
+
+    it("falls back to showing GPU metrics when the limit-options fetch fails", () => {
+      const managingService = TestBed.inject(WorkflowComputingUnitManagingService);
+      vi.spyOn(managingService, "getComputingUnitLimitOptions").mockReturnValue(throwError(() => new Error("boom")));
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const failedFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      failedFixture.detectChanges();
+      expect(failedFixture.componentInstance.showGpuSelection()).toBe(true);
+      expect(errorSpy).toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
   });
 
   describe("isSavedPveInstalledInCu", () => {
