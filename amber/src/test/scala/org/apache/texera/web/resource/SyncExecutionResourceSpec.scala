@@ -215,6 +215,17 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     truncated shouldBe Some(false)
   }
 
+  it should "report an empty table when the iterator is empty despite a positive count" in {
+    // Exercises the `!tupleIterator.hasNext` half of the guard (count > 0, no rows).
+    val (mode, rows, total, returned, truncated) =
+      resource.sampleAndTruncateTuples(Iterator.empty, 5, 100000, 100000)
+    mode shouldBe "table"
+    rows shouldBe Some(List.empty[SampleRow])
+    total shouldBe Some(0)
+    returned shouldBe Some(0)
+    truncated shouldBe Some(false)
+  }
+
   it should "return visualization mode for a single visualization tuple" in {
     val vizSchema = new Schema(List(new Attribute("html-content", AttributeType.STRING)))
     val vizTuple =
@@ -340,6 +351,27 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
       consoleLogs = Some(logs)
     )
     summary.errorMessages.head.message shouldBe "a long descriptive title"
+  }
+
+  it should "keep the ERROR title when the message is non-empty but shorter" in {
+    // Exercises `message.nonEmpty` true AND `message.length > title.length` false.
+    val logs =
+      List(
+        ConsoleMessageInfo(
+          msgType = "ERROR",
+          title = "a fairly long error title",
+          message = "short"
+        )
+      )
+    val summary = resource.buildOperatorExecutionSummary(
+      opId = "op-5",
+      state = "Failed",
+      resultMode = "table",
+      result = None,
+      tuplesCount = None,
+      consoleLogs = Some(logs)
+    )
+    summary.errorMessages.head.message shouldBe "a fairly long error title"
   }
 
   it should "leave the result summary empty when no result was materialized" in {
