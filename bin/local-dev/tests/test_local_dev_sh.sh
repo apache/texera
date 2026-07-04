@@ -413,20 +413,29 @@ for fn in cmd_up cmd_auto; do
     fi
 done
 
-# 24) build_all applies CLI-only sbt speedups: skip scaladoc + enable
-#     pipelining. Keeping the knobs here (not in build.sbt) means CI and
-#     standalone sbt invocations are unaffected.
+# 24) build_all's CLI-only sbt knobs must never alter what the dist ships.
+#     Three knobs are banned because each produced a dist that packaged fine
+#     but could not run: `-Dsbt.pipelining=true` and the two `set every`
+#     settings all drop inter-project dependency jars or the bin/<service>
+#     launcher from the dist. Match against code only (comments name the
+#     banned knobs to explain them).
 build_body=$(awk '/^build_all\(\)/{f=1} f{print} f&&/^}/{exit}' \
     "$REPO_ROOT/bin/local-dev/main.sh")
-if [[ "$build_body" == *"-Dsbt.pipelining=true"* ]]; then
-    _pass "build_all: sbt invocation enables -Dsbt.pipelining=true"
+build_code=$(printf '%s\n' "$build_body" | grep -vE '^[[:space:]]*#')
+if [[ "$build_code" == *"-Dsbt.pipelining=true"* ]]; then
+    _fail "build_all: '-Dsbt.pipelining=true' drops inter-project dependency jars from the dist"
 else
-    _fail "build_all: -Dsbt.pipelining=true flag missing"
+    _pass "build_all: does not enable sbt pipelining"
 fi
-if [[ "$build_body" == *"Compile / doc / sources) := Seq.empty"* ]]; then
-    _pass "build_all: scaladoc sources emptied via 'set every'"
+if [[ "$build_code" == *"doc / sources) := Seq.empty"* ]]; then
+    _fail "build_all: 'set every (Compile / doc / sources) := Seq.empty' empties Compile/sources → no launcher"
 else
-    _fail "build_all: doc-skip 'set every' setting missing"
+    _pass "build_all: does not clobber Compile/sources via 'set every ... doc / sources'"
+fi
+if [[ "$build_code" == *"packageDoc / publishArtifact) := false"* ]]; then
+    _fail "build_all: 'set every (Compile / packageDoc / publishArtifact) := false' drops dependency jars from the dist"
+else
+    _pass "build_all: does not disable publishArtifact via 'set every ... packageDoc'"
 fi
 
 # 25) --skip=<svc> flows into the sbt build: skipped JVM services drop out

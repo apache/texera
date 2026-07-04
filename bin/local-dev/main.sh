@@ -1916,15 +1916,28 @@ build_all() {
     fi
 
     # CLI-only build knobs applied to the local-dev entrypoint (build.sbt
-    # untouched): skip scaladoc (biggest single win on dist), pipeline
-    # signature-then-body compile across projects, raise heap + G1GC.
+    # untouched): raise heap + G1GC. Nothing here may alter what the dist
+    # actually ships.
+    #
+    # The removed knobs each produced a dist that packaged and reported success
+    # but could not run:
+    #   * -Dsbt.pipelining=true — inter-project deps are consumed as
+    #     early-output signature jars and the dist drops the real dependency
+    #     jars (dao/auth/config/resource) from lib/, so every service dies at
+    #     startup with NoClassDefFoundError on a sibling-module class.
+    #   * set every (Compile / doc / sources) := Seq.empty — `set every`
+    #     ignores the written scope and zeroes the shared `sources` key in
+    #     EVERY scope (incl. Compile / sources): nothing compiles, no main
+    #     class is discovered, and no bin/<service> launcher is generated.
+    #   * set every (Compile / packageDoc / publishArtifact) := false — same
+    #     `set every` trap: it turns off `publishArtifact` for the main jar
+    #     artifacts too, so inter-project dependency jars drop out of the dist.
+    # Skipping scaladoc has to be done per-project in build.sbt, not with a
+    # global `set every`, so it is left out here until done safely.
     local -a sbt_opts=(
         -no-colors
         -J-Xmx4g
         -J-XX:+UseG1GC
-        -Dsbt.pipelining=true
-        'set every (Compile / doc / sources) := Seq.empty'
-        'set every (Compile / packageDoc / publishArtifact) := false'
     )
 
     if [[ "${FRESH:-false}" == "true" ]]; then
