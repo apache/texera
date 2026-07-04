@@ -65,7 +65,7 @@ describe("ComputingUnitCreateModalComponent", () => {
 
     await TestBed.configureTestingModule({
       providers: [
-        NzModalService,
+        { provide: NzModalService, useValue: {} as NzModalService },
         { provide: WorkflowComputingUnitManagingService, useValue: mockComputingUnitService },
         { provide: NotificationService, useValue: mockNotificationService },
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
