@@ -413,5 +413,40 @@ for fn in cmd_up cmd_auto; do
     fi
 done
 
+# 24) build_all applies CLI-only sbt speedups: skip scaladoc + enable
+#     pipelining. Keeping the knobs here (not in build.sbt) means CI and
+#     standalone sbt invocations are unaffected.
+build_body=$(awk '/^build_all\(\)/{f=1} f{print} f&&/^}/{exit}' \
+    "$REPO_ROOT/bin/local-dev/main.sh")
+if [[ "$build_body" == *"-Dsbt.pipelining=true"* ]]; then
+    _pass "build_all: sbt invocation enables -Dsbt.pipelining=true"
+else
+    _fail "build_all: -Dsbt.pipelining=true flag missing"
+fi
+if [[ "$build_body" == *"Compile / doc / sources) := Seq.empty"* ]]; then
+    _pass "build_all: scaladoc sources emptied via 'set every'"
+else
+    _fail "build_all: doc-skip 'set every' setting missing"
+fi
+
+# 25) --skip=<svc> flows into the sbt build: skipped JVM services drop out
+#     of the per-project dist target list, and their running jars are left
+#     alone in both the pre-bounce and unzip loops.
+prebounce=$(printf '%s\n' "$build_body" | awk '
+    /Stop any running JVMs BEFORE unzip/ {f=1}
+    f {print}
+    f && /unzipping dist artifacts/ {exit}')
+if [[ "$prebounce" == *"is_skipped"* ]]; then
+    _pass "build_all: pre-bounce loop honors --skip"
+else
+    _fail "build_all: pre-bounce loop kills --skip'd services"
+fi
+unzip_section=$(printf '%s\n' "$build_body" | awk '/unzipping dist artifacts/{f=1} f{print}')
+if [[ "$unzip_section" == *"is_skipped"* ]]; then
+    _pass "build_all: unzip loop honors --skip"
+else
+    _fail "build_all: unzip loop touches --skip'd services"
+fi
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))

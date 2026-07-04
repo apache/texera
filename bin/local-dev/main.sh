@@ -1875,9 +1875,42 @@ svc_src_changed() {
 build_all() {
     BUILD_DID_RUN=false
     local log="$LOG_DIR/sbt-dist.log"
+
+    # Build a whitelist of sbt project/dist targets from the non-skipped JVM
+    # services. Empty ⇒ nothing to build. computing-unit-master has no own
+    # sbt project (rides amber's dist); if it's kept but texera-web is
+    # skipped we force WorkflowExecutionService/dist back in.
+    local -a sbt_task=()
+    local svc="" proj=""
+    for svc in "${SERVICES[@]}"; do
+        [[ "$(amap_get SVC_TYPE "$svc")" == "jvm" ]] || continue
+        is_skipped "$svc" && continue
+        proj=$(amap_get SVC_SBT "$svc")
+        [[ -n "$proj" ]] && sbt_task+=("${proj}/dist")
+    done
+    if ! is_skipped computing-unit-master && is_skipped texera-web; then
+        sbt_task+=("WorkflowExecutionService/dist")
+    fi
+    if (( ${#sbt_task[@]} == 0 )); then
+        tui_skip "sbt dist: skipped (no JVM services selected)"
+        return 0
+    fi
+
+    # CLI-only build knobs applied to the local-dev entrypoint (build.sbt
+    # untouched): skip scaladoc (biggest single win on dist), pipeline
+    # signature-then-body compile across projects, raise heap + G1GC.
+    local -a sbt_opts=(
+        -no-colors
+        -J-Xmx4g
+        -J-XX:+UseG1GC
+        -Dsbt.pipelining=true
+        'set every (Compile / doc / sources) := Seq.empty'
+        'set every (Compile / packageDoc / publishArtifact) := false'
+    )
+
     if [[ "${FRESH:-false}" == "true" ]]; then
         if tui_run_with_spinner "$log" "sbt clean dist  ${DIM}(log: $log)${RESET}" \
-            sbt -no-colors clean dist; then
+            sbt "${sbt_opts[@]}" clean "${sbt_task[@]}"; then
             tui_ok "sbt: clean dist done"
             BUILD_DID_RUN=true
         else
@@ -1889,7 +1922,7 @@ build_all() {
         return 0
     else
         if tui_run_with_spinner "$log" "sbt dist  ${DIM}(log: $log)${RESET}" \
-            sbt -no-colors dist; then
+            sbt "${sbt_opts[@]}" "${sbt_task[@]}"; then
             tui_ok "sbt: dist done"
             BUILD_DID_RUN=true
         else
@@ -1899,10 +1932,12 @@ build_all() {
     fi
     # Stop any running JVMs BEFORE unzip — overwriting jars under a live JVM
     # corrupts its lazy class loads and the service silently dies later.
+    # --skip'd services are left alone; the user asked us not to touch them.
     if [[ "$BUILD_DID_RUN" == "true" ]]; then
-        local svc="" pid=""
+        local pid=""
         for svc in "${SERVICES[@]}"; do
             [[ "$(amap_get SVC_TYPE "$svc")" == "jvm" ]] || continue
+            is_skipped "$svc" && continue
             pid=$(svc_running_pid "$svc")
             [[ -z "$pid" ]] && continue
             tui_step "$svc: pre-bouncing PID $pid (jars about to change)"
@@ -1914,6 +1949,7 @@ build_all() {
             local still_up=0
             for svc in "${SERVICES[@]}"; do
                 [[ "$(amap_get SVC_TYPE "$svc")" == "jvm" ]] || continue
+                is_skipped "$svc" && continue
                 [[ -n "$(svc_running_pid "$svc")" ]] && still_up=$((still_up+1))
             done
             (( still_up == 0 )) && break
@@ -1925,6 +1961,7 @@ build_all() {
     local zip_glob="" unzip_dest=""
     for svc in "${SERVICES[@]}"; do
         [[ "$(amap_get SVC_TYPE "$svc")" == "jvm" ]] || continue
+        is_skipped "$svc" && continue
         zip_glob=$(amap_get SVC_ZIP_GLOB "$svc")
         unzip_dest=$(amap_get SVC_UNZIP_DEST "$svc")
         # Sibling services (empty ZIP_GLOB) share another service's dist —
