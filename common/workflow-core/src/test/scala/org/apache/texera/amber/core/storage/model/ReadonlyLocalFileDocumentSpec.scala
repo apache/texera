@@ -23,6 +23,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.io.File
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 
 class ReadonlyLocalFileDocumentSpec extends AnyFlatSpec with Matchers {
@@ -32,7 +33,7 @@ class ReadonlyLocalFileDocumentSpec extends AnyFlatSpec with Matchers {
   )(body: (ReadonlyLocalFileDocument, File) => Unit): Unit = {
     val tmp = File.createTempFile("readonly-local-", ".txt")
     try {
-      Files.write(tmp.toPath, content.getBytes("UTF-8"))
+      Files.write(tmp.toPath, content.getBytes(StandardCharsets.UTF_8))
       body(new ReadonlyLocalFileDocument(tmp.toURI), tmp)
     } finally {
       tmp.delete()

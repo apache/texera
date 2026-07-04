@@ -34,7 +34,9 @@ class VirtualDocumentSpec extends AnyFlatSpec with Matchers {
     override def clear(): Unit = ()
   }
 
-  private def doc: VirtualDocument[Int] = new MinimalDoc
+  // one shared instance: every default method throws statelessly, so all assertions can run
+  // against the same document (in particular the URI and clear checks below)
+  private val doc: VirtualDocument[Int] = new MinimalDoc
 
   "VirtualDocument" should "return the implemented URI and support clear" in {
     doc.getURI shouldBe new URI("file:///stub/doc")
