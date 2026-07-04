@@ -34,8 +34,11 @@ import org.apache.texera.common.config.{
   UserSystemConfig
 }
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.Tables.SITE_SETTINGS
 import org.jooq.impl.DSL
 
+// Wire DTO for /config/settings: the JSON contract is exactly {key, value};
+// the generated jOOQ pojo would also expose updated_by/updated_at.
 case class ConfigSettingPojo(
     @JsonProperty("key") settingKey: String,
     @JsonProperty("value") settingValue: String
@@ -46,10 +49,6 @@ case class ConfigSettingPojo(
 class ConfigResource {
 
   private def ctx = SqlServer.getInstance().createDSLContext()
-  private val siteSettings = DSL.table("site_settings")
-  private val key = DSL.field("key", classOf[String])
-  private val value = DSL.field("value", classOf[String])
-  private val updatedBy = DSL.field("updated_by", classOf[String])
 
   // Anonymous endpoint loaded by the frontend's APP_INITIALIZER before any user has
   // logged in. Only fields that the login page (or the logged-out branches of the
@@ -126,9 +125,9 @@ class ConfigResource {
   @Path("/settings/{key}")
   def getSetting(@PathParam("key") keyParam: String): ConfigSettingPojo = {
     ctx
-      .select(key, value)
-      .from(siteSettings)
-      .where(key.eq(keyParam))
+      .select(SITE_SETTINGS.KEY, SITE_SETTINGS.VALUE)
+      .from(SITE_SETTINGS)
+      .where(SITE_SETTINGS.KEY.eq(keyParam))
       .fetchOneInto(classOf[ConfigSettingPojo])
   }
 
@@ -171,15 +170,15 @@ class ConfigResource {
 
   private def upsertSetting(keyParam: String, valueParam: String, userName: String): Unit = {
     ctx
-      .insertInto(siteSettings)
-      .set(key, keyParam)
-      .set(value, valueParam)
-      .set(updatedBy, userName)
-      .onConflict(key)
+      .insertInto(SITE_SETTINGS)
+      .set(SITE_SETTINGS.KEY, keyParam)
+      .set(SITE_SETTINGS.VALUE, valueParam)
+      .set(SITE_SETTINGS.UPDATED_BY, userName)
+      .onConflict(SITE_SETTINGS.KEY)
       .doUpdate()
-      .set(value, valueParam)
-      .set(updatedBy, userName)
-      .set(DSL.field("updated_at", classOf[java.sql.Timestamp]), DSL.currentTimestamp())
+      .set(SITE_SETTINGS.VALUE, valueParam)
+      .set(SITE_SETTINGS.UPDATED_BY, userName)
+      .set(SITE_SETTINGS.UPDATED_AT, DSL.currentTimestamp())
       .execute()
   }
 }
