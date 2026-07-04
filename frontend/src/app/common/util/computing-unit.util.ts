@@ -329,6 +329,10 @@ interface JvmMemorySliderConfig {
   selectedJvmMemorySize: string;
 }
 
+export function buildLocalComputingUnitUri(location: { protocol: string; hostname: string; port: string }): string {
+  return `${location.protocol}//${location.hostname}${location.port ? `:${location.port}` : ""}/wsapi`;
+}
+
 export const unitTypeMessageTemplate = {
   local: {
     createTitle: "Connect to a Local Computing Unit",
