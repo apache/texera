@@ -65,7 +65,10 @@ describe("ComputingUnitCreateModalComponent", () => {
 
     await TestBed.configureTestingModule({
       providers: [
-        { provide: NzModalService, useValue: {} as NzModalService },
+        // The real NzModalService is required here: the declarative <nz-modal>
+        // in this component's template delegates opening to NzModalService.create(),
+        // so a stub breaks every test that renders the modal open.
+        NzModalService,
         { provide: WorkflowComputingUnitManagingService, useValue: mockComputingUnitService },
         { provide: NotificationService, useValue: mockNotificationService },
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
