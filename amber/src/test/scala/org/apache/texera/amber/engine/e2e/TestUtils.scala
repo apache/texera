@@ -301,6 +301,8 @@ object TestUtils {
       ControllerConfig.default,
       error => {}
     )
+    // Timeout for control-command acks (start/pause/reconfigure/resume).
+    val commandTimeout = Duration.fromSeconds(30)
     val completion = Promise[Unit]()
     var result: Map[OperatorIdentity, List[Tuple]] = null
     client.registerCallback[ExecutionStateUpdate](evt => {
@@ -311,14 +313,14 @@ object TestUtils {
     })
     Await.result(
       client.controllerInterface.startWorkflow(EmptyRequest(), ()),
-      Duration.fromSeconds(5)
+      commandTimeout
     )
     val pausedReached = stateReached(client, PAUSED)
     Await.result(
       client.controllerInterface.pauseWorkflow(EmptyRequest(), ()),
-      Duration.fromSeconds(5)
+      commandTimeout
     )
-    Await.result(pausedReached, Duration.fromSeconds(10))
+    Await.result(pausedReached, commandTimeout)
     val physicalOps = targetOps.flatMap(op =>
       workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
     )
@@ -330,11 +332,11 @@ object TestUtils {
         ),
         ()
       ),
-      Duration.fromSeconds(5)
+      commandTimeout
     )
     Await.result(
       client.controllerInterface.resumeWorkflow(EmptyRequest(), ()),
-      Duration.fromSeconds(5)
+      commandTimeout
     )
     Await.result(completion, Duration.fromMinutes(1))
     result

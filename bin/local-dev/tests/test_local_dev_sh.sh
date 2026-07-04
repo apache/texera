@@ -314,5 +314,104 @@ for fn in cmd_up cmd_down; do
     fi
 done
 
+# 18) Deploy-source: `--help` documents the worktree selectors.
+help_out=$("$SCRIPT" --help 2>&1)
+if [[ "$help_out" == *"--worktree="* && "$help_out" == *"--branch="* ]]; then
+    _pass "--help documents --worktree / --branch deploy selectors"
+else
+    _fail "--help doesn't document deploy selectors"
+fi
+
+# Deploy-source tests use an ISOLATED STATE_DIR so they never read or clobber a
+# real deployment's persisted pointer.
+_ld_state=$(mktemp -d 2>/dev/null || mktemp -d -t ld)
+if command -v python3 >/dev/null 2>&1; then
+    _jq() { printf '%s' "$1" | python3 -c "import sys,json;print(json.load(sys.stdin)[\"$2\"])" 2>/dev/null; }
+
+    # 19) status --json carries the deploy-source fields, defaulting to this
+    #     checkout (no pointer ⇒ worktree == repo dir name, source == REPO_ROOT).
+    out=$(TEXERA_LOCAL_DEV_DIR="$_ld_state" "$SCRIPT" status --json 2>/dev/null)
+    wt=$(_jq "$out" worktree); src=$(_jq "$out" source)
+    if [[ "$wt" == "$(basename "$REPO_ROOT")" && "$src" == "$REPO_ROOT" ]]; then
+        _pass "status --json reports deploy source (self): worktree=$wt"
+    else
+        _fail "status --json deploy-source fields wrong" "worktree=$wt source=$src"
+    fi
+
+    # 20) A stale pointer (worktree gone) is dropped and we fall back to self.
+    printf '%s\n' "/no/such/worktree/$$" > "$_ld_state/deploy-source"
+    out=$(TEXERA_LOCAL_DEV_DIR="$_ld_state" "$SCRIPT" status --json 2>/dev/null)
+    wt=$(_jq "$out" worktree)
+    if [[ "$wt" == "$(basename "$REPO_ROOT")" && ! -f "$_ld_state/deploy-source" ]]; then
+        _pass "stale deploy-source pointer is dropped, falls back to self"
+    else
+        _fail "stale pointer not handled" \
+            "worktree=$wt pointer=$([[ -f "$_ld_state/deploy-source" ]] && echo present || echo gone)"
+    fi
+
+    # 21) A valid persisted pointer to a sibling worktree is honored: status
+    #     reports THAT worktree's branch. Create a throwaway worktree, point at
+    #     it, assert, then clean up.
+    _wt_dir=$(mktemp -d 2>/dev/null || mktemp -d -t ldwt); rm -rf "$_wt_dir"
+    _wt_branch="ld-test-$$-wt"
+    if git -C "$REPO_ROOT" worktree add -q -b "$_wt_branch" "$_wt_dir" HEAD 2>/dev/null; then
+        printf '%s\n' "$_wt_dir" > "$_ld_state/deploy-source"
+        out=$(TEXERA_LOCAL_DEV_DIR="$_ld_state" "$SCRIPT" status --json 2>/dev/null)
+        wt=$(_jq "$out" worktree); br=$(_jq "$out" branch)
+        if [[ "$wt" == "$(basename "$_wt_dir")" && "$br" == "$_wt_branch" ]]; then
+            _pass "persisted pointer deploys the sibling worktree (branch=$br)"
+        else
+            _fail "worktree pointer not honored" "worktree=$wt branch=$br"
+        fi
+        git -C "$REPO_ROOT" worktree remove --force "$_wt_dir" 2>/dev/null || true
+        git -C "$REPO_ROOT" branch -D "$_wt_branch" 2>/dev/null || true
+    else
+        _pass "skip: could not create a temp worktree for the pointer test"
+    fi
+else
+    _pass "skip: python3 not on PATH (deploy-source JSON checks)"
+fi
+
+# 22) Invalid --branch / --worktree fail fast (rc 1) with a clear message,
+#     BEFORE any build/start (the resolution runs at startup).
+out=$(TEXERA_LOCAL_DEV_DIR="$_ld_state" "$SCRIPT" up --branch=__no_such_branch__ 2>&1); rc=$?
+if (( rc == 1 )) && [[ "$out" == *"no git worktree has branch"* ]]; then
+    _pass "up --branch with no worktree fails fast (rc=1)"
+else
+    _fail "invalid --branch not rejected" "rc=$rc out=$(echo "$out" | head -1)"
+fi
+out=$(TEXERA_LOCAL_DEV_DIR="$_ld_state" "$SCRIPT" up --worktree=/no/such/dir 2>&1); rc=$?
+if (( rc == 1 )) && [[ "$out" == *"not a valid texera worktree"* ]]; then
+    _pass "up --worktree with bad path fails fast (rc=1)"
+else
+    _fail "invalid --worktree not rejected" "rc=$rc out=$(echo "$out" | head -1)"
+fi
+rm -rf "$_ld_state"
+
+# 23) Tooling-drift boundary is surfaced: --help documents that the target's
+#     bin/local-dev/** changes are NOT in effect, and _warn_tooling_drift is
+#     wired into both cmd_up and cmd_auto (structural — firing it for real
+#     would need a full `up`).
+if [[ "$help_out" == *"NOT in effect"* ]]; then
+    _pass "--help documents the tooling-runs-from-self boundary"
+else
+    _fail "--help doesn't document the tooling boundary"
+fi
+drift_body=$(awk '/^_warn_tooling_drift\(\)/{f=1} f{print} f&&/^}/{exit}' "$REPO_ROOT/bin/local-dev/main.sh")
+if [[ "$drift_body" == *"diff -rq"* && "$drift_body" == *"bin/local-dev"* ]]; then
+    _pass "_warn_tooling_drift diffs the target's bin/local-dev/"
+else
+    _fail "_warn_tooling_drift missing or doesn't diff bin/local-dev/"
+fi
+for fn in cmd_up cmd_auto; do
+    body=$(awk -v fn="$fn" '$0 ~ "^" fn "\\(\\)" {f=1} f{print} f&&/^}/{exit}' \
+        "$REPO_ROOT/bin/local-dev/main.sh")
+    if [[ "$body" == *"_warn_tooling_drift"* ]]; then
+        _pass "$fn calls _warn_tooling_drift"
+    else
+        _fail "$fn doesn't call _warn_tooling_drift"
+    fi
+done
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))

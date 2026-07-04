@@ -35,6 +35,7 @@
 #                                             iff every service is running — the
 #                                             contract for agents/scripts.
 #   bin/local-dev.sh up   [--fresh|--build|--no-build] [--skip=svc1,svc2] [--json]
+#                         [--worktree=PATH | --branch=NAME]
 #                                             Default: skip build if no source/lock
 #                                             changes since last build. --build forces
 #                                             incremental sbt dist + yarn/bun install.
@@ -42,6 +43,22 @@
 #                                             skips the build step entirely. --json
 #                                             sends progress to stderr and the final
 #                                             status JSON to stdout.
+#                                             DEPLOY SOURCE: with no selector the stack
+#                                             is built/run from THIS checkout. Point it
+#                                             at a sibling git worktree with
+#                                             --worktree=PATH or --branch=NAME (the
+#                                             worktree that has NAME checked out) to
+#                                             deploy a PR branch without disturbing the
+#                                             main checkout. The choice is persisted, so
+#                                             later status / down / logs / <svc> / auto
+#                                             all act on it (run a plain `up` to return
+#                                             to this checkout). local-dev.sh itself
+#                                             always runs from this checkout — so if the
+#                                             target branch modifies bin/local-dev/**,
+#                                             those tooling changes are NOT in effect;
+#                                             checkout that branch and run its own
+#                                             local-dev.sh instead (a warning is printed
+#                                             when such drift is detected).
 #   bin/local-dev.sh down [--skip=svc1,svc2] [--json]
 #                                             stop every non-skipped service
 #                                             (--json: summary JSON on stdout).
@@ -80,18 +97,145 @@ set -euo pipefail
 # in-place at every glob site). `failglob` / `nullglob` are opt-in per glob
 # via `( shopt -s nullglob; ... )` subshells where we need empty-on-no-match.
 
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-cd "$REPO_ROOT"
+# --------- self tree vs deploy source ---------
+# The orchestration tooling — this script, tui.py, and the docker overlay —
+# always runs from the checkout it physically lives in: the "self" tree
+# (normally the canonical `texera` clone). The *application* we build and run,
+# though, can be redirected to a sibling git worktree so you can deploy a PR
+# branch without disturbing the main checkout. That target is the "source"
+# tree.
+#
+#   bin/local-dev.sh up --worktree=PATH    deploy from an explicit worktree dir
+#   bin/local-dev.sh up --branch=NAME      deploy from the worktree that has
+#                                          NAME checked out
+#   bin/local-dev.sh up                    deploy from this (self) checkout again
+#
+# The selection is persisted to $STATE_DIR/deploy-source, so every later
+# command (status, logs, down, single-service rebuild, auto) reads it back and
+# acts on the SAME deployment. REPO_ROOT below is pointed at the source tree, which
+# is what the rest of the script keys every build/run/git operation off of —
+# only the handful of tooling-file paths are pinned to SELF_ROOT.
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"      # bin/local-dev in the self tree
+SELF_ROOT="$(cd "$SELF_DIR/../.." && pwd)"     # self checkout root (tooling source)
 
 STATE_DIR="${TEXERA_LOCAL_DEV_DIR:-/tmp/texera-local-dev}"
 LOG_DIR="$STATE_DIR/logs"
-BUILD_STAMP_DIR="$STATE_DIR/build-stamps"
 # Per-service phase markers: shell writes `<phase>\t<epoch>` here as it
 # walks each service through stop → build → start; the TUI reads them
 # every tick and renders an animated transitional state in the STATE
 # column. Removed once the service is up / on stale-after-90s.
 PHASE_DIR="$STATE_DIR/svc-phase"
-mkdir -p "$LOG_DIR" "$BUILD_STAMP_DIR" "$PHASE_DIR"
+DEPLOY_SOURCE_FILE="$STATE_DIR/deploy-source"
+mkdir -p "$LOG_DIR" "$PHASE_DIR"
+
+# Absolute path of a checkout's git object store (the common dir). For a
+# worktree this resolves to the shared `.git` of the main clone, so two trees
+# of the same repo report the same value — that's how we tell a real sibling
+# worktree apart from an unrelated repo.
+_git_common_abs() {
+    local dir="$1" c=""
+    c="$(git -C "$dir" rev-parse --git-common-dir 2>/dev/null)" || return 1
+    [[ -n "$c" ]] || return 1
+    case "$c" in /*) ;; *) c="$dir/$c" ;; esac
+    ( cd "$c" 2>/dev/null && pwd ) || return 1
+}
+
+# Validate a candidate deploy-source dir: a directory holding a build.sbt that
+# shares this repo's git object store. Echoes the canonical abs path on success.
+_validate_source_root() {
+    local cand="$1" abs="" sc="" cc=""
+    [[ -n "$cand" && -d "$cand" ]] || return 1
+    abs="$(cd "$cand" 2>/dev/null && pwd)" || return 1
+    [[ -f "$abs/build.sbt" ]] || return 1
+    sc="$(_git_common_abs "$SELF_ROOT")" || return 1
+    cc="$(_git_common_abs "$abs")" || return 1
+    [[ "$sc" == "$cc" ]] || return 1
+    printf '%s\n' "$abs"
+}
+
+# Resolve a branch name to the worktree path that has it checked out (the self
+# tree counts — it's a worktree of the shared clone too).
+_worktree_for_branch() {
+    local want="$1" line="" path=""
+    while IFS= read -r line; do
+        case "$line" in
+            "worktree "*) path="${line#worktree }" ;;
+            "branch refs/heads/$want") printf '%s\n' "$path"; return 0 ;;
+        esac
+    done < <(git -C "$SELF_ROOT" worktree list --porcelain 2>/dev/null)
+    return 1
+}
+
+# Deploy source resolution:
+#   • Read-only commands (status / down / logs / <svc>) follow whatever the last
+#     up/auto deployed — read it back from the persisted pointer. A stale
+#     pointer (worktree removed/moved) is dropped silently.
+#   • up / auto re-decide the deployment: --worktree=PATH / --branch=NAME selects
+#     a sibling worktree. With no selector, `up` means THIS (self) checkout,
+#     while `auto` keeps following the active deployment so the edit→bounce loop
+#     stays on it. Either way we (re)persist so read-only commands follow it.
+SOURCE_ROOT="$SELF_ROOT"
+if [[ -f "$DEPLOY_SOURCE_FILE" ]]; then
+    _persisted="$(cat "$DEPLOY_SOURCE_FILE" 2>/dev/null || true)"
+    if _valid="$(_validate_source_root "$_persisted")"; then
+        SOURCE_ROOT="$_valid"
+    else
+        rm -f "$DEPLOY_SOURCE_FILE"
+    fi
+fi
+
+# up/auto must resolve their target BEFORE build.sbt is parsed (version + sbt
+# dep graph key off the source tree), so peek the args here — cmd_up / cmd_auto
+# re-see and no-op the selectors in their own parse loops.
+if [[ "${1:-}" == "up" || "${1:-}" == "auto" ]]; then
+    # `up` with no selector resets to this checkout; `auto` keeps the pointer
+    # value already resolved above.
+    [[ "${1:-}" == "up" ]] && SOURCE_ROOT="$SELF_ROOT"
+    for _arg in "${@:2}"; do
+        case "$_arg" in
+            --worktree=*)
+                _t="${_arg#--worktree=}"
+                if _v="$(_validate_source_root "$_t")"; then
+                    SOURCE_ROOT="$_v"
+                else
+                    printf "FATAL: --worktree=%s is not a valid texera worktree\n" "$_t" >&2
+                    printf "       (need a directory with build.sbt that shares this repo's .git).\n" >&2
+                    exit 1
+                fi ;;
+            --branch=*)
+                _b="${_arg#--branch=}"
+                if _wt="$(_worktree_for_branch "$_b")" && _v="$(_validate_source_root "$_wt")"; then
+                    SOURCE_ROOT="$_v"
+                else
+                    printf "FATAL: no git worktree has branch '%s' checked out.\n" "$_b" >&2
+                    printf "       Create one first, e.g.:\n" >&2
+                    printf "         git worktree add ../texera-worktrees/%s %s\n" "${_b//\//-}" "$_b" >&2
+                    exit 1
+                fi ;;
+        esac
+    done
+    # (Re)persist so read-only commands follow this deployment. Self is the
+    # "no worktree" state, represented by the absence of the pointer file.
+    if [[ "$SOURCE_ROOT" == "$SELF_ROOT" ]]; then
+        rm -f "$DEPLOY_SOURCE_FILE"
+    else
+        printf '%s\n' "$SOURCE_ROOT" > "$DEPLOY_SOURCE_FILE"
+    fi
+fi
+
+REPO_ROOT="$SOURCE_ROOT"
+export TEXERA_DEPLOY_SOURCE="$SOURCE_ROOT"   # tui.py reads this for its banner
+cd "$REPO_ROOT"
+
+# Build stamps are content-hashes of the source tree, so they MUST be scoped
+# per deploy source — otherwise a stamp from tree A could suppress the
+# (required) first build of tree B, whose target/ is still empty, and the JVM
+# launchers would be missing at start time. Namespace them by a stable id
+# derived from the absolute source path.
+_SRC_ID="$(printf '%s' "$SOURCE_ROOT" | { shasum 2>/dev/null || sha1sum 2>/dev/null || cksum; } | tr -dc 'a-f0-9' | cut -c1-12)"
+[[ -z "$_SRC_ID" ]] && _SRC_ID="default"
+BUILD_STAMP_DIR="$STATE_DIR/build-stamps/$_SRC_ID"
+mkdir -p "$BUILD_STAMP_DIR"
 
 # --------- associative-array shim for bash 3.2 ---------
 # Apple ships bash 3.2 at /bin/bash and we ship licensing as bash 3.2 too,
@@ -624,9 +768,13 @@ amap_set SVC_HEALTH frontend ""
 
 # --------- docker infra config ---------
 DOCKER_PROJECT="texera-local-dev"
-DOCKER_COMPOSE_FILE="$REPO_ROOT/bin/single-node/docker-compose.yml"
-DOCKER_OVERLAY_FILE="$REPO_ROOT/bin/local-dev/docker-compose.override.yml"
-DOCKER_ENV_FILE="$REPO_ROOT/bin/single-node/.env"
+# Infra orchestration is part of the tooling, not the deployed app — pin it to
+# the self tree so a deployed worktree always comes up against main's known-good
+# docker compose (the app schema/DDL it applies still comes from the source tree
+# via $REPO_ROOT).
+DOCKER_COMPOSE_FILE="$SELF_ROOT/bin/single-node/docker-compose.yml"
+DOCKER_OVERLAY_FILE="$SELF_ROOT/bin/local-dev/docker-compose.override.yml"
+DOCKER_ENV_FILE="$SELF_ROOT/bin/single-node/.env"
 DOCKER_INFRA_SERVICES=(postgres minio minio-init lakefs lakekeeper-migrate lakekeeper lakekeeper-init litellm)
 DOCKER_INFRA_LONGLIVED=(postgres minio lakefs lakekeeper litellm)  # exclude one-shot init jobs
 
@@ -1025,6 +1173,31 @@ _diagnose_node() {
 listen_pid_for_port() {
     # || true so pipefail doesn't kill us when nothing is listening
     lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null | head -1 || true
+}
+
+# Branch + short-sha of the deploy source ($REPO_ROOT), tab-separated, each
+# falling back to "?" when git can't answer. Single source of truth for the
+# banners and the status JSON. Read with:
+#   IFS=$'\t' read -r branch sha < <(_git_head)
+_git_head() {
+    local branch="" sha=""
+    branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
+    sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
+    printf '%s\t%s\n' "$branch" "$sha"
+}
+
+# When deploying a sibling worktree, the tooling (this script, tui.py, the
+# docker overlay) still runs from the self tree — deliberately. The one case
+# where that surprises people is a target branch that itself modifies
+# bin/local-dev/**: those changes are NOT in effect. Print a one-line warning
+# (informational, non-fatal) so the boundary is visible before someone burns
+# time debugging it.
+_warn_tooling_drift() {
+    [[ "$REPO_ROOT" == "$SELF_ROOT" ]] && return 0
+    if ! diff -rq "$SELF_ROOT/bin/local-dev" "$REPO_ROOT/bin/local-dev" >/dev/null 2>&1; then
+        tui_warn "target's bin/local-dev/ differs from this checkout's — the tooling runs from HERE, so those changes are NOT in effect"
+        printf "     ${DIM}(to exercise the target's tooling changes, run that worktree's own bin/local-dev.sh)${RESET}\n"
+    fi
 }
 
 # Returns the count of long-lived infra services currently running under our project.
@@ -1808,9 +1981,9 @@ refresh_node_deps() {
 # would otherwise scrape the dashboard. Exit code mirrors health: 0 iff every
 # service is running, else 1.
 emit_status_json() {
-    local branch="" sha=""
-    branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
-    sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
+    local branch="" sha="" worktree=""
+    IFS=$'\t' read -r branch sha < <(_git_head)
+    worktree="$(basename "$REPO_ROOT")"
 
     local n_running=0 n_total=0 first=true svc="" type="" port="" state="" pid="" rows=""
     for svc in "${SERVICES[@]}"; do
@@ -1835,8 +2008,8 @@ emit_status_json() {
         rows+=$(printf '{"service":"%s","port":%s,"type":"%s","pid":%s,"state":"%s"}' \
             "$svc" "$port" "$type" "$pid" "$state")
     done
-    printf '{"branch":"%s","sha":"%s","running":%d,"total":%d,"services":[%s]}\n' \
-        "$branch" "$sha" "$n_running" "$n_total" "$rows"
+    printf '{"branch":"%s","sha":"%s","worktree":"%s","source":"%s","running":%d,"total":%d,"services":[%s]}\n' \
+        "$branch" "$sha" "$worktree" "$REPO_ROOT" "$n_running" "$n_total" "$rows"
     (( n_running == n_total ))
 }
 
@@ -1846,10 +2019,10 @@ cmd_status() {
         "")     ;;
         *)      tui_err "unknown flag: $1" >&2; exit 2 ;;
     esac
-    local branch="" sha=""
-    branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
-    sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
-    tui_banner "Texera Local Dev" "branch: $branch  @  $sha"
+    local branch="" sha="" wt=""
+    IFS=$'\t' read -r branch sha < <(_git_head)
+    [[ "$REPO_ROOT" != "$SELF_ROOT" ]] && wt="  ·  worktree: $(basename "$REPO_ROOT")"
+    tui_banner "Texera Local Dev" "branch: $branch  @  $sha$wt"
 
     # One docker stats call up front — paying the ~2s docker-API cost once
     # is cheaper than running it per docker service. Indexed by container
@@ -1950,6 +2123,9 @@ cmd_up() {
             --build)    BUILD=force ;;
             --no-build) BUILD=no ;;
             --json)     JSON_OUT=true ;;
+            # Deploy-target selectors are resolved at startup (they must precede
+            # the build.sbt parse); accept and ignore them here.
+            --worktree=*|--branch=*) ;;
             *) tui_err "unknown flag: $1" >&2; exit 2 ;;
         esac
         shift
@@ -1966,6 +2142,21 @@ cmd_up() {
     local skip_label="none"
     (( n_skip > 0 )) && skip_label="$n_skip service(s)"
     tui_banner "Texera Local Dev — bringing stack up" "JDK 17 · skip=$skip_label · build=$BUILD"
+
+    # ── Deploy target ─────────────────────────────────────────────────────
+    # Mark exactly what we are about to build and run, so it is unambiguous in
+    # the log which branch/worktree/commit this deployment reflects.
+    local _db="" _ds=""
+    IFS=$'\t' read -r _db _ds < <(_git_head)
+    tui_section "Deploy target"
+    if [[ "$REPO_ROOT" == "$SELF_ROOT" ]]; then
+        tui_info "checkout: $(basename "$REPO_ROOT")  ${DIM}(self / canonical)${RESET}"
+    else
+        tui_info "worktree: $(basename "$REPO_ROOT")  ${DIM}$REPO_ROOT${RESET}"
+        tui_info "tooling : $(basename "$SELF_ROOT")  ${DIM}(local-dev.sh runs from here)${RESET}"
+    fi
+    tui_info "branch  : $_db @ $_ds"
+    _warn_tooling_drift
 
     # ── Pre-flight short-circuit ───────────────────────────────────────────
     # If nothing's changed AND every service is already running, just say so
@@ -2104,6 +2295,8 @@ cmd_auto() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --skip=*) SKIP_LIST="${1#--skip=}" ;;
+            # Deploy-target selectors are resolved at startup; accept here.
+            --worktree=*|--branch=*) ;;
             *) tui_err "unknown flag: $1" >&2; exit 2 ;;
         esac
         shift
@@ -2111,6 +2304,10 @@ cmd_auto() {
 
     tui_banner "Texera Local Dev — auto bounce" \
         "rebuild + bounce only what changed since last build"
+    if [[ "$REPO_ROOT" != "$SELF_ROOT" ]]; then
+        tui_info "deploy source: worktree $(basename "$REPO_ROOT")  ${DIM}$REPO_ROOT${RESET}"
+        _warn_tooling_drift
+    fi
 
     # ── Scan ──────────────────────────────────────────────────────────────
     tui_section "Scan"
@@ -2460,10 +2657,10 @@ cmd_logs() {
 # Render the interactive dashboard panel (banner + service table + hint + summary).
 tui_render_dashboard() {
     printf "\e[2J\e[H"   # clear screen + home cursor (scrollback preserved)
-    local branch="" sha=""
-    branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
-    sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "?")
-    tui_banner "Texera Local Dev — interactive" "branch: $branch @ $sha · $(date '+%H:%M:%S') · type ? for help"
+    local branch="" sha="" wt=""
+    IFS=$'\t' read -r branch sha < <(_git_head)
+    [[ "$REPO_ROOT" != "$SELF_ROOT" ]] && wt="worktree: $(basename "$REPO_ROOT") · "
+    tui_banner "Texera Local Dev — interactive" "${wt}branch: $branch @ $sha · $(date '+%H:%M:%S') · type ? for help"
     printf "\n"
 
     printf "    ${BOLD}%-32s %-7s %-9s %-18s %-3s %s${RESET}\n" \
@@ -2628,7 +2825,7 @@ cmd_interactive() {
         _install_hint python
         exit 1
     fi
-    exec "$py" "$REPO_ROOT/bin/local-dev/tui.py"
+    exec "$py" "$SELF_ROOT/bin/local-dev/tui.py"
 }
 
 # --------- main ---------
@@ -2649,6 +2846,6 @@ case "${1:-}" in
     logs)             shift; cmd_logs "${1:-}" ;;
     w|watch)          shift; cmd_watch "${1:-2}" ;;
     version)          printf "%s\n" "$TEXERA_VERSION" ;;
-    -h|--help)        sed -n '18,75p' "$0" ;;
+    -h|--help)        sed -n '18,92p' "$0" ;;
     *)                cmd_update_one "$1" ;;
 esac
