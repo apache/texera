@@ -19,17 +19,20 @@
 
 package org.apache.texera.auth
 
+import ch.qos.logback.classic.{Level, Logger => LogbackLogger}
 import jakarta.servlet.{DispatcherType, FilterChain}
 import jakarta.servlet.http.{HttpServletRequest, HttpServletResponse}
 import org.eclipse.jetty.servlet.{FilterHolder, ServletContextHandler}
 import org.mockito.ArgumentMatchers.{any, eq => eqTo}
+import org.mockito.Mockito
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.slf4j.LoggerFactory
 
 class RequestLoggingFilterSpec extends AnyFlatSpec with Matchers {
 
-  "RequestLoggingFilter.doFilter" should "delegate to the chain and log the request" in {
+  "RequestLoggingFilter.doFilter" should "delegate to the chain before logging the request" in {
     val filter = new RequestLoggingFilter
     val request = mock(classOf[HttpServletRequest])
     val response = mock(classOf[HttpServletResponse])
@@ -40,12 +43,22 @@ class RequestLoggingFilterSpec extends AnyFlatSpec with Matchers {
     when(request.getProtocol).thenReturn("HTTP/1.1")
     when(response.getStatus).thenReturn(200)
 
-    filter.doFilter(request, response, chain)
+    // force the request-log logger to INFO so the log branch (and its getter reads) runs
+    val requestLog =
+      LoggerFactory.getLogger("org.eclipse.jetty.server.RequestLog").asInstanceOf[LogbackLogger]
+    val previousLevel = requestLog.getLevel
+    requestLog.setLevel(Level.INFO)
+    try {
+      filter.doFilter(request, response, chain)
+    } finally {
+      requestLog.setLevel(previousLevel)
+    }
 
-    // the chain is always invoked, before any logging
-    verify(chain).doFilter(request, response)
-    // the request/response fields are read to build the INFO log line
-    verify(request).getRemoteAddr
+    // the chain is invoked, and only afterward are the request fields read for the log line
+    // (Mockito.inOrder, fully qualified to avoid ScalaTest Matchers' own inOrder DSL)
+    val ordered = Mockito.inOrder(chain, request)
+    ordered.verify(chain).doFilter(request, response)
+    ordered.verify(request).getRemoteAddr
     verify(request).getMethod
     verify(request).getRequestURI
     verify(request).getProtocol
