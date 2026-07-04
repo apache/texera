@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,33 +17,23 @@
  * under the License.
  */
 
-import { Injectable } from "@angular/core";
-import { DashboardWorkflowComputingUnit } from "../../../type/workflow-computing-unit";
-import { Observable, of } from "rxjs";
+package org.apache.texera.common.config
 
-@Injectable()
-export class MockComputingUnitStatusService {
-  listComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
-    return of([]);
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+/**
+  * Spec for [[LLMConfig]]. Reading each value forces resolution from llm.conf, so a renamed or
+  * mistyped key surfaces here as a ConfigException. Both values carry a `${?ENV}` override, so
+  * exact-value assertions are guarded.
+  */
+class LLMConfigSpec extends AnyFlatSpec with Matchers {
+
+  private def ifUnset(name: String)(assertion: => Any): Unit =
+    if (!sys.env.contains(name) && !sys.props.contains(name)) assertion
+
+  "LLMConfig" should "resolve the LiteLLM base URL and master key from llm.conf" in {
+    ifUnset("LITELLM_BASE_URL")(LLMConfig.baseUrl shouldBe "http://0.0.0.0:4000")
+    ifUnset("LITELLM_MASTER_KEY")(LLMConfig.masterKey shouldBe "")
   }
-
-  getSelectedComputingUnit(): Observable<DashboardWorkflowComputingUnit | null> {
-    return of(null);
-  }
-
-  getSelectedComputingUnitValue(): DashboardWorkflowComputingUnit | null {
-    return null;
-  }
-
-  getAllComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
-    return of([]);
-  }
-
-  selectComputingUnit(): void {}
-
-  refreshComputingUnitList(): void {}
-
-  startPolling(): void {}
-
-  stopPolling(): void {}
 }

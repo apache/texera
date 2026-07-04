@@ -51,10 +51,28 @@ from textual.widgets import DataTable, Input, RichLog, Static
 
 # ─────────────────── Constants ───────────────────
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+# SELF_ROOT is the tree this TUI (and local-dev.sh) physically lives in. The
+# deployed *application* source can be redirected to a sibling worktree via
+# `local-dev.sh up --worktree/--branch`; the shell exports its path in
+# TEXERA_DEPLOY_SOURCE. REPO_ROOT — used for every build.sbt / src / jar / git
+# read below — follows the deploy source so the banner and SRC-dirty column
+# reflect what is actually deployed. LOCAL_DEV_SH stays on SELF_ROOT.
+SELF_ROOT = Path(__file__).resolve().parents[2]
+_DEPLOY_SOURCE = os.environ.get("TEXERA_DEPLOY_SOURCE")
+REPO_ROOT = Path(_DEPLOY_SOURCE) if _DEPLOY_SOURCE else SELF_ROOT
 STATE_DIR = Path(os.environ.get("TEXERA_LOCAL_DEV_DIR", "/tmp/texera-local-dev"))
 LOG_DIR = STATE_DIR / "logs"
-BUILD_STAMP_DIR = STATE_DIR / "build-stamps"
+# Where the shell persists the active deploy target; the TUI reads it back when
+# the user switches worktree/branch in-session (see _resync_deploy_source).
+DEPLOY_SOURCE_FILE = STATE_DIR / "deploy-source"
+
+# Build stamps are namespaced per deploy source to match the shell (which keys
+# them by a sha1 of the absolute source path) — otherwise the SRC-dirty column
+# would read another worktree's stamps.
+def _stamp_dir_for(src: Path) -> Path:
+    return STATE_DIR / "build-stamps" / hashlib.sha1(str(src).encode()).hexdigest()[:12]
+
+BUILD_STAMP_DIR = _stamp_dir_for(REPO_ROOT)
 # Per-service phase markers written by the shell during stop/build/start.
 # Each file holds `<phase>\t<epoch>` — we read it back in _tick_state and
 # render an animated transitional STATE if it's recent (<90s).
@@ -64,7 +82,7 @@ REPL_LOG = LOG_DIR / "repl.log"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 BUILD_STAMP_DIR.mkdir(parents=True, exist_ok=True)
 
-LOCAL_DEV_SH = REPO_ROOT / "bin" / "local-dev.sh"
+LOCAL_DEV_SH = SELF_ROOT / "bin" / "local-dev.sh"
 DOCKER_PROJECT = "texera-local-dev"
 
 HISTORY_FILE = STATE_DIR / "tui-history"
@@ -683,6 +701,22 @@ def worktree_info() -> tuple[str, bool]:
     except Exception:
         pass
     return name, is_worktree
+
+
+def _resolve_deploy_source() -> Path:
+    """Current deploy source: the persisted worktree (if still valid) else the
+    self tree. Mirrors local-dev.sh's startup resolution so an in-session
+    `up --branch/--worktree` switch is reflected without relaunching the TUI."""
+    try:
+        if DEPLOY_SOURCE_FILE.exists():
+            p = DEPLOY_SOURCE_FILE.read_text().strip()
+            if p:
+                cand = Path(p)
+                if cand.is_dir() and (cand / "build.sbt").is_file():
+                    return cand
+    except Exception:
+        pass
+    return SELF_ROOT
 
 
 def subprocess_run(*argv: str) -> str:
@@ -1310,6 +1344,12 @@ class LocalDevApp(App):
             "  r           refresh state now",
             "  u           build + start every service",
             "  u <svc>     start one service (no rebuild)",
+            "  u --branch=NAME      deploy that branch's worktree, then build+start",
+            "  u --worktree=PATH    deploy that worktree, then build+start",
+            "              (plain `u` deploys this checkout; works on `a`/`auto` too —",
+            "               the banner re-points to the active tree. Note: the tooling",
+            "               itself always runs from this checkout, so a target that",
+            "               modifies bin/local-dev/** needs its own local-dev.sh)",
             "  d           stop every service",
             "  d <svc>     stop one service",
             "  b           force incremental sbt + node deps",
@@ -1345,16 +1385,30 @@ class LocalDevApp(App):
         verb = parts[0]
         arg = parts[1] if len(parts) > 1 else ""
 
+        # Split the remainder into flags (--foo) and positionals (a service
+        # name). `up`/`auto` accept the same deploy-target selectors as the CLI
+        # — --worktree=PATH / --branch=NAME — plus build flags; these are
+        # forwarded verbatim to bin/local-dev.sh, which resolves and persists
+        # the target.
+        tokens = cmd.split()[1:]
+        flags = [t for t in tokens if t.startswith("-")]
+        positionals = [t for t in tokens if not t.startswith("-")]
+
         # Resolve to a bin/local-dev.sh invocation.  Keeping the shell script
         # as the canonical engine so behavior matches `bin/local-dev.sh up`
         # from a terminal.
         argv: Optional[list[str]] = None
         if verb in ("u", "up"):
-            if arg:
-                if arg not in SERVICES_BY_NAME:
-                    self._log_err(f"unknown service: {arg}")
+            if flags:
+                # Deploy-target and/or build flags → forward to `up`. (A bare
+                # service name is the no-flag form below.)
+                argv = ["up", *flags]
+            elif positionals:
+                svc = positionals[0]
+                if svc not in SERVICES_BY_NAME:
+                    self._log_err(f"unknown service: {svc}")
                     return
-                argv = ["start", arg]
+                argv = ["start", svc]
             else:
                 argv = ["up"]
         elif verb in ("d", "down"):
@@ -1373,10 +1427,10 @@ class LocalDevApp(App):
         elif verb in ("b", "build"):
             # Force an incremental build; the shell handles the "is this
             # really needed" decision itself (it pre-bounces JVMs etc.).
-            argv = ["up", "--build"]
+            argv = ["up", "--build", *flags]
         elif verb in ("a", "auto"):
             # Scan for dirty services and rebuild + bounce only those.
-            argv = ["auto"]
+            argv = ["auto", *flags]
         elif verb in ("l", "logs", "tail"):
             if not arg or arg not in SERVICES_BY_NAME:
                 self._log_err(f"usage: l <service>  (known: {', '.join(s.name for s in SERVICES)})")
@@ -1402,7 +1456,11 @@ class LocalDevApp(App):
 
         if argv is None:
             return
-        self._spawn_action(verb if not arg else f"{verb} {arg}", argv)
+        # A full `up`/`auto` re-decides (and re-persists) the deploy target —
+        # including a plain `up`, which resets to this checkout — so re-point the
+        # banner afterward. `u <svc>` maps to `start` and leaves the target be.
+        resync = argv[0] in ("up", "auto")
+        self._spawn_action(verb if not arg else f"{verb} {arg}", argv, resync=resync)
 
     def _log_err(self, msg: str) -> None:
         self._set_log_visible(True)
@@ -1467,7 +1525,7 @@ class LocalDevApp(App):
                 self._cmd_proc = None
 
     @work(exclusive=True, group="cmd")
-    async def _spawn_action(self, label: str, argv: list[str]) -> None:
+    async def _spawn_action(self, label: str, argv: list[str], resync: bool = False) -> None:
         log = self.query_one("#log", RichLog)
         # Cancel any pending auto-hide from a previous command.
         if self._log_auto_hide_handle is not None:
@@ -1489,11 +1547,17 @@ class LocalDevApp(App):
         self.cmd_started_at = time.monotonic()
         self.log_log_position = 0
 
+        # A deploy-target switch is persisted by the shell within ms of launch,
+        # well before the (possibly minutes-long) build finishes. Flip the
+        # banner to the new worktree early so it doesn't lag behind the build.
+        if resync:
+            self.set_timer(1.0, self._resync_deploy_source)
+
         with REPL_LOG.open("wb") as out:
             proc = await asyncio.create_subprocess_exec(
                 str(LOCAL_DEV_SH), *argv,
                 stdout=out, stderr=asyncio.subprocess.STDOUT,
-                cwd=str(REPO_ROOT),
+                cwd=str(SELF_ROOT),
             )
             self._cmd_proc = proc
             await proc.wait()
@@ -1509,6 +1573,9 @@ class LocalDevApp(App):
         # Right after a command, source state likely moved — force a state poll.
         self._last_dirty_check = 0
         self.call_later(self._tick_state)
+        # Authoritative resync once the command (and its persist) has settled.
+        if resync:
+            self.call_later(self._resync_deploy_source)
 
         # Successful command → auto-hide the log so the dashboard reclaims the
         # space.  Failure stays visible so the user can read the error.
@@ -1521,6 +1588,27 @@ class LocalDevApp(App):
         if self.active_cmd is None:
             self._set_log_visible(False)
         self._log_auto_hide_handle = None
+
+    def _resync_deploy_source(self) -> None:
+        """Re-point the TUI at the persisted deploy target after an in-session
+        `u`/`a` switch (--worktree/--branch, or a plain `u` back to self).
+        git_head / worktree_info /
+        the SRC-dirty checks all read the module-global REPO_ROOT (and
+        BUILD_STAMP_DIR) at call time, so reassigning them here is enough to
+        repoint the whole dashboard — then we refresh the banner and re-run the
+        dirty scan against the new tree."""
+        global REPO_ROOT, BUILD_STAMP_DIR
+        new_root = _resolve_deploy_source()
+        if new_root != REPO_ROOT:
+            REPO_ROOT = new_root
+            BUILD_STAMP_DIR = _stamp_dir_for(new_root)
+            with contextlib.suppress(Exception):
+                BUILD_STAMP_DIR.mkdir(parents=True, exist_ok=True)
+        self._branch, self._sha = git_head()
+        self._worktree_name, self._is_worktree = worktree_info()
+        self._update_banner()
+        self._last_dirty_check = 0.0
+        self.call_later(self._tick_state)
 
     def action_toggle_banner(self) -> None:
         """Collapse / expand the ASCII wordmark to reclaim ~7 rows."""
