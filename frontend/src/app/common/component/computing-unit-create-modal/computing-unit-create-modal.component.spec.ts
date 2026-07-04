@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ApplicationRef, DebugElement, getDebugNode } from "@angular/core";
+import { ApplicationRef, DebugElement, getDebugNode, SimpleChange } from "@angular/core";
 import { NgModel } from "@angular/forms";
 import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
@@ -218,6 +218,40 @@ describe("ComputingUnitCreateModalComponent", () => {
     component.shmSizeValue = 64;
     component.shmSizeUnit = "Mi";
     expect(component.isShmTooLarge()).toBe(false);
+  });
+
+  it("toggles the advanced-settings panel", () => {
+    component.showAdvancedSettings = false;
+    component.toggleAdvancedSettings();
+    expect(component.showAdvancedSettings).toBe(true);
+    component.toggleAdvancedSettings();
+    expect(component.showAdvancedSettings).toBe(false);
+  });
+
+  it("re-collapses the advanced-settings panel each time the modal opens", () => {
+    component.showAdvancedSettings = true;
+    component.ngOnChanges({ visible: new SimpleChange(false, true, false) });
+    expect(component.showAdvancedSettings).toBe(false);
+
+    // Closing the modal must not touch the panel state.
+    component.showAdvancedSettings = true;
+    component.ngOnChanges({ visible: new SimpleChange(true, false, false) });
+    expect(component.showAdvancedSettings).toBe(true);
+  });
+
+  it("flags a collapsed warning only when collapsed and shm exceeds memory", () => {
+    vi.spyOn(component, "isShmTooLarge").mockReturnValue(true);
+    component.showAdvancedSettings = false;
+    expect(component.hasCollapsedWarning()).toBe(true);
+    // Expanded: the inline warning is visible, so the header stays quiet.
+    component.showAdvancedSettings = true;
+    expect(component.hasCollapsedWarning()).toBe(false);
+  });
+
+  it("does not flag a warning when shm fits within memory", () => {
+    vi.spyOn(component, "isShmTooLarge").mockReturnValue(false);
+    component.showAdvancedSettings = false;
+    expect(component.hasCollapsedWarning()).toBe(false);
   });
 
   it("initializes the local computing unit URI from the window location", () => {

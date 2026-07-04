@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from "@angular/core";
 import { NgFor, NgIf, TitleCasePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -79,10 +79,14 @@ import {
     TitleCasePipe,
   ],
 })
-export class ComputingUnitCreateModalComponent implements OnInit {
+export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
   @Input() visible = false;
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() unitCreated = new EventEmitter<DashboardWorkflowComputingUnit>();
+
+  // Advanced settings disclosure — collapsed by default, houses the
+  // shared-memory and JVM-heap knobs most users never touch.
+  showAdvancedSettings = false;
 
   newComputingUnitName: string = "";
   selectedMemory: string = "";
@@ -155,6 +159,24 @@ export class ComputingUnitCreateModalComponent implements OnInit {
         error: (err: unknown) =>
           this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
       });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Re-collapse the advanced panel every time the modal opens so it always
+    // starts on the simple path (name / RAM / CPU).
+    if (changes["visible"]?.currentValue === true) {
+      this.showAdvancedSettings = false;
+    }
+  }
+
+  toggleAdvancedSettings(): void {
+    this.showAdvancedSettings = !this.showAdvancedSettings;
+  }
+
+  // Surfaces the shared-memory warning on the collapsed header so an invalid
+  // value tucked inside the panel can't be submitted unseen.
+  hasCollapsedWarning(): boolean {
+    return !this.showAdvancedSettings && this.isShmTooLarge();
   }
 
   // Determines if the GPU selection dropdown should be shown
