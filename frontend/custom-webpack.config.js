@@ -58,6 +58,20 @@ module.exports = {
         ],
       },
     ],
+    // Angular's webpack config disables both `new URL(...)` asset modules
+    // (url: false) and `new Worker(new URL(...))` handling (worker: false
+    // unless webWorkerTsConfig is set). monaco-vscode-api needs both: the
+    // textmate service fetches onig.wasm via `new URL(..., import.meta.url)`,
+    // and the editor/textmate/extension-host workers are spawned the same way.
+    // Without this, webpack inlines `import.meta.url` as a build-machine
+    // file:// path and everything 404s at runtime (no syntax highlighting).
+    // See https://github.com/angular/angular-cli/issues/24617
+    parser: {
+      javascript: {
+        url: true,
+        worker: true,
+      },
+    },
   },
   resolve: {
     // css-loader emits relative imports (e.g. '../../../../../../../css-loader/
