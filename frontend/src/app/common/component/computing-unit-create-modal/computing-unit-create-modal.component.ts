@@ -46,6 +46,10 @@ import {
   unitTypeMessageTemplate,
 } from "../../util/computing-unit.util";
 
+// Defaults for the advanced-settings values, restored every time the modal opens.
+const DEFAULT_SHM_SIZE_VALUE = 64;
+const DEFAULT_SHM_SIZE_UNIT: "Mi" | "Gi" = "Mi";
+
 /**
  * The "create computing unit" modal shared by the workspace power button and
  * the dashboard Computing Units page. Owns the whole form (type, name,
@@ -95,8 +99,8 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
   selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
   selectedComputingUnitType?: WorkflowComputingUnitType; // Selected computing unit type
   selectedShmSize: string = "64Mi"; // Shared memory size
-  shmSizeValue: number = 64; // default to 64
-  shmSizeUnit: "Mi" | "Gi" = "Mi"; // default unit
+  shmSizeValue: number = DEFAULT_SHM_SIZE_VALUE;
+  shmSizeUnit: "Mi" | "Gi" = DEFAULT_SHM_SIZE_UNIT;
   availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
   localComputingUnitUri: string = ""; // URI for local computing unit
 
@@ -162,20 +166,46 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Re-collapse the advanced panel every time the modal opens so it always
-    // starts on the simple path (name / RAM / CPU).
     if (changes["visible"]?.currentValue === true) {
-      this.showAdvancedSettings = false;
+      this.resetAdvancedSettings();
     }
+  }
+
+  // Runs every time the modal opens: re-collapse the advanced panel so it
+  // always starts on the simple path (name / RAM / CPU), and restore the
+  // advanced values so a setting from a previous open can't ride along
+  // hidden behind the collapsed panel.
+  private resetAdvancedSettings(): void {
+    this.showAdvancedSettings = false;
+    this.shmSizeValue = DEFAULT_SHM_SIZE_VALUE;
+    this.shmSizeUnit = DEFAULT_SHM_SIZE_UNIT;
+    this.resetJvmMemorySlider();
   }
 
   toggleAdvancedSettings(): void {
     this.showAdvancedSettings = !this.showAdvancedSettings;
   }
 
-hasCollapsedWarning(): boolean {
-  return !this.showAdvancedSettings && this.selectedMemory !== "" && this.isShmTooLarge();
-}
+  // Surfaces panel warnings on the collapsed header so an invalid or risky
+  // value tucked inside the panel can't be submitted unseen. The invalid shm
+  // value outranks the advisory max-JVM note when both apply. The shm check
+  // is skipped until the memory options have loaded (selectedMemory is empty).
+  collapsedWarningText(): string | null {
+    if (this.showAdvancedSettings) {
+      return null;
+    }
+    if (this.selectedMemory !== "" && this.isShmTooLarge()) {
+      return "Shared memory exceeds total";
+    }
+    if (this.isMaxJvmMemorySelected()) {
+      return "JVM memory at maximum";
+    }
+    return null;
+  }
+
+  hasCollapsedWarning(): boolean {
+    return this.collapsedWarningText() !== null;
+  }
 
   // Determines if the GPU selection dropdown should be shown
   showGpuSelection(): boolean {

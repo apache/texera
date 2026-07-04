@@ -210,11 +210,10 @@ $advanced-panel-padding: 16px;
 
   .jvm-memory-slider {
     // align-self: stretch makes the horizontal margin the single source of
-    // truth for the inset (no width calc to keep in sync). The bottom margin
-    // mirrors the panel padding so the slider's end labels (e.g. 2G / 16G) keep
-    // the same breathing room as every other edge of the box.
+    // truth for the inset. The bottom margin mirrors the panel padding so the
+    // slider's end labels (e.g. 2G / 16G) keep the same breathing room as
+    // every other edge of the box.
     align-self: stretch;
-    width: auto;
     margin: 6px 10px $advanced-panel-padding;
   }
 }
