@@ -1731,6 +1731,25 @@ any_jvm_src_changed() {
     return 1
 }
 
+# True iff every non-skipped JVM service's launcher exists on disk. Guards
+# the auto short-circuit in build_all so an externally cleaned target/
+# (e.g. someone ran `sbt clean dist` directly, produced zips but never
+# unzipped) can't leave `up` doing nothing while services fail to launch.
+# SVC_LAUNCHER embeds ${TEXERA_VERSION}, so this doubles as a version check
+# — a bumped version's launcher path won't match the old one on disk.
+all_launchers_present() {
+    local svc="" cwd="" launcher=""
+    for svc in "${SERVICES[@]}"; do
+        [[ "$(amap_get SVC_TYPE "$svc")" == "jvm" ]] || continue
+        is_skipped "$svc" && continue
+        launcher=$(amap_get SVC_LAUNCHER "$svc")
+        [[ -n "$launcher" ]] || continue
+        cwd=$(amap_get SVC_CWD "$svc")
+        [[ -x "$cwd/$launcher" ]] || return 1
+    done
+    return 0
+}
+
 needs_yarn_install() {
     [[ ! -f frontend/node_modules/.yarn-state.yml ]] && return 0
     [[ frontend/yarn.lock -nt frontend/node_modules/.yarn-state.yml ]] && return 0
@@ -1917,7 +1936,7 @@ build_all() {
             tui_err "sbt: clean dist FAILED  ${DIM}(tail -f $log)${RESET}"
             return 1
         fi
-    elif [[ "${BUILD:-auto}" == "auto" ]] && ! any_jvm_src_changed; then
+    elif [[ "${BUILD:-auto}" == "auto" ]] && ! any_jvm_src_changed && all_launchers_present; then
         tui_skip "sbt dist: skipped (no source changes since last build)"
         return 0
     else

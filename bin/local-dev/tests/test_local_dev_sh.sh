@@ -448,5 +448,21 @@ else
     _fail "build_all: unzip loop touches --skip'd services"
 fi
 
+# 26) build_all's auto short-circuit also checks that every unpacked
+#     launcher is on disk, not just that source hashes match the last
+#     build. Without this, an externally cleaned target/ leaves stamps
+#     valid while target/<svc>-<version>/ is gone, so `up` skips build
+#     + unzip and each JVM fails with "launcher missing".
+if grep -qE '^all_launchers_present\(\) \{' "$REPO_ROOT/bin/local-dev/main.sh"; then
+    _pass "all_launchers_present helper is defined"
+else
+    _fail "all_launchers_present helper missing"
+fi
+if [[ "$build_body" == *"all_launchers_present"* ]]; then
+    _pass "build_all: auto short-circuit gated on all_launchers_present"
+else
+    _fail "build_all: auto short-circuit ignores missing launchers"
+fi
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))
