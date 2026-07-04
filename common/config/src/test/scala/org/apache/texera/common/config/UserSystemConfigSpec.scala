@@ -29,8 +29,12 @@ import org.scalatest.matchers.should.Matchers
   */
 class UserSystemConfigSpec extends AnyFlatSpec with Matchers {
 
-  private def ifUnset(env: String)(assertion: => Any): Unit =
-    if (sys.env.get(env).isEmpty) assertion
+  // `${?VAR}` in HOCON can be satisfied by an OS env var or a JVM system property,
+  // so treat either as an override.
+  private def isOverridden(name: String): Boolean =
+    sys.env.contains(name) || sys.props.contains(name)
+  private def ifUnset(name: String)(assertion: => Any): Unit =
+    if (!isOverridden(name)) assertion
 
   "UserSystemConfig" should "resolve every value from user-system.conf" in {
     // reference each val to force resolution regardless of environment
@@ -57,7 +61,8 @@ class UserSystemConfigSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "return None for appDomain when the domain is blank/unset" in {
-    if (sys.env.get("USER_SYS_DOMAIN").forall(_.trim.isEmpty)) {
+    val overrideValue = sys.env.get("USER_SYS_DOMAIN").orElse(sys.props.get("USER_SYS_DOMAIN"))
+    if (overrideValue.forall(_.trim.isEmpty)) {
       UserSystemConfig.appDomain shouldBe None
     } else {
       UserSystemConfig.appDomain shouldBe defined

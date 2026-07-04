@@ -29,8 +29,10 @@ import org.scalatest.matchers.should.Matchers
   */
 class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
 
-  private def ifUnset(env: String)(assertion: => Any): Unit =
-    if (sys.env.get(env).isEmpty) assertion
+  // `${?VAR}` in HOCON can be satisfied by an OS env var or a JVM system property,
+  // so treat either as an override.
+  private def ifUnset(name: String)(assertion: => Any): Unit =
+    if (!sys.env.contains(name) && !sys.props.contains(name)) assertion
 
   "KubernetesConfig.computeUnitPortNumber" should "load the fixed port (no env override)" in {
     KubernetesConfig.computeUnitPortNumber shouldBe 8085
@@ -64,7 +66,8 @@ class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("MAX_NUM_OF_RUNNING_COMPUTING_UNITS_PER_USER")(
       KubernetesConfig.maxNumOfRunningComputingUnitsPerUser shouldBe 10
     )
-    KubernetesConfig.maxNumOfRunningComputingUnitsPerUser should be > 0
+    // an override may legitimately set 0 (to disable), so only require non-negative
+    KubernetesConfig.maxNumOfRunningComputingUnitsPerUser should be >= 0
   }
 
   "KubernetesConfig limit options" should "parse into trimmed, non-empty lists" in {
@@ -77,6 +80,9 @@ class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("KUBERNETES_COMPUTING_UNIT_GPU_LIMIT_OPTIONS")(
       KubernetesConfig.gpuLimitOptions shouldBe List("0", "1", "2")
     )
+    // the parser trims and drops blanks; assert that invariant without requiring a
+    // non-empty result, since a blank/whitespace override would legitimately parse to
+    // an empty list.
     for (
       options <- Seq(
         KubernetesConfig.cpuLimitOptions,
@@ -84,7 +90,6 @@ class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
         KubernetesConfig.gpuLimitOptions
       )
     ) {
-      options should not be empty
       options.forall(s => s == s.trim && s.nonEmpty) shouldBe true
     }
   }

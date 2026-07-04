@@ -29,8 +29,12 @@ import org.scalatest.matchers.should.Matchers
   */
 class AuthConfigSpec extends AnyFlatSpec with Matchers {
 
+  // `${?VAR}` in HOCON can be satisfied by an OS env var or a JVM system property.
+  private def isOverridden(name: String): Boolean =
+    sys.env.contains(name) || sys.props.contains(name)
+
   "AuthConfig.jwtExpirationMinutes" should "resolve from auth.conf" in {
-    if (sys.env.get("AUTH_JWT_EXPIRATION_IN_MINUTES").isEmpty) {
+    if (!isOverridden("AUTH_JWT_EXPIRATION_IN_MINUTES")) {
       AuthConfig.jwtExpirationMinutes shouldBe 10080
     } else {
       AuthConfig.jwtExpirationMinutes should be > 0
@@ -39,7 +43,7 @@ class AuthConfigSpec extends AnyFlatSpec with Matchers {
 
   "AuthConfig.jwtSecretKey" should "return the configured secret (lowercased) and memoize it" in {
     val first = AuthConfig.jwtSecretKey
-    if (sys.env.get("AUTH_JWT_SECRET").isEmpty) {
+    if (!isOverridden("AUTH_JWT_SECRET")) {
       first shouldBe "8a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d"
     } else {
       first should not be empty
