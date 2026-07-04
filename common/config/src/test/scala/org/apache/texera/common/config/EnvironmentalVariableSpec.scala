@@ -125,9 +125,8 @@ class EnvironmentalVariableSpec extends AnyFlatSpec with Matchers {
 
   it should "return Some(value) for a variable that is set in the JVM environment" in {
     val env = System.getenv()
-    if (!env.isEmpty) {
-      val entry = env.entrySet().iterator().next()
-      EnvironmentalVariable.get(entry.getKey) shouldBe Some(entry.getValue)
-    }
+    if (env.isEmpty) cancel("no environment variables available to exercise the Some(value) case")
+    val entry = env.entrySet().iterator().next()
+    EnvironmentalVariable.get(entry.getKey) shouldBe Some(entry.getValue)
   }
 }
