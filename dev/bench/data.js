@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783085359520,
+  "lastUpdate": 1783171116511,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -2776,6 +2776,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 521.699286930587,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "4c9d30a132672b9a0e8ecfe1d480a473dae16e4d",
+          "message": "test(config): add unit test coverage for the remaining config objects (#6094)\n\n### What changes were proposed in this PR?\n\nAdd unit test coverage for the remaining `common/config` objects,\nselected from the Codecov report (all 0%). No production-code changes.\n\n| File | Codecov before | What the tests pin |\n| --- | --- | --- |\n| `UdfConfig.scala` | 0% | python/R path + log handler defaults from\nudf.conf |\n| `DefaultsConfig.scala` | 0% | the `reinit` flag and the flattened\n`allDefaults` short-key/value map from default.conf |\n| `ComputingUnitConfig.scala` | 0% | local/sharing enabled flags |\n| `LLMConfig.scala` | 0% | LiteLLM base URL + master key |\n| `PekkoConfig.scala` | 0% | actor/serialization, remote/artery, and\ncluster/failure-detector settings from cluster.conf (no ActorSystem\nstarted) |\n| `PythonUtils.scala` | 0% | `getPythonExecutable` blank→`python3`\nfallback and trimmed-path branch |\n\nReading each value forces resolution from the backing `.conf`;\nenv/system-property-overridable values are guarded on the override being\nunset (mirroring `StorageConfigSpec`).\n\n### Any related issues, documentation, discussions?\n\nFollow-up to the review feedback on #6043: prioritize tests that fill\nuncovered code paths.\n\n### How was this PR tested?\n\n- `sbt \"Config/testOnly *UdfConfigSpec *DefaultsConfigSpec\n*ComputingUnitConfigSpec *LLMConfigSpec *PekkoConfigSpec\n*PythonUtilsSpec\"` — 13 tests, all green\n- `sbt \"Config/Test/scalafmtCheck\"` and `sbt \"Config/scalafixAll\n--check\"` — clean\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-07-04T08:27:46Z",
+          "url": "https://github.com/apache/texera/commit/4c9d30a132672b9a0e8ecfe1d480a473dae16e4d"
+        },
+        "date": 1783171115987,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 628.6774493292364,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1099.5336379477842,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1160.926796366704,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 825.6405953107962,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1138.5462319485064,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1163.7590553257671,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 855.2383928634995,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1138.308185665074,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1167.0969087159767,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 690.4664123538936,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 901.5390593850734,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 949.8059214079989,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 748.6239839193831,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 929.4526526030608,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 945.0581745651697,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 736.4539831222856,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 906.0498549715942,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 924.545574281402,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 455.084668130474,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 532.0603534413926,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 539.7429007518159,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 459.1515536747201,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 529.4018061923457,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 539.1787075621016,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 443.9245127550138,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 512.3245609702237,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 515.1297233233323,
             "unit": "tuples/sec"
           }
         ]
