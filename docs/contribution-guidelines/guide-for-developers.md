@@ -80,7 +80,7 @@ ng version
 
 In the terminal, clone the Texera repo:
 ```console
-git clone git@github.com:Texera/texera.git
+git clone git@github.com:apache/texera.git
 ```
 
 Do the following changes to the configuration files:

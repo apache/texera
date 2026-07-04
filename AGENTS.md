@@ -9,7 +9,7 @@ engine, an Angular UI, and the agent service. JVM modules wired in
 | Area | Path | Detail |
 | --- | --- | --- |
 | Workflow execution engine (Amber) | `amber/` | [amber/README.md](amber/README.md) |
-| Backend services | `config-service/`, `access-control-service/`, `file-service/`, `computing-unit-managing-service/`, `workflow-compiling-service/` | `build.sbt` |
+| Backend services | `config-service/`, `access-control-service/`, `file-service/`, `computing-unit-managing-service/`, `workflow-compiling-service/`, `notebook-migration-service/` | `build.sbt` |
 | Shared Scala libs | `common/` (`auth`, `config`, `dao`, `workflow-core`, `workflow-operator`, `pybuilder`) | `build.sbt` |
 | Frontend (Angular) | `frontend/` | [frontend/README.md](frontend/README.md) |
 | Agent service (Bun/TS, LLM agents) | `agent-service/` | `agent-service/package.json` |
