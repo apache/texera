@@ -43,7 +43,11 @@ class UdfConfigSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "resolve the non-empty log format strings" in {
-    UdfConfig.pythonLogStreamHandlerFormat should not be empty
-    UdfConfig.pythonLogFileHandlerFormat should not be empty
+    ifUnset("UDF_PYTHON_LOG_STREAMHANDLER_FORMAT")(
+      UdfConfig.pythonLogStreamHandlerFormat should not be empty
+    )
+    ifUnset("UDF_PYTHON_LOG_FILEHANDLER_FORMAT")(
+      UdfConfig.pythonLogFileHandlerFormat should not be empty
+    )
   }
 }

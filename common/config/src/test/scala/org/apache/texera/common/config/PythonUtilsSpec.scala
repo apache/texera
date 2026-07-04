@@ -30,7 +30,10 @@ import org.scalatest.matchers.should.Matchers
 class PythonUtilsSpec extends AnyFlatSpec with Matchers {
 
   "PythonUtils.getPythonExecutable" should "fall back to python3 when no python path is configured" in {
-    if (sys.env.get("UDF_PYTHON_PATH").forall(_.trim.isEmpty)) {
+    // ${?UDF_PYTHON_PATH} can be satisfied by an OS env var or a JVM system property
+    val overrideValue =
+      sys.env.get("UDF_PYTHON_PATH").orElse(sys.props.get("UDF_PYTHON_PATH"))
+    if (overrideValue.forall(_.trim.isEmpty)) {
       PythonUtils.getPythonExecutable shouldBe "python3"
     }
   }

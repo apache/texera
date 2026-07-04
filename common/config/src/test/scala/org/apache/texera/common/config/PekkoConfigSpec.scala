@@ -67,7 +67,11 @@ class PekkoConfigSpec extends AnyFlatSpec with Matchers {
 
   it should "resolve the log levels" in {
     val config = PekkoConfig.pekkoConfig
-    if (sys.env.get("TEXERA_SERVICE_LOG_LEVEL").isEmpty) {
+    // ${?TEXERA_SERVICE_LOG_LEVEL} can be satisfied by an OS env var or a JVM system property
+    if (
+      !sys.env
+        .contains("TEXERA_SERVICE_LOG_LEVEL") && !sys.props.contains("TEXERA_SERVICE_LOG_LEVEL")
+    ) {
       config.getString("pekko.loglevel") shouldBe "INFO"
     }
     config.getString("pekko.stdout-loglevel") shouldBe "INFO"
