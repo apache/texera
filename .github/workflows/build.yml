@@ -800,9 +800,6 @@ jobs:
         run: psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
         env:
           PGPASSWORD: postgres
-      - name: Lint with Ruff
-        run: |
-          cd amber && ruff check src/main/python src/test/python && ruff format --check src/main/python src/test/python
       - name: Install dev dependencies
         # Test-only deps live in amber/dev-requirements.txt and are
         # installed after the LICENSE-binary snapshot above so they never
@@ -811,6 +808,11 @@ jobs:
         run: |
           python -m pip install uv
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
+      - name: Lint with Ruff
+        # ruff comes from dev-requirements.txt, so this must run after the
+        # dev-dependency install above.
+        run: |
+          cd amber && ruff check src/main/python src/test/python && ruff format --check src/main/python src/test/python
       - name: Install protoc
         # Version pinned in bin/protoc-version.txt.
         run: |
