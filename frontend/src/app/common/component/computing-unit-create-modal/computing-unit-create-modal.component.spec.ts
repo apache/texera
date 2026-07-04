@@ -388,6 +388,35 @@ describe("ComputingUnitCreateModalComponent", () => {
       expect(document.querySelector(".unit-uri-input")).toBeNull();
     });
 
+    it("expands and collapses the advanced panel when the toggle button is clicked", () => {
+      mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
+        of({ typeOptions: ["kubernetes"] as WorkflowComputingUnitType[] })
+      );
+      mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(
+        of({ cpuLimitOptions: ["1"], memoryLimitOptions: ["1Gi"], gpuLimitOptions: ["0"] })
+      );
+      fixture.detectChanges();
+      component.visible = true;
+      fixture.detectChanges();
+
+      const toggle = document.querySelector(".advanced-settings-toggle") as HTMLButtonElement;
+      const body = document.querySelector(".advanced-settings-body") as HTMLElement;
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      expect(body.classList.contains("expanded")).toBe(false);
+
+      toggle.click();
+      fixture.detectChanges();
+      expect(component.showAdvancedSettings).toBe(true);
+      expect(toggle.getAttribute("aria-expanded")).toBe("true");
+      expect(body.classList.contains("expanded")).toBe(true);
+
+      toggle.click();
+      fixture.detectChanges();
+      expect(component.showAdvancedSettings).toBe(false);
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      expect(body.classList.contains("expanded")).toBe(false);
+    });
+
     it("renders the minimal kubernetes form without GPU select, warnings, or slider", () => {
       mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
         of({ typeOptions: ["kubernetes"] as WorkflowComputingUnitType[] })
