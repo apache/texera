@@ -127,7 +127,9 @@ Both ≤ ~60 chars. For code changes, if you use a scope, use the module name
 `amber-python`. Dependency-only updates split by semantics: `fix(deps): ...` for
 runtime/production dependency bumps (they ship to users),
 `chore(deps): ...` for dev/toolchain-only bumps, and `ci: ...` for
-CI-only changes (including GitHub Actions bumps). No `Co-authored-by:` trailer for the repo
+CI-only changes (including GitHub Actions bumps). Append the module
+as a second scope when the bump is module-specific, e.g.
+`fix(deps, pyamber): ...`; omit it for cross-module bumps (sbt). No `Co-authored-by:` trailer for the repo
 owner.
 
 ### Issues and PRs

@@ -42,8 +42,8 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "fix(deps)"
-      prefix-development: "chore(deps)"
+      prefix: "fix(deps, frontend)"
+      prefix-development: "chore(deps, frontend)"
     groups:
       frontend-patch:
         update-types:
@@ -60,8 +60,8 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "fix(deps)"
-      prefix-development: "chore(deps)"
+      prefix: "fix(deps, pyright-language-service)"
+      prefix-development: "chore(deps, pyright-language-service)"
     groups:
       pyright-patch:
         update-types:
@@ -73,8 +73,8 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "fix(deps)"
-      prefix-development: "chore(deps)"
+      prefix: "fix(deps, agent-service)"
+      prefix-development: "chore(deps, agent-service)"
     groups:
       agent-service-patch:
         update-types:
@@ -86,8 +86,8 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "fix(deps)"
-      prefix-development: "chore(deps)"
+      prefix: "fix(deps, y-websocket-server)"
+      prefix-development: "chore(deps, y-websocket-server)"
 
   - package-ecosystem: "pip"
     directory: "/amber"
@@ -95,8 +95,8 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "fix(deps)"
-      prefix-development: "chore(deps)"
+      prefix: "fix(deps, pyamber)"
+      prefix-development: "chore(deps, pyamber)"
     groups:
       python-patch:
         update-types:
