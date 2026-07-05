@@ -37,6 +37,8 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.SITE_SETTINGS
 import org.jooq.impl.DSL
 
+import scala.jdk.CollectionConverters._
+
 // Wire DTO for /config/settings: the JSON contract is exactly {key, value};
 // the generated jOOQ pojo would also expose updated_by/updated_at.
 case class ConfigSettingPojo(
@@ -116,12 +118,52 @@ class ConfigResource {
       "inviteOnly" -> UserSystemConfig.inviteOnly
     )
 
-  // Write side of the config API, backed by the site_settings table this
-  // service seeds at startup. Reads stay open to any logged-in user because
-  // non-admin pages (dashboard logo/tabs, dataset upload limits) consume
-  // individual keys; only mutation is ADMIN-gated.
+  // The site_settings keys that logged-in, non-admin pages consume: dashboard
+  // branding, sidebar tab toggles, and dataset upload limits. Everything else
+  // in the table (e.g. csv_parser_max_columns) is management-only. Adding a
+  // key here makes it readable by every user — the explicit list forces that
+  // decision into review, same as the /pre-login payload above.
+  private val publicSettingKeys: Set[String] = Set(
+    "logo",
+    "mini_logo",
+    "favicon",
+    "hub_enabled",
+    "home_enabled",
+    "workflow_enabled",
+    "dataset_enabled",
+    "your_work_enabled",
+    "projects_enabled",
+    "workflows_enabled",
+    "datasets_enabled",
+    "compute_enabled",
+    "quota_enabled",
+    "forum_enabled",
+    "about_enabled",
+    "single_file_upload_max_size_mib",
+    "multipart_upload_chunk_size_mib",
+    "max_number_of_concurrent_uploading_file",
+    "max_number_of_concurrent_uploading_file_chunks"
+  )
+
+  // Read side for regular users: the public keys in one payload, so the
+  // dashboard doesn't fire a request per key.
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/settings/public")
+  def getPublicSettings: Map[String, String] = {
+    ctx
+      .select(SITE_SETTINGS.KEY, SITE_SETTINGS.VALUE)
+      .from(SITE_SETTINGS)
+      .where(SITE_SETTINGS.KEY.in(publicSettingKeys.asJava))
+      .fetchMap(SITE_SETTINGS.KEY, SITE_SETTINGS.VALUE)
+      .asScala
+      .toMap
+  }
+
+  // Management read over the site_settings table this service seeds at
+  // startup: any key, including the ones not exposed through /settings/public.
+  @GET
+  @RolesAllowed(Array("ADMIN"))
   @Path("/settings/{key}")
   def getSetting(@PathParam("key") keyParam: String): ConfigSettingPojo = {
     ctx

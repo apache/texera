@@ -130,7 +130,7 @@ describe("DashboardComponent", () => {
     };
 
     adminSettingsServiceMock = {
-      getSetting: vi.fn().mockReturnValue(EMPTY),
+      getPublicSetting: vi.fn().mockReturnValue(EMPTY),
     };
 
     activatedRouteMock = {

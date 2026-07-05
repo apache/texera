@@ -194,16 +194,32 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     guiPayload.keySet should not contain "defaultDataTransferBatchSize"
   }
 
-  // /config/settings is the write side over site_settings: reads are open to
-  // any logged-in user (non-admin pages consume individual keys), mutation is
-  // ADMIN-only. Positive read/write paths need a database, so this spec only
-  // pins the auth gates plus the one ADMIN path that never reaches the DB
-  // (reset of a key absent from default.conf → 404).
+  // /config/settings is the site_settings API: /settings/public serves the
+  // whitelisted user-visible keys to any logged-in user; the single-key read
+  // and all mutation are ADMIN-only. Positive read/write paths need a
+  // database, so this spec only pins the auth gates plus the one ADMIN path
+  // that never reaches the DB (reset of a key absent from default.conf → 404).
+  "GET /config/settings/public" should "return 401 with a Bearer challenge without an Authorization header" in {
+    val response =
+      resources.target("/config/settings/public").request(MediaType.APPLICATION_JSON).get()
+    response.getStatus shouldBe 401
+    response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
+  }
+
   "GET /config/settings/{key}" should "return 401 with a Bearer challenge without an Authorization header" in {
     val response =
       resources.target("/config/settings/logo").request(MediaType.APPLICATION_JSON).get()
     response.getStatus shouldBe 401
     response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
+  }
+
+  it should "return 403 for a REGULAR user (management read is ADMIN-only)" in {
+    val response = resources
+      .target("/config/settings/logo")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${regularToken()}")
+      .get()
+    response.getStatus shouldBe 403
   }
 
   "PUT /config/settings/{key}" should "return 401 without an Authorization header" in {

@@ -82,7 +82,7 @@ export class FilesUploaderComponent {
     private modal: NzModalService
   ) {
     this.adminSettingsService
-      .getSetting("single_file_upload_max_size_mib")
+      .getPublicSetting("single_file_upload_max_size_mib")
       .pipe(untilDestroyed(this))
       .subscribe(value => (this.singleFileUploadMaxSizeMiB = parseInt(value)));
   }

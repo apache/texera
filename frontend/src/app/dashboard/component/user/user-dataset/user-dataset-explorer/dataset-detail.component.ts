@@ -462,15 +462,15 @@ export class DatasetDetailComponent implements OnInit {
 
   private loadUploadSettings(): void {
     this.adminSettingsService
-      .getSetting("multipart_upload_chunk_size_mib")
+      .getPublicSetting("multipart_upload_chunk_size_mib")
       .pipe(untilDestroyed(this))
       .subscribe(value => (this.chunkSizeMiB = parseInt(value)));
     this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file_chunks")
+      .getPublicSetting("max_number_of_concurrent_uploading_file_chunks")
       .pipe(untilDestroyed(this))
       .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
     this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file")
+      .getPublicSetting("max_number_of_concurrent_uploading_file")
       .pipe(untilDestroyed(this))
       .subscribe(value => {
         this.maxConcurrentFiles = parseInt(value);

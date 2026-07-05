@@ -99,6 +99,19 @@ class ConfigSettingsCrudSpec
     resource.getSetting("logo").settingValue shouldBe "kept.png"
   }
 
+  "GET /config/settings/public" should "serve whitelisted keys and hide management-only ones" in {
+    resource.updateSetting(adminSession(), "favicon", ConfigSettingPojo("favicon", "fav.ico"))
+    resource.updateSetting(
+      adminSession(),
+      "csv_parser_max_columns",
+      ConfigSettingPojo("csv_parser_max_columns", "4096")
+    )
+
+    val publicSettings = resource.getPublicSettings
+    publicSettings("favicon") shouldBe "fav.ico"
+    publicSettings should not contain key("csv_parser_max_columns")
+  }
+
   "POST /config/settings/reset/{key}" should "restore the default.conf value for a known key" in {
     resource.updateSetting(adminSession(), "logo", ConfigSettingPojo("logo", "overridden.png"))
 

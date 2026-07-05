@@ -176,21 +176,21 @@ export class DashboardComponent implements OnInit {
 
   loadLogos(): void {
     this.adminSettingsService
-      .getSetting("logo")
+      .getPublicSetting("logo")
       .pipe(untilDestroyed(this))
       .subscribe(dataUri => {
         this.logo = dataUri;
       });
 
     this.adminSettingsService
-      .getSetting("mini_logo")
+      .getPublicSetting("mini_logo")
       .pipe(untilDestroyed(this))
       .subscribe(dataUri => {
         this.miniLogo = dataUri;
       });
 
     this.adminSettingsService
-      .getSetting("favicon")
+      .getPublicSetting("favicon")
       .pipe(untilDestroyed(this))
       .subscribe(dataUri => {
         document.querySelectorAll("link[rel*='icon']").forEach(el => ((el as HTMLLinkElement).href = dataUri));
@@ -200,7 +200,7 @@ export class DashboardComponent implements OnInit {
   loadTabs(): void {
     (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).forEach(tab => {
       this.adminSettingsService
-        .getSetting(tab)
+        .getPublicSetting(tab)
         .pipe(untilDestroyed(this))
         .subscribe(value => {
           this.sidebarTabs[tab] = value === "true";

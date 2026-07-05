@@ -20,7 +20,7 @@
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
-import { map } from "rxjs/operators";
+import { map, shareReplay } from "rxjs/operators";
 
 /**
  * Service for managing site-wide settings (key-value pairs) via REST API.
@@ -32,8 +32,28 @@ import { map } from "rxjs/operators";
 })
 export class AdminSettingsService {
   private readonly BASE_URL = "/api/config/settings";
+
+  // One request for all user-visible settings, shared by every consumer.
+  // The admin settings page reloads the whole window after saving, so a
+  // per-page-load cache never serves stale values.
+  private publicSettings$?: Observable<Record<string, string>>;
+
   constructor(private http: HttpClient) {}
 
+  /**
+   * Reads one of the user-visible settings (branding, sidebar tabs, upload
+   * limits) through the aggregated REGULAR-accessible endpoint.
+   */
+  getPublicSetting(key: string): Observable<string> {
+    if (!this.publicSettings$) {
+      this.publicSettings$ = this.http.get<Record<string, string>>(`${this.BASE_URL}/public`).pipe(shareReplay(1));
+    }
+    return this.publicSettings$.pipe(map(settings => settings[key] ?? null));
+  }
+
+  /**
+   * Reads any setting by key. ADMIN-only; used by the admin settings page.
+   */
   getSetting(key: string): Observable<string> {
     return this.http
       .get<{ key: string; value: string }>(`${this.BASE_URL}/${key}`)
