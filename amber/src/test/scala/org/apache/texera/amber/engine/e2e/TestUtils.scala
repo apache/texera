@@ -36,6 +36,7 @@ import org.apache.texera.amber.engine.architecture.coordinator.{
   CoordinatorConfig,
   ExecutionStateUpdate,
   FatalError,
+  OperatorPortResultUriAvailable,
   Workflow
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
@@ -66,6 +67,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 }
 import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
+import org.apache.texera.web.service.ExecutionResultService
 import org.apache.texera.workflow.{LogicalLink, WorkflowCompiler}
 
 object TestUtils {
@@ -162,6 +164,14 @@ object TestUtils {
     )
     try {
       client.registerCallback[FatalError](evt => completion.updateIfEmpty(Throw(evt.e)))
+      // The engine emits `OperatorPortResultUriAvailable` for each
+      // materialized output port; production wires this to a DB insert in
+      // `ExecutionResultService.persistOperatorPortResultUri`. The e2e
+      // harness doesn't construct an `ExecutionResultService` (it builds an
+      // `AmberClient` directly), so register the same callback here so the
+      // post-completion `readMaterializedResults` lookup via
+      // `getResultUriByLogicalPortId` finds the rows.
+      registerResultUriPersistence(client, workflow.context.executionId)
       client.registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
           completion.updateIfEmpty(
@@ -175,6 +185,18 @@ object TestUtils {
       client.shutdown()
     }
   }
+
+  /**
+    * Mirror the production `OperatorPortResultUriAvailable` → DB write that
+    * `ExecutionResultService.persistOperatorPortResultUri` does, but driven
+    * from a test-owned `AmberClient`. Specs that build their own client
+    * (the harness above, or `shouldReconfigure` for the pause/resume flow)
+    * call this so subsequent `getResultUriByLogicalPortId` lookups succeed.
+    */
+  def registerResultUriPersistence(client: AmberClient, executionId: ExecutionIdentity): Unit =
+    client.registerCallback[OperatorPortResultUriAvailable](evt =>
+      ExecutionResultService.persistOperatorPortResultUri(executionId, evt)
+    )
 
   /**
     * Convenience over `runWorkflowAndReadResults` for the common case: run
@@ -303,6 +325,7 @@ object TestUtils {
     )
     // Timeout for control-command acks (start/pause/reconfigure/resume).
     val commandTimeout = Duration.fromSeconds(30)
+    registerResultUriPersistence(client, workflow.context.executionId)
     val completion = Promise[Unit]()
     var result: Map[OperatorIdentity, List[Tuple]] = null
     client.registerCallback[ExecutionStateUpdate](evt => {

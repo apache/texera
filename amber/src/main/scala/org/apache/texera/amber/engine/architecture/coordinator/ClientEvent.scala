@@ -21,13 +21,21 @@ package org.apache.texera.amber.engine.architecture.coordinator
 
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.texera.amber.core.workflow.GlobalPortIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload
 import org.apache.texera.amber.engine.common.executionruntimestate.OperatorMetrics
 
+import java.net.URI
+
 trait ClientEvent extends WorkflowFIFOMessagePayload
 
 case class ExecutionStateUpdate(state: WorkflowAggregatedState) extends ClientEvent
+
+case class OperatorPortResultUriAvailable(
+    globalPortId: GlobalPortIdentity,
+    uri: URI
+) extends ClientEvent
 
 case class ExecutionStatsUpdate(operatorMetrics: Map[String, OperatorMetrics]) extends ClientEvent
 

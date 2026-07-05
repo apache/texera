@@ -28,6 +28,10 @@ import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.storage.result._
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.tuple.{AttributeType, Tuple, TupleUtils}
+import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
+import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.tables.daos.OperatorPortExecutionsDao
+import org.apache.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -35,7 +39,11 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
-import org.apache.texera.amber.engine.architecture.coordinator.{ExecutionStateUpdate, FatalError}
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  ExecutionStateUpdate,
+  FatalError,
+  OperatorPortResultUriAvailable
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
@@ -65,6 +73,29 @@ import scala.concurrent.duration.DurationInt
 import scala.language.existentials
 
 object ExecutionResultService {
+
+  /**
+    * Callback body for `OperatorPortResultUriAvailable`: persist the URI to
+    * `operator_port_executions`. Lives on the companion (not the class) so
+    * tests and fixture-row writers can drive the same insert as the
+    * production callback without re-implementing the schema mapping.
+    *
+    * `executionId` comes from the caller rather than the event payload —
+    * the engine→web event is execution-scoped, so re-encoding the eid into
+    * the wire and decoding it on receipt would be redundant.
+    */
+  def persistOperatorPortResultUri(
+      executionId: ExecutionIdentity,
+      evt: OperatorPortResultUriAvailable
+  ): Unit = {
+    val pojo = new OperatorPortExecutions()
+    pojo.setWorkflowExecutionId(executionId.id.toInt)
+    pojo.setGlobalPortId(evt.globalPortId.serializeAsString)
+    pojo.setResultUri(evt.uri.toString)
+    new OperatorPortExecutionsDao(
+      SqlServer.getInstance().createDSLContext().configuration()
+    ).insert(pojo)
+  }
 
   private val defaultPageSize: Int = 5
   private val binaryPreviewLeadingBits: Int = 10
@@ -350,6 +381,19 @@ class ExecutionResultService(
         if (resultUpdateCancellable != null) {
           resultUpdateCancellable.cancel()
         }
+      )
+    )
+
+    // Must be registered before the workflow starts. The engine fires
+    // OperatorPortResultUriAvailable as soon as each port's storage doc
+    // is materialized; if no subscriber is attached at that point the
+    // URI is silently never persisted to operator_port_executions, which
+    // means the dashboard can later compute results just fine but can
+    // never look them up. Today the WS and sync REST entry points both
+    // call attachToExecution before startWorkflow — keep that ordering.
+    addSubscription(
+      client.registerCallback[OperatorPortResultUriAvailable](evt =>
+        ExecutionResultService.persistOperatorPortResultUri(executionId, evt)
       )
     )
 

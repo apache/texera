@@ -21,14 +21,16 @@ package org.apache.texera.amber.engine.architecture.coordinator.execution
 
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
   ExecutionIdentity,
   OperatorIdentity,
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import org.apache.texera.amber.core.workflow.PhysicalOp
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.architecture.scheduling.{Region, RegionIdentity}
+import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.scalatest.flatspec.AnyFlatSpec
 
 class WorkflowExecutionSpec extends AnyFlatSpec {
@@ -47,6 +49,26 @@ class WorkflowExecutionSpec extends AnyFlatSpec {
   /** A region with no ports — its `RegionExecution.getState` defaults to COMPLETED. */
   private def region(regionId: Long, opId: String): Region =
     Region(RegionIdentity(regionId), Set(op(opId)), Set.empty)
+
+  /**
+    * A region carrying a single (input) port on `opId`. Because a freshly created
+    * `WorkerPortExecution` stays `completed = false`, the region's
+    * `RegionExecution.getState` remains RUNNING (never short-circuits to COMPLETED),
+    * so its operators' states are actually inspected by `WorkflowExecution.getState`.
+    */
+  private def regionWithPort(regionId: Long, opId: String): Region =
+    Region(
+      RegionIdentity(regionId),
+      Set(op(opId)),
+      Set.empty,
+      ports = Set(
+        GlobalPortIdentity(
+          opId = physicalOpId(opId),
+          portId = PortIdentity(id = 0, internal = false),
+          input = true
+        )
+      )
+    )
 
   "WorkflowExecution.initRegionExecution" should "create a new RegionExecution for the given region" in {
     val we = WorkflowExecution()
@@ -141,6 +163,30 @@ class WorkflowExecutionSpec extends AnyFlatSpec {
 
     assert(we.getState == WorkflowAggregatedState.COMPLETED)
     assert(we.isCompleted)
+  }
+
+  it should "return PAUSED when the only running region's operators are all paused" in {
+    val we = WorkflowExecution()
+    val regionExecution = we.initRegionExecution(regionWithPort(0, "a"))
+
+    val operatorExecution = regionExecution.initOperatorExecution(physicalOpId("a"))
+    val workerExecution = operatorExecution.initWorkerExecution(ActorVirtualIdentity("w0"))
+    workerExecution.update(1L, WorkerState.PAUSED)
+
+    assert(we.getState == WorkflowAggregatedState.PAUSED)
+    assert(!we.isCompleted)
+  }
+
+  it should "return UNKNOWN when a running operator has mixed worker states" in {
+    val we = WorkflowExecution()
+    val regionExecution = we.initRegionExecution(regionWithPort(0, "a"))
+
+    val operatorExecution = regionExecution.initOperatorExecution(physicalOpId("a"))
+    operatorExecution.initWorkerExecution(ActorVirtualIdentity("w0")).update(1L, WorkerState.PAUSED)
+    operatorExecution.initWorkerExecution(ActorVirtualIdentity("w1")).update(1L, WorkerState.READY)
+
+    assert(we.getState == WorkflowAggregatedState.UNKNOWN)
+    assert(!we.isCompleted)
   }
 
   "WorkflowExecution.getLatestOperatorExecutionOption" should "return None when no operator execution exists for the id" in {
