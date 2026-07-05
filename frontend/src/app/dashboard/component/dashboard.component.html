@@ -211,6 +211,18 @@
           nzType="info-circle"></span>
         <span>About</span>
       </li>
+
+      <li
+        *ngIf="isLogin"
+        nz-menu-item
+        nz-tooltip
+        nzTooltipPlacement="right"
+        [routerLink]="USER_FEEDBACK">
+        <span
+          nz-icon
+          nzType="message"></span>
+        <span>Feedback</span>
+      </li>
     </ul>
     <span id="build-number">Build: {{ buildNumber }}</span>
     <span

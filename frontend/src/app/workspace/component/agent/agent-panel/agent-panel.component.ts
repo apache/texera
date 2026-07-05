@@ -36,7 +36,6 @@ import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NzTabsComponent, NzTabBarExtraContentDirective, NzTabComponent, NzTabDirective } from "ng-zorro-antd/tabs";
 import { AgentRegistrationComponent } from "./agent-registration/agent-registration.component";
 import { AgentChatComponent } from "./agent-chat/agent-chat.component";
-import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 @UntilDestroy()
 @Component({
@@ -65,7 +64,6 @@ import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/r
     NgFor,
     AgentChatComponent,
     NzResizeHandlesComponent,
-    FormlyRepeatDndComponent,
   ],
 })
 export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {

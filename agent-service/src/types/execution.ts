@@ -51,3 +51,22 @@ export interface SyncExecutionResult {
   compilationErrors?: Record<string, string>;
   errors?: string[];
 }
+
+/**
+ * Wire projection of one operator's execution result, summarized for the
+ * client: counts and a small record sample instead of full payloads. Returned
+ * by the REST route `GET /agents/:id/operator-results`.
+ */
+export interface OperatorResultSummary {
+  state: string;
+  inputTuples: number;
+  outputTuples: number;
+  inputPortShapes?: PortShape[];
+  outputColumns?: number;
+  error?: string;
+  warnings?: string[];
+  consoleLogCount?: number;
+  totalRowCount?: number;
+  sampleRecords?: Record<string, unknown>[];
+  resultStatistics?: Record<string, string>;
+}

@@ -39,7 +39,7 @@ ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-u",
 // sbt-jacoco emits only HTML by default; add XML so Codecov can consume
 // per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
 // JacocoPlugin defines a project-scoped default that overrides ThisBuild,
-// so this Seq is bundled into asfLicensingSettings (applied to every module).
+// so this Seq is folded into commonModuleSettings (applied to every module).
 import com.github.sbt.jacoco.report.{JacocoReportFormats, JacocoReportSettings}
 lazy val coverageReportSettings = Seq(
   jacocoReportSettings := JacocoReportSettings()
@@ -57,21 +57,28 @@ lazy val universalJvmFlagsSettings = Seq(
 // See project/AddMetaInfLicenseFiles.scala.
 // Dist-producing modules additionally override Universal / mappings in their own
 // build.sbt (not here) — see AddMetaInfLicenseFiles.distMappings.
-lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
-lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
+lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings
+lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings
+
+// Aggregate of the settings every module shares. These are independent
+// concerns — ASF licensing, jacoco XML coverage, and universal JVM flags —
+// grouped only so each module can apply them with a single .settings(...) call.
+lazy val commonModuleSettings = asfLicensingSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
+lazy val commonModuleSettingsWithVendored = asfLicensingSettingsWithVendored ++ coverageReportSettings ++ universalJvmFlagsSettings
 
 val jacksonVersion = "2.18.6"
 
-lazy val DAO = (project in file("common/dao")).settings(asfLicensingSettings)
-lazy val Config = (project in file("common/config")).settings(asfLicensingSettings)
+lazy val DAO = (project in file("common/dao")).settings(commonModuleSettings)
+lazy val Config = (project in file("common/config")).settings(commonModuleSettings)
+lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings)
 lazy val Auth = (project in file("common/auth"))
-  .settings(asfLicensingSettings)
+  .settings(commonModuleSettings)
   .configs(Test)
   .dependsOn(DAO, Config)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val ConfigService = (project in file("config-service"))
-  .dependsOn(Auth, Config)
-  .settings(asfLicensingSettings)
+  .dependsOn(Auth, Config, Resource)
+  .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -79,8 +86,8 @@ lazy val ConfigService = (project in file("config-service"))
     )
   )
 lazy val AccessControlService = (project in file("access-control-service"))
-  .dependsOn(Auth, Config, DAO)
-  .settings(asfLicensingSettings)
+  .dependsOn(Auth, Config, DAO, Resource)
+  .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -93,18 +100,18 @@ lazy val AccessControlService = (project in file("access-control-service"))
 //This Scala module defines a pyb"..." macro-based DSL for composing Python code templates as an immutable PythonTemplateBuilder.
 //Used mainly for Python Native Operators
 lazy val PyBuilder = (project in file("common/pybuilder"))
-  .settings(asfLicensingSettings)
+  .settings(commonModuleSettings)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 
 lazy val WorkflowCore = (project in file("common/workflow-core"))
-  .settings(asfLicensingSettings)
+  .settings(commonModuleSettings)
   .dependsOn(DAO, Config, PyBuilder)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
-  .dependsOn(WorkflowCore, Auth, Config)
-  .settings(asfLicensingSettings)
+  .dependsOn(WorkflowCore, Auth, Config, Resource)
+  .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -112,8 +119,8 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
     )
   )
 lazy val FileService = (project in file("file-service"))
-  .settings(asfLicensingSettings)
-  .dependsOn(WorkflowCore, Auth, Config)
+  .settings(commonModuleSettings)
+  .dependsOn(WorkflowCore, Auth, Config, Resource)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
   .settings(
@@ -122,13 +129,23 @@ lazy val FileService = (project in file("file-service"))
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
-    )
+    ),
+    // Each testcontainers-based suite starts its own LakeFS/MinIO/Postgres stack
+    // and mutates JVM-wide singletons (StorageConfig endpoints, LakeFS client),
+    // so every suite gets its own forked JVM; sbt runs forked groups one at a
+    // time by default (Tags.ForkedTestGroup limit), keeping the stacks serial.
+    Test / fork := true,
+    Test / forkOptions := (Test / forkOptions).value
+      .withWorkingDirectory((ThisBuild / baseDirectory).value),
+    Test / testGrouping := (Test / definedTests).value.map { suite =>
+      Tests.Group(suite.name, Seq(suite), Tests.SubProcess((Test / forkOptions).value))
+    }
   )
 
-lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
+lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(commonModuleSettingsWithVendored).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Auth, Config)
-  .settings(asfLicensingSettings)
+  .dependsOn(WorkflowOperator, Auth, Config, Resource)
+  .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -140,7 +157,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
 
 lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowOperator, Auth, Config)
-  .settings(asfLicensingSettings)
+  .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
@@ -169,6 +186,16 @@ lazy val WorkflowExecutionService = (project in file("amber"))
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
+lazy val NotebookMigrationService = (project in file("notebook-migration-service"))
+  .dependsOn(Auth, Config, DAO, Resource)
+  .settings(commonModuleSettings)
+  .settings(
+    dependencyOverrides ++= Seq(
+      // override it as io.dropwizard 4 require 2.16.1 or higher
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
+    )
+  )
+  .dependsOn(DAO % "test->test") // test scope dependency
 
 // root project definition
 lazy val TexeraProject = (project in file("."))
@@ -176,6 +203,7 @@ lazy val TexeraProject = (project in file("."))
     // common libraries
     Auth,
     Config,
+    Resource,
     DAO,
     PyBuilder,
     WorkflowCore,
@@ -186,7 +214,8 @@ lazy val TexeraProject = (project in file("."))
     ConfigService,
     FileService,
     WorkflowCompilingService,
-    WorkflowExecutionService
+    WorkflowExecutionService,
+    NotebookMigrationService
   )
   .settings(
     name := "texera",

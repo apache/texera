@@ -17,13 +17,10 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit, NgZone } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, NgZone, ViewChild } from "@angular/core";
 import { take } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
-import {
-  DashboardWorkflowComputingUnit,
-  WorkflowComputingUnitType,
-} from "../../../common/type/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
@@ -41,7 +38,6 @@ import {
   ComputingUnitMetadataComponent,
   parseResourceUnit,
   parseResourceNumber,
-  findNearestValidStep,
   unitTypeMessageTemplate,
   cpuResourceConversion,
   memoryResourceConversion,
@@ -53,11 +49,13 @@ import {
   getComputingUnitCpuStatus,
   getComputingUnitMemoryStatus,
   getComputingUnitCpuLimitUnit,
-  isComputingUnitShmTooLarge,
-  getJvmMemorySliderConfig,
 } from "../../../common/util/computing-unit.util";
-import { PvePackageResponse, WorkflowPveService } from "../../service/virtual-environment/virtual-environment.service";
-import { NgClass, NgIf, NgFor, DecimalPipe, TitleCasePipe } from "@angular/common";
+import {
+  PvePackageResponse,
+  UserPveRecord,
+  WorkflowPveService,
+} from "../../service/virtual-environment/virtual-environment.service";
+import { NgClass, NgIf, NgFor, DecimalPipe } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzProgressComponent } from "ng-zorro-antd/progress";
@@ -73,9 +71,8 @@ import { NzMenuDirective, NzMenuItemComponent, NzMenuDividerDirective } from "ng
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
-import { NzSliderComponent } from "ng-zorro-antd/slider";
-import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { ComputingUnitCreateModalComponent } from "../../../common/component/computing-unit-create-modal/computing-unit-create-modal.component";
 
 type PveUserPackageRow = {
   name: string;
@@ -126,20 +123,27 @@ type PveDraft = {
     NzSelectComponent,
     FormsModule,
     NzOptionComponent,
-    NzSliderComponent,
-    NzAlertComponent,
     NzModalContentDirective,
     NzCollapseComponent,
     NzCollapsePanelComponent,
     DecimalPipe,
-    TitleCasePipe,
+    ComputingUnitCreateModalComponent,
   ],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
   // variables for creating a virtual environment
   pves: PveDraft[] = [];
   systemPackages: { name: string; version: string }[] = [];
+  // True while a /pve/system response is in flight. The server resolves
+  // the full pinned set with a `pip freeze` against a throwaway venv,
+  // which can take 30–60s on the first request after a server restart.
+  systemPackagesLoading = false;
   pveModalVisible = false;
+
+  // Saved PVE specs (name + packages) the user defined in the Python Venv
+  // dashboard. Fetched whenever the CU PVE modal opens so the user can pick
+  // one and have its packages installed into the active CU.
+  availableDbPves: UserPveRecord[] = [];
 
   // current workflow's Id, will change with wid in the workflowActionService.metadata
   protected readonly unitTypeMessageTemplate = unitTypeMessageTemplate;
@@ -149,35 +153,21 @@ export class ComputingUnitSelectionComponent implements OnInit {
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   allComputingUnits: DashboardWorkflowComputingUnit[] = [];
 
-  // variables for creating a computing unit
+  // visibility of the shared create-computing-unit modal
   addComputeUnitModalVisible = false;
-  newComputingUnitName: string = "";
-  selectedMemory: string = "";
-  selectedCpu: string = "";
-  selectedGpu: string = "0"; // Default to no GPU
-  selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
-  selectedComputingUnitType?: WorkflowComputingUnitType; // Selected computing unit type
-  selectedShmSize: string = "64Mi"; // Shared memory size
-  shmSizeValue: number = 64; // default to 64
-  shmSizeUnit: "Mi" | "Gi" = "Mi"; // default unit
-  availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
-  localComputingUnitUri: string = ""; // URI for local computing unit
+
+  @ViewChild(ComputingUnitCreateModalComponent)
+  private computingUnitCreateModal?: ComputingUnitCreateModalComponent;
 
   // variables for renaming a computing unit
   editingNameOfUnit: number | null = null;
   editingUnitName: string = "";
 
-  // JVM memory slider configuration
-  jvmMemorySliderValue: number = 1; // Initial value in GB
-  jvmMemoryMarks: { [key: number]: string } = { 1: "1G" };
-  jvmMemoryMax: number = 1;
-  jvmMemorySteps: number[] = [1]; // Available steps in binary progression (1,2,4,8...)
-  showJvmMemorySlider: boolean = false; // Whether to show the slider
-
-  // cpu&memory limit options from backend
-  cpuOptions: string[] = [];
-  memoryOptions: string[] = [];
-  gpuOptions: string[] = []; // Add GPU options array
+  // GPU limit options, used by the metrics popover's GPU row via showGpuSelection()
+  gpuOptions: string[] = [];
+  // True when the limit-options fetch failed; showGpuSelection() then falls back
+  // to permissive so the metrics popover doesn't silently hide the GPU row.
+  private gpuOptionsFetchFailed = false;
 
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
@@ -194,45 +184,22 @@ export class ComputingUnitSelectionComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Fetch available computing unit types
-    this.localComputingUnitUri = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ""}/wsapi`;
-    this.newComputingUnitName = "My Computing Unit";
-    this.computingUnitService
-      .getComputingUnitTypes()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: ({ typeOptions }) => {
-          this.availableComputingUnitTypes = typeOptions;
-          // Set default selected type if available
-          if (typeOptions.includes("kubernetes")) {
-            this.selectedComputingUnitType = "kubernetes";
-          } else if (typeOptions.length > 0) {
-            this.selectedComputingUnitType = typeOptions[0];
-          }
-        },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to fetch computing unit types: ${extractErrorMessage(err)}`),
-      });
-
+    // GPU options drive the GPU row in the metrics popover. The shared
+    // create modal fetches these options itself and owns the user-facing
+    // error toast for this endpoint, so on failure this only logs and falls
+    // back to showing GPU metrics based on the unit's own allocation.
     this.computingUnitService
       .getComputingUnitLimitOptions()
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: ({ cpuLimitOptions, memoryLimitOptions, gpuLimitOptions }) => {
-          this.cpuOptions = cpuLimitOptions;
-          this.memoryOptions = memoryLimitOptions;
+        next: ({ gpuLimitOptions }) => {
           this.gpuOptions = gpuLimitOptions;
-
-          // fallback defaults
-          this.selectedCpu = this.cpuOptions[0] ?? "1";
-          this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
-          this.selectedGpu = this.gpuOptions[0] ?? "0";
-
-          // Initialize JVM memory slider based on selected memory
-          this.updateJvmMemorySlider();
+          this.gpuOptionsFetchFailed = false;
         },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
+        error: (err: unknown) => {
+          this.gpuOptionsFetchFailed = true;
+          console.error("Failed to fetch computing unit limit options for the GPU metric row", err);
+        },
       });
 
     // Subscribe to the current selected unit from the status service
@@ -371,68 +338,25 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   // Determines if the GPU selection dropdown should be shown
   showGpuSelection(): boolean {
+    // If the options fetch failed, err on the side of showing the GPU row —
+    // the metrics template additionally requires the unit's own GPU limit to
+    // be non-zero, so this cannot show a GPU row for a GPU-less unit.
+    if (this.gpuOptionsFetchFailed) {
+      return true;
+    }
     // Don't show GPU selection if there are no options or only "0" option
     return this.gpuOptions.length > 1 || (this.gpuOptions.length === 1 && this.gpuOptions[0] !== "0");
   }
 
-  showAddComputeUnitModalVisible(): void {
+  showAddComputeUnitModalVisible(defaultName?: string): void {
+    if (defaultName !== undefined && this.computingUnitCreateModal) {
+      this.computingUnitCreateModal.newComputingUnitName = defaultName;
+    }
     this.addComputeUnitModalVisible = true;
   }
 
-  handleAddComputeUnitModalOk(): void {
-    this.startComputingUnit();
-    this.addComputeUnitModalVisible = false;
-  }
-
-  handleAddComputeUnitModalCancel(): void {
-    this.addComputeUnitModalVisible = false;
-  }
-
-  isShmTooLarge(): boolean {
-    return isComputingUnitShmTooLarge(this.selectedMemory, this.shmSizeValue, this.shmSizeUnit);
-  }
-
-  /**
-   * Start a new computing unit.
-   */
-  startComputingUnit(): void {
-    if (this.selectedComputingUnitType === "kubernetes" && this.newComputingUnitName.trim() === "") {
-      this.notificationService.error("Name of the computing unit cannot be empty");
-      return;
-    }
-
-    if (this.selectedComputingUnitType === "local" && this.localComputingUnitUri.trim() === "") {
-      this.notificationService.error("URI for local computing unit cannot be empty");
-      return;
-    }
-
-    if (!this.selectedComputingUnitType) {
-      this.notificationService.error("Please select a valid computing unit type");
-      return;
-    }
-
-    const request = {
-      type: this.selectedComputingUnitType,
-      name: this.newComputingUnitName,
-      cpu: this.selectedCpu,
-      memory: this.selectedMemory,
-      gpu: this.selectedGpu,
-      jvmMemorySize: this.selectedJvmMemorySize,
-      shmSize: `${this.shmSizeValue}${this.shmSizeUnit}`,
-      localUri: this.localComputingUnitUri,
-    };
-
-    this.computingUnitActionsService
-      .create(request)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: (unit: DashboardWorkflowComputingUnit) => {
-          this.notificationService.success("Successfully created the new compute unit");
-          this.selectComputingUnit(this.workflowId, unit.computingUnit.cuid);
-        },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to start computing unit: ${extractErrorMessage(err)}`),
-      });
+  onComputingUnitCreated(unit: DashboardWorkflowComputingUnit): void {
+    this.selectComputingUnit(this.workflowId, unit.computingUnit.cuid);
   }
 
   openComputingUnitMetadataModal(unit: DashboardWorkflowComputingUnit) {
@@ -656,68 +580,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     return getComputingUnitStatusTooltip(unit);
   }
 
-  // Called when the component initializes
-  updateJvmMemorySlider(): void {
-    this.resetJvmMemorySlider();
-  }
-
-  onJvmMemorySliderChange(value: number): void {
-    // Ensure the value is one of the valid steps
-    const validStep = findNearestValidStep(value, this.jvmMemorySteps);
-    this.jvmMemorySliderValue = validStep;
-    this.selectedJvmMemorySize = `${validStep}G`;
-  }
-
-  // Check if the maximum JVM memory value is selected
-  isMaxJvmMemorySelected(): boolean {
-    // Only show warning for larger memory sizes (>=4GB) where the slider is shown
-    // AND when the maximum value is selected
-    return this.showJvmMemorySlider && this.jvmMemorySliderValue === this.jvmMemoryMax && this.jvmMemoryMax >= 4;
-  }
-
-  // Completely reset the JVM memory slider based on the selected CU memory
-  resetJvmMemorySlider(): void {
-    const config = getJvmMemorySliderConfig(this.selectedMemory);
-
-    this.jvmMemoryMax = config.jvmMemoryMax;
-    this.showJvmMemorySlider = config.showJvmMemorySlider;
-    this.jvmMemorySteps = config.jvmMemorySteps;
-    this.jvmMemoryMarks = config.jvmMemoryMarks;
-    this.jvmMemorySliderValue = config.jvmMemorySliderValue;
-    this.selectedJvmMemorySize = config.selectedJvmMemorySize;
-  }
-
-  // Listen for memory selection changes
-  onMemorySelectionChange(): void {
-    // Store current JVM memory value for potential reuse
-    const previousJvmMemory = this.jvmMemorySliderValue;
-
-    // Reset slider configuration based on the new memory selection
-    this.resetJvmMemorySlider();
-
-    // For CU memory > 3GB, preserve previous value if valid and >= 2GB
-    // Get the current memory in GB
-    const memoryValue = parseResourceNumber(this.selectedMemory);
-    const memoryUnit = parseResourceUnit(this.selectedMemory);
-    let cuMemoryInGb = memoryUnit === "Gi" ? memoryValue : memoryUnit === "Mi" ? Math.floor(memoryValue / 1024) : 1;
-
-    // Only try to preserve previous value for larger memory sizes where slider is shown
-    if (
-      cuMemoryInGb > 3 &&
-      previousJvmMemory >= 2 &&
-      previousJvmMemory <= this.jvmMemoryMax &&
-      this.jvmMemorySteps.includes(previousJvmMemory)
-    ) {
-      this.jvmMemorySliderValue = previousJvmMemory;
-      this.selectedJvmMemorySize = `${previousJvmMemory}G`;
-    }
-  }
-
-  getCreateModalTitle(): string {
-    if (!this.selectedComputingUnitType) return "Create Computing Unit";
-    return unitTypeMessageTemplate[this.selectedComputingUnitType].createTitle;
-  }
-
   public async onClickOpenShareAccess(cuid: number): Promise<void> {
     this.computingUnitActionsService.openShareAccessModal(cuid, true);
   }
@@ -751,11 +613,60 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
-  addEnvironment(): void {
+  showPVEmodalVisible(): void {
+    this.pveModalVisible = true;
+    this.getPVEs();
+    this.refreshAvailableDbPves();
+  }
+
+  isSavedPveInstalledInCu(name: string): boolean {
+    const trimmed = name.trim();
+    return this.pves.some(p => p.isLocked && p.name.trim() === trimmed);
+  }
+
+  /**
+   * Whether the per-environment "OK" (create/install) button should be
+   * disabled: true until the environment name has non-whitespace content.
+   */
+  isCreateDisabled(pve: PveDraft): boolean {
+    return !pve.name.trim();
+  }
+
+  private refreshAvailableDbPves(): void {
+    this.workflowPveService
+      .listUserPves()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: records => {
+          this.availableDbPves = records;
+        },
+        error: (err: unknown) => {
+          console.error("Failed to fetch saved Python environments", err);
+          this.availableDbPves = [];
+        },
+      });
+  }
+
+  // Triggered when the user picks a saved PVE in the picker. Builds a new
+  // env card from its name + packages and starts CU install flow
+  // (createVirtualEnvironment), so pip output streams into the same panel.
+  installFromSavedPve(veid: number): void {
+    const saved = this.availableDbPves.find(p => p.veid === veid);
+    if (!saved) return;
+
+    const trimmedName = saved.name.trim();
+    const dbRows = this.parseDbPackages(saved.packages);
+
+    const existingIndex = this.pves.findIndex(p => p.isLocked && p.name.trim() === trimmedName);
+    if (existingIndex !== -1) {
+      this.applySavedPveAsUpdate(existingIndex, saved.name, dbRows);
+      return;
+    }
+
     this.pves.push({
-      name: "",
+      name: saved.name,
       userPackages: [],
-      newPackages: [],
+      newPackages: dbRows,
       deletingPackages: [],
       pipOutput: "",
       prettyPipOutput: "",
@@ -763,11 +674,62 @@ export class ComputingUnitSelectionComponent implements OnInit {
       isInstalling: false,
       isLocked: false,
     });
+
+    const newIndex = this.pves.length - 1;
+
+    setTimeout(() => this.createVirtualEnvironment(newIndex), 0);
   }
 
-  showPVEmodalVisible(): void {
-    this.pveModalVisible = true;
-    this.getPVEs();
+  private parseDbPackages(packages: Record<string, string> | null | undefined): PveUserPackageRow[] {
+    return Object.entries(packages ?? {}).map(([name, raw]) => {
+      const match = raw?.match?.(/^(==|>=|<=)(.*)$/);
+      return {
+        name,
+        versionOp: (match ? match[1] : "==") as "==" | ">=" | "<=",
+        version: match ? match[2] : raw ?? "",
+      };
+    });
+  }
+
+  // Computes the diff between the saved DB record and the locked card's
+  // current user packages, then triggers the existing update path
+  private applySavedPveAsUpdate(index: number, displayName: string, dbRows: PveUserPackageRow[]): void {
+    const existing = this.pves[index];
+
+    const dbByName = new Map(dbRows.map(p => [p.name.trim().toLowerCase(), p]));
+    const existingByName = new Map(existing.userPackages.map(p => [p.name.trim().toLowerCase(), p]));
+
+    const toInstall: PveUserPackageRow[] = [];
+    const toDelete: { name: string; version: string }[] = [];
+
+    dbByName.forEach((db, key) => {
+      const cur = existingByName.get(key);
+      if (!cur) {
+        toInstall.push({ name: db.name, versionOp: db.versionOp, version: db.version });
+      } else if ((cur.version ?? "").trim() !== (db.version ?? "").trim()) {
+        toDelete.push({ name: cur.name, version: (cur.version ?? "").trim() });
+        toInstall.push({ name: db.name, versionOp: db.versionOp, version: db.version });
+      }
+    });
+
+    existingByName.forEach((cur, key) => {
+      if (!dbByName.has(key)) {
+        toDelete.push({ name: cur.name, version: (cur.version ?? "").trim() });
+      }
+    });
+
+    if (toInstall.length === 0 && toDelete.length === 0) {
+      this.notificationService.success(`"${displayName}" is already up to date in this computing unit.`);
+      return;
+    }
+
+    const deletingKeys = new Set(toDelete.map(p => p.name.trim().toLowerCase()));
+    existing.userPackages = existing.userPackages.filter(p => !deletingKeys.has(p.name.trim().toLowerCase()));
+    existing.newPackages = toInstall;
+    existing.deletingPackages = toDelete;
+    existing.expanded = true;
+
+    setTimeout(() => this.createVirtualEnvironment(index), 0);
   }
 
   closePveModal(): void {
@@ -777,11 +739,13 @@ export class ComputingUnitSelectionComponent implements OnInit {
       pve.isInstalling = false;
     });
 
+    this.availableDbPves = [];
     this.pveModalVisible = false;
   }
 
   getPVEs(): void {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
+    this.systemPackagesLoading = true;
 
     this.workflowPveService
       .fetchPVEs(cuId)
@@ -812,10 +776,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
                     version: (version ?? "").trim(),
                   };
                 });
+                this.systemPackagesLoading = false;
               },
               error: (err: unknown) => {
                 console.error("Failed to fetch system packages:", err);
                 this.systemPackages = [];
+                this.systemPackagesLoading = false;
               },
             });
         },
@@ -823,6 +789,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           console.error("Failed to fetch PVEs:", err);
           this.pves = [];
           this.systemPackages = [];
+          this.systemPackagesLoading = false;
         },
       });
   }

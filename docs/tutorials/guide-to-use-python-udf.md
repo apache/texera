@@ -137,7 +137,7 @@ class GenerateOperator(UDFSourceOperator):
 
 This `produce()` API returns an iterator of `TupleLike`, `TableLike`, or simply `None`. 
 
-See [Generator Operator](https://github.com/Texera/texera/blob/master/core/amber/src/main/python/pytexera/udf/examples/generator_operator.py) for an example of 1-out UDF.
+See [Generator Operator](https://github.com/apache/texera/blob/main/amber/src/main/python/pytexera/udf/examples/generator_operator_integer.py) for an example of 1-out UDF.
 
 
 #### 2-in UDF

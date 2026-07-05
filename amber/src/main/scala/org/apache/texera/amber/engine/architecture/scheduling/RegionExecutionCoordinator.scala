@@ -64,6 +64,15 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration.{Duration => ScalaDuration}
 
+object RegionExecutionCoordinator {
+
+  // Max EndWorker retries before termination fails. ~30s at DefaultKillRetryDelay (200ms).
+  private[scheduling] val DefaultMaxTerminationAttempts: Int = 150
+
+  private[scheduling] val DefaultKillRetryDelay: TwitterDuration =
+    TwitterDuration.fromMilliseconds(200)
+}
+
 /**
   * The executor of a region.
   *
@@ -97,7 +106,9 @@ class RegionExecutionCoordinator(
     asyncRPCClient: AsyncRPCClient,
     controllerConfig: ControllerConfig,
     actorService: PekkoActorService,
-    actorRefService: PekkoActorRefMappingService
+    actorRefService: PekkoActorRefMappingService,
+    maxTerminationAttempts: Int = RegionExecutionCoordinator.DefaultMaxTerminationAttempts,
+    killRetryDelay: TwitterDuration = RegionExecutionCoordinator.DefaultKillRetryDelay
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -113,7 +124,6 @@ class RegionExecutionCoordinator(
   )
   private val terminationFutureRef: AtomicReference[Future[Unit]] = new AtomicReference(null)
   private val killRetryTimer: Timer = new JavaTimer(true)
-  private val killRetryDelay: TwitterDuration = TwitterDuration.fromMilliseconds(200)
 
   /**
     * Sync the status of `RegionExecution` and transition this coordinator's phase to `Completed` only when the
@@ -216,9 +226,27 @@ class RegionExecutionCoordinator(
       attempt: Int = 1
   ): Future[Unit] = {
     terminateWorkers(regionExecution).rescue {
+      case err if attempt >= maxTerminationAttempts =>
+        val workerIds = regionExecution.getAllOperatorExecutions.flatMap {
+          case (_, opExec) => opExec.getWorkerIds
+        }.toSeq
+        val attemptsLabel = if (attempt == 1) "1 attempt" else s"$attempt attempts"
+        logger.error(
+          s"Region ${region.id.id} could not be terminated after $attemptsLabel; giving up. " +
+            s"Workers still not terminated: ${workerIds.mkString(", ")}.",
+          err
+        )
+        Future.exception(
+          new IllegalStateException(
+            s"Region ${region.id.id} could not be terminated after $attemptsLabel " +
+              s"(workers still not terminated: ${workerIds.mkString(", ")}).",
+            err
+          )
+        )
       case err =>
         logger.warn(
-          s"Failed to terminate region ${region.id.id} on attempt $attempt. Retrying in ${killRetryDelay.inMilliseconds} ms.",
+          s"Failed to terminate region ${region.id.id} on attempt $attempt of $maxTerminationAttempts. " +
+            s"Retrying in ${killRetryDelay.inMilliseconds} ms.",
           err
         )
         Future
@@ -572,10 +600,20 @@ class RegionExecutionCoordinator(
         val portBaseURI = portConfig.storageURIBase
         val resultURI = VFSURIFactory.resultURI(portBaseURI)
         val stateURI = VFSURIFactory.stateURI(portBaseURI)
-        val schemaOptional =
-          region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
         val schema =
-          schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
+          region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3 match {
+            case Right(resolvedSchema) => resolvedSchema
+            case Left(cause)           =>
+              // The output port schema failed to resolve (e.g. a dataset the workflow reads is not
+              // shared with the running user, making its file and inferred schema unavailable).
+              // Surface the underlying cause instead of a generic "Schema is missing" (issue #3546).
+              val reason = Option(cause.getMessage).getOrElse(cause.toString)
+              logger.error(s"Output schema unavailable for port $outputPortId", cause)
+              throw new IllegalStateException(
+                s"Failed to resolve the output schema: $reason",
+                cause
+              )
+          }
         // An output port whose storage accumulates across region re-executions
         // (e.g. a LoopEnd port, whose output builds up over the iterations of
         // its own loop) sets `reuseStorage`. When set, the port's existing
