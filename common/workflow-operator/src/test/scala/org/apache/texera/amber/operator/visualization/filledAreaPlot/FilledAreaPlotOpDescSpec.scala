@@ -19,6 +19,9 @@
 
 package org.apache.texera.amber.operator.visualization.filledAreaPlot
 
+import org.apache.texera.amber.core.tuple.AttributeType
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -103,5 +106,49 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     plain should include("area_x")
     plain should include("area_y")
     plain should include("px.area")
+  }
+
+  "FilledAreaPlotOpDesc.getOutputSchemas" should
+    "return a single html-content STRING column" in {
+    val out = opDesc.getOutputSchemas(Map.empty)
+    out should have size 1
+    val schema = out.values.head
+    schema.getAttributeNames should contain("html-content")
+    schema.getAttribute("html-content").getType shouldBe AttributeType.STRING
+  }
+
+  "FilledAreaPlotOpDesc.createPlotlyFigure" should
+    "emit the optional plotly args when color, facet, line group, and pattern are set" in {
+    opDesc.x = "area_x"
+    opDesc.y = "area_y"
+    opDesc.color = "c"
+    opDesc.facetColumn = true
+    opDesc.lineGroup = "grp"
+    opDesc.pattern = "p"
+    val plain = opDesc.createPlotlyFigure().plain
+    plain should include("px.area")
+    plain should include("color=")
+    plain should include("facet_col=")
+    plain should include("line_group=")
+    plain should include("pattern_shape=")
+  }
+
+  "FilledAreaPlotOpDesc" should "round-trip its config fields through the polymorphic base" in {
+    opDesc.x = "area_x"
+    opDesc.y = "area_y"
+    opDesc.lineGroup = "grp"
+    opDesc.color = "c"
+    opDesc.facetColumn = true
+    opDesc.pattern = "p"
+    val restored =
+      objectMapper.readValue(objectMapper.writeValueAsString(opDesc), classOf[LogicalOp])
+    restored shouldBe a[FilledAreaPlotOpDesc]
+    val fp = restored.asInstanceOf[FilledAreaPlotOpDesc]
+    fp.x shouldBe "area_x"
+    fp.y shouldBe "area_y"
+    fp.lineGroup shouldBe "grp"
+    fp.color shouldBe "c"
+    fp.facetColumn shouldBe true
+    fp.pattern shouldBe "p"
   }
 }
