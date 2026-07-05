@@ -24,21 +24,14 @@ import org.scalatest.matchers.should.Matchers
 
 class ObjectMapperUtilsSpec extends AnyFlatSpec with Matchers {
 
-  private def findWarmupThread(): Option[Thread] = {
-    val threads = new Array[Thread](Thread.activeCount() * 2 + 16)
-    val count = Thread.enumerate(threads)
-    threads.take(count).find(t => t != null && t.getName == "ObjectMapperWarmupForOperatorsThread")
-  }
-
   "warmupObjectMapperForOperatorsSerde" should "spawn the named warmup thread and complete" in {
-    noException should be thrownBy ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
-    // the warmup runs a full operator-metadata scan (seconds), so the thread is observable
-    // right after start(); assert it was actually spawned, then join so its body runs
-    val thread = findWarmupThread()
-    thread shouldBe defined
-    thread.foreach { t =>
-      t.join(60000)
-      t.isAlive shouldBe false
-    }
+    // The method returns the started thread, so we can observe and join it deterministically
+    // instead of racing to find it via Thread.enumerate().
+    val thread = ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
+    thread.getName shouldBe "ObjectMapperWarmupForOperatorsThread"
+    // The warmup runs a full operator-metadata scan (~4-5s cold), so a 1-3s bound would
+    // false-fail; 20s still surfaces a genuine hang far faster than the previous 60s.
+    thread.join(20000)
+    thread.isAlive shouldBe false
   }
 }
