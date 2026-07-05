@@ -23,8 +23,9 @@ import org.apache.texera.amber.core.executor.OperatorExecutor
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import org.apache.texera.amber.core.virtualidentity._
-import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.core.workflow.{PhysicalLink, PortIdentity}
 import org.apache.texera.amber.core.workflow.WorkflowContext.DEFAULT_WORKFLOW_ID
+import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import org.apache.texera.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
 import org.apache.texera.amber.engine.architecture.messaginglayer.WorkerTimerService
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
@@ -251,7 +252,13 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     val dp = mkDataProcessor
     dp.executor = executor
     dp.stateManager.transitTo(READY)
-    (outputHandler.apply _).expects(*).anyNumberOfTimes()
+    val emitted = scala.collection.mutable.ArrayBuffer[WorkflowFIFOMessage]()
+    (outputHandler.apply _)
+      .expects(*)
+      .onCall { (m: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]) =>
+        m.foreach(emitted += _); ()
+      }
+      .anyNumberOfTimes()
     val inputState = State(Map("field1" -> 1))
     (
         (
@@ -266,19 +273,30 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
     dp.outputManager.addPort(outputPortId, schema, None)
-    noException should be thrownBy {
-      dp.processDataPayload(
-        ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
-        StateFrame(inputState)
-      )
-    }
+    // A downstream partitioner makes emitState observable: the produced state is sent
+    // downstream as a StateFrame, captured via the output handler.
+    dp.outputManager.addPartitionerWithPartitioning(
+      PhysicalLink(testOpId, outputPortId, upstreamOpId, inputPortId),
+      OneToOnePartitioning(1, Seq(ChannelIdentity(testWorkerId, senderWorkerId, isControl = false)))
+    )
+    dp.processDataPayload(
+      ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+      StateFrame(inputState)
+    )
+    assert(emitted.exists(_.payload.isInstanceOf[StateFrame]))
   }
 
   "data processor" should "not emit when processState yields None" in {
     val dp = mkDataProcessor
     dp.executor = executor
     dp.stateManager.transitTo(READY)
-    (outputHandler.apply _).expects(*).anyNumberOfTimes()
+    val emitted = scala.collection.mutable.ArrayBuffer[WorkflowFIFOMessage]()
+    (outputHandler.apply _)
+      .expects(*)
+      .onCall { (m: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]) =>
+        m.foreach(emitted += _); ()
+      }
+      .anyNumberOfTimes()
     val inputState = State(Map("field1" -> 2))
     (
         (
@@ -293,12 +311,17 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
     dp.outputManager.addPort(outputPortId, schema, None)
-    noException should be thrownBy {
-      dp.processDataPayload(
-        ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
-        StateFrame(inputState)
-      )
-    }
+    // Same downstream partitioner as the emit test; because processState returns None,
+    // no StateFrame must be emitted.
+    dp.outputManager.addPartitionerWithPartitioning(
+      PhysicalLink(testOpId, outputPortId, upstreamOpId, inputPortId),
+      OneToOnePartitioning(1, Seq(ChannelIdentity(testWorkerId, senderWorkerId, isControl = false)))
+    )
+    dp.processDataPayload(
+      ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+      StateFrame(inputState)
+    )
+    assert(!emitted.exists(_.payload.isInstanceOf[StateFrame]))
   }
 
   "data processor" should "handle an exception thrown while processing a state frame" in {
@@ -326,6 +349,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
         StateFrame(inputState)
       )
     }
+    // handleExecutorException must engage an operator-logic pause.
+    dp.pauseManager.isPaused shouldBe true
   }
 
   "data processor" should "handle an exception thrown while processing an input tuple" in {
@@ -353,6 +378,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
         DataFrame(Array(tuples.head))
       )
     }
+    // handleExecutorException must engage an operator-logic pause.
+    dp.pauseManager.isPaused shouldBe true
   }
 
   "data processor" should "handle an exception thrown while advancing the output iterator" in {
@@ -379,6 +406,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     noException should be thrownBy {
       dp.continueDataProcessing()
     }
+    // handleExecutorException must pause the operator and reset the output iterator to empty.
+    dp.pauseManager.isPaused shouldBe true
+    dp.outputManager.hasUnfinishedOutput shouldBe false
   }
 
 }
