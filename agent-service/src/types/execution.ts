@@ -127,6 +127,6 @@ export interface WorkflowExecutionSummary {
   state: WorkflowExecutionState;
   operators: Record<string, OperatorExecutionSummary>;
   // Workflow-level errors (timeouts, init/compile failures, fatal errors);
-  // empty means none.
-  errors: string[];
+  // empty means none. For workflow-level failures, operatorId/workerId are empty.
+  errors: WorkflowFatalError[];
 }

@@ -328,14 +328,14 @@ async function executeWorkflowHttp(
       success: false,
       state: WorkflowExecutionState.ERROR,
       operators: {},
-      errors: [error instanceof Error ? error.message : "Unknown error"],
+      errors: [makeExecutionFailure(error instanceof Error ? error.message : "Unknown error", "")],
     };
   }
 }
 
 function formatExecutionError(
   operatorErrors?: Array<{ operatorId: string; error: string }>,
-  generalErrors?: string[],
+  generalErrors?: WorkflowFatalError[],
   generalErrorsLabel: string = "Error:"
 ): string {
   const lines: string[] = ["Execution failed due to the following error:"];
@@ -350,7 +350,7 @@ function formatExecutionError(
   if (generalErrors && generalErrors.length > 0) {
     lines.push(generalErrorsLabel);
     for (const error of generalErrors) {
-      lines.push(`  ${error}`);
+      lines.push(`  ${error.message}`);
     }
   }
 
@@ -415,7 +415,9 @@ export async function executeOperatorAndFormat(
         .filter(({ error }) => error);
 
       const generalErrors =
-        result.state === WorkflowExecutionState.KILLED ? ["Workflow execution was killed (timeout)."] : result.errors;
+        result.state === WorkflowExecutionState.KILLED
+          ? [makeExecutionFailure("Workflow execution was killed (timeout).", "")]
+          : result.errors;
 
       const generalErrorsLabel =
         result.state === WorkflowExecutionState.COMPILATION_FAILED ? "Compilation error:" : "Error:";
@@ -437,7 +439,9 @@ export async function executeOperatorAndFormat(
 
     const opInfo = result.operators[operatorId];
     if (!opInfo) {
-      return createErrorResult(formatExecutionError(undefined, [`No result found for operator: ${operatorId}`]));
+      return createErrorResult(
+        formatExecutionError(undefined, [makeExecutionFailure(`No result found for operator: ${operatorId}`, "")])
+      );
     }
 
     const opError = getOperatorErrorText(opInfo);

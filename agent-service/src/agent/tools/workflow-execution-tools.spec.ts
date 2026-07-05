@@ -342,7 +342,7 @@ describe("executeOperatorAndFormat - execution failures", () => {
       success: false,
       state: WorkflowExecutionState.COMPILATION_FAILED,
       operators: {},
-      errors: ["schema mismatch on port 0"],
+      errors: [makeFatal("schema mismatch on port 0")],
     };
     setFetchResolving(jsonResponse(summary));
 
