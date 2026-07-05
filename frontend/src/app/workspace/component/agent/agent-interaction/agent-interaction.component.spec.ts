@@ -42,7 +42,7 @@ describe("AgentInteractionComponent", () => {
   } as unknown as AgentService;
 
   function row(rowIndex: number, tuple: Record<string, any>): SampleRow {
-    return { rowIndex, tuple };
+    return { rowIndex, row: tuple };
   }
 
   beforeEach(async () => {
@@ -197,8 +197,8 @@ describe("AgentInteractionComponent", () => {
 
       expect(rows.length).toBe(3);
       expect(rows[1].isEllipsis).toBe(true);
-      expect(rows[1].row).toBeUndefined();
-      expect(rows[2].row?.rowIndex).toBe(5);
+      expect(rows[1].sampleRow).toBeUndefined();
+      expect(rows[2].sampleRow?.rowIndex).toBe(5);
     });
   });
 });

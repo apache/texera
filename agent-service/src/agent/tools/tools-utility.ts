@@ -36,14 +36,14 @@ export function getVisibleResultHeaders(row: Record<string, any>): string[] {
 export function formatSampleRowsAsTsv(rows: SampleRow[]): string {
   if (!rows || rows.length === 0) return "";
 
-  const headers = getVisibleResultHeaders(rows[0].tuple);
+  const headers = getVisibleResultHeaders(rows[0].row);
   if (headers.length === 0) return "";
 
   const headerLine = "\t" + headers.join("\t");
   const formattedRows: string[] = [];
   let prevIndex = -1;
 
-  for (const { rowIndex, tuple } of rows) {
+  for (const { rowIndex, row } of rows) {
     if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
       const dots = headers.map(() => "...").join("\t");
       formattedRows.push(`...\t${dots}`);
@@ -51,7 +51,7 @@ export function formatSampleRowsAsTsv(rows: SampleRow[]): string {
     prevIndex = rowIndex;
 
     const cells = headers.map(h => {
-      const val = tuple[h];
+      const val = row[h];
       if (val === null) return "NaN";
       if (val === undefined) return "";
       if (typeof val === "number" || typeof val === "boolean") return String(val);

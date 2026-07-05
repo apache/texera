@@ -105,7 +105,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["sampleTuples"] || changes["resultMode"]) {
       // Only update cached visualization HTML when the actual content changes
-      const htmlContent = this.sampleTuples?.[0]?.tuple["html-content"];
+      const htmlContent = this.sampleTuples?.[0]?.row["html-content"];
       const newHtml = typeof htmlContent === "string" ? htmlContent : null;
       if (newHtml !== this.cachedVisualizationRawHtml) {
         this.cachedVisualizationRawHtml = newHtml;
@@ -193,7 +193,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
    */
   public getSampleColumns(): string[] {
     if (!this.sampleTuples || this.sampleTuples.length === 0) return [];
-    return Object.keys(this.sampleTuples[0].tuple);
+    return Object.keys(this.sampleTuples[0].row);
   }
 
   /**
@@ -203,10 +203,10 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
     return col;
   }
 
-  public getDisplayRows(): Array<{ row?: SampleRow; isEllipsis: boolean }> {
+  public getDisplayRows(): Array<{ sampleRow?: SampleRow; isEllipsis: boolean }> {
     if (!this.sampleTuples || this.sampleTuples.length === 0) return [];
 
-    const rows: Array<{ row?: SampleRow; isEllipsis: boolean }> = [];
+    const rows: Array<{ sampleRow?: SampleRow; isEllipsis: boolean }> = [];
     for (let i = 0; i < this.sampleTuples.length; i++) {
       if (i > 0) {
         const prevIdx = this.sampleTuples[i - 1].rowIndex;
@@ -215,7 +215,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
           rows.push({ isEllipsis: true });
         }
       }
-      rows.push({ row: this.sampleTuples[i], isEllipsis: false });
+      rows.push({ sampleRow: this.sampleTuples[i], isEllipsis: false });
     }
     return rows;
   }
