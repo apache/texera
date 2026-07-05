@@ -65,10 +65,11 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowVersion,
   Workflow => WorkflowPojo
 }
-import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
+import org.apache.texera.common.compiler.model.LogicalPlanPojo
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import org.apache.texera.web.service.ExecutionResultService
-import org.apache.texera.workflow.{LogicalLink, WorkflowCompiler}
+import org.apache.texera.common.compiler.model.LogicalLink
+import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
 
 object TestUtils {
 
@@ -96,9 +97,20 @@ object TestUtils {
     val workflowCompiler = new WorkflowCompiler(
       context
     )
-    workflowCompiler.compile(
-      LogicalPlanPojo(operators, links, List(), List())
+    // Execution path: strict, fail-fast on compilation errors. Strict guarantees
+    // a defined physicalPlan (errors throw rather than clearing it).
+    val compilationResult = workflowCompiler.compile(
+      LogicalPlanPojo(operators, links, List(), List()),
+      CompilationErrorHandling.Strict
     )
+    // Write the storage ports back onto the context so the schedule generators
+    // materialize terminal results — the unified compiler returns them instead
+    // of mutating the context, so the execution path must copy them over (as
+    // WorkflowExecutionService does in production).
+    context.workflowSettings = context.workflowSettings.copy(
+      outputPortsNeedingStorage = compilationResult.outputPortsNeedingStorage
+    )
+    Workflow(context, compilationResult.logicalPlan, compilationResult.physicalPlan.get)
   }
 
   /**

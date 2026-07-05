@@ -209,8 +209,12 @@ lazy val FileService = (project in file("file-service"))
   )
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(commonModuleSettingsWithVendored).dependsOn(WorkflowCore)
+lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
+  .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Auth, Config, Resource)
+  .dependsOn(WorkflowCompiler, Auth, Config, Resource)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -222,7 +226,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
-  .dependsOn(WorkflowOperator, Auth, Config)
+  .dependsOn(WorkflowCompiler, Auth, Config)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -262,6 +266,7 @@ lazy val TexeraProject = (project in file("."))
     PyBuilder,
     WorkflowCore,
     WorkflowOperator,
+    WorkflowCompiler,
     // services
     AccessControlService,
     ComputingUnitManagingService,

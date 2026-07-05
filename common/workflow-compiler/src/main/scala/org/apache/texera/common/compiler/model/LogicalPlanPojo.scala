@@ -17,24 +17,13 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.request
+package org.apache.texera.common.compiler.model
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import org.apache.texera.amber.core.workflow.WorkflowSettings
-import org.apache.texera.common.compiler.model.LogicalPlanPojo
+import org.apache.texera.amber.operator.LogicalOp
 
-case class ReplayExecutionInfo(
-    @JsonDeserialize(contentAs = classOf[java.lang.Long])
-    eid: Long,
-    interaction: String
+case class LogicalPlanPojo(
+    operators: List[LogicalOp],
+    links: List[LogicalLink],
+    opsToViewResult: List[String],
+    opsToReuseResult: List[String]
 )
-
-case class WorkflowExecuteRequest(
-    executionName: String,
-    engineVersion: String,
-    logicalPlan: LogicalPlanPojo,
-    replayFromExecution: Option[ReplayExecutionInfo], // contains execution Id, interaction Id.
-    workflowSettings: WorkflowSettings,
-    emailNotificationEnabled: Boolean,
-    computingUnitId: Int
-) extends TexeraWebSocketRequest

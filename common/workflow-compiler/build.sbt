@@ -17,24 +17,26 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.request
+//////////////////////////////////////////////////////////////////////////////
+// Compilation
+//////////////////////////////////////////////////////////////////////////////
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import org.apache.texera.amber.core.workflow.WorkflowSettings
-import org.apache.texera.common.compiler.model.LogicalPlanPojo
+scalacOptions += "-Ymacro-annotations"
 
-case class ReplayExecutionInfo(
-    @JsonDeserialize(contentAs = classOf[java.lang.Long])
-    eid: Long,
-    interaction: String
+// Scala compiler options (mirrors the other common modules; `-Ywarn-unused:imports`
+// is required by the scalafix RemoveUnused rule that CI runs via scalafixAll).
+Compile / scalacOptions ++= Seq(
+  "-Xelide-below",
+  "WARNING",
+  "-feature",
+  "-deprecation",
+  "-Ywarn-unused:imports"
 )
 
-case class WorkflowExecuteRequest(
-    executionName: String,
-    engineVersion: String,
-    logicalPlan: LogicalPlanPojo,
-    replayFromExecution: Option[ReplayExecutionInfo], // contains execution Id, interaction Id.
-    workflowSettings: WorkflowSettings,
-    emailNotificationEnabled: Boolean,
-    computingUnitId: Int
-) extends TexeraWebSocketRequest
+//////////////////////////////////////////////////////////////////////////////
+// Dependencies
+//////////////////////////////////////////////////////////////////////////////
+
+libraryDependencies ++= Seq(
+  "org.scalatest" %% "scalatest" % "3.2.15" % Test
+)

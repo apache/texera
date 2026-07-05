@@ -24,8 +24,8 @@ import com.typesafe.scalalogging.LazyLogging
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{Consumes, POST, Path, Produces}
-import org.apache.texera.amber.compiler.WorkflowCompiler
-import org.apache.texera.amber.compiler.model.LogicalPlanPojo
+import org.apache.texera.common.compiler.WorkflowCompiler
+import org.apache.texera.common.compiler.model.LogicalPlanPojo
 import org.apache.texera.amber.core.tuple.Attribute
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
