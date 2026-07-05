@@ -9,7 +9,6 @@
     "start": "concurrently --kill-others \"npx y-websocket\" \"ng serve\"",
     "build": "node build-version.js && node --max-old-space-size=8192 ./node_modules/@angular/cli/bin/ng build --configuration=production --progress=false --source-map=false",
     "build:ci": "node build-version.js && node --max-old-space-size=8192 ./node_modules/nx/dist/bin/nx.js build --configuration=production --progress=false --source-map=false",
-    "analyze": "ng build --configuration=production --stats-json && webpack-bundle-analyzer dist/stats.json",
     "test": "ng test --watch=false",
     "test:ci": "node --max-old-space-size=8192 ./node_modules/nx/dist/bin/nx.js test --watch=false --progress=false --coverage --coverage-reporters=lcovonly",
     "prettier:fix": "prettier --write ./src",
@@ -132,8 +131,7 @@
     "sass": "1.71.1",
     "ts-proto": "2.2.0",
     "typescript": "5.9.3",
-    "vitest": "4.1.9",
-    "webpack-bundle-analyzer": "4.5.0"
+    "vitest": "4.1.9"
   },
   "browserslist": [
     "defaults",
