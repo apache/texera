@@ -39,9 +39,6 @@ message OpExecWithClassName {
 }
 
 message OpExecInitInfo {
-  // Field number 3 (OpExecSource / opExecSource) was removed after cache source
-  // operators were replaced by input-port materialization reader threads (#3425).
-  reserved 3;
   oneof sealed_value {
     OpExecWithClassName opExecWithClassName = 1;
     OpExecWithCode opExecWithCode = 2;
