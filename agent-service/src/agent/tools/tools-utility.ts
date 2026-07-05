@@ -19,6 +19,16 @@
 
 import type { OperatorExecutionSummary } from "../../types/execution";
 
+// The single definition of "this operator failed": some fatal error carries
+// message text. The engine can emit console ERRORs with empty text, which do
+// not count, matching the previous `error` field's truthiness semantics.
+export function getOperatorErrorText(opInfo: OperatorExecutionSummary): string {
+  return opInfo.errorMessages
+    .map(e => e.message)
+    .filter(Boolean)
+    .join("; ");
+}
+
 export function getVisibleResultHeaders(row: Record<string, any>): string[] {
   return Object.keys(row);
 }
