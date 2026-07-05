@@ -64,7 +64,7 @@ trait PortCompletedHandler {
           msg.portId,
           input = msg.input
         )
-        cp.workflowExecutionCoordinator.getRegionOfPortId(globalPortId) match {
+        cp.workflowExecutionManager.getRegionOfPortId(globalPortId) match {
           case Some(region) =>
             val regionExecution = cp.workflowExecution.getRegionExecution(region.id)
             val operatorExecution =
@@ -81,8 +81,8 @@ trait PortCompletedHandler {
               else operatorExecution.isOutputPortCompleted(msg.portId)
 
             if (isPortCompleted) {
-              cp.workflowExecutionCoordinator
-                .coordinateRegionExecutors(cp.actorService)
+              cp.workflowExecutionManager
+                .advanceRegionExecutions(cp.actorService)
                 // Since this message is sent from a worker, any exception from the above code will be returned to that worker.
                 // Additionally, a fatal error is sent to the client, indicating that the region cannot be scheduled.
                 .onFailure {

@@ -285,7 +285,7 @@ class OutputManager(
 
   /**
     * This method is only used for ensuring correct region execution. Some operators may have input port dependency
-    * relationships, for which we currently use a two-phase region execution scheme.  (See `RegionExecutionCoordinator`
+    * relationships, for which we currently use a two-phase region execution scheme.  (See `RegionExecutionManager`
     * for details.)
     * This logic will only be executed when the worker is part of an `executingDependeePort` region-execution phase.
     * We currently assume that in this phase the operator (worker) will not output any data, hence no output ports.
@@ -322,7 +322,7 @@ class OutputManager(
     writerThread.start()
 
     // The state document is provisioned alongside the result document
-    // by RegionExecutionCoordinator, so it is always present.
+    // by RegionExecutionManager, so it is always present.
     val stateWriter = DocumentFactory
       .openDocument(VFSURIFactory.stateURI(portBaseURI))
       ._1

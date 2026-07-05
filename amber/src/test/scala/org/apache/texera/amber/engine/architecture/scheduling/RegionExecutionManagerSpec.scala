@@ -38,7 +38,7 @@ import org.apache.texera.amber.engine.architecture.common.PekkoActorRefMappingSe
 import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns._
-import org.apache.texera.amber.engine.architecture.scheduling.RegionCoordinatorTestSupport._
+import org.apache.texera.amber.engine.architecture.scheduling.RegionExecutionManagerTestSupport._
 import org.apache.texera.amber.engine.architecture.scheduling.config.{
   OperatorConfig,
   OutputPortConfig,
@@ -55,45 +55,45 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic
 
 /**
-  * Tests the real region-coordination lifecycle around synchronous region kill.
+  * Tests the real region-execution lifecycle around synchronous region kill.
   *
-  * The tests let the coordinator call the real `AsyncRPCClient.workerInterface`, capture the generated
+  * The tests let the manager call the real `AsyncRPCClient.workerInterface`, capture the generated
   * `ControlInvocation`s at the controller output gateway, and fulfill those RPC promises
   * explicitly. This keeps the important production behavior under test:
   *
   *  - regular launch RPCs (`initializeExecutor`, `openExecutor`, `startWorker`) are allowed to
   *    complete immediately;
   *  - `endWorker` can be held pending or failed to model worker-side drain/termination behavior;
-  *  - the real coordinator then decides when to remove actor refs, clean control channels, mark
+  *  - the real manager then decides when to remove actor refs, clean control channels, mark
   *    workers terminated, and allow the next region to start.
   */
-class RegionExecutionCoordinatorSpec
-    extends TestKit(ActorSystem("RegionExecutionCoordinatorSpec", AmberRuntime.pekkoConfig))
+class RegionExecutionManagerSpec
+    extends TestKit(ActorSystem("RegionExecutionManagerSpec", AmberRuntime.pekkoConfig))
     with AnyFlatSpecLike
     with BeforeAndAfterAll
-    with RegionCoordinatorTestSupport {
+    with RegionExecutionManagerTestSupport {
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
 
-  "RegionExecutionCoordinator" should "send gracefulStop only after EndWorker succeeds" in {
+  "RegionExecutionManager" should "send gracefulStop only after EndWorker succeeds" in {
     val fixture = createSingleRegionFixture(endWorkerResponse = _ => None)
 
-    launchRegion(fixture.coordinator)
-    val completion = requestRegionCompletion(fixture.coordinator)
+    launchRegion(fixture.manager)
+    val completion = requestRegionCompletion(fixture.manager)
 
     assert(
       fixture.rpcProbe.methodTrace == Seq(InitializeExecutor, OpenExecutor, StartWorker, EndWorker)
     )
     assert(completion.poll.isEmpty)
-    assert(!fixture.coordinator.isCompleted)
+    assert(!fixture.manager.isCompleted)
     assert(fixture.actorRefService.hasActorRef(fixture.workerId))
 
     fixture.rpcProbe.fulfill(fixture.rpcProbe.onlyEndWorkerCall, EmptyReturn())
     await(completion)
 
-    assert(fixture.coordinator.isCompleted)
+    assert(fixture.manager.isCompleted)
     assert(!fixture.actorRefService.hasActorRef(fixture.workerId))
     assert(workerState(fixture) == WorkerState.TERMINATED)
     assertControlChannelsAreRemoved(fixture)
@@ -101,7 +101,7 @@ class RegionExecutionCoordinatorSpec
 
   it should "retry EndWorker failures and delay gracefulStop until a retry succeeds" in {
     val attempts = new atomic.AtomicInteger(0)
-    // The first EndWorker is sent on the test thread; the retry is sent later from the coordinator's
+    // The first EndWorker is sent on the test thread; the retry is sent later from the manager's
     // kill-retry timer thread. Block on this latch — counted down from the probe callback once the
     // retry's call has been recorded — instead of polling `endWorkerCalls` from the test thread, so
     // the test never iterates the call buffer while the timer thread is appending to it.
@@ -116,21 +116,21 @@ class RegionExecutionCoordinatorSpec
         }
     )
 
-    launchRegion(fixture.coordinator)
-    val completion = requestRegionCompletion(fixture.coordinator)
+    launchRegion(fixture.manager)
+    val completion = requestRegionCompletion(fixture.manager)
 
     assert(
       retryAttempted.await(testTimeout.inMilliseconds, TimeUnit.MILLISECONDS),
       "EndWorker was not retried within the deadline"
     )
     assert(completion.poll.isEmpty)
-    assert(!fixture.coordinator.isCompleted)
+    assert(!fixture.manager.isCompleted)
     assert(fixture.actorRefService.hasActorRef(fixture.workerId))
 
     fixture.rpcProbe.fulfill(fixture.rpcProbe.endWorkerCalls.last, EmptyReturn())
     await(completion)
 
-    assert(fixture.coordinator.isCompleted)
+    assert(fixture.manager.isCompleted)
     assert(fixture.rpcProbe.endWorkerCalls.size == 2)
     assert(!fixture.actorRefService.hasActorRef(fixture.workerId))
     assert(workerState(fixture) == WorkerState.TERMINATED)
@@ -144,14 +144,14 @@ class RegionExecutionCoordinatorSpec
       killRetryDelay = TwitterDuration.fromMilliseconds(5)
     )
 
-    launchRegion(fixture.coordinator)
-    val completion = requestRegionCompletion(fixture.coordinator)
+    launchRegion(fixture.manager)
+    val completion = requestRegionCompletion(fixture.manager)
 
     val failure = intercept[IllegalStateException] {
       await(completion)
     }
     assert(failure.getMessage.contains("could not be terminated after 3 attempts"))
-    assert(!fixture.coordinator.isCompleted)
+    assert(!fixture.manager.isCompleted)
     assert(fixture.rpcProbe.endWorkerCalls.size == 3)
     assert(fixture.actorRefService.hasActorRef(fixture.workerId))
   }
@@ -163,8 +163,8 @@ class RegionExecutionCoordinatorSpec
       killRetryDelay = TwitterDuration.fromMilliseconds(5)
     )
 
-    launchRegion(fixture.coordinator)
-    val completion = requestRegionCompletion(fixture.coordinator)
+    launchRegion(fixture.manager)
+    val completion = requestRegionCompletion(fixture.manager)
 
     val failure = intercept[IllegalStateException] {
       await(completion)
@@ -190,11 +190,11 @@ class RegionExecutionCoordinatorSpec
       killRetryDelay = TwitterDuration.fromMilliseconds(5)
     )
 
-    launchRegion(fixture.coordinator)
-    val completion = requestRegionCompletion(fixture.coordinator)
+    launchRegion(fixture.manager)
+    val completion = requestRegionCompletion(fixture.manager)
 
     await(completion)
-    assert(fixture.coordinator.isCompleted)
+    assert(fixture.manager.isCompleted)
     assert(fixture.rpcProbe.endWorkerCalls.size == 2)
     assert(!fixture.actorRefService.hasActorRef(fixture.workerId))
     assert(workerState(fixture) == WorkerState.TERMINATED)
@@ -209,8 +209,8 @@ class RegionExecutionCoordinatorSpec
       killRetryDelay = TwitterDuration.fromMilliseconds(5)
     )
 
-    launchRegion(fixture.coordinator)
-    val completion = requestRegionCompletion(fixture.coordinator)
+    launchRegion(fixture.manager)
+    val completion = requestRegionCompletion(fixture.manager)
 
     val failure = intercept[IllegalStateException] {
       await(completion)
@@ -220,7 +220,7 @@ class RegionExecutionCoordinatorSpec
       assert(failure.getMessage.contains(workerId.toString))
     }
     assert(failure.getCause != null)
-    assert(!fixture.coordinator.isCompleted)
+    assert(!fixture.manager.isCompleted)
     // EndWorker is sent to every worker on every attempt.
     assert(fixture.rpcProbe.endWorkerCalls.size == fixture.workerIds.size * 2)
   }
@@ -228,22 +228,22 @@ class RegionExecutionCoordinatorSpec
   it should "default to a bounded ~30s termination budget" in {
     // 150 attempts * 200 ms ≈ 30 s. These defaults are the documented contract for how long a
     // stuck region blocks before failing loudly; pin them so changes are deliberate.
-    assert(RegionExecutionCoordinator.DefaultMaxTerminationAttempts == 150)
+    assert(RegionExecutionManager.DefaultMaxTerminationAttempts == 150)
     assert(
-      RegionExecutionCoordinator.DefaultKillRetryDelay == TwitterDuration.fromMilliseconds(200)
+      RegionExecutionManager.DefaultKillRetryDelay == TwitterDuration.fromMilliseconds(200)
     )
   }
 
   it should "surface the underlying cause when an output port schema is unavailable" in {
     // Reproduces issue #3546: when schema inference for an output port fails (e.g. because a
     // dataset used by the workflow has not been shared with the running user), the port's
-    // schema is stored as a `Left(cause)`. The coordinator must surface that real cause rather
+    // schema is stored as a `Left(cause)`. The manager must surface that real cause rather
     // than discarding it behind a generic "Schema is missing" message.
     val cause = new RuntimeException("User texera1 has no access to dataset 'iris'")
-    val coordinator = coordinatorWithUnresolvedOutputSchema(cause)
+    val manager = managerWithUnresolvedOutputSchema(cause)
 
     val thrown = intercept[IllegalStateException] {
-      await(coordinator.syncStatusAndTransitionRegionExecutionPhase())
+      await(manager.syncStatusAndTransitionRegionExecutionPhase())
     }
     assert(thrown.getCause eq cause)
     assert(thrown.getMessage.contains(cause.getMessage))
@@ -254,10 +254,10 @@ class RegionExecutionCoordinatorSpec
     // not read "...: null".
     val cause = new NullPointerException()
     assert(cause.getMessage == null)
-    val coordinator = coordinatorWithUnresolvedOutputSchema(cause)
+    val manager = managerWithUnresolvedOutputSchema(cause)
 
     val thrown = intercept[IllegalStateException] {
-      await(coordinator.syncStatusAndTransitionRegionExecutionPhase())
+      await(manager.syncStatusAndTransitionRegionExecutionPhase())
     }
     assert(thrown.getCause eq cause)
     assert(thrown.getMessage.contains(cause.toString))
@@ -265,13 +265,13 @@ class RegionExecutionCoordinatorSpec
   }
 
   /**
-    * Builds a coordinator for a single-source region whose only output port has an unresolved
+    * Builds a manager for a single-source region whose only output port has an unresolved
     * schema (`Left(cause)`) and a configured output storage, so that the non-dependee phase
     * reaches `createOutputPortStorageObjects` and attempts to read that schema.
     */
-  private def coordinatorWithUnresolvedOutputSchema(
+  private def managerWithUnresolvedOutputSchema(
       cause: Throwable
-  ): RegionExecutionCoordinator = {
+  ): RegionExecutionManager = {
     val portId = PortIdentity(0)
     val baseOp = createSourceOp("schema-missing-op").withOutputPorts(List(OutputPort(portId)))
     val (outPort, links, _) = baseOp.outputPorts(portId)
@@ -302,7 +302,7 @@ class RegionExecutionCoordinatorSpec
     val controller = createControllerHarness()
     registerLiveWorker(controller.actorRefService, workerId)
 
-    new RegionExecutionCoordinator(
+    new RegionExecutionManager(
       region,
       isRestart = false,
       workflowExecution,
@@ -314,7 +314,7 @@ class RegionExecutionCoordinatorSpec
   }
 
   private case class SingleRegionFixture(
-      coordinator: RegionExecutionCoordinator,
+      manager: RegionExecutionManager,
       rpcProbe: ControllerRpcProbe,
       workflowExecution: WorkflowExecution,
       region: Region,
@@ -325,8 +325,8 @@ class RegionExecutionCoordinatorSpec
 
   private def createSingleRegionFixture(
       endWorkerResponse: WorkerRpcCall => Option[ControlReturn],
-      maxTerminationAttempts: Int = RegionExecutionCoordinator.DefaultMaxTerminationAttempts,
-      killRetryDelay: TwitterDuration = RegionExecutionCoordinator.DefaultKillRetryDelay
+      maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
+      killRetryDelay: TwitterDuration = RegionExecutionManager.DefaultKillRetryDelay
   ): SingleRegionFixture = {
     val physicalOp = createSourceOp("test-op")
     val workerId = createWorkerId(physicalOp)
@@ -346,7 +346,7 @@ class RegionExecutionCoordinatorSpec
       ChannelIdentity(CONTROLLER, workerId, isControl = true)
     )
 
-    val coordinator = new RegionExecutionCoordinator(
+    val manager = new RegionExecutionManager(
       region,
       isRestart = false,
       workflowExecution,
@@ -359,7 +359,7 @@ class RegionExecutionCoordinatorSpec
     )
 
     SingleRegionFixture(
-      coordinator = coordinator,
+      manager = manager,
       rpcProbe = rpcProbe,
       workflowExecution = workflowExecution,
       region = region,
@@ -370,7 +370,7 @@ class RegionExecutionCoordinatorSpec
   }
 
   private case class MultiWorkerFixture(
-      coordinator: RegionExecutionCoordinator,
+      manager: RegionExecutionManager,
       rpcProbe: ControllerRpcProbe,
       workerIds: Seq[ActorVirtualIdentity]
   )
@@ -394,7 +394,7 @@ class RegionExecutionCoordinatorSpec
     val controller = createControllerHarness()
     workerIds.foreach(registerLiveWorker(controller.actorRefService, _))
 
-    val coordinator = new RegionExecutionCoordinator(
+    val manager = new RegionExecutionManager(
       region,
       isRestart = false,
       workflowExecution,
@@ -406,17 +406,17 @@ class RegionExecutionCoordinatorSpec
       killRetryDelay
     )
 
-    MultiWorkerFixture(coordinator, rpcProbe, workerIds)
+    MultiWorkerFixture(manager, rpcProbe, workerIds)
   }
 
-  private def launchRegion(coordinator: RegionExecutionCoordinator): Unit = {
-    await(coordinator.syncStatusAndTransitionRegionExecutionPhase())
+  private def launchRegion(manager: RegionExecutionManager): Unit = {
+    await(manager.syncStatusAndTransitionRegionExecutionPhase())
   }
 
   private def requestRegionCompletion(
-      coordinator: RegionExecutionCoordinator
+      manager: RegionExecutionManager
   ): Future[Unit] = {
-    coordinator.syncStatusAndTransitionRegionExecutionPhase()
+    manager.syncStatusAndTransitionRegionExecutionPhase()
   }
 
   private def workerState(fixture: SingleRegionFixture): WorkerState =

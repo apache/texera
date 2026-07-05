@@ -60,14 +60,14 @@ import org.apache.texera.amber.util.VirtualIdentityUtils
 
 import scala.collection.mutable
 
-object RegionCoordinatorTestSupport {
+object RegionExecutionManagerTestSupport {
   val InitializeExecutor = "initializeExecutor"
   val OpenExecutor = "openExecutor"
   val StartWorker = "startWorker"
   val EndWorker = "endWorker"
 
   // Generous deadline for the polling helpers below. Production timing under test (notably the
-  // 200 ms `killRetryDelay` in `RegionExecutionCoordinator`) fits comfortably; the rest is
+  // 200 ms `killRetryDelay` in `RegionExecutionManager`) fits comfortably; the rest is
   // headroom for slow CI.
   val testTimeout: Duration = Duration.fromSeconds(5)
 
@@ -121,7 +121,7 @@ object RegionCoordinatorTestSupport {
         case invocation: ControlInvocation =>
           recordAndMaybeFulfill(invocation)
         case _ =>
-        // Client events and stats updates are irrelevant to the coordinator lifecycle assertions.
+        // Client events and stats updates are irrelevant to the manager lifecycle assertions.
       }
     }
 
@@ -219,7 +219,7 @@ object RegionCoordinatorTestSupport {
       physicalOp: PhysicalOp,
       workerIds: Seq[ActorVirtualIdentity]
   ): Unit = {
-    // RegionExecutionCoordinator skips real worker creation when an execution for this operator
+    // RegionExecutionManager skips real worker creation when an execution for this operator
     // already exists.
     val operatorExecution = workflowExecution
       .initRegionExecution(createWorkerRegion(seedRegionId, physicalOp, workerIds))
@@ -238,8 +238,8 @@ object RegionCoordinatorTestSupport {
   }
 }
 
-trait RegionCoordinatorTestSupport { self: TestKit =>
-  import RegionCoordinatorTestSupport._
+trait RegionExecutionManagerTestSupport { self: TestKit =>
+  import RegionExecutionManagerTestSupport._
 
   protected def createControllerHarness(): ControllerHarnessFixture = {
     val controllerRef = TestActorRef(new ControllerHarness)

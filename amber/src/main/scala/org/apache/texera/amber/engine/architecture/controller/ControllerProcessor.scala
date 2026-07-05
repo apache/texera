@@ -29,7 +29,7 @@ import org.apache.texera.amber.engine.architecture.common.{
 }
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.logreplay.ReplayLogManager
-import org.apache.texera.amber.engine.architecture.scheduling.WorkflowExecutionCoordinator
+import org.apache.texera.amber.engine.architecture.scheduling.WorkflowExecutionManager
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 
@@ -43,7 +43,7 @@ class ControllerProcessor(
   val workflowExecution: WorkflowExecution = WorkflowExecution()
   val workflowScheduler: WorkflowScheduler =
     new WorkflowScheduler(workflowContext, actorId)
-  val workflowExecutionCoordinator: WorkflowExecutionCoordinator = new WorkflowExecutionCoordinator(
+  val workflowExecutionManager: WorkflowExecutionManager = new WorkflowExecutionManager(
     workflowExecution,
     controllerConfig,
     asyncRPCClient
@@ -73,7 +73,7 @@ class ControllerProcessor(
 
   def setupActorRefService(actorRefService: PekkoActorRefMappingService): Unit = {
     this.actorRefService = actorRefService
-    this.workflowExecutionCoordinator.setupActorRefService(this.actorRefService)
+    this.workflowExecutionManager.setupActorRefService(this.actorRefService)
   }
 
   @transient var logManager: ReplayLogManager = _

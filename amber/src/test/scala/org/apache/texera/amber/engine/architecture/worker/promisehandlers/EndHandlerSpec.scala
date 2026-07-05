@@ -49,7 +49,7 @@ import java.util.concurrent.LinkedBlockingQueue
   * `endWorker` is the controller's acknowledgement point before it sends actor-level `gracefulStop`.
   *
   * A successful reply means the worker has drained every queued workflow message. If the queue still contains work,
-  * the handler must fail so the region coordinator can retry the kill instead of stopping the actor too early.
+  * the handler must fail so the region execution manager can retry the kill instead of stopping the actor too early.
   */
 class EndHandlerSpec extends AnyFlatSpec {
   private val workerId = ActorVirtualIdentity("Worker:WF1-test-op-main-0")

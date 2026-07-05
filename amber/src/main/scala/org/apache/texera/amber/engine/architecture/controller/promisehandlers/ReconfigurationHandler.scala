@@ -61,7 +61,7 @@ trait ReconfigurationHandler {
     }
     val futures = mutable.ArrayBuffer[Future[_]]()
     val friesComponents =
-      FriesReconfigurationAlgorithm.getReconfigurations(cp.workflowExecutionCoordinator, msg)
+      FriesReconfigurationAlgorithm.getReconfigurations(cp.workflowExecutionManager, msg)
     friesComponents.foreach { friesComponent =>
       if (friesComponent.scope.size == 1) {
         val updateExecutorRequest = friesComponent.reconfigurations.head

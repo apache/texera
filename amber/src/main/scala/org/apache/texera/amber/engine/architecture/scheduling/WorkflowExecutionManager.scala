@@ -34,7 +34,7 @@ import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.mutable
 
-class WorkflowExecutionCoordinator(
+class WorkflowExecutionManager(
     workflowExecution: WorkflowExecution,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
@@ -44,8 +44,7 @@ class WorkflowExecutionCoordinator(
 
   private val executedRegions: mutable.ListBuffer[Set[Region]] = mutable.ListBuffer()
 
-  private val regionExecutionCoordinators
-      : mutable.HashMap[RegionIdentity, RegionExecutionCoordinator] =
+  private val regionExecutionManagers: mutable.HashMap[RegionIdentity, RegionExecutionManager] =
     mutable.HashMap()
   private val completionNotified: AtomicBoolean = new AtomicBoolean(false)
 
@@ -56,29 +55,29 @@ class WorkflowExecutionCoordinator(
   }
 
   /**
-    * Each invocation first syncs the internal statuses of each exisiting `RegionExecutionCoordintor`, after which each
-    * of the `RegionExecutionCoordintor`s will launch the corresponding next phase of whenever needed until it is
+    * Each invocation first syncs the internal statuses of each exisiting `RegionExecutionManager`, after which each
+    * of the `RegionExecutionManager`s will launch the corresponding next phase of whenever needed until it is
     * in `Completed` status (phase).
     *
     * After the syncs, if there are no running region(s), it will start new regions (if available).
     */
-  def coordinateRegionExecutors(actorService: PekkoActorService): Future[Unit] = {
-    val unfinishedRegionCoordinators =
-      regionExecutionCoordinators.values.filter(!_.isCompleted).toSeq
+  def advanceRegionExecutions(actorService: PekkoActorService): Future[Unit] = {
+    val unfinishedRegionManagers =
+      regionExecutionManagers.values.filter(!_.isCompleted).toSeq
 
     // Trigger sync for each unfinished region.
-    unfinishedRegionCoordinators.foreach(_.syncStatusAndTransitionRegionExecutionPhase())
+    unfinishedRegionManagers.foreach(_.syncStatusAndTransitionRegionExecutionPhase())
 
-    // Wait only for region termination futures (kill path), then re-run coordination.
-    val terminationFutures = unfinishedRegionCoordinators.flatMap(_.getTerminationFutureOpt)
+    // Wait only for region termination futures (kill path), then re-run the advance loop.
+    val terminationFutures = unfinishedRegionManagers.flatMap(_.getTerminationFutureOpt)
     if (terminationFutures.nonEmpty) {
       return Future
         .collect(terminationFutures)
         .unit
-        .flatMap(_ => coordinateRegionExecutors(actorService))
+        .flatMap(_ => advanceRegionExecutions(actorService))
     }
 
-    if (regionExecutionCoordinators.values.exists(!_.isCompleted)) {
+    if (regionExecutionManagers.values.exists(!_.isCompleted)) {
       // Some regions are still not completed yet. Cannot start the new regions.
       return Future.Unit
     }
@@ -103,7 +102,7 @@ class WorkflowExecutionCoordinator(
             } else {
               workflowExecution.initRegionExecution(region)
             }
-            regionExecutionCoordinators(region.id) = new RegionExecutionCoordinator(
+            regionExecutionManagers(region.id) = new RegionExecutionManager(
               region,
               isRestart,
               workflowExecution,
@@ -112,7 +111,7 @@ class WorkflowExecutionCoordinator(
               actorService,
               actorRefService
             )
-            regionExecutionCoordinators(region.id)
+            regionExecutionManagers(region.id)
           })
           .map(_.syncStatusAndTransitionRegionExecutionPhase())
           .toSeq
@@ -134,8 +133,8 @@ class WorkflowExecutionCoordinator(
       .toSet
   }
 
-  def hasUnfinishedRegionCoordinators: Boolean = {
-    regionExecutionCoordinators.values.exists(!_.isCompleted)
+  def hasUnfinishedRegionManagers: Boolean = {
+    regionExecutionManagers.values.exists(!_.isCompleted)
   }
 
 }

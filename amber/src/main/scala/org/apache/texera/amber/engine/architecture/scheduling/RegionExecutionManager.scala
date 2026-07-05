@@ -64,7 +64,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration.{Duration => ScalaDuration}
 
-object RegionExecutionCoordinator {
+object RegionExecutionManager {
 
   // Max EndWorker retries before termination fails. ~30s at DefaultKillRetryDelay (200ms).
   private[scheduling] val DefaultMaxTerminationAttempts: Int = 150
@@ -99,7 +99,7 @@ object RegionExecutionCoordinator {
   *
   * 3. `Completed`
   */
-class RegionExecutionCoordinator(
+class RegionExecutionManager(
     region: Region,
     isRestart: Boolean,
     workflowExecution: WorkflowExecution,
@@ -107,8 +107,8 @@ class RegionExecutionCoordinator(
     controllerConfig: ControllerConfig,
     actorService: PekkoActorService,
     actorRefService: PekkoActorRefMappingService,
-    maxTerminationAttempts: Int = RegionExecutionCoordinator.DefaultMaxTerminationAttempts,
-    killRetryDelay: TwitterDuration = RegionExecutionCoordinator.DefaultKillRetryDelay
+    maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
+    killRetryDelay: TwitterDuration = RegionExecutionManager.DefaultKillRetryDelay
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -126,8 +126,8 @@ class RegionExecutionCoordinator(
   private val killRetryTimer: Timer = new JavaTimer(true)
 
   /**
-    * Sync the status of `RegionExecution` and transition this coordinator's phase to `Completed` only when the
-    * coordinator is currently in `ExecutingNonDependeePortsPhase`, all the ports of this region are completed, and
+    * Sync the status of `RegionExecution` and transition this manager's phase to `Completed` only when the
+    * manager is currently in `ExecutingNonDependeePortsPhase`, all the ports of this region are completed, and
     * all workers in this region are terminated.
     *
     * Additionally, this method will also terminate all the workers of this region:
@@ -156,8 +156,8 @@ class RegionExecutionCoordinator(
       existingTerminationFuture
     } else {
       val terminationFuture = terminateWorkersWithRetry(regionExecution).flatMap { _ =>
-        // Set this coordinator's status to be completed so that subsequent regions can be started by
-        // WorkflowExecutionCoordinator.
+        // Set this manager's status to be completed so that subsequent regions can be started by
+        // WorkflowExecutionManager.
         setPhase(Completed)
         Future.Unit
       }

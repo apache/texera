@@ -38,7 +38,7 @@ trait LinkWorkersHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   override def linkWorkers(msg: LinkWorkersRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
-    val region = cp.workflowExecutionCoordinator.getRegionOfLink(msg.link)
+    val region = cp.workflowExecutionManager.getRegionOfLink(msg.link)
     val resourceConfig = region.resourceConfig.get
     val linkConfig = resourceConfig.linkConfigs(msg.link)
     val linkExecution =

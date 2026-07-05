@@ -41,8 +41,8 @@ trait StartWorkflowHandler {
       ctx: AsyncRPCContext
   ): Future[StartWorkflowResponse] = {
     if (cp.workflowExecution.getState.isUninitialized) {
-      cp.workflowExecutionCoordinator
-        .coordinateRegionExecutors(cp.actorService)
+      cp.workflowExecutionManager
+        .advanceRegionExecutions(cp.actorService)
         .map(_ => {
           cp.controllerTimerService.enableStatusUpdate()
           cp.controllerTimerService.enableRuntimeStatisticsCollection()
