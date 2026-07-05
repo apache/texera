@@ -25,8 +25,43 @@ import {
   formatModifyOperatorResult,
   formatExecuteOperatorResult,
   formatOperatorError,
+  getOperatorErrorText,
   getVisibleResultHeaders,
 } from "./tools-utility";
+import { OperatorState, WorkflowFatalErrorType, type WorkflowFatalError } from "../../types/execution";
+
+function makeFatal(message: string): WorkflowFatalError {
+  return {
+    type: { name: WorkflowFatalErrorType.EXECUTION_FAILURE },
+    timestamp: { seconds: 0, nanos: 0 },
+    message,
+    details: "",
+    operatorId: "",
+    workerId: "",
+  };
+}
+
+describe("getOperatorErrorText", () => {
+  test("joins the messages of every fatal error", () => {
+    const opInfo = { state: OperatorState.FAILED, errorMessages: [makeFatal("e1"), makeFatal("e2")] };
+    expect(getOperatorErrorText(opInfo)).toBe("e1; e2");
+  });
+
+  test("ignores errors whose message is empty", () => {
+    const opInfo = { state: OperatorState.FAILED, errorMessages: [makeFatal(""), makeFatal("real")] };
+    expect(getOperatorErrorText(opInfo)).toBe("real");
+  });
+
+  test("returns an empty string when every error message is empty", () => {
+    const opInfo = { state: OperatorState.COMPLETED, errorMessages: [makeFatal("")] };
+    expect(getOperatorErrorText(opInfo)).toBe("");
+  });
+
+  test("returns an empty string when there are no errors", () => {
+    const opInfo = { state: OperatorState.COMPLETED, errorMessages: [] };
+    expect(getOperatorErrorText(opInfo)).toBe("");
+  });
+});
 
 describe("getVisibleResultHeaders", () => {
   test("returns every key", () => {
