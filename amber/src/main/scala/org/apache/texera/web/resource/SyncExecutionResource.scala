@@ -84,7 +84,7 @@ case class SyncExecutionRequest(
     warehouseId: Option[Int] = None
 )
 
-case class ConsoleMessageInfo(
+case class ConsoleMessageSummary(
     msgType: String,
     title: String,
     message: String
@@ -105,10 +105,6 @@ case class OperatorResultSummary(
     tuplesCount: Int
 )
 
-case class OperatorConsoleLogsSummary(
-    messages: List[ConsoleMessageInfo]
-)
-
 // Per-operator execution summary. Orthogonal sub-summaries replace the previous
 // flat OperatorInfo; must stay in sync with agent-service's OperatorExecutionSummary.
 // `errorMessages` reuses the engine's WorkflowFatalError, the same type the
@@ -117,7 +113,7 @@ case class OperatorExecutionSummary(
     state: String,
     errorMessages: List[WorkflowFatalError], // empty means the operator did not fail
     resultSummary: Option[OperatorResultSummary],
-    consoleLogsSummary: Option[OperatorConsoleLogsSummary]
+    consoleMessages: Option[List[ConsoleMessageSummary]]
 )
 
 case class WorkflowExecutionSummary(
@@ -469,7 +465,7 @@ class SyncExecutionResource extends LazyLogging {
             .get(opId)
             .map { opConsole =>
               opConsole.consoleMessages.map { msg =>
-                ConsoleMessageInfo(
+                ConsoleMessageSummary(
                   msgType = msg.msgType.name,
                   title = msg.title,
                   message = msg.message
@@ -499,7 +495,7 @@ class SyncExecutionResource extends LazyLogging {
       resultMode: String,
       result: Option[List[SampleRow]],
       tuplesCount: Option[Int],
-      consoleLogs: Option[List[ConsoleMessageInfo]]
+      consoleLogs: Option[List[ConsoleMessageSummary]]
   ): OperatorExecutionSummary = {
     // Python writes the full error text to `message`; Scala writes it to `title`
     // (with a stack trace in `message`). Pick whichever is longer to avoid losing detail.
@@ -520,10 +516,6 @@ class SyncExecutionResource extends LazyLogging {
       )
     }
 
-    val consoleLogsSummary = consoleLogs.map { logs =>
-      OperatorConsoleLogsSummary(messages = logs)
-    }
-
     // Per-operator runtime errors come from console ERROR logs; surface them as
     // EXECUTION_FAILURE WorkflowFatalErrors (same type the compiler emits for
     // COMPILATION_ERRORs). Empty list means the operator did not fail.
@@ -537,7 +529,7 @@ class SyncExecutionResource extends LazyLogging {
       state = state,
       errorMessages = errorMessages,
       resultSummary = resultSummary,
-      consoleLogsSummary = consoleLogsSummary
+      consoleMessages = consoleLogs
     )
   }
 
@@ -807,7 +799,7 @@ class SyncExecutionResource extends LazyLogging {
   private def collectConsoleLogs(
       executionId: ExecutionIdentity,
       opId: String
-  ): Option[List[ConsoleMessageInfo]] = {
+  ): Option[List[ConsoleMessageSummary]] = {
     try {
       val uriOption = getConsoleMessageUri(executionId, OperatorIdentity(opId))
 
@@ -824,7 +816,7 @@ class SyncExecutionResource extends LazyLogging {
             val protoString = tuple.getField[String](0)
             val msg = ConsoleMessage.fromAscii(protoString)
             Some(
-              ConsoleMessageInfo(
+              ConsoleMessageSummary(
                 msgType = msg.msgType.name,
                 title = msg.title,
                 message = msg.message
