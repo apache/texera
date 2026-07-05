@@ -20,6 +20,7 @@
 package org.apache.texera.amber.engine.architecture.worker
 
 import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import org.apache.texera.amber.core.virtualidentity._
 import org.apache.texera.amber.core.workflow.PortIdentity
@@ -42,7 +43,11 @@ import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   MainThreadDelegateMessage
 }
 import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState.READY
-import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
+import org.apache.texera.amber.engine.common.ambermessage.{
+  DataFrame,
+  StateFrame,
+  WorkflowFIFOMessage
+}
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
@@ -50,10 +55,11 @@ import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.LinkedBlockingQueue
 
-class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
+class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with BeforeAndAfterEach {
   private val testOpId = PhysicalOpIdentity(OperatorIdentity("testop"), "main")
   private val upstreamOpId = PhysicalOpIdentity(OperatorIdentity("sender"), "main")
   private val testWorkerId: ActorVirtualIdentity = VirtualIdentityUtils.createWorkerIdentity(
@@ -237,6 +243,140 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       logManager
     )
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
+      dp.continueDataProcessing()
+    }
+  }
+
+  "data processor" should "process a state frame and emit the produced state" in {
+    val dp = mkDataProcessor
+    dp.executor = executor
+    dp.stateManager.transitTo(READY)
+    (outputHandler.apply _).expects(*).anyNumberOfTimes()
+    val inputState = State(Map("field1" -> 1))
+    (
+        (
+            state: State,
+            port: Int
+        ) => executor.processState(state, port)
+    )
+      .expects(inputState, 0)
+      .returning(Some(inputState))
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
+      .setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    noException should be thrownBy {
+      dp.processDataPayload(
+        ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+        StateFrame(inputState)
+      )
+    }
+  }
+
+  "data processor" should "not emit when processState yields None" in {
+    val dp = mkDataProcessor
+    dp.executor = executor
+    dp.stateManager.transitTo(READY)
+    (outputHandler.apply _).expects(*).anyNumberOfTimes()
+    val inputState = State(Map("field1" -> 2))
+    (
+        (
+            state: State,
+            port: Int
+        ) => executor.processState(state, port)
+    )
+      .expects(inputState, 0)
+      .returning(None)
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
+      .setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    noException should be thrownBy {
+      dp.processDataPayload(
+        ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+        StateFrame(inputState)
+      )
+    }
+  }
+
+  "data processor" should "handle an exception thrown while processing a state frame" in {
+    val dp = mkDataProcessor
+    dp.executor = executor
+    dp.stateManager.transitTo(READY)
+    (outputHandler.apply _).expects(*).anyNumberOfTimes()
+    val inputState = State(Map("field1" -> 3))
+    (
+        (
+            state: State,
+            port: Int
+        ) => executor.processState(state, port)
+    )
+      .expects(inputState, 0)
+      .throwing(new RuntimeException("boom on state"))
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
+      .setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    noException should be thrownBy {
+      dp.processDataPayload(
+        ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+        StateFrame(inputState)
+      )
+    }
+  }
+
+  "data processor" should "handle an exception thrown while processing an input tuple" in {
+    val dp = mkDataProcessor
+    dp.executor = executor
+    dp.stateManager.transitTo(READY)
+    (outputHandler.apply _).expects(*).anyNumberOfTimes()
+    (
+        (
+            tuple: Tuple,
+            input: Int
+        ) => executor.processTupleMultiPort(tuple, input)
+    )
+      .expects(tuples.head, 0)
+      .throwing(new RuntimeException("boom on tuple"))
+    (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
+      .setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    noException should be thrownBy {
+      dp.processDataPayload(
+        ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+        DataFrame(Array(tuples.head))
+      )
+    }
+  }
+
+  "data processor" should "handle an exception thrown while advancing the output iterator" in {
+    val dp = mkDataProcessor
+    dp.executor = executor
+    dp.stateManager.transitTo(READY)
+    (outputHandler.apply _).expects(*).anyNumberOfTimes()
+    (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
+      .setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    // Poison the output iterator: hasNext is true so continueDataProcessing routes
+    // into outputOneTuple, but next() throws to exercise the catch branch.
+    dp.outputManager.outputIterator.setTupleOutput(
+      new Iterator[(TupleLike, Option[PortIdentity])] {
+        override def hasNext: Boolean = true
+        override def next(): (TupleLike, Option[PortIdentity]) =
+          throw new RuntimeException("boom on next")
+      }
+    )
+    assert(dp.outputManager.hasUnfinishedOutput)
+    noException should be thrownBy {
       dp.continueDataProcessing()
     }
   }
