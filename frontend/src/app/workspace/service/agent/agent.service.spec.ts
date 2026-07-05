@@ -27,7 +27,6 @@ import {
   ModelType,
   OperatorExecutionSummary,
   OperatorResultMode,
-  OperatorState,
 } from "./agent.service";
 import { AgentState, ReActStep } from "./agent-types";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -186,8 +185,6 @@ describe("AgentService", () => {
       req.flush({
         results: {
           "op-1": {
-            state: OperatorState.COMPLETED,
-            errorMessages: [],
             resultSummary: {
               resultMode: OperatorResultMode.TABLE,
               sampleTuples: [{ rowIndex: 0, tuple: { a: 1 } }],
