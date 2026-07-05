@@ -22,6 +22,7 @@ import { tool } from "ai";
 import {
   createErrorResult,
   formatExecuteOperatorResult,
+  formatSampleRowsAsTsv,
   getOperatorErrorText,
   getOperatorWarnings,
   getVisibleResultHeaders,
@@ -377,41 +378,6 @@ function makeExecutionFailure(message: string, operatorId: string): WorkflowFata
   };
 }
 
-function jsonToTableFormat(rows: SampleRow[]): string {
-  if (!rows || rows.length === 0) return "";
-
-  const headers = getVisibleResultHeaders(rows[0].tuple);
-  if (headers.length === 0) return "";
-  // Leading tab aligns headers with the index column (pandas __repr__ style).
-  const headerLine = "\t" + headers.join("\t");
-
-  const formattedRows: string[] = [];
-  let prevIndex = -1;
-
-  for (const { rowIndex, tuple } of rows) {
-    if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
-      const dots = headers.map(() => "...").join("\t");
-      formattedRows.push(`...\t${dots}`);
-    }
-    prevIndex = rowIndex;
-
-    const cells = headers.map(h => {
-      const val = tuple[h];
-      if (val === null) return "NaN";
-      if (val === undefined) return "";
-      if (typeof val === "number" || typeof val === "boolean") return String(val);
-      if (typeof val === "string") {
-        if (val === "NULL") return "NaN";
-        return val.replace(/\t/g, "\\t").replace(/\n/g, "\\n");
-      }
-      return JSON.stringify(val);
-    });
-    formattedRows.push(`${rowIndex}\t${cells.join("\t")}`);
-  }
-
-  return [headerLine, ...formattedRows].join("\n");
-}
-
 export async function executeOperatorAndFormat(
   workflowState: WorkflowState,
   config: ExecutionConfig,
@@ -508,7 +474,7 @@ export async function executeOperatorAndFormat(
       }
     }
 
-    let dataString = jsonToTableFormat(sampleTuples);
+    let dataString = formatSampleRowsAsTsv(sampleTuples);
 
     // Safety-net: TSV serialization may add padding beyond backend's raw-record budget.
     const charLimit = config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;

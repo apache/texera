@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import type { OperatorExecutionSummary } from "../../types/execution";
+import type { OperatorExecutionSummary, SampleRow } from "../../types/execution";
 
 // The single definition of "this operator failed": some fatal error carries
 // message text. The engine can emit console ERRORs with empty text, which do
@@ -31,6 +31,40 @@ export function getOperatorErrorText(opInfo: OperatorExecutionSummary): string {
 
 export function getVisibleResultHeaders(row: Record<string, any>): string[] {
   return Object.keys(row);
+}
+
+export function formatSampleRowsAsTsv(rows: SampleRow[]): string {
+  if (!rows || rows.length === 0) return "";
+
+  const headers = getVisibleResultHeaders(rows[0].tuple);
+  if (headers.length === 0) return "";
+
+  const headerLine = "\t" + headers.join("\t");
+  const formattedRows: string[] = [];
+  let prevIndex = -1;
+
+  for (const { rowIndex, tuple } of rows) {
+    if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
+      const dots = headers.map(() => "...").join("\t");
+      formattedRows.push(`...\t${dots}`);
+    }
+    prevIndex = rowIndex;
+
+    const cells = headers.map(h => {
+      const val = tuple[h];
+      if (val === null) return "NaN";
+      if (val === undefined) return "";
+      if (typeof val === "number" || typeof val === "boolean") return String(val);
+      if (typeof val === "string") {
+        if (val === "NULL") return "NaN";
+        return val.replace(/\t/g, "\\t").replace(/\n/g, "\\n");
+      }
+      return JSON.stringify(val);
+    });
+    formattedRows.push(`${rowIndex}\t${cells.join("\t")}`);
+  }
+
+  return [headerLine, ...formattedRows].join("\n");
 }
 
 // Warnings are the console messages the engine tags with a "WARNING: " title

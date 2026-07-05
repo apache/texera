@@ -402,9 +402,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    *  displays a new data table with a new paginator on the result panel.
    *
    * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
-   * @param tuplesCount
+   * @param totalRowCount
    */
-  setupResultTable(resultData: ReadonlyArray<IndexableObject>, tuplesCount: number) {
+  setupResultTable(resultData: ReadonlyArray<IndexableObject>, totalRowCount: number) {
     if (!this.operatorId) {
       return;
     }
@@ -430,7 +430,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
     // generate columnDef from first row, column definition is in order
     this.currentColumns = this.generateColumns(columns);
-    this.totalNumTuples = tuplesCount;
+    this.totalNumTuples = totalRowCount;
   }
 
   /**
