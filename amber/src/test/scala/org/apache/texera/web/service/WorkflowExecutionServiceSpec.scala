@@ -49,7 +49,7 @@ import scala.collection.mutable
   * when `executeWorkflow` fails -- surfaces as a `WorkflowErrorEvent` through the
   * normal websocket-event observable.
   *
-  * The unused `controllerConfig` / `resultService` are passed as `null` on
+  * The unused `coordinatorConfig` / `resultService` are passed as `null` on
   * purpose: construction must stay side-effect-free (all throwing work is in
   * `executeWorkflow`), so a future change that dereferences them during
   * construction would fail here.

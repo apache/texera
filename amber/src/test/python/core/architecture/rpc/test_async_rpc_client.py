@@ -30,7 +30,7 @@ from proto.org.apache.texera.amber.core import (
     ChannelIdentity,
 )
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
-    ControllerServiceStub,
+    CoordinatorServiceStub,
     ControlReturn,
     ReturnInvocation,
 )
@@ -205,25 +205,25 @@ class TestProxyStreamBlockers:
             proxy._stream_stream()
 
 
-class TestControllerStub:
-    def test_controller_stub_returns_configured_stub(self):
+class TestCoordinatorStub:
+    def test_coordinator_stub_returns_configured_stub(self):
         client = _make_client()
-        stub = client.controller_stub()
+        stub = client.coordinator_stub()
         # Identity check: same instance every call (lazily configured in __init__).
-        assert stub is client._controller_service_stub
-        assert stub is client.controller_stub()
+        assert stub is client._coordinator_service_stub
+        assert stub is client.coordinator_stub()
 
-    def test_controller_stub_unary_unary_is_rewired_with_async_context(self):
+    def test_coordinator_stub_unary_unary_is_rewired_with_async_context(self):
         # AsyncRPCClient.__init__ replaces the stub's `_unary_unary` with the
         # closure produced by `_assign_context`, then `_wrap_all_async_methods`
         # wraps that (originally async) function with `async_run`. The end
         # state is therefore: the handler is no longer the bound method from
-        # ControllerServiceStub, but a synchronous async_run wrapper. A
+        # CoordinatorServiceStub, but a synchronous async_run wrapper. A
         # regression that returned an unconfigured stub would pass the identity
         # check above, but cannot pass this one.
         client = _make_client()
-        stub = client.controller_stub()
-        baseline = ControllerServiceStub("")
+        stub = client.coordinator_stub()
+        baseline = CoordinatorServiceStub("")
         assert stub._unary_unary is not baseline._unary_unary
         # The _assign_context wrapper closes over the AsyncRPCClient self, so
         # if the rewiring really happened the function we end up with mentions
@@ -232,15 +232,15 @@ class TestControllerStub:
         target = getattr(stub._unary_unary, "__wrapped__", stub._unary_unary)
         assert "_assign_context" in target.__qualname__
 
-    def test_controller_stub_async_methods_are_wrapped_with_async_run(self):
+    def test_coordinator_stub_async_methods_are_wrapped_with_async_run(self):
         # AsyncRPCClient also runs `_wrap_all_async_methods_with_async_run`,
         # which replaces every coroutinefunction on the stub with the sync
         # `async_run` wrapper. So whatever methods were async on a fresh
-        # `ControllerServiceStub` must now be NON-coroutine on the configured
+        # `CoordinatorServiceStub` must now be NON-coroutine on the configured
         # stub. Without this assertion the wrap-all pass could no-op silently.
         client = _make_client()
-        stub = client.controller_stub()
-        baseline = ControllerServiceStub("")
+        stub = client.coordinator_stub()
+        baseline = CoordinatorServiceStub("")
         async_method_names = [
             name
             for name in dir(baseline)
@@ -249,7 +249,7 @@ class TestControllerStub:
         ]
         # Sanity: the upstream stub really does ship with async methods.
         assert async_method_names, (
-            "ControllerServiceStub no longer has any async methods; this test "
+            "CoordinatorServiceStub no longer has any async methods; this test "
             "needs to be reconsidered."
         )
         for name in async_method_names:

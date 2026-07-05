@@ -27,9 +27,9 @@ import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.PublishSubject
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ControlRequest
-import org.apache.texera.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
+import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceFs2Grpc
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.ControlReturn
 import org.apache.texera.amber.engine.common.FutureBijection._
 import org.apache.texera.amber.engine.common.ambermessage.{
@@ -53,7 +53,7 @@ class AmberClient(
     system: ActorSystem,
     workflowContext: WorkflowContext,
     physicalPlan: PhysicalPlan,
-    controllerConfig: ControllerConfig,
+    coordinatorConfig: CoordinatorConfig,
     errorHandler: Throwable => Unit
 ) {
 
@@ -66,7 +66,7 @@ class AmberClient(
     clientActor ? InitializeRequest(
       workflowContext,
       physicalPlan,
-      controllerConfig
+      coordinatorConfig
     ),
     10.seconds
   )
@@ -78,8 +78,8 @@ class AmberClient(
     }
   }
 
-  val controllerInterface: ControllerServiceFs2Grpc[Future, Unit] =
-    createProxy[ControllerServiceFs2Grpc[Future, Unit]]()
+  val coordinatorInterface: CoordinatorServiceFs2Grpc[Future, Unit] =
+    createProxy[CoordinatorServiceFs2Grpc[Future, Unit]]()
 
   private def createProxy[T]()(implicit ct: ClassTag[T]): T = {
     val handler = new InvocationHandler {

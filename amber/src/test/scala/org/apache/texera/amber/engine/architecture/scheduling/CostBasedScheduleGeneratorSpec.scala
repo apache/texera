@@ -26,7 +26,7 @@ import org.apache.texera.amber.core.workflow.{
   WorkflowContext,
   WorkflowSettings
 }
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.workflow.LogicalLink
@@ -81,7 +81,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchNoPruningResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false, oEarlyStop = false)
 
     // Should have explored all possible states (2^4 states)
@@ -90,7 +90,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOChainsResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch(globalSearch = true, oCleanEdges = false, oEarlyStop = false)
 
     // By applying pruning based on Chains alone, it should skip 10 (8 + 2) states. 8 states where CSV->Build is
@@ -102,7 +102,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOCleanEdgesResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch(globalSearch = true, oChains = false, oEarlyStop = false)
 
     // By applying pruning based on Clean edges (bridges) alone, it should skip 8 states. There is one clean edge
@@ -112,7 +112,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOEarlyStopResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false)
 
     // By applying pruning based on Early Stop alone, only 6 states that are not descendants of a schedulable states
@@ -122,7 +122,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchAllPruningEnabledResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch(globalSearch = true)
 
     // By combining all pruning techniques, only 3 states should be visited (1 state where both CSV->KeywordFilter and
@@ -176,7 +176,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchNoPruningResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).topDownSearch(globalSearch = true, oChains = false, oCleanEdges = false)
 
     // Should have explored all possible states (2^4 states)
@@ -185,7 +185,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOChainsResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).topDownSearch(globalSearch = true, oCleanEdges = false)
 
     // By applying pruning based on Chains alone, it should start with a state where CSV->Build is pipelined because
@@ -195,7 +195,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOCleanEdgesResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).topDownSearch(globalSearch = true, oChains = false)
 
     // By applying pruning based on Clean Edges (bridges) alone, it should start with a state where Probe->Keyword2 is
@@ -205,7 +205,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchAllPruningEnabledResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).topDownSearch(globalSearch = true)
 
     // By combining both pruning techniques, the search should start with a state where both CSV->Build and
@@ -232,7 +232,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val scheduleGenerator = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     )
     val result = scheduleGenerator.getFullyMaterializedSearchState
 
@@ -278,7 +278,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val scheduleGenerator = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     )
     val result = scheduleGenerator.getFullyMaterializedSearchState
 
@@ -343,7 +343,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val scheduleGenerator = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     )
     val result = scheduleGenerator.getFullyMaterializedSearchState
 
@@ -408,7 +408,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val scheduleGenerator = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     )
     val result = scheduleGenerator.getFullyMaterializedSearchState
 
@@ -487,7 +487,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val scheduleGenerator = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     )
     val result = scheduleGenerator.getFullyMaterializedSearchState
 

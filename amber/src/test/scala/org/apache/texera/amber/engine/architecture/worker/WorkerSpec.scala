@@ -48,7 +48,7 @@ import org.apache.texera.amber.engine.common.ambermessage.{
   WorkflowFIFOMessage
 }
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -116,7 +116,7 @@ class WorkerSpec
     controls.foreach { ctrl =>
       worker ! NetworkMessage(
         seq,
-        WorkflowFIFOMessage(ChannelIdentity(CONTROLLER, identifier1, isControl = true), seq, ctrl)
+        WorkflowFIFOMessage(ChannelIdentity(COORDINATOR, identifier1, isControl = true), seq, ctrl)
       )
       seq += 1
     }
@@ -168,19 +168,19 @@ class WorkerSpec
     val invocation = AsyncRPCClient.ControlInvocation(
       METHOD_ADD_PARTITIONING,
       AddPartitioningRequest(mockLink, mockPolicy),
-      AsyncRPCContext(CONTROLLER, identifier1),
+      AsyncRPCContext(COORDINATOR, identifier1),
       0
     )
     val addPort1 = AsyncRPCClient.ControlInvocation(
       METHOD_ASSIGN_PORT,
       AssignPortRequest(mockPortId, input = true, mkSchema(1).toRawSchema, List(""), List()),
-      AsyncRPCContext(CONTROLLER, identifier1),
+      AsyncRPCContext(COORDINATOR, identifier1),
       1
     )
     val addPort2 = AsyncRPCClient.ControlInvocation(
       METHOD_ASSIGN_PORT,
       AssignPortRequest(mockPortId, input = false, mkSchema(1).toRawSchema, List(""), List()),
-      AsyncRPCContext(CONTROLLER, identifier1),
+      AsyncRPCContext(COORDINATOR, identifier1),
       2
     )
     val addInputChannel = AsyncRPCClient.ControlInvocation(
@@ -189,7 +189,7 @@ class WorkerSpec
         ChannelIdentity(identifier2, identifier1, isControl = false),
         mockLink.toPortId
       ),
-      AsyncRPCContext(CONTROLLER, identifier1),
+      AsyncRPCContext(COORDINATOR, identifier1),
       3
     )
 
@@ -202,7 +202,7 @@ class WorkerSpec
         ),
         isSource = false
       ),
-      AsyncRPCContext(CONTROLLER, identifier1),
+      AsyncRPCContext(COORDINATOR, identifier1),
       4
     )
     sendControlToWorker(
@@ -225,7 +225,7 @@ class WorkerSpec
     worker ! AsyncRPCClient.ControlInvocation(
       METHOD_FLUSH_NETWORK_BUFFER,
       EmptyRequest(),
-      AsyncRPCContext(CONTROLLER, identifier1),
+      AsyncRPCContext(COORDINATOR, identifier1),
       1
     )
     //wait test to finish

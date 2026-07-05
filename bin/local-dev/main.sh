@@ -33,42 +33,54 @@
 #                                             --json, print one machine-readable
 #                                             JSON object (no table) and exit 0
 #                                             iff every service is running — the
-#                                             contract for agents/scripts.
-#   bin/local-dev.sh up   [--fresh|--build|--no-build] [--skip=svc1,svc2] [--json]
-#                         [--worktree=PATH | --branch=NAME]
+#                                             contract for agents/scripts. Every
+#                                             --json payload (all subcommands)
+#                                             carries elapsed_seconds: the
+#                                             command's total wall-clock runtime.
+#   bin/local-dev.sh up [service]
+#                       [--fresh|--build|--skip-build] [--skip=svc1,svc2] [--json]
+#                       [--worktree=PATH | --branch=NAME]
 #                                             Default: skip build if no source/lock
 #                                             changes since last build. --build forces
 #                                             incremental sbt dist + yarn/bun install.
-#                                             --fresh runs `sbt clean dist`. --no-build
-#                                             skips the build step entirely. --json
-#                                             sends progress to stderr and the final
-#                                             status JSON to stdout.
-#                                             DEPLOY SOURCE: with no selector the stack
-#                                             is built/run from THIS checkout. Point it
-#                                             at a sibling git worktree with
+#                                             --fresh runs `sbt clean dist`.
+#                                             --skip-build skips the build step
+#                                             entirely. --json sends progress to
+#                                             stderr and the final status JSON to
+#                                             stdout.
+#                                             With a service name, act on just that
+#                                             service: rebuild it if its source
+#                                             changed (--build forces, --skip-build
+#                                             skips), then start/bounce it. The
+#                                             single-service form follows the active
+#                                             deployment; --fresh / --skip / the
+#                                             deploy selectors are full-stack only.
+#                                             DEPLOY SOURCE: with no selector a
+#                                             full-stack `up` deploys THIS checkout.
+#                                             Point it at a sibling git worktree with
 #                                             --worktree=PATH or --branch=NAME (the
 #                                             worktree that has NAME checked out) to
 #                                             deploy a PR branch without disturbing the
 #                                             main checkout. The choice is persisted, so
-#                                             later status / down / logs / <svc> / auto
-#                                             all act on it (run a plain `up` to return
-#                                             to this checkout). local-dev.sh itself
-#                                             always runs from this checkout — so if the
-#                                             target branch modifies bin/local-dev/**,
-#                                             those tooling changes are NOT in effect;
-#                                             checkout that branch and run its own
-#                                             local-dev.sh instead (a warning is printed
-#                                             when such drift is detected).
-#   bin/local-dev.sh down [--skip=svc1,svc2] [--json]
-#                                             stop every non-skipped service
-#                                             (--json: summary JSON on stdout).
-#   bin/local-dev.sh start <service>          start one service (no rebuild).
-#   bin/local-dev.sh stop  <service>          stop one service.
-#   bin/local-dev.sh <service>                rebuild only that service incrementally
-#                                             (sbt <Project>/dist), then bounce it.
-#                                             frontend / agent-service are refused
-#                                             (they have their own watch mode).
+#                                             later status / down / logs / up <svc> /
+#                                             auto all act on it (run a plain full-stack
+#                                             `up` to return to this checkout).
+#                                             local-dev.sh itself always runs from this
+#                                             checkout — so if the target branch
+#                                             modifies bin/local-dev/**, those tooling
+#                                             changes are NOT in effect; checkout that
+#                                             branch and run its own local-dev.sh
+#                                             instead (a warning is printed when such
+#                                             drift is detected).
+#   bin/local-dev.sh down [service] [--skip=svc1,svc2] [--json]
+#                                             stop every non-skipped service, or just
+#                                             <service> (--json: summary JSON on
+#                                             stdout).
+#   bin/local-dev.sh auto [--skip=svc1,svc2] [--json]
+#                                             rebuild + bounce only the services whose
+#                                             source changed since the last build.
 #   bin/local-dev.sh logs <service>           tail this service's log.
+#   bin/local-dev.sh version [--json]         print the texera version.
 #   bin/local-dev.sh w | watch [interval]     Hands-off monitor: redraw the
 #                                             dashboard every <interval>s
 #                                             (default 2). No prompt; Ctrl-C
@@ -111,7 +123,7 @@ set -euo pipefail
 #   bin/local-dev.sh up                    deploy from this (self) checkout again
 #
 # The selection is persisted to $STATE_DIR/deploy-source, so every later
-# command (status, logs, down, single-service rebuild, auto) reads it back and
+# command (status, logs, down, single-service up/down, auto) reads it back and
 # acts on the SAME deployment. REPO_ROOT below is pointed at the source tree, which
 # is what the rest of the script keys every build/run/git operation off of —
 # only the handful of tooling-file paths are pinned to SELF_ROOT.
@@ -167,7 +179,7 @@ _worktree_for_branch() {
 }
 
 # Deploy source resolution:
-#   • Read-only commands (status / down / logs / <svc>) follow whatever the last
+#   • Read-only commands (status / down / logs / up <svc>) follow whatever the last
 #     up/auto deployed — read it back from the persisted pointer. A stale
 #     pointer (worktree removed/moved) is dropped silently.
 #   • up / auto re-decide the deployment: --worktree=PATH / --branch=NAME selects
@@ -188,6 +200,14 @@ fi
 # dep graph key off the source tree), so peek the args here — cmd_up / cmd_auto
 # re-see and no-op the selectors in their own parse loops.
 if [[ "${1:-}" == "up" || "${1:-}" == "auto" ]]; then
+    # A positional service arg makes `up` a single-service operation. That form
+    # follows the active deployment (like status / logs) rather than
+    # re-deciding it, so leave the persisted pointer alone.
+    _has_svc_arg=false
+    for _arg in "${@:2}"; do
+        case "$_arg" in -*) ;; *) _has_svc_arg=true ;; esac
+    done
+  if ! $_has_svc_arg; then
     # `up` with no selector resets to this checkout; `auto` keeps the pointer
     # value already resolved above.
     [[ "${1:-}" == "up" ]] && SOURCE_ROOT="$SELF_ROOT"
@@ -221,6 +241,7 @@ if [[ "${1:-}" == "up" || "${1:-}" == "auto" ]]; then
     else
         printf '%s\n' "$SOURCE_ROOT" > "$DEPLOY_SOURCE_FILE"
     fi
+  fi
 fi
 
 REPO_ROOT="$SOURCE_ROOT"
@@ -1705,7 +1726,7 @@ build_one_jvm() {
         # lets us tell content-vs-mtime apart on the next dirty check.
         svc_source_hash "$svc" > "$BUILD_STAMP_DIR/$svc"
         tui_ok "$svc: build done"
-        # Don't clear the phase yet — the caller (cmd_update_one) will
+        # Don't clear the phase yet — the caller (cmd_up_one) will
         # transition us through stop_one/start_one which overwrite it.
         # If something else is the caller, the TUI's "phase cleared once
         # poller sees running" rule covers us.
@@ -2077,8 +2098,10 @@ emit_status_json() {
         rows+=$(printf '{"service":"%s","port":%s,"type":"%s","pid":%s,"state":"%s"}' \
             "$svc" "$port" "$type" "$pid" "$state")
     done
-    printf '{"branch":"%s","sha":"%s","worktree":"%s","source":"%s","running":%d,"total":%d,"services":[%s]}\n' \
-        "$branch" "$sha" "$worktree" "$REPO_ROOT" "$n_running" "$n_total" "$rows"
+    # $SECONDS counts from script start, so this is the command's total
+    # wall-clock runtime — every --json payload carries it.
+    printf '{"branch":"%s","sha":"%s","worktree":"%s","source":"%s","running":%d,"total":%d,"elapsed_seconds":%d,"services":[%s]}\n' \
+        "$branch" "$sha" "$worktree" "$REPO_ROOT" "$n_running" "$n_total" "$SECONDS" "$rows"
     (( n_running == n_total ))
 }
 
@@ -2171,9 +2194,8 @@ cmd_status() {
     printf "    ${BOLD}bin/local-dev.sh up${RESET}            ${DIM}# bring up the whole stack (build + start)${RESET}\n"
     printf "    ${BOLD}bin/local-dev.sh down${RESET}          ${DIM}# stop every service${RESET}\n"
     printf "    ${BOLD}bin/local-dev.sh auto${RESET}          ${DIM}# rebuild + bounce only the services whose source changed${RESET}\n"
-    printf "    ${BOLD}bin/local-dev.sh <svc>${RESET}         ${DIM}# rebuild that one JVM service and bounce it${RESET}\n"
-    printf "    ${BOLD}bin/local-dev.sh start <svc>${RESET}   ${DIM}# start one service without rebuilding${RESET}\n"
-    printf "    ${BOLD}bin/local-dev.sh stop  <svc>${RESET}   ${DIM}# stop one service${RESET}\n"
+    printf "    ${BOLD}bin/local-dev.sh up   <svc>${RESET}    ${DIM}# bring one service up (rebuilds only if its source changed)${RESET}\n"
+    printf "    ${BOLD}bin/local-dev.sh down <svc>${RESET}    ${DIM}# stop one service${RESET}\n"
     printf "    ${BOLD}bin/local-dev.sh logs  <svc>${RESET}   ${DIM}# tail a service's log${RESET}\n"
     printf "    ${BOLD}bin/local-dev.sh -i${RESET}            ${DIM}# open the live TUI (needs Python + textual)${RESET}\n"
     printf "    ${BOLD}bin/local-dev.sh --help${RESET}        ${DIM}# full reference${RESET}\n"
@@ -2185,17 +2207,23 @@ cmd_up() {
     FRESH=false
     BUILD=auto       # auto (skip if no source change) | force | no
     JSON_OUT=false
+    local one_svc="" selector_seen=false
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --skip=*)   SKIP_LIST="${1#--skip=}" ;;
             --fresh)    FRESH=true; BUILD=force ;;
             --build)    BUILD=force ;;
-            --no-build) BUILD=no ;;
+            --skip-build) BUILD=no ;;
+            --no-build) tui_err "--no-build was renamed to --skip-build" >&2; exit 2 ;;
             --json)     JSON_OUT=true ;;
             # Deploy-target selectors are resolved at startup (they must precede
             # the build.sbt parse); accept and ignore them here.
-            --worktree=*|--branch=*) ;;
-            *) tui_err "unknown flag: $1" >&2; exit 2 ;;
+            --worktree=*|--branch=*) selector_seen=true ;;
+            -*) tui_err "unknown flag: $1" >&2; exit 2 ;;
+            *)  if [[ -n "$one_svc" ]]; then
+                    tui_err "up takes at most one service (got '$one_svc' and '$1')" >&2; exit 2
+                fi
+                one_svc="$1" ;;
         esac
         shift
     done
@@ -2205,6 +2233,20 @@ cmd_up() {
     # keep the real stdout on fd 3 for emit_status_json. stderr is unbuffered,
     # so a non-interactive caller still sees progress live on the side stream.
     if $JSON_OUT; then exec 3>&1 1>&2; fi
+
+    # Single-service form: `up <svc>` acts on the active deployment (the
+    # startup peek skipped the pointer reset). Full-stack-only knobs are
+    # rejected rather than silently ignored.
+    if [[ -n "$one_svc" ]]; then
+        if [[ -n "$SKIP_LIST" ]] || $FRESH || $selector_seen; then
+            tui_err "--skip / --fresh / --worktree / --branch apply to the full-stack \`up\` only" >&2
+            exit 2
+        fi
+        local ec=0
+        cmd_up_one "$one_svc" || ec=$?
+        $JSON_OUT && { emit_status_json >&3 || true; }
+        return $ec
+    fi
 
     local n_skip=0
     [[ -n "$SKIP_LIST" ]] && n_skip=$(echo "$SKIP_LIST" | tr ',' '\n' | wc -l | tr -d ' ')
@@ -2250,7 +2292,7 @@ cmd_up() {
             tui_section "Pre-flight"
             tui_ok "no source/lock changes since last build"
             tui_ok "all ${#SERVICES[@]} services already running"
-            printf "\n  ${BOLD}${GREEN}${SYM_OK} nothing to do${RESET}  ${DIM}(use \`u --build\` to force a rebuild, or \`<svc>\` to bounce just one)${RESET}\n\n"
+            printf "\n  ${BOLD}${GREEN}${SYM_OK} nothing to do${RESET}  ${DIM}(use \`up --build\` to force a rebuild, or \`up <svc>\` to bounce just one)${RESET}\n\n"
             $JSON_OUT && { emit_status_json >&3 || true; }
             return 0
         fi
@@ -2288,7 +2330,7 @@ cmd_up() {
         refresh_node_deps
     else
         tui_section "Build"
-        tui_skip "build: --no-build (using existing artifacts)"
+        tui_skip "build: --skip-build (using existing artifacts)"
     fi
 
     # ▸ Services -- native services only; docker rows were handled by the
@@ -2361,15 +2403,19 @@ cmd_up() {
 # Clean services are left alone — no pre-bounce, no restart.
 cmd_auto() {
     SKIP_LIST=""
+    JSON_OUT=false
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --skip=*) SKIP_LIST="${1#--skip=}" ;;
+            --json)   JSON_OUT=true ;;
             # Deploy-target selectors are resolved at startup; accept here.
             --worktree=*|--branch=*) ;;
             *) tui_err "unknown flag: $1" >&2; exit 2 ;;
         esac
         shift
     done
+    # See cmd_up: human progress to stderr, JSON summary on real stdout (fd 3).
+    if $JSON_OUT; then exec 3>&1 1>&2; fi
 
     tui_banner "Texera Local Dev — auto bounce" \
         "rebuild + bounce only what changed since last build"
@@ -2408,6 +2454,7 @@ cmd_auto() {
     if (( ${#dirty_jvms[@]} == 0 )) && ! $need_yarn && ! $need_bun; then
         tui_ok "everything up-to-date — nothing to bounce"
         printf "\n"
+        $JSON_OUT && { emit_status_json >&3 || true; }
         return 0
     fi
 
@@ -2437,6 +2484,7 @@ cmd_auto() {
                 phase_clear "$_s"
             done
             tui_err "sbt dist failed  ${DIM}(tail -f $log)${RESET}"
+            $JSON_OUT && { emit_status_json >&3 || true; }
             return 1
         fi
         tui_ok "sbt: dist done"
@@ -2589,22 +2637,46 @@ cmd_auto() {
     printf "\n"
     printf "  ${BOLD}${GREEN}${SYM_OK} auto bounce done${RESET}: %d rebuilt, %d bounced\n\n" \
         "$n_rebuilt" "$n_bounced"
-    cmd_status
+    if $JSON_OUT; then emit_status_json >&3 || true; else cmd_status; fi
 }
 
 cmd_down() {
     SKIP_LIST=""
     JSON_OUT=false
+    local one_svc=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --skip=*) SKIP_LIST="${1#--skip=}" ;;
             --json)   JSON_OUT=true ;;
-            *) tui_err "unknown flag: $1" >&2; exit 2 ;;
+            -*) tui_err "unknown flag: $1" >&2; exit 2 ;;
+            *)  if [[ -n "$one_svc" ]]; then
+                    tui_err "down takes at most one service (got '$one_svc' and '$1')" >&2; exit 2
+                fi
+                one_svc="$1" ;;
         esac
         shift
     done
     # See cmd_up: human progress to stderr, JSON summary on real stdout (fd 3).
     if $JSON_OUT; then exec 3>&1 1>&2; fi
+
+    # Single-service form: stop just that one (stop_one handles docker via
+    # `compose stop`, so the shared network/volumes stay up for the others).
+    if [[ -n "$one_svc" ]]; then
+        if [[ -n "$SKIP_LIST" ]]; then
+            tui_err "--skip applies to the full-stack \`down\` only" >&2; exit 2
+        fi
+        if ! amap_has SVC_TYPE "$one_svc"; then
+            tui_err "unknown service: ${BOLD}$one_svc${RESET}"
+            printf "  ${DIM}Known:${RESET} ${SERVICES[*]}\n"
+            exit 1
+        fi
+        tui_banner "Texera Local Dev — stopping ${one_svc}" "single service"
+        stop_one "$one_svc"
+        printf "\n"
+        $JSON_OUT && { emit_status_json >&3 || true; }
+        return 0
+    fi
+
     tui_banner "Texera Local Dev — stopping stack" "skip=${SKIP_LIST:-none}"
     tui_section "Stopping (reverse order)"
     local svc=""
@@ -2635,66 +2707,124 @@ cmd_down() {
     return 0
 }
 
-cmd_update_one() {
+# Single-service `up`: make one service current and running, honoring the
+# same BUILD knob as the full-stack form:
+#   auto  (default) — rebuild + bounce only if its source changed since the
+#                     last build; otherwise just start it if stopped
+#   force (--build) — rebuild + bounce unconditionally
+#   no    (--skip-build) — start with the existing artifacts, never build
+cmd_up_one() {
     local svc="$1"
     if ! amap_has SVC_TYPE "$svc"; then
         tui_err "unknown service: ${BOLD}$svc${RESET}"
         printf "  ${DIM}Known:${RESET} ${SERVICES[*]}\n"
-        exit 1
+        return 1
     fi
     local type=""
     type=$(amap_get SVC_TYPE "$svc")
     case "$type" in
         docker)
-            tui_banner "Restarting ${svc}" "docker compose restart $svc"
-            tui_step "$svc: docker compose restart $svc"
-            docker compose -p "$DOCKER_PROJECT" restart "$svc" >/dev/null 2>&1 \
-                && tui_ok "$svc: restarted" \
-                || { tui_err "$svc: restart failed"; exit 1; }
-            exit 0
+            # No source to build — --build degrades to a restart, everything
+            # else to an idempotent `compose up -d`.
+            if [[ "$BUILD" == "force" ]]; then
+                tui_banner "Restarting ${svc}" "docker compose restart $svc"
+                tui_step "$svc: docker compose restart $svc"
+                docker compose -p "$DOCKER_PROJECT" restart "$svc" >/dev/null 2>&1 \
+                    && tui_ok "$svc: restarted" \
+                    || { tui_err "$svc: restart failed"; return 1; }
+            else
+                tui_banner "Starting ${svc}" "docker compose up -d $svc"
+                start_one "$svc" || return 1
+            fi
+            # compose returns before the container is healthy; its state is
+            # the docker poller's job, not a port wait here.
+            return 0
             ;;
         yarn)
-            tui_warn "frontend uses ng's watch -- source changes hot-reload automatically."
-            printf "  ${DIM}For dep changes: kill PID ${RESET}$(svc_running_pid frontend)${DIM}; then bin/local-dev.sh up${RESET}\n"
-            exit 0
+            if [[ -n "$(svc_running_pid "$svc")" ]]; then
+                tui_warn "frontend uses ng's watch -- source changes hot-reload automatically."
+                printf "  ${DIM}For dep changes: bin/local-dev.sh down frontend && bin/local-dev.sh up frontend${RESET}\n"
+                return 0
+            fi
+            tui_banner "Starting ${svc}" "yarn start (ng serve)"
+            if [[ "$BUILD" != "no" ]] && needs_yarn_install; then
+                tui_section "Deps"
+                local _ylog="$LOG_DIR/yarn-install.log"
+                tui_run_with_spinner "$_ylog" "yarn install  ${DIM}(log: $_ylog)${RESET}" \
+                    bash -c "cd frontend && yarn install" \
+                    || { tui_err "yarn install failed  ${DIM}(tail -f $_ylog)${RESET}"; return 1; }
+            fi
+            start_one "$svc" || return 1
             ;;
         bun)
-            tui_banner "Updating ${svc}" "bun install + bounce"
-            tui_section "Deps"
-            ( cd "$(amap_get SVC_CWD "$svc")" && bun install )
-            tui_section "Bounce"
-            stop_one "$svc"
-            start_one "$svc"
+            if [[ "$BUILD" == "force" ]]; then
+                tui_banner "Updating ${svc}" "bun install + bounce"
+                tui_section "Deps"
+                ( cd "$(amap_get SVC_CWD "$svc")" && bun install )
+                tui_section "Bounce"
+                stop_one "$svc"
+                start_one "$svc"
+            else
+                if [[ -n "$(svc_running_pid "$svc")" ]]; then
+                    tui_ok "$svc: already running ${DIM}(bun --watch picks up source changes)${RESET}"
+                    return 0
+                fi
+                tui_banner "Starting ${svc}" "bun run dev"
+                if [[ "$BUILD" != "no" ]] && needs_bun_install; then
+                    tui_section "Deps"
+                    local _blog="$LOG_DIR/bun-install.log"
+                    tui_run_with_spinner "$_blog" "bun install  ${DIM}(log: $_blog)${RESET}" \
+                        bash -c "cd agent-service && bun install" \
+                        || { tui_err "bun install failed  ${DIM}(tail -f $_blog)${RESET}"; return 1; }
+                fi
+                start_one "$svc" || return 1
+            fi
             ;;
         jvm)
-            local _sbt_proj=""
-            _sbt_proj=$(amap_get SVC_SBT "$svc")
-            if [[ -n "$_sbt_proj" ]]; then
-                tui_banner "Updating ${svc}" "sbt ${_sbt_proj}/dist + bounce"
-            else
-                tui_banner "Updating ${svc}" "bounce only (shares dist with its sibling)"
-            fi
-            tui_section "Build"
-            build_one_jvm "$svc"
-            tui_section "Bounce"
-            # amber's two siblings share a dist — rebuilding one moves the
-            # jar bytes underneath the other. Always bounce them together
-            # so neither ends up running stale code (or silently dead).
-            local sibling=""
-            case "$svc" in
-                texera-web)            sibling="computing-unit-master" ;;
-                computing-unit-master) sibling="texera-web" ;;
+            local rebuild=false
+            case "$BUILD" in
+                force) rebuild=true ;;
+                auto)  svc_src_changed "$svc" && rebuild=true ;;
             esac
-            local sibling_was_running=false
-            if [[ -n "$sibling" ]] && [[ -n "$(svc_running_pid "$sibling")" ]]; then
-                sibling_was_running=true
-                tui_step "$sibling: stopping (shares amber dist with $svc)"
-                stop_one "$sibling"
-            fi
-            stop_one "$svc"
-            start_one "$svc"
-            if $sibling_was_running; then
-                start_one "$sibling"
+            if $rebuild; then
+                local _sbt_proj=""
+                _sbt_proj=$(amap_get SVC_SBT "$svc")
+                if [[ -n "$_sbt_proj" ]]; then
+                    tui_banner "Updating ${svc}" "sbt ${_sbt_proj}/dist + bounce"
+                else
+                    tui_banner "Updating ${svc}" "bounce only (shares dist with its sibling)"
+                fi
+                tui_section "Build"
+                # jOOQ codegen connects to postgres at sbt-compile time (#6007).
+                ensure_postgres_for_build
+                build_one_jvm "$svc"
+                tui_section "Bounce"
+                # amber's two siblings share a dist — rebuilding one moves the
+                # jar bytes underneath the other. Always bounce them together
+                # so neither ends up running stale code (or silently dead).
+                local sibling=""
+                case "$svc" in
+                    texera-web)            sibling="computing-unit-master" ;;
+                    computing-unit-master) sibling="texera-web" ;;
+                esac
+                local sibling_was_running=false
+                if [[ -n "$sibling" ]] && [[ -n "$(svc_running_pid "$sibling")" ]]; then
+                    sibling_was_running=true
+                    tui_step "$sibling: stopping (shares amber dist with $svc)"
+                    stop_one "$sibling"
+                fi
+                stop_one "$svc"
+                start_one "$svc"
+                if $sibling_was_running; then
+                    start_one "$sibling"
+                fi
+            else
+                if [[ -n "$(svc_running_pid "$svc")" ]]; then
+                    tui_ok "$svc: already running and up-to-date ${DIM}(PID $(svc_running_pid "$svc"))${RESET}"
+                    return 0
+                fi
+                tui_banner "Starting ${svc}" "existing artifacts (no source change)"
+                start_one "$svc" || return 1
             fi
             ;;
     esac
@@ -2706,9 +2836,17 @@ cmd_update_one() {
     else
         printf "  ${RED}${SYM_ERR}${RESET}  %-32s ${DIM}:%s${RESET}  ${RED}timeout${RESET}  ${DIM}(bin/local-dev.sh logs %s)${RESET}\n" \
             "$svc" "$_port" "$svc"
-        exit 1
+        return 1
     fi
     printf "\n"
+}
+
+cmd_version() {
+    case "${1:-}" in
+        --json) printf '{"version":"%s","elapsed_seconds":%d}\n' "$TEXERA_VERSION" "$SECONDS" ;;
+        "")     printf "%s\n" "$TEXERA_VERSION" ;;
+        *)      tui_err "unknown flag: $1" >&2; exit 2 ;;
+    esac
 }
 
 cmd_logs() {
@@ -2781,11 +2919,10 @@ tui_render_dashboard() {
     printf "\n\n"
     printf "  ${DIM}Commands:${RESET}  "
     printf "${BOLD}r${RESET}efresh${DIM} (or just ↩)${RESET} · "
-    printf "${BOLD}u${RESET}p · ${BOLD}d${RESET}own · "
+    printf "${BOLD}u${RESET}p ${DIM}[<svc>]${RESET} · "
+    printf "${BOLD}d${RESET}own ${DIM}[<svc>]${RESET} · "
     printf "${BOLD}b${RESET}uild · "
-    printf "${BOLD}<svc>${RESET}${DIM}=rebuild+bounce${RESET} · "
     printf "${BOLD}l${RESET}ogs ${DIM}<svc>${RESET} · "
-    printf "${BOLD}s${RESET}top ${DIM}<svc>${RESET} · "
     printf "${BOLD}q${RESET}uit\n\n"
 }
 
@@ -2910,11 +3047,12 @@ case "${1:-}" in
     up)               shift; cmd_up "$@" ;;
     auto)             shift; cmd_auto "$@" ;;
     down)             shift; cmd_down "$@" ;;
-    start)            shift; start_one "${1:?need service name}" ;;
-    stop)             shift; stop_one "${1:?need service name}" ;;
+    start|stop)       tui_err "\`$1\` was removed — use \`bin/local-dev.sh up <service>\` / \`down <service>\`" >&2
+                      exit 2 ;;
     logs)             shift; cmd_logs "${1:-}" ;;
     w|watch)          shift; cmd_watch "${1:-2}" ;;
-    version)          printf "%s\n" "$TEXERA_VERSION" ;;
-    -h|--help)        sed -n '18,92p' "$0" ;;
-    *)                cmd_update_one "$1" ;;
+    version)          shift; cmd_version "$@" ;;
+    -h|--help)        sed -n '18,/^# Logs and pid book-keeping/p' "$0" ;;
+    *)                tui_err "unknown subcommand: ${BOLD}$1${RESET}  ${DIM}(for one service: up/down $1)${RESET}" >&2
+                      exit 2 ;;
 esac

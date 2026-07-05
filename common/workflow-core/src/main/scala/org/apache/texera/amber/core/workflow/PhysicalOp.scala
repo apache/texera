@@ -51,7 +51,7 @@ class SchemaNotAvailableException(message: String) extends Exception(message)
 object PhysicalOp {
 
   /** all source operators should use sourcePhysicalOp to give the following configs:
-    *  1) it initializes at the controller jvm.
+    *  1) it initializes at the coordinator jvm.
     *  2) it only has 1 worker actor.
     *  3) it has no input ports.
     */
@@ -80,7 +80,7 @@ object PhysicalOp {
       executionId,
       opExecInitInfo,
       parallelizable = false,
-      locationPreference = Some(PreferController)
+      locationPreference = Some(PreferCoordinator)
     )
 
   def oneToOnePhysicalOp(
@@ -154,7 +154,7 @@ object PhysicalOp {
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
-      .withLocationPreference(Some(PreferController))
+      .withLocationPreference(Some(PreferCoordinator))
   }
 }
 
