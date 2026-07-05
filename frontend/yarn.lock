@@ -242,22 +242,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@angular-builders/common@npm:5.0.3":
-  version: 5.0.3
-  resolution: "@angular-builders/common@npm:5.0.3"
+"@angular-builders/common@npm:5.0.4":
+  version: 5.0.4
+  resolution: "@angular-builders/common@npm:5.0.4"
   dependencies:
     "@angular-devkit/core": "npm:^21.0.0"
     ts-node: "npm:^10.0.0"
     tsconfig-paths: "npm:^4.2.0"
-  checksum: 10c0/b9f487c0d9be3fea556d83b759d48c7e0f5a2494a0eb82c49836483f10db2ead27e9e92baf73ed913cb323a5ffe8f45402f8a00a43c37dbde39d40b81c79660d
+  checksum: 10c0/79a911142560954f30546d57ba11097fb034c934b8e00101e3d2ae41f08b72258bc39e03ec2ef2f7f946e7f47a41c835bc72222e355e6a49031429fd9184d5c8
   languageName: node
   linkType: hard
 
-"@angular-builders/custom-webpack@npm:21.0.3":
-  version: 21.0.3
-  resolution: "@angular-builders/custom-webpack@npm:21.0.3"
+"@angular-builders/custom-webpack@npm:21.1.0":
+  version: 21.1.0
+  resolution: "@angular-builders/custom-webpack@npm:21.1.0"
   dependencies:
-    "@angular-builders/common": "npm:5.0.3"
+    "@angular-builders/common": "npm:5.0.4"
     "@angular-devkit/architect": "npm:>=0.2100.0 < 0.2200.0"
     "@angular-devkit/build-angular": "npm:^21.0.0"
     "@angular-devkit/core": "npm:^21.0.0"
@@ -266,7 +266,8 @@ __metadata:
     webpack-merge: "npm:^6.0.0"
   peerDependencies:
     "@angular/compiler-cli": ^21.0.0
-  checksum: 10c0/7ab13d9e4d1f122e38817de8783a19bd7345ddb15effaf5f12a3feacf7e68637ed46517a3c469fc1dbd112961e4074dcbb0f9f93a16c83964b512ecae788e032
+    rxjs: ">=7.0.0"
+  checksum: 10c0/10f412a2c6a099ebff641c3b39e6c9b30fbceacd512028e6aa7f0a9c7c379d7200dc5e912f85eb960c2f1ab31d2315c85da42dd0499eb8b918e8d28eca939211
   languageName: node
   linkType: hard
 
@@ -10730,7 +10731,7 @@ __metadata:
     "@abacritt/angularx-social-login": "npm:2.3.0"
     "@ai-sdk/openai": "npm:2.0.67"
     "@ali-hm/angular-tree-component": "npm:12.0.5"
-    "@angular-builders/custom-webpack": "npm:21.0.3"
+    "@angular-builders/custom-webpack": "npm:21.1.0"
     "@angular-devkit/build-angular": "npm:21.2.18"
     "@angular-devkit/core": "npm:21.2.18"
     "@angular-devkit/schematics": "npm:21.2.18"
