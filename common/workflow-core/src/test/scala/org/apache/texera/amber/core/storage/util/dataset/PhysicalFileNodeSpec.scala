@@ -23,6 +23,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.file.{Files, Path}
 import scala.jdk.CollectionConverters._
+import scala.util.Using
 
 class PhysicalFileNodeSpec extends AnyFlatSpec {
 
@@ -30,10 +31,13 @@ class PhysicalFileNodeSpec extends AnyFlatSpec {
     val repo = Files.createTempDirectory("pfn-")
     try body(repo)
     finally {
-      Files
-        .walk(repo)
-        .sorted(java.util.Comparator.reverseOrder[Path]())
-        .forEach(p => Files.deleteIfExists(p))
+      // Files.walk returns a Stream holding a directory handle; close it so temp
+      // cleanup does not intermittently fail (notably on Windows) on a leaked handle.
+      Using.resource(Files.walk(repo)) { stream =>
+        stream
+          .sorted(java.util.Comparator.reverseOrder[Path]())
+          .forEach(p => Files.deleteIfExists(p))
+      }
     }
   }
 
