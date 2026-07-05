@@ -21,20 +21,52 @@ package org.apache.texera.web.resource
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.timestamp.Timestamp
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import org.apache.texera.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import org.apache.texera.amber.core.workflow.{
+  GlobalPortIdentity,
+  PortIdentity,
+  WorkflowContext,
+  WorkflowSettings
+}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.{
   COMPILATION_ERROR,
   EXECUTION_FAILURE
 }
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.common.executionruntimestate.ExecutionMetadataStore
-import org.scalatest.PrivateMethodTester
+import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  UserDao,
+  WorkflowDao,
+  WorkflowExecutionsDao,
+  WorkflowVersionDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  User,
+  Workflow,
+  WorkflowExecutions,
+  WorkflowVersion
+}
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import org.apache.texera.web.model.websocket.request.{LogicalPlanPojo, WorkflowExecuteRequest}
+import org.apache.texera.web.storage.ExecutionStateStore
+import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.net.URI
+import java.sql.{Timestamp => SqlTimestamp}
 import java.time.Instant
+import java.util.UUID
 
 /**
   * Unit tests for the pure parts of [[SyncExecutionResource]] that this PR introduced: the
@@ -50,10 +82,24 @@ import java.time.Instant
   * Pekko execution engine, an Iceberg-backed result store, and DB-persisted port executions,
   * so they are exercised by integration tests rather than here.
   */
-class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMethodTester {
+class SyncExecutionResourceSpec
+    extends AnyFlatSpec
+    with Matchers
+    with PrivateMethodTester
+    with BeforeAndAfterAll
+    with MockTexeraDB {
 
   private val mapper = new ObjectMapper()
   private val resource = new SyncExecutionResource
+  private var nextDbId = 900000
+
+  override protected def beforeAll(): Unit = {
+    initializeDBAndReplaceDSLContext()
+  }
+
+  override protected def afterAll(): Unit = {
+    shutdownDB()
+  }
 
   private def sampleRow(idx: Int, k: String, v: String): SampleRow = {
     val node = mapper.createObjectNode()
@@ -61,12 +107,121 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     SampleRow(rowIndex = idx, tuple = node)
   }
 
+  private def nextId(): Int = {
+    nextDbId += 1
+    nextDbId
+  }
+
+  private def insertExecutionRow(): ExecutionIdentity = {
+    val now = new SqlTimestamp(System.currentTimeMillis())
+    val suffix = UUID.randomUUID().toString.substring(0, 8)
+    val uid = nextId()
+    val wid = nextId()
+    val vid = nextId()
+    val eid = nextId()
+
+    val user = new User
+    user.setUid(uid)
+    user.setName(s"sync-user-$suffix")
+    user.setEmail(s"sync-user-$suffix@example.com")
+    user.setPassword("password")
+    new UserDao(getDSLContext.configuration()).insert(user)
+
+    val workflow = new Workflow
+    workflow.setWid(wid)
+    workflow.setName(s"sync-workflow-$suffix")
+    workflow.setContent("{}")
+    workflow.setDescription("")
+    workflow.setCreationTime(now)
+    workflow.setLastModifiedTime(now)
+    new WorkflowDao(getDSLContext.configuration()).insert(workflow)
+
+    val version = new WorkflowVersion
+    version.setVid(vid)
+    version.setWid(wid)
+    version.setContent("{}")
+    version.setCreationTime(now)
+    new WorkflowVersionDao(getDSLContext.configuration()).insert(version)
+
+    val execution = new WorkflowExecutions
+    execution.setEid(eid)
+    execution.setVid(vid)
+    execution.setUid(uid)
+    execution.setStatus(0.toByte)
+    execution.setName(s"sync-execution-$suffix")
+    execution.setEnvironmentVersion("test engine")
+    execution.setStartingTime(now)
+    new WorkflowExecutionsDao(getDSLContext.configuration()).insert(execution)
+
+    ExecutionIdentity(eid.toLong)
+  }
+
+  private def buildExecutionService(
+      stateStore: ExecutionStateStore
+  ): org.apache.texera.web.service.WorkflowExecutionService = {
+    val request = WorkflowExecuteRequest(
+      executionName = "sync-test",
+      engineVersion = "test",
+      logicalPlan = LogicalPlanPojo(List.empty, List.empty, List.empty, List.empty),
+      replayFromExecution = None,
+      workflowSettings = WorkflowSettings(),
+      emailNotificationEnabled = false,
+      computingUnitId = 0
+    )
+    new org.apache.texera.web.service.WorkflowExecutionService(
+      null,
+      new WorkflowContext(),
+      null,
+      request,
+      stateStore,
+      (_: Throwable) => (),
+      None,
+      new URI("vfs:///sync-resource-test")
+    )
+  }
+
   // handleExecutionError is private; reflectively invoke it (no production change needed).
   private val handleExecutionError =
     PrivateMethod[WorkflowExecutionSummary](Symbol("handleExecutionError"))
 
+  private val collectOperatorInfos =
+    PrivateMethod[Map[String, OperatorExecutionSummary]](Symbol("collectOperatorInfos"))
+
+  private val collectOperatorResult =
+    PrivateMethod[(String, Option[List[SampleRow]], Option[Int])](Symbol("collectOperatorResult"))
+
   private def classify(message: String): WorkflowExecutionSummary =
     resource invokePrivate handleExecutionError(new RuntimeException(message))
+
+  "execution summary DTOs" should "retain stable case-class generated behavior" in {
+    val row = sampleRow(0, "col", "value")
+    val console = ConsoleMessageSummary(msgType = "PRINT", title = "t", message = "m")
+    val result =
+      OperatorResultSummary(resultMode = "table", sampleTuples = List(row), tuplesCount = 1)
+    val fatalError =
+      WorkflowFatalError(EXECUTION_FAILURE, Timestamp(Instant.now), "boom", "", "op-1")
+    val operator = OperatorExecutionSummary(
+      state = "Failed",
+      errorMessages = List(fatalError),
+      resultSummary = Some(result),
+      consoleMessages = Some(List(console))
+    )
+    val workflow = WorkflowExecutionSummary(
+      success = false,
+      state = "Failed",
+      operators = Map("op-1" -> operator),
+      errors = List(fatalError)
+    )
+
+    console.copy(message = "updated").message shouldBe "updated"
+    row.copy(rowIndex = 5).rowIndex shouldBe 5
+    result.copy(tuplesCount = 2).tuplesCount shouldBe 2
+    operator.copy(state = "Completed").state shouldBe "Completed"
+    workflow.copy(success = true).success shouldBe true
+
+    OperatorExecutionSummary.unapply(operator).get._3 shouldBe Some(result)
+    WorkflowExecutionSummary.unapply(workflow).get._4 shouldBe List(fatalError)
+  }
 
   "handleExecutionError" should "classify lowercase 'compilation' messages as CompilationFailed" in {
     val summary = classify("compilation failed for the plan")
@@ -115,6 +270,73 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
   private val tableSchema = new Schema(List(new Attribute("col", AttributeType.STRING)))
   private def tableTuple(v: String): Tuple =
     Tuple.builder(tableSchema).add("col", AttributeType.STRING, v).build()
+
+  private def materializeResult(
+      executionId: ExecutionIdentity,
+      opId: String,
+      tuples: List[Tuple]
+  ): VirtualDocument[Tuple] = {
+    val operatorId = OperatorIdentity(opId)
+    val globalPort = GlobalPortIdentity(
+      PhysicalOpIdentity(operatorId, "main"),
+      PortIdentity(),
+      input = false
+    )
+    val uri = VFSURIFactory.resultURI(
+      VFSURIFactory.createPortBaseURI(WorkflowIdentity(1L), executionId, globalPort)
+    )
+    val document =
+      DocumentFactory.createDocument(uri, tableSchema).asInstanceOf[VirtualDocument[Tuple]]
+    val writer =
+      document
+        .writer(s"sync-result-${executionId.id}-$opId")
+        .asInstanceOf[BufferedItemWriter[Tuple]]
+    writer.open()
+    tuples.foreach(writer.putOne)
+    writer.close()
+    WorkflowExecutionsResource.insertOperatorPortResultUri(executionId, globalPort, uri)
+    document
+  }
+
+  "collectOperatorResult" should "return no result summary when no result URI exists" in {
+    val summary = resource invokePrivate collectOperatorResult(
+      insertExecutionRow(),
+      "missing-result-op",
+      100000,
+      100000
+    )
+    summary shouldBe (("table", None, None))
+  }
+
+  it should "sample rows from a materialized result document" in {
+    val executionId = insertExecutionRow()
+    val document =
+      materializeResult(executionId, "result-op", List(tableTuple("a"), tableTuple("b")))
+    try {
+      val (mode, rows, total) = resource invokePrivate collectOperatorResult(
+        executionId,
+        "result-op",
+        100000,
+        100000
+      )
+      mode shouldBe "table"
+      rows.get.map(_.rowIndex) shouldBe List(0, 1)
+      rows.get.map(_.tuple.get("col").asText()) shouldBe List("a", "b")
+      total shouldBe Some(2)
+    } finally {
+      document.clear()
+    }
+  }
+
+  it should "fall back to no result summary when result lookup throws" in {
+    val summary = resource invokePrivate collectOperatorResult(
+      null.asInstanceOf[ExecutionIdentity],
+      "bad-result-op",
+      100000,
+      100000
+    )
+    summary shouldBe (("table", None, None))
+  }
 
   "sampleAndTruncateTuples" should "report an empty table for a zero-count / empty iterator" in {
     val (mode, rows, total) =
@@ -309,6 +531,24 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     summary.resultSummary shouldBe None
     summary.consoleMessages shouldBe None
     summary.errorMessages shouldBe empty
+  }
+
+  // --- collectOperatorInfos (private wrapper around state/result/console collection) -------
+
+  "collectOperatorInfos" should "return an empty map when there are no target or stats operators" in {
+    val stateStore = new ExecutionStateStore
+    val executionService = buildExecutionService(stateStore)
+
+    val operatorInfos = resource invokePrivate collectOperatorInfos(
+      ExecutionIdentity(1L),
+      executionService,
+      List.empty[String],
+      100000,
+      100000,
+      None
+    )
+
+    operatorInfos shouldBe empty
   }
 
   // --- assembleExecutionSummary (extracted from executeWorkflowSync) ----------------------
