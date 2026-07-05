@@ -71,7 +71,10 @@ class PythonOperatorDescriptorSpec extends AnyFlatSpec with Matchers {
   }
 
   private def code(op: PythonOperatorDescriptor): String =
-    op.getPhysicalOp(workflowId, executionId).opExecInitInfo.asInstanceOf[OpExecWithCode].code
+    op.getPhysicalOp(workflowId, executionId).opExecInitInfo match {
+      case OpExecWithCode(c, _) => c
+      case other                => fail(s"expected OpExecWithCode, got $other")
+    }
 
   "PythonOperatorDescriptor.getPhysicalOp" should
     "embed the generation exception in the code instead of throwing" in {
@@ -93,6 +96,9 @@ class PythonOperatorDescriptorSpec extends AnyFlatSpec with Matchers {
   it should "build a one-to-one PhysicalOp when asSource is false" in {
     val physical = (new OneToOnePyOp).getPhysicalOp(workflowId, executionId)
     physical.locationPreference shouldBe None
-    physical.opExecInitInfo.asInstanceOf[OpExecWithCode].code shouldBe "print('hi')"
+    physical.opExecInitInfo match {
+      case OpExecWithCode(c, _) => c shouldBe "print('hi')"
+      case other                => fail(s"expected OpExecWithCode, got $other")
+    }
   }
 }
