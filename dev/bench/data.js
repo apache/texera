@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783171118995,
+  "lastUpdate": 1783257789844,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -2933,6 +2933,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 515.1297233233323,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "PJ Fanning",
+            "username": "pjfanning",
+            "email": "pjfanning@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "6fdfe19106d64cfb33fb431ac82390966afc3e52",
+          "message": "chore(deps): Upgrade to Pekko 1.6.0 (#6151)\n\n### What changes were proposed in this PR?\n\nBump Apache Pekko from 1.2.1 to 1.6.0: `pekkoVersion` in\n`amber/build.sbt`, plus the 11 corresponding `org.apache.pekko.*` jar\nentries in `amber/LICENSE-binary-java`.\n\nPekko is amber's actor runtime (actor, remote, cluster, persistence,\nstream, …); all modules move together on the shared version. The jump\nspans the 1.3.x → 1.6.0 maintenance lines — bug-fix and performance\nreleases that stay binary compatible within the 1.x series ([1.6.x\nrelease\nnotes](https://pekko.apache.org/docs/pekko/current/release-notes/releases-1.6.html)).\nNo other bundled jars change (transitive dependencies are unaffected),\nso the LICENSE-binary diff is limited to the Pekko version strings.\n\n### Any related issues, documentation, discussions?\n\nPekko release notes:\n[1.6.x](https://pekko.apache.org/docs/pekko/current/release-notes/releases-1.6.html)\n(see the linked notes for 1.3.x–1.5.x covered by this jump).\n\n### How was this PR tested?\n\nExisting test cases via the label-gated `engine` CI stack (amber unit\ntests + amber-integration on Linux/macOS); dependency bump only, no code\nchange. The binary licensing check verifies the bundled jars against\n`amber/LICENSE-binary-java`.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nThe dependency bump was authored by @pjfanning (no AI declaration). This\nPR description was written with generative AI tooling: Generated-by:\nClaude Code (Claude Fable 5).",
+          "timestamp": "2026-07-05T09:52:42Z",
+          "url": "https://github.com/apache/texera/commit/6fdfe19106d64cfb33fb431ac82390966afc3e52"
+        },
+        "date": 1783257789374,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 632.5292182513958,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1088.8320862538214,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1133.3048641787143,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 833.6507468972779,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1116.3247562978831,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1140.2907795312951,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 862.9556338328229,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1110.8919702660019,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1154.9971067216218,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 692.948144673162,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 903.3276806644683,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 926.3806795967888,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 741.6442392212653,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 908.7378255764775,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 925.3923938844937,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 720.6241830486313,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 893.3756394130886,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 913.9300796005045,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 443.02230641457516,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 517.5400539017661,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 524.190147588425,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 435.88876475106207,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 517.3913612176849,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 520.2368964269174,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 425.0539925046506,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 496.99935672953296,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 507.2166312523217,
             "unit": "tuples/sec"
           }
         ]
