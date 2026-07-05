@@ -131,6 +131,25 @@ class PythonLexerUtilsSpec extends AnyFunSuite {
     assert(state.isEmpty)
   }
 
+  test(
+    "updateTripleQuotedStringState: an escaped quote inside an ordinary string is not a boundary"
+  ) {
+    // Python:  x = "a\"b"  — the escaped " must not close the double-quoted string
+    assert(PythonLexerUtils.updateTripleQuotedStringState("x = \"a\\\"b\"", None).isEmpty)
+    // Python:  y = 'a\'b'  — same for a single-quoted string
+    assert(PythonLexerUtils.updateTripleQuotedStringState("y = 'a\\'b'", None).isEmpty)
+  }
+
+  test("updateTripleQuotedStringState: a lone single-quoted string toggles single-quote mode") {
+    // Python:  name = 'abc'  — opens then closes single-quote mode, leaving no active delimiter
+    assert(PythonLexerUtils.updateTripleQuotedStringState("name = 'abc'", None).isEmpty)
+  }
+
+  test("updateTripleQuotedStringState: a hash inside a double-quoted string is not a comment") {
+    // Python:  s = "a # b" + c  — the # is inside the string, so scanning must not early-return
+    assert(PythonLexerUtils.updateTripleQuotedStringState("s = \"a # b\" + c", None).isEmpty)
+  }
+
   // -------- hasUnclosedQuote --------
 
   test("hasUnclosedQuote: empty string has no unclosed quote") {
