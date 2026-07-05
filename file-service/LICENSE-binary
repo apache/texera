@@ -231,6 +231,8 @@ Scala/Java jars:
   - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.16.1.jar
   - com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-base-2.16.1.jar
   - com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider-2.16.1.jar
+  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-base-2.12.7.jar
+  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider-2.12.7.jar
   - com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1.jar
   - com.fasterxml.jackson.module.jackson-module-jakarta-xmlbind-annotations-2.16.1.jar
   - com.fasterxml.jackson.module.jackson-module-jsonSchema-2.18.8.jar
@@ -250,11 +252,12 @@ Scala/Java jars:
   - com.google.guava.failureaccess-1.0.2.jar
   - com.google.guava.guava-33.0.0-jre.jar
   - com.google.guava.listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
+  - com.google.inject.extensions.guice-servlet-4.2.3.jar
+  - com.google.inject.guice-4.2.3.jar
   - com.google.j2objc.j2objc-annotations-2.8.jar
   - com.googlecode.javaewah.JavaEWAH-1.1.12.jar
   - com.helger.profiler-1.1.1.jar
   - com.nimbusds.nimbus-jose-jwt-10.4.jar
-  - com.squareup.okhttp.okhttp-2.7.5.jar
   - com.squareup.okhttp3.logging-interceptor-4.12.0.jar
   - com.squareup.okhttp3.okhttp-4.12.0.jar
   - com.squareup.okio.okio-3.6.0.jar
@@ -333,6 +336,7 @@ Scala/Java jars:
   - io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar
   - jakarta.inject.jakarta.inject-api-2.0.1.jar
   - jakarta.validation.jakarta.validation-api-3.0.2.jar
+  - javax.inject.javax.inject-1.jar
   - javax.validation.validation-api-2.0.1.Final.jar
   - org.apache.arrow.arrow-format-15.0.2.jar
   - org.apache.arrow.arrow-memory-core-15.0.2.jar
@@ -355,7 +359,11 @@ Scala/Java jars:
   - org.apache.hadoop.hadoop-annotations-3.4.3.jar
   - org.apache.hadoop.hadoop-auth-3.4.3.jar
   - org.apache.hadoop.hadoop-common-3.4.3.jar
-  - org.apache.hadoop.hadoop-hdfs-client-3.3.1.jar
+  - org.apache.hadoop.hadoop-hdfs-client-3.4.3.jar
+  - org.apache.hadoop.hadoop-mapreduce-client-core-3.4.3.jar
+  - org.apache.hadoop.hadoop-yarn-api-3.4.3.jar
+  - org.apache.hadoop.hadoop-yarn-client-3.4.3.jar
+  - org.apache.hadoop.hadoop-yarn-common-3.4.3.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-guava-1.5.0.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-protobuf_3_25-1.5.0.jar
   - org.apache.httpcomponents.client5.httpclient5-5.4.jar
@@ -400,6 +408,9 @@ Scala/Java jars:
   - org.eclipse.jetty.jetty-util-11.0.20.jar
   - org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api-5.0.2.jar
   - org.eclipse.jetty.toolchain.setuid.jetty-setuid-java-1.0.4.jar
+  - org.eclipse.jetty.websocket.websocket-api-9.4.57.v20241219.jar
+  - org.eclipse.jetty.websocket.websocket-client-9.4.57.v20241219.jar
+  - org.eclipse.jetty.websocket.websocket-common-9.4.57.v20241219.jar
   - org.ehcache.sizeof-0.4.3.jar
   - org.hibernate.validator.hibernate-validator-7.0.5.Final.jar
   - org.javassist.javassist-3.30.2-GA.jar
@@ -496,6 +507,7 @@ Scala/Java jars:
   - com.google.re2j.re2j-1.1.jar
   - com.jcraft.jsch-0.1.55.jar
   - com.thoughtworks.paranamer.paranamer-2.8.jar
+  - org.jline.jline-3.9.0.jar
   - org.threeten.threeten-extra-1.7.1.jar
 
 --------------------------------------------------------------------------------
@@ -564,6 +576,7 @@ CDDL 1.1
 
 Scala/Java jars:
   - com.github.pjfanning.jersey-json-1.22.0.jar
+  - com.sun.jersey.contribs.jersey-guice-1.19.4.jar
   - com.sun.xml.bind.jaxb-impl-2.2.3-1.jar
 
 --------------------------------------------------------------------------------
@@ -577,6 +590,14 @@ Scala/Java jars:
   - org.eclipse.collections.eclipse-collections-11.1.0.jar
   - org.eclipse.collections.eclipse-collections-api-11.1.0.jar
   - org.eclipse.jgit.org.eclipse.jgit-5.13.0.202109080827-r.jar
+
+--------------------------------------------------------------------------------
+Dependencies in the Public Domain (CC0)
+--------------------------------------------------------------------------------
+
+Scala/Java jars:
+  - aopalliance.aopalliance-1.0.jar
+
 
 Individual jars may contain their own META-INF/LICENSE and META-INF/NOTICE
 files that apply to their specific contents; those files continue to govern

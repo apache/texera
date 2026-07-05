@@ -230,10 +230,10 @@ Scala/Java jars:
   - com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.11.4.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-joda-2.9.10.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.16.0.jar
-  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-base-2.9.10.jar
-  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider-2.9.10.jar
+  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-base-2.12.7.jar
+  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider-2.12.7.jar
   - com.fasterxml.jackson.module.jackson-module-afterburner-2.9.10.jar
-  - com.fasterxml.jackson.module.jackson-module-jaxb-annotations-2.9.10.jar
+  - com.fasterxml.jackson.module.jackson-module-jaxb-annotations-2.12.7.jar
   - com.fasterxml.jackson.module.jackson-module-jsonSchema-2.18.8.jar
   - com.fasterxml.jackson.module.jackson-module-no-ctor-deser-2.18.8.jar
   - com.fasterxml.jackson.module.jackson-module-parameter-names-2.9.10.jar
@@ -260,6 +260,8 @@ Scala/Java jars:
   - com.google.http-client.google-http-client-1.42.3.jar
   - com.google.http-client.google-http-client-apache-v2-1.42.3.jar
   - com.google.http-client.google-http-client-gson-1.42.3.jar
+  - com.google.inject.extensions.guice-servlet-4.2.3.jar
+  - com.google.inject.guice-4.2.3.jar
   - com.google.j2objc.j2objc-annotations-2.8.jar
   - com.google.oauth-client.google-oauth-client-1.34.1.jar
   - com.google.oauth-client.google-oauth-client-java6-1.34.1.jar
@@ -271,7 +273,6 @@ Scala/Java jars:
   - com.softwaremill.common.tagging_2.13-2.3.5.jar
   - com.softwaremill.macwire.proxy_2.13-2.6.7.jar
   - com.softwaremill.macwire.util_2.13-2.6.7.jar
-  - com.squareup.okhttp.okhttp-2.7.5.jar
   - com.squareup.okhttp3.logging-interceptor-4.12.0.jar
   - com.squareup.okhttp3.okhttp-4.12.0.jar
   - com.squareup.okio.okio-3.6.0.jar
@@ -386,7 +387,11 @@ Scala/Java jars:
   - org.apache.hadoop.hadoop-annotations-3.4.3.jar
   - org.apache.hadoop.hadoop-auth-3.4.3.jar
   - org.apache.hadoop.hadoop-common-3.4.3.jar
-  - org.apache.hadoop.hadoop-hdfs-client-3.3.1.jar
+  - org.apache.hadoop.hadoop-hdfs-client-3.4.3.jar
+  - org.apache.hadoop.hadoop-mapreduce-client-core-3.4.3.jar
+  - org.apache.hadoop.hadoop-yarn-api-3.4.3.jar
+  - org.apache.hadoop.hadoop-yarn-client-3.4.3.jar
+  - org.apache.hadoop.hadoop-yarn-common-3.4.3.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-guava-1.5.0.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-protobuf_3_25-1.5.0.jar
   - org.apache.httpcomponents.client5.httpclient5-5.4.jar
@@ -443,25 +448,25 @@ Scala/Java jars:
   - org.bitbucket.b_c.jose4j-0.9.6.jar
   - org.codehaus.jettison.jettison-1.5.4.jar
   - org.eclipse.jetty.jetty-annotations-9.4.18.v20190429.jar
-  - org.eclipse.jetty.jetty-client-9.4.18.v20190429.jar
+  - org.eclipse.jetty.jetty-client-9.4.57.v20241219.jar
   - org.eclipse.jetty.jetty-continuation-9.4.18.v20190429.jar
   - org.eclipse.jetty.jetty-http-9.4.20.v20190813.jar
-  - org.eclipse.jetty.jetty-io-9.4.20.v20190813.jar
+  - org.eclipse.jetty.jetty-io-9.4.57.v20241219.jar
   - org.eclipse.jetty.jetty-jndi-9.4.18.v20190429.jar
   - org.eclipse.jetty.jetty-plus-9.4.18.v20190429.jar
   - org.eclipse.jetty.jetty-security-9.4.20.v20190813.jar
   - org.eclipse.jetty.jetty-server-9.4.20.v20190813.jar
   - org.eclipse.jetty.jetty-servlet-9.4.20.v20190813.jar
   - org.eclipse.jetty.jetty-servlets-9.4.18.v20190429.jar
-  - org.eclipse.jetty.jetty-util-9.4.20.v20190813.jar
+  - org.eclipse.jetty.jetty-util-9.4.57.v20241219.jar
   - org.eclipse.jetty.jetty-webapp-9.4.18.v20190429.jar
   - org.eclipse.jetty.jetty-xml-9.4.18.v20190429.jar
   - org.eclipse.jetty.toolchain.setuid.jetty-setuid-java-1.0.3.jar
   - org.eclipse.jetty.websocket.javax-websocket-client-impl-9.4.18.v20190429.jar
   - org.eclipse.jetty.websocket.javax-websocket-server-impl-9.4.18.v20190429.jar
-  - org.eclipse.jetty.websocket.websocket-api-9.4.18.v20190429.jar
-  - org.eclipse.jetty.websocket.websocket-client-9.4.18.v20190429.jar
-  - org.eclipse.jetty.websocket.websocket-common-9.4.18.v20190429.jar
+  - org.eclipse.jetty.websocket.websocket-api-9.4.57.v20241219.jar
+  - org.eclipse.jetty.websocket.websocket-client-9.4.57.v20241219.jar
+  - org.eclipse.jetty.websocket.websocket-common-9.4.57.v20241219.jar
   - org.eclipse.jetty.websocket.websocket-server-9.4.18.v20190429.jar
   - org.eclipse.jetty.websocket.websocket-servlet-9.4.18.v20190429.jar
   - org.ehcache.sizeof-0.4.3.jar
@@ -582,6 +587,7 @@ Scala/Java jars:
   - com.jcraft.jsch-0.1.55.jar
   - com.thoughtworks.paranamer.paranamer-2.8.jar
   - org.fusesource.leveldbjni.leveldbjni-all-1.8.jar
+  - org.jline.jline-3.9.0.jar
   - org.ow2.asm.asm-7.0.jar
   - org.ow2.asm.asm-analysis-7.0.jar
   - org.ow2.asm.asm-commons-7.0.jar
@@ -666,6 +672,7 @@ CDDL 1.1
 
 Scala/Java jars:
   - com.github.pjfanning.jersey-json-1.22.0.jar
+  - com.sun.jersey.contribs.jersey-guice-1.19.4.jar
   - com.sun.xml.bind.jaxb-impl-2.2.3-1.jar
   - javax.websocket.javax.websocket-api-1.0.jar
   - javax.websocket.javax.websocket-client-api-1.0.jar
@@ -689,6 +696,7 @@ Dependencies in the Public Domain (CC0)
 --------------------------------------------------------------------------------
 
 Scala/Java jars:
+  - aopalliance.aopalliance-1.0.jar
   - org.tukaani.xz-1.9.jar
 
 Individual jars may contain their own META-INF/LICENSE and META-INF/NOTICE

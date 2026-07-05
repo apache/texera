@@ -174,6 +174,45 @@ Apache Pekko is derived from Akka 2.6.x, the last version that was distributed u
 Apache License, Version 2.0 License.
 
 --------------------------------------------------------------------------------
+org.apache.hadoop
+--------------------------------------------------------------------------------
+
+Apache Hadoop
+Copyright 2006 and onwards The Apache Software Foundation.
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+Export Control Notice
+---------------------
+
+This distribution includes cryptographic software.  The country in
+which you currently reside may have restrictions on the import,
+possession, use, and/or re-export to another country, of
+encryption software.  BEFORE using any encryption software, please
+check your country's laws, regulations and policies concerning the
+import, possession, or use, and re-export of encryption software, to
+see if this is permitted.  See <http://www.wassenaar.org/> for more
+information.
+
+The U.S. Government Department of Commerce, Bureau of Industry and
+Security (BIS), has classified this software as Export Commodity
+Control Number (ECCN) 5D002.C.1, which includes information security
+software using or performing cryptographic functions with asymmetric
+algorithms.  The form and manner of this Apache Software Foundation
+distribution makes it eligible for export under the License Exception
+ENC Technology Software Unrestricted (TSU) exception (see the BIS
+Export Administration Regulations, Section 740.13) for both object
+code and source code.
+
+The following provides more details on the included cryptographic software:
+
+This software uses the SSL libraries from the Jetty project written
+by mortbay.org.
+Hadoop Yarn Server Web Proxy uses the BouncyCastle Java
+cryptography APIs written by the Legion of the Bouncy Castle Inc.
+
+--------------------------------------------------------------------------------
 org.apache.iceberg
 --------------------------------------------------------------------------------
 
@@ -471,45 +510,6 @@ This software includes a binary and/or source version of data from
 which can be obtained from
 
   https://bitbucket.org/eunjeon/mecab-ko-dic/downloads/mecab-ko-dic-2.0.3-20170922.tar.gz
-
---------------------------------------------------------------------------------
-org.apache.hadoop
---------------------------------------------------------------------------------
-
-Apache Hadoop
-Copyright 2006 and onwards The Apache Software Foundation.
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-Export Control Notice
----------------------
-
-This distribution includes cryptographic software.  The country in
-which you currently reside may have restrictions on the import,
-possession, use, and/or re-export to another country, of
-encryption software.  BEFORE using any encryption software, please
-check your country's laws, regulations and policies concerning the
-import, possession, or use, and re-export of encryption software, to
-see if this is permitted.  See <http://www.wassenaar.org/> for more
-information.
-
-The U.S. Government Department of Commerce, Bureau of Industry and
-Security (BIS), has classified this software as Export Commodity
-Control Number (ECCN) 5D002.C.1, which includes information security
-software using or performing cryptographic functions with asymmetric
-algorithms.  The form and manner of this Apache Software Foundation
-distribution makes it eligible for export under the License Exception
-ENC Technology Software Unrestricted (TSU) exception (see the BIS
-Export Administration Regulations, Section 740.13) for both object
-code and source code.
-
-The following provides more details on the included cryptographic software:
-
-This software uses the SSL libraries from the Jetty project written
-by mortbay.org.
-Hadoop Yarn Server Web Proxy uses the BouncyCastle Java
-cryptography APIs written by the Legion of the Bouncy Castle Inc.
 
 --------------------------------------------------------------------------------
 org.apache.lucene
@@ -1408,6 +1408,16 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
+com.google.inject.extensions.guice-servlet
+--------------------------------------------------------------------------------
+
+Google Guice - Extensions - Servlet
+Copyright 2006-2020 Google, Inc.
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
 com.sun.activation.jakarta.activation
 --------------------------------------------------------------------------------
 
@@ -1668,6 +1678,16 @@ org.apache.curator.curator-framework
 
 Curator Framework
 Copyright 2011-2021 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
+cglib.cglib
+--------------------------------------------------------------------------------
+
+Google Guice - Core Library
+Copyright 2006-2020 Google, Inc.
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
