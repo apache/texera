@@ -99,7 +99,7 @@ case class ConsoleMessageSummary(
 // The index is carried explicitly rather than embedded in the tuple.
 case class SampleRow(
     rowIndex: Int,
-    tuple: ObjectNode
+    row: ObjectNode
 )
 
 case class OperatorResultSummary(
