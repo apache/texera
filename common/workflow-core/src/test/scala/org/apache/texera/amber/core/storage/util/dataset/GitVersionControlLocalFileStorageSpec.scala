@@ -91,11 +91,11 @@ class GitVersionControlLocalFileStorageSpec extends AnyFlatSpec {
       // Write a top-level file (hello.txt) into the repo and commit it as version "v1".
       // A nested path would exercise JGitVersionControl.add's OS-separator pathspec, which
       // JGit rejects on Windows; the versioned-storage surface is covered with a root file.
-      val relative = repoDir.resolve("hello.txt")
+      val filePathInRepo = repoDir.resolve("hello.txt")
       val content = "hello-versioned-content"
       GitVersionControlLocalFileStorage.writeFileToRepo(
         repoDir,
-        relative,
+        filePathInRepo,
         new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8))
       )
 
@@ -119,7 +119,7 @@ class GitVersionControlLocalFileStorageSpec extends AnyFlatSpec {
       GitVersionControlLocalFileStorage.retrieveFileContentOfVersion(
         repoDir,
         commitHash,
-        relative,
+        filePathInRepo,
         out
       )
       assert(new String(out.toByteArray, StandardCharsets.UTF_8) == content)
@@ -129,7 +129,7 @@ class GitVersionControlLocalFileStorageSpec extends AnyFlatSpec {
         GitVersionControlLocalFileStorage.retrieveFileContentOfVersionAsInputStream(
           repoDir,
           commitHash,
-          relative
+          filePathInRepo
         )
       ) { in =>
         assert(new String(in.readAllBytes(), StandardCharsets.UTF_8) == content)
@@ -139,7 +139,7 @@ class GitVersionControlLocalFileStorageSpec extends AnyFlatSpec {
       val tempFile = GitVersionControlLocalFileStorage.writeVersionedFileToTempFile(
         repoDir,
         commitHash,
-        relative
+        filePathInRepo
       )
       try {
         assert(tempFile.isAbsolute)
@@ -150,11 +150,11 @@ class GitVersionControlLocalFileStorageSpec extends AnyFlatSpec {
 
       // hasUncommittedChanges / discardUncommittedChanges toggle.
       assert(!GitVersionControlLocalFileStorage.hasUncommittedChanges(repoDir))
-      Files.write(relative, "dirty".getBytes(StandardCharsets.UTF_8))
+      Files.write(filePathInRepo, "dirty".getBytes(StandardCharsets.UTF_8))
       assert(GitVersionControlLocalFileStorage.hasUncommittedChanges(repoDir))
       GitVersionControlLocalFileStorage.discardUncommittedChanges(repoDir)
       assert(!GitVersionControlLocalFileStorage.hasUncommittedChanges(repoDir))
-      assert(new String(Files.readAllBytes(relative), StandardCharsets.UTF_8) == content)
+      assert(new String(Files.readAllBytes(filePathInRepo), StandardCharsets.UTF_8) == content)
 
       // removeFileFromRepo: directory guard then happy-path delete.
       val subDir = repoDir.resolve("subdir")
@@ -164,8 +164,8 @@ class GitVersionControlLocalFileStorageSpec extends AnyFlatSpec {
       }
       assert(ex.getMessage.contains("directory"))
 
-      GitVersionControlLocalFileStorage.removeFileFromRepo(repoDir, relative)
-      assert(!Files.exists(relative))
+      GitVersionControlLocalFileStorage.removeFileFromRepo(repoDir, filePathInRepo)
+      assert(!Files.exists(filePathInRepo))
     } finally {
       deleteIfExists(repoDir)
     }
