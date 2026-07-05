@@ -19,8 +19,8 @@
 
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
-import { Observable } from "rxjs";
-import { map, shareReplay } from "rxjs/operators";
+import { Observable, throwError } from "rxjs";
+import { catchError, map, shareReplay } from "rxjs/operators";
 
 /**
  * Service for managing site-wide settings (key-value pairs) via REST API.
@@ -46,7 +46,16 @@ export class AdminSettingsService {
    */
   getPublicSetting(key: string): Observable<string> {
     if (!this.publicSettings$) {
-      this.publicSettings$ = this.http.get<Record<string, string>>(`${this.BASE_URL}/public`).pipe(shareReplay(1));
+      this.publicSettings$ = this.http.get<Record<string, string>>(`${this.BASE_URL}/public`).pipe(
+        // shareReplay would otherwise cache a failed fetch and replay the
+        // error to every consumer forever; drop the cached observable so the
+        // next getPublicSetting call retries the request.
+        catchError((err: unknown) => {
+          this.publicSettings$ = undefined;
+          return throwError(() => err);
+        }),
+        shareReplay(1)
+      );
     }
     return this.publicSettings$.pipe(map(settings => settings[key] ?? null));
   }
