@@ -436,7 +436,7 @@ class SyncExecutionResource extends LazyLogging {
       val stats = operatorStats.get(opId)
       val state = stats.map(s => stateToString(s.operatorState)).getOrElse("Unknown")
 
-      val (resultMode, result, tuplesCount, _, _) =
+      val (resultMode, result, tuplesCount) =
         collectOperatorResult(
           executionId,
           opId,
@@ -561,7 +561,7 @@ class SyncExecutionResource extends LazyLogging {
       opId: String,
       maxOperatorResultCharLimit: Int,
       maxOperatorResultCellCharLimit: Int
-  ): (String, Option[List[SampleRow]], Option[Int], Option[Int], Option[Boolean]) = {
+  ): (String, Option[List[SampleRow]], Option[Int]) = {
     try {
       val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
         executionId,
@@ -584,12 +584,12 @@ class SyncExecutionResource extends LazyLogging {
           )
 
         case None =>
-          ("table", None, None, None, None)
+          ("table", None, None)
       }
     } catch {
       case e: Exception =>
         logger.warn(s"Error collecting result for operator $opId: ${e.getMessage}", e)
-        ("table", None, None, None, None)
+        ("table", None, None)
     }
   }
 
@@ -604,11 +604,11 @@ class SyncExecutionResource extends LazyLogging {
       totalCount: Int,
       maxOperatorResultCharLimit: Int,
       maxOperatorResultCellCharLimit: Int
-  ): (String, Option[List[SampleRow]], Option[Int], Option[Int], Option[Boolean]) = {
+  ): (String, Option[List[SampleRow]], Option[Int]) = {
     val mapper = new ObjectMapper()
 
     if (totalCount == 0 || !tupleIterator.hasNext) {
-      return ("table", Some(List.empty[SampleRow]), Some(0), Some(0), Some(false))
+      return ("table", Some(List.empty[SampleRow]), Some(0))
     }
 
     // A single tuple with html-content / json-content is a visualization payload —
@@ -618,7 +618,7 @@ class SyncExecutionResource extends LazyLogging {
       val jsonResults =
         ExecutionResultService.convertTuplesToJson(List(firstTuple), isVisualization = true)
       val rows = jsonResults.zipWithIndex.map { case (json, idx) => SampleRow(idx, json) }
-      return ("visualization", Some(rows), Some(totalCount), Some(1), Some(false))
+      return ("visualization", Some(rows), Some(totalCount))
     }
 
     // rowIndex preserves the original position so the client can show "row N"
@@ -629,13 +629,7 @@ class SyncExecutionResource extends LazyLogging {
     val firstSize = estimateTupleSize(truncatedFirst, mapper)
 
     if (firstSize >= maxOperatorResultCharLimit) {
-      return (
-        "table",
-        Some(List(SampleRow(rowIndex, truncatedFirst))),
-        Some(totalCount),
-        Some(1),
-        Some(true)
-      )
+      return ("table", Some(List(SampleRow(rowIndex, truncatedFirst))), Some(totalCount))
     }
 
     val halfLimit = maxOperatorResultCharLimit / 2
@@ -656,65 +650,76 @@ class SyncExecutionResource extends LazyLogging {
         frontRows += row
         frontSize += tupleSize
       } else {
-        // Front is full — switch to a sliding window for the back half.
-        val backBuffer = mutable.ArrayBuffer[(SampleRow, Int)]()
-        backBuffer += ((row, tupleSize))
-        var backSize = tupleSize
-
-        while (tupleIterator.hasNext) {
-          val t = tupleIterator.next()
-          rowIndex += 1
-          val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
-          val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
-          val ts = estimateTupleSize(tt, mapper)
-
-          backBuffer += ((SampleRow(rowIndex, tt), ts))
-          backSize += ts
-
-          while (backSize > halfLimit - truncationNoticeSize && backBuffer.size > 1) {
-            val (_, removedSize) = backBuffer.remove(0)
-            backSize -= removedSize
-          }
-        }
-
-        val allRows = frontRows.toList ++ backBuffer.map(_._1).toList
-        val skippedRows = totalCount - allRows.size
-        return (
-          "table",
-          Some(allRows),
-          Some(totalCount),
-          Some(allRows.size),
-          Some(skippedRows > 0)
+        // Front is full — switch to a sliding window for the back half, seeded with the
+        // row that overflowed the front.
+        val backRows = collectBackWindow(
+          tupleIterator,
+          rowIndex,
+          Some((row, tupleSize)),
+          halfLimit - truncationNoticeSize,
+          maxOperatorResultCellCharLimit,
+          mapper
         )
+        return ("table", Some(frontRows.toList ++ backRows), Some(totalCount))
       }
     }
 
     if (tupleIterator.hasNext) {
-      val backBuffer = mutable.ArrayBuffer[(SampleRow, Int)]()
-      var backSize = 0
-
-      while (tupleIterator.hasNext) {
-        val t = tupleIterator.next()
-        rowIndex += 1
-        val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
-        val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
-        val ts = estimateTupleSize(tt, mapper)
-
-        backBuffer += ((SampleRow(rowIndex, tt), ts))
-        backSize += ts
-
-        while (backSize > halfLimit - truncationNoticeSize && backBuffer.size > 1) {
-          val (_, removedSize) = backBuffer.remove(0)
-          backSize -= removedSize
-        }
-      }
-
-      val allRows = frontRows.toList ++ backBuffer.map(_._1).toList
-      val skippedRows = totalCount - allRows.size
-      ("table", Some(allRows), Some(totalCount), Some(allRows.size), Some(skippedRows > 0))
+      val backRows = collectBackWindow(
+        tupleIterator,
+        rowIndex,
+        None,
+        halfLimit - truncationNoticeSize,
+        maxOperatorResultCellCharLimit,
+        mapper
+      )
+      ("table", Some(frontRows.toList ++ backRows), Some(totalCount))
     } else {
-      ("table", Some(frontRows.toList), Some(totalCount), Some(frontRows.size), Some(false))
+      ("table", Some(frontRows.toList), Some(totalCount))
     }
+  }
+
+  /**
+    * Consume the remaining tuples into a sliding back-window that keeps the most recent rows
+    * within `backSizeLimit` estimated characters, always retaining at least one row. `seed`
+    * is the already-processed row (and its size) that overflowed the front half, if any.
+    * Shared by the "front already full" and trailing back-window branches of
+    * `sampleAndTruncateTuples`.
+    */
+  private def collectBackWindow(
+      tupleIterator: Iterator[Tuple],
+      startRowIndex: Int,
+      seed: Option[(SampleRow, Int)],
+      backSizeLimit: Int,
+      maxOperatorResultCellCharLimit: Int,
+      mapper: ObjectMapper
+  ): List[SampleRow] = {
+    val backBuffer = mutable.ArrayBuffer[(SampleRow, Int)]()
+    var backSize = 0
+    seed.foreach {
+      case (row, size) =>
+        backBuffer += ((row, size))
+        backSize += size
+    }
+
+    var rowIndex = startRowIndex
+    while (tupleIterator.hasNext) {
+      val t = tupleIterator.next()
+      rowIndex += 1
+      val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
+      val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
+      val ts = estimateTupleSize(tt, mapper)
+
+      backBuffer += ((SampleRow(rowIndex, tt), ts))
+      backSize += ts
+
+      while (backSize > backSizeLimit && backBuffer.size > 1) {
+        val (_, removedSize) = backBuffer.remove(0)
+        backSize -= removedSize
+      }
+    }
+
+    backBuffer.map(_._1).toList
   }
 
   private def truncateSingleTuple(
