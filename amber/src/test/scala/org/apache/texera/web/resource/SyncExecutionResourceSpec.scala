@@ -196,6 +196,17 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     rows.get.last.rowIndex shouldBe 5
   }
 
+  it should "keep one oversized row in the trailing back-window" in {
+    // The back-window limit is smaller than the first tail row. The sliding-window loop still
+    // retains one row instead of dropping every row from the back sample.
+    val tuples = List(tableTuple("x" * 150), tableTuple("y" * 80))
+    val (mode, rows, total) =
+      resource.sampleAndTruncateTuples(tuples.iterator, tuples.size, 200, 100000)
+    mode shouldBe "table"
+    total shouldBe Some(2)
+    rows.get.map(_.rowIndex) shouldBe List(0, 1)
+  }
+
   // --- buildOperatorExecutionSummary (extracted from collectOperatorInfos) ----------------
 
   "buildOperatorExecutionSummary" should "wire a result summary and no errors when only a result is present" in {
@@ -214,6 +225,19 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     summary.resultSummary.get.resultMode shouldBe "table"
     summary.resultSummary.get.sampleTuples shouldBe rows
     summary.resultSummary.get.tuplesCount shouldBe 7
+  }
+
+  it should "default a present result summary to zero tuples when the count is absent" in {
+    val rows = List(sampleRow(0, "col", "v"))
+    val summary = resource.buildOperatorExecutionSummary(
+      opId = "op-1",
+      state = "Completed",
+      resultMode = "table",
+      result = Some(rows),
+      tuplesCount = None,
+      consoleLogs = None
+    )
+    summary.resultSummary.get.tuplesCount shouldBe 0
   }
 
   it should "surface a console ERROR as one EXECUTION_FAILURE error using the longer of title/message" in {
@@ -238,7 +262,9 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
 
   it should "keep the ERROR title when it is longer than the message" in {
     val logs =
-      List(ConsoleMessageSummary(msgType = "ERROR", title = "a long descriptive title", message = ""))
+      List(
+        ConsoleMessageSummary(msgType = "ERROR", title = "a long descriptive title", message = "")
+      )
     val summary = resource.buildOperatorExecutionSummary(
       opId = "op-2",
       state = "Failed",
@@ -350,6 +376,17 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     )
     summary.state shouldBe "Completed"
     summary.success shouldBe true
+  }
+
+  it should "prefer console-error failure over target-results completion" in {
+    val summary = resource.assembleExecutionSummary(
+      finalState = metadataStore(WorkflowAggregatedState.RUNNING),
+      operatorInfos = Map.empty,
+      terminatedByConsoleError = true,
+      terminatedByTargetResults = true
+    )
+    summary.state shouldBe "Failed"
+    summary.success shouldBe false
   }
 
   it should "mark the run unsuccessful when any operator reports console errors" in {
