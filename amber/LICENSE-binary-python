@@ -220,7 +220,7 @@ Python packages:
   - hf-xet==1.5.1
   - huggingface-hub==1.20.1
   - multidict==6.7.1
-  - overrides==7.4.0
+  - overrides==7.7.0
   - packaging==26.2
   - propcache==0.5.2
   - pyarrow==23.0.1
