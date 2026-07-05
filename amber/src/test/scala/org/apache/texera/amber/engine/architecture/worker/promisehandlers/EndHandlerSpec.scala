@@ -40,20 +40,20 @@ import org.apache.texera.amber.engine.architecture.worker.{
 import org.apache.texera.amber.engine.common.actormessage.Backpressure
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.util.concurrent.LinkedBlockingQueue
 
 /**
-  * `endWorker` is the controller's acknowledgement point before it sends actor-level `gracefulStop`.
+  * `endWorker` is the coordinator's acknowledgement point before it sends actor-level `gracefulStop`.
   *
   * A successful reply means the worker has drained every queued workflow message. If the queue still contains work,
   * the handler must fail so the region execution manager can retry the kill instead of stopping the actor too early.
   */
 class EndHandlerSpec extends AnyFlatSpec {
   private val workerId = ActorVirtualIdentity("Worker:WF1-test-op-main-0")
-  private val rpcContext = AsyncRPCContext(CONTROLLER, workerId)
+  private val rpcContext = AsyncRPCContext(COORDINATOR, workerId)
   private val awaitTimeout = Duration.fromSeconds(1)
 
   private def createEndHandlerForQueue(
@@ -78,7 +78,7 @@ class EndHandlerSpec extends AnyFlatSpec {
     queue.put(
       FIFOMessageElement(
         WorkflowFIFOMessage(
-          ChannelIdentity(CONTROLLER, workerId, isControl = true),
+          ChannelIdentity(COORDINATOR, workerId, isControl = true),
           0,
           ControlInvocation(METHOD_QUERY_STATISTICS, EmptyRequest(), rpcContext, 1)
         )

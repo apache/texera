@@ -27,7 +27,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity, PreferController}
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity, PreferCoordinator}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -67,7 +67,7 @@ class SpecialPhysicalOpFactorySpec extends AnyFlatSpec with Matchers {
     op.isSourceOperator shouldBe true
     op.inputPorts shouldBe empty
     op.outputPorts.keySet shouldBe Set(PortIdentity(0))
-    op.locationPreference shouldBe Some(PreferController)
+    op.locationPreference shouldBe Some(PreferCoordinator)
     op.parallelizable shouldBe false
     op.outputPorts(PortIdentity(0))._3 shouldBe Right(schema)
   }

@@ -29,8 +29,8 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow.PhysicalOp
-import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
-import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
+import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.engine.architecture.scheduling.RegionExecutionManagerTestSupport._
 import org.apache.texera.amber.engine.common.AmberRuntime
@@ -117,35 +117,35 @@ class WorkflowExecutionManagerSpec
     // First region's worker holds endWorker pending until we explicitly fulfill it; the second
     // region's worker terminates immediately. This lets us assert the second region cannot start
     // until termination of the first finishes.
-    val rpcProbe = new ControllerRpcProbe(
+    val rpcProbe = new CoordinatorRpcProbe(
       endWorkerResponse = call => if (call.receiver == firstWorkerId) None else Some(EmptyReturn())
     )
-    val controller = createControllerHarness()
-    registerLiveWorker(controller.actorRefService, firstWorkerId)
-    registerLiveWorker(controller.actorRefService, secondWorkerId)
+    val coordinator = createCoordinatorHarness()
+    registerLiveWorker(coordinator.actorRefService, firstWorkerId)
+    registerLiveWorker(coordinator.actorRefService, secondWorkerId)
 
     val workflowManager = new WorkflowExecutionManager(
       workflowExecution,
-      ControllerConfig(None, None, None, None),
+      CoordinatorConfig(None, None, None, None),
       rpcProbe.asyncRPCClient
     )
     workflowManager.schedule = Schedule(Map(0 -> Set(firstRegion), 1 -> Set(secondRegion)))
-    workflowManager.setupActorRefService(controller.actorRefService)
+    workflowManager.setupActorRefService(coordinator.actorRefService)
 
-    await(workflowManager.advanceRegionExecutions(controller.actorService))
+    await(workflowManager.advanceRegionExecutions(coordinator.actorService))
     assert(rpcProbe.startedWorkers == Seq(firstWorkerId))
 
-    val advanceFuture = workflowManager.advanceRegionExecutions(controller.actorService)
+    val advanceFuture = workflowManager.advanceRegionExecutions(coordinator.actorService)
 
     waitUntil(rpcProbe.endWorkerCalls.size == 1)
     assert(advanceFuture.poll.isEmpty)
     assert(!rpcProbe.initializedWorkers.contains(secondWorkerId))
-    assert(controller.actorRefService.hasActorRef(firstWorkerId))
+    assert(coordinator.actorRefService.hasActorRef(firstWorkerId))
 
     rpcProbe.fulfill(rpcProbe.onlyEndWorkerCall, EmptyReturn())
     await(advanceFuture)
 
-    assert(!controller.actorRefService.hasActorRef(firstWorkerId))
+    assert(!coordinator.actorRefService.hasActorRef(firstWorkerId))
     assert(rpcProbe.initializedWorkers.contains(secondWorkerId))
     assert(rpcProbe.startedWorkers.contains(secondWorkerId))
   }

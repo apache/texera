@@ -35,7 +35,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
-import org.apache.texera.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
+import org.apache.texera.amber.engine.architecture.coordinator.{ExecutionStateUpdate, FatalError}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,

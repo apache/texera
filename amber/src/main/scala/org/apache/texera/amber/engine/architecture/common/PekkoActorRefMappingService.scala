@@ -28,7 +28,7 @@ import org.apache.texera.amber.engine.architecture.common.WorkflowActor.{
   RegisterActorRef
 }
 import org.apache.texera.amber.engine.common.AmberLogging
-import org.apache.texera.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import org.apache.texera.amber.engine.common.virtualidentity.util.{COORDINATOR, SELF}
 import org.apache.texera.amber.util.VirtualIdentityUtils
 
 import scala.collection.mutable
@@ -104,8 +104,8 @@ class PekkoActorRefMappingService(actorService: PekkoActorService) extends Amber
       replyTo.foreach { actor =>
         actor ! RegisterActorRef(id, actorRefMapping(id))
       }
-    } else if (actorId != CONTROLLER) {
-      // propagation stops at controller
+    } else if (actorId != COORDINATOR) {
+      // propagation stops at coordinator
       if (!queriedActorVirtualIdentities.contains(id)) {
         try {
           actorService.parent ! GetActorRef(id, replyTo + actorService.self)
@@ -118,7 +118,7 @@ class PekkoActorRefMappingService(actorService: PekkoActorService) extends Amber
         }
       }
     } else {
-      // on controller, wait for actor ref registration.
+      // on coordinator, wait for actor ref registration.
       logger.warn(s"unknown identifier: ${VirtualIdentityUtils.toShorterString(id)}")
       val toNotifySet = toNotifyOnRegistration.getOrElseUpdate(id, mutable.HashSet[ActorRef]())
       replyTo.foreach(toNotifySet.add)

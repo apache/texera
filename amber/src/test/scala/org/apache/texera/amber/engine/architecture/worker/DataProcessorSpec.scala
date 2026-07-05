@@ -45,7 +45,7 @@ import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -144,11 +144,11 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       .setPortId(inputPortId)
     dp.outputManager.addPort(outputPortId, schema, None)
     dp.processDCM(
-      ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
+      ChannelIdentity(COORDINATOR, testWorkerId, isControl = true),
       ControlInvocation(
         METHOD_OPEN_EXECUTOR,
         EmptyRequest(),
-        AsyncRPCContext(CONTROLLER, testWorkerId),
+        AsyncRPCContext(COORDINATOR, testWorkerId),
         0
       )
     )
@@ -205,11 +205,11 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       .setPortId(inputPortId)
     dp.outputManager.addPort(outputPortId, schema, None)
     dp.processDCM(
-      ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
+      ChannelIdentity(COORDINATOR, testWorkerId, isControl = true),
       ControlInvocation(
         METHOD_OPEN_EXECUTOR,
         EmptyRequest(),
-        AsyncRPCContext(CONTROLLER, testWorkerId),
+        AsyncRPCContext(COORDINATOR, testWorkerId),
         0
       )
     )
@@ -219,11 +219,11 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     )
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.processDCM(
-        ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
+        ChannelIdentity(COORDINATOR, testWorkerId, isControl = true),
         ControlInvocation(
           METHOD_FLUSH_NETWORK_BUFFER,
           EmptyRequest(),
-          AsyncRPCContext(CONTROLLER, testWorkerId),
+          AsyncRPCContext(COORDINATOR, testWorkerId),
           1
         )
       )
