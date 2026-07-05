@@ -27,6 +27,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.io.StringReader
 import java.net.URI
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
 /**
@@ -127,7 +128,7 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
   /** Writes `content` to a fresh temp .csv and returns its path (tracked for cleanup). */
   private def writeTempCsv(content: String): Path = {
     val path = Files.createTempFile("csv-scan-exec-spec", ".csv")
-    Files.write(path, content.getBytes("UTF-8"))
+    Files.write(path, content.getBytes(StandardCharsets.UTF_8))
     tempFiles = path :: tempFiles
     path
   }
