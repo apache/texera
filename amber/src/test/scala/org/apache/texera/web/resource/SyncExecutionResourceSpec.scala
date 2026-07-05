@@ -22,7 +22,10 @@ package org.apache.texera.web.resource
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.timestamp.Timestamp
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.{
+  COMPILATION_ERROR,
+  EXECUTION_FAILURE
+}
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
@@ -70,7 +73,9 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     summary.success shouldBe false
     summary.state shouldBe "CompilationFailed"
     summary.operators shouldBe empty
-    summary.errors shouldBe List("compilation failed for the plan")
+    summary.errors should have size 1
+    summary.errors.head.`type` shouldBe COMPILATION_ERROR
+    summary.errors.head.message shouldBe "compilation failed for the plan"
   }
 
   it should "classify capitalized 'Compilation' messages as CompilationFailed" in {
@@ -90,7 +95,9 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     summary.success shouldBe false
     summary.state shouldBe "Error"
     summary.operators shouldBe empty
-    summary.errors shouldBe List("something unexpected happened")
+    summary.errors should have size 1
+    summary.errors.head.`type` shouldBe EXECUTION_FAILURE
+    summary.errors.head.message shouldBe "something unexpected happened"
   }
 
   it should "fall back to 'Unknown error' when the exception has a null message" in {
@@ -98,7 +105,9 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
       new RuntimeException(null.asInstanceOf[String])
     )
     summary.state shouldBe "Error"
-    summary.errors shouldBe List("Unknown error")
+    summary.errors should have size 1
+    summary.errors.head.`type` shouldBe EXECUTION_FAILURE
+    summary.errors.head.message shouldBe "Unknown error"
   }
 
   // --- sampleAndTruncateTuples (extracted from collectOperatorResult) ---------------------
@@ -354,7 +363,7 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     summary.state shouldBe "Completed"
   }
 
-  it should "surface each final-state fatal error as a formatted error string" in {
+  it should "surface each final-state fatal error" in {
     val summary = resource.assembleExecutionSummary(
       finalState = metadataStore(
         WorkflowAggregatedState.COMPLETED,
@@ -365,6 +374,7 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
       terminatedByTargetResults = false
     )
     summary.errors should have size 1
-    summary.errors.head should endWith("boom")
+    summary.errors.head.`type` shouldBe EXECUTION_FAILURE
+    summary.errors.head.message shouldBe "boom"
   }
 }

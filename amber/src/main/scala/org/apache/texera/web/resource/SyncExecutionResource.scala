@@ -44,8 +44,11 @@ import org.apache.texera.amber.engine.common.executionruntimestate.{
   ExecutionMetadataStore,
   ExecutionStatsStore
 }
-import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.{
+  COMPILATION_ERROR,
+  EXECUTION_FAILURE
+}
+import org.apache.texera.amber.core.workflowruntimestate.{FatalErrorType, WorkflowFatalError}
 import com.google.protobuf.timestamp.Timestamp
 import io.reactivex.rxjava3.core.Observable
 import org.apache.texera.auth.SessionUser
@@ -112,7 +115,7 @@ case class WorkflowExecutionSummary(
     success: Boolean,
     state: String,
     operators: Map[String, OperatorExecutionSummary],
-    errors: List[String] // empty means none
+    errors: List[WorkflowFatalError] // empty means none
 )
 
 sealed trait TerminationReason
@@ -188,7 +191,7 @@ class SyncExecutionResource extends LazyLogging {
           success = false,
           state = "Error",
           operators = Map.empty,
-          errors = List("Failed to initialize execution service")
+          errors = List(workflowError(EXECUTION_FAILURE, "Failed to initialize execution service"))
         )
       }
 
@@ -265,7 +268,8 @@ class SyncExecutionResource extends LazyLogging {
                 success = false,
                 state = "Killed",
                 operators = Map.empty,
-                errors = List(s"Timeout after $timeoutSeconds seconds")
+                errors =
+                  List(workflowError(EXECUTION_FAILURE, s"Timeout after $timeoutSeconds seconds"))
               )
             case e: Exception =>
               logger.error(s"Error waiting for execution: ${e.getMessage}", e)
@@ -273,7 +277,7 @@ class SyncExecutionResource extends LazyLogging {
                 success = false,
                 state = "Error",
                 operators = Map.empty,
-                errors = List(e.getMessage)
+                errors = List(workflowError(EXECUTION_FAILURE, messageOrUnknown(e)))
               )
           }
         }
@@ -345,9 +349,7 @@ class SyncExecutionResource extends LazyLogging {
       terminatedByConsoleError: Boolean,
       terminatedByTargetResults: Boolean
   ): WorkflowExecutionSummary = {
-    val fatalErrors = finalState.fatalErrors
-      .map(err => s"${err.`type`}: ${err.message}")
-      .toList
+    val fatalErrors = finalState.fatalErrors.toList
 
     val hasOperatorConsoleError = operatorInfos.values.exists(_.errorMessages.nonEmpty)
 
@@ -531,17 +533,23 @@ class SyncExecutionResource extends LazyLogging {
         success = false,
         state = "CompilationFailed",
         operators = Map.empty,
-        errors = List(errorMsg)
+        errors = List(workflowError(COMPILATION_ERROR, errorMsg))
       )
     } else {
       WorkflowExecutionSummary(
         success = false,
         state = "Error",
         operators = Map.empty,
-        errors = List(Option(e.getMessage).getOrElse("Unknown error"))
+        errors = List(workflowError(EXECUTION_FAILURE, messageOrUnknown(e)))
       )
     }
   }
+
+  private def workflowError(errorType: FatalErrorType, message: String): WorkflowFatalError =
+    WorkflowFatalError(errorType, Timestamp(Instant.now), message, "", "", "")
+
+  private def messageOrUnknown(e: Exception): String =
+    Option(e.getMessage).getOrElse("Unknown error")
 
   /**
     * Symmetric truncation: fill half the char budget from the front of the result, keep a
