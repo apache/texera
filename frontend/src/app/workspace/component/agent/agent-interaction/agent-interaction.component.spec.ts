@@ -17,23 +17,23 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, SimpleChange, SimpleChanges } from "@angular/core";
-import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+import { SimpleChange, SimpleChanges } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { DomSanitizer } from "@angular/platform-browser";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { of } from "rxjs";
 import { AgentInteractionComponent } from "./agent-interaction.component";
 import { AgentService, OperatorResultMode, SampleRow } from "../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
-/**
- * These tests exercise the component's pure presentation logic (visualization
- * caching, column/row derivation) by constructing it directly with lightweight
- * stubbed dependencies, so no Angular template/DI bootstrapping is required.
- */
 describe("AgentInteractionComponent", () => {
+  let fixture: ComponentFixture<AgentInteractionComponent>;
   let component: AgentInteractionComponent;
+  let sanitizer: DomSanitizer;
 
-  const agentService = {
+  const agentServiceStub = {
     getAllAgents: () => of([]),
     agentChange$: of(null),
     getActivelyConnectedAgentIds: () => [],
@@ -41,30 +41,78 @@ describe("AgentInteractionComponent", () => {
     sendMessage: () => {},
   } as unknown as AgentService;
 
-  const workflowActionService = {} as unknown as WorkflowActionService;
-  const notificationService = {} as unknown as NotificationService;
-  const changeDetectorRef = { detectChanges: () => {} } as unknown as ChangeDetectorRef;
-  // Echo the html back so we can assert the cached value flows through.
-  const sanitizer = {
-    bypassSecurityTrustHtml: (html: string) => html as unknown as SafeHtml,
-  } as unknown as DomSanitizer;
-
   function row(rowIndex: number, tuple: Record<string, any>): SampleRow {
     return { rowIndex, tuple };
   }
 
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [AgentInteractionComponent, HttpClientTestingModule],
+      providers: [
+        { provide: AgentService, useValue: agentServiceStub },
+        { provide: WorkflowActionService, useValue: {} },
+        { provide: NotificationService, useValue: { error: vi.fn(), success: vi.fn() } },
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+  });
+
   beforeEach(() => {
-    component = new AgentInteractionComponent(
-      agentService,
-      workflowActionService,
-      notificationService,
-      changeDetectorRef,
-      sanitizer
-    );
+    fixture = TestBed.createComponent(AgentInteractionComponent);
+    component = fixture.componentInstance;
+    sanitizer = TestBed.inject(DomSanitizer);
+    fixture.componentRef.setInput("operatorId", "op-1");
+    fixture.detectChanges();
   });
 
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  describe("template rendering", () => {
+    it("renders the sample table with a leading Row column when sample rows are present", () => {
+      component.sampleTuples = [row(0, { a: 1, b: "x" }), row(1, { a: 2, b: "y" })];
+      component.resultMode = OperatorResultMode.TABLE;
+      fixture.detectChanges();
+
+      const headers: string[] = Array.from(
+        fixture.nativeElement.querySelectorAll(".sample-records-table thead th") as NodeListOf<HTMLElement>
+      ).map(th => th.textContent?.trim() ?? "");
+      expect(headers).toEqual(["Row", "a", "b"]);
+
+      const firstDataRowCells: string[] = Array.from(
+        fixture.nativeElement.querySelectorAll(
+          ".sample-records-table tbody tr:first-child td"
+        ) as NodeListOf<HTMLElement>
+      ).map(td => td.textContent?.trim() ?? "");
+      expect(firstDataRowCells).toEqual(["0", "1", "x"]);
+    });
+
+    it("renders an ellipsis row spanning all columns plus the Row column when indices have a gap", () => {
+      component.sampleTuples = [row(0, { a: 1, b: "x" }), row(5, { a: 2, b: "y" })];
+      component.resultMode = OperatorResultMode.TABLE;
+      fixture.detectChanges();
+
+      const ellipsisCell = fixture.nativeElement.querySelector(".ellipsis-row td") as HTMLElement;
+      expect(ellipsisCell).toBeTruthy();
+      expect(ellipsisCell.textContent?.trim()).toEqual("...");
+      // 2 tuple columns + 1 leading "Row" column
+      expect(ellipsisCell.getAttribute("colspan")).toEqual("3");
+    });
+
+    it("renders the visualization iframe instead of the table in visualization mode", () => {
+      fixture.componentRef.setInput("sampleTuples", [row(0, { "html-content": "<h1>chart</h1>" })]);
+      fixture.componentRef.setInput("resultMode", OperatorResultMode.VISUALIZATION);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".visualization-iframe")).toBeTruthy();
+      expect(fixture.nativeElement.querySelector(".sample-records-table")).toBeNull();
+    });
+
+    it("renders neither the table nor the iframe when there are no sample rows", () => {
+      expect(fixture.nativeElement.querySelector(".sample-records-table")).toBeNull();
+      expect(fixture.nativeElement.querySelector(".visualization-iframe")).toBeNull();
+    });
   });
 
   describe("ngOnChanges - visualization html caching", () => {
@@ -72,7 +120,7 @@ describe("AgentInteractionComponent", () => {
       component.sampleTuples = [row(0, { "html-content": "<h1>chart</h1>" })];
       component.ngOnChanges({ sampleTuples: new SimpleChange(undefined, component.sampleTuples, true) });
 
-      expect(component.getVisualizationHtml()).toEqual("<h1>chart</h1>" as unknown as SafeHtml);
+      expect(component.getVisualizationHtml()).toEqual(sanitizer.bypassSecurityTrustHtml("<h1>chart</h1>"));
     });
 
     it("keeps the cached html when the content is unchanged across calls", () => {
@@ -82,7 +130,7 @@ describe("AgentInteractionComponent", () => {
       component.ngOnChanges(changes);
       component.ngOnChanges(changes); // identical html -> unchanged branch, cache reused
 
-      expect(component.getVisualizationHtml()).toEqual("<p>same</p>" as unknown as SafeHtml);
+      expect(component.getVisualizationHtml()).toEqual(sanitizer.bypassSecurityTrustHtml("<p>same</p>"));
     });
 
     it("clears the cached html when no html-content is present", () => {
@@ -92,12 +140,12 @@ describe("AgentInteractionComponent", () => {
       component.sampleTuples = [row(0, { value: 1 })];
       component.ngOnChanges({ sampleTuples: new SimpleChange(undefined, component.sampleTuples, false) });
 
-      expect(component.getVisualizationHtml()).toEqual("" as unknown as SafeHtml);
+      expect(component.getVisualizationHtml()).toEqual(sanitizer.bypassSecurityTrustHtml(""));
     });
 
     it("ignores changes unrelated to sampleTuples/resultMode", () => {
       component.ngOnChanges({ operatorId: new SimpleChange(undefined, "op-1", true) });
-      expect(component.getVisualizationHtml()).toEqual("" as unknown as SafeHtml);
+      expect(component.getVisualizationHtml()).toEqual(sanitizer.bypassSecurityTrustHtml(""));
     });
   });
 

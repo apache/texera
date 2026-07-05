@@ -40,6 +40,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 
 /**
  * Agent settings for API (serializable format).
@@ -96,24 +97,6 @@ export interface ModelType {
 /**
  * API response types
  */
-/**
- * Per-operator execution summary as sent by the agent-service over the
- * operator-results endpoint (mirror of its OperatorExecutionSummary).
- */
-export interface WorkflowFatalError {
-  type: { name: WorkflowFatalErrorType };
-  timestamp: { seconds: number; nanos: number };
-  message: string;
-  details: string;
-  operatorId: string;
-  workerId: string;
-}
-
-export enum WorkflowFatalErrorType {
-  COMPILATION_ERROR = "COMPILATION_ERROR",
-  EXECUTION_FAILURE = "EXECUTION_FAILURE",
-}
-
 export interface ConsoleMessage {
   msgType: ConsoleMessageType;
   title: string;
