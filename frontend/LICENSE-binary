@@ -294,6 +294,7 @@ Angular / npm packages:
   - file-saver@2.0.5
   - graphlib@2.1.8
   - html2canvas@1.4.1
+  - java@1.0.0
   - jquery@3.6.4
   - json-schema-traverse@1.0.0
   - jszip@3.10.1
@@ -312,11 +313,13 @@ Angular / npm packages:
   - papaparse@5.4.1
   - plotly.js-basic-dist-min@2.29.0
   - point-in-polygon@1.1.0
+  - python@1.0.0
   - quill-cursors@3.1.2
   - rbush@4.0.1
   - read-excel-file@5.7.1
   - ring-buffer-ts@1.0.3
   - style-loader@3.3.4
+  - theme-defaults@1.0.0
   - underscore@1.13.8
   - uuid@14.0.0
   - vscode-jsonrpc@8.2.0
