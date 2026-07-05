@@ -30,7 +30,7 @@ class AmberMessageEnvelopesSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
   // Suite-local actor system used only by the ResendOutputTo test below;
   // shut down via TestKit.shutdownActorSystem in afterAll so threads do not
-  // outlive the test, matching the cleanup pattern in ControllerSpec /
+  // outlive the test, matching the cleanup pattern in CoordinatorSpec /
   // WorkerSpec.
   private val pekkoSystem: ActorSystem = ActorSystem("amber-message-envelopes-test")
 

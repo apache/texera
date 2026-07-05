@@ -831,11 +831,8 @@ export class MenuComponent implements OnInit, OnDestroy {
         ? `${this.currentWorkflowName}'s Computing Unit`
         : "New Computing Unit";
 
-      // Set the default name in the computing unit selection component
-      this.computingUnitSelectionComponent.newComputingUnitName = defaultName;
-
-      // Show the existing modal in the ComputingUnitSelectionComponent
-      this.computingUnitSelectionComponent.showAddComputeUnitModalVisible();
+      // Show the modal in the ComputingUnitSelectionComponent, seeding the name field
+      this.computingUnitSelectionComponent.showAddComputeUnitModalVisible(defaultName);
       return;
     }
 

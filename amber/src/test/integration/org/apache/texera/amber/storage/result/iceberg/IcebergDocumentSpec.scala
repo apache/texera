@@ -213,7 +213,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
       DocumentFactory.openDocument(stateUri)._1.asInstanceOf[VirtualDocument[Tuple]]
     val state = State(
       Map(
-        "loop_counter" -> 3,
+        "i" -> 3,
         "name" -> "outer-loop",
         "payload" -> Array[Byte](0, 1, 2, 3),
         "nested" -> Map("enabled" -> true, "values" -> List(1, 2, 3))
@@ -222,13 +222,17 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
 
     val writer = stateDocument.writer(UUID.randomUUID().toString)
     writer.open()
-    writer.putOne(state.toTuple)
+    writer.putOne(state.toTuple(loopCounter = 7L, loopStartId = "ls"))
     writer.close()
 
     val storedRows = stateDocument.get().toList
     assert(storedRows.length == 1)
+    // Loop bookkeeping is materialized as its own columns, not in the content JSON.
+    assert(storedRows.head.getField[java.lang.Long]("loop_counter").toLong == 7L)
+    assert(storedRows.head.getField[String]("loop_start_id") == "ls")
+    // User state round-trips through the content column (fromTuple reads only content).
     val deserialized = State.fromTuple(storedRows.head).values
-    assert(deserialized("loop_counter") == 3L)
+    assert(deserialized("i") == 3L)
     assert(deserialized("name") == "outer-loop")
     assert(deserialized("payload").asInstanceOf[Array[Byte]].sameElements(Array[Byte](0, 1, 2, 3)))
     assert(deserialized("nested").asInstanceOf[Map[String, Any]]("enabled") == true)
@@ -240,45 +244,45 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     DocumentFactory.createDocument(stateUri, State.schema)
     val stateDocument =
       DocumentFactory.openDocument(stateUri)._1.asInstanceOf[VirtualDocument[Tuple]]
-    val states: List[State] = List(
-      State(Map("loop_counter" -> 0, "i" -> 1, "payload" -> Array[Byte](1, 2, 3))),
-      State(
-        Map(
-          "loop_counter" -> 1,
-          "i" -> 2,
-          "payload" -> Array[Byte](4, 5, 6),
-          "nested" -> Map("values" -> List(3, 4))
-        )
+    // (user state, loopCounter) -- the counter is written to its own column.
+    val states: List[(State, Long)] = List(
+      (State(Map("i" -> 1, "payload" -> Array[Byte](1, 2, 3))), 0L),
+      (
+        State(
+          Map(
+            "i" -> 2,
+            "payload" -> Array[Byte](4, 5, 6),
+            "nested" -> Map("values" -> List(3, 4))
+          )
+        ),
+        1L
       )
     )
 
     val writer = stateDocument.writer(UUID.randomUUID().toString)
     writer.open()
-    states.foreach(state => writer.putOne(state.toTuple))
+    states.foreach { case (state, loopCounter) => writer.putOne(state.toTuple(loopCounter)) }
     writer.close()
 
-    val deserializedStates =
-      stateDocument
-        .get()
-        .toList
-        .map(State.fromTuple)
-        .sortBy(_.values("loop_counter").asInstanceOf[Long])
-    assert(deserializedStates.length == states.length)
-    deserializedStates.zip(states).foreach {
-      case (actual, expected) =>
+    val storedRows =
+      stateDocument.get().toList.sortBy(_.getField[java.lang.Long]("loop_counter").toLong)
+    assert(storedRows.length == states.length)
+    storedRows.zip(states).foreach {
+      case (row, (expectedState, expectedLoopCounter)) =>
+        // loop_counter is its own column...
+        assert(row.getField[java.lang.Long]("loop_counter").toLong == expectedLoopCounter)
+        // ...and the user state round-trips through the content column.
+        val actual = State.fromTuple(row).values
+        assert(actual("i") == expectedState.values("i").asInstanceOf[Int].toLong)
         assert(
-          actual.values("loop_counter") == expected.values("loop_counter").asInstanceOf[Int].toLong
-        )
-        assert(actual.values("i") == expected.values("i").asInstanceOf[Int].toLong)
-        assert(
-          actual
-            .values("payload")
+          actual("payload")
             .asInstanceOf[Array[Byte]]
-            .sameElements(expected.values("payload").asInstanceOf[Array[Byte]])
+            .sameElements(expectedState.values("payload").asInstanceOf[Array[Byte]])
         )
     }
     assert(
-      deserializedStates(1)
+      State
+        .fromTuple(storedRows(1))
         .values("nested")
         .asInstanceOf[Map[String, Any]]("values") == List(3L, 4L)
     )
