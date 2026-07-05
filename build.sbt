@@ -17,7 +17,7 @@
 
 ThisBuild / organization := "org.apache.texera"
 ThisBuild / version      := "1.3.0-incubating-SNAPSHOT"
-ThisBuild / scalaVersion := "2.13.18"
+ThisBuild / scalaVersion := "3.8.4"
 
 // Pull JDK 17+ JVM flags from .jvmopts so every JVM the build launches sees the same list.
 import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport.Universal
