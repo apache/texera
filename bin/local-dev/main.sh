@@ -1333,10 +1333,11 @@ infra_down() {
 # of date when a new table is added. (The old check probed only `feedback`
 # and reported "schema already current" whenever any newer table was missing.)
 #
-# NOTE: sql/texera_ddl.sql is NOT idempotent — it DROPs and recreates the
-# database and every table. So we only run it to bootstrap a genuinely empty
-# volume; on a partially-populated (stale) volume we refuse and print
-# actionable guidance rather than silently wiping local data.
+# NOTE: sql/texera_ddl.sql as a whole is NOT idempotent — it DROPs and recreates
+# the database and every table. So we only run the whole file to bootstrap a
+# genuinely empty volume; on a partially-populated (stale) volume we apply just
+# its additive `CREATE TABLE ... IF NOT EXISTS` statements, which create the
+# missing tables while leaving existing tables (and their data) untouched.
 infra_ensure_db_schema() {
     local pg="texera-postgres"
     # Wait briefly for postgres to be ready — `up -d` returned but the
@@ -1360,11 +1361,12 @@ infra_ensure_db_schema() {
         return 0
     fi
 
-    # Tables the current schema defines, parsed straight from the DDL.
-    # Handles both bare and double-quoted names (e.g. "user").
+    # Tables the current schema defines, parsed straight from the DDL. Handles
+    # both `CREATE TABLE` and `CREATE TABLE IF NOT EXISTS`, and bare or
+    # double-quoted names (e.g. "user").
     local expected
-    expected=$(grep -ioE 'CREATE TABLE IF NOT EXISTS[[:space:]]+"?[a-zA-Z_][a-zA-Z0-9_]*"?' "$ddl" \
-        | sed -E 's/^.*NOT EXISTS[[:space:]]+//I; s/"//g' | sort -u)
+    expected=$(grep -ioE '^CREATE TABLE (IF NOT EXISTS )?"?[a-zA-Z_][a-zA-Z0-9_]*"?' "$ddl" \
+        | sed -E 's/^CREATE TABLE (IF NOT EXISTS )?//I; s/"//g' | sort -u)
     if [[ -z "$expected" ]]; then
         tui_warn "postgres: could not parse expected tables from $ddl -- skipping schema check"
         return 0
@@ -1402,18 +1404,31 @@ infra_ensure_db_schema() {
         return 0
     fi
 
-    # Partially-populated volume that predates the current schema. Running
-    # texera_ddl.sql here would DROP the database, so refuse and tell the user
-    # how to resolve it — far better than the misleading downstream compile
-    # error the old code produced (#6194).
-    tui_err "postgres: schema is stale — missing ${#missing[@]} table(s): ${missing[*]}"
-    printf "  ${DIM}The DB volume predates the current schema. sql/texera_ddl.sql is destructive\n"
-    printf "  (it DROPs & recreates the database) so it is not auto-applied.\n"
-    printf "  Apply the matching migration(s) from sql/updates/*.sql, e.g.:\n"
-    printf "      docker exec -i %s psql -U texera -d texera_db < sql/updates/<N>.sql\n" "$pg"
-    printf "  or reset the volume (DESTROYS local data) and re-run:\n"
-    printf "      docker compose -p %s down -v && bin/local-dev.sh up${RESET}\n" "$DOCKER_PROJECT"
-    exit 1
+    # Partially-populated volume that predates the current schema. Re-running the
+    # whole texera_ddl.sql would DROP the database, so instead apply only its
+    # additive CREATE TABLE statements (each normalized to IF NOT EXISTS): the
+    # already-present tables are skipped and the missing ones are created, leaving
+    # existing data intact (#6194). texera_ddl.sql lists tables in FK-dependency
+    # order, so applying them in file order keeps foreign keys valid.
+    tui_step "postgres: schema stale — creating ${#missing[@]} missing table(s): ${missing[*]}"
+    local additive
+    additive=$(
+        printf 'CREATE SCHEMA IF NOT EXISTS texera_db;\nSET search_path TO texera_db, public;\n'
+        awk '
+            /^CREATE TABLE /                { inblk = 1 }
+            inblk                           { print }
+            /^[[:space:]]*\);[[:space:]]*$/ { inblk = 0 }
+        ' "$ddl" | sed -E 's/^CREATE TABLE (IF NOT EXISTS )?/CREATE TABLE IF NOT EXISTS /'
+    )
+    if printf '%s\n' "$additive" \
+        | docker exec -i "$pg" psql -U texera -d texera_db -v ON_ERROR_STOP=1 >/dev/null 2>&1; then
+        tui_ok "postgres: created missing table(s)"
+    else
+        tui_err "postgres: failed to create missing table(s) -- check container logs"
+        printf "  ${DIM}Reset the volume (DESTROYS local data) and re-run:\n"
+        printf "      docker compose -p %s down -v && bin/local-dev.sh up${RESET}\n" "$DOCKER_PROJECT"
+        exit 1
+    fi
 }
 
 # Build precondition: ensure ONLY the postgres container is up + schema
