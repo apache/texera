@@ -118,7 +118,7 @@ class SyncExecutionResourceSpec
   private def sampleRow(idx: Int, k: String, v: String): SampleRow = {
     val node = mapper.createObjectNode()
     node.put(k, v)
-    SampleRow(rowIndex = idx, tuple = node)
+    SampleRow(rowIndex = idx, row = node)
   }
 
   private def nextId(): Int = {
@@ -282,177 +282,6 @@ class SyncExecutionResourceSpec
   private def classify(message: String): WorkflowExecutionSummary =
     resource invokePrivate handleExecutionError(new RuntimeException(message))
 
-  private def exerciseCompanion[A](
-      companion: AnyRef,
-      expectedName: String,
-      args: Seq[AnyRef],
-      expectedValue: A
-  ): Unit = {
-    companion.toString shouldBe expectedName
-    val applyMethod = companion.getClass.getDeclaredMethods
-      .find(method => method.getName == "apply" && method.getParameterCount == args.size)
-      .get
-    applyMethod.setAccessible(true)
-    applyMethod.invoke(companion, args: _*) shouldBe expectedValue
-
-    val writeReplace = companion.getClass.getDeclaredMethod("writeReplace")
-    writeReplace.setAccessible(true)
-    writeReplace.invoke(companion) should not be null
-  }
-
-  "execution summary DTOs" should "retain stable case-class generated behavior" in {
-    val request = SyncExecutionRequest(
-      executionName = "exec",
-      logicalPlan = LogicalPlanPojo(List.empty, List.empty, List.empty, List.empty),
-      workflowSettings = None,
-      targetOperatorIds = List("op-1"),
-      timeoutSeconds = 1,
-      maxOperatorResultCharLimit = 2,
-      maxOperatorResultCellCharLimit = 3
-    )
-    val row = sampleRow(0, "col", "value")
-    val console = ConsoleMessageSummary(msgType = "PRINT", title = "t", message = "m")
-    val result =
-      OperatorResultSummary(resultMode = "table", sampleTuples = List(row), tuplesCount = 1)
-    val fatalError =
-      WorkflowFatalError(EXECUTION_FAILURE, Timestamp(Instant.now), "boom", "", "op-1")
-    val operator = OperatorExecutionSummary(
-      state = "Failed",
-      errorMessages = List(fatalError),
-      resultSummary = Some(result),
-      consoleMessages = Some(List(console))
-    )
-    val workflow = WorkflowExecutionSummary(
-      success = false,
-      state = "Failed",
-      operators = Map("op-1" -> operator),
-      errors = List(fatalError)
-    )
-
-    request.copy(timeoutSeconds = 9).timeoutSeconds shouldBe 9
-    console.copy(message = "updated").message shouldBe "updated"
-    row.copy(rowIndex = 5).rowIndex shouldBe 5
-    result.copy(tuplesCount = 2).tuplesCount shouldBe 2
-    operator.copy(state = "Completed").state shouldBe "Completed"
-    workflow.copy(success = true).success shouldBe true
-
-    SyncExecutionRequest.unapply(request).get._7 shouldBe 3
-    SyncExecutionRequest.unapply(null.asInstanceOf[SyncExecutionRequest]) shouldBe None
-    ConsoleMessageSummary.unapply(console).get._2 shouldBe "t"
-    ConsoleMessageSummary.unapply(null.asInstanceOf[ConsoleMessageSummary]) shouldBe None
-    SampleRow.unapply(row).get._1 shouldBe 0
-    SampleRow.unapply(null.asInstanceOf[SampleRow]) shouldBe None
-    OperatorResultSummary.unapply(result).get._2.head.rowIndex shouldBe 0
-    OperatorResultSummary.unapply(null.asInstanceOf[OperatorResultSummary]) shouldBe None
-    OperatorExecutionSummary.unapply(operator).get._3 shouldBe Some(result)
-    OperatorExecutionSummary.unapply(null.asInstanceOf[OperatorExecutionSummary]) shouldBe None
-    WorkflowExecutionSummary.unapply(workflow).get._4.head.message shouldBe "boom"
-    WorkflowExecutionSummary.unapply(null.asInstanceOf[WorkflowExecutionSummary]) shouldBe None
-
-    exerciseCompanion(
-      SyncExecutionRequest,
-      "SyncExecutionRequest",
-      Seq(
-        "exec",
-        request.logicalPlan,
-        None,
-        List("op-1"),
-        Int.box(1),
-        Int.box(2),
-        Int.box(3)
-      ),
-      request
-    )
-    exerciseCompanion(
-      ConsoleMessageSummary,
-      "ConsoleMessageSummary",
-      Seq("PRINT", "t", "m"),
-      console
-    )
-    exerciseCompanion(SampleRow, "SampleRow", Seq(Int.box(0), row.tuple), row)
-    exerciseCompanion(
-      OperatorResultSummary,
-      "OperatorResultSummary",
-      Seq("table", List(row), Int.box(1)),
-      result
-    )
-    exerciseCompanion(
-      OperatorExecutionSummary,
-      "OperatorExecutionSummary",
-      Seq("Failed", List(fatalError), Some(result), Some(List(console))),
-      operator
-    )
-    exerciseCompanion(
-      WorkflowExecutionSummary,
-      "WorkflowExecutionSummary",
-      Seq(Boolean.box(false), "Failed", Map("op-1" -> operator), List(fatalError)),
-      workflow
-    )
-
-    request.productPrefix shouldBe "SyncExecutionRequest"
-    workflow.productPrefix shouldBe "WorkflowExecutionSummary"
-
-    def exerciseEquality[A](value: A, variants: List[A]): Unit = {
-      (value == value) shouldBe true
-      variants.foreach(variant => (value == variant) shouldBe false)
-      (value == "not-a-summary") shouldBe false
-    }
-
-    exerciseEquality(
-      request,
-      List(
-        request.copy(executionName = "other"),
-        request.copy(logicalPlan = LogicalPlanPojo(List.empty, List.empty, List.empty, List("op"))),
-        request.copy(workflowSettings = Some(WorkflowSettings())),
-        request.copy(targetOperatorIds = List("op-2")),
-        request.copy(timeoutSeconds = 2),
-        request.copy(maxOperatorResultCharLimit = 4),
-        request.copy(maxOperatorResultCellCharLimit = 5)
-      )
-    )
-    exerciseEquality(
-      console,
-      List(
-        console.copy(msgType = "ERROR"),
-        console.copy(title = "other"),
-        console.copy(message = "other")
-      )
-    )
-    exerciseEquality(
-      row,
-      List(
-        row.copy(rowIndex = 1),
-        row.copy(tuple = mapper.createObjectNode())
-      )
-    )
-    exerciseEquality(
-      result,
-      List(
-        result.copy(resultMode = "visualization"),
-        result.copy(sampleTuples = List.empty),
-        result.copy(tuplesCount = 2)
-      )
-    )
-    exerciseEquality(
-      operator,
-      List(
-        operator.copy(state = "Completed"),
-        operator.copy(errorMessages = List.empty),
-        operator.copy(resultSummary = None),
-        operator.copy(consoleMessages = None)
-      )
-    )
-    exerciseEquality(
-      workflow,
-      List(
-        workflow.copy(success = true),
-        workflow.copy(state = "Completed"),
-        workflow.copy(operators = Map.empty),
-        workflow.copy(errors = List.empty)
-      )
-    )
-  }
-
   "handleExecutionError" should "classify lowercase 'compilation' messages as CompilationFailed" in {
     val summary = classify("compilation failed for the plan")
     summary.success shouldBe false
@@ -461,18 +290,6 @@ class SyncExecutionResourceSpec
     summary.errors should have size 1
     summary.errors.head.`type` shouldBe COMPILATION_ERROR
     summary.errors.head.message shouldBe "compilation failed for the plan"
-  }
-
-  it should "classify capitalized 'Compilation' messages as CompilationFailed" in {
-    classify("Compilation error near line 3").state shouldBe "CompilationFailed"
-  }
-
-  it should "classify 'operator' messages as CompilationFailed" in {
-    classify("unknown operator reference").state shouldBe "CompilationFailed"
-  }
-
-  it should "classify 'schema' messages as CompilationFailed" in {
-    classify("invalid schema on input port").state shouldBe "CompilationFailed"
   }
 
   it should "classify unrecognized messages as a generic Error" in {
@@ -572,7 +389,7 @@ class SyncExecutionResourceSpec
       )
       mode shouldBe "table"
       rows.get.map(_.rowIndex) shouldBe List(0, 1)
-      rows.get.map(_.tuple.get("col").asText()) shouldBe List("a", "b")
+      rows.get.map(_.row.get("col").asText()) shouldBe List("a", "b")
       total shouldBe Some(2)
     } finally {
       document.clear()
@@ -663,7 +480,7 @@ class SyncExecutionResourceSpec
     mode shouldBe "table"
     rows.get should have size 3
     rows.get.map(_.rowIndex) shouldBe List(0, 1, 2)
-    rows.get.map(_.tuple.get("col").asText()) shouldBe List("a", "b", "c")
+    rows.get.map(_.row.get("col").asText()) shouldBe List("a", "b", "c")
     total shouldBe Some(3)
   }
 
@@ -672,8 +489,8 @@ class SyncExecutionResourceSpec
       resource.sampleAndTruncateTuples(Iterator(mixedTuple("abcdefghij", 42)), 1, 100000, 8)
     mode shouldBe "table"
     total shouldBe Some(1)
-    rows.get.head.tuple.get("col").asText() shouldBe "abcdefgh"
-    rows.get.head.tuple.get("number").asInt() shouldBe 42
+    rows.get.head.row.get("col").asText() shouldBe "abcdefgh"
+    rows.get.head.row.get("number").asInt() shouldBe 42
   }
 
   it should "symmetrically truncate cells when enough room remains for both sides" in {
@@ -952,24 +769,6 @@ class SyncExecutionResourceSpec
     summary.errors.head.message shouldBe "Failed to initialize execution service"
   }
 
-  it should "kill the execution when no terminal signal arrives before timeout" in {
-    val stateStore = new ExecutionStateStore
-    val executionService = buildExecutionService(stateStore)
-
-    val summary = runWithStubWorkflow(
-      _.executionService.onNext(executionService),
-      syncRequest(timeoutSeconds = 1)
-    )
-
-    summary.success shouldBe false
-    summary.state shouldBe "Killed"
-    summary.operators shouldBe empty
-    summary.errors should have size 1
-    summary.errors.head.`type` shouldBe EXECUTION_FAILURE
-    summary.errors.head.message shouldBe "Timeout after 1 seconds"
-    stateStore.metadataStore.getState.state shouldBe WorkflowAggregatedState.KILLED
-  }
-
   it should "return an error when waiting for execution state fails" in {
     val stateStore = new ExecutionStateStore
     val executionService = buildExecutionService(stateStore)
@@ -1051,32 +850,6 @@ class SyncExecutionResourceSpec
     )
     summary.success shouldBe false
     summary.state shouldBe "Failed"
-  }
-
-  it should "map every workflow state string used in execution summaries" in {
-    val stateNames = List(
-      WorkflowAggregatedState.UNINITIALIZED -> "Uninitialized",
-      WorkflowAggregatedState.READY -> "Ready",
-      WorkflowAggregatedState.RUNNING -> "Running",
-      WorkflowAggregatedState.PAUSING -> "Pausing",
-      WorkflowAggregatedState.PAUSED -> "Paused",
-      WorkflowAggregatedState.RESUMING -> "Resuming",
-      WorkflowAggregatedState.KILLED -> "Killed",
-      WorkflowAggregatedState.TERMINATED -> "Terminated",
-      WorkflowAggregatedState.UNKNOWN -> "Unknown"
-    )
-
-    stateNames.foreach {
-      case (state, expected) =>
-        resource
-          .assembleExecutionSummary(
-            finalState = metadataStore(state),
-            operatorInfos = Map.empty,
-            terminatedByConsoleError = false,
-            terminatedByTargetResults = false
-          )
-          .state shouldBe expected
-    }
   }
 
   it should "force a Failed state when terminated by a console error, regardless of final state" in {

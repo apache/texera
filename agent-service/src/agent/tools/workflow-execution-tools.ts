@@ -344,8 +344,7 @@ async function executeWorkflowHttp(
 
 function formatExecutionError(
   operatorErrors?: Array<{ operatorId: string; error: string }>,
-  generalErrors?: WorkflowFatalError[],
-  generalErrorsLabel: string = "Error:"
+  generalErrors?: WorkflowFatalError[]
 ): string {
   const lines: string[] = ["Execution failed due to the following error:"];
 
@@ -357,7 +356,7 @@ function formatExecutionError(
   }
 
   if (generalErrors && generalErrors.length > 0) {
-    lines.push(generalErrorsLabel);
+    lines.push("Error:");
     for (const error of generalErrors) {
       lines.push(`  ${error.message}`);
     }
@@ -417,27 +416,23 @@ export async function executeOperatorAndFormat(
     });
 
     if (!result.success) {
-      // Per-operator errors can accompany any terminal state (e.g. a console
-      // ERROR leaves state "Completed" with success=false), so never gate on it.
-      const operatorErrors = Object.entries(result.operators)
-        .map(([opId, op]) => ({ operatorId: opId, error: getOperatorErrorText(op) }))
-        .filter(({ error }) => error);
+      const operatorErrors =
+        result.state === WorkflowExecutionState.FAILED
+          ? Object.entries(result.operators)
+              .map(([opId, op]) => ({ operatorId: opId, error: getOperatorErrorText(op) }))
+              .filter(({ error }) => error)
+          : undefined;
 
       const generalErrors =
         result.state === WorkflowExecutionState.KILLED
           ? [makeExecutionFailure("Workflow execution was killed (timeout).", "")]
           : result.errors;
 
-      const generalErrorsLabel =
-        result.state === WorkflowExecutionState.COMPILATION_FAILED ? "Compilation error:" : "Error:";
-
-      const errorText = formatExecutionError(operatorErrors, generalErrors, generalErrorsLabel);
+      const errorText = formatExecutionError(operatorErrors, generalErrors);
 
       if (options.onResult) {
         const errorInfo: OperatorExecutionSummary = {
-          // Preserve the killed state so a timeout is distinguishable from a
-          // genuine operator failure downstream.
-          state: result.state === WorkflowExecutionState.KILLED ? OperatorState.KILLED : OperatorState.FAILED,
+          state: OperatorState.FAILED,
           errorMessages: [makeExecutionFailure(errorText, operatorId)],
         };
         options.onResult(operatorId, errorInfo);
@@ -466,7 +461,7 @@ export async function executeOperatorAndFormat(
       return "(no result data)";
     }
 
-    const headers = sampleTuples.length > 0 ? getVisibleResultHeaders(sampleTuples[0].tuple) : [];
+    const headers = sampleTuples.length > 0 ? getVisibleResultHeaders(sampleTuples[0].row) : [];
     const columns = headers.length;
 
     // Notify for every operator in the execution so upstream stats are also stored.

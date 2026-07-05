@@ -95,7 +95,7 @@ case class ConsoleMessageSummary(
 @Generated
 case class SampleRow(
     rowIndex: Int,
-    tuple: ObjectNode
+    row: ObjectNode
 )
 
 @Generated
@@ -269,7 +269,7 @@ class SyncExecutionResource extends LazyLogging {
               .timeout(timeoutSeconds.toLong, TimeUnit.SECONDS)
               .blockingGet()
           } catch {
-            case e: Exception if isTimeoutException(e) =>
+            case _: java.util.concurrent.TimeoutException =>
               killExecution(executionService)
               return WorkflowExecutionSummary(
                 success = false,
@@ -557,10 +557,6 @@ class SyncExecutionResource extends LazyLogging {
 
   private def messageOrUnknown(e: Exception): String =
     Option(e.getMessage).getOrElse("Unknown error")
-
-  private def isTimeoutException(e: Throwable): Boolean =
-    e.isInstanceOf[java.util.concurrent.TimeoutException] ||
-      Option(e.getCause).exists(cause => (cause ne e) && isTimeoutException(cause))
 
   /**
     * Symmetric truncation: fill half the char budget from the front of the result, keep a

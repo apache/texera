@@ -40,7 +40,6 @@ import { AppSettings } from "../../../common/app-setting";
 import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
-import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 
 /**
  * Agent settings for API (serializable format).
@@ -97,22 +96,9 @@ export interface ModelType {
 /**
  * API response types
  */
-export interface ConsoleMessageSummary {
-  msgType: ConsoleMessageType;
-  title: string;
-  message: string;
-}
-
-export enum ConsoleMessageType {
-  PRINT = "PRINT",
-  ERROR = "ERROR",
-  COMMAND = "COMMAND",
-  DEBUGGER = "DEBUGGER",
-}
-
 export interface SampleRow {
   rowIndex: number;
-  tuple: Record<string, any>;
+  row: Record<string, any>;
 }
 
 export interface OperatorResultSummary {
@@ -126,25 +112,11 @@ export enum OperatorResultMode {
   VISUALIZATION = "visualization",
 }
 
-export enum OperatorState {
-  UNINITIALIZED = "Uninitialized",
-  READY = "Ready",
-  RUNNING = "Running",
-  PAUSING = "Pausing",
-  PAUSED = "Paused",
-  RESUMING = "Resuming",
-  COMPLETED = "Completed",
-  FAILED = "Failed",
-  KILLED = "Killed",
-  TERMINATED = "Terminated",
-  UNKNOWN = "Unknown",
-}
-
+// Mirrors the sync-execution backend's per-operator summary, but the frontend
+// only consumes `resultSummary`. The backend's state/errorMessages/consoleMessages
+// are intentionally omitted here (no consumer reads them) to keep the surface minimal.
 export interface OperatorExecutionSummary {
-  state: OperatorState;
-  errorMessages: WorkflowFatalError[];
   resultSummary?: OperatorResultSummary;
-  consoleMessages?: ConsoleMessageSummary[];
 }
 
 interface ApiAgentInfo {
