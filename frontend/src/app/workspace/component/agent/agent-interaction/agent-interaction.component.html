@@ -48,8 +48,8 @@
               <td [attr.colspan]="getSampleColumns().length + 1">...</td>
             </tr>
             <tr *ngIf="!row.isEllipsis">
-              <td>{{ row.row!.rowIndex }}</td>
-              <td *ngFor="let col of getSampleColumns()">{{ row.row!.tuple[col] }}</td>
+              <td>{{ row.sampleRow!.rowIndex }}</td>
+              <td *ngFor="let col of getSampleColumns()">{{ row.sampleRow!.row[col] }}</td>
             </tr>
           </ng-container>
         </tbody>
