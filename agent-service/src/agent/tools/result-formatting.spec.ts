@@ -73,9 +73,11 @@ function makeOpInfo(overrides: OpInfoOverrides = {}): OperatorExecutionSummary {
   }
   if (overrides.warnings) {
     // Warnings are derived from console messages whose title is "WARNING: ...".
-    summary.consoleLogsSummary = {
-      messages: overrides.warnings.map(w => ({ msgType: ConsoleMessageType.PRINT, title: w, message: "" })),
-    };
+    summary.consoleMessages = overrides.warnings.map(w => ({
+      msgType: ConsoleMessageType.PRINT,
+      title: w,
+      message: "",
+    }));
   }
   return summary;
 }

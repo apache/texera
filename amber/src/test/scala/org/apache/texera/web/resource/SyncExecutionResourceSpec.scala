@@ -201,7 +201,7 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     )
     summary.state shouldBe "Completed"
     summary.errorMessages shouldBe empty
-    summary.consoleLogsSummary shouldBe None
+    summary.consoleMessages shouldBe None
     summary.resultSummary.get.resultMode shouldBe "table"
     summary.resultSummary.get.sampleTuples shouldBe rows
     summary.resultSummary.get.tuplesCount shouldBe 7
@@ -209,8 +209,8 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
 
   it should "surface a console ERROR as one EXECUTION_FAILURE error using the longer of title/message" in {
     val logs = List(
-      ConsoleMessageInfo(msgType = "PRINT", title = "noise", message = "ignored"),
-      ConsoleMessageInfo(msgType = "ERROR", title = "short", message = "a much longer message")
+      ConsoleMessageSummary(msgType = "PRINT", title = "noise", message = "ignored"),
+      ConsoleMessageSummary(msgType = "ERROR", title = "short", message = "a much longer message")
     )
     val summary = resource.buildOperatorExecutionSummary(
       opId = "op-9",
@@ -224,12 +224,12 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     summary.errorMessages.head.`type` shouldBe EXECUTION_FAILURE
     summary.errorMessages.head.message shouldBe "a much longer message"
     summary.errorMessages.head.operatorId shouldBe "op-9"
-    summary.consoleLogsSummary.get.messages should have size 2
+    summary.consoleMessages.get should have size 2
   }
 
   it should "keep the ERROR title when it is longer than the message" in {
     val logs =
-      List(ConsoleMessageInfo(msgType = "ERROR", title = "a long descriptive title", message = ""))
+      List(ConsoleMessageSummary(msgType = "ERROR", title = "a long descriptive title", message = ""))
     val summary = resource.buildOperatorExecutionSummary(
       opId = "op-2",
       state = "Failed",
@@ -245,7 +245,7 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
     // Exercises `message.nonEmpty` true AND `message.length > title.length` false.
     val logs =
       List(
-        ConsoleMessageInfo(
+        ConsoleMessageSummary(
           msgType = "ERROR",
           title = "a fairly long error title",
           message = "short"
@@ -272,7 +272,7 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
       consoleLogs = None
     )
     summary.resultSummary shouldBe None
-    summary.consoleLogsSummary shouldBe None
+    summary.consoleMessages shouldBe None
     summary.errorMessages shouldBe empty
   }
 
@@ -294,7 +294,7 @@ class SyncExecutionResourceSpec extends AnyFlatSpec with Matchers with PrivateMe
       errorMessages =
         List(WorkflowFatalError(EXECUTION_FAILURE, Timestamp(Instant.now), "err", "", "op1")),
       resultSummary = None,
-      consoleLogsSummary = None
+      consoleMessages = None
     )
 
   "assembleExecutionSummary" should "report success for a COMPLETED run with no errors" in {
