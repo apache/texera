@@ -173,17 +173,7 @@ libraryDependencies ++= Seq(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.hadoop" % "hadoop-common" % "3.3.1" excludeAll(
-    excludeXmlBind,
-    excludeGlassfishJersey,
-    excludeJersey,
-    excludeSlf4j,
-    excludeJetty,
-    excludeJsp,
-    excludeJackson,
-    excludeJacksonModule
-  ),
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.1" excludeAll(
+  "org.apache.hadoop" % "hadoop-common" % "3.4.3" excludeAll(
     excludeXmlBind,
     excludeGlassfishJersey,
     excludeJersey,
