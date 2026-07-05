@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.filledAreaPlot
 
-import org.apache.texera.amber.core.tuple.AttributeType
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
@@ -109,12 +109,10 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
   }
 
   "FilledAreaPlotOpDesc.getOutputSchemas" should
-    "return a single html-content STRING column" in {
-    val out = opDesc.getOutputSchemas(Map.empty)
-    out should have size 1
-    val schema = out.values.head
-    schema.getAttributeNames should contain("html-content")
-    schema.getAttribute("html-content").getType shouldBe AttributeType.STRING
+    "return exactly one html-content STRING column" in {
+    opDesc.getOutputSchemas(Map.empty) shouldBe Map(
+      opDesc.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
+    )
   }
 
   "FilledAreaPlotOpDesc.createPlotlyFigure" should

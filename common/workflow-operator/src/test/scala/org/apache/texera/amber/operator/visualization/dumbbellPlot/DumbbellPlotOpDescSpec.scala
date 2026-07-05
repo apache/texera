@@ -86,8 +86,11 @@ class DumbbellPlotOpDescSpec extends AnyFlatSpec with Matchers {
     dot2.dotValue = "q2"
     d.dots = java.util.Arrays.asList(dot1, dot2)
     val withDots = d.addPlotlyDots().plain
-    withDots should include("dotColumnNames = [")
-    withDots should not include "dotColumnNames = []"
+    // both configured dots must be emitted: the rendered list has two comma-separated
+    // (base64-encoded) entries, e.g. dotColumnNames = [<enc-q1>,<enc-q2>]
+    val dotsLine = withDots.linesIterator.find(_.contains("dotColumnNames = [")).getOrElse("")
+    dotsLine should not include "dotColumnNames = []"
+    dotsLine.split(",") should have length 2
 
     (new DumbbellPlotOpDesc).addPlotlyDots().plain should include("dotColumnNames = []")
   }
