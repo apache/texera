@@ -1319,14 +1319,24 @@ infra_down() {
     tui_ok "infra: stopped"
 }
 
-# Ensure the texera_db schema exists in the postgres container. The compose
-# file mounts sql/*.sql to /docker-entrypoint-initdb.d, but Postgres only
-# runs those on first init (empty data dir). If the volume was carried over
-# from an older texera version (e.g. before the `feedback` table was added)
-# the schema will be missing relations that current code references, the
-# jOOQ codegen produces an incomplete Tables.java, and sbt compile fails on
-# `not found: value FEEDBACK`. Probe for a canonical table and re-run
-# texera_ddl.sql if it's absent.
+# Ensure the texera_db schema in the postgres container matches what the
+# current source tree expects. The compose file mounts sql/*.sql to
+# /docker-entrypoint-initdb.d, but Postgres only runs those on first init
+# (empty data dir). If the volume was carried over from an older texera
+# version, the schema is missing relations that current code references;
+# jOOQ codegen (common/dao) then produces an incomplete Tables.java and the
+# sbt compile fails on a misleading `not found: value <TABLE>` error that
+# gives no hint the real cause is a stale DB (#6194).
+#
+# We derive the expected table set from sql/texera_ddl.sql itself rather than
+# hard-probing a single canonical table, so the check can't silently fall out
+# of date when a new table is added. (The old check probed only `feedback`
+# and reported "schema already current" whenever any newer table was missing.)
+#
+# NOTE: sql/texera_ddl.sql is NOT idempotent — it DROPs and recreates the
+# database and every table. So we only run it to bootstrap a genuinely empty
+# volume; on a partially-populated (stale) volume we refuse and print
+# actionable guidance rather than silently wiping local data.
 infra_ensure_db_schema() {
     local pg="texera-postgres"
     # Wait briefly for postgres to be ready — `up -d` returned but the
@@ -1343,30 +1353,67 @@ infra_ensure_db_schema() {
         tui_warn "postgres: not ready after 30s -- skipping schema check"
         return 0
     fi
-    # `feedback` is one of the newer tables; if it exists we assume the
-    # whole schema is current. (texera_ddl.sql is idempotent with
-    # CREATE TABLE IF NOT EXISTS, so re-applying it is safe even if some
-    # tables already exist, but skipping the copy + exec is faster.)
-    local has_feedback=""
-    has_feedback=$(docker exec "$pg" psql -U texera -d texera_db -tAc \
-        "SELECT 1 FROM pg_tables WHERE schemaname='texera_db' AND tablename='feedback'" \
-        2>/dev/null || true)
-    if [[ "$has_feedback" == "1" ]]; then
-        tui_skip "postgres: schema already current"
-        return 0
-    fi
-    tui_step "postgres: applying sql/texera_ddl.sql (one-time bootstrap)"
+
     local ddl="$REPO_ROOT/sql/texera_ddl.sql"
     if [[ ! -f "$ddl" ]]; then
         tui_warn "postgres: $ddl not found -- skipping (jOOQ codegen may fail)"
         return 0
     fi
-    docker cp "$ddl" "$pg":/tmp/texera_ddl.sql >/dev/null
-    if docker exec -u postgres "$pg" psql -U texera -f /tmp/texera_ddl.sql >/dev/null 2>&1; then
-        tui_ok "postgres: schema bootstrapped"
-    else
-        tui_warn "postgres: ddl exec returned non-zero (check container logs)"
+
+    # Tables the current schema defines, parsed straight from the DDL.
+    # Handles both bare and double-quoted names (e.g. "user").
+    local expected
+    expected=$(grep -ioE 'CREATE TABLE IF NOT EXISTS[[:space:]]+"?[a-zA-Z_][a-zA-Z0-9_]*"?' "$ddl" \
+        | sed -E 's/^.*NOT EXISTS[[:space:]]+//I; s/"//g' | sort -u)
+    if [[ -z "$expected" ]]; then
+        tui_warn "postgres: could not parse expected tables from $ddl -- skipping schema check"
+        return 0
     fi
+
+    # Tables actually present in the live schema.
+    local live
+    live=$(docker exec "$pg" psql -U texera -d texera_db -tAc \
+        "SELECT tablename FROM pg_tables WHERE schemaname='texera_db'" 2>/dev/null | sort -u || true)
+
+    local t have=0 missing=()
+    while IFS= read -r t; do
+        [[ -z "$t" ]] && continue
+        if grep -qxF "$t" <<<"$live"; then
+            have=$((have+1))
+        else
+            missing+=("$t")
+        fi
+    done <<<"$expected"
+
+    if (( ${#missing[@]} == 0 )); then
+        tui_skip "postgres: schema already current"
+        return 0
+    fi
+
+    if (( have == 0 )); then
+        # Empty volume — safe to bootstrap from the (destructive) DDL.
+        tui_step "postgres: applying sql/texera_ddl.sql (one-time bootstrap)"
+        docker cp "$ddl" "$pg":/tmp/texera_ddl.sql >/dev/null
+        if docker exec -u postgres "$pg" psql -U texera -f /tmp/texera_ddl.sql >/dev/null 2>&1; then
+            tui_ok "postgres: schema bootstrapped"
+        else
+            tui_warn "postgres: ddl exec returned non-zero (check container logs)"
+        fi
+        return 0
+    fi
+
+    # Partially-populated volume that predates the current schema. Running
+    # texera_ddl.sql here would DROP the database, so refuse and tell the user
+    # how to resolve it — far better than the misleading downstream compile
+    # error the old code produced (#6194).
+    tui_err "postgres: schema is stale — missing ${#missing[@]} table(s): ${missing[*]}"
+    printf "  ${DIM}The DB volume predates the current schema. sql/texera_ddl.sql is destructive\n"
+    printf "  (it DROPs & recreates the database) so it is not auto-applied.\n"
+    printf "  Apply the matching migration(s) from sql/updates/*.sql, e.g.:\n"
+    printf "      docker exec -i %s psql -U texera -d texera_db < sql/updates/<N>.sql\n" "$pg"
+    printf "  or reset the volume (DESTROYS local data) and re-run:\n"
+    printf "      docker compose -p %s down -v && bin/local-dev.sh up${RESET}\n" "$DOCKER_PROJECT"
+    exit 1
 }
 
 # Build precondition: ensure ONLY the postgres container is up + schema
