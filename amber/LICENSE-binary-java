@@ -445,17 +445,17 @@ Scala/Java jars:
   - org.apache.parquet.parquet-format-structures-1.13.1.jar
   - org.apache.parquet.parquet-hadoop-1.13.1.jar
   - org.apache.parquet.parquet-jackson-1.13.1.jar
-  - org.apache.pekko.pekko-actor_2.13-1.2.1.jar
-  - org.apache.pekko.pekko-cluster-metrics_2.13-1.2.1.jar
-  - org.apache.pekko.pekko-cluster-tools_2.13-1.2.1.jar
-  - org.apache.pekko.pekko-cluster_2.13-1.2.1.jar
-  - org.apache.pekko.pekko-coordination_2.13-1.2.1.jar
-  - org.apache.pekko.pekko-persistence_2.13-1.2.1.jar
-  - org.apache.pekko.pekko-pki_2.13-1.2.1.jar
-  - org.apache.pekko.pekko-protobuf-v3_2.13-1.2.1.jar
-  - org.apache.pekko.pekko-remote_2.13-1.2.1.jar
-  - org.apache.pekko.pekko-slf4j_2.13-1.2.1.jar
-  - org.apache.pekko.pekko-stream_2.13-1.2.1.jar
+  - org.apache.pekko.pekko-actor_2.13-1.6.0.jar
+  - org.apache.pekko.pekko-cluster-metrics_2.13-1.6.0.jar
+  - org.apache.pekko.pekko-cluster-tools_2.13-1.6.0.jar
+  - org.apache.pekko.pekko-cluster_2.13-1.6.0.jar
+  - org.apache.pekko.pekko-coordination_2.13-1.6.0.jar
+  - org.apache.pekko.pekko-persistence_2.13-1.6.0.jar
+  - org.apache.pekko.pekko-pki_2.13-1.6.0.jar
+  - org.apache.pekko.pekko-protobuf-v3_2.13-1.6.0.jar
+  - org.apache.pekko.pekko-remote_2.13-1.6.0.jar
+  - org.apache.pekko.pekko-slf4j_2.13-1.6.0.jar
+  - org.apache.pekko.pekko-stream_2.13-1.6.0.jar
   - org.apache.yetus.audience-annotations-0.13.0.jar
   - org.apache.zookeeper.zookeeper-3.5.6.jar
   - org.apache.zookeeper.zookeeper-jute-3.5.6.jar

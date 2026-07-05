@@ -88,7 +88,7 @@ PB.generate / excludeFilter := "scalapb.proto"
 
 /////////////////////////////////////////////////////////////////////////////
 // Pekko related
-val pekkoVersion = "1.2.1"
+val pekkoVersion = "1.6.0"
 val pekkoDependencies = Seq(
   "org.apache.pekko" %% "pekko-actor" % pekkoVersion,
   "org.apache.pekko" %% "pekko-remote" % pekkoVersion,
