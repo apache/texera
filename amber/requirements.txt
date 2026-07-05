@@ -25,7 +25,7 @@ pyarrow==23.0.1
 python-dateutil==2.8.2
 betterproto==2.0.0b7
 pampy==0.3.0
-overrides==7.4.0
+overrides==7.7.0
 typing_extensions==4.14.1
 fs==2.4.16
 bidict==0.22.0
