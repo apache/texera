@@ -26,13 +26,13 @@ import org.apache.texera.amber.core.virtualidentity.{
   ChannelIdentity,
   EmbeddedControlMessageIdentity
 }
-import org.apache.texera.amber.engine.architecture.controller.ClientEvent
+import org.apache.texera.amber.engine.architecture.coordinator.ClientEvent
 import org.apache.texera.amber.engine.architecture.messaginglayer.{
   NetworkInputGateway,
   NetworkOutputGateway
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands._
-import org.apache.texera.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
+import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceFs2Grpc
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
   ControlError,
   ControlReturn,
@@ -135,8 +135,8 @@ class AsyncRPCClient(
 
   private val unfulfilledPromises = mutable.HashMap[Long, Promise[ControlReturn]]()
   private var promiseID = 0L
-  @transient lazy val controllerInterface: ControllerServiceFs2Grpc[Future, AsyncRPCContext] =
-    createProxy[ControllerServiceFs2Grpc[Future, AsyncRPCContext]](createPromise, outputGateway)
+  @transient lazy val coordinatorInterface: CoordinatorServiceFs2Grpc[Future, AsyncRPCContext] =
+    createProxy[CoordinatorServiceFs2Grpc[Future, AsyncRPCContext]](createPromise, outputGateway)
   @transient lazy val workerInterface: WorkerServiceFs2Grpc[Future, AsyncRPCContext] =
     createProxy[WorkerServiceFs2Grpc[Future, AsyncRPCContext]](createPromise, outputGateway)
 

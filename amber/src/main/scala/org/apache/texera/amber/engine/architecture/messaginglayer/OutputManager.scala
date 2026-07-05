@@ -251,7 +251,7 @@ class OutputManager(
     *
     * If the writer thread captured a failure (e.g., iceberg commit retries
     * exhausted), re-throw it here so the DP thread surfaces a FatalError
-    * to the controller via pekko's supervisor strategy. Otherwise the worker
+    * to the coordinator via pekko's supervisor strategy. Otherwise the worker
     * would announce port completion as if the result was durably written.
     */
   def closeOutputStorageWriterIfNeeded(outputPortId: PortIdentity): Unit = {

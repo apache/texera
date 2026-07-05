@@ -90,7 +90,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def complete(self) -> None:
         """
         Complete the DataProcessor, marking state to COMPLETED, and notify the
-        controller.
+        coordinator.
         """
         # flush the buffered console prints
         self._check_and_report_console_messages(force_flush=True)
@@ -99,8 +99,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.data_processor.stop()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
         self.context.statistics_manager.update_total_execution_time(time.time_ns())
-        controller_interface = self._async_rpc_client.controller_stub()
-        controller_interface.worker_execution_completed(EmptyRequest())
+        coordinator_interface = self._async_rpc_client.coordinator_stub()
+        coordinator_interface.worker_execution_completed(EmptyRequest())
         self.context.close()
 
     def _check_and_process_control(self) -> None:
@@ -265,7 +265,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         )
 
         if input_port_id is not None:
-            self._async_rpc_client.controller_stub().port_completed(
+            self._async_rpc_client.coordinator_stub().port_completed(
                 PortCompletedRequest(
                     port_id=input_port_id,
                     input=True,
@@ -285,7 +285,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
             # Need to send port completed even if there is no downstream link
             for port_id in self.context.output_manager.get_port_ids():
-                self._async_rpc_client.controller_stub().port_completed(
+                self._async_rpc_client.coordinator_stub().port_completed(
                     PortCompletedRequest(port_id=port_id, input=False)
                 )
             self.complete()
@@ -423,7 +423,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 logger.exception(err)
 
     def _send_console_message(self, console_message: ConsoleMessage):
-        self._async_rpc_client.controller_stub().console_message_triggered(
+        self._async_rpc_client.coordinator_stub().console_message_triggered(
             ConsoleMessageTriggeredRequest(console_message=console_message)
         )
 

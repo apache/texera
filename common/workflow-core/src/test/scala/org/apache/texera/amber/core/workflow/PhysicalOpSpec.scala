@@ -56,7 +56,7 @@ class PhysicalOpSpec extends AnyFlatSpec {
 
   // ----- factory methods -----
 
-  "PhysicalOp factories" should "build source ops preferring the controller" in {
+  "PhysicalOp factories" should "build source ops preferring the coordinator" in {
     val op = PhysicalOp.sourcePhysicalOp(
       workflowId,
       executionId,
@@ -65,11 +65,11 @@ class PhysicalOpSpec extends AnyFlatSpec {
     )
     assert(op.id == opId("src"))
     assert(!op.parallelizable)
-    assert(op.locationPreference.contains(PreferController))
+    assert(op.locationPreference.contains(PreferCoordinator))
     assert(op.isSourceOperator)
     val op2 = PhysicalOp.sourcePhysicalOp(opId("s2"), workflowId, executionId, OpExecInitInfo.Empty)
     assert(op2.id == opId("s2"))
-    assert(op2.locationPreference.contains(PreferController))
+    assert(op2.locationPreference.contains(PreferCoordinator))
   }
 
   it should "build one-to-one ops as parallelizable with no location preference" in {
@@ -99,7 +99,7 @@ class PhysicalOpSpec extends AnyFlatSpec {
     assert(op2.partitionRequirement == List(Some(SinglePartition())))
   }
 
-  it should "build local ops on the controller requiring a single partition" in {
+  it should "build local ops on the coordinator requiring a single partition" in {
     val op = PhysicalOp.localPhysicalOp(
       workflowId,
       executionId,
@@ -108,9 +108,9 @@ class PhysicalOpSpec extends AnyFlatSpec {
     )
     assert(!op.parallelizable)
     assert(op.partitionRequirement == List(Some(SinglePartition())))
-    assert(op.locationPreference.contains(PreferController))
+    assert(op.locationPreference.contains(PreferCoordinator))
     val op2 = PhysicalOp.localPhysicalOp(opId("l2"), workflowId, executionId, OpExecInitInfo.Empty)
-    assert(op2.locationPreference.contains(PreferController))
+    assert(op2.locationPreference.contains(PreferCoordinator))
   }
 
   // ----- dependee inputs -----

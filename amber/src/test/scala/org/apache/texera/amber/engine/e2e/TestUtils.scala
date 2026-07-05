@@ -32,8 +32,8 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext, WorkflowSettings}
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerConfig,
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  CoordinatorConfig,
   ExecutionStateUpdate,
   FatalError,
   Workflow
@@ -157,7 +157,7 @@ object TestUtils {
       system,
       workflow.context,
       workflow.physicalPlan,
-      ControllerConfig.default,
+      CoordinatorConfig.default,
       e => completion.updateIfEmpty(Throw(e))
     )
     try {
@@ -169,7 +169,7 @@ object TestUtils {
           )
         }
       })
-      Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+      Await.result(client.coordinatorInterface.startWorkflow(EmptyRequest(), ()))
       Await.result(completion, completionTimeout)
     } finally {
       client.shutdown()
@@ -298,7 +298,7 @@ object TestUtils {
       system,
       workflow.context,
       workflow.physicalPlan,
-      ControllerConfig.default,
+      CoordinatorConfig.default,
       error => {}
     )
     // Timeout for control-command acks (start/pause/reconfigure/resume).
@@ -312,12 +312,12 @@ object TestUtils {
       }
     })
     Await.result(
-      client.controllerInterface.startWorkflow(EmptyRequest(), ()),
+      client.coordinatorInterface.startWorkflow(EmptyRequest(), ()),
       commandTimeout
     )
     val pausedReached = stateReached(client, PAUSED)
     Await.result(
-      client.controllerInterface.pauseWorkflow(EmptyRequest(), ()),
+      client.coordinatorInterface.pauseWorkflow(EmptyRequest(), ()),
       commandTimeout
     )
     Await.result(pausedReached, commandTimeout)
@@ -325,7 +325,7 @@ object TestUtils {
       workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
     )
     Await.result(
-      client.controllerInterface.reconfigureWorkflow(
+      client.coordinatorInterface.reconfigureWorkflow(
         WorkflowReconfigureRequest(
           reconfiguration = physicalOps.map(op => UpdateExecutorRequest(op.id, newOpExecInitInfo)),
           reconfigurationId = "test-reconfigure-1"
@@ -335,7 +335,7 @@ object TestUtils {
       commandTimeout
     )
     Await.result(
-      client.controllerInterface.resumeWorkflow(EmptyRequest(), ()),
+      client.coordinatorInterface.resumeWorkflow(EmptyRequest(), ()),
       commandTimeout
     )
     Await.result(completion, Duration.fromMinutes(1))

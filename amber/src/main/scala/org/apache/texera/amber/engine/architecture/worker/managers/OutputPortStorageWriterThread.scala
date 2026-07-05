@@ -37,9 +37,9 @@ class OutputPortStorageWriterThread(
     Queues.newLinkedBlockingQueue[Either[Tuple, TerminateSignal]]()
 
   // Captured failure from put-one or close() so the worker DP thread can
-  // re-throw and let the controller's pekko supervisor surface a FatalError
+  // re-throw and let the coordinator's pekko supervisor surface a FatalError
   // to the client. Without this, the writer thread dies silently and the
-  // worker keeps reporting normal port completion to the controller while
+  // worker keeps reporting normal port completion to the coordinator while
   // results are missing or stale, leading to e2e timeouts that hide the
   // real cause.
   @volatile private var failure: Option[Throwable] = None
