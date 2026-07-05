@@ -76,10 +76,10 @@ export enum ConsoleMessageType {
   DEBUGGER = "DEBUGGER",
 }
 
-// A single console message emitted by an operator during execution.
-// `title` is the short header (Scala errors put their text here); `message` is
-// the body (Python errors / stack traces).
-export interface ConsoleMessage {
+// A reduced console-message projection for sync-execution summaries. The engine
+// proto also has workerId/timestamp/source; this summary keeps only the fields
+// consumed by agent-service.
+export interface ConsoleMessageSummary {
   msgType: ConsoleMessageType;
   title: string;
   message: string;
@@ -107,12 +107,6 @@ export interface OperatorResultSummary {
   tuplesCount: number;
 }
 
-// An operator's console output. Warnings are not a separate field: they are the
-// messages whose `title` the engine prefixes with "WARNING: ", derived on demand.
-export interface OperatorConsoleLogsSummary {
-  messages: ConsoleMessage[];
-}
-
 // Per-operator execution summary returned by the sync-execution backend.
 // Orthogonal sub-summaries replace the previous flat `OperatorInfo`.
 export interface OperatorExecutionSummary {
@@ -122,7 +116,7 @@ export interface OperatorExecutionSummary {
   // Absent when the operator produced no materialized result.
   resultSummary?: OperatorResultSummary;
   // Absent when the operator produced no console output.
-  consoleLogsSummary?: OperatorConsoleLogsSummary;
+  consoleMessages?: ConsoleMessageSummary[];
 }
 
 // The result of one synchronous workflow execution.

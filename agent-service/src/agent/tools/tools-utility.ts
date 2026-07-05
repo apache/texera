@@ -70,7 +70,7 @@ export function formatSampleRowsAsTsv(rows: SampleRow[]): string {
 // Warnings are the console messages the engine tags with a "WARNING: " title
 // prefix; derive them rather than carrying a separate field on the summary.
 export function getOperatorWarnings(opInfo: OperatorExecutionSummary): string[] {
-  return (opInfo.consoleLogsSummary?.messages ?? []).filter(m => m.title.startsWith("WARNING: ")).map(m => m.title);
+  return (opInfo.consoleMessages ?? []).filter(m => m.title.startsWith("WARNING: ")).map(m => m.title);
 }
 
 export function createToolResult(message: string): string {
