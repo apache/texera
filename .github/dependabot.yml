@@ -30,7 +30,7 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "fix(deps)"
     groups:
       sbt-minor-and-patch:
         update-types:
@@ -43,7 +43,8 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "fix(deps)"
+      prefix-development: "chore(deps)"
     groups:
       frontend-minor-and-patch:
         update-types:
@@ -61,7 +62,8 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "fix(deps)"
+      prefix-development: "chore(deps)"
     groups:
       pyright-minor-and-patch:
         update-types:
@@ -74,7 +76,8 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "fix(deps)"
+      prefix-development: "chore(deps)"
     groups:
       agent-service-minor-and-patch:
         update-types:
@@ -87,7 +90,8 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "fix(deps)"
+      prefix-development: "chore(deps)"
 
   - package-ecosystem: "pip"
     directory: "/amber"
@@ -95,7 +99,8 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "fix(deps)"
+      prefix-development: "chore(deps)"
     groups:
       python-minor-and-patch:
         update-types:
