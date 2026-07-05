@@ -68,6 +68,27 @@ updates:
           - "minor"
           - "patch"
 
+  - package-ecosystem: "bun"
+    directory: "/agent-service"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      agent-service-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "npm"
+    directory: "/bin/y-websocket-server"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
   - package-ecosystem: "pip"
     directory: "/amber"
     schedule:
