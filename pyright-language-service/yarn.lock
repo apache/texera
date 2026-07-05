@@ -715,10 +715,10 @@ vscode-languageserver@9.0.1:
   dependencies:
     vscode-languageserver-protocol "3.17.5"
 
-vscode-ws-jsonrpc@3.3.2:
-  version "3.3.2"
-  resolved "https://registry.yarnpkg.com/vscode-ws-jsonrpc/-/vscode-ws-jsonrpc-3.3.2.tgz#380e5c5819c493a151236dd20a668eee173fdc5e"
-  integrity sha512-jxGHxAuow67sNRkkS2svsW00ZACX+Zrbury9Au2A22px6sg4pe858Nnnwvtg0Pm4D0L/W9Yzn7N7X3R/RIMxsQ==
+vscode-ws-jsonrpc@3.5.0:
+  version "3.5.0"
+  resolved "https://registry.yarnpkg.com/vscode-ws-jsonrpc/-/vscode-ws-jsonrpc-3.5.0.tgz#d41735762aece5d2d3a4f3784fc29238ccd78b4f"
+  integrity sha512-13ZDy7Od4AfEPK2HIfY3DtyRi4FVsvFql1yobVJrpIoHOKGGJpIjVvIJpMxkrHzCZzWlYlg+WEu2hrYkCTvM0Q==
   dependencies:
     vscode-jsonrpc "~8.2.1"
 
