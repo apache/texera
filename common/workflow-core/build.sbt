@@ -154,6 +154,7 @@ val excludeJsp = ExclusionRule(organization = "javax.servlet.jsp")
 val excludeXmlBind = ExclusionRule(organization = "javax.xml.bind")
 val excludeJackson = ExclusionRule(organization = "com.fasterxml.jackson.core")
 val excludeJacksonModule = ExclusionRule(organization = "com.fasterxml.jackson.module")
+val log4jVersion = "2.26.1"
 
 libraryDependencies ++= Seq(
   "org.apache.iceberg" % "iceberg-api" % "1.7.1",
@@ -193,6 +194,12 @@ libraryDependencies ++= Seq(
     excludeJackson,
     excludeJacksonModule
   ),
+  // log4j:log4j is excluded build-wide (root build.sbt) because 1.x is EOL
+  // with open CVEs. These log4j 2.x bridges keep hadoop/zookeeper's
+  // org.apache.log4j calls working by routing them through the log4j 2 API
+  // into slf4j (and on to logback).
+  "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion,
+  "org.apache.logging.log4j" % "log4j-to-slf4j" % log4jVersion,
   "org.postgresql" % "postgresql" % "42.7.10"
 )
 
