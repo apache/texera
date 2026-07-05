@@ -10,6 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "y-websocket": "^2.0.0"
+    "y-websocket": "^3.0.0"
   }
 }
