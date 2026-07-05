@@ -39,20 +39,20 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorExecuti
 
   const isViz = opInfo.resultSummary?.resultMode === OperatorResultMode.VISUALIZATION;
   const rows: SampleRow[] = isViz
-    ? sampleTuples.map(({ rowIndex, tuple }) => {
+    ? sampleTuples.map(({ rowIndex, row }) => {
         const cleaned: Record<string, any> = {};
-        for (const key of Object.keys(tuple)) {
+        for (const key of Object.keys(row)) {
           if (key === "html-content" || key === "json-content") {
             cleaned[key] = "<skipped: visualization content>";
           } else {
-            cleaned[key] = tuple[key];
+            cleaned[key] = row[key];
           }
         }
-        return { rowIndex, tuple: cleaned };
+        return { rowIndex, row: cleaned };
       })
     : sampleTuples;
 
-  const headers = rows.length > 0 ? getVisibleResultHeaders(rows[0].tuple) : [];
+  const headers = rows.length > 0 ? getVisibleResultHeaders(rows[0].row) : [];
   const columns = headers.length;
 
   const dataString = formatSampleRowsAsTsv(rows);

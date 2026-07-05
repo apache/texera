@@ -30,7 +30,7 @@ import {
 } from "../../types/execution";
 
 function toSampleRows(rows: Record<string, any>[]): SampleRow[] {
-  return rows.map((tuple, rowIndex) => ({ rowIndex, tuple }));
+  return rows.map((row, rowIndex) => ({ rowIndex, row }));
 }
 
 interface OpInfoOverrides {
@@ -244,8 +244,8 @@ describe("jsonToTableFormat - row index gaps", () => {
       makeOpInfo({
         outputTuples: 2,
         sampleTuples: [
-          { rowIndex: 0, tuple: { v: "a" } },
-          { rowIndex: 5, tuple: { v: "b" } },
+          { rowIndex: 0, row: { v: "a" } },
+          { rowIndex: 5, row: { v: "b" } },
         ],
       })
     );
@@ -263,8 +263,8 @@ describe("jsonToTableFormat - row index gaps", () => {
       makeOpInfo({
         outputTuples: 2,
         sampleTuples: [
-          { rowIndex: 0, tuple: { v: "a" } },
-          { rowIndex: 1, tuple: { v: "b" } },
+          { rowIndex: 0, row: { v: "a" } },
+          { rowIndex: 1, row: { v: "b" } },
         ],
       })
     );
@@ -274,7 +274,7 @@ describe("jsonToTableFormat - row index gaps", () => {
   test("non-zero starting rowIndex does not emit a leading gap marker", () => {
     const out = formatOperatorResult(
       "op1",
-      makeOpInfo({ outputTuples: 1, sampleTuples: [{ rowIndex: 9, tuple: { v: "z" } }] })
+      makeOpInfo({ outputTuples: 1, sampleTuples: [{ rowIndex: 9, row: { v: "z" } }] })
     );
     expect(out).not.toContain("...\t...");
     expect(out.endsWith("9\tz")).toBe(true);

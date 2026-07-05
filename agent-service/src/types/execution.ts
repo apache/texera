@@ -88,7 +88,7 @@ export interface ConsoleMessageSummary {
 // One sampled output row: its original position plus the row's columns.
 export interface SampleRow {
   rowIndex: number;
-  tuple: Record<string, unknown>;
+  row: Record<string, unknown>;
 }
 
 export enum OperatorResultMode {
