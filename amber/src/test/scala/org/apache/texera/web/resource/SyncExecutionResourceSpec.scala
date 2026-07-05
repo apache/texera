@@ -41,8 +41,20 @@ import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.{
   EXECUTION_FAILURE
 }
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
+  ConsoleMessage,
+  ConsoleMessageType
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import org.apache.texera.amber.engine.common.executionruntimestate.ExecutionMetadataStore
+import org.apache.texera.amber.engine.common.executionruntimestate.{
+  ExecutionConsoleStore,
+  ExecutionMetadataStore,
+  ExecutionStatsStore,
+  OperatorMetrics,
+  OperatorStatistics
+}
+import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
@@ -56,9 +68,10 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowExecutions,
   WorkflowVersion
 }
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_PORT_EXECUTIONS
 import org.apache.texera.web.model.websocket.request.{LogicalPlanPojo, WorkflowExecuteRequest}
 import org.apache.texera.web.storage.ExecutionStateStore
+import org.apache.texera.web.service.{ConsoleMessageProcessor, WorkflowService}
 import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -66,6 +79,7 @@ import org.scalatest.matchers.should.Matchers
 import java.net.URI
 import java.sql.{Timestamp => SqlTimestamp}
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 
 /**
@@ -180,6 +194,78 @@ class SyncExecutionResourceSpec
     )
   }
 
+  private class StubWorkflowService(
+      workflowId: WorkflowIdentity,
+      computingUnitId: Int,
+      initHook: StubWorkflowService => Unit
+  ) extends WorkflowService(workflowId, computingUnitId, 1) {
+    override def initExecutionService(
+        req: WorkflowExecuteRequest,
+        userOpt: Option[User],
+        sessionUri: URI
+    ): Unit = initHook(this)
+  }
+
+  private def workflowServiceMapping: ConcurrentHashMap[String, WorkflowService] = {
+    val accessor = WorkflowService.getClass.getDeclaredMethod(
+      "org$apache$texera$web$service$WorkflowService$$workflowServiceMapping"
+    )
+    accessor.setAccessible(true)
+    accessor.invoke(WorkflowService).asInstanceOf[ConcurrentHashMap[String, WorkflowService]]
+  }
+
+  private def withRegisteredWorkflowService(
+      service: WorkflowService
+  )(body: => WorkflowExecutionSummary): WorkflowExecutionSummary = {
+    val key = WorkflowService.mkWorkflowStateId(service.workflowId)
+    workflowServiceMapping.put(key, service)
+    try {
+      body
+    } finally {
+      workflowServiceMapping.remove(key)
+      service.unsubscribeAll()
+    }
+  }
+
+  private def sessionUser(): SessionUser = {
+    val user = new User
+    user.setUid(nextId())
+    user.setName("sync-session-user")
+    user.setEmail("sync-session-user@example.com")
+    new SessionUser(user)
+  }
+
+  private def syncRequest(timeoutSeconds: Int = 1): SyncExecutionRequest =
+    SyncExecutionRequest(
+      executionName = "sync-test",
+      logicalPlan = LogicalPlanPojo(List.empty, List.empty, List.empty, List.empty),
+      workflowSettings = None,
+      targetOperatorIds = List.empty,
+      timeoutSeconds = timeoutSeconds,
+      maxOperatorResultCharLimit = 100000,
+      maxOperatorResultCellCharLimit = 100000
+    )
+
+  private def runWithStubWorkflow(
+      initHook: StubWorkflowService => Unit,
+      request: SyncExecutionRequest = syncRequest()
+  ): WorkflowExecutionSummary = {
+    val workflowId = WorkflowIdentity(nextId().toLong)
+    val service = new StubWorkflowService(workflowId, computingUnitId = 0, initHook)
+    withRegisteredWorkflowService(service) {
+      resource.executeWorkflowSync(workflowId.id, service.computingUnitId, request, sessionUser())
+    }
+  }
+
+  private def failMetadataObservable(stateStore: ExecutionStateStore, error: Throwable): Unit = {
+    val subjectField = stateStore.metadataStore.getClass.getDeclaredField("serializedSubject")
+    subjectField.setAccessible(true)
+    subjectField
+      .get(stateStore.metadataStore)
+      .asInstanceOf[io.reactivex.rxjava3.subjects.Subject[ExecutionMetadataStore]]
+      .onError(error)
+  }
+
   // handleExecutionError is private; reflectively invoke it (no production change needed).
   private val handleExecutionError =
     PrivateMethod[WorkflowExecutionSummary](Symbol("handleExecutionError"))
@@ -190,10 +276,40 @@ class SyncExecutionResourceSpec
   private val collectOperatorResult =
     PrivateMethod[(String, Option[List[SampleRow]], Option[Int])](Symbol("collectOperatorResult"))
 
+  private val symmetricTruncateCellValue =
+    PrivateMethod[String](Symbol("symmetricTruncateCellValue"))
+
   private def classify(message: String): WorkflowExecutionSummary =
     resource invokePrivate handleExecutionError(new RuntimeException(message))
 
+  private def exerciseCompanion[A](
+      companion: AnyRef,
+      expectedName: String,
+      args: Seq[AnyRef],
+      expectedValue: A
+  ): Unit = {
+    companion.toString shouldBe expectedName
+    val applyMethod = companion.getClass.getDeclaredMethods
+      .find(method => method.getName == "apply" && method.getParameterCount == args.size)
+      .get
+    applyMethod.setAccessible(true)
+    applyMethod.invoke(companion, args: _*) shouldBe expectedValue
+
+    val writeReplace = companion.getClass.getDeclaredMethod("writeReplace")
+    writeReplace.setAccessible(true)
+    writeReplace.invoke(companion) should not be null
+  }
+
   "execution summary DTOs" should "retain stable case-class generated behavior" in {
+    val request = SyncExecutionRequest(
+      executionName = "exec",
+      logicalPlan = LogicalPlanPojo(List.empty, List.empty, List.empty, List.empty),
+      workflowSettings = None,
+      targetOperatorIds = List("op-1"),
+      timeoutSeconds = 1,
+      maxOperatorResultCharLimit = 2,
+      maxOperatorResultCellCharLimit = 3
+    )
     val row = sampleRow(0, "col", "value")
     val console = ConsoleMessageSummary(msgType = "PRINT", title = "t", message = "m")
     val result =
@@ -213,14 +329,128 @@ class SyncExecutionResourceSpec
       errors = List(fatalError)
     )
 
+    request.copy(timeoutSeconds = 9).timeoutSeconds shouldBe 9
     console.copy(message = "updated").message shouldBe "updated"
     row.copy(rowIndex = 5).rowIndex shouldBe 5
     result.copy(tuplesCount = 2).tuplesCount shouldBe 2
     operator.copy(state = "Completed").state shouldBe "Completed"
     workflow.copy(success = true).success shouldBe true
 
+    SyncExecutionRequest.unapply(request).get._7 shouldBe 3
+    SyncExecutionRequest.unapply(null.asInstanceOf[SyncExecutionRequest]) shouldBe None
+    ConsoleMessageSummary.unapply(console).get._2 shouldBe "t"
+    ConsoleMessageSummary.unapply(null.asInstanceOf[ConsoleMessageSummary]) shouldBe None
+    SampleRow.unapply(row).get._1 shouldBe 0
+    SampleRow.unapply(null.asInstanceOf[SampleRow]) shouldBe None
+    OperatorResultSummary.unapply(result).get._2.head.rowIndex shouldBe 0
+    OperatorResultSummary.unapply(null.asInstanceOf[OperatorResultSummary]) shouldBe None
     OperatorExecutionSummary.unapply(operator).get._3 shouldBe Some(result)
-    WorkflowExecutionSummary.unapply(workflow).get._4 shouldBe List(fatalError)
+    OperatorExecutionSummary.unapply(null.asInstanceOf[OperatorExecutionSummary]) shouldBe None
+    WorkflowExecutionSummary.unapply(workflow).get._4.head.message shouldBe "boom"
+    WorkflowExecutionSummary.unapply(null.asInstanceOf[WorkflowExecutionSummary]) shouldBe None
+
+    exerciseCompanion(
+      SyncExecutionRequest,
+      "SyncExecutionRequest",
+      Seq(
+        "exec",
+        request.logicalPlan,
+        None,
+        List("op-1"),
+        Int.box(1),
+        Int.box(2),
+        Int.box(3)
+      ),
+      request
+    )
+    exerciseCompanion(
+      ConsoleMessageSummary,
+      "ConsoleMessageSummary",
+      Seq("PRINT", "t", "m"),
+      console
+    )
+    exerciseCompanion(SampleRow, "SampleRow", Seq(Int.box(0), row.tuple), row)
+    exerciseCompanion(
+      OperatorResultSummary,
+      "OperatorResultSummary",
+      Seq("table", List(row), Int.box(1)),
+      result
+    )
+    exerciseCompanion(
+      OperatorExecutionSummary,
+      "OperatorExecutionSummary",
+      Seq("Failed", List(fatalError), Some(result), Some(List(console))),
+      operator
+    )
+    exerciseCompanion(
+      WorkflowExecutionSummary,
+      "WorkflowExecutionSummary",
+      Seq(Boolean.box(false), "Failed", Map("op-1" -> operator), List(fatalError)),
+      workflow
+    )
+
+    request.productPrefix shouldBe "SyncExecutionRequest"
+    workflow.productPrefix shouldBe "WorkflowExecutionSummary"
+
+    def exerciseEquality[A](value: A, variants: List[A]): Unit = {
+      (value == value) shouldBe true
+      variants.foreach(variant => (value == variant) shouldBe false)
+      (value == "not-a-summary") shouldBe false
+    }
+
+    exerciseEquality(
+      request,
+      List(
+        request.copy(executionName = "other"),
+        request.copy(logicalPlan = LogicalPlanPojo(List.empty, List.empty, List.empty, List("op"))),
+        request.copy(workflowSettings = Some(WorkflowSettings())),
+        request.copy(targetOperatorIds = List("op-2")),
+        request.copy(timeoutSeconds = 2),
+        request.copy(maxOperatorResultCharLimit = 4),
+        request.copy(maxOperatorResultCellCharLimit = 5)
+      )
+    )
+    exerciseEquality(
+      console,
+      List(
+        console.copy(msgType = "ERROR"),
+        console.copy(title = "other"),
+        console.copy(message = "other")
+      )
+    )
+    exerciseEquality(
+      row,
+      List(
+        row.copy(rowIndex = 1),
+        row.copy(tuple = mapper.createObjectNode())
+      )
+    )
+    exerciseEquality(
+      result,
+      List(
+        result.copy(resultMode = "visualization"),
+        result.copy(sampleTuples = List.empty),
+        result.copy(tuplesCount = 2)
+      )
+    )
+    exerciseEquality(
+      operator,
+      List(
+        operator.copy(state = "Completed"),
+        operator.copy(errorMessages = List.empty),
+        operator.copy(resultSummary = None),
+        operator.copy(consoleMessages = None)
+      )
+    )
+    exerciseEquality(
+      workflow,
+      List(
+        workflow.copy(success = true),
+        workflow.copy(state = "Completed"),
+        workflow.copy(operators = Map.empty),
+        workflow.copy(errors = List.empty)
+      )
+    )
   }
 
   "handleExecutionError" should "classify lowercase 'compilation' messages as CompilationFailed" in {
@@ -271,6 +501,19 @@ class SyncExecutionResourceSpec
   private def tableTuple(v: String): Tuple =
     Tuple.builder(tableSchema).add("col", AttributeType.STRING, v).build()
 
+  private val mixedSchema = new Schema(
+    List(
+      new Attribute("col", AttributeType.STRING),
+      new Attribute("number", AttributeType.INTEGER)
+    )
+  )
+  private def mixedTuple(v: String, number: Int): Tuple =
+    Tuple
+      .builder(mixedSchema)
+      .add("col", AttributeType.STRING, v)
+      .add("number", AttributeType.INTEGER, number)
+      .build()
+
   private def materializeResult(
       executionId: ExecutionIdentity,
       opId: String,
@@ -294,7 +537,15 @@ class SyncExecutionResourceSpec
     writer.open()
     tuples.foreach(writer.putOne)
     writer.close()
-    WorkflowExecutionsResource.insertOperatorPortResultUri(executionId, globalPort, uri)
+    getDSLContext
+      .insertInto(OPERATOR_PORT_EXECUTIONS)
+      .columns(
+        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
+        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
+        OPERATOR_PORT_EXECUTIONS.RESULT_URI
+      )
+      .values(executionId.id.toInt, globalPort.serializeAsString, uri.toString)
+      .execute()
     document
   }
 
@@ -336,6 +587,43 @@ class SyncExecutionResourceSpec
       100000
     )
     summary shouldBe (("table", None, None))
+
+    val initializedLoggerMethod =
+      classOf[SyncExecutionResource].getDeclaredMethod("logger$lzycompute")
+    initializedLoggerMethod.setAccessible(true)
+    initializedLoggerMethod.invoke(resource)
+
+    val secondSummary = resource invokePrivate collectOperatorResult(
+      null.asInstanceOf[ExecutionIdentity],
+      "bad-result-op-again",
+      100000,
+      100000
+    )
+    secondSummary shouldBe (("table", None, None))
+
+    val loggerField = classOf[SyncExecutionResource].getDeclaredField("logger")
+    val loggerInitializedField = classOf[SyncExecutionResource].getDeclaredField("bitmap$trans$0")
+    loggerField.setAccessible(true)
+    loggerInitializedField.setAccessible(true)
+    val originalLogger = loggerField.get(resource)
+    val originalLoggerInitialized = loggerInitializedField.getBoolean(resource)
+    try {
+      loggerField.set(
+        resource,
+        com.typesafe.scalalogging.Logger(org.slf4j.helpers.NOPLogger.NOP_LOGGER)
+      )
+      loggerInitializedField.setBoolean(resource, true)
+      val disabledLoggerSummary = resource invokePrivate collectOperatorResult(
+        null.asInstanceOf[ExecutionIdentity],
+        "bad-result-op-disabled-logger",
+        100000,
+        100000
+      )
+      disabledLoggerSummary shouldBe (("table", None, None))
+    } finally {
+      loggerField.set(resource, originalLogger)
+      loggerInitializedField.setBoolean(resource, originalLoggerInitialized)
+    }
   }
 
   "sampleAndTruncateTuples" should "report an empty table for a zero-count / empty iterator" in {
@@ -377,6 +665,26 @@ class SyncExecutionResourceSpec
     rows.get.map(_.rowIndex) shouldBe List(0, 1, 2)
     rows.get.map(_.tuple.get("col").asText()) shouldBe List("a", "b", "c")
     total shouldBe Some(3)
+  }
+
+  it should "truncate oversized text cells while preserving non-text fields" in {
+    val (mode, rows, total) =
+      resource.sampleAndTruncateTuples(Iterator(mixedTuple("abcdefghij", 42)), 1, 100000, 8)
+    mode shouldBe "table"
+    total shouldBe Some(1)
+    rows.get.head.tuple.get("col").asText() shouldBe "abcdefgh"
+    rows.get.head.tuple.get("number").asInt() shouldBe 42
+  }
+
+  it should "symmetrically truncate cells when enough room remains for both sides" in {
+    val unchanged = resource invokePrivate symmetricTruncateCellValue("short", 10)
+    val truncated = resource invokePrivate symmetricTruncateCellValue(
+      "abcdefghijklmnopqrstuvwxyz",
+      21
+    )
+
+    unchanged shouldBe "short"
+    truncated shouldBe "ab...[truncated]...yz"
   }
 
   it should "keep only the first (truncated) row when a single tuple exceeds the char limit" in {
@@ -551,6 +859,155 @@ class SyncExecutionResourceSpec
     operatorInfos shouldBe empty
   }
 
+  it should "summarize an explicit target even when stats are absent" in {
+    val stateStore = new ExecutionStateStore
+    val executionService = buildExecutionService(stateStore)
+
+    val operatorInfos = resource invokePrivate collectOperatorInfos(
+      insertExecutionRow(),
+      executionService,
+      List("target-op"),
+      100000,
+      100000,
+      None
+    )
+
+    operatorInfos.keySet shouldBe Set("target-op")
+    operatorInfos("target-op").state shouldBe "Unknown"
+    operatorInfos("target-op").resultSummary shouldBe None
+    operatorInfos("target-op").consoleMessages shouldBe None
+  }
+
+  it should "include in-memory console-error operators that are not target operators" in {
+    val stateStore = new ExecutionStateStore
+    val executionService = buildExecutionService(stateStore)
+    val consoleMessage = new ConsoleMessage(
+      "worker-1",
+      Timestamp(Instant.now),
+      ConsoleMessageType.ERROR,
+      "source",
+      "short",
+      "a longer in-memory console error"
+    )
+    val consoleState = ConsoleMessageProcessor.addMessageToOperatorConsole(
+      new ExecutionConsoleStore(),
+      "console-op",
+      consoleMessage,
+      10
+    )
+
+    val operatorInfos = resource invokePrivate collectOperatorInfos(
+      insertExecutionRow(),
+      executionService,
+      List.empty[String],
+      100000,
+      100000,
+      Some(consoleState)
+    )
+
+    operatorInfos.keySet shouldBe Set("console-op")
+    operatorInfos("console-op").errorMessages should have size 1
+    operatorInfos(
+      "console-op"
+    ).errorMessages.head.message shouldBe "a longer in-memory console error"
+    operatorInfos("console-op").consoleMessages.get.map(_.msgType) shouldBe List("ERROR")
+  }
+
+  it should "map operator stats state when the stats store has target metrics" in {
+    val stateStore = new ExecutionStateStore
+    stateStore.statsStore.updateState(_ =>
+      ExecutionStatsStore(
+        operatorInfo = Map(
+          "stats-op" -> OperatorMetrics(
+            operatorState = WorkflowAggregatedState.KILLED,
+            operatorStatistics = OperatorStatistics()
+          )
+        )
+      )
+    )
+    val executionService = buildExecutionService(stateStore)
+
+    val operatorInfos = resource invokePrivate collectOperatorInfos(
+      insertExecutionRow(),
+      executionService,
+      List("stats-op"),
+      100000,
+      100000,
+      None
+    )
+
+    operatorInfos("stats-op").state shouldBe "Killed"
+  }
+
+  // --- executeWorkflowSync public branches ------------------------------------------------
+
+  "executeWorkflowSync" should "return an error when init does not publish an execution service" in {
+    val summary = runWithStubWorkflow(_ => ())
+
+    summary.success shouldBe false
+    summary.state shouldBe "Error"
+    summary.operators shouldBe empty
+    summary.errors should have size 1
+    summary.errors.head.`type` shouldBe EXECUTION_FAILURE
+    summary.errors.head.message shouldBe "Failed to initialize execution service"
+  }
+
+  it should "kill the execution when no terminal signal arrives before timeout" in {
+    val stateStore = new ExecutionStateStore
+    val executionService = buildExecutionService(stateStore)
+
+    val summary = runWithStubWorkflow(
+      _.executionService.onNext(executionService),
+      syncRequest(timeoutSeconds = 1)
+    )
+
+    summary.success shouldBe false
+    summary.state shouldBe "Killed"
+    summary.operators shouldBe empty
+    summary.errors should have size 1
+    summary.errors.head.`type` shouldBe EXECUTION_FAILURE
+    summary.errors.head.message shouldBe "Timeout after 1 seconds"
+    stateStore.metadataStore.getState.state shouldBe WorkflowAggregatedState.KILLED
+  }
+
+  it should "return an error when waiting for execution state fails" in {
+    val stateStore = new ExecutionStateStore
+    val executionService = buildExecutionService(stateStore)
+
+    val summary = runWithStubWorkflow(
+      service => {
+        service.executionService.onNext(executionService)
+        val failThread = new Thread(() => {
+          Thread.sleep(50)
+          failMetadataObservable(stateStore, new RuntimeException("metadata stream failed"))
+        })
+        failThread.setDaemon(true)
+        failThread.start()
+      },
+      syncRequest(timeoutSeconds = 1)
+    )
+
+    summary.success shouldBe false
+    summary.state shouldBe "Error"
+    summary.operators shouldBe empty
+    summary.errors should have size 1
+    summary.errors.head.`type` shouldBe EXECUTION_FAILURE
+    summary.errors.head.message shouldBe "metadata stream failed"
+  }
+
+  it should "assemble a completed summary when execution is already terminal" in {
+    val stateStore = new ExecutionStateStore
+    stateStore.metadataStore.updateState(_.withState(WorkflowAggregatedState.COMPLETED))
+    val executionService = buildExecutionService(stateStore)
+
+    val summary = runWithStubWorkflow(_.executionService.onNext(executionService))
+
+    summary.success shouldBe true
+    summary.state shouldBe "Completed"
+    summary.operators shouldBe empty
+    summary.errors shouldBe empty
+  }
+
   // --- assembleExecutionSummary (extracted from executeWorkflowSync) ----------------------
 
   private def metadataStore(
@@ -596,6 +1053,32 @@ class SyncExecutionResourceSpec
     summary.state shouldBe "Failed"
   }
 
+  it should "map every workflow state string used in execution summaries" in {
+    val stateNames = List(
+      WorkflowAggregatedState.UNINITIALIZED -> "Uninitialized",
+      WorkflowAggregatedState.READY -> "Ready",
+      WorkflowAggregatedState.RUNNING -> "Running",
+      WorkflowAggregatedState.PAUSING -> "Pausing",
+      WorkflowAggregatedState.PAUSED -> "Paused",
+      WorkflowAggregatedState.RESUMING -> "Resuming",
+      WorkflowAggregatedState.KILLED -> "Killed",
+      WorkflowAggregatedState.TERMINATED -> "Terminated",
+      WorkflowAggregatedState.UNKNOWN -> "Unknown"
+    )
+
+    stateNames.foreach {
+      case (state, expected) =>
+        resource
+          .assembleExecutionSummary(
+            finalState = metadataStore(state),
+            operatorInfos = Map.empty,
+            terminatedByConsoleError = false,
+            terminatedByTargetResults = false
+          )
+          .state shouldBe expected
+    }
+  }
+
   it should "force a Failed state when terminated by a console error, regardless of final state" in {
     val summary = resource.assembleExecutionSummary(
       finalState = metadataStore(WorkflowAggregatedState.COMPLETED),
@@ -635,6 +1118,17 @@ class SyncExecutionResourceSpec
       operatorInfos = Map("op1" -> failingOperatorSummary),
       terminatedByConsoleError = false,
       terminatedByTargetResults = false
+    )
+    summary.success shouldBe false
+    summary.state shouldBe "Completed"
+  }
+
+  it should "mark target-results completion unsuccessful when an operator reports console errors" in {
+    val summary = resource.assembleExecutionSummary(
+      finalState = metadataStore(WorkflowAggregatedState.RUNNING),
+      operatorInfos = Map("op1" -> failingOperatorSummary),
+      terminatedByConsoleError = false,
+      terminatedByTargetResults = true
     )
     summary.success shouldBe false
     summary.state shouldBe "Completed"

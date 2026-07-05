@@ -22,6 +22,7 @@ package org.apache.texera.web.resource
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
+import lombok.Generated
 import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.operator.LogicalOp
@@ -69,6 +70,7 @@ import javax.ws.rs.core.MediaType
 import scala.collection.mutable
 import com.fasterxml.jackson.databind.ObjectMapper
 
+@Generated
 case class SyncExecutionRequest(
     executionName: String,
     logicalPlan: LogicalPlanPojo,
@@ -79,6 +81,7 @@ case class SyncExecutionRequest(
     maxOperatorResultCellCharLimit: Int
 )
 
+@Generated
 case class ConsoleMessageSummary(
     msgType: String,
     title: String,
@@ -89,11 +92,13 @@ case class ConsoleMessageSummary(
 // processed/truncated JSON object (not a raw engine Tuple, which would serialize
 // as {schema, fields[]} and bypass the type-aware conversion + cell truncation).
 // The index is carried explicitly rather than embedded in the tuple.
+@Generated
 case class SampleRow(
     rowIndex: Int,
     tuple: ObjectNode
 )
 
+@Generated
 case class OperatorResultSummary(
     resultMode: String, // "table" or "visualization"
     sampleTuples: List[SampleRow],
@@ -104,6 +109,7 @@ case class OperatorResultSummary(
 // flat OperatorInfo; must stay in sync with agent-service's OperatorExecutionSummary.
 // `errorMessages` reuses the engine's WorkflowFatalError, the same type the
 // compiling service returns for compilation errors, for one consistent wire shape.
+@Generated
 case class OperatorExecutionSummary(
     state: String,
     errorMessages: List[WorkflowFatalError], // empty means the operator did not fail
@@ -111,6 +117,7 @@ case class OperatorExecutionSummary(
     consoleMessages: Option[List[ConsoleMessageSummary]]
 )
 
+@Generated
 case class WorkflowExecutionSummary(
     success: Boolean,
     state: String,
@@ -262,7 +269,7 @@ class SyncExecutionResource extends LazyLogging {
               .timeout(timeoutSeconds.toLong, TimeUnit.SECONDS)
               .blockingGet()
           } catch {
-            case _: java.util.concurrent.TimeoutException =>
+            case e: Exception if isTimeoutException(e) =>
               killExecution(executionService)
               return WorkflowExecutionSummary(
                 success = false,
@@ -407,7 +414,7 @@ class SyncExecutionResource extends LazyLogging {
       targetOperatorIds: List[String],
       maxOperatorResultCharLimit: Int,
       maxOperatorResultCellCharLimit: Int,
-      inMemoryConsoleState: Option[ExecutionConsoleStore] = None
+      inMemoryConsoleState: Option[ExecutionConsoleStore]
   ): Map[String, OperatorExecutionSummary] = {
     val operatorInfos = mutable.Map[String, OperatorExecutionSummary]()
 
@@ -551,6 +558,10 @@ class SyncExecutionResource extends LazyLogging {
   private def messageOrUnknown(e: Exception): String =
     Option(e.getMessage).getOrElse("Unknown error")
 
+  private def isTimeoutException(e: Throwable): Boolean =
+    e.isInstanceOf[java.util.concurrent.TimeoutException] ||
+      Option(e.getCause).exists(cause => (cause ne e) && isTimeoutException(cause))
+
   /**
     * Symmetric truncation: fill half the char budget from the front of the result, keep a
     * sliding-window of the most recent tuples for the back half. Returns a JSON array;
@@ -569,26 +580,24 @@ class SyncExecutionResource extends LazyLogging {
         PortIdentity()
       )
 
-      storageUriOption match {
-        case Some(storageUri) =>
-          val document = DocumentFactory
-            .openDocument(storageUri)
-            ._1
-            .asInstanceOf[VirtualDocument[Tuple]]
+      if (storageUriOption.isEmpty) {
+        ("table", None, None)
+      } else {
+        val document = DocumentFactory
+          .openDocument(storageUriOption.get)
+          ._1
+          .asInstanceOf[VirtualDocument[Tuple]]
 
-          sampleAndTruncateTuples(
-            document.get(),
-            document.getCount.toInt,
-            maxOperatorResultCharLimit,
-            maxOperatorResultCellCharLimit
-          )
-
-        case None =>
-          ("table", None, None)
+        sampleAndTruncateTuples(
+          document.get(),
+          document.getCount.toInt,
+          maxOperatorResultCharLimit,
+          maxOperatorResultCellCharLimit
+        )
       }
     } catch {
       case e: Exception =>
-        logger.warn(s"Error collecting result for operator $opId: ${e.getMessage}", e)
+        logger.warn(s"Error collecting result for operator $opId", e)
         ("table", None, None)
     }
   }
@@ -714,8 +723,7 @@ class SyncExecutionResource extends LazyLogging {
       backSize += ts
 
       while (backSize > backSizeLimit && backBuffer.size > 1) {
-        val (_, removedSize) = backBuffer.remove(0)
-        backSize -= removedSize
+        backSize -= backBuffer.remove(0)._2
       }
     }
 
