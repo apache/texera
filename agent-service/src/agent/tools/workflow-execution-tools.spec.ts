@@ -198,12 +198,10 @@ describe("executeOperatorAndFormat - successful runs", () => {
           state: OperatorState.COMPLETED,
           errorMessages: [],
           resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples, tuplesCount: 10 },
-          consoleLogsSummary: {
-            messages: [
-              { msgType: ConsoleMessageType.PRINT, title: "WARNING: truncated output", message: "" },
-              { msgType: ConsoleMessageType.PRINT, title: "just info, not a warning", message: "" },
-            ],
-          },
+          consoleMessages: [
+            { msgType: ConsoleMessageType.PRINT, title: "WARNING: truncated output", message: "" },
+            { msgType: ConsoleMessageType.PRINT, title: "just info, not a warning", message: "" },
+          ],
         },
         [source]: { state: OperatorState.COMPLETED, errorMessages: [] },
         // An errored sibling: the notify loop must skip it (covers the false branch).

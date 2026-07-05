@@ -98,7 +98,7 @@ export interface ModelType {
 /**
  * API response types
  */
-export interface ConsoleMessage {
+export interface ConsoleMessageSummary {
   msgType: ConsoleMessageType;
   title: string;
   message: string;
@@ -141,15 +141,11 @@ export enum OperatorState {
   UNKNOWN = "Unknown",
 }
 
-export interface OperatorConsoleLogsSummary {
-  messages: ConsoleMessage[];
-}
-
 export interface OperatorExecutionSummary {
   state: OperatorState;
   errorMessages: WorkflowFatalError[];
   resultSummary?: OperatorResultSummary;
-  consoleLogsSummary?: OperatorConsoleLogsSummary;
+  consoleMessages?: ConsoleMessageSummary[];
 }
 
 interface ApiAgentInfo {
