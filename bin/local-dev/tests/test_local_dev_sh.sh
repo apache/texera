@@ -94,25 +94,68 @@ else
     _fail "--help didn't show usage" "$(echo "$help_out" | head -3)"
 fi
 
-# 5) An unknown service name routes through cmd_update_one and exits
-#    non-zero rather than silently doing nothing.
+# 5) An unknown subcommand exits non-zero with a clear error rather than
+#    silently doing nothing, and the single-service form rejects unknown
+#    service names the same way.
 out=$("$SCRIPT" definitely-not-a-real-service 2>&1)
 rc=$?
-if (( rc != 0 )) && [[ "$out" == *"unknown service"* || "$out" == *"Unknown service"* ]]; then
-    _pass "unknown service exits non-zero with clear error"
+if (( rc != 0 )) && [[ "$out" == *"unknown subcommand"* ]]; then
+    _pass "unknown subcommand exits non-zero with clear error"
 else
-    _fail "unknown service didn't error properly" "rc=$rc out=$out"
+    _fail "unknown subcommand didn't error properly" "rc=$rc out=$out"
+fi
+# Isolated state dir: a full-stack `up` (re)persists the deploy pointer during
+# startup even when the flag parse later fails, so never point these at the
+# real deployment's state.
+_up_state=$(mktemp -d 2>/dev/null || mktemp -d -t ldup)
+out=$(TEXERA_LOCAL_DEV_DIR="$_up_state" "$SCRIPT" up definitely-not-a-real-service 2>&1)
+rc=$?
+if (( rc != 0 )) && [[ "$out" == *"unknown service"* ]]; then
+    _pass "up <unknown-service> exits non-zero with clear error"
+else
+    _fail "up <unknown-service> didn't error properly" "rc=$rc out=$out"
 fi
 
-# 6) `start` with no service name fails immediately (zsh parameter expansion
-#    `${1:?...}` exits with the message).
-out=$("$SCRIPT" start 2>&1)
-rc=$?
-if (( rc != 0 )) && [[ "$out" == *"need service name"* ]]; then
-    _pass "start without arg refuses cleanly"
+# 6) `start`/`stop` were replaced by `up <service>` / `down <service>` — they
+#    must refuse with a pointer to the new spelling, not silently no-op.
+for verb in start stop; do
+    out=$("$SCRIPT" "$verb" texera-web 2>&1)
+    rc=$?
+    if (( rc != 0 )) && [[ "$out" == *"up <service>"* ]]; then
+        _pass "$verb points to up/down <service>"
+    else
+        _fail "$verb should refuse with the new spelling" "rc=$rc out=$out"
+    fi
+done
+
+# 6b) Flag hygiene on the new surface: --no-build is gone (renamed), the
+#     full-stack-only knobs are rejected in the single-service form, and at
+#     most one service is accepted.
+out=$(TEXERA_LOCAL_DEV_DIR="$_up_state" "$SCRIPT" up --no-build 2>&1); rc=$?
+if (( rc == 2 )) && [[ "$out" == *"--skip-build"* ]]; then
+    _pass "up --no-build refuses and names --skip-build"
 else
-    _fail "start without arg should refuse" "rc=$rc out=$out"
+    _fail "up --no-build not rejected with rename hint" "rc=$rc out=$out"
 fi
+out=$(TEXERA_LOCAL_DEV_DIR="$_up_state" "$SCRIPT" up texera-web --fresh 2>&1); rc=$?
+if (( rc == 2 )) && [[ "$out" == *"full-stack"* ]]; then
+    _pass "up <svc> --fresh refuses (full-stack only)"
+else
+    _fail "up <svc> --fresh not rejected" "rc=$rc out=$out"
+fi
+out=$(TEXERA_LOCAL_DEV_DIR="$_up_state" "$SCRIPT" up texera-web frontend 2>&1); rc=$?
+if (( rc == 2 )) && [[ "$out" == *"at most one service"* ]]; then
+    _pass "up refuses two positional services"
+else
+    _fail "up accepted two services" "rc=$rc out=$out"
+fi
+out=$(TEXERA_LOCAL_DEV_DIR="$_up_state" "$SCRIPT" down texera-web --skip=frontend 2>&1); rc=$?
+if (( rc == 2 )) && [[ "$out" == *"full-stack"* ]]; then
+    _pass "down <svc> --skip refuses (full-stack only)"
+else
+    _fail "down <svc> --skip not rejected" "rc=$rc out=$out"
+fi
+rm -rf "$_up_state"
 
 # 7) No-arg invocation must be non-interactive (= `status`). Previously the
 #    default launched the TUI, which made the script unsafe to drop into
@@ -246,6 +289,7 @@ assert 0 <= d["running"] <= d["total"], "running out of range"
 names = {s["service"] for s in d["services"]}
 need = {"texera-web", "frontend", "postgres"}
 assert need <= names, f"missing services: {need - names}"
+assert isinstance(d["elapsed_seconds"], int) and d["elapsed_seconds"] >= 0, "elapsed_seconds missing/bad"
 for s in d["services"]:
     assert isinstance(s["port"], int), "port not int"
     assert s["type"] in {"jvm", "docker", "yarn", "bun"}, "bad service type"
@@ -301,10 +345,10 @@ else
     _fail "tui_spinner missing non-TTY heartbeat loop"
 fi
 
-# 17) `up` and `down` accept --json (route the human stream to stderr, emit the
-#     JSON summary on stdout). Structural guard — invoking them for real would
-#     build/stop the stack, out of scope here.
-for fn in cmd_up cmd_down; do
+# 17) `up`, `down`, and `auto` accept --json (route the human stream to stderr,
+#     emit the JSON summary on stdout). Structural guard — invoking them for
+#     real would build/stop the stack, out of scope here.
+for fn in cmd_up cmd_down cmd_auto; do
     body=$(awk -v fn="$fn" '$0 ~ "^" fn "\\(\\)" {f=1} f{print} f&&/^}/{exit}' \
         "$REPO_ROOT/bin/local-dev/main.sh")
     if [[ "$body" == *"--json"* && "$body" == *"emit_status_json"* ]]; then
@@ -313,6 +357,35 @@ for fn in cmd_up cmd_down; do
         _fail "$fn doesn't wire up --json"
     fi
 done
+
+# 17b) `version --json` is machine-readable and carries elapsed_seconds — the
+#      runtime field is part of every --json payload, not just status.
+if command -v python3 >/dev/null 2>&1; then
+    out=$("$SCRIPT" version --json 2>/dev/null)
+    if printf '%s' "$out" | python3 -c '
+import sys, json
+d = json.load(sys.stdin)
+assert d["version"], "version empty"
+assert isinstance(d["elapsed_seconds"], int) and d["elapsed_seconds"] >= 0
+' 2>/dev/null; then
+        _pass "version --json emits version + elapsed_seconds"
+    else
+        _fail "version --json invalid" "out=$out"
+    fi
+else
+    _pass "skip: python3 not on PATH (version --json check)"
+fi
+
+# 17c) The single-service `up <svc>` form must follow the active deployment
+#      rather than resetting the persisted worktree pointer (only a full-stack
+#      `up` re-decides the target). Structural: the startup peek skips the
+#      reset/persist block when a positional service arg is present.
+peek=$(sed -n '/self tree vs deploy source/,/^REPO_ROOT=/p' "$REPO_ROOT/bin/local-dev/main.sh")
+if [[ "$peek" == *"_has_svc_arg"* ]]; then
+    _pass "up <svc> leaves the deploy-source pointer alone"
+else
+    _fail "startup peek doesn't guard the pointer reset on up <svc>"
+fi
 
 # 18) Deploy-source: `--help` documents the worktree selectors.
 help_out=$("$SCRIPT" --help 2>&1)
