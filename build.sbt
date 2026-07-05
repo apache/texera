@@ -183,8 +183,8 @@ lazy val WorkflowExecutionService = (project in file("amber"))
       "io.netty" % "netty-common" % "4.1.96.Final",
       "io.netty" % "netty-handler" % "4.1.96.Final",
       "io.netty" % "netty-resolver" % "4.1.96.Final",
-      "io.netty" % "netty-transport" % "4.1.96.Final",
-      "io.netty" % "netty-transport-native-unix-common" % "4.1.96.Final"
+      "io.netty" % "netty-transport" % "4.2.15.Final",
+      "io.netty" % "netty-transport-native-unix-common" % "4.2.15.Final"
     ),
     libraryDependencies ++= Seq(
       "com.squareup.okhttp3" % "okhttp" % "4.10.0" force () // Force usage of OkHttp 4.10.0
