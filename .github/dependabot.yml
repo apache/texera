@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Weekly Dependabot version updates. Minor/patch bumps are grouped into
-# one PR per ecosystem to limit CI and review load; major bumps come as
-# individual PRs. Security alerts are fed separately: npm/pip manifests
+# Weekly Dependabot version updates. Patch bumps are grouped into one
+# PR per ecosystem (bug-fix only, low risk); minor and major bumps come
+# as individual PRs so each one passes or fails CI on its own. Security alerts are fed separately: npm/pip manifests
 # are parsed natively, sbt via .github/workflows/dependency-graph.yml.
 version: 2
 updates:
@@ -32,9 +32,8 @@ updates:
     commit-message:
       prefix: "fix(deps)"
     groups:
-      sbt-minor-and-patch:
+      sbt-patch:
         update-types:
-          - "minor"
           - "patch"
 
   - package-ecosystem: "npm"
@@ -46,9 +45,8 @@ updates:
       prefix: "fix(deps)"
       prefix-development: "chore(deps)"
     groups:
-      frontend-minor-and-patch:
+      frontend-patch:
         update-types:
-          - "minor"
           - "patch"
     ignore:
       # Angular majors need a guided `ng update` migration, and the
@@ -65,9 +63,8 @@ updates:
       prefix: "fix(deps)"
       prefix-development: "chore(deps)"
     groups:
-      pyright-minor-and-patch:
+      pyright-patch:
         update-types:
-          - "minor"
           - "patch"
 
   - package-ecosystem: "bun"
@@ -79,9 +76,8 @@ updates:
       prefix: "fix(deps)"
       prefix-development: "chore(deps)"
     groups:
-      agent-service-minor-and-patch:
+      agent-service-patch:
         update-types:
-          - "minor"
           - "patch"
 
   - package-ecosystem: "npm"
@@ -102,9 +98,8 @@ updates:
       prefix: "fix(deps)"
       prefix-development: "chore(deps)"
     groups:
-      python-minor-and-patch:
+      python-patch:
         update-types:
-          - "minor"
           - "patch"
 
   - package-ecosystem: "github-actions"
