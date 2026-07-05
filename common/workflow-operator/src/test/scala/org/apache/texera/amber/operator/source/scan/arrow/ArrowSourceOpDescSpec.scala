@@ -42,25 +42,19 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
 
-  private val arrowSchema = Schema(List(new Attribute("s", AttributeType.STRING)))
-
-  private def writeArrowFile(rows: Seq[String]): File = {
+  private def writeArrowFile(schema: Schema, rows: Seq[Array[Any]]): File = {
     val file = File.createTempFile("arrow-src-", ".arrow")
     file.deleteOnExit()
     val allocator = new RootAllocator()
-    val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(arrowSchema), allocator)
+    val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
     val out = new FileOutputStream(file)
     val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
     try {
       writer.start()
       root.allocateNew()
       rows.zipWithIndex.foreach {
-        case (value, i) =>
-          ArrowUtils.setTexeraTuple(
-            Tuple.builder(arrowSchema).addSequentially(Array[Any](value)).build(),
-            i,
-            root
-          )
+        case (values, i) =>
+          ArrowUtils.setTexeraTuple(Tuple.builder(schema).addSequentially(values).build(), i, root)
       }
       root.setRowCount(rows.size)
       writer.writeBatch()
@@ -124,13 +118,39 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "ArrowSourceOpDesc.inferSchema" should "infer the Texera schema from a valid Arrow file" in {
-    val file = writeArrowFile(Seq("a", "b"))
+    val schema = Schema(List(new Attribute("s", AttributeType.STRING)))
+    val file = writeArrowFile(schema, Seq(Array[Any]("a"), Array[Any]("b")))
     val d = new ArrowSourceOpDesc
     d.fileName = Some(file.toURI.toString)
-    val schema = d.inferSchema()
-    schema.getAttributes should have length 1
-    schema.getAttributes.head.getName shouldBe "s"
-    schema.getAttributes.head.getType shouldBe AttributeType.STRING
+    val inferred = d.inferSchema()
+    inferred.getAttributes should have length 1
+    inferred.getAttributes.head.getName shouldBe "s"
+    inferred.getAttributes.head.getType shouldBe AttributeType.STRING
+  }
+
+  it should "infer every supported attribute type from a file containing null values" in {
+    // Every AttributeType round-trips through Arrow (LARGE_BINARY/ANY are tagged in field
+    // metadata). A single all-null row exercises the null-writing path for each type while
+    // still producing a file whose schema spans all supported types. Exhaustive value/null
+    // round-tripping itself is covered by ArrowUtilsSpec.
+    val schema = Schema(
+      List(
+        new Attribute("i", AttributeType.INTEGER),
+        new Attribute("l", AttributeType.LONG),
+        new Attribute("d", AttributeType.DOUBLE),
+        new Attribute("b", AttributeType.BOOLEAN),
+        new Attribute("s", AttributeType.STRING),
+        new Attribute("t", AttributeType.TIMESTAMP),
+        new Attribute("bin", AttributeType.BINARY),
+        new Attribute("lbin", AttributeType.LARGE_BINARY),
+        new Attribute("any", AttributeType.ANY)
+      )
+    )
+    val nullRow = Array.fill[Any](schema.getAttributes.length)(null)
+    val file = writeArrowFile(schema, Seq(nullRow))
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    d.inferSchema() shouldBe schema
   }
 
   it should "throw an IOException when the file is not a valid Arrow file" in {

@@ -29,6 +29,16 @@ class AttributeSpec extends AnyFlatSpec {
     assert(attribute.getType == AttributeType.INTEGER)
   }
 
+  // AttributeType's own semantics (wire names, field-class mapping) are covered by AttributeTypeSpec;
+  // here we just confirm the Attribute holder carries every type faithfully.
+  it should "carry the name and every attribute type" in {
+    AttributeType.values().foreach { attributeType =>
+      val attribute = new Attribute("col", attributeType)
+      assert(attribute.getName == "col")
+      assert(attribute.getType == attributeType)
+    }
+  }
+
   it should "reject null constructor arguments" in {
     assertThrows[NullPointerException](new Attribute(null, AttributeType.STRING))
     assertThrows[NullPointerException](new Attribute("x", null))
