@@ -27,8 +27,8 @@ class OperatorMetadataGeneratorSpec extends AnyFlatSpec with Matchers {
 
   "OperatorMetadataGenerator.generateOperatorMetadata" should
     "throw a RuntimeException for a class that is not a registered operator type" in {
-    // the abstract base LogicalOp is not a concrete @JsonTypeName subtype, so it is
-    // never collected into operatorTypeMap
+    // the abstract base LogicalOp is not one of the concrete subtypes registered via the
+    // @JsonSubTypes list on LogicalOp, so it is never collected into operatorTypeMap
     OperatorMetadataGenerator.operatorTypeMap.contains(classOf[LogicalOp]) shouldBe false
 
     val ex = intercept[RuntimeException] {
