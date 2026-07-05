@@ -35,6 +35,9 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   setUpWorkflowExecutionData
 }
 import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.aggregate.AggregationFunction
+import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
+import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.tags.IntegrationTest
@@ -45,7 +48,9 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import scala.concurrent.duration._
 
 /**
-  * End-to-end coverage for a workflow that executes across MULTIPLE regions.
+  * End-to-end coverage for a workflow that executes across MULTIPLE regions and
+  * strings together a representative operator from each of the main
+  * data-processing families.
   *
   * Cross-region data used to be delivered by dedicated cache-source operators;
   * #3425 replaced them with input-port materialization reader threads. Before
@@ -53,31 +58,51 @@ import scala.concurrent.duration._
   * end-to-end coverage for that multi-region path: until now it was exercised
   * only by scheduling unit tests (region counting on a physical plan).
   *
-  * The workflow is a big "X": two Python sources fan into a hash join
-  * (build/probe) feeding a Python sort UDF, and also into a union; the sort and
-  * the union are the two terminal (materialized) outputs.
+  * The workflow is a big "X" -- two CSV scans fan into a hash join and, in
+  * parallel, into a union -- with a blocking processing chain hanging off each
+  * arm so the plan is cut into several regions:
   *
   * {{{
-  *   pySrc1 ─┬─▶ join.build (port 0) ─┐
-  *           │                         join ─▶ pythonSort ─▶ (terminal)
-  *   pySrc2 ─┼─▶ join.probe (port 1) ─┘
-  *           │
-  *   pySrc1 ─┼─▶ union ───────────────────────────────────▶ (terminal)
-  *   pySrc2 ─┘   (two links fan into union's single port)
+  *   csvLeft  ─▶ join.build (port 0) ┐
+  *                                   ├─▶ join ─▶ aggregate ─▶ sort ──▶ (terminal A)
+  *   csvRight ─▶ join.probe (port 1) ┘
+  *
+  *   csvLeft  ─┐
+  *             ├─▶ union ─▶ projection ─▶ pythonUDF ──────────────────▶ (terminal B)
+  *   csvRight ─┘   (both scans fan into union's single input port)
   * }}}
   *
-  * The hash join's probe-depends-on-build ordering forces the build input to be
-  * materialized, so the controller schedules the plan as >=2 regions and the
-  * data crosses a region boundary via the reader-thread path. The test drives
-  * the workflow as a black box: it builds a logical plan and runs it through the
-  * real compiler, controller, and scheduler, then asserts only on the
-  * materialized outputs -- correct results are only possible if the cross-region
-  * delivery worked. (The region count itself is covered by the scheduling unit
-  * tests, so it is not re-asserted here against a hand-wired scheduler.)
+  * Representative operators, one per family: CSV scan (Data Input), hash join
+  * (Join), aggregate (Aggregate), the native pandas-based Sort (Sort), union
+  * (Set), projection (Data Cleaning), and a Python UDF (User-defined Functions).
   *
-  * Every operator runs as a real Python worker, so it is class-level
-  * `@IntegrationTest` tagged and routed to the `amber-integration` CI job (which
-  * provisions Python deps); the lighter `amber` job excludes this tag.
+  * Region boundaries are forced by BLOCKING outputs -- the hash join's build
+  * side (probe depends on build, so build must be materialized), the aggregate,
+  * and the sort. Each boundary is a materialization point that the downstream
+  * region reads back through the input-port reader-thread path, so a run of this
+  * plan necessarily spans multiple regions and crosses several of them. The
+  * exact region count is already pinned by the scheduling unit tests
+  * (`CostBasedScheduleGeneratorSpec`); this spec instead drives the workflow as
+  * a black box -- building a logical plan and running it through the real
+  * compiler, controller, and scheduler -- and asserts only on the materialized
+  * terminal outputs, which can only be correct if the cross-region delivery
+  * worked.
+  *
+  * Assertions (`country_sales_small.csv` has 100 rows, a unique `Order ID`, and
+  * 7 distinct `Region` values):
+  *
+  *   - Terminal A: the self-join on the unique `Order ID` key emits one row per
+  *     source row (100), the aggregate collapses them into one COUNT per region
+  *     (7 rows) whose counts sum back to 100, and the native Sort returns those
+  *     rows ordered by `Region`.
+  *   - Terminal B: the union concatenates both scans (200 rows), the projection
+  *     narrows the schema to `{Region, Order ID}`, and the Python UDF passes the
+  *     rows through unchanged.
+  *
+  * The native Sort and the Python UDF both run as real Python worker
+  * subprocesses, so this spec is class-level `@IntegrationTest` tagged and routed
+  * to the `amber-integration` CI job (which provisions Python deps); the lighter
+  * `amber` job excludes this tag.
   */
 @IntegrationTest
 class MultiRegionWorkflowIntegrationSpec
@@ -101,31 +126,9 @@ class MultiRegionWorkflowIntegrationSpec
   private val logger = Logger("MultiRegionWorkflowIntegrationSpecLogger")
   private val specId = 5
 
-  // Each Python source emits `field_1` = "0".."N-1" (unique strings), so the
-  // self-join on `field_1` matches one row per key and the union doubles them.
+  // Stable properties of the checked-in test resource, asserted below.
   private val sourceRowCount = 100
-
-  // Buffer every input tuple, then emit them ordered by "field_1" once the input
-  // port is exhausted. This makes the UDF a genuine sort and forces a real
-  // Python worker to process data that crossed a region boundary.
-  private val sortByFieldCode =
-    """
-      |from pytexera import *
-      |
-      |class ProcessTupleOperator(UDFOperatorV2):
-      |    def open(self) -> None:
-      |        self.buffer = []
-      |
-      |    @overrides
-      |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-      |        self.buffer.append(tuple_)
-      |        yield from []
-      |
-      |    @overrides
-      |    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
-      |        for row in sorted(self.buffer, key=lambda t: t["field_1"]):
-      |            yield row
-      |""".stripMargin
+  private val distinctRegionCount = 7
 
   override protected def beforeEach(): Unit = {
     setUpWorkflowExecutionData(specId)
@@ -184,28 +187,52 @@ class MultiRegionWorkflowIntegrationSpec
     }
   }
 
-  "Engine" should "execute an X-shaped multi-region workflow (python sources + join + union + python UDF) end-to-end" in {
-    val pySrc1 = TestOperators.pythonSourceOpDesc(sourceRowCount)
-    val pySrc2 = TestOperators.pythonSourceOpDesc(sourceRowCount)
-    // Self-join on the unique "field_1" key: each row matches exactly one row
-    // from the other source, so the join emits exactly `sourceRowCount` rows.
-    val join = TestOperators.joinOpDesc("field_1", "field_1")
-    val pythonSort = TestOperators.pythonOpDesc()
-    pythonSort.code = sortByFieldCode
+  private def sortOpDesc(attributeName: String, order: SortPreference): SortOpDesc = {
+    val criteria = new SortCriteriaUnit()
+    criteria.attributeName = attributeName
+    criteria.sortPreference = order
+    val sortOp = new SortOpDesc()
+    sortOp.attributes = List(criteria)
+    sortOp
+  }
+
+  private def projectionOpDesc(attributeNames: String*): ProjectionOpDesc = {
+    val projectionOp = new ProjectionOpDesc()
+    projectionOp.attributes = attributeNames.map(name => new AttributeUnit(name, name)).toList
+    projectionOp
+  }
+
+  "Engine" should "execute an X-shaped multi-region workflow spanning representative operators end-to-end" in {
+    val csvLeft = TestOperators.smallCsvScanOpDesc()
+    val csvRight = TestOperators.smallCsvScanOpDesc()
+
+    // Join arm: self-join on the unique "Order ID" key, so each row matches
+    // exactly one row from the other scan and the join emits `sourceRowCount`
+    // rows. The join's build output is blocking (probe depends on build), which
+    // cuts the plan and forces the data across a region boundary.
+    val join = TestOperators.joinOpDesc("Order ID", "Order ID")
+    val countPerRegion =
+      TestOperators.aggregateAndGroupByDesc("Order ID", AggregationFunction.COUNT, List("Region"))
+    val sort = sortOpDesc("Region", SortPreference.ASC)
+
+    // Union arm: concatenate both scans, narrow the schema, then pass the rows
+    // through a Python worker.
     val union = new UnionOpDesc()
+    val projection = projectionOpDesc("Region", "Order ID")
+    val pythonUDF = TestOperators.pythonOpDesc()
 
     val workflow = buildWorkflow(
-      List(pySrc1, pySrc2, join, pythonSort, union),
+      List(csvLeft, csvRight, join, countPerRegion, sort, union, projection, pythonUDF),
       List(
-        // Left arm of the X: the two sources feed the join (build/probe) ...
+        // Join arm: the two scans feed the join (build / probe) ...
         LogicalLink(
-          pySrc1.operatorIdentifier,
+          csvLeft.operatorIdentifier,
           PortIdentity(),
           join.operatorIdentifier,
           PortIdentity()
         ),
         LogicalLink(
-          pySrc2.operatorIdentifier,
+          csvRight.operatorIdentifier,
           PortIdentity(),
           join.operatorIdentifier,
           PortIdentity(1)
@@ -213,43 +240,68 @@ class MultiRegionWorkflowIntegrationSpec
         LogicalLink(
           join.operatorIdentifier,
           PortIdentity(),
-          pythonSort.operatorIdentifier,
+          countPerRegion.operatorIdentifier,
           PortIdentity()
         ),
-        // ... and also fan into the union's single input port (the crossing).
         LogicalLink(
-          pySrc1.operatorIdentifier,
+          countPerRegion.operatorIdentifier,
+          PortIdentity(),
+          sort.operatorIdentifier,
+          PortIdentity()
+        ),
+        // ... and, in parallel, both fan into the union's single input port.
+        LogicalLink(
+          csvLeft.operatorIdentifier,
           PortIdentity(),
           union.operatorIdentifier,
           PortIdentity()
         ),
         LogicalLink(
-          pySrc2.operatorIdentifier,
+          csvRight.operatorIdentifier,
           PortIdentity(),
           union.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          union.operatorIdentifier,
+          PortIdentity(),
+          projection.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          projection.operatorIdentifier,
+          PortIdentity(),
+          pythonUDF.operatorIdentifier,
           PortIdentity()
         )
       ),
       TestUtils.workflowContext(specId)
     )
 
-    // Black box: run the built workflow through the real controller/scheduler
-    // and read only the terminal outputs. The join branch and the union branch
-    // land in different regions, so correct results here prove the cross-region
-    // materialization path delivered the data.
+    // Black box: run the built workflow through the real controller / scheduler
+    // and read only the terminal outputs. The two arms land in different
+    // regions, so correct results here prove the cross-region materialization
+    // path delivered the data.
     val results = runWorkflowAndReadTerminalResults(system, workflow, Duration.fromMinutes(2))
 
-    val sortedRows = results(pythonSort.operatorIdentifier)
-    val unionRows = results(union.operatorIdentifier)
+    val sortedCounts = results(sort.operatorIdentifier)
+    val unionRows = results(pythonUDF.operatorIdentifier)
 
-    // Join branch: self-join on a unique key emits one row per source row, and
-    // the Python UDF returns them ordered by "field_1".
-    assert(sortedRows.size == sourceRowCount)
-    val keys = sortedRows.map(_.getField("field_1").asInstanceOf[String])
-    assert(keys == keys.sorted, "python UDF output should be sorted by field_1")
+    // Terminal A -- join -> aggregate -> sort:
+    // one COUNT row per region, ordered by "Region", whose counts sum back to
+    // every joined row. Correct counts require every joined row to have crossed
+    // the region boundary between the join and the aggregate.
+    assert(sortedCounts.size == distinctRegionCount)
+    val regions = sortedCounts.map(_.getField[String]("Region"))
+    assert(regions == regions.sorted, "native Sort output should be ordered by Region ascending")
+    val totalCount = sortedCounts.map(_.getField[Any]("aggregate-result").toString.toInt).sum
+    assert(totalCount == sourceRowCount)
 
-    // Union branch: concatenation of both sources, which share a schema.
+    // Terminal B -- union -> projection -> pythonUDF:
+    // concatenation of both scans, narrowed to two columns and passed through
+    // the Python worker unchanged.
     assert(unionRows.size == 2 * sourceRowCount)
+    assert(unionRows.head.getSchema.getAttributeNames.toSet == Set("Region", "Order ID"))
   }
 
 }
