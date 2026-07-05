@@ -18,10 +18,15 @@
  */
 
 import { OperatorResultMode, type OperatorExecutionSummary, type SampleRow } from "../../types/execution";
-import { formatExecuteOperatorResult, getOperatorWarnings, getVisibleResultHeaders } from "./tools-utility";
+import {
+  formatExecuteOperatorResult,
+  getOperatorErrorText,
+  getOperatorWarnings,
+  getVisibleResultHeaders,
+} from "./tools-utility";
 
 export function formatOperatorResult(operatorId: string, opInfo: OperatorExecutionSummary): string {
-  const errorText = opInfo.errorMessages.map(e => e.message).join("; ");
+  const errorText = getOperatorErrorText(opInfo);
   if (errorText) {
     return `[ERROR] ${errorText}`;
   }

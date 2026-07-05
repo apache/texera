@@ -320,6 +320,39 @@ describe("executeOperatorAndFormat - execution failures", () => {
     expect(info.errorMessages[0].message).toContain("kaboom");
   });
 
+  test("extracts per-operator errors even when the aggregate state stays Completed", async () => {
+    const { state, target } = makeLinearState();
+    // A console ERROR marks the run unsuccessful without flipping the state.
+    const summary: WorkflowExecutionSummary = {
+      success: false,
+      state: WorkflowExecutionState.COMPLETED,
+      operators: {
+        [target]: { state: OperatorState.COMPLETED, errorMessages: [makeFatal("console kaboom")] },
+      },
+      errors: [],
+    };
+    setFetchResolving(jsonResponse(summary));
+
+    const out = await executeOperatorAndFormat(state, makeConfig(), target);
+    expect(out).toContain("Execution error:");
+    expect(out).toContain(`${target}: console kaboom`);
+  });
+
+  test("labels compilation failures distinctly from runtime errors", async () => {
+    const { state, target } = makeLinearState();
+    const summary: WorkflowExecutionSummary = {
+      success: false,
+      state: WorkflowExecutionState.COMPILATION_FAILED,
+      operators: {},
+      errors: ["schema mismatch on port 0"],
+    };
+    setFetchResolving(jsonResponse(summary));
+
+    const out = await executeOperatorAndFormat(state, makeConfig(), target);
+    expect(out).toContain("Compilation error:");
+    expect(out).toContain("schema mismatch on port 0");
+  });
+
   test("reports a timeout when the workflow was KILLED (no onResult callback)", async () => {
     const { state, target } = makeLinearState();
     const summary: WorkflowExecutionSummary = {
@@ -333,6 +366,25 @@ describe("executeOperatorAndFormat - execution failures", () => {
     const out = await executeOperatorAndFormat(state, makeConfig(), target);
     expect(out).toContain("[ERROR]");
     expect(out).toContain("Workflow execution was killed (timeout).");
+  });
+
+  test("stores the Killed state in the synthetic summary when the workflow was KILLED", async () => {
+    const { state, target } = makeLinearState();
+    const summary: WorkflowExecutionSummary = {
+      success: false,
+      state: WorkflowExecutionState.KILLED,
+      operators: {},
+      errors: [],
+    };
+    setFetchResolving(jsonResponse(summary));
+
+    const onResult = mock(() => {});
+    await executeOperatorAndFormat(state, makeConfig(), target, { onResult });
+
+    expect(onResult).toHaveBeenCalledTimes(1);
+    const [, info] = onResult.mock.calls[0] as unknown as [string, OperatorExecutionSummary];
+    expect(info.state).toBe(OperatorState.KILLED);
+    expect(info.errorMessages[0].message).toContain("killed (timeout)");
   });
 
   test("surfaces general errors when the HTTP request itself fails (ERROR state)", async () => {

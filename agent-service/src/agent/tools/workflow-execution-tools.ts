@@ -22,6 +22,7 @@ import { tool } from "ai";
 import {
   createErrorResult,
   formatExecuteOperatorResult,
+  getOperatorErrorText,
   getOperatorWarnings,
   getVisibleResultHeaders,
 } from "./tools-utility";
@@ -342,7 +343,8 @@ async function executeWorkflowHttp(
 
 function formatExecutionError(
   operatorErrors?: Array<{ operatorId: string; error: string }>,
-  generalErrors?: string[]
+  generalErrors?: string[],
+  generalErrorsLabel: string = "Error:"
 ): string {
   const lines: string[] = ["Execution failed due to the following error:"];
 
@@ -354,7 +356,7 @@ function formatExecutionError(
   }
 
   if (generalErrors && generalErrors.length > 0) {
-    lines.push("Error:");
+    lines.push(generalErrorsLabel);
     for (const error of generalErrors) {
       lines.push(`  ${error}`);
     }
@@ -449,21 +451,25 @@ export async function executeOperatorAndFormat(
     });
 
     if (!result.success) {
-      const operatorErrors =
-        result.state === WorkflowExecutionState.FAILED
-          ? Object.entries(result.operators)
-              .filter(([_, op]) => op.errorMessages.length)
-              .map(([opId, op]) => ({ operatorId: opId, error: op.errorMessages.map(e => e.message).join("; ") }))
-          : undefined;
+      // Per-operator errors can accompany any terminal state (e.g. a console
+      // ERROR leaves state "Completed" with success=false), so never gate on it.
+      const operatorErrors = Object.entries(result.operators)
+        .map(([opId, op]) => ({ operatorId: opId, error: getOperatorErrorText(op) }))
+        .filter(({ error }) => error);
 
       const generalErrors =
         result.state === WorkflowExecutionState.KILLED ? ["Workflow execution was killed (timeout)."] : result.errors;
 
-      const errorText = formatExecutionError(operatorErrors, generalErrors);
+      const generalErrorsLabel =
+        result.state === WorkflowExecutionState.COMPILATION_FAILED ? "Compilation error:" : "Error:";
+
+      const errorText = formatExecutionError(operatorErrors, generalErrors, generalErrorsLabel);
 
       if (options.onResult) {
         const errorInfo: OperatorExecutionSummary = {
-          state: OperatorState.FAILED,
+          // Preserve the killed state so a timeout is distinguishable from a
+          // genuine operator failure downstream.
+          state: result.state === WorkflowExecutionState.KILLED ? OperatorState.KILLED : OperatorState.FAILED,
           errorMessages: [makeExecutionFailure(errorText, operatorId)],
         };
         options.onResult(operatorId, errorInfo);
@@ -477,11 +483,11 @@ export async function executeOperatorAndFormat(
       return createErrorResult(formatExecutionError(undefined, [`No result found for operator: ${operatorId}`]));
     }
 
-    if (opInfo.errorMessages.length) {
+    const opError = getOperatorErrorText(opInfo);
+    if (opError) {
       if (options.onResult) {
         options.onResult(operatorId, opInfo);
       }
-      const opError = opInfo.errorMessages.map(e => e.message).join("; ");
       return createErrorResult(formatExecutionError([{ operatorId, error: opError }]));
     }
 
@@ -496,7 +502,7 @@ export async function executeOperatorAndFormat(
     // Notify for every operator in the execution so upstream stats are also stored.
     if (options.onResult) {
       for (const [opId, info] of Object.entries(result.operators)) {
-        if (info && !info.errorMessages.length) {
+        if (info && !getOperatorErrorText(info)) {
           options.onResult(opId, info);
         }
       }
