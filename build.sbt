@@ -66,7 +66,7 @@ lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOpera
 lazy val commonModuleSettings = asfLicensingSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
 lazy val commonModuleSettingsWithVendored = asfLicensingSettingsWithVendored ++ coverageReportSettings ++ universalJvmFlagsSettings
 
-val jacksonVersion = "2.18.6"
+val jacksonVersion = "2.18.8"
 
 lazy val DAO = (project in file("common/dao")).settings(commonModuleSettings)
 lazy val Config = (project in file("common/config")).settings(commonModuleSettings)
