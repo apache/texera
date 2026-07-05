@@ -19,7 +19,7 @@
 setuptools==80.10.2
 numpy==2.1.0
 pandas==2.2.3
-loguru==0.7.0
+loguru==0.7.3
 pyarrow==23.0.1
 # Not imported directly: runtime dependency of betterproto and pg8000.
 python-dateutil==2.8.2
@@ -42,9 +42,9 @@ readerwriterlock==1.0.9
 tenacity==8.5.0
 # Not imported directly: pyiceberg's SqlCatalog needs SQLAlchemy with the
 # pg8000 driver (postgresql+pg8000:// connection string in iceberg_utils.py).
-SQLAlchemy==2.0.37
+SQLAlchemy==2.0.51
 pg8000==1.31.5
 pympler==1.1
 boto3==1.40.53
-requests==2.34.0
+requests==2.34.2
 urllib3==2.7.0

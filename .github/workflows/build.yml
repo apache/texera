@@ -92,7 +92,7 @@ jobs:
           - 24.10.0
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -101,11 +101,11 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
       - name: Setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           architecture: ${{ matrix.arch }}
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: frontend/.yarn/cache
           key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v4-${{ hashFiles('**/yarn.lock') }}
@@ -131,7 +131,7 @@ jobs:
         run: yarn --cwd frontend run test:ci
       - name: Upload frontend coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && always()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./frontend/coverage/**/lcov.info
@@ -142,7 +142,7 @@ jobs:
         # in the working dir; the @angular/build:unit-test runner forwards
         # vitest config through unchanged.
         if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./frontend/junit.xml
@@ -159,7 +159,7 @@ jobs:
         # the unit-test report). Same `frontend` flag — Codecov merges
         # multi-file uploads under one flag.
         if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./frontend/junit-browser.xml
@@ -197,7 +197,7 @@ jobs:
           --health-retries=5
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -220,8 +220,8 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Lint and build amber distributable bundle
@@ -294,7 +294,7 @@ jobs:
               "WorkflowExecutionService/jacoco"
       - name: Upload amber and common coverage to Codecov
         if: always()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
@@ -307,7 +307,7 @@ jobs:
         # above. `!cancelled()` so test failures still upload (the point
         # of Test Analytics).
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/test-reports/*.xml
@@ -338,7 +338,7 @@ jobs:
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -438,8 +438,8 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Create texera_db_for_test_cases
@@ -614,7 +614,7 @@ jobs:
         # produce their own JUnit-XMLs and Codecov keys uploads by flag.
         # `!cancelled()` so test failures still upload.
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/test-reports/*.xml,./amber/junit-integration.xml
@@ -665,7 +665,7 @@ jobs:
           --health-retries=5
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -679,8 +679,8 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Create Databases
@@ -725,7 +725,7 @@ jobs:
         # Per-service flag so each matrix entry has its own Codecov view
         # rather than being merged into one umbrella `platform` flag.
         if: always()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./${{ matrix.service }}/target/scala-2.13/jacoco/report/jacoco.xml
@@ -734,7 +734,7 @@ jobs:
       - name: Upload ${{ matrix.service }} test results to Codecov
         # Per-service Test Analytics, mirroring the coverage upload flag.
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./${{ matrix.service }}/target/test-reports/*.xml
@@ -764,7 +764,7 @@ jobs:
           --health-retries=5
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -833,7 +833,7 @@ jobs:
           cd amber && pytest -m "not integration" --cov=src/main/python --cov-report=xml --junit-xml=junit.xml -sv
       - name: Upload pyamber coverage to Codecov
         if: matrix.python-version == '3.12' && always()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/coverage.xml
@@ -845,7 +845,7 @@ jobs:
         # rather than `always()` so we still upload on test failure (the
         # whole point of Test Analytics) but skip cancelled runs.
         if: matrix.python-version == '3.12' && !cancelled()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/junit.xml
@@ -868,7 +868,7 @@ jobs:
         working-directory: agent-service
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -903,7 +903,7 @@ jobs:
         run: bun test --coverage --coverage-reporter=lcov --reporter=junit --reporter-outfile=junit.xml
       - name: Upload agent-service coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && always()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./agent-service/coverage/lcov.info
@@ -913,7 +913,7 @@ jobs:
         # Test Analytics ingestion. Runs on the same ubuntu leg that
         # uploads coverage. `!cancelled()` so test failures still upload.
         if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./agent-service/junit.xml
@@ -941,7 +941,7 @@ jobs:
         python-version: ["3.12"]
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0

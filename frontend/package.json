@@ -110,7 +110,7 @@
     "@types/plotly.js-basic-dist-min": "2.12.4",
     "@types/quill": "2.0.9",
     "@typescript-eslint/eslint-plugin": "8.59.0",
-    "@typescript-eslint/parser": "8.59.0",
+    "@typescript-eslint/parser": "8.62.1",
     "@typescript-eslint/types": "8.59.0",
     "@typescript-eslint/utils": "8.59.0",
     "@vitest/browser": "4.1.9",
