@@ -552,4 +552,132 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     )
   }
 
+  "CostBasedRegionPlanGenerator" should "finish bottom-up greedy search (globalSearch=false) in csv->->filter->join->filter2 workflow" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val keywordOpDesc2 = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val workflow = buildWorkflow(
+      List(
+        headerlessCsvOpDesc1,
+        keywordOpDesc,
+        joinOpDesc,
+        keywordOpDesc2
+      ),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        ),
+        LogicalLink(
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc2.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      new WorkflowContext()
+    )
+
+    val scheduleGenerator = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      COORDINATOR
+    )
+
+    // Greedy search (globalSearch defaults to false): at each schedulable/unschedulable state the frontier keeps only
+    // the single lowest-cost neighbor, driving the greedy branch (filteredNeighborStates.nonEmpty + minBy).
+    val greedyResult = scheduleGenerator.bottomUpSearch()
+
+    // A schedulable plan should have been found: the region DAG is non-empty and the cost is finite.
+    assert(greedyResult.regionDAG.vertexSet().asScala.nonEmpty)
+    assert(greedyResult.cost < Double.PositiveInfinity)
+
+    // The greedy search only enqueues one neighbor per state, so it must explore fewer states than a global search
+    // that enqueues every unvisited neighbor.
+    val globalResult = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      COORDINATOR
+    ).bottomUpSearch(globalSearch = true)
+    assert(greedyResult.numStatesExplored < globalResult.numStatesExplored)
+
+    // The chosen state is a set of materialized non-blocking edges, all of which must be links of the physical plan.
+    assert(greedyResult.state.subsetOf(scheduleGenerator.physicalPlan.links))
+  }
+
+  "CostBasedRegionPlanGenerator" should "finish top-down greedy search (globalSearch=false) in csv->->filter->join->filter2 workflow" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val keywordOpDesc2 = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val workflow = buildWorkflow(
+      List(
+        headerlessCsvOpDesc1,
+        keywordOpDesc,
+        joinOpDesc,
+        keywordOpDesc2
+      ),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        ),
+        LogicalLink(
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc2.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      new WorkflowContext()
+    )
+
+    val scheduleGenerator = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      COORDINATOR
+    )
+
+    // Greedy search (globalSearch defaults to false): starting from the fully materialized seed state, each transition
+    // keeps only the single lowest-cost neighbor, driving the greedy branch (unvisitedNeighborStates.nonEmpty + minBy)
+    // over both the schedulable (Left) and unschedulable-intermediate (Right) legs.
+    val greedyResult = scheduleGenerator.topDownSearch()
+
+    // A schedulable plan should have been found: the region DAG is non-empty and the cost is finite.
+    assert(greedyResult.regionDAG.vertexSet().asScala.nonEmpty)
+    assert(greedyResult.cost < Double.PositiveInfinity)
+
+    // The chosen state is a set of materialized non-blocking edges, all of which must be links of the physical plan.
+    assert(greedyResult.state.subsetOf(scheduleGenerator.physicalPlan.links))
+  }
+
 }
