@@ -581,7 +581,7 @@ Scala/Java jars:
   - org.reactivestreams.reactive-streams-1.0.4.jar
   - org.slf4j.jcl-over-slf4j-1.7.26.jar
   - org.slf4j.jul-to-slf4j-1.7.26.jar
-  - org.slf4j.slf4j-api-1.7.26.jar
+  - org.slf4j.slf4j-api-2.0.18.jar
   - org.typelevel.cats-core_2.13-2.11.0.jar
   - org.typelevel.cats-kernel_2.13-2.11.0.jar
   - org.typelevel.fs2-grpc-runtime_2.13-2.11.0.jar
