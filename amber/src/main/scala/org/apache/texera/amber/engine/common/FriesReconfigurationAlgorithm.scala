@@ -25,7 +25,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   UpdateExecutorRequest,
   WorkflowReconfigureRequest
 }
-import org.apache.texera.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
+import org.apache.texera.amber.engine.architecture.scheduling.{Region, WorkflowExecutionManager}
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 
 import scala.collection.mutable
@@ -45,11 +45,11 @@ object FriesReconfigurationAlgorithm {
   }
 
   def getReconfigurations(
-      workflowExecutionCoordinator: WorkflowExecutionCoordinator,
+      workflowExecutionManager: WorkflowExecutionManager,
       reconfiguration: WorkflowReconfigureRequest
   ): Set[FriesComponent] = {
     // independently schedule reconfigurations for each region:
-    workflowExecutionCoordinator.getExecutingRegions
+    workflowExecutionManager.getExecutingRegions
       .flatMap(region => computeMCS(region, reconfiguration, reconfiguration.reconfigurationId))
   }
 

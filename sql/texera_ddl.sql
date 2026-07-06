@@ -177,6 +177,14 @@ CREATE TABLE IF NOT EXISTS workflow_version
     FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
     );
 
+-- workflow_cover_image (optional custom card cover image, stored as a downscaled data URL)
+CREATE TABLE IF NOT EXISTS workflow_cover_image
+(
+    wid   INT PRIMARY KEY,
+    image TEXT NOT NULL,
+    FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
+    );
+
 -- project
 CREATE TABLE IF NOT EXISTS project
 (

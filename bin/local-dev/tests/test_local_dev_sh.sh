@@ -94,25 +94,68 @@ else
     _fail "--help didn't show usage" "$(echo "$help_out" | head -3)"
 fi
 
-# 5) An unknown service name routes through cmd_update_one and exits
-#    non-zero rather than silently doing nothing.
+# 5) An unknown subcommand exits non-zero with a clear error rather than
+#    silently doing nothing, and the single-service form rejects unknown
+#    service names the same way.
 out=$("$SCRIPT" definitely-not-a-real-service 2>&1)
 rc=$?
-if (( rc != 0 )) && [[ "$out" == *"unknown service"* || "$out" == *"Unknown service"* ]]; then
-    _pass "unknown service exits non-zero with clear error"
+if (( rc != 0 )) && [[ "$out" == *"unknown subcommand"* ]]; then
+    _pass "unknown subcommand exits non-zero with clear error"
 else
-    _fail "unknown service didn't error properly" "rc=$rc out=$out"
+    _fail "unknown subcommand didn't error properly" "rc=$rc out=$out"
+fi
+# Isolated state dir: a full-stack `up` (re)persists the deploy pointer during
+# startup even when the flag parse later fails, so never point these at the
+# real deployment's state.
+_up_state=$(mktemp -d 2>/dev/null || mktemp -d -t ldup)
+out=$(TEXERA_LOCAL_DEV_DIR="$_up_state" "$SCRIPT" up definitely-not-a-real-service 2>&1)
+rc=$?
+if (( rc != 0 )) && [[ "$out" == *"unknown service"* ]]; then
+    _pass "up <unknown-service> exits non-zero with clear error"
+else
+    _fail "up <unknown-service> didn't error properly" "rc=$rc out=$out"
 fi
 
-# 6) `start` with no service name fails immediately (zsh parameter expansion
-#    `${1:?...}` exits with the message).
-out=$("$SCRIPT" start 2>&1)
-rc=$?
-if (( rc != 0 )) && [[ "$out" == *"need service name"* ]]; then
-    _pass "start without arg refuses cleanly"
+# 6) `start`/`stop` were replaced by `up <service>` / `down <service>` — they
+#    must refuse with a pointer to the new spelling, not silently no-op.
+for verb in start stop; do
+    out=$("$SCRIPT" "$verb" texera-web 2>&1)
+    rc=$?
+    if (( rc != 0 )) && [[ "$out" == *"up <service>"* ]]; then
+        _pass "$verb points to up/down <service>"
+    else
+        _fail "$verb should refuse with the new spelling" "rc=$rc out=$out"
+    fi
+done
+
+# 6b) Flag hygiene on the new surface: --no-build is gone (renamed), the
+#     full-stack-only knobs are rejected in the single-service form, and at
+#     most one service is accepted.
+out=$(TEXERA_LOCAL_DEV_DIR="$_up_state" "$SCRIPT" up --no-build 2>&1); rc=$?
+if (( rc == 2 )) && [[ "$out" == *"--skip-build"* ]]; then
+    _pass "up --no-build refuses and names --skip-build"
 else
-    _fail "start without arg should refuse" "rc=$rc out=$out"
+    _fail "up --no-build not rejected with rename hint" "rc=$rc out=$out"
 fi
+out=$(TEXERA_LOCAL_DEV_DIR="$_up_state" "$SCRIPT" up texera-web --fresh 2>&1); rc=$?
+if (( rc == 2 )) && [[ "$out" == *"full-stack"* ]]; then
+    _pass "up <svc> --fresh refuses (full-stack only)"
+else
+    _fail "up <svc> --fresh not rejected" "rc=$rc out=$out"
+fi
+out=$(TEXERA_LOCAL_DEV_DIR="$_up_state" "$SCRIPT" up texera-web frontend 2>&1); rc=$?
+if (( rc == 2 )) && [[ "$out" == *"at most one service"* ]]; then
+    _pass "up refuses two positional services"
+else
+    _fail "up accepted two services" "rc=$rc out=$out"
+fi
+out=$(TEXERA_LOCAL_DEV_DIR="$_up_state" "$SCRIPT" down texera-web --skip=frontend 2>&1); rc=$?
+if (( rc == 2 )) && [[ "$out" == *"full-stack"* ]]; then
+    _pass "down <svc> --skip refuses (full-stack only)"
+else
+    _fail "down <svc> --skip not rejected" "rc=$rc out=$out"
+fi
+rm -rf "$_up_state"
 
 # 7) No-arg invocation must be non-interactive (= `status`). Previously the
 #    default launched the TUI, which made the script unsafe to drop into
@@ -246,6 +289,7 @@ assert 0 <= d["running"] <= d["total"], "running out of range"
 names = {s["service"] for s in d["services"]}
 need = {"texera-web", "frontend", "postgres"}
 assert need <= names, f"missing services: {need - names}"
+assert isinstance(d["elapsed_seconds"], int) and d["elapsed_seconds"] >= 0, "elapsed_seconds missing/bad"
 for s in d["services"]:
     assert isinstance(s["port"], int), "port not int"
     assert s["type"] in {"jvm", "docker", "yarn", "bun"}, "bad service type"
@@ -301,10 +345,10 @@ else
     _fail "tui_spinner missing non-TTY heartbeat loop"
 fi
 
-# 17) `up` and `down` accept --json (route the human stream to stderr, emit the
-#     JSON summary on stdout). Structural guard — invoking them for real would
-#     build/stop the stack, out of scope here.
-for fn in cmd_up cmd_down; do
+# 17) `up`, `down`, and `auto` accept --json (route the human stream to stderr,
+#     emit the JSON summary on stdout). Structural guard — invoking them for
+#     real would build/stop the stack, out of scope here.
+for fn in cmd_up cmd_down cmd_auto; do
     body=$(awk -v fn="$fn" '$0 ~ "^" fn "\\(\\)" {f=1} f{print} f&&/^}/{exit}' \
         "$REPO_ROOT/bin/local-dev/main.sh")
     if [[ "$body" == *"--json"* && "$body" == *"emit_status_json"* ]]; then
@@ -313,6 +357,241 @@ for fn in cmd_up cmd_down; do
         _fail "$fn doesn't wire up --json"
     fi
 done
+
+# 17b) `version --json` is machine-readable and carries elapsed_seconds — the
+#      runtime field is part of every --json payload, not just status.
+if command -v python3 >/dev/null 2>&1; then
+    out=$("$SCRIPT" version --json 2>/dev/null)
+    if printf '%s' "$out" | python3 -c '
+import sys, json
+d = json.load(sys.stdin)
+assert d["version"], "version empty"
+assert isinstance(d["elapsed_seconds"], int) and d["elapsed_seconds"] >= 0
+' 2>/dev/null; then
+        _pass "version --json emits version + elapsed_seconds"
+    else
+        _fail "version --json invalid" "out=$out"
+    fi
+else
+    _pass "skip: python3 not on PATH (version --json check)"
+fi
+
+# 17c) The single-service `up <svc>` form must follow the active deployment
+#      rather than resetting the persisted worktree pointer (only a full-stack
+#      `up` re-decides the target). Structural: the startup peek skips the
+#      reset/persist block when a positional service arg is present.
+peek=$(sed -n '/self tree vs deploy source/,/^REPO_ROOT=/p' "$REPO_ROOT/bin/local-dev/main.sh")
+if [[ "$peek" == *"_has_svc_arg"* ]]; then
+    _pass "up <svc> leaves the deploy-source pointer alone"
+else
+    _fail "startup peek doesn't guard the pointer reset on up <svc>"
+fi
+
+# 18) Deploy-source: `--help` documents the worktree selectors.
+help_out=$("$SCRIPT" --help 2>&1)
+if [[ "$help_out" == *"--worktree="* && "$help_out" == *"--branch="* ]]; then
+    _pass "--help documents --worktree / --branch deploy selectors"
+else
+    _fail "--help doesn't document deploy selectors"
+fi
+
+# Deploy-source tests use an ISOLATED STATE_DIR so they never read or clobber a
+# real deployment's persisted pointer.
+_ld_state=$(mktemp -d 2>/dev/null || mktemp -d -t ld)
+if command -v python3 >/dev/null 2>&1; then
+    _jq() { printf '%s' "$1" | python3 -c "import sys,json;print(json.load(sys.stdin)[\"$2\"])" 2>/dev/null; }
+
+    # 19) status --json carries the deploy-source fields, defaulting to this
+    #     checkout (no pointer ⇒ worktree == repo dir name, source == REPO_ROOT).
+    out=$(TEXERA_LOCAL_DEV_DIR="$_ld_state" "$SCRIPT" status --json 2>/dev/null)
+    wt=$(_jq "$out" worktree); src=$(_jq "$out" source)
+    if [[ "$wt" == "$(basename "$REPO_ROOT")" && "$src" == "$REPO_ROOT" ]]; then
+        _pass "status --json reports deploy source (self): worktree=$wt"
+    else
+        _fail "status --json deploy-source fields wrong" "worktree=$wt source=$src"
+    fi
+
+    # 20) A stale pointer (worktree gone) is dropped and we fall back to self.
+    printf '%s\n' "/no/such/worktree/$$" > "$_ld_state/deploy-source"
+    out=$(TEXERA_LOCAL_DEV_DIR="$_ld_state" "$SCRIPT" status --json 2>/dev/null)
+    wt=$(_jq "$out" worktree)
+    if [[ "$wt" == "$(basename "$REPO_ROOT")" && ! -f "$_ld_state/deploy-source" ]]; then
+        _pass "stale deploy-source pointer is dropped, falls back to self"
+    else
+        _fail "stale pointer not handled" \
+            "worktree=$wt pointer=$([[ -f "$_ld_state/deploy-source" ]] && echo present || echo gone)"
+    fi
+
+    # 21) A valid persisted pointer to a sibling worktree is honored: status
+    #     reports THAT worktree's branch. Create a throwaway worktree, point at
+    #     it, assert, then clean up.
+    _wt_dir=$(mktemp -d 2>/dev/null || mktemp -d -t ldwt); rm -rf "$_wt_dir"
+    _wt_branch="ld-test-$$-wt"
+    if git -C "$REPO_ROOT" worktree add -q -b "$_wt_branch" "$_wt_dir" HEAD 2>/dev/null; then
+        printf '%s\n' "$_wt_dir" > "$_ld_state/deploy-source"
+        out=$(TEXERA_LOCAL_DEV_DIR="$_ld_state" "$SCRIPT" status --json 2>/dev/null)
+        wt=$(_jq "$out" worktree); br=$(_jq "$out" branch)
+        if [[ "$wt" == "$(basename "$_wt_dir")" && "$br" == "$_wt_branch" ]]; then
+            _pass "persisted pointer deploys the sibling worktree (branch=$br)"
+        else
+            _fail "worktree pointer not honored" "worktree=$wt branch=$br"
+        fi
+        git -C "$REPO_ROOT" worktree remove --force "$_wt_dir" 2>/dev/null || true
+        git -C "$REPO_ROOT" branch -D "$_wt_branch" 2>/dev/null || true
+    else
+        _pass "skip: could not create a temp worktree for the pointer test"
+    fi
+else
+    _pass "skip: python3 not on PATH (deploy-source JSON checks)"
+fi
+
+# 22) Invalid --branch / --worktree fail fast (rc 1) with a clear message,
+#     BEFORE any build/start (the resolution runs at startup).
+out=$(TEXERA_LOCAL_DEV_DIR="$_ld_state" "$SCRIPT" up --branch=__no_such_branch__ 2>&1); rc=$?
+if (( rc == 1 )) && [[ "$out" == *"no git worktree has branch"* ]]; then
+    _pass "up --branch with no worktree fails fast (rc=1)"
+else
+    _fail "invalid --branch not rejected" "rc=$rc out=$(echo "$out" | head -1)"
+fi
+out=$(TEXERA_LOCAL_DEV_DIR="$_ld_state" "$SCRIPT" up --worktree=/no/such/dir 2>&1); rc=$?
+if (( rc == 1 )) && [[ "$out" == *"not a valid texera worktree"* ]]; then
+    _pass "up --worktree with bad path fails fast (rc=1)"
+else
+    _fail "invalid --worktree not rejected" "rc=$rc out=$(echo "$out" | head -1)"
+fi
+rm -rf "$_ld_state"
+
+# 23) Tooling-drift boundary is surfaced: --help documents that the target's
+#     bin/local-dev/** changes are NOT in effect, and _warn_tooling_drift is
+#     wired into both cmd_up and cmd_auto (structural — firing it for real
+#     would need a full `up`).
+if [[ "$help_out" == *"NOT in effect"* ]]; then
+    _pass "--help documents the tooling-runs-from-self boundary"
+else
+    _fail "--help doesn't document the tooling boundary"
+fi
+drift_body=$(awk '/^_warn_tooling_drift\(\)/{f=1} f{print} f&&/^}/{exit}' "$REPO_ROOT/bin/local-dev/main.sh")
+if [[ "$drift_body" == *"diff -rq"* && "$drift_body" == *"bin/local-dev"* ]]; then
+    _pass "_warn_tooling_drift diffs the target's bin/local-dev/"
+else
+    _fail "_warn_tooling_drift missing or doesn't diff bin/local-dev/"
+fi
+for fn in cmd_up cmd_auto; do
+    body=$(awk -v fn="$fn" '$0 ~ "^" fn "\\(\\)" {f=1} f{print} f&&/^}/{exit}' \
+        "$REPO_ROOT/bin/local-dev/main.sh")
+    if [[ "$body" == *"_warn_tooling_drift"* ]]; then
+        _pass "$fn calls _warn_tooling_drift"
+    else
+        _fail "$fn doesn't call _warn_tooling_drift"
+    fi
+done
+
+# 24) build_all's CLI-only sbt knobs must never alter what the dist ships.
+#     Three knobs are banned because each produced a dist that packaged fine
+#     but could not run: `-Dsbt.pipelining=true` and the two `set every`
+#     settings all drop inter-project dependency jars or the bin/<service>
+#     launcher from the dist. Match against code only (comments name the
+#     banned knobs to explain them).
+build_body=$(awk '/^build_all\(\)/{f=1} f{print} f&&/^}/{exit}' \
+    "$REPO_ROOT/bin/local-dev/main.sh")
+build_code=$(printf '%s\n' "$build_body" | grep -vE '^[[:space:]]*#')
+if [[ "$build_code" == *"-Dsbt.pipelining=true"* ]]; then
+    _fail "build_all: '-Dsbt.pipelining=true' drops inter-project dependency jars from the dist"
+else
+    _pass "build_all: does not enable sbt pipelining"
+fi
+if [[ "$build_code" == *"doc / sources) := Seq.empty"* ]]; then
+    _fail "build_all: 'set every (Compile / doc / sources) := Seq.empty' empties Compile/sources → no launcher"
+else
+    _pass "build_all: does not clobber Compile/sources via 'set every ... doc / sources'"
+fi
+if [[ "$build_code" == *"packageDoc / publishArtifact) := false"* ]]; then
+    _fail "build_all: 'set every (Compile / packageDoc / publishArtifact) := false' drops dependency jars from the dist"
+else
+    _pass "build_all: does not disable publishArtifact via 'set every ... packageDoc'"
+fi
+
+# 25) --skip=<svc> flows into the sbt build: skipped JVM services drop out
+#     of the per-project dist target list, and their running jars are left
+#     alone in both the pre-bounce and unzip loops.
+prebounce=$(printf '%s\n' "$build_body" | awk '
+    /Stop any running JVMs BEFORE unzip/ {f=1}
+    f {print}
+    f && /unzipping dist artifacts/ {exit}')
+if [[ "$prebounce" == *"is_skipped"* ]]; then
+    _pass "build_all: pre-bounce loop honors --skip"
+else
+    _fail "build_all: pre-bounce loop kills --skip'd services"
+fi
+unzip_section=$(printf '%s\n' "$build_body" | awk '/unzipping dist artifacts/{f=1} f{print}')
+if [[ "$unzip_section" == *"is_skipped"* ]]; then
+    _pass "build_all: unzip loop honors --skip"
+else
+    _fail "build_all: unzip loop touches --skip'd services"
+fi
+
+# 26) build_all's auto short-circuit also checks that every unpacked
+#     launcher is on disk, not just that source hashes match the last
+#     build. Without this, an externally cleaned target/ leaves stamps
+#     valid while target/<svc>-<version>/ is gone, so `up` skips build
+#     + unzip and each JVM fails with "launcher missing".
+if grep -qE '^all_launchers_present\(\) \{' "$REPO_ROOT/bin/local-dev/main.sh"; then
+    _pass "all_launchers_present helper is defined"
+else
+    _fail "all_launchers_present helper missing"
+fi
+if [[ "$build_body" == *"all_launchers_present"* ]]; then
+    _pass "build_all: auto short-circuit gated on all_launchers_present"
+else
+    _fail "build_all: auto short-circuit ignores missing launchers"
+fi
+
+# 27) sql/updates auto-apply (regression for the jOOQ compile failure after a
+#     pull adds a new sql/updates/N.sql). Structural: the reconcile function
+#     exists, is wired into infra_ensure_db_schema on BOTH paths (existing DB ->
+#     apply pending; fresh bootstrap -> seed as applied), and records into
+#     liquibase's databasechangelog so the official runner stays compatible.
+if grep -qE '^infra_apply_sql_updates\(\) \{' "$MAIN_SH"; then
+    _pass "infra_apply_sql_updates helper is defined"
+else
+    _fail "infra_apply_sql_updates helper missing"
+fi
+schema_body=$(awk '/^infra_ensure_db_schema\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ "$schema_body" == *"infra_apply_sql_updates"* ]] \
+   && [[ "$schema_body" == *"infra_apply_sql_updates seed"* ]]; then
+    _pass "infra_ensure_db_schema reconciles updates (apply on existing DB, seed on bootstrap)"
+else
+    _fail "infra_ensure_db_schema doesn't wire infra_apply_sql_updates on both paths"
+fi
+updates_body=$(awk '/^infra_apply_sql_updates\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ "$updates_body" == *"databasechangelog"* && "$updates_body" == *"ON_ERROR_STOP"* ]]; then
+    _pass "infra_apply_sql_updates tracks via databasechangelog and fails fast on psql errors"
+else
+    _fail "infra_apply_sql_updates missing databasechangelog tracking or ON_ERROR_STOP"
+fi
+
+# 28) The changelog parser handles the real sql/changelog.xml: emits
+#     id/author/path triples, skips the commented example changeset, and every
+#     referenced update file exists on disk (repo-consistency check).
+parse_fn=$(awk '/^parse_changelog_changesets\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+parsed=$(eval "$parse_fn"; parse_changelog_changesets "$REPO_ROOT/sql/changelog.xml")
+n_parsed=$(printf '%s\n' "$parsed" | grep -c .)
+example_skipped=true
+printf '%s' "$parsed" | grep -q "^1	" && example_skipped=false
+if (( n_parsed >= 5 )) && $example_skipped; then
+    _pass "changelog parser: $n_parsed changesets, commented example skipped"
+else
+    _fail "changelog parser wrong" "n=$n_parsed parsed=$(printf '%s' "$parsed" | head -2 | tr '\n' '|')"
+fi
+missing_files=""
+while IFS=$'\t' read -r _id _author _path; do
+    [[ -n "$_path" && ! -f "$REPO_ROOT/$_path" ]] && missing_files+=" $_path"
+done <<< "$parsed"
+if [[ -z "$missing_files" ]]; then
+    _pass "changelog: every referenced sql/updates file exists"
+else
+    _fail "changelog references missing files:$missing_files"
+fi
 
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))

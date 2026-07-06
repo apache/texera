@@ -25,7 +25,7 @@
 # has yet to be fully endorsed by the ASF.
 
 # Use an official Node runtime as a parent image
-FROM node:latest
+FROM node:24-slim
 
 # Set the working directory in the container
 WORKDIR /usr/src/app

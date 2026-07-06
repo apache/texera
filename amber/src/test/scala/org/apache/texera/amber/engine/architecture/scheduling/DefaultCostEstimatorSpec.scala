@@ -29,7 +29,7 @@ import org.apache.texera.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction}
@@ -142,7 +142,7 @@ class DefaultCostEstimatorSpec
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
       resourceAllocator,
-      CONTROLLER
+      COORDINATOR
     )
     val ports = workflow.physicalPlan.operators.flatMap(op =>
       op.inputPorts.keys
@@ -236,7 +236,7 @@ class DefaultCostEstimatorSpec
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
       resourceAllocator,
-      CONTROLLER
+      COORDINATOR
     )
 
     val ports = workflow.physicalPlan.operators.flatMap(op =>
@@ -348,7 +348,7 @@ class DefaultCostEstimatorSpec
     val searchResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch()
 
     val groupByRegion =
@@ -366,7 +366,7 @@ class DefaultCostEstimatorSpec
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
       resourceAllocator,
-      CONTROLLER
+      COORDINATOR
     )
 
     val (_, groupByRegionCost) = costEstimator.allocateResourcesAndEstimateCost(groupByRegion, 1)

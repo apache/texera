@@ -22,11 +22,35 @@ package org.apache.texera.web.service
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
+import org.apache.texera.amber.engine.architecture.coordinator.OperatorPortResultUriAvailable
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-
-import java.sql.Timestamp
-
-import scala.jdk.CollectionConverters._
+import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
+import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.jooq.generated.Tables.{
+  OPERATOR_PORT_EXECUTIONS,
+  USER,
+  WORKFLOW,
+  WORKFLOW_EXECUTIONS,
+  WORKFLOW_VERSION
+}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  UserDao,
+  WorkflowDao,
+  WorkflowExecutionsDao,
+  WorkflowVersionDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  User,
+  Workflow,
+  WorkflowExecutions,
+  WorkflowVersion
+}
 import org.apache.texera.web.service.ExecutionResultService.{
   PaginationMode,
   SetDeltaMode,
@@ -36,8 +60,119 @@ import org.apache.texera.web.service.ExecutionResultService.{
 }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
+import java.net.URI
+import java.sql.Timestamp
+import scala.jdk.CollectionConverters._
+
+class ExecutionResultServiceSpec
+    extends AnyFlatSpec
+    with Matchers
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach
+    with MockTexeraDB {
+
+  // Fixed (not random) so a failure replays identically across runs. The
+  // spec owns its embedded DB so collision with other specs isn't a concern.
+  private val testWid: Integer = 9001
+  private val testUid: Integer = 9001
+  private var executionsDao: WorkflowExecutionsDao = _
+  private var testVid: Integer = _
+
+  override protected def beforeAll(): Unit = {
+    initializeDBAndReplaceDSLContext()
+  }
+
+  override protected def afterAll(): Unit = {
+    shutdownDB()
+  }
+
+  override protected def beforeEach(): Unit = {
+    val user = new User
+    user.setUid(testUid)
+    user.setName("execution-result-test-user")
+    user.setEmail(s"u$testUid@example.com")
+    user.setPassword("password")
+    new UserDao(getDSLContext.configuration()).insert(user)
+
+    val workflow = new Workflow
+    workflow.setWid(testWid)
+    workflow.setName(s"execution-result-test-$testWid")
+    workflow.setContent("{}")
+    workflow.setDescription("")
+    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
+    new WorkflowDao(getDSLContext.configuration()).insert(workflow)
+
+    val version = new WorkflowVersion
+    version.setWid(testWid)
+    version.setContent("{}")
+    version.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    new WorkflowVersionDao(getDSLContext.configuration()).insert(version)
+    // The vid sequence isn't reset between tests, so capture the
+    // generated key here instead of assuming it's `1` later.
+    testVid = version.getVid
+
+    executionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
+  }
+
+  override protected def afterEach(): Unit = {
+    val ctx = getDSLContext
+    // Scope every delete to the test's own ids so this spec stays safe
+    // if it ever shares a DB with another spec.
+    ctx
+      .deleteFrom(OPERATOR_PORT_EXECUTIONS)
+      .where(
+        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.in(
+          ctx
+            .select(WORKFLOW_EXECUTIONS.EID)
+            .from(WORKFLOW_EXECUTIONS)
+            .where(WORKFLOW_EXECUTIONS.UID.eq(testUid))
+        )
+      )
+      .execute()
+    ctx
+      .deleteFrom(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.UID.eq(testUid))
+      .execute()
+    ctx.deleteFrom(WORKFLOW_VERSION).where(WORKFLOW_VERSION.WID.eq(testWid)).execute()
+    ctx.deleteFrom(WORKFLOW).where(WORKFLOW.WID.eq(testWid)).execute()
+    ctx.deleteFrom(USER).where(USER.UID.eq(testUid)).execute()
+  }
+
+  "persistOperatorPortResultUri" should
+    "insert the URI carried by an OperatorPortResultUriAvailable event" in {
+    val execution = new WorkflowExecutions
+    execution.setVid(testVid)
+    execution.setUid(testUid)
+    execution.setStatus(0.toByte)
+    execution.setStartingTime(new Timestamp(System.currentTimeMillis()))
+    execution.setBookmarked(false)
+    execution.setName("execution-result-callback-test")
+    execution.setEnvironmentVersion("test-env")
+    executionsDao.insert(execution)
+    val eid = ExecutionIdentity(execution.getEid.longValue())
+    val globalPortId = GlobalPortIdentity(
+      PhysicalOpIdentity(OperatorIdentity("op-X"), "main"),
+      PortIdentity(),
+      input = false
+    )
+    val uri = URI.create("vfs:///exec-result-callback")
+
+    ExecutionResultService.persistOperatorPortResultUri(
+      eid,
+      OperatorPortResultUriAvailable(globalPortId, uri)
+    )
+
+    val rows = getDSLContext
+      .selectFrom(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(execution.getEid))
+      .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
+      .fetch()
+    rows.size() shouldBe 1
+    rows.get(0).getResultUri shouldBe uri.toString
+  }
 
   "convertTuplesToJson" should "convert tuples with various field types correctly" in {
     // Create a schema with different attribute types

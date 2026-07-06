@@ -19,8 +19,11 @@
 
 package org.apache.texera.amber.operator.source.scan.file
 
+import com.fasterxml.jackson.databind.node.ObjectNode
+import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -183,6 +186,39 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.next().getField("line").equals("line5"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
     FileScanSourceOpExec.close()
+  }
+
+  "FileScanSourceOpDesc.getPhysicalOp" should
+    "wire the FileScanSourceOpExec class as a source op and propagate its schema" in {
+    val physical =
+      fileScanSourceOpDesc.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
+    physical.opExecInitInfo match {
+      case OpExecWithClassName(className, descString) =>
+        assert(className == classOf[FileScanSourceOpExec].getName)
+        assert(descString.nonEmpty)
+      case other => fail(s"expected OpExecWithClassName, got $other")
+    }
+    assert(physical.inputPorts.isEmpty)
+    val outPortId = fileScanSourceOpDesc.operatorInfo.outputPorts.head.id
+    assert(physical.outputPorts.keySet == Set(outPortId))
+    val propagated = physical.propagateSchema.func(Map.empty)
+    assert(propagated(outPortId) == fileScanSourceOpDesc.sourceSchema())
+  }
+
+  "FileScanSourceOpDesc.sourceSchema" should
+    "prepend a filename column when outputFileName is enabled" in {
+    // outputFileName is a val; round-trip through JSON (which carries the operatorType
+    // discriminator) with the flag flipped on, since it can't be set on an instance.
+    val node =
+      objectMapper
+        .readTree(objectMapper.writeValueAsString(fileScanSourceOpDesc))
+        .asInstanceOf[ObjectNode]
+    node.put("outputFileName", true)
+    val withFlag = objectMapper.treeToValue(node, classOf[FileScanSourceOpDesc])
+    val schema: Schema = withFlag.sourceSchema()
+    assert(schema.getAttributes.length == 2)
+    assert(schema.getAttribute("filename").getType == AttributeType.STRING)
+    assert(schema.getAttribute("line").getType == AttributeType.STRING)
   }
 
 }

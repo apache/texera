@@ -342,8 +342,8 @@ class LogreplayPrimitivesSpec extends AnyFlatSpec with BeforeAndAfterAll {
   }
 
   // Production never writes a DataFrame to the replay log: both the
-  // controller and DP-thread paths filter for `DirectControlMessagePayload`
-  // before logging (see `Controller.scala` and `DPThread.scala` use of
+  // coordinator and DP-thread paths filter for `DirectControlMessagePayload`
+  // before logging (see `Coordinator.scala` and `DPThread.scala` use of
   // `_.payload.isInstanceOf[DirectControlMessagePayload]`). The trait has
   // two concrete subtypes that production actually serializes —
   // `ControlInvocation` (outgoing call) and `ReturnInvocation` (reply) —

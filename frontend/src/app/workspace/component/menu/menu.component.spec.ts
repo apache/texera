@@ -308,7 +308,6 @@ describe("MenuComponent", () => {
   describe("runWorkflow", () => {
     beforeEach(() => {
       component.computingUnitSelectionComponent = {
-        newComputingUnitName: "",
         showAddComputeUnitModalVisible: vi.fn(),
       } as unknown as Mocked<ComputingUnitSelectionComponent>;
     });
@@ -343,7 +342,9 @@ describe("MenuComponent", () => {
 
       component.runWorkflow();
 
-      expect(component.computingUnitSelectionComponent.newComputingUnitName).toBe("wf's Computing Unit");
+      expect(component.computingUnitSelectionComponent.showAddComputeUnitModalVisible).toHaveBeenCalledWith(
+        "wf's Computing Unit"
+      );
       expect(component.computingUnitSelectionComponent.showAddComputeUnitModalVisible).toHaveBeenCalledTimes(1);
       expect(executeSpy).not.toHaveBeenCalled();
     });
