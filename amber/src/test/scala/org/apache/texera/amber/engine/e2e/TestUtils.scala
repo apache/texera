@@ -199,10 +199,28 @@ object TestUtils {
     * Note such test cases need to clean up the database at the end of running each test case.
     */
   def initiateTexeraDBForTestCases(): Unit = {
+    org.apache.texera.dao.MockTexeraDB.ensureInitialized()
+    val embedded = org.apache.texera.dao.MockTexeraDB.getDBInstance
+
+    val dbName = "texera_db_for_test_cases"
+
+    scala.util.Using.resource(embedded.getPostgresDatabase.getConnection) { conn =>
+      scala.util.Using.resource(conn.createStatement()) { stmt =>
+        stmt.execute(s"DROP DATABASE IF EXISTS $dbName")
+        stmt.execute(s"CREATE DATABASE $dbName")
+      }
+    }
+
+    val targetDbConn = embedded.getDatabase("postgres", dbName).getConnection
+    scala.util.Using.resource(targetDbConn.createStatement()) { stmt =>
+      stmt.execute(org.apache.texera.dao.MockTexeraDB.getDDLScript)
+    }
+    targetDbConn.close()
+
     SqlServer.initConnection(
-      StorageConfig.jdbcUrlForTestCases,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
+      embedded.getJdbcUrl("postgres", dbName),
+      "postgres",
+      ""
     )
   }
 

@@ -92,7 +92,6 @@ trait MockTexeraDB extends AnyFlatSpecLike {
       MockTexeraDB.ensureInitialized()
       val embedded = MockTexeraDB.getDBInstance
 
-      // 1. Create a 100% isolated logical database for this specific test suite
       uniqueDbName = "texera_db_" + java.util.UUID.randomUUID().toString.replace("-", "")
       Using.resource(embedded.getPostgresDatabase.getConnection) { defaultConn =>
         Using.resource(defaultConn.createStatement()) { stmt =>
@@ -100,7 +99,6 @@ trait MockTexeraDB extends AnyFlatSpecLike {
         }
       }
 
-      // 2. Connect to the isolated DB and apply the DDL
       val conn = embedded.getDatabase("postgres", uniqueDbName).getConnection
 
       // AutoCommit is TRUE by default, meaning any records inserted in beforeAll()
