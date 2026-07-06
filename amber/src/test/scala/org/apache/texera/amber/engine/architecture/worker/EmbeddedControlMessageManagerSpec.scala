@@ -56,6 +56,10 @@ class EmbeddedControlMessageManagerSpec extends AnyFlatSpec with Matchers {
     VirtualIdentityUtils.createWorkerIdentity(DEFAULT_WORKFLOW_ID, upstreamOpIdA, 0)
   private val senderB: ActorVirtualIdentity =
     VirtualIdentityUtils.createWorkerIdentity(DEFAULT_WORKFLOW_ID, upstreamOpIdB, 0)
+  // a different worker of the same operator, used as the target of a channel that
+  // should be filtered out when it appears in an ECM scope.
+  private val otherWorker: ActorVirtualIdentity =
+    VirtualIdentityUtils.createWorkerIdentity(DEFAULT_WORKFLOW_ID, testOpId, 1)
 
   private def mkGateway: NetworkInputGateway = new NetworkInputGateway(actorId)
 
@@ -92,21 +96,27 @@ class EmbeddedControlMessageManagerSpec extends AnyFlatSpec with Matchers {
     mgr.isECMAligned(chB, ecm) shouldBe true
   }
 
-  it should "align PORT_ALIGNMENT once all channels registered on the port are received" in {
+  it should "align PORT_ALIGNMENT only after all channels registered on the port are received" in {
     val gateway = mkGateway
     val inputManager = mkInputManager
     val portId = PortIdentity()
 
-    val chId = ChannelIdentity(senderA, actorId, isControl = false)
-    gateway.getChannel(chId).setPortId(portId)
+    val chA = ChannelIdentity(senderA, actorId, isControl = false)
+    val chB = ChannelIdentity(senderB, actorId, isControl = false)
+    gateway.getChannel(chA).setPortId(portId)
+    gateway.getChannel(chB).setPortId(portId)
 
     inputManager.addPort(portId, Schema(), List.empty, List.empty)
-    inputManager.getPort(portId).channels.add(chId)
+    inputManager.getPort(portId).channels.add(chA)
+    inputManager.getPort(portId).channels.add(chB)
 
     val mgr = new EmbeddedControlMessageManager(actorId, gateway, inputManager)
-    val ecm = mkEcm(EmbeddedControlMessageType.PORT_ALIGNMENT, Seq(chId))
+    val ecm = mkEcm(EmbeddedControlMessageType.PORT_ALIGNMENT, Seq(chA, chB))
 
-    mgr.isECMAligned(chId, ecm) shouldBe true
+    // first channel on the port received: the port is not fully aligned yet
+    mgr.isECMAligned(chA, ecm) shouldBe false
+    // second (last) channel on the port received: now aligned
+    mgr.isECMAligned(chB, ecm) shouldBe true
   }
 
   it should "align NO_ALIGNMENT only on the first received ECM" in {
@@ -149,15 +159,16 @@ class EmbeddedControlMessageManagerSpec extends AnyFlatSpec with Matchers {
     val inputManager = mkInputManager
     val portId = PortIdentity()
 
-    // an in-scope channel targeting this worker, plus an out-of-scope extra channel
+    // one scope channel targets this worker; the other targets a different worker
     val inScope = ChannelIdentity(senderA, actorId, isControl = false)
-    val extra = ChannelIdentity(senderB, actorId, isControl = false)
+    val foreign = ChannelIdentity(senderB, otherWorker, isControl = false)
     gateway.getChannel(inScope).setPortId(portId)
-    gateway.getChannel(extra).setPortId(portId)
+    gateway.getChannel(foreign).setPortId(portId)
 
     val mgr = new EmbeddedControlMessageManager(actorId, gateway, inputManager)
-    // scope names only the in-scope channel (toWorkerId == actorId), so extra is ignored
-    val ecm = mkEcm(EmbeddedControlMessageType.ALL_ALIGNMENT, Seq(inScope))
+    // the scope names both channels, but `foreign` (toWorkerId != actorId) must be filtered
+    // out; alignment is therefore reached once only `inScope` has been received.
+    val ecm = mkEcm(EmbeddedControlMessageType.ALL_ALIGNMENT, Seq(inScope, foreign))
 
     mgr.isECMAligned(inScope, ecm) shouldBe true
   }
