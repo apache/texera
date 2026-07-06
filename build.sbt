@@ -169,7 +169,7 @@ lazy val WorkflowExecutionService = (project in file("amber"))
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
-      "org.slf4j" % "slf4j-api" % "1.7.26",
+      "org.slf4j" % "slf4j-api" % "2.0.18",
       "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
       "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
       "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813",
