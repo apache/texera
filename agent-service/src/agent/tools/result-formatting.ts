@@ -17,13 +17,13 @@
  * under the License.
  */
 
-import { OperatorResultMode, type OperatorExecutionSummary, type SampleRow } from "../../types/execution";
+import { OperatorResultMode, type OperatorExecutionSummary, type Tuple } from "../../types/execution";
 import {
   formatExecuteOperatorResult,
   formatSampleRowsAsTsv,
   getOperatorErrorText,
   getOperatorWarnings,
-  getVisibleResultHeaders,
+  tupleColumns,
 } from "./tools-utility";
 
 export function formatOperatorResult(operatorId: string, opInfo: OperatorExecutionSummary): string {
@@ -38,21 +38,18 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorExecuti
   }
 
   const isViz = opInfo.resultSummary?.resultMode === OperatorResultMode.VISUALIZATION;
-  const rows: SampleRow[] = isViz
-    ? sampleTuples.map(({ rowIndex, row }) => {
-        const cleaned: Record<string, any> = {};
-        for (const key of Object.keys(row)) {
-          if (key === "html-content" || key === "json-content") {
-            cleaned[key] = "<skipped: visualization content>";
-          } else {
-            cleaned[key] = row[key];
-          }
-        }
-        return { rowIndex, row: cleaned };
+  const rows: [number, Tuple][] = isViz
+    ? sampleTuples.map(([rowIndex, tuple]) => {
+        const fields = tuple.schema.attributes.map((a, i) =>
+          a.attributeName === "html-content" || a.attributeName === "json-content"
+            ? "<skipped: visualization content>"
+            : tuple.fields[i]
+        );
+        return [rowIndex, { schema: tuple.schema, fields }];
       })
     : sampleTuples;
 
-  const headers = rows.length > 0 ? getVisibleResultHeaders(rows[0].row) : [];
+  const headers = rows.length > 0 ? tupleColumns(rows[0][1]) : [];
   const columns = headers.length;
 
   const dataString = formatSampleRowsAsTsv(rows);

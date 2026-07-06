@@ -49,12 +49,7 @@ import * as joint from "jointjs";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
-import {
-  AgentService,
-  OperatorExecutionSummary,
-  OperatorResultMode,
-  SampleRow,
-} from "../../service/agent/agent.service";
+import { AgentService, OperatorExecutionSummary, OperatorResultMode, Tuple } from "../../service/agent/agent.service";
 import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { NgIf } from "@angular/common";
@@ -1976,7 +1971,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.changeDetectorRef.detectChanges();
   }
 
-  getOperatorSampleTuples(operatorId: string): SampleRow[] | undefined {
+  getOperatorSampleTuples(operatorId: string): [number, Tuple][] | undefined {
     return this.operatorSummaries.get(operatorId)?.resultSummary?.sampleTuples;
   }
 

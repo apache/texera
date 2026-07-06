@@ -85,10 +85,22 @@ export interface ConsoleMessageSummary {
   message: string;
 }
 
-// One sampled output row: its original position plus the row's columns.
-export interface SampleRow {
-  rowIndex: number;
-  row: Record<string, unknown>;
+// A result row, mirroring the engine's Tuple wire shape
+// (org.apache.texera.amber.core.tuple.Tuple): a schema plus positional field values.
+// Because sampled rows are truncated (typed values become display strings), each Tuple
+// carries a synthetic all-STRING schema over its columns.
+export interface Attribute {
+  attributeName: string;
+  attributeType: string;
+}
+
+export interface Schema {
+  attributes: Attribute[];
+}
+
+export interface Tuple {
+  schema: Schema;
+  fields: unknown[];
 }
 
 export enum OperatorResultMode {
@@ -97,12 +109,11 @@ export enum OperatorResultMode {
 }
 
 // An operator's output, summarized for the agent. `sampleTuples` are the
-// symmetrically-truncated output rows (the middle is dropped, so `rowIndex`
-// values may have gaps). `outputSchema` / per-column statistics are intended
-// future additions — the engine does not produce them yet.
+// symmetrically-truncated output rows as [originalRowIndex, Tuple] pairs (the middle is
+// dropped, so the indices may have gaps).
 export interface OperatorResultSummary {
   resultMode: OperatorResultMode;
-  sampleTuples: SampleRow[];
+  sampleTuples: [number, Tuple][];
   // Total output rows before truncation (sampleTuples may hold fewer).
   tuplesCount: number;
 }
