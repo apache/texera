@@ -599,22 +599,19 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
       COORDINATOR
     )
 
-    // Greedy search (globalSearch defaults to false): at each schedulable/unschedulable state the frontier keeps only
+    // Greedy search (globalSearch = false): at each schedulable/unschedulable state the frontier keeps only
     // the single lowest-cost neighbor, driving the greedy branch (filteredNeighborStates.nonEmpty + minBy).
-    val greedyResult = scheduleGenerator.bottomUpSearch()
+    val greedyResult = scheduleGenerator.bottomUpSearch(globalSearch = false)
 
     // A schedulable plan should have been found: the region DAG is non-empty and the cost is finite.
     assert(greedyResult.regionDAG.vertexSet().asScala.nonEmpty)
     assert(greedyResult.cost < Double.PositiveInfinity)
 
-    // The greedy search only enqueues one neighbor per state, so it must explore fewer states than a global search
-    // that enqueues every unvisited neighbor.
-    val globalResult = new CostBasedScheduleGenerator(
-      workflow.context,
-      workflow.physicalPlan,
-      COORDINATOR
-    ).bottomUpSearch(globalSearch = true)
-    assert(greedyResult.numStatesExplored < globalResult.numStatesExplored)
+    // The greedy search enqueues at most one neighbor per explored state, and each bottom-up transition materializes
+    // one more edge, so the number of states it explores is bounded linearly by the number of physical links. This is
+    // a guaranteed property of greedy search, unlike a comparison against global search whose explored count depends on
+    // early-stop pruning and queue ordering.
+    assert(greedyResult.numStatesExplored <= scheduleGenerator.physicalPlan.links.size + 1)
 
     // The chosen state is a set of materialized non-blocking edges, all of which must be links of the physical plan.
     assert(greedyResult.state.subsetOf(scheduleGenerator.physicalPlan.links))
@@ -667,10 +664,10 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
       COORDINATOR
     )
 
-    // Greedy search (globalSearch defaults to false): starting from the fully materialized seed state, each transition
+    // Greedy search (globalSearch = false): starting from the fully materialized seed state, each transition
     // keeps only the single lowest-cost neighbor, driving the greedy branch (unvisitedNeighborStates.nonEmpty + minBy)
     // over both the schedulable (Left) and unschedulable-intermediate (Right) legs.
-    val greedyResult = scheduleGenerator.topDownSearch()
+    val greedyResult = scheduleGenerator.topDownSearch(globalSearch = false)
 
     // A schedulable plan should have been found: the region DAG is non-empty and the cost is finite.
     assert(greedyResult.regionDAG.vertexSet().asScala.nonEmpty)
