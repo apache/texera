@@ -342,7 +342,6 @@ Scala/Java jars:
   - jakarta.validation.jakarta.validation-api-3.0.2.jar
   - javax.inject.javax.inject-1.jar
   - javax.validation.validation-api-2.0.1.Final.jar
-  - log4j.log4j-1.2.17.jar
   - net.minidev.accessors-smart-2.4.2.jar
   - net.minidev.json-smart-2.4.2.jar
   - org.apache.arrow.arrow-format-19.0.0.jar
@@ -400,6 +399,9 @@ Scala/Java jars:
   - org.apache.kerby.kerby-util-1.0.1.jar
   - org.apache.kerby.kerby-xdr-1.0.1.jar
   - org.apache.kerby.token-provider-1.0.1.jar
+  - org.apache.logging.log4j.log4j-1.2-api-2.26.1.jar
+  - org.apache.logging.log4j.log4j-api-2.26.1.jar
+  - org.apache.logging.log4j.log4j-to-slf4j-2.26.1.jar
   - org.apache.orc.orc-core-1.9.4-nohive.jar
   - org.apache.orc.orc-shims-1.9.4.jar
   - org.apache.parquet.parquet-avro-1.13.1.jar
