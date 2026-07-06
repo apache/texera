@@ -282,18 +282,10 @@ This product contains the Maven wrapper scripts from 'Maven Wrapper', that provi
   * HOMEPAGE:
     * https://github.com/takari/maven-wrapper
 
-This product contains small piece of code to support AIX, taken from netbsd.
-
-  * LICENSE:
-    * license/LICENSE.aix-netbsd.txt (OpenSSL License)
-  * HOMEPAGE:
-    * https://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/crypto/external/bsd/openssl/dist
-
-
 This product contains code from boringssl.
 
-  * LICENSE (Combination ISC and OpenSSL license)
-    * license/LICENSE.boringssl.txt (Combination ISC and OpenSSL license)
+  * LICENSE
+    * license/LICENSE.boringssl.txt (Apache License 2.0)
   * HOMEPAGE:
     * https://boringssl.googlesource.com/boringssl/
 
@@ -902,6 +894,17 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
+org.apache.arrow.arrow-memory-netty-buffer-patch
+--------------------------------------------------------------------------------
+
+Arrow Memory - Netty Buffer
+Copyright 2026 The Apache Software Foundation
+
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
 ch.qos.reload4j.reload4j
 --------------------------------------------------------------------------------
 
@@ -1006,14 +1009,15 @@ promote the sale, use or other dealings in this Software
 without prior written authorization of the copyright holder.
 
 --------------------------------------------------------------------------------
-commons-codec.commons-codec
+org.apache.arrow.flight-core
 --------------------------------------------------------------------------------
 
-Apache Commons Codec
-Copyright 2002-2024 The Apache Software Foundation
+Arrow Flight Core
+Copyright 2026 The Apache Software Foundation
+
 
 This product includes software developed at
-The Apache Software Foundation (https://www.apache.org/).
+The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 org.apache.pekko.pekko-actor_2.13
@@ -1250,16 +1254,6 @@ its NOTICE file:
   The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.arrow.arrow-format
---------------------------------------------------------------------------------
-
-Arrow Format
-Copyright 2024 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 org.apache.commons.commons-vfs2
 --------------------------------------------------------------------------------
 
@@ -1270,21 +1264,12 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.arrow.flight-grpc
+org.apache.arrow.arrow-memory-core
 --------------------------------------------------------------------------------
 
-Arrow Flight GRPC
-Copyright 2024 The Apache Software Foundation
+Arrow Memory - Core
+Copyright 2026 The Apache Software Foundation
 
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.arrow.arrow-vector
---------------------------------------------------------------------------------
-
-Arrow Vectors
-Copyright 2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1331,6 +1316,16 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
+commons-codec.commons-codec
+--------------------------------------------------------------------------------
+
+Apache Commons Codec
+Copyright 2002-2026 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (https://www.apache.org/).
+
+--------------------------------------------------------------------------------
 org.apache.commons.commons-text
 --------------------------------------------------------------------------------
 
@@ -1346,16 +1341,6 @@ org.apache.kerby.kerb-core
 
 Kerby-kerb core
 Copyright 2014-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.arrow.arrow-memory-core
---------------------------------------------------------------------------------
-
-Arrow Memory - Core
-Copyright 2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1559,6 +1544,17 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
+org.apache.arrow.arrow-format
+--------------------------------------------------------------------------------
+
+Arrow Format
+Copyright 2026 The Apache Software Foundation
+
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
 commons-pool.commons-pool
 --------------------------------------------------------------------------------
 
@@ -1640,16 +1636,6 @@ org.apache.avro.avro
 Apache Avro
 Copyright 2009-2024 The Apache Software Foundation
 
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.arrow.arrow-memory-netty
---------------------------------------------------------------------------------
-
-Arrow Memory - Netty
-Copyright 2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1857,6 +1843,17 @@ Copyright 2002-2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
+
+--------------------------------------------------------------------------------
+org.apache.arrow.arrow-vector
+--------------------------------------------------------------------------------
+
+Arrow Vectors
+Copyright 2026 The Apache Software Foundation
+
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 org.apache.orc.orc-shims
@@ -2297,21 +2294,22 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.arrow.flight-core
---------------------------------------------------------------------------------
-
-Arrow Flight Core
-Copyright 2024 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 com.google.guava.guava
 --------------------------------------------------------------------------------
 
 Apache Iceberg
 Copyright 2017-2024 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
+org.apache.arrow.arrow-memory-netty
+--------------------------------------------------------------------------------
+
+Arrow Memory - Netty
+Copyright 2026 The Apache Software Foundation
+
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
