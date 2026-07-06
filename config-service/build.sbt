@@ -68,7 +68,7 @@ val assertjVersion = "3.27.7"
 
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                   // ScalaMock
-  "org.scalatest" %% "scalatest" % "3.2.17" % Test,                  // ScalaTest
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test,                  // ScalaTest
   "io.dropwizard" % "dropwizard-testing" % dropwizardVersion % Test, // Dropwizard Testing
   "org.mockito" % "mockito-core" % mockitoVersion % Test,            // Mockito for mocking
   "org.assertj" % "assertj-core" % assertjVersion % Test,            // AssertJ for assertions
@@ -87,5 +87,5 @@ libraryDependencies ++= Seq(
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.1.0", // Ensure Jakarta JAX-RS API is available
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",
   "org.playframework" %% "play-json" % "3.1.0-M1",
-  "com.typesafe" % "config" % "1.4.6" // For configuration management
+  "com.typesafe" % "config" % "1.4.9" // For configuration management
 ) 
