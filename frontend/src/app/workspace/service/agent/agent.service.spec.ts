@@ -107,7 +107,7 @@ describe("AgentService", () => {
             resultSummary: {
               resultMode: OperatorResultMode.TABLE,
               sampleTuples: [{ rowIndex: 0, tuple: { a: 1 } }],
-              tuplesCount: 1,
+              totalTuplesCount: 1,
             },
           },
         },

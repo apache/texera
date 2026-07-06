@@ -564,7 +564,7 @@ class SyncExecutionResourceSpec
       state = "Completed",
       resultMode = "table",
       result = Some(rows),
-      tuplesCount = Some(7),
+      totalTuplesCount = Some(7),
       consoleLogs = None
     )
     summary.state shouldBe "Completed"
@@ -576,7 +576,7 @@ class SyncExecutionResourceSpec
     sampled.map(_._1) shouldBe List(0)
     sampled.head._2.getField[String]("col") shouldBe "v"
     sampled.head._2.getSchema.getAttribute("col").getType shouldBe AttributeType.STRING
-    summary.resultSummary.get.tuplesCount shouldBe 7
+    summary.resultSummary.get.totalTuplesCount shouldBe 7
   }
 
   // Locks the wire contract the agent-service / frontend consumers depend on: each sampled
@@ -586,7 +586,11 @@ class SyncExecutionResourceSpec
     val tuple =
       Tuple(Schema(List(new Attribute("col", AttributeType.STRING))), Array[Any]("v"))
     val summary =
-      OperatorResultSummary(resultMode = "table", sampleTuples = List((0, tuple)), tuplesCount = 1)
+      OperatorResultSummary(
+        resultMode = "table",
+        sampleTuples = List((0, tuple)),
+        totalTuplesCount = 1
+      )
     val firstRow =
       scalaMapper.readTree(scalaMapper.writeValueAsString(summary)).get("sampleTuples").get(0)
     firstRow.get(0).asInt() shouldBe 0
@@ -603,10 +607,10 @@ class SyncExecutionResourceSpec
       state = "Completed",
       resultMode = "table",
       result = Some(rows),
-      tuplesCount = None,
+      totalTuplesCount = None,
       consoleLogs = None
     )
-    summary.resultSummary.get.tuplesCount shouldBe 0
+    summary.resultSummary.get.totalTuplesCount shouldBe 0
   }
 
   it should "surface a console ERROR as one EXECUTION_FAILURE error using the longer of title/message" in {
@@ -619,7 +623,7 @@ class SyncExecutionResourceSpec
       state = "Failed",
       resultMode = "table",
       result = None,
-      tuplesCount = None,
+      totalTuplesCount = None,
       consoleLogs = Some(logs)
     )
     summary.errorMessages should have size 1
@@ -639,7 +643,7 @@ class SyncExecutionResourceSpec
       state = "Failed",
       resultMode = "table",
       result = None,
-      tuplesCount = None,
+      totalTuplesCount = None,
       consoleLogs = Some(logs)
     )
     summary.errorMessages.head.message shouldBe "a long descriptive title"
@@ -660,7 +664,7 @@ class SyncExecutionResourceSpec
       state = "Failed",
       resultMode = "table",
       result = None,
-      tuplesCount = None,
+      totalTuplesCount = None,
       consoleLogs = Some(logs)
     )
     summary.errorMessages.head.message shouldBe "a fairly long error title"
@@ -672,7 +676,7 @@ class SyncExecutionResourceSpec
       state = "Uninitialized",
       resultMode = "table",
       result = None,
-      tuplesCount = None,
+      totalTuplesCount = None,
       consoleLogs = None
     )
     summary.resultSummary shouldBe None

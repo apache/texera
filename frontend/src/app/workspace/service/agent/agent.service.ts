@@ -128,9 +128,9 @@ export function tupleToRecord(tuple: Tuple): Record<string, unknown> {
 
 export interface OperatorResultSummary {
   resultMode: OperatorResultMode;
-  // Sampled output rows as [originalRowIndex, Tuple] pairs.
+  // Sampled output rows; each tuple carries its original row index.
   sampleTuples: [number, Tuple][];
-  tuplesCount: number;
+  totalTuplesCount: number;
 }
 
 export enum OperatorResultMode {

@@ -510,7 +510,7 @@ export async function executeOperatorAndFormat(
 
     // Output shape only; the agent derives input-port shapes from the DAG + the
     // upstream operators' own output shapes shown in context.
-    const shapeLine = `Output table shape: (${opInfo.resultSummary?.tuplesCount ?? 0}, ${columns})`;
+    const shapeLine = `Output table shape: (${opInfo.resultSummary?.totalTuplesCount ?? 0}, ${columns})`;
 
     const warningLines = getOperatorWarnings(opInfo);
 

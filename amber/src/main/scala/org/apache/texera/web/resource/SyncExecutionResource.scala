@@ -92,12 +92,9 @@ case class ConsoleMessageSummary(
 @Generated
 case class OperatorResultSummary(
     resultMode: String, // "table" or "visualization"
-    // Sampled output rows as (originalRowIndex, tuple) pairs. Cell truncation turns typed
-    // values (e.g. binary previews) into display strings that no longer match the operator's
-    // real column types, so each tuple carries a synthetic all-STRING schema over its columns.
-    // Serializes as [index, {schema, fields}].
+    // Sampled output rows; each tuple carries its original row index.
     sampleTuples: List[(Int, Tuple)],
-    tuplesCount: Int
+    totalTuplesCount: Int
 )
 
 // Per-operator execution summary. Orthogonal sub-summaries replace the previous
@@ -440,7 +437,7 @@ class SyncExecutionResource extends LazyLogging {
       val stats = operatorStats.get(opId)
       val state = stats.map(s => stateToString(s.operatorState)).getOrElse("Unknown")
 
-      val (resultMode, result, tuplesCount) =
+      val (resultMode, result, totalTuplesCount) =
         collectOperatorResult(
           executionId,
           opId,
@@ -468,8 +465,14 @@ class SyncExecutionResource extends LazyLogging {
         }
       }
 
-      operatorInfos(opId) =
-        buildOperatorExecutionSummary(opId, state, resultMode, result, tuplesCount, consoleLogs)
+      operatorInfos(opId) = buildOperatorExecutionSummary(
+        opId,
+        state,
+        resultMode,
+        result,
+        totalTuplesCount,
+        consoleLogs
+      )
     }
 
     operatorInfos.toMap
@@ -486,7 +489,7 @@ class SyncExecutionResource extends LazyLogging {
       state: String,
       resultMode: String,
       result: Option[List[SampledRow]],
-      tuplesCount: Option[Int],
+      totalTuplesCount: Option[Int],
       consoleLogs: Option[List[ConsoleMessageSummary]]
   ): OperatorExecutionSummary = {
     // Python writes the full error text to `message`; Scala writes it to `title`
@@ -499,12 +502,12 @@ class SyncExecutionResource extends LazyLogging {
     )
 
     // Absent when the operator produced no materialized result. `result` and
-    // `tuplesCount` are populated together, so map over the former.
+    // `totalTuplesCount` are populated together, so map over the former.
     val resultSummary = result.map { rows =>
       OperatorResultSummary(
         resultMode = resultMode,
         sampleTuples = rows.map(r => (r.rowIndex, toStringTuple(r.node))),
-        tuplesCount = tuplesCount.getOrElse(0)
+        totalTuplesCount = totalTuplesCount.getOrElse(0)
       )
     }
 
