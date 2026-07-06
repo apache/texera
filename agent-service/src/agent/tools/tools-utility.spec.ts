@@ -26,9 +26,10 @@ import {
   formatExecuteOperatorResult,
   formatOperatorError,
   getOperatorErrorText,
-  getVisibleResultHeaders,
+  tupleColumns,
+  tupleToRecord,
 } from "./tools-utility";
-import { OperatorState, WorkflowFatalErrorType, type WorkflowFatalError } from "../../types/execution";
+import { OperatorState, WorkflowFatalErrorType, type WorkflowFatalError, type Tuple } from "../../types/execution";
 
 function makeFatal(message: string): WorkflowFatalError {
   return {
@@ -63,17 +64,27 @@ describe("getOperatorErrorText", () => {
   });
 });
 
-describe("getVisibleResultHeaders", () => {
-  test("returns every key", () => {
-    expect(getVisibleResultHeaders({ a: 1, b: 2 })).toEqual(["a", "b"]);
+describe("tupleColumns / tupleToRecord", () => {
+  const tuple: Tuple = {
+    schema: {
+      attributes: [
+        { attributeName: "z", attributeType: "string" },
+        { attributeName: "a", attributeType: "string" },
+      ],
+    },
+    fields: [1, 2],
+  };
+
+  test("tupleColumns returns column names in schema order", () => {
+    expect(tupleColumns(tuple)).toEqual(["z", "a"]);
   });
 
-  test("preserves visible column order", () => {
-    expect(getVisibleResultHeaders({ z: 1, a: 2, m: 3 })).toEqual(["z", "a", "m"]);
+  test("tupleToRecord projects fields back onto their column names", () => {
+    expect(tupleToRecord(tuple)).toEqual({ z: 1, a: 2 });
   });
 
-  test("returns an empty array for an empty row", () => {
-    expect(getVisibleResultHeaders({})).toEqual([]);
+  test("tupleColumns is empty for a schema with no attributes", () => {
+    expect(tupleColumns({ schema: { attributes: [] }, fields: [] })).toEqual([]);
   });
 });
 

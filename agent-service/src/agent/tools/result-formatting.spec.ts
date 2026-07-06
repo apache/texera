@@ -26,11 +26,20 @@ import {
   WorkflowFatalErrorType,
   type OperatorExecutionSummary,
   type WorkflowFatalError,
-  type SampleRow,
+  type Tuple,
 } from "../../types/execution";
 
-function toSampleRows(rows: Record<string, any>[]): SampleRow[] {
-  return rows.map((row, rowIndex) => ({ rowIndex, row }));
+// Build an engine-style Tuple with an all-STRING schema from a column->value record,
+// matching how the backend emits truncated sampled rows.
+function recordToTuple(row: Record<string, any>): Tuple {
+  return {
+    schema: { attributes: Object.keys(row).map(name => ({ attributeName: name, attributeType: "string" })) },
+    fields: Object.values(row),
+  };
+}
+
+function toSampleRows(rows: Record<string, any>[]): [number, Tuple][] {
+  return rows.map((row, rowIndex) => [rowIndex, recordToTuple(row)]);
 }
 
 interface OpInfoOverrides {
@@ -40,7 +49,7 @@ interface OpInfoOverrides {
   tuplesCount?: number;
   warnings?: string[];
   result?: Record<string, any>[];
-  sampleTuples?: SampleRow[];
+  sampleTuples?: [number, Tuple][];
   resultMode?: OperatorResultMode;
 }
 
@@ -244,8 +253,8 @@ describe("jsonToTableFormat - row index gaps", () => {
       makeOpInfo({
         outputTuples: 2,
         sampleTuples: [
-          { rowIndex: 0, row: { v: "a" } },
-          { rowIndex: 5, row: { v: "b" } },
+          [0, recordToTuple({ v: "a" })],
+          [5, recordToTuple({ v: "b" })],
         ],
       })
     );
@@ -263,8 +272,8 @@ describe("jsonToTableFormat - row index gaps", () => {
       makeOpInfo({
         outputTuples: 2,
         sampleTuples: [
-          { rowIndex: 0, row: { v: "a" } },
-          { rowIndex: 1, row: { v: "b" } },
+          [0, recordToTuple({ v: "a" })],
+          [1, recordToTuple({ v: "b" })],
         ],
       })
     );
@@ -274,7 +283,7 @@ describe("jsonToTableFormat - row index gaps", () => {
   test("non-zero starting rowIndex does not emit a leading gap marker", () => {
     const out = formatOperatorResult(
       "op1",
-      makeOpInfo({ outputTuples: 1, sampleTuples: [{ rowIndex: 9, row: { v: "z" } }] })
+      makeOpInfo({ outputTuples: 1, sampleTuples: [[9, recordToTuple({ v: "z" })]] })
     );
     expect(out).not.toContain("...\t...");
     expect(out.endsWith("9\tz")).toBe(true);
