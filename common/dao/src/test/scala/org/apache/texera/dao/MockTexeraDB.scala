@@ -126,8 +126,7 @@ trait MockTexeraDB extends AnyFlatSpecLike {
     val sqlServerInstance = SqlServer.getInstance()
     val activeContext = testScopedContext.get
 
-    // 3. Turn OFF autocommit to sandbox this individual test case
-    conn.setAutoCommit(false)
+    conn.setAutoCommit(true)
 
     try {
       sqlServerInstance.replaceDSLContext(activeContext)
@@ -135,11 +134,19 @@ trait MockTexeraDB extends AnyFlatSpecLike {
     } finally {
       try {
         if (!conn.isClosed) {
-          // 4. Perform a FULL rollback. This wipes dirty test data and clears any
-          // aborted SQL errors. Because beforeAll data was already auto-committed, it survives!
-          conn.rollback()
-          // 5. Restore autoCommit for afterEach / afterAll hooks
-          conn.setAutoCommit(true)
+          scala.util.Using.resource(conn.createStatement()) { stmt =>
+            stmt.execute(
+              """
+              DO $$ DECLARE
+                  r RECORD;
+              BEGIN
+                  FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                      EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE';
+                  END LOOP;
+              END $$;
+              """
+            )
+          }
         }
       } catch {
         case e: Exception => e.printStackTrace()
