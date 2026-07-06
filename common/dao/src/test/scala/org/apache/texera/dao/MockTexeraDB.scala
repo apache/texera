@@ -22,6 +22,8 @@ package org.apache.texera.dao
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import org.jooq.impl.DSL
 import org.jooq.{DSLContext, SQLDialect}
+import org.scalatest.{Outcome, TestSuiteMixin}
+import org.scalatest.flatspec.{AnyFlatSpec, AnyFlatSpecLike}
 
 import java.nio.file.Paths
 import java.sql.{Connection, DriverManager}
@@ -144,18 +146,53 @@ object MockTexeraDB {
   }
 }
 
-trait MockTexeraDB {
+trait MockTexeraDB extends AnyFlatSpecLike {
+  private var testScopedContext : Option[DSLContext] = None
+  protected var connection : Option[Connection]
+
+
+  override def withFixture(test: NoArgTest) : Outcome = {
+    initializeDBAndReplaceDSLContext()
+    val sqlServerInstance = SqlServer.getInstance()
+    val baseContext = MockTexeraDB.getDSLContext
+
+    try{
+      sqlServerInstance.replaceDSLContext(testScopedContext.get)
+      super.withFixture(test)
+
+    }finally {
+      try {
+        val conn = connection.get
+        if (!conn.isClosed) {
+          conn.rollback()
+          conn.close()
+        }
+      } catch {
+        case e: Exception => e.printStackTrace()
+      }
+      sqlServerInstance.replaceDSLContext(baseContext)
+    }
+  }
 
   def executeScriptInJDBC(conn: Connection, script: String): Unit = {
     conn.prepareStatement(script).execute()
     conn.close()
   }
 
-  def getDSLContext: DSLContext = MockTexeraDB.getDSLContext
+  def getDSLContext: DSLContext =
+    testScopedContext.getOrElse(MockTexeraDB.getDSLContext)
 
   def getDBInstance: EmbeddedPostgres = MockTexeraDB.getDBInstance
 
-  def initializeDBAndReplaceDSLContext(): Unit = MockTexeraDB.ensureInitialized()
+  def initializeDBAndReplaceDSLContext(): Unit = {
+    val embedded = MockTexeraDB.getDBInstance
+    connection = Some(embedded.getDatabase("postgres", "texera_db").getConnection)
+    connection.get.setAutoCommit(false)
+
+    testScopedContext = Some(DSL.using(connection.get, SQLDialect.POSTGRES))
+
+    MockTexeraDB.ensureInitialized()
+  }
 
   /**
     * No-op. The singleton EmbeddedPostgres lives for the lifetime of the JVM,
