@@ -70,7 +70,7 @@ jobs:
     steps:
       - name: Wait for Pull Request Labeler
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const ref = context.payload.pull_request.head.sha;
@@ -94,7 +94,7 @@ jobs:
 
       - name: Decide which jobs to run
         id: decide
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const eventName = context.eventName;
@@ -207,7 +207,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Cancel obsolete backport check_runs for the removed target
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;

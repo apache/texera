@@ -546,5 +546,52 @@ else
     _fail "build_all: auto short-circuit ignores missing launchers"
 fi
 
+# 27) sql/updates auto-apply (regression for the jOOQ compile failure after a
+#     pull adds a new sql/updates/N.sql). Structural: the reconcile function
+#     exists, is wired into infra_ensure_db_schema on BOTH paths (existing DB ->
+#     apply pending; fresh bootstrap -> seed as applied), and records into
+#     liquibase's databasechangelog so the official runner stays compatible.
+if grep -qE '^infra_apply_sql_updates\(\) \{' "$MAIN_SH"; then
+    _pass "infra_apply_sql_updates helper is defined"
+else
+    _fail "infra_apply_sql_updates helper missing"
+fi
+schema_body=$(awk '/^infra_ensure_db_schema\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ "$schema_body" == *"infra_apply_sql_updates"* ]] \
+   && [[ "$schema_body" == *"infra_apply_sql_updates seed"* ]]; then
+    _pass "infra_ensure_db_schema reconciles updates (apply on existing DB, seed on bootstrap)"
+else
+    _fail "infra_ensure_db_schema doesn't wire infra_apply_sql_updates on both paths"
+fi
+updates_body=$(awk '/^infra_apply_sql_updates\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ "$updates_body" == *"databasechangelog"* && "$updates_body" == *"ON_ERROR_STOP"* ]]; then
+    _pass "infra_apply_sql_updates tracks via databasechangelog and fails fast on psql errors"
+else
+    _fail "infra_apply_sql_updates missing databasechangelog tracking or ON_ERROR_STOP"
+fi
+
+# 28) The changelog parser handles the real sql/changelog.xml: emits
+#     id/author/path triples, skips the commented example changeset, and every
+#     referenced update file exists on disk (repo-consistency check).
+parse_fn=$(awk '/^parse_changelog_changesets\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+parsed=$(eval "$parse_fn"; parse_changelog_changesets "$REPO_ROOT/sql/changelog.xml")
+n_parsed=$(printf '%s\n' "$parsed" | grep -c .)
+example_skipped=true
+printf '%s' "$parsed" | grep -q "^1	" && example_skipped=false
+if (( n_parsed >= 5 )) && $example_skipped; then
+    _pass "changelog parser: $n_parsed changesets, commented example skipped"
+else
+    _fail "changelog parser wrong" "n=$n_parsed parsed=$(printf '%s' "$parsed" | head -2 | tr '\n' '|')"
+fi
+missing_files=""
+while IFS=$'\t' read -r _id _author _path; do
+    [[ -n "$_path" && ! -f "$REPO_ROOT/$_path" ]] && missing_files+=" $_path"
+done <<< "$parsed"
+if [[ -z "$missing_files" ]]; then
+    _pass "changelog: every referenced sql/updates file exists"
+else
+    _fail "changelog references missing files:$missing_files"
+fi
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))

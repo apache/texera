@@ -15,14 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-wordcloud==1.9.3
+wordcloud==1.9.6
 plotly==5.24.1
 praw==7.6.1
 pillow==12.2.0
 
 # Pin torch to the CPU wheel on Linux x86_64 to avoid the NVIDIA CUDA deps.
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.12.0+cpu ; platform_system == "Linux" and platform_machine == "x86_64"
+torch==2.12.1+cpu ; platform_system == "Linux" and platform_machine == "x86_64"
 torch==2.12.0 ; platform_system != "Linux" or platform_machine != "x86_64"
 
 scikit-learn==1.5.0
