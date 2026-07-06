@@ -25,7 +25,6 @@ yarn install
 | Format (Prettier + ESLint --fix)                      | `yarn format:fix`                    |
 | Format check (CI shape)                               | `yarn format:ci`                     |
 | Lint only                                             | `yarn lint`                          |
-| Bundle analyzer                                       | `yarn analyze`                       |
 
 Run `ng help` for the full Angular CLI surface.
 
