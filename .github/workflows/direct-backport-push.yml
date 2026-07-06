@@ -38,7 +38,7 @@ jobs:
     steps:
       - name: Resolve merged PRs and green targets
         id: discover
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const sha = context.sha;
@@ -241,7 +241,7 @@ jobs:
         include: ${{ fromJson(needs.discover.outputs.entries) }}
     steps:
       - name: Checkout main
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           # Use AUTO_MERGE_TOKEN (fine-grained PAT) so the push to the release
@@ -454,7 +454,7 @@ jobs:
 
       - name: Annotate original PR and commit on success
         if: success()
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           MERGE_SHA: ${{ matrix.merge_sha }}
           TARGET_BRANCH: ${{ matrix.target }}
@@ -557,7 +557,7 @@ jobs:
 
       - name: Annotate original PR and commit on failure
         if: failure()
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           MERGE_SHA: ${{ matrix.merge_sha }}
           TARGET_BRANCH: ${{ matrix.target }}

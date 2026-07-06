@@ -39,7 +39,7 @@ import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorService,
   WorkflowActor
 }
-import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
+import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.messaginglayer.{
   NetworkInputGateway,
   NetworkOutputGateway
@@ -55,7 +55,7 @@ import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.texera.amber.engine.common.CheckpointState
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.util.VirtualIdentityUtils
 
 import scala.collection.mutable
@@ -77,24 +77,24 @@ object RegionExecutionManagerTestSupport {
       commandId: Long
   )
 
-  case class ControllerHarnessFixture(
+  case class CoordinatorHarnessFixture(
       actorService: PekkoActorService,
       actorRefService: PekkoActorRefMappingService
   )
 
   /**
-    * Captures controller-to-worker RPCs at the same boundary used by production
+    * Captures coordinator-to-worker RPCs at the same boundary used by production
     * `AsyncRPCClient.workerInterface`.
     *
     * Non-termination RPCs are completed immediately because these tests focus on termination
     * ordering. `endWorker` responses are controlled by `endWorkerResponse`, allowing each test to
     * hold termination pending, fail an attempt, or allow it to succeed.
     */
-  class ControllerRpcProbe(endWorkerResponse: WorkerRpcCall => Option[ControlReturn]) {
+  class CoordinatorRpcProbe(endWorkerResponse: WorkerRpcCall => Option[ControlReturn]) {
     val calls: mutable.ArrayBuffer[WorkerRpcCall] = mutable.ArrayBuffer()
-    val inputGateway = new NetworkInputGateway(CONTROLLER)
-    val outputGateway = new NetworkOutputGateway(CONTROLLER, handleOutput)
-    val asyncRPCClient = new AsyncRPCClient(inputGateway, outputGateway, CONTROLLER)
+    val inputGateway = new NetworkInputGateway(COORDINATOR)
+    val outputGateway = new NetworkOutputGateway(COORDINATOR, handleOutput)
+    val asyncRPCClient = new AsyncRPCClient(inputGateway, outputGateway, COORDINATOR)
 
     def methodTrace: Seq[String] = calls.map(_.methodName).toSeq
 
@@ -153,7 +153,7 @@ object RegionExecutionManagerTestSupport {
     override def receive: Receive = { case _ => () }
   }
 
-  class ControllerHarness extends WorkflowActor(None, CONTROLLER) {
+  class CoordinatorHarness extends WorkflowActor(None, COORDINATOR) {
     override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = ()
 
     override def getQueuedCredit(channelId: ChannelIdentity): Long = 0
@@ -241,13 +241,13 @@ object RegionExecutionManagerTestSupport {
 trait RegionExecutionManagerTestSupport { self: TestKit =>
   import RegionExecutionManagerTestSupport._
 
-  protected def createControllerHarness(): ControllerHarnessFixture = {
-    val controllerRef = TestActorRef(new ControllerHarness)
-    controllerRef.underlyingActor.actorService.getAvailableNodeAddressesFunc = () =>
-      Array(controllerRef.path.address)
-    ControllerHarnessFixture(
-      actorService = controllerRef.underlyingActor.actorService,
-      actorRefService = controllerRef.underlyingActor.actorRefMappingService
+  protected def createCoordinatorHarness(): CoordinatorHarnessFixture = {
+    val coordinatorRef = TestActorRef(new CoordinatorHarness)
+    coordinatorRef.underlyingActor.actorService.getAvailableNodeAddressesFunc = () =>
+      Array(coordinatorRef.path.address)
+    CoordinatorHarnessFixture(
+      actorService = coordinatorRef.underlyingActor.actorService,
+      actorRefService = coordinatorRef.underlyingActor.actorRefMappingService
     )
   }
 

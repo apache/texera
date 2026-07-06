@@ -26,9 +26,9 @@ import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorRefMappingService,
   PekkoActorService
 }
-import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
-import org.apache.texera.amber.engine.architecture.controller.ExecutionStateUpdate
-import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
+import org.apache.texera.amber.engine.architecture.coordinator.ExecutionStateUpdate
+import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -36,7 +36,7 @@ import scala.collection.mutable
 
 class WorkflowExecutionManager(
     workflowExecution: WorkflowExecution,
-    controllerConfig: ControllerConfig,
+    coordinatorConfig: CoordinatorConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
@@ -107,7 +107,7 @@ class WorkflowExecutionManager(
               isRestart,
               workflowExecution,
               asyncRPCClient,
-              controllerConfig,
+              coordinatorConfig,
               actorService,
               actorRefService
             )
