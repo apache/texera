@@ -314,7 +314,7 @@ Angular / npm packages:
   - plotly.js-basic-dist-min@2.29.0
   - point-in-polygon@1.1.0
   - python@1.0.0
-  - quill-cursors@3.1.2
+  - quill-cursors@4.3.0
   - rbush@4.0.1
   - read-excel-file@5.7.1
   - ring-buffer-ts@1.0.3
