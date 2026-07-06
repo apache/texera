@@ -224,7 +224,7 @@ Scala/Java jars:
   - com.fasterxml.classmate-1.7.0.jar
   - com.fasterxml.jackson.core.jackson-annotations-2.21.jar
   - com.fasterxml.jackson.core.jackson-core-2.21.0.jar
-  - com.fasterxml.jackson.core.jackson-databind-2.21.0.jar
+  - com.fasterxml.jackson.core.jackson-databind-2.18.8.jar
   - com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.17.0.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-guava-2.16.1.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.16.1.jar

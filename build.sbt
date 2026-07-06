@@ -150,7 +150,13 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
+      // Arrow 19 (via WorkflowCore) evicts jackson-databind up to 2.21.0, past
+      // the 2.18 range jackson-module-scala allows; pin it back to jacksonVersion
+      // so the Scala module can initialize (else the service aborts at startup
+      // with "Scala module 2.18.8 requires Jackson Databind version >= 2.18.0
+      // and < 2.19.0 - Found jackson-databind version 2.21.0").
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
     ) ++ nettyDependencyOverrides
   )
 lazy val FileService = (project in file("file-service"))
