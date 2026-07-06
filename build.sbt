@@ -68,6 +68,12 @@ lazy val commonModuleSettingsWithVendored = asfLicensingSettingsWithVendored ++ 
 
 val jacksonVersion = "2.18.8"
 
+// Hadoop/ZooKeeper (declared in common/workflow-core and amber) pull in the
+// EOL log4j 1.2.17, which has open CVEs and no fixed 1.x release. Keep it out
+// of every module; the log4j 2.x bridges declared in common/workflow-core
+// keep the org.apache.log4j API available at runtime.
+ThisBuild / excludeDependencies += ExclusionRule("log4j", "log4j")
+
 lazy val DAO = (project in file("common/dao")).settings(commonModuleSettings)
 lazy val Config = (project in file("common/config")).settings(commonModuleSettings)
 lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings)
