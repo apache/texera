@@ -581,9 +581,7 @@ CDDL 1.1
 ~~~~~~~~
 
 Scala/Java jars:
-  - com.github.pjfanning.jersey-json-1.22.0.jar
   - com.sun.jersey.contribs.jersey-guice-1.19.4.jar
-  - com.sun.xml.bind.jaxb-impl-2.2.3-1.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Eclipse Distribution License, Version 1.0
