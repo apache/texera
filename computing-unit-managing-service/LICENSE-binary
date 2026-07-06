@@ -378,12 +378,11 @@ Scala/Java jars:
   - javax.validation.validation-api-2.0.1.Final.jar
   - net.minidev.accessors-smart-2.4.2.jar
   - net.minidev.json-smart-2.4.2.jar
-  - org.apache.arrow.arrow-format-15.0.2.jar
-  - org.apache.arrow.arrow-memory-core-15.0.2.jar
-  - org.apache.arrow.arrow-memory-netty-15.0.2.jar
-  - org.apache.arrow.arrow-vector-15.0.2.jar
-  - org.apache.arrow.flight-core-15.0.2.jar
-  - org.apache.arrow.flight-grpc-15.0.2.jar
+  - org.apache.arrow.arrow-format-19.0.0.jar
+  - org.apache.arrow.arrow-memory-core-19.0.0.jar
+  - org.apache.arrow.arrow-memory-netty-19.0.0.jar
+  - org.apache.arrow.arrow-vector-19.0.0.jar
+  - org.apache.arrow.flight-core-19.0.0.jar
   - org.apache.avro.avro-1.12.0.jar
   - org.apache.commons.commons-collections4-4.4.jar
   - org.apache.commons.commons-compress-1.26.2.jar

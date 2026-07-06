@@ -115,8 +115,8 @@ libraryDependencies ++= Seq(
 val arrowVersion = "19.0.0"
 val nettyVersion = "4.2.15.Final"
 val arrowDependencies = Seq(
-  // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
-  "org.apache.arrow" % "flight-grpc" % arrowVersion,
+  // flight-core bundles the gRPC transport since Arrow 16; the standalone
+  // flight-grpc artifact was discontinued after 15.0.2.
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-core
   "org.apache.arrow" % "flight-core" % arrowVersion
 )
