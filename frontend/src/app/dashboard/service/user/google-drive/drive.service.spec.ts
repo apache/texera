@@ -150,6 +150,33 @@ describe("DriveService", () => {
       sub.unsubscribe();
     }));
 
+    it("propagates HTTP errors through the observable", fakeAsync(() => {
+      const mockPopup = { close: vi.fn() } as unknown as Window;
+      vi.spyOn(window, "open").mockReturnValue(mockPopup);
+
+      let errorMessage = "";
+      service.connect().subscribe({ error: (e: unknown) => (errorMessage = (e as Error).message) });
+
+      httpMock.expectOne(CONNECT_URL).flush("Server error", { status: 500, statusText: "Internal Server Error" });
+      tick();
+
+      expect(errorMessage).toBeTruthy();
+      expect(mockPopup.close).not.toHaveBeenCalled();
+    }));
+
+    it("closes the popup when unsubscribed before OAuth completes", fakeAsync(() => {
+      const mockPopup = { close: vi.fn() } as unknown as Window;
+      vi.spyOn(window, "open").mockReturnValue(mockPopup);
+
+      const sub = service.connect().subscribe();
+      httpMock.expectOne(CONNECT_URL).flush("https://accounts.google.com/...");
+
+      sub.unsubscribe();
+      tick();
+
+      expect(mockPopup.close).toHaveBeenCalled();
+    }));
+
     it("ignores same-origin messages not sent by the OAuth popup", fakeAsync(() => {
       const mockPopup = { close: vi.fn() } as unknown as Window;
       vi.spyOn(window, "open").mockReturnValue(mockPopup);

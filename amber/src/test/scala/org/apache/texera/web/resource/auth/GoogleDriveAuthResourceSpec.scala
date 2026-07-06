@@ -85,4 +85,25 @@ class GoogleDriveAuthResourceSpec extends AnyFlatSpec {
     assert(body.contains("expired"))
   }
 
+it should "generate a unique state token on every connect call" in {
+    val resource = new GoogleDriveAuthResource()
+    val url1 = resource.getOAuth().getEntity.toString
+    val url2 = resource.getOAuth().getEntity.toString
+    val state1 = url1.split("state=").last.split("&").head
+    val state2 = url2.split("state=").last.split("&").head
+    assert(state1 != state2)
+  }
+
+  it should "return HTTP 200 even when the callback receives an invalid request" in {
+    val resource = new GoogleDriveAuthResource()
+    val response = resource.getCallback(code = "", state = "")
+    assert(response.getStatus == 200)
+  }
+
+  it should "return HTTP 200 even when the callback state is expired or unknown" in {
+    val resource = new GoogleDriveAuthResource()
+    val response = resource.getCallback(code = "some-code", state = "unknown-state")
+    assert(response.getStatus == 200)
+  }
+
 }
