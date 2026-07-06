@@ -21,7 +21,7 @@ package org.apache.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.virtualidentity.EmbeddedControlMessageIdentity
-import org.apache.texera.amber.engine.architecture.controller.ExecutionStateUpdate
+import org.apache.texera.amber.engine.architecture.coordinator.ExecutionStateUpdate
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   EmptyRequest,
   TakeGlobalCheckpointRequest
@@ -85,7 +85,7 @@ class ExecutionRuntimeService(
     stateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(PAUSING, metadataStore)
     )
-    client.controllerInterface.pauseWorkflow(EmptyRequest(), ())
+    client.coordinatorInterface.pauseWorkflow(EmptyRequest(), ())
   }))
 
   // Receive Resume
@@ -94,7 +94,7 @@ class ExecutionRuntimeService(
     stateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(RESUMING, metadataStore)
     )
-    client.controllerInterface
+    client.coordinatorInterface
       .resumeWorkflow(EmptyRequest(), ())
       .onSuccess(_ =>
         stateStore.metadataStore.updateState(metadataStore =>
@@ -120,7 +120,7 @@ class ExecutionRuntimeService(
     )
     val checkpointId = EmbeddedControlMessageIdentity(s"Checkpoint_${UUID.randomUUID().toString}")
     val uri = logConf.get.writeTo.resolve(checkpointId.toString)
-    client.controllerInterface.takeGlobalCheckpoint(
+    client.coordinatorInterface.takeGlobalCheckpoint(
       TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString),
       ()
     )
