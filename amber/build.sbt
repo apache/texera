@@ -158,7 +158,7 @@ val luceneDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Hadoop related
-val hadoopVersion = "3.3.3"
+val hadoopVersion = "3.4.3"
 val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
 val excludeHadoopSlf4j = ExclusionRule(organization = "org.slf4j")
 val excludeHadoopJetty = ExclusionRule(organization = "org.eclipse.jetty")
