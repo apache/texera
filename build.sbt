@@ -68,6 +68,35 @@ lazy val commonModuleSettingsWithVendored = asfLicensingSettingsWithVendored ++ 
 
 val jacksonVersion = "2.18.8"
 
+// Netty must be pinned as a single coordinated family: Apache Arrow's
+// arrow-memory-netty accesses Netty allocator internals, so a split across the
+// 4.1/4.2 line breaks it (NoClassDefFoundError: ThreadAwareExecutor). Arrow
+// 19.0.0 targets the Netty 4.2 line, so the whole family is held at 4.2.x here
+// and in common/workflow-core/build.sbt.
+val nettyVersion = "4.2.15.Final"
+
+// The full Netty family pinned to nettyVersion. Applied to every module whose
+// dist bundles Arrow Flight (amber + the Arrow-carrying platform services), so
+// the 4.1/4.2 line can never split — arrow-memory-netty reaches into Netty
+// allocator internals and a split breaks it. Kept in sync with the same list
+// in common/workflow-core/build.sbt (which can't see this val).
+val nettyDependencyOverrides = Seq(
+  "io.netty" % "netty-all" % nettyVersion,
+  "io.netty" % "netty-buffer" % nettyVersion,
+  "io.netty" % "netty-codec" % nettyVersion,
+  "io.netty" % "netty-codec-http" % nettyVersion,
+  "io.netty" % "netty-codec-http2" % nettyVersion,
+  "io.netty" % "netty-codec-socks" % nettyVersion,
+  "io.netty" % "netty-common" % nettyVersion,
+  "io.netty" % "netty-handler" % nettyVersion,
+  "io.netty" % "netty-handler-proxy" % nettyVersion,
+  "io.netty" % "netty-resolver" % nettyVersion,
+  "io.netty" % "netty-transport" % nettyVersion,
+  "io.netty" % "netty-transport-classes-epoll" % nettyVersion,
+  "io.netty" % "netty-transport-native-epoll" % nettyVersion,
+  "io.netty" % "netty-transport-native-unix-common" % nettyVersion
+)
+
 // Hadoop/ZooKeeper (declared in common/workflow-core and amber) pull in the
 // EOL log4j 1.2.17, which has open CVEs and no fixed 1.x release. Keep it out
 // of every module; the log4j 2.x bridges declared in common/workflow-core
@@ -122,7 +151,7 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
-    )
+    ) ++ nettyDependencyOverrides
   )
 lazy val FileService = (project in file("file-service"))
   .settings(commonModuleSettings)
@@ -135,7 +164,7 @@ lazy val FileService = (project in file("file-service"))
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
-    ),
+    ) ++ nettyDependencyOverrides,
     // Each testcontainers-based suite starts its own LakeFS/MinIO/Postgres stack
     // and mutates JVM-wide singletons (StorageConfig endpoints, LakeFS client),
     // so every suite gets its own forked JVM; sbt runs forked groups one at a
@@ -158,7 +187,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
-    )
+    ) ++ nettyDependencyOverrides
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
@@ -172,20 +201,8 @@ lazy val WorkflowExecutionService = (project in file("amber"))
       "org.slf4j" % "slf4j-api" % "1.7.26",
       "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
       "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
-      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813",
-      // Netty dependency overrides to ensure compatibility with Arrow 14.0.1
-      // Arrow requires Netty 4.1.96.Final to avoid NoSuchFieldError: chunkSize
-      "io.netty" % "netty-all" % "4.1.96.Final",
-      "io.netty" % "netty-buffer" % "4.1.96.Final",
-      "io.netty" % "netty-codec" % "4.1.96.Final",
-      "io.netty" % "netty-codec-http" % "4.1.96.Final",
-      "io.netty" % "netty-codec-http2" % "4.1.96.Final",
-      "io.netty" % "netty-common" % "4.1.96.Final",
-      "io.netty" % "netty-handler" % "4.1.96.Final",
-      "io.netty" % "netty-resolver" % "4.1.96.Final",
-      "io.netty" % "netty-transport" % "4.1.96.Final",
-      "io.netty" % "netty-transport-native-unix-common" % "4.1.96.Final"
-    ),
+      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813"
+    ) ++ nettyDependencyOverrides,
     libraryDependencies ++= Seq(
       "com.squareup.okhttp3" % "okhttp" % "4.10.0" force () // Force usage of OkHttp 4.10.0
     )

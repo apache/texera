@@ -112,20 +112,22 @@ libraryDependencies ++= Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "15.0.2"
-val nettyVersion = "4.1.96.Final"
+val arrowVersion = "19.0.0"
+val nettyVersion = "4.2.15.Final"
 val arrowDependencies = Seq(
-  // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
-  "org.apache.arrow" % "flight-grpc" % arrowVersion,
+  // flight-core bundles the gRPC transport since Arrow 16; the standalone
+  // flight-grpc artifact was discontinued after 15.0.2.
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-core
   "org.apache.arrow" % "flight-core" % arrowVersion
 )
 
 libraryDependencies ++= arrowDependencies
 
-// Netty dependency overrides to ensure compatibility with Arrow
-// Arrow 14.0.1 requires Netty 4.1.96.Final for proper memory allocation
-// The chunkSize field issue occurs when Netty versions are mismatched
+// Netty dependency overrides to ensure compatibility with Arrow 19.0.0, which
+// targets the Netty 4.2 line. The whole family must be pinned to one version:
+// arrow-memory-netty reaches into Netty allocator internals, so a 4.1/4.2 split
+// breaks it (NoClassDefFoundError: ThreadAwareExecutor). Kept in sync with the
+// same list in the root build.sbt (amber module).
 dependencyOverrides ++= Seq(
   "io.netty" % "netty-all" % nettyVersion,
   "io.netty" % "netty-buffer" % nettyVersion,
@@ -140,7 +142,15 @@ dependencyOverrides ++= Seq(
   "io.netty" % "netty-transport" % nettyVersion,
   "io.netty" % "netty-transport-classes-epoll" % nettyVersion,
   "io.netty" % "netty-transport-native-epoll" % nettyVersion,
-  "io.netty" % "netty-transport-native-unix-common" % nettyVersion
+  "io.netty" % "netty-transport-native-unix-common" % nettyVersion,
+  // Arrow 19's transitive deps pull jackson-databind past the 2.18 line that
+  // jackson-module-scala is pinned to; force the Jackson core family back to
+  // jacksonVersion so the Scala module can initialize (else Test aborts with
+  // "Scala module 2.18.x requires Jackson Databind version >= 2.18.0 and
+  // < 2.19.0").
+  "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion
 )
 
 /////////////////////////////////////////////////////////////////////////////

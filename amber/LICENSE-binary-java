@@ -222,14 +222,14 @@ Dependencies under the Apache License, Version 2.0
 Scala/Java jars:
   - ch.qos.reload4j.reload4j-1.2.22.jar
   - com.fasterxml.classmate-1.3.1.jar
-  - com.fasterxml.jackson.core.jackson-annotations-2.18.8.jar
+  - com.fasterxml.jackson.core.jackson-annotations-2.21.jar
   - com.fasterxml.jackson.core.jackson-core-2.18.8.jar
   - com.fasterxml.jackson.core.jackson-databind-2.18.8.jar
   - com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.9.10.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-guava-2.9.10.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.11.4.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-joda-2.9.10.jar
-  - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.16.0.jar
+  - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.21.0.jar
   - com.fasterxml.jackson.jaxrs.jackson-jaxrs-base-2.12.7.jar
   - com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider-2.12.7.jar
   - com.fasterxml.jackson.module.jackson-module-afterburner-2.9.10.jar
@@ -249,20 +249,20 @@ Scala/Java jars:
   - com.github.tototoshi.scala-csv_2.13-1.3.10.jar
   - com.google.android.annotations-4.1.1.4.jar
   - com.google.api-client.google-api-client-2.2.0.jar
-  - com.google.api.grpc.proto-google-common-protos-2.29.0.jar
+  - com.google.api.grpc.proto-google-common-protos-2.63.2.jar
   - com.google.code.findbugs.jsr305-3.0.2.jar
-  - com.google.code.gson.gson-2.10.1.jar
-  - com.google.errorprone.error_prone_annotations-2.23.0.jar
-  - com.google.flatbuffers.flatbuffers-java-23.5.26.jar
-  - com.google.guava.failureaccess-1.0.2.jar
-  - com.google.guava.guava-33.0.0-jre.jar
+  - com.google.code.gson.gson-2.12.1.jar
+  - com.google.errorprone.error_prone_annotations-2.45.0.jar
+  - com.google.flatbuffers.flatbuffers-java-25.2.10.jar
+  - com.google.guava.failureaccess-1.0.3.jar
+  - com.google.guava.guava-33.5.0-android.jar
   - com.google.guava.listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
   - com.google.http-client.google-http-client-1.42.3.jar
   - com.google.http-client.google-http-client-apache-v2-1.42.3.jar
   - com.google.http-client.google-http-client-gson-1.42.3.jar
   - com.google.inject.extensions.guice-servlet-4.2.3.jar
   - com.google.inject.guice-4.2.3.jar
-  - com.google.j2objc.j2objc-annotations-2.8.jar
+  - com.google.j2objc.j2objc-annotations-3.1.jar
   - com.google.oauth-client.google-oauth-client-1.34.1.jar
   - com.google.oauth-client.google-oauth-client-java6-1.34.1.jar
   - com.google.oauth-client.google-oauth-client-jetty-1.34.1.jar
@@ -291,7 +291,7 @@ Scala/Java jars:
   - com.univocity.univocity-parsers-2.9.1.jar
   - com.zaxxer.HikariCP-5.1.0.jar
   - commons-cli.commons-cli-1.9.0.jar
-  - commons-codec.commons-codec-1.17.1.jar
+  - commons-codec.commons-codec-1.21.0.jar
   - commons-io.commons-io-2.16.1.jar
   - commons-logging.commons-logging-1.3.0.jar
   - commons-net.commons-net-3.9.0.jar
@@ -327,51 +327,54 @@ Scala/Java jars:
   - io.dropwizard.metrics.metrics-logback-4.0.5.jar
   - io.dropwizard.metrics.metrics-servlets-4.0.5.jar
   - io.github.kostaskougios.cloning-1.10.3.jar
-  - io.grpc.grpc-api-1.62.2.jar
-  - io.grpc.grpc-context-1.62.2.jar
-  - io.grpc.grpc-core-1.62.2.jar
-  - io.grpc.grpc-netty-1.60.0.jar
-  - io.grpc.grpc-protobuf-1.62.2.jar
-  - io.grpc.grpc-protobuf-lite-1.62.2.jar
-  - io.grpc.grpc-stub-1.62.2.jar
+  - io.grpc.grpc-api-1.79.0.jar
+  - io.grpc.grpc-context-1.79.0.jar
+  - io.grpc.grpc-core-1.79.0.jar
+  - io.grpc.grpc-netty-1.79.0.jar
+  - io.grpc.grpc-protobuf-1.79.0.jar
+  - io.grpc.grpc-protobuf-lite-1.79.0.jar
+  - io.grpc.grpc-stub-1.79.0.jar
+  - io.grpc.grpc-util-1.79.0.jar
   - io.gsonfire.gson-fire-1.8.5.jar
   - io.kamon.sigar-loader-1.6.6-rev002.jar
   - io.lakefs.sdk-1.51.0.jar
-  - io.netty.netty-buffer-4.1.96.Final.jar
-  - io.netty.netty-codec-4.1.96.Final.jar
-  - io.netty.netty-codec-http-4.1.96.Final.jar
-  - io.netty.netty-codec-http2-4.1.96.Final.jar
-  - io.netty.netty-codec-socks-4.1.100.Final.jar
-  - io.netty.netty-common-4.1.96.Final.jar
-  - io.netty.netty-handler-4.1.96.Final.jar
-  - io.netty.netty-handler-proxy-4.1.100.Final.jar
-  - io.netty.netty-resolver-4.1.96.Final.jar
-  - io.netty.netty-tcnative-boringssl-static-2.0.61.Final-linux-aarch_64.jar
-  - io.netty.netty-tcnative-boringssl-static-2.0.61.Final-linux-x86_64.jar
-  - io.netty.netty-tcnative-boringssl-static-2.0.61.Final-osx-aarch_64.jar
-  - io.netty.netty-tcnative-boringssl-static-2.0.61.Final-osx-x86_64.jar
-  - io.netty.netty-tcnative-boringssl-static-2.0.61.Final-windows-x86_64.jar
-  - io.netty.netty-tcnative-boringssl-static-2.0.61.Final.jar
-  - io.netty.netty-tcnative-classes-2.0.61.Final.jar
-  - io.netty.netty-transport-4.1.96.Final.jar
-  - io.netty.netty-transport-classes-epoll-4.1.127.Final.jar
-  - io.netty.netty-transport-native-epoll-4.1.127.Final.jar
-  - io.netty.netty-transport-native-unix-common-4.1.96.Final.jar
+  - io.netty.netty-buffer-4.2.15.Final.jar
+  - io.netty.netty-codec-base-4.2.15.Final.jar
+  - io.netty.netty-codec-compression-4.2.15.Final.jar
+  - io.netty.netty-codec-http-4.2.15.Final.jar
+  - io.netty.netty-codec-http2-4.2.15.Final.jar
+  - io.netty.netty-codec-socks-4.2.15.Final.jar
+  - io.netty.netty-common-4.2.15.Final.jar
+  - io.netty.netty-handler-4.2.15.Final.jar
+  - io.netty.netty-handler-proxy-4.2.15.Final.jar
+  - io.netty.netty-resolver-4.2.15.Final.jar
+  - io.netty.netty-tcnative-boringssl-static-2.0.74.Final-linux-aarch_64.jar
+  - io.netty.netty-tcnative-boringssl-static-2.0.74.Final-linux-x86_64.jar
+  - io.netty.netty-tcnative-boringssl-static-2.0.74.Final-osx-aarch_64.jar
+  - io.netty.netty-tcnative-boringssl-static-2.0.74.Final-osx-x86_64.jar
+  - io.netty.netty-tcnative-boringssl-static-2.0.74.Final-windows-x86_64.jar
+  - io.netty.netty-tcnative-boringssl-static-2.0.74.Final.jar
+  - io.netty.netty-tcnative-classes-2.0.74.Final.jar
+  - io.netty.netty-transport-4.2.15.Final.jar
+  - io.netty.netty-transport-classes-epoll-4.2.15.Final.jar
+  - io.netty.netty-transport-native-epoll-4.2.15.Final.jar
+  - io.netty.netty-transport-native-unix-common-4.2.15.Final.jar
+  - org.jspecify.jspecify-1.0.0.jar
   - io.opencensus.opencensus-api-0.31.1.jar
   - io.opencensus.opencensus-contrib-http-util-0.31.1.jar
-  - io.perfmark.perfmark-api-0.26.0.jar
+  - io.perfmark.perfmark-api-0.27.0.jar
   - io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar
   - io.reactivex.rxjava3.rxjava-3.1.6.jar
   - javax.inject.javax.inject-1.jar
   - javax.validation.validation-api-2.0.1.Final.jar
   - joda-time.joda-time-2.11.0.jar
   - org.agrona.agrona-1.22.0.jar
-  - org.apache.arrow.arrow-format-15.0.2.jar
-  - org.apache.arrow.arrow-memory-core-15.0.2.jar
-  - org.apache.arrow.arrow-memory-netty-15.0.2.jar
-  - org.apache.arrow.arrow-vector-15.0.2.jar
-  - org.apache.arrow.flight-core-15.0.2.jar
-  - org.apache.arrow.flight-grpc-15.0.2.jar
+  - org.apache.arrow.arrow-format-19.0.0.jar
+  - org.apache.arrow.arrow-memory-core-19.0.0.jar
+  - org.apache.arrow.arrow-memory-netty-19.0.0.jar
+  - org.apache.arrow.arrow-memory-netty-buffer-patch-19.0.0.jar
+  - org.apache.arrow.arrow-vector-19.0.0.jar
+  - org.apache.arrow.flight-core-19.0.0.jar
   - org.apache.avro.avro-1.12.0.jar
   - org.apache.commons.commons-collections4-4.4.jar
   - org.apache.commons.commons-compress-1.27.1.jar
@@ -565,7 +568,7 @@ Scala/Java jars:
   - net.sourceforge.argparse4j.argparse4j-0.8.1.jar
   - org.bouncycastle.bcprov-jdk18on-1.82.jar
   - org.checkerframework.checker-qual-3.52.0.jar
-  - org.codehaus.mojo.animal-sniffer-annotations-1.23.jar
+  - org.codehaus.mojo.animal-sniffer-annotations-1.26.jar
   - org.projectlombok.lombok-1.18.24.jar
   - org.reactivestreams.reactive-streams-1.0.4.jar
   - org.slf4j.jcl-over-slf4j-1.7.26.jar
@@ -585,7 +588,8 @@ Scala/Java jars:
   - com.esotericsoftware.kryo5-5.6.0.jar
   - com.esotericsoftware.minlog-1.3.1.jar
   - com.esotericsoftware.reflectasm-1.11.9.jar
-  - com.google.protobuf.protobuf-java-3.25.8.jar
+  - com.google.protobuf.protobuf-java-4.33.4.jar
+  - com.google.protobuf.protobuf-java-util-4.33.4.jar
   - com.google.re2j.re2j-1.1.jar
   - com.jcraft.jsch-0.1.55.jar
   - com.thoughtworks.paranamer.paranamer-2.8.jar
@@ -690,8 +694,6 @@ Scala/Java jars:
   - com.sun.activation.jakarta.activation-2.0.0.jar
   - jakarta.activation.jakarta.activation-api-1.2.1.jar
   - jakarta.xml.bind.jakarta.xml.bind-api-3.0.0.jar
-  - org.eclipse.collections.eclipse-collections-11.1.0.jar
-  - org.eclipse.collections.eclipse-collections-api-11.1.0.jar
   - org.eclipse.jgit.org.eclipse.jgit-5.13.0.202109080827-r.jar
 
 --------------------------------------------------------------------------------
