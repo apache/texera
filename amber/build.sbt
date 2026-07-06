@@ -160,11 +160,14 @@ val luceneDependencies = Seq(
 // Hadoop related
 val hadoopVersion = "3.4.3"
 val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
+// Hadoop 3.3.2+ ships jersey-json via the com.github.pjfanning fork; its Jersey 1.x
+// providers break Jersey 2 auto-discovery at startup, so exclude it as well.
+val excludeHadoopJerseyJsonFork = ExclusionRule(organization = "com.github.pjfanning", name = "jersey-json")
 val excludeHadoopSlf4j = ExclusionRule(organization = "org.slf4j")
 val excludeHadoopJetty = ExclusionRule(organization = "org.eclipse.jetty")
 val excludeHadoopJsp = ExclusionRule(organization = "javax.servlet.jsp")
 val hadoopDependencies = Seq(
-  "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll(excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp, excludeHadoopJetty)
+  "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll(excludeHadoopJersey, excludeHadoopJerseyJsonFork, excludeHadoopSlf4j, excludeHadoopJsp, excludeHadoopJetty)
 )
 
 /////////////////////////////////////////////////////////////////////////////

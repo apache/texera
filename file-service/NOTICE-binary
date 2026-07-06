@@ -201,6 +201,54 @@ the following copyright notice:
 | limitations under the License.
 
 --------------------------------------------------------------------------------
+io.netty.netty-tcnative-boringssl-static
+--------------------------------------------------------------------------------
+
+The Netty Project
+                            =================
+
+Please visit the Netty web site for more information:
+
+  * http://netty.io/
+
+Copyright 2016 The Netty Project
+
+The Netty Project licenses this file to you under the Apache License,
+version 2.0 (the "License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at:
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+
+-------------------------------------------------------------------------------
+This product contains a forked and modified version of Tomcat Native
+
+  * LICENSE:
+    * license/LICENSE.tomcat-native.txt (Apache License 2.0)
+  * HOMEPAGE:
+    * http://tomcat.apache.org/native-doc/
+    * https://svn.apache.org/repos/asf/tomcat/native/
+
+This product contains the Maven wrapper scripts from 'Maven Wrapper', that provides an easy way to ensure a user has everything necessary to run the Maven build.
+
+  * LICENSE:
+    * license/LICENSE.mvn-wrapper.txt (Apache License 2.0)
+  * HOMEPAGE:
+    * https://github.com/takari/maven-wrapper
+
+This product contains code from boringssl.
+
+  * LICENSE
+    * license/LICENSE.boringssl.txt (Apache License 2.0)
+  * HOMEPAGE:
+    * https://boringssl.googlesource.com/boringssl/
+
+--------------------------------------------------------------------------------
 org.glassfish.jersey
 --------------------------------------------------------------------------------
 
@@ -317,62 +365,6 @@ org.glassfish.jersey.server.internal.monitoring.core
 W3.org documents
 * License: W3C License
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
-
---------------------------------------------------------------------------------
-io.netty.netty-tcnative-boringssl-static
---------------------------------------------------------------------------------
-
-The Netty Project
-                            =================
-
-Please visit the Netty web site for more information:
-
-  * http://netty.io/
-
-Copyright 2016 The Netty Project
-
-The Netty Project licenses this file to you under the Apache License,
-version 2.0 (the "License"); you may not use this file except in compliance
-with the License. You may obtain a copy of the License at:
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-License for the specific language governing permissions and limitations
-under the License.
-
--------------------------------------------------------------------------------
-This product contains a forked and modified version of Tomcat Native
-
-  * LICENSE:
-    * license/LICENSE.tomcat-native.txt (Apache License 2.0)
-  * HOMEPAGE:
-    * http://tomcat.apache.org/native-doc/
-    * https://svn.apache.org/repos/asf/tomcat/native/
-
-This product contains the Maven wrapper scripts from 'Maven Wrapper', that provides an easy way to ensure a user has everything necessary to run the Maven build.
-
-  * LICENSE:
-    * license/LICENSE.mvn-wrapper.txt (Apache License 2.0)
-  * HOMEPAGE:
-    * https://github.com/takari/maven-wrapper
-
-This product contains small piece of code to support AIX, taken from netbsd.
-
-  * LICENSE:
-    * license/LICENSE.aix-netbsd.txt (OpenSSL License)
-  * HOMEPAGE:
-    * https://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/crypto/external/bsd/openssl/dist
-
-
-This product contains code from boringssl.
-
-  * LICENSE (Combination ISC and OpenSSL license)
-    * license/LICENSE.boringssl.txt (Combination ISC and OpenSSL license)
-  * HOMEPAGE:
-    * https://boringssl.googlesource.com/boringssl/
 
 --------------------------------------------------------------------------------
 org.glassfish.hk2
@@ -758,6 +750,83 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
+com.fasterxml.jackson.core.jackson-core
+--------------------------------------------------------------------------------
+
+# Jackson JSON processor
+
+Jackson is a high-performance, Free/Open Source JSON processing library.
+It was originally written by Tatu Saloranta (tatu.saloranta@iki.fi), and has
+been in development since 2007.
+It is currently developed by a community of developers.
+
+## Copyright
+
+Copyright 2007-, Tatu Saloranta (tatu.saloranta@iki.fi)
+
+## Licensing
+
+Jackson 2.x core and extension components are licensed under Apache License 2.0
+To find the details that apply to this artifact see the accompanying LICENSE file.
+
+## Credits
+
+A list of contributors may be found from CREDITS(-2.x) file, which is included
+in some artifacts (usually source distributions); but is always available
+from the source code management (SCM) system project uses.
+
+## FastDoubleParser
+
+jackson-core bundles a shaded copy of FastDoubleParser <https://github.com/wrandelshofer/FastDoubleParser>.
+That code is available under an MIT license <https://github.com/wrandelshofer/FastDoubleParser/blob/main/LICENSE>
+under the following copyright.
+
+Copyright © 2023 Werner Randelshofer, Switzerland. MIT License.
+
+See FastDoubleParser-NOTICE for details of other source code included in FastDoubleParser
+and the licenses and copyrights that apply to that code.
+
+# FastDoubleParser
+
+This is a Java port of Daniel Lemire's fast_float project.
+This project provides parsers for double, float, BigDecimal and BigInteger values.
+
+## Copyright
+
+Copyright © 2024 Werner Randelshofer, Switzerland.
+
+## Licensing
+
+This code is licensed under MIT License.
+https://github.com/wrandelshofer/FastDoubleParser/blob/522be16e145f43308c43b23094e31d5efcaa580e/LICENSE
+(The file 'LICENSE' is included in the sources and classes Jar files that are released by this project
+- as is required by that license.)
+
+Some portions of the code have been derived from other projects.
+All these projects require that we include a copyright notice, and some require that we also include some text of their
+license file.
+
+fast_double_parser, Copyright (c) 2022 Daniel Lemire. BSL License.
+https://github.com/lemire/fast_double_parser
+https://github.com/lemire/fast_double_parser/blob/07d9189a8fb815fe800cb15ca022e7a07093236e/LICENSE.BSL
+(The file 'thirdparty-LICENSE' is included in the sources and classes Jar files that are released by this project
+- as is required by that license.)
+
+fast_float, Copyright (c) 2021 The fast_float authors. MIT License.
+https://github.com/fastfloat/fast_float
+https://github.com/fastfloat/fast_float/blob/cc1e01e9eee74128e48d51488a6b1df4a767a810/LICENSE-MIT
+(The file 'thirdparty-LICENSE' is included in the sources and classes Jar files that are released by this project
+- as is required by that license.)
+
+bigint, Copyright 2020 Tim Buktu. 2-clause BSD License.
+https://github.com/tbuktu/bigint/tree/floatfft
+https://github.com/tbuktu/bigint/blob/617c8cd8a7c5e4fb4d919c6a4d11e2586107f029/LICENSE
+https://github.com/wrandelshofer/FastDoubleParser/blob/39e123b15b71f29a38a087d16a0bc620fc879aa6/bigint-LICENSE
+(We only use those portions of the bigint project that can be licensed under 2-clause BSD License.)
+(The file 'thirdparty-LICENSE' is included in the sources and classes Jar files that are released by this project
+- as is required by that license.)
+
+--------------------------------------------------------------------------------
 org.apache.curator.curator-recipes
 --------------------------------------------------------------------------------
 
@@ -773,6 +842,17 @@ org.apache.kerby.kerby-asn1
 
 Kerby ASN1 Project
 Copyright 2014-2022 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
+org.apache.arrow.arrow-memory-netty-buffer-patch
+--------------------------------------------------------------------------------
+
+Arrow Memory - Netty Buffer
+Copyright 2026 The Apache Software Foundation
+
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -798,14 +878,15 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-commons-codec.commons-codec
+org.apache.arrow.flight-core
 --------------------------------------------------------------------------------
 
-Apache Commons Codec
-Copyright 2002-2024 The Apache Software Foundation
+Arrow Flight Core
+Copyright 2026 The Apache Software Foundation
+
 
 This product includes software developed at
-The Apache Software Foundation (https://www.apache.org/).
+The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 commons-cli.commons-cli
@@ -1276,16 +1357,6 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-org.apache.arrow.arrow-format
---------------------------------------------------------------------------------
-
-Arrow Format
-Copyright 2024 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 org.apache.commons.commons-vfs2
 --------------------------------------------------------------------------------
 
@@ -1368,16 +1439,6 @@ None
 None
 
 --------------------------------------------------------------------------------
-org.apache.arrow.flight-grpc
---------------------------------------------------------------------------------
-
-Arrow Flight GRPC
-Copyright 2024 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 org.apache.kerby.kerb-crypto
 --------------------------------------------------------------------------------
 
@@ -1388,11 +1449,12 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.arrow.arrow-vector
+org.apache.arrow.arrow-memory-core
 --------------------------------------------------------------------------------
 
-Arrow Vectors
-Copyright 2024 The Apache Software Foundation
+Arrow Memory - Core
+Copyright 2026 The Apache Software Foundation
+
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1443,6 +1505,16 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
+commons-codec.commons-codec
+--------------------------------------------------------------------------------
+
+Apache Commons Codec
+Copyright 2002-2026 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (https://www.apache.org/).
+
+--------------------------------------------------------------------------------
 commons-net.commons-net
 --------------------------------------------------------------------------------
 
@@ -1458,16 +1530,6 @@ org.apache.kerby.kerby-pkix
 
 Kerby PKIX Project
 Copyright 2014-2022 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.arrow.arrow-memory-core
---------------------------------------------------------------------------------
-
-Arrow Memory - Core
-Copyright 2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1595,6 +1657,17 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
+org.apache.arrow.arrow-format
+--------------------------------------------------------------------------------
+
+Arrow Format
+Copyright 2026 The Apache Software Foundation
+
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
 commons-pool.commons-pool
 --------------------------------------------------------------------------------
 
@@ -1676,16 +1749,6 @@ org.apache.avro.avro
 Apache Avro
 Copyright 2009-2024 The Apache Software Foundation
 
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.arrow.arrow-memory-netty
---------------------------------------------------------------------------------
-
-Arrow Memory - Netty
-Copyright 2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1802,6 +1865,17 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
+org.apache.arrow.arrow-vector
+--------------------------------------------------------------------------------
+
+Arrow Vectors
+Copyright 2026 The Apache Software Foundation
+
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
 org.apache.orc.orc-shims
 --------------------------------------------------------------------------------
 
@@ -1842,53 +1916,6 @@ Copyright 2014-2022 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-com.fasterxml.jackson.core.jackson-core
---------------------------------------------------------------------------------
-
-# Jackson JSON processor
-
-Jackson is a high-performance, Free/Open Source JSON processing library.
-It was originally written by Tatu Saloranta (tatu.saloranta@iki.fi), and has
-been in development since 2007.
-It is currently developed by a community of developers.
-
-## Copyright
-
-Copyright 2007-, Tatu Saloranta (tatu.saloranta@iki.fi)
-
-## Licensing
-
-Jackson 2.x core and extension components are licensed under Apache License 2.0
-To find the details that apply to this artifact see the accompanying LICENSE file.
-
-## Credits
-
-A list of contributors may be found from CREDITS(-2.x) file, which is included
-in some artifacts (usually source distributions); but is always available
-from the source code management (SCM) system project uses.
-
-## FastDoubleParser
-
-jackson-core bundles a shaded copy of FastDoubleParser <https://github.com/wrandelshofer/FastDoubleParser>.
-That code is available under an MIT license <https://github.com/wrandelshofer/FastDoubleParser/blob/main/LICENSE>
-under the following copyright.
-
-Copyright © 2023 Werner Randelshofer, Switzerland. MIT License.
-
-See FastDoubleParser-LICENSE and also FastDoubleParser-ThirdParty-LICENSE for details of other source code
-included in FastDoubleParser and the licenses and copyrights that apply to that code.
-
-## Schubfach
-
-jackson-core bundles a copy of the Schubfach number writing code <https://github.com/c4f7fcce9cb06515/Schubfach>.
-That code is available under an MIT license <https://github.com/c4f7fcce9cb06515/Schubfach/blob/master/todec/LICENSE>
-under the following copyright.
-
-Copyright 2018-2020 Raffaello Giulietti
-
-See Schubfach-LICENSE.
 
 --------------------------------------------------------------------------------
 commons-io.commons-io
@@ -2267,21 +2294,22 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.arrow.flight-core
---------------------------------------------------------------------------------
-
-Arrow Flight Core
-Copyright 2024 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 com.google.guava.guava
 --------------------------------------------------------------------------------
 
 Apache Iceberg
 Copyright 2017-2024 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
+org.apache.arrow.arrow-memory-netty
+--------------------------------------------------------------------------------
+
+Arrow Memory - Netty
+Copyright 2026 The Apache Software Foundation
+
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
