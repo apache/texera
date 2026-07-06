@@ -95,7 +95,7 @@ class NetworkOutputGatewaySpec extends AnyFlatSpec {
     g.sendTo(channelId, payload)
     g.sendTo(channelId, payload)
 
-    assert(g.getFIFOState(channelId) == 2L)
+    assert(g.getFIFOState.get(channelId).contains(2L))
   }
 
 }
