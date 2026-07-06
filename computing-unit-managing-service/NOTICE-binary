@@ -788,16 +788,6 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-log4j.log4j
---------------------------------------------------------------------------------
-
-Apache log4j
-Copyright 2007 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 commons-codec.commons-codec
 --------------------------------------------------------------------------------
 
@@ -1476,6 +1466,17 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
+org.apache.logging.log4j.log4j-api
+--------------------------------------------------------------------------------
+
+Apache Log4j API
+Copyright 1999-2026 The Apache Software Foundation
+
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
 org.apache.kerby.kerb-crypto
 --------------------------------------------------------------------------------
 
@@ -1799,6 +1800,17 @@ org.apache.httpcomponents.core5.httpcore5-h2
 
 Apache HttpComponents Core HTTP/2
 Copyright 2005-2021 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
+org.apache.logging.log4j.log4j-to-slf4j
+--------------------------------------------------------------------------------
+
+Log4j API to SLF4J Adapter
+Copyright 1999-2026 The Apache Software Foundation
+
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -2403,6 +2415,17 @@ org.glassfish.jersey.server.internal.monitoring.core
 W3.org documents
 * License: W3C License
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
+
+--------------------------------------------------------------------------------
+org.apache.logging.log4j.log4j-1.2-api
+--------------------------------------------------------------------------------
+
+Apache Log4j 1.x Compatibility API
+Copyright 1999-2026 The Apache Software Foundation
+
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 org.apache.kerby.kerb-common

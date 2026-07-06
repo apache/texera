@@ -228,7 +228,7 @@ Python packages:
   - pympler==1.1
   - python-dateutil==2.8.2
   - regex==2026.5.9
-  - requests==2.34.0
+  - requests==2.34.2
   - s3transfer==0.14.0
   - safetensors==0.8.0
   - tenacity==8.5.0
@@ -262,7 +262,7 @@ Python packages:
   - hpack==4.2.0
   - hyperframe==6.1.0
   - jmespath==1.1.0
-  - loguru==0.7.0
+  - loguru==0.7.3
   - markdown-it-py==4.2.0
   - mdurl==0.1.2
   - mmh3==5.2.1
@@ -278,13 +278,13 @@ Python packages:
   - rich==14.3.4
   - scramp==1.4.9
   - six==1.17.0
-  - sqlalchemy==2.0.37
+  - sqlalchemy==2.0.51
   - strictyaml==1.7.3
   - typer==0.25.1
   - typing-inspection==0.4.2
   - tzlocal==2.1
   - urllib3==2.7.0
-  - wordcloud==1.9.3
+  - wordcloud==1.9.6
 
 --------------------------------------------------------------------------------
 Dependencies under the BSD 3-Clause License
@@ -318,7 +318,7 @@ Python packages:
   - sympy==1.14.0
   - threadpoolctl==3.6.0
   - tifffile==2026.6.1
-  - torch==2.12.0
+  - torch==2.12.1
   - zstandard==0.25.0
 
 --------------------------------------------------------------------------------
