@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import type { OperatorExecutionSummary, SampleRow } from "../../types/execution";
+import type { OperatorExecutionSummary, Tuple } from "../../types/execution";
 
 // The single definition of "this operator failed": some fatal error carries
 // message text. The engine can emit console ERRORs with empty text, which do
@@ -29,29 +29,41 @@ export function getOperatorErrorText(opInfo: OperatorExecutionSummary): string {
     .join("; ");
 }
 
-export function getVisibleResultHeaders(row: Record<string, any>): string[] {
-  return Object.keys(row);
+// The column names of a tuple, in schema order.
+export function tupleColumns(tuple: Tuple): string[] {
+  return tuple.schema.attributes.map(a => a.attributeName);
 }
 
-export function formatSampleRowsAsTsv(rows: SampleRow[]): string {
+// Project a tuple's positional fields back into a column->value record.
+export function tupleToRecord(tuple: Tuple): Record<string, unknown> {
+  const record: Record<string, unknown> = {};
+  tuple.schema.attributes.forEach((a, i) => {
+    record[a.attributeName] = tuple.fields[i];
+  });
+  return record;
+}
+
+// Sampled rows arrive as [originalRowIndex, Tuple] pairs.
+export function formatSampleRowsAsTsv(rows: [number, Tuple][]): string {
   if (!rows || rows.length === 0) return "";
 
-  const headers = getVisibleResultHeaders(rows[0].row);
+  const headers = tupleColumns(rows[0][1]);
   if (headers.length === 0) return "";
 
   const headerLine = "\t" + headers.join("\t");
   const formattedRows: string[] = [];
   let prevIndex = -1;
 
-  for (const { rowIndex, row } of rows) {
+  for (const [rowIndex, tuple] of rows) {
     if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
       const dots = headers.map(() => "...").join("\t");
       formattedRows.push(`...\t${dots}`);
     }
     prevIndex = rowIndex;
 
+    const record = tupleToRecord(tuple);
     const cells = headers.map(h => {
-      const val = row[h];
+      const val = record[h];
       if (val === null) return "NaN";
       if (val === undefined) return "";
       if (typeof val === "number" || typeof val === "boolean") return String(val);

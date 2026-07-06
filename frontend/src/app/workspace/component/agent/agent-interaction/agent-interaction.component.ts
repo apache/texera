@@ -40,7 +40,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzInputDirective, NzAutosizeDirective } from "ng-zorro-antd/input";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { OperatorResultMode, SampleRow } from "../../../service/agent/agent.service";
+import { OperatorResultMode, Tuple, tupleColumns, tupleToRecord } from "../../../service/agent/agent.service";
 
 /**
  * AgentInteractionComponent provides a compact interface for users to send feedback
@@ -76,7 +76,7 @@ import { OperatorResultMode, SampleRow } from "../../../service/agent/agent.serv
 export class AgentInteractionComponent implements OnInit, OnChanges {
   @Input() operatorId!: string;
   @Input() operatorDisplayName?: string;
-  @Input() sampleTuples?: SampleRow[];
+  @Input() sampleTuples?: [number, Tuple][];
   @Input() resultMode?: OperatorResultMode;
 
   public availableAgents: Array<{ id: string; name: string; isConnected: boolean }> = [];
@@ -105,7 +105,8 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["sampleTuples"] || changes["resultMode"]) {
       // Only update cached visualization HTML when the actual content changes
-      const htmlContent = this.sampleTuples?.[0]?.row["html-content"];
+      const firstTuple = this.sampleTuples?.[0]?.[1];
+      const htmlContent = firstTuple ? tupleToRecord(firstTuple)["html-content"] : undefined;
       const newHtml = typeof htmlContent === "string" ? htmlContent : null;
       if (newHtml !== this.cachedVisualizationRawHtml) {
         this.cachedVisualizationRawHtml = newHtml;
@@ -193,7 +194,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
    */
   public getSampleColumns(): string[] {
     if (!this.sampleTuples || this.sampleTuples.length === 0) return [];
-    return Object.keys(this.sampleTuples[0].row);
+    return tupleColumns(this.sampleTuples[0][1]);
   }
 
   /**
@@ -203,19 +204,20 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
     return col;
   }
 
-  public getDisplayRows(): Array<{ sampleRow?: SampleRow; isEllipsis: boolean }> {
+  public getDisplayRows(): Array<{ rowIndex?: number; row?: Record<string, unknown>; isEllipsis: boolean }> {
     if (!this.sampleTuples || this.sampleTuples.length === 0) return [];
 
-    const rows: Array<{ sampleRow?: SampleRow; isEllipsis: boolean }> = [];
+    const rows: Array<{ rowIndex?: number; row?: Record<string, unknown>; isEllipsis: boolean }> = [];
     for (let i = 0; i < this.sampleTuples.length; i++) {
       if (i > 0) {
-        const prevIdx = this.sampleTuples[i - 1].rowIndex;
-        const currIdx = this.sampleTuples[i].rowIndex;
+        const prevIdx = this.sampleTuples[i - 1][0];
+        const currIdx = this.sampleTuples[i][0];
         if (currIdx - prevIdx > 1) {
           rows.push({ isEllipsis: true });
         }
       }
-      rows.push({ sampleRow: this.sampleTuples[i], isEllipsis: false });
+      const [rowIndex, tuple] = this.sampleTuples[i];
+      rows.push({ rowIndex, row: tupleToRecord(tuple), isEllipsis: false });
     }
     return rows;
   }
