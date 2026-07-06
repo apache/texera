@@ -148,8 +148,7 @@ object MockTexeraDB {
 
 trait MockTexeraDB extends AnyFlatSpecLike {
   private var testScopedContext : Option[DSLContext] = None
-  protected var connection : Option[Connection]
-
+  private var connection : Option[Connection] = None
 
   override def withFixture(test: NoArgTest) : Outcome = {
     initializeDBAndReplaceDSLContext()
@@ -185,13 +184,12 @@ trait MockTexeraDB extends AnyFlatSpecLike {
   def getDBInstance: EmbeddedPostgres = MockTexeraDB.getDBInstance
 
   def initializeDBAndReplaceDSLContext(): Unit = {
+    MockTexeraDB.ensureInitialized()
+
     val embedded = MockTexeraDB.getDBInstance
     connection = Some(embedded.getDatabase("postgres", "texera_db").getConnection)
     connection.get.setAutoCommit(false)
-
     testScopedContext = Some(DSL.using(connection.get, SQLDialect.POSTGRES))
-
-    MockTexeraDB.ensureInitialized()
   }
 
   /**
