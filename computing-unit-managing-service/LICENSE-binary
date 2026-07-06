@@ -258,10 +258,10 @@ Scala/Java jars:
   - com.googlecode.javaewah.JavaEWAH-1.1.12.jar
   - com.helger.profiler-1.1.1.jar
   - com.nimbusds.nimbus-jose-jwt-9.8.1.jar
-  - com.softwaremill.sttp.client4.core_2.13-4.0.0-M6.jar
-  - com.softwaremill.sttp.model.core_2.13-1.7.2.jar
-  - com.softwaremill.sttp.shared.core_2.13-1.3.16.jar
-  - com.softwaremill.sttp.shared.ws_2.13-1.3.16.jar
+  - com.softwaremill.sttp.client4.core_2.13-4.0.25.jar
+  - com.softwaremill.sttp.model.core_2.13-1.7.17.jar
+  - com.softwaremill.sttp.shared.core_2.13-1.5.2.jar
+  - com.softwaremill.sttp.shared.ws_2.13-1.5.2.jar
   - com.squareup.okhttp.okhttp-2.7.5.jar
   - com.squareup.okhttp3.logging-interceptor-4.12.0.jar
   - com.squareup.okhttp3.okhttp-4.12.0.jar
@@ -270,7 +270,7 @@ Scala/Java jars:
   - com.thesamet.scalapb.lenses_2.13-0.11.20.jar
   - com.thesamet.scalapb.scalapb-json4s_2.13-0.12.0.jar
   - com.thesamet.scalapb.scalapb-runtime_2.13-0.11.20.jar
-  - com.typesafe.config-1.4.6.jar
+  - com.typesafe.config-1.4.9.jar
   - com.typesafe.play.play-functional_2.13-2.10.6.jar
   - com.typesafe.play.play-json_2.13-2.10.6.jar
   - com.typesafe.scala-logging.scala-logging_2.13-3.9.5.jar

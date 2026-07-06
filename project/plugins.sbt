@@ -35,5 +35,10 @@ addSbtPlugin("org.typelevel" % "sbt-fs2-grpc" % "2.11.0")
 libraryDependencies ++= Seq(
   "org.jooq" % "jooq-codegen" % "3.16.23",
   "com.typesafe" % "config" % "1.4.9",
-  "org.postgresql" % "postgresql" % "42.7.12"
+  // Pinned to 42.7.4 (build-time codegen driver only, not bundled). pgjdbc >= 42.7.5
+  // returns JDBC-spec uppercase metadata column labels (KEY_SEQ) that jOOQ 3.16.x's
+  // PostgresDatabase.loadForeignKeys can't read (it looks up lowercase key_seq),
+  // breaking JOOQ code generation. Fixed only in jOOQ 3.20+ (jOOQ/jOOQ#17873); until
+  // the codegen jOOQ is upgraded, keep this driver at the last compatible release.
+  "org.postgresql" % "postgresql" % "42.7.4"
 )

@@ -1290,16 +1290,6 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.commons.commons-collections4
---------------------------------------------------------------------------------
-
-Apache Commons Collections
-Copyright 2001-2018 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 org.apache.httpcomponents.client5.httpclient5
 --------------------------------------------------------------------------------
 
@@ -1356,6 +1346,16 @@ org.apache.arrow.arrow-memory-core
 
 Arrow Memory - Core
 Copyright 2024 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
+org.apache.commons.commons-collections4
+--------------------------------------------------------------------------------
+
+Apache Commons Collections
+Copyright 2001-2019 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1794,16 +1794,6 @@ org.apache.kerby.kerb-server
 
 Kerby-kerb Server
 Copyright 2014-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.commons.commons-jcs3-core
---------------------------------------------------------------------------------
-
-Apache Commons JCS :: Core
-Copyright 2002-2023 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -2312,6 +2302,16 @@ com.google.guava.guava
 
 Apache Iceberg
 Copyright 2017-2024 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
+org.apache.commons.commons-jcs3-core
+--------------------------------------------------------------------------------
+
+Apache Commons JCS :: Core
+Copyright 2002-2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
