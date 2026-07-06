@@ -21,11 +21,11 @@ import { describe, expect, test } from "bun:test";
 import { WorkflowResultState } from "./workflow-result-state";
 import { OperatorResultMode, OperatorState, type OperatorExecutionSummary } from "../types/execution";
 
-function makeInfo(tuplesCount: number): OperatorExecutionSummary {
+function makeInfo(totalTuplesCount: number): OperatorExecutionSummary {
   return {
     state: OperatorState.COMPLETED,
     errorMessages: [],
-    resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples: [], tuplesCount },
+    resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples: [], totalTuplesCount },
   };
 }
 
@@ -39,15 +39,15 @@ describe("WorkflowResultState - ancestor walk", () => {
     state.set("op1", "step-C", makeInfo(3));
 
     path = ["step-A", "step-B", "step-C"];
-    expect(state.get("op1")?.operatorInfo.resultSummary?.tuplesCount).toBe(3);
+    expect(state.get("op1")?.operatorInfo.resultSummary?.totalTuplesCount).toBe(3);
 
     // Rewind to step-B; step-C is no longer an ancestor.
     path = ["step-A", "step-B"];
-    expect(state.get("op1")?.operatorInfo.resultSummary?.tuplesCount).toBe(2);
+    expect(state.get("op1")?.operatorInfo.resultSummary?.totalTuplesCount).toBe(2);
 
     // Rewind further.
     path = ["step-A"];
-    expect(state.get("op1")?.operatorInfo.resultSummary?.tuplesCount).toBe(1);
+    expect(state.get("op1")?.operatorInfo.resultSummary?.totalTuplesCount).toBe(1);
   });
 
   test("returns undefined when no ancestor has a result", () => {
@@ -73,8 +73,8 @@ describe("WorkflowResultState - ancestor walk", () => {
     path = ["step-A", "step-B"];
     const visible = state.getAllVisible();
     expect(visible.size).toBe(2);
-    expect(visible.get("op1")?.operatorInfo.resultSummary?.tuplesCount).toBe(1);
-    expect(visible.get("op2")?.operatorInfo.resultSummary?.tuplesCount).toBe(7);
+    expect(visible.get("op1")?.operatorInfo.resultSummary?.totalTuplesCount).toBe(1);
+    expect(visible.get("op2")?.operatorInfo.resultSummary?.totalTuplesCount).toBe(7);
   });
 
   test("clear drops all stored results", () => {
@@ -89,13 +89,13 @@ describe("WorkflowResultState - ancestor walk", () => {
     const state = new WorkflowResultState(() => ["step-A"]);
     state.set("op1", "step-A", makeInfo(1));
     state.set("op1", "step-A", makeInfo(42));
-    expect(state.get("op1")?.operatorInfo.resultSummary?.tuplesCount).toBe(42);
+    expect(state.get("op1")?.operatorInfo.resultSummary?.totalTuplesCount).toBe(42);
   });
 
   test("getOperatorInfo returns the visible operator summary", () => {
     const state = new WorkflowResultState(() => ["step-A"]);
     state.set("op1", "step-A", makeInfo(7));
-    expect(state.getOperatorInfo("op1")?.resultSummary?.tuplesCount).toBe(7);
+    expect(state.getOperatorInfo("op1")?.resultSummary?.totalTuplesCount).toBe(7);
   });
 
   test("getOperatorInfo returns undefined when nothing is visible", () => {

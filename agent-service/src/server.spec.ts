@@ -339,7 +339,7 @@ describe("agent read routes", () => {
                   sampleTuples: [
                     [0, { schema: { attributes: [{ attributeName: "a", attributeType: "string" }] }, fields: [1] }],
                   ],
-                  tuplesCount: 2,
+                  totalTuplesCount: 2,
                 },
               },
             },
@@ -348,10 +348,10 @@ describe("agent read routes", () => {
     });
 
     const body = await readJson<{
-      results: Record<string, { state: string; resultSummary: { tuplesCount: number; sampleTuples: unknown[] } }>;
+      results: Record<string, { state: string; resultSummary: { totalTuplesCount: number; sampleTuples: unknown[] } }>;
     }>(await getJson(`${API}/agents/${id}/operator-results`));
     expect(body.results["op-1"].state).toBe("Completed");
-    expect(body.results["op-1"].resultSummary.tuplesCount).toBe(2);
+    expect(body.results["op-1"].resultSummary.totalTuplesCount).toBe(2);
     expect(body.results["op-1"].resultSummary.sampleTuples).toEqual([
       [0, { schema: { attributes: [{ attributeName: "a", attributeType: "string" }] }, fields: [1] }],
     ]);
