@@ -748,44 +748,54 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.curator.curator-framework
+org.apache.kerby.kerb-core
 --------------------------------------------------------------------------------
 
-Curator Framework
-Copyright 2011-2019 The Apache Software Foundation
+Kerby-kerb core
+Copyright 2014-2022 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-commons-beanutils.commons-beanutils
+org.apache.curator.curator-recipes
 --------------------------------------------------------------------------------
 
-Apache Commons BeanUtils
-Copyright 2000-2019 The Apache Software Foundation
+Curator Recipes
+Copyright 2011-2021 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.zookeeper.zookeeper
+org.apache.kerby.kerby-asn1
 --------------------------------------------------------------------------------
 
-Apache ZooKeeper - Server
-Copyright 2008-2019 The Apache Software Foundation
+Kerby ASN1 Project
+Copyright 2014-2022 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-util
+ch.qos.reload4j.reload4j
 --------------------------------------------------------------------------------
 
-Kerby-kerb Util
-Copyright 2014-2017 The Apache Software Foundation
+Apache log4j
+Copyright 2007 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
+org.apache.commons.commons-lang3
+--------------------------------------------------------------------------------
+
+Apache Commons Lang
+Copyright 2001-2025 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
 commons-codec.commons-codec
@@ -798,102 +808,14 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-admin
+commons-cli.commons-cli
 --------------------------------------------------------------------------------
 
-Kerby-kerb Admin
-Copyright 2014-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.commons.commons-lang3
---------------------------------------------------------------------------------
-
-Apache Commons Lang
-Copyright 2001-2023 The Apache Software Foundation
+Apache Commons CLI
+Copyright 2002-2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.commons.commons-math3
---------------------------------------------------------------------------------
-
-Apache Commons Math
-Copyright 2001-2012 The Apache Software Foundation
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
-
-===============================================================================
-
-The BracketFinder (package org.apache.commons.math3.optimization.univariate)
-and PowellOptimizer (package org.apache.commons.math3.optimization.general)
-classes are based on the Python code in module "optimize.py" (version 0.5)
-developed by Travis E. Oliphant for the SciPy library (http://www.scipy.org/)
-Copyright © 2003-2009 SciPy Developers.
-===============================================================================
-
-The LinearConstraint, LinearObjectiveFunction, LinearOptimizer,
-RelationShip, SimplexSolver and SimplexTableau classes in package
-org.apache.commons.math3.optimization.linear include software developed by
-Benjamin McCann (http://www.benmccann.com) and distributed with
-the following copyright: Copyright 2009 Google Inc.
-===============================================================================
-
-This product includes software developed by the
-University of Chicago, as Operator of Argonne National
-Laboratory.
-The LevenbergMarquardtOptimizer class in package
-org.apache.commons.math3.optimization.general includes software
-translated from the lmder, lmpar and qrsolv Fortran routines
-from the Minpack package
-Minpack Copyright Notice (1999) University of Chicago.  All rights reserved
-===============================================================================
-
-The GraggBulirschStoerIntegrator class in package
-org.apache.commons.math3.ode.nonstiff includes software translated
-from the odex Fortran routine developed by E. Hairer and G. Wanner.
-Original source copyright:
-Copyright (c) 2004, Ernst Hairer
-===============================================================================
-
-The EigenDecompositionImpl class in package
-org.apache.commons.math3.linear includes software translated
-from some LAPACK Fortran routines.  Original source copyright:
-Copyright (c) 1992-2008 The University of Tennessee.  All rights reserved.
-===============================================================================
-
-The MersenneTwister class in package org.apache.commons.math3.random
-includes software translated from the 2002-01-26 version of
-the Mersenne-Twister generator written in C by Makoto Matsumoto and Takuji
-Nishimura. Original source copyright:
-Copyright (C) 1997 - 2002, Makoto Matsumoto and Takuji Nishimura,
-All rights reserved
-===============================================================================
-
-The LocalizedFormatsTest class in the unit tests is an adapted version of
-the OrekitMessagesTest class from the orekit library distributed under the
-terms of the Apache 2 licence. Original source copyright:
-Copyright 2010 CS Systèmes d'Information
-===============================================================================
-
-The HermiteInterpolator class and its corresponding test have been imported from
-the orekit library distributed under the terms of the Apache 2 licence. Original
-source copyright:
-Copyright 2010-2012 CS Systèmes d'Information
-===============================================================================
-
-The creation of the package "o.a.c.m.analysis.integration.gauss" was inspired
-by an original code donated by Sébastien Brisard.
-===============================================================================
-
-
-The complete text of licenses and disclaimers associated with the the original
-sources enumerated above at the time of code translation are in the LICENSE.txt
-file.
 
 --------------------------------------------------------------------------------
 com.fasterxml.jackson.module.jackson-module-no-ctor-deser
@@ -919,16 +841,6 @@ FasterXML.com (http://fasterxml.com).
 A list of contributors may be found from CREDITS file, which is included
 in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
-
---------------------------------------------------------------------------------
-org.apache.kerby.kerby-config
---------------------------------------------------------------------------------
-
-Kerby Config
-Copyright 2014-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api
@@ -1165,6 +1077,26 @@ org.glassfish.jersey.server.internal.monitoring.core
 W3.org documents
 * License: W3C License
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
+
+--------------------------------------------------------------------------------
+commons-logging.commons-logging
+--------------------------------------------------------------------------------
+
+Apache Commons Logging
+Copyright 2001-2023 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (https://www.apache.org/).
+
+--------------------------------------------------------------------------------
+org.apache.commons.commons-configuration2
+--------------------------------------------------------------------------------
+
+Apache Commons Configuration
+Copyright 2001-2024 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
 org.apache.parquet.parquet-avro
@@ -1446,6 +1378,16 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
+org.apache.kerby.kerb-crypto
+--------------------------------------------------------------------------------
+
+Kerby-kerb Crypto
+Copyright 2014-2022 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
 org.apache.arrow.arrow-vector
 --------------------------------------------------------------------------------
 
@@ -1477,21 +1419,45 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-crypto
+org.apache.commons.commons-math3
 --------------------------------------------------------------------------------
 
-Kerby-kerb Crypto
-Copyright 2014-2017 The Apache Software Foundation
+Apache Commons Math
+Copyright 2001-2016 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This product includes software developed for Orekit by
+CS Systèmes d'Information (http://www.c-s.fr/)
+Copyright 2010-2012 CS Systèmes d'Information
+
+--------------------------------------------------------------------------------
+org.apache.curator.curator-client
+--------------------------------------------------------------------------------
+
+Curator Client
+Copyright 2011-2021 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-core
+commons-net.commons-net
 --------------------------------------------------------------------------------
 
-Kerby-kerb core
-Copyright 2014-2017 The Apache Software Foundation
+Apache Commons Net
+Copyright 2001-2022 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (https://www.apache.org/).
+
+--------------------------------------------------------------------------------
+org.apache.kerby.kerby-pkix
+--------------------------------------------------------------------------------
+
+Kerby PKIX Project
+Copyright 2014-2022 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1507,11 +1473,11 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.token-provider
+org.apache.commons.commons-collections4
 --------------------------------------------------------------------------------
 
-Token provider
-Copyright 2014-2017 The Apache Software Foundation
+Apache Commons Collections
+Copyright 2001-2019 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1599,11 +1565,11 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-simplekdc
+org.apache.kerby.kerby-config
 --------------------------------------------------------------------------------
 
-Kerb Simple Kdc
-Copyright 2014-2017 The Apache Software Foundation
+Kerby Config
+Copyright 2014-2022 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1619,21 +1585,11 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-commons-logging.commons-logging
+com.google.inject.extensions.guice-servlet
 --------------------------------------------------------------------------------
 
-Apache Commons Logging
-Copyright 2003-2014 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.curator.curator-recipes
---------------------------------------------------------------------------------
-
-Curator Recipes
-Copyright 2011-2019 The Apache Software Foundation
+Google Guice - Extensions - Servlet
+Copyright 2006-2020 Google, Inc.
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1735,26 +1691,6 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.curator.curator-client
---------------------------------------------------------------------------------
-
-Curator Client
-Copyright 2011-2019 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-commons-collections.commons-collections
---------------------------------------------------------------------------------
-
-Apache Commons Collections
-Copyright 2001-2015 The Apache Software Foundation
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 io.r2dbc.r2dbc-spi
 --------------------------------------------------------------------------------
 
@@ -1773,16 +1709,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
---------------------------------------------------------------------------------
-commons-cli.commons-cli
---------------------------------------------------------------------------------
-
-Apache Commons CLI
-Copyright 2001-2009 The Apache Software Foundation
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 org.apache.httpcomponents.core5.httpcore5-h2
@@ -1806,11 +1732,21 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-server
+org.apache.curator.curator-framework
 --------------------------------------------------------------------------------
 
-Kerby-kerb Server
-Copyright 2014-2017 The Apache Software Foundation
+Curator Framework
+Copyright 2011-2021 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
+cglib.cglib
+--------------------------------------------------------------------------------
+
+Google Guice - Core Library
+Copyright 2006-2020 Google, Inc.
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1826,24 +1762,14 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.htrace.htrace-core4
+org.apache.commons.commons-text
 --------------------------------------------------------------------------------
 
-htrace-core4
-Copyright 2016 The Apache Software Foundation
+Apache Commons Text
+Copyright 2014-2025 The Apache Software Foundation
 
 This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-com.google.inject.extensions.guice-servlet
---------------------------------------------------------------------------------
-
-Google Guice - Extensions - Servlet
-Copyright 2006-2015 Google, Inc.
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
+The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
 org.apache.httpcomponents.core5.httpcore5
@@ -1908,31 +1834,11 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-client
+org.apache.kerby.kerby-util
 --------------------------------------------------------------------------------
 
-Kerby-kerb Client
-Copyright 2014-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.kerby.kerby-xdr
---------------------------------------------------------------------------------
-
-Kerby XDR Project
-Copyright 2014-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.kerby.kerby-asn1
---------------------------------------------------------------------------------
-
-Kerby ASN1 Project
-Copyright 2014-2017 The Apache Software Foundation
+Kerby Util
+Copyright 2014-2022 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -1995,26 +1901,6 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerby-pkix
---------------------------------------------------------------------------------
-
-Kerby PKIX Project
-Copyright 2014-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.kerby.kerb-identity
---------------------------------------------------------------------------------
-
-Kerby-kerb Identity
-Copyright 2014-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 com.fasterxml.jackson.module.jackson-module-blackbird
 --------------------------------------------------------------------------------
 
@@ -2039,49 +1925,6 @@ FasterXML.com (http://fasterxml.com).
 A list of contributors may be found from CREDITS file, which is included
 in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
-
---------------------------------------------------------------------------------
-org.apache.zookeeper.zookeeper-jute
---------------------------------------------------------------------------------
-
-Apache ZooKeeper - Jute
-Copyright 2008-2019 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.kerby.kerby-util
---------------------------------------------------------------------------------
-
-Kerby Util
-Copyright 2014-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.commons.commons-configuration2
---------------------------------------------------------------------------------
-
-Apache Commons Configuration
-Copyright 2001-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-com.google.inject.guice
---------------------------------------------------------------------------------
-
-Google Guice - Core Library
-Copyright 2006-2015 Google, Inc.
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 software.amazon.awssdk.third-party-jackson-core
@@ -2195,6 +2038,16 @@ Other developers who have contributed code are:
 ## Copyright
 
 Copyright 2007-, Tatu Saloranta (tatu.saloranta@iki.fi)
+
+--------------------------------------------------------------------------------
+org.apache.kerby.kerb-util
+--------------------------------------------------------------------------------
+
+Kerby-kerb Util
+Copyright 2014-2022 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 org.glassfish.jersey.core.jersey-common
@@ -2414,16 +2267,6 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-org.apache.kerby.kerb-common
---------------------------------------------------------------------------------
-
-Kerby-kerb Common
-Copyright 2014-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 org.apache.arrow.flight-core
 --------------------------------------------------------------------------------
 
@@ -2442,143 +2285,3 @@ Copyright 2017-2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-org.apache.commons.commons-text
---------------------------------------------------------------------------------
-
-Apache Commons Text
-Copyright 2014-2023 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (https://www.apache.org/).
-
---------------------------------------------------------------------------------
-commons-net.commons-net
---------------------------------------------------------------------------------
-
-Apache Commons Net
-Copyright 2001-2017 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
-io.netty.netty
---------------------------------------------------------------------------------
-
-The Netty Project
-                            =================
-
-Please visit the Netty web site for more information:
-
-  * http://netty.io/
-
-Copyright 2011 The Netty Project
-
-The Netty Project licenses this file to you under the Apache License,
-version 2.0 (the "License"); you may not use this file except in compliance
-with the License. You may obtain a copy of the License at:
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-License for the specific language governing permissions and limitations
-under the License.
-
-Also, please refer to each LICENSE.<component>.txt file, which is located in
-the 'license' directory of the distribution file, for the license terms of the
-components that this product depends on.
-
--------------------------------------------------------------------------------
-This product contains the extensions to Java Collections Framework which has
-been derived from the works by JSR-166 EG, Doug Lea, and Jason T. Greene:
-
-  * LICENSE:
-    * license/LICENSE.jsr166y.txt (Public Domain)
-  * HOMEPAGE:
-    * http://gee.cs.oswego.edu/cgi-bin/viewcvs.cgi/jsr166/
-    * http://viewvc.jboss.org/cgi-bin/viewvc.cgi/jbosscache/experimental/jsr166/
-
-This product contains a modified version of Robert Harder's Public Domain
-Base64 Encoder and Decoder, which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.base64.txt (Public Domain)
-  * HOMEPAGE:
-    * http://iharder.sourceforge.net/current/java/base64/
-
-This product contains a modified version of 'JZlib', a re-implementation of
-zlib in pure Java, which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.jzlib.txt (BSD Style License)
-  * HOMEPAGE:
-    * http://www.jcraft.com/jzlib/
-
-This product contains a modified version of 'Webbit', a Java event based
-WebSocket and HTTP server:
-
-  * LICENSE:
-    * license/LICENSE.webbit.txt (BSD License)
-  * HOMEPAGE:
-    * https://github.com/joewalnes/webbit
-
-This product optionally depends on 'Protocol Buffers', Google's data
-interchange format, which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.protobuf.txt (New BSD License)
-  * HOMEPAGE:
-    * http://code.google.com/p/protobuf/
-
-This product optionally depends on 'Bouncy Castle Crypto APIs' to generate
-a temporary self-signed X.509 certificate when the JVM does not provide the
-equivalent functionality.  It can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.bouncycastle.txt (MIT License)
-  * HOMEPAGE:
-    * http://www.bouncycastle.org/
-
-This product optionally depends on 'SLF4J', a simple logging facade for Java,
-which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.slf4j.txt (MIT License)
-  * HOMEPAGE:
-    * http://www.slf4j.org/
-
-This product optionally depends on 'Apache Commons Logging', a logging
-framework, which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.commons-logging.txt (Apache License 2.0)
-  * HOMEPAGE:
-    * http://commons.apache.org/logging/
-
-This product optionally depends on 'Apache Log4J', a logging framework,
-which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.log4j.txt (Apache License 2.0)
-  * HOMEPAGE:
-    * http://logging.apache.org/log4j/
-
-This product optionally depends on 'JBoss Logging', a logging framework,
-which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.jboss-logging.txt (GNU LGPL 2.1)
-  * HOMEPAGE:
-    * http://anonsvn.jboss.org/repos/common/common-logging-spi/
-
-This product optionally depends on 'Apache Felix', an open source OSGi
-framework implementation, which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.felix.txt (Apache License 2.0)
-  * HOMEPAGE:
-    * http://felix.apache.org/
