@@ -38,4 +38,4 @@ ruff==0.14.7
 betterproto[compiler]==2.0.0b7
 
 # Required by `bin/local-dev.sh -i` (the interactive Textual TUI).
-textual==8.2.7
+textual==8.2.8
