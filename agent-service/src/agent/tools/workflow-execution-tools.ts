@@ -25,7 +25,7 @@ import {
   formatSampleRowsAsTsv,
   getOperatorErrorText,
   getOperatorWarnings,
-  getVisibleResultHeaders,
+  tupleColumns,
 } from "./tools-utility";
 import type { WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
@@ -36,7 +36,6 @@ import {
   WorkflowFatalErrorType,
   WorkflowExecutionState,
   type OperatorExecutionSummary,
-  type SampleRow,
   type WorkflowFatalError,
   type WorkflowExecutionSummary,
 } from "../../types/execution";
@@ -461,7 +460,7 @@ export async function executeOperatorAndFormat(
       return "(no result data)";
     }
 
-    const headers = sampleTuples.length > 0 ? getVisibleResultHeaders(sampleTuples[0].row) : [];
+    const headers = sampleTuples.length > 0 ? tupleColumns(sampleTuples[0][1]) : [];
     const columns = headers.length;
 
     // Notify for every operator in the execution so upstream stats are also stored.

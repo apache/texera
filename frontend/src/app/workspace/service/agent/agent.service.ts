@@ -96,14 +96,40 @@ export interface ModelType {
 /**
  * API response types
  */
-export interface SampleRow {
-  rowIndex: number;
-  row: Record<string, any>;
+// A result row, mirroring the engine's Tuple wire shape (schema + positional fields).
+// Sampled rows are truncated, so each Tuple carries a synthetic all-STRING schema.
+export interface Attribute {
+  attributeName: string;
+  attributeType: string;
+}
+
+export interface Schema {
+  attributes: Attribute[];
+}
+
+export interface Tuple {
+  schema: Schema;
+  fields: unknown[];
+}
+
+// The column names of a tuple, in schema order.
+export function tupleColumns(tuple: Tuple): string[] {
+  return tuple.schema.attributes.map(a => a.attributeName);
+}
+
+// Project a tuple's positional fields back onto their column names.
+export function tupleToRecord(tuple: Tuple): Record<string, unknown> {
+  const record: Record<string, unknown> = {};
+  tuple.schema.attributes.forEach((a, i) => {
+    record[a.attributeName] = tuple.fields[i];
+  });
+  return record;
 }
 
 export interface OperatorResultSummary {
   resultMode: OperatorResultMode;
-  sampleTuples: SampleRow[];
+  // Sampled output rows as [originalRowIndex, Tuple] pairs.
+  sampleTuples: [number, Tuple][];
   tuplesCount: number;
 }
 

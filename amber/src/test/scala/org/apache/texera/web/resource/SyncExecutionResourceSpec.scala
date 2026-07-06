@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.google.protobuf.timestamp.Timestamp
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
@@ -115,10 +116,10 @@ class SyncExecutionResourceSpec
     shutdownDB()
   }
 
-  private def sampleRow(idx: Int, k: String, v: String): SampleRow = {
+  private def sampleRow(idx: Int, k: String, v: String): SampledRow = {
     val node = mapper.createObjectNode()
     node.put(k, v)
-    SampleRow(rowIndex = idx, row = node)
+    SampledRow(rowIndex = idx, node = node)
   }
 
   private def nextId(): Int = {
@@ -274,7 +275,7 @@ class SyncExecutionResourceSpec
     PrivateMethod[Map[String, OperatorExecutionSummary]](Symbol("collectOperatorInfos"))
 
   private val collectOperatorResult =
-    PrivateMethod[(String, Option[List[SampleRow]], Option[Int])](Symbol("collectOperatorResult"))
+    PrivateMethod[(String, Option[List[SampledRow]], Option[Int])](Symbol("collectOperatorResult"))
 
   private val symmetricTruncateCellValue =
     PrivateMethod[String](Symbol("symmetricTruncateCellValue"))
@@ -389,7 +390,7 @@ class SyncExecutionResourceSpec
       )
       mode shouldBe "table"
       rows.get.map(_.rowIndex) shouldBe List(0, 1)
-      rows.get.map(_.row.get("col").asText()) shouldBe List("a", "b")
+      rows.get.map(_.node.get("col").asText()) shouldBe List("a", "b")
       total shouldBe Some(2)
     } finally {
       document.clear()
@@ -447,7 +448,7 @@ class SyncExecutionResourceSpec
     val (mode, rows, total) =
       resource.sampleAndTruncateTuples(Iterator.empty, 0, 100000, 100000)
     mode shouldBe "table"
-    rows shouldBe Some(List.empty[SampleRow])
+    rows shouldBe Some(List.empty[SampledRow])
     total shouldBe Some(0)
   }
 
@@ -456,7 +457,7 @@ class SyncExecutionResourceSpec
     val (mode, rows, total) =
       resource.sampleAndTruncateTuples(Iterator.empty, 5, 100000, 100000)
     mode shouldBe "table"
-    rows shouldBe Some(List.empty[SampleRow])
+    rows shouldBe Some(List.empty[SampledRow])
     total shouldBe Some(0)
   }
 
@@ -480,7 +481,7 @@ class SyncExecutionResourceSpec
     mode shouldBe "table"
     rows.get should have size 3
     rows.get.map(_.rowIndex) shouldBe List(0, 1, 2)
-    rows.get.map(_.row.get("col").asText()) shouldBe List("a", "b", "c")
+    rows.get.map(_.node.get("col").asText()) shouldBe List("a", "b", "c")
     total shouldBe Some(3)
   }
 
@@ -489,8 +490,8 @@ class SyncExecutionResourceSpec
       resource.sampleAndTruncateTuples(Iterator(mixedTuple("abcdefghij", 42)), 1, 100000, 8)
     mode shouldBe "table"
     total shouldBe Some(1)
-    rows.get.head.row.get("col").asText() shouldBe "abcdefgh"
-    rows.get.head.row.get("number").asInt() shouldBe 42
+    rows.get.head.node.get("col").asText() shouldBe "abcdefgh"
+    rows.get.head.node.get("number").asInt() shouldBe 42
   }
 
   it should "symmetrically truncate cells when enough room remains for both sides" in {
@@ -570,8 +571,29 @@ class SyncExecutionResourceSpec
     summary.errorMessages shouldBe empty
     summary.consoleMessages shouldBe None
     summary.resultSummary.get.resultMode shouldBe "table"
-    summary.resultSummary.get.sampleTuples shouldBe rows
+    // sampled rows are emitted as (originalRowIndex, all-STRING Tuple) pairs
+    val sampled = summary.resultSummary.get.sampleTuples
+    sampled.map(_._1) shouldBe List(0)
+    sampled.head._2.getField[String]("col") shouldBe "v"
+    sampled.head._2.getSchema.getAttribute("col").getType shouldBe AttributeType.STRING
     summary.resultSummary.get.tuplesCount shouldBe 7
+  }
+
+  // Locks the wire contract the agent-service / frontend consumers depend on: each sampled
+  // row serializes as a 2-element array [index, {schema:{attributes:[...]}, fields:[...]}].
+  it should "serialize sampled rows as [index, {schema, fields}]" in {
+    val scalaMapper = new ObjectMapper().registerModule(DefaultScalaModule)
+    val tuple =
+      Tuple(Schema(List(new Attribute("col", AttributeType.STRING))), Array[Any]("v"))
+    val summary =
+      OperatorResultSummary(resultMode = "table", sampleTuples = List((0, tuple)), tuplesCount = 1)
+    val firstRow =
+      scalaMapper.readTree(scalaMapper.writeValueAsString(summary)).get("sampleTuples").get(0)
+    firstRow.get(0).asInt() shouldBe 0
+    firstRow.get(1).get("fields").get(0).asText() shouldBe "v"
+    val attr = firstRow.get(1).get("schema").get("attributes").get(0)
+    attr.get("attributeName").asText() shouldBe "col"
+    attr.get("attributeType").asText() shouldBe "string"
   }
 
   it should "default a present result summary to zero tuples when the count is absent" in {

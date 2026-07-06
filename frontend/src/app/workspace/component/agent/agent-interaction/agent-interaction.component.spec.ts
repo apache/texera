@@ -23,7 +23,7 @@ import { DomSanitizer } from "@angular/platform-browser";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { of } from "rxjs";
 import { AgentInteractionComponent } from "./agent-interaction.component";
-import { AgentService, OperatorResultMode, SampleRow } from "../../../service/agent/agent.service";
+import { AgentService, OperatorResultMode, Tuple } from "../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -41,8 +41,15 @@ describe("AgentInteractionComponent", () => {
     sendMessage: () => {},
   } as unknown as AgentService;
 
-  function row(rowIndex: number, tuple: Record<string, any>): SampleRow {
-    return { rowIndex, row: tuple };
+  function recordToTuple(rec: Record<string, any>): Tuple {
+    return {
+      schema: { attributes: Object.keys(rec).map(name => ({ attributeName: name, attributeType: "string" })) },
+      fields: Object.values(rec),
+    };
+  }
+
+  function row(rowIndex: number, tuple: Record<string, any>): [number, Tuple] {
+    return [rowIndex, recordToTuple(tuple)];
   }
 
   beforeEach(async () => {
@@ -197,8 +204,8 @@ describe("AgentInteractionComponent", () => {
 
       expect(rows.length).toBe(3);
       expect(rows[1].isEllipsis).toBe(true);
-      expect(rows[1].sampleRow).toBeUndefined();
-      expect(rows[2].sampleRow?.rowIndex).toBe(5);
+      expect(rows[1].row).toBeUndefined();
+      expect(rows[2].rowIndex).toBe(5);
     });
   });
 });

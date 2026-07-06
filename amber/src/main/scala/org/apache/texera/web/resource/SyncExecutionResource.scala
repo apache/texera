@@ -27,7 +27,7 @@ import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.core.storage.model.VirtualDocument
-import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -68,6 +68,7 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 import com.fasterxml.jackson.databind.ObjectMapper
 
 @Generated
@@ -88,20 +89,14 @@ case class ConsoleMessageSummary(
     message: String
 )
 
-// One sampled output row: the original row position plus the row's columns as a
-// processed/truncated JSON object (not a raw engine Tuple, which would serialize
-// as {schema, fields[]} and bypass the type-aware conversion + cell truncation).
-// The index is carried explicitly rather than embedded in the tuple.
-@Generated
-case class SampleRow(
-    rowIndex: Int,
-    row: ObjectNode
-)
-
 @Generated
 case class OperatorResultSummary(
     resultMode: String, // "table" or "visualization"
-    sampleTuples: List[SampleRow],
+    // Sampled output rows as (originalRowIndex, tuple) pairs. Cell truncation turns typed
+    // values (e.g. binary previews) into display strings that no longer match the operator's
+    // real column types, so each tuple carries a synthetic all-STRING schema over its columns.
+    // Serializes as [index, {schema, fields}].
+    sampleTuples: List[(Int, Tuple)],
     tuplesCount: Int
 )
 
@@ -124,6 +119,10 @@ case class WorkflowExecutionSummary(
     operators: Map[String, OperatorExecutionSummary],
     errors: List[WorkflowFatalError] // empty means none
 )
+
+// Internal (not serialized): a sampled row's original index plus its processed/truncated
+// JSON node, used while sampling and size-estimating before conversion to an engine Tuple.
+private case class SampledRow(rowIndex: Int, node: ObjectNode)
 
 sealed trait TerminationReason
 case class TerminalStateReached(state: ExecutionMetadataStore) extends TerminationReason
@@ -486,7 +485,7 @@ class SyncExecutionResource extends LazyLogging {
       opId: String,
       state: String,
       resultMode: String,
-      result: Option[List[SampleRow]],
+      result: Option[List[SampledRow]],
       tuplesCount: Option[Int],
       consoleLogs: Option[List[ConsoleMessageSummary]]
   ): OperatorExecutionSummary = {
@@ -501,10 +500,10 @@ class SyncExecutionResource extends LazyLogging {
 
     // Absent when the operator produced no materialized result. `result` and
     // `tuplesCount` are populated together, so map over the former.
-    val resultSummary = result.map { tuples =>
+    val resultSummary = result.map { rows =>
       OperatorResultSummary(
         resultMode = resultMode,
-        sampleTuples = tuples,
+        sampleTuples = rows.map(r => (r.rowIndex, toStringTuple(r.node))),
         tuplesCount = tuplesCount.getOrElse(0)
       )
     }
@@ -558,6 +557,24 @@ class SyncExecutionResource extends LazyLogging {
   private def messageOrUnknown(e: Exception): String =
     Option(e.getMessage).getOrElse("Unknown error")
 
+  // Wrap a processed/truncated JSON row in an engine Tuple. Cell truncation replaces typed
+  // values (e.g. binary) with display strings that no longer match the operator's real column
+  // types, so each row gets a synthetic all-STRING schema over its columns. Null stays null;
+  // container values are emitted as their JSON text.
+  private def toStringTuple(node: ObjectNode): Tuple = {
+    val fieldNames = node.fieldNames().asScala.toList
+    val schema = Schema(fieldNames.map(name => new Attribute(name, AttributeType.STRING)))
+    val fields: Array[Any] = fieldNames.map { name =>
+      node.get(name) match {
+        case null               => null
+        case v if v.isNull      => null
+        case v if v.isValueNode => v.asText()
+        case v                  => v.toString
+      }
+    }.toArray
+    Tuple(schema, fields)
+  }
+
   /**
     * Symmetric truncation: fill half the char budget from the front of the result, keep a
     * sliding-window of the most recent tuples for the back half. Returns a JSON array;
@@ -568,7 +585,7 @@ class SyncExecutionResource extends LazyLogging {
       opId: String,
       maxOperatorResultCharLimit: Int,
       maxOperatorResultCellCharLimit: Int
-  ): (String, Option[List[SampleRow]], Option[Int]) = {
+  ): (String, Option[List[SampledRow]], Option[Int]) = {
     try {
       val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
         executionId,
@@ -609,11 +626,11 @@ class SyncExecutionResource extends LazyLogging {
       totalCount: Int,
       maxOperatorResultCharLimit: Int,
       maxOperatorResultCellCharLimit: Int
-  ): (String, Option[List[SampleRow]], Option[Int]) = {
+  ): (String, Option[List[SampledRow]], Option[Int]) = {
     val mapper = new ObjectMapper()
 
     if (totalCount == 0 || !tupleIterator.hasNext) {
-      return ("table", Some(List.empty[SampleRow]), Some(0))
+      return ("table", Some(List.empty[SampledRow]), Some(0))
     }
 
     // A single tuple with html-content / json-content is a visualization payload —
@@ -622,7 +639,7 @@ class SyncExecutionResource extends LazyLogging {
     if (totalCount == 1 && isVisualizationTuple(firstTuple)) {
       val jsonResults =
         ExecutionResultService.convertTuplesToJson(List(firstTuple), isVisualization = true)
-      val rows = jsonResults.zipWithIndex.map { case (json, idx) => SampleRow(idx, json) }
+      val rows = jsonResults.zipWithIndex.map { case (json, idx) => SampledRow(idx, json) }
       return ("visualization", Some(rows), Some(totalCount))
     }
 
@@ -634,13 +651,13 @@ class SyncExecutionResource extends LazyLogging {
     val firstSize = estimateTupleSize(truncatedFirst, mapper)
 
     if (firstSize >= maxOperatorResultCharLimit) {
-      return ("table", Some(List(SampleRow(rowIndex, truncatedFirst))), Some(totalCount))
+      return ("table", Some(List(SampledRow(rowIndex, truncatedFirst))), Some(totalCount))
     }
 
     val halfLimit = maxOperatorResultCharLimit / 2
     val truncationNoticeSize = 50 // reserved for the "...skipped..." marker
 
-    val frontRows = mutable.ListBuffer[SampleRow](SampleRow(rowIndex, truncatedFirst))
+    val frontRows = mutable.ListBuffer[SampledRow](SampledRow(rowIndex, truncatedFirst))
     var frontSize = firstSize
 
     while (tupleIterator.hasNext && frontSize < halfLimit) {
@@ -649,7 +666,7 @@ class SyncExecutionResource extends LazyLogging {
       val jsonTuple = ExecutionResultService.convertTuplesToJson(List(tuple)).head
       val truncatedTuple = truncateSingleTuple(jsonTuple, maxOperatorResultCellCharLimit)
       val tupleSize = estimateTupleSize(truncatedTuple, mapper)
-      val row = SampleRow(rowIndex, truncatedTuple)
+      val row = SampledRow(rowIndex, truncatedTuple)
 
       if (frontSize + tupleSize <= halfLimit) {
         frontRows += row
@@ -694,12 +711,12 @@ class SyncExecutionResource extends LazyLogging {
   private def collectBackWindow(
       tupleIterator: Iterator[Tuple],
       startRowIndex: Int,
-      seed: Option[(SampleRow, Int)],
+      seed: Option[(SampledRow, Int)],
       backSizeLimit: Int,
       maxOperatorResultCellCharLimit: Int,
       mapper: ObjectMapper
-  ): List[SampleRow] = {
-    val backBuffer = mutable.ArrayBuffer[(SampleRow, Int)]()
+  ): List[SampledRow] = {
+    val backBuffer = mutable.ArrayBuffer[(SampledRow, Int)]()
     var backSize = 0
     seed.foreach {
       case (row, size) =>
@@ -715,7 +732,7 @@ class SyncExecutionResource extends LazyLogging {
       val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
       val ts = estimateTupleSize(tt, mapper)
 
-      backBuffer += ((SampleRow(rowIndex, tt), ts))
+      backBuffer += ((SampledRow(rowIndex, tt), ts))
       backSize += ts
 
       while (backSize > backSizeLimit && backBuffer.size > 1) {

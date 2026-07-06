@@ -28,13 +28,21 @@ import {
   WorkflowExecutionState,
   WorkflowFatalErrorType,
   type OperatorExecutionSummary,
-  type SampleRow,
+  type Tuple,
   type WorkflowExecutionSummary,
   type WorkflowFatalError,
 } from "../../types/execution";
 import type { OperatorLink, OperatorPredicate, PortDescription } from "../../types/workflow";
 
 // --- fixtures -------------------------------------------------------------
+
+// Build an engine-style Tuple (all-STRING schema) from a column->value record.
+function recordToTuple(row: Record<string, unknown>): Tuple {
+  return {
+    schema: { attributes: Object.keys(row).map(name => ({ attributeName: name, attributeType: "string" })) },
+    fields: Object.values(row),
+  };
+}
 
 function makeOperator(
   id: string,
@@ -163,10 +171,10 @@ describe("executeOperatorAndFormat - successful runs", () => {
   test("renders the shape, warnings, gaps, and every cell type", async () => {
     const { state, source, target } = makeLinearState();
 
-    const sampleTuples: SampleRow[] = [
-      {
-        rowIndex: 0,
-        row: {
+    const sampleTuples: [number, Tuple][] = [
+      [
+        0,
+        recordToTuple({
           num: 1,
           bool: true,
           str: "hello",
@@ -174,11 +182,11 @@ describe("executeOperatorAndFormat - successful runs", () => {
           nullstr: "NULL",
           escaped: "a\tb\nc",
           obj: { k: 1 },
-        },
-      },
-      {
-        rowIndex: 3, // gap after 0 -> a "..." separator row is inserted
-        row: {
+        }),
+      ],
+      [
+        3, // gap after 0 -> a "..." separator row is inserted
+        recordToTuple({
           num: 2,
           bool: false,
           str: "world",
@@ -186,8 +194,8 @@ describe("executeOperatorAndFormat - successful runs", () => {
           nullstr: "kept",
           escaped: "plain",
           obj: [1, 2],
-        },
-      },
+        }),
+      ],
     ];
 
     const summary: WorkflowExecutionSummary = {
@@ -265,10 +273,10 @@ describe("executeOperatorAndFormat - successful runs", () => {
 
   test("truncates output that exceeds the character budget while keeping the header", async () => {
     const { state, target } = makeLinearState();
-    const sampleTuples: SampleRow[] = Array.from({ length: 12 }, (_, i) => ({
-      rowIndex: i,
-      row: { col: `value-${i}` },
-    }));
+    const sampleTuples: [number, Tuple][] = Array.from({ length: 12 }, (_, i) => [
+      i,
+      recordToTuple({ col: `value-${i}` }),
+    ]);
     const summary: WorkflowExecutionSummary = {
       success: true,
       state: WorkflowExecutionState.COMPLETED,
@@ -408,7 +416,7 @@ describe("executeOperatorAndFormat - abort and callback failures", () => {
           errorMessages: [],
           resultSummary: {
             resultMode: OperatorResultMode.TABLE,
-            sampleTuples: [{ rowIndex: 0, row: { col: "v" } }],
+            sampleTuples: [[0, recordToTuple({ col: "v" })]],
             tuplesCount: 1,
           },
         },
@@ -437,7 +445,7 @@ describe("createExecuteOperatorTool", () => {
           errorMessages: [],
           resultSummary: {
             resultMode: OperatorResultMode.TABLE,
-            sampleTuples: [{ rowIndex: 0, row: { col: "v" } }],
+            sampleTuples: [[0, recordToTuple({ col: "v" })]],
             tuplesCount: 1,
           },
         },
