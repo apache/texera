@@ -374,3 +374,57 @@ def test_sbt_test_scope_deps_ignored(tui):
     # DAO appears once (from the main-scope dependsOn) — not twice from
     # the test-scope one.
     assert auth_deps.count("DAO") == 1
+
+
+# ─────────────────── deploy source (worktree) resolution ───────────────────
+
+def test_stamp_dir_for_matches_shell_sha1(tui):
+    """Build stamps are namespaced per deploy source. The id MUST equal the
+    shell's `sha1(absolute path)[:12]` or the TUI's SRC-dirty column would read
+    a different worktree's stamps than the shell wrote."""
+    import hashlib
+    src = "/Users/someone/Repos/texera-worktrees/feat-x"
+    expected = hashlib.sha1(src.encode()).hexdigest()[:12]
+    assert tui._stamp_dir_for(Path(src)).name == expected
+
+
+def test_resolve_deploy_source_missing_pointer_is_self(tmp_path, monkeypatch, tui):
+    """No persisted pointer ⇒ deploy from the self tree."""
+    monkeypatch.setattr(tui, "SELF_ROOT", tmp_path)
+    monkeypatch.setattr(tui, "DEPLOY_SOURCE_FILE", tmp_path / "deploy-source")
+    assert tui._resolve_deploy_source() == tmp_path
+
+
+def test_resolve_deploy_source_stale_pointer_is_self(tmp_path, monkeypatch, tui):
+    """A pointer to a vanished worktree falls back to self (mirrors the shell,
+    which also drops the stale pointer)."""
+    self_root = tmp_path / "self"
+    self_root.mkdir()
+    ptr = tmp_path / "deploy-source"
+    ptr.write_text("/no/such/worktree\n")
+    monkeypatch.setattr(tui, "SELF_ROOT", self_root)
+    monkeypatch.setattr(tui, "DEPLOY_SOURCE_FILE", ptr)
+    assert tui._resolve_deploy_source() == self_root
+
+
+def test_resolve_deploy_source_valid_pointer(tmp_path, monkeypatch, tui):
+    """A pointer to a real worktree (a dir with a build.sbt) is honored."""
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    (wt / "build.sbt").write_text("ThisBuild / version := \"x\"\n")
+    ptr = tmp_path / "deploy-source"
+    ptr.write_text(str(wt) + "\n")
+    monkeypatch.setattr(tui, "SELF_ROOT", tmp_path)
+    monkeypatch.setattr(tui, "DEPLOY_SOURCE_FILE", ptr)
+    assert tui._resolve_deploy_source() == wt
+
+
+def test_resolve_deploy_source_dir_without_build_sbt_is_self(tmp_path, monkeypatch, tui):
+    """A pointer to a dir lacking build.sbt is not a checkout — fall back."""
+    bogus = tmp_path / "notacheckout"
+    bogus.mkdir()
+    ptr = tmp_path / "deploy-source"
+    ptr.write_text(str(bogus) + "\n")
+    monkeypatch.setattr(tui, "SELF_ROOT", tmp_path)
+    monkeypatch.setattr(tui, "DEPLOY_SOURCE_FILE", ptr)
+    assert tui._resolve_deploy_source() == tmp_path

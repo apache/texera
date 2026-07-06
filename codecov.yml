@@ -14,11 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Codecov configuration for apache/texera. The repo uploads four flags
-# (frontend, scala, pyamber, agent-service); without an explicit config,
-# defaults bite us in three places that this file fixes:
-#   1. Single-stack PRs leave non-uploaded flags as `?` in the comment
-#      and drop them from the rollup. Carry forward instead.
+# Codecov configuration for apache/texera. CI uploads 11 flags: frontend,
+# amber, amber-integration, pyamber, agent-service, and the six platform
+# services (config-service, access-control-service, file-service,
+# computing-unit-managing-service, workflow-compiling-service,
+# notebook-migration-service). Without an explicit config, defaults bite us
+# in three places that this file fixes:
+#   1. Single-stack PRs leave non-uploaded flags as `?` in the comment and
+#      drop them from the rollup; carrying forward the base-branch report
+#      backfills them.
 #   2. Coverage of generated code (protobuf), build output, and the
 #      tests themselves dilutes the "real" coverage figure. Ignore
 #      those paths.
@@ -78,10 +82,8 @@ coverage:
         threshold: 10%
 
 comment:
-  # `flag_management.default_rules.carryforward: true` above already
-  # backfills missing flags from main, but Codecov's default still
-  # hides those rows from the PR comment. Show them so a frontend-only
-  # or pyamber-only PR's table lists every flag — fresh-data rows track
-  # the patch and carryforward'd rows render with `<ø>` to make their
-  # unchanged status obvious.
+  # CI is label-gated: a single-stack PR (e.g. a frontend-only change)
+  # uploads only its own flag. carryforward backfills the rest from main;
+  # this surfaces those carried rows (rendered `<ø>`) instead of hiding
+  # them, so every PR's table lists all flags.
   show_carryforward_flags: true

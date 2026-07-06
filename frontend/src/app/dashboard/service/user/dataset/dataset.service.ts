@@ -420,6 +420,17 @@ export class DatasetService {
       .pipe(map(res => res?.filePaths ?? []));
   }
 
+  public findExistingUploadFiles(did: number, files: { path: string; sizeBytes: number }[]): Observable<string[]> {
+    return this.http
+      .post<{ filePaths: string[] }>(
+        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/existing-upload-files`,
+        {
+          files,
+        }
+      )
+      .pipe(map(res => res?.filePaths ?? []));
+  }
+
   public finalizeMultipartUpload(
     ownerEmail: string,
     datasetName: string,

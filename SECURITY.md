@@ -34,7 +34,7 @@ Texera supports the following resource types:
 
 - **Datasets**: Input data imported or uploaded for workflow processing
 - **Workflows**: Data analytics pipelines defined by users
-- **Computing Units**: Execution environments for running workflows (e.g., Kubernates PODs)
+- **Computing Units**: Execution environments for running workflows (e.g., Kubernetes pods)
 - **Results**: Output from workflow executions, including but not limited to data, logs, metrics, and visualizations
 
 ### Resource Ownership and Access Control
