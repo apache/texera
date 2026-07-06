@@ -157,6 +157,9 @@ dependencyOverrides ++= Seq(
 // Iceberg-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 val excludeJersey = ExclusionRule(organization = "com.sun.jersey")
+// Hadoop 3.3.2+ ships jersey-json via the com.github.pjfanning fork; its Jersey 1.x
+// providers break Jersey 2 auto-discovery at startup, so exclude it as well.
+val excludeJerseyJsonFork = ExclusionRule(organization = "com.github.pjfanning", name = "jersey-json")
 val excludeGlassfishJersey = ExclusionRule(organization = "org.glassfish.jersey")
 val excludeSlf4j = ExclusionRule(organization = "org.slf4j")
 val excludeJetty = ExclusionRule(organization = "org.eclipse.jetty")
@@ -189,6 +192,7 @@ libraryDependencies ++= Seq(
     excludeXmlBind,
     excludeGlassfishJersey,
     excludeJersey,
+    excludeJerseyJsonFork,
     excludeSlf4j,
     excludeJetty,
     excludeJsp,
@@ -201,6 +205,7 @@ libraryDependencies ++= Seq(
     excludeXmlBind,
     excludeGlassfishJersey,
     excludeJersey,
+    excludeJerseyJsonFork,
     excludeSlf4j,
     excludeJetty,
     excludeJsp,

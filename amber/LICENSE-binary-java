@@ -678,9 +678,7 @@ CDDL 1.1
 ~~~~~~~~
 
 Scala/Java jars:
-  - com.github.pjfanning.jersey-json-1.22.0.jar
   - com.sun.jersey.contribs.jersey-guice-1.19.4.jar
-  - com.sun.xml.bind.jaxb-impl-2.2.3-1.jar
   - javax.websocket.javax.websocket-api-1.0.jar
   - javax.websocket.javax.websocket-client-api-1.0.jar
   - javax.xml.bind.jaxb-api-2.3.0.jar
