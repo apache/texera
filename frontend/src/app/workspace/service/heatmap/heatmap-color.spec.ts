@@ -40,6 +40,11 @@ describe("scoreToColor", () => {
     expect(scoreToColor(2)).toBe(scoreToColor(1));
   });
 
+  it("treats a non-finite score as cold rather than emitting an invalid color", () => {
+    expect(scoreToColor(Number.NaN)).toBe(scoreToColor(0));
+    expect(scoreToColor(Number.POSITIVE_INFINITY)).toBe(scoreToColor(1));
+  });
+
   it("returns a valid hex color for interpolated values", () => {
     for (const score of [0.1, 0.25, 0.5, 0.75, 0.9]) {
       expect(scoreToColor(score)).toMatch(/^#[0-9a-f]{6}$/);

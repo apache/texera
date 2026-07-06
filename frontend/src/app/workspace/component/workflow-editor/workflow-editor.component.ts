@@ -503,11 +503,17 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           metricLabel: formatMetricForView(rawValue, view),
           heatLabel: score === undefined ? "—" : `${Math.round(score * 100)}%`,
         };
+        // JointJS paper events fire outside Angular's zone, so trigger change detection
+        // for the tooltip to render (mirrors the chat-popover handling).
+        this.changeDetectorRef.detectChanges();
       });
 
     fromJointPaperEvent(this.paper, "element:mouseleave")
       .pipe(untilDestroyed(this))
-      .subscribe(() => (this.heatmapTooltip = null));
+      .subscribe(() => {
+        this.heatmapTooltip = null;
+        this.changeDetectorRef.detectChanges();
+      });
   }
 
   /**

@@ -31,7 +31,10 @@ const HOT: Rgb = [224, 90, 82]; // #e05a52 — bright red
 export const HEATMAP_NO_DATA_COLOR = "#eeeeee";
 
 function clamp01(value: number): number {
-  return Math.min(1, Math.max(0, value));
+  // Guard NaN (which would otherwise produce "#NaNNaNNaN"); it maps to 0 (cold).
+  // Infinity still clamps to 1 (hot) via the min/max below.
+  const safe = Number.isNaN(value) ? 0 : value;
+  return Math.min(1, Math.max(0, safe));
 }
 
 function lerpChannel(from: number, to: number, t: number): number {
