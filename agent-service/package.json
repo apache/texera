@@ -17,7 +17,7 @@
   "dependencies": {
     "@ai-sdk/openai": "4.0.7",
     "@elysiajs/cors": "1.4.0",
-    "ai": "6.0.208",
+    "ai": "7.0.15",
     "ajv": "8.18.0",
     "dagre": "0.8.5",
     "elysia": "1.4.29",
