@@ -245,7 +245,7 @@ Scala/Java jars:
   - com.thesamet.scalapb.lenses_2.13-0.11.20.jar
   - com.thesamet.scalapb.scalapb-json4s_2.13-0.12.0.jar
   - com.thesamet.scalapb.scalapb-runtime_2.13-0.11.20.jar
-  - com.typesafe.config-1.4.6.jar
+  - com.typesafe.config-1.4.9.jar
   - com.typesafe.scala-logging.scala-logging_2.13-3.9.5.jar
   - com.zaxxer.HikariCP-5.1.0.jar
   - io.dropwizard.dropwizard-auth-4.0.7.jar

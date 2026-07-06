@@ -64,6 +64,10 @@ on:
         required: false
         type: boolean
         default: true
+      run_pyright_language_service:
+        required: false
+        type: boolean
+        default: true
       mode:
         # PR (default) | nightly | release. Only "PR" passes
         # --ignore-transitive-version to check_binary_deps.py.
@@ -983,3 +987,45 @@ jobs:
         # pass, and any future tooling test suite under bin/ comes
         # along without this workflow being edited.
         run: python -m pytest bin/ -v --tb=short
+
+  pyright-language-service:
+    # Typecheck-only job for the standalone Pyright LSP bridge (the language
+    # server the frontend code editor talks to). It is not part of the
+    # frontend yarn workspace and has no other CI coverage, so a dependency
+    # bump here — e.g. a Dependabot vscode-languageserver major — would
+    # otherwise merge unvalidated. `yarn install --frozen-lockfile` proves
+    # the committed classic-yarn lockfile still resolves against the bumped
+    # package.json, and `tsc --noEmit` catches any API breakage the bump
+    # introduces. No dist is built and the server is never booted, so this
+    # stays a fast, docker-free job.
+    if: ${{ inputs.run_pyright_language_service }}
+    name: ${{ format('pyright-language-service{0}', inputs.job_name_suffix) }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pyright-language-service
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup node
+        uses: actions/setup-node@v6
+        with:
+          # Matches the frontend job's pinned Node.
+          node-version: 24.10.0
+      - name: Prepare Yarn 1.22.22
+        # The package ships a classic (v1) lockfile; pin the matching Yarn
+        # via corepack rather than relying on the runner image's bundled
+        # version.
+        run: corepack enable && corepack prepare yarn@1.22.22 --activate
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --network-timeout 100000
+      - name: Typecheck
+        # allowImportingTsExtensions in tsconfig.json requires --noEmit.
+        run: yarn tsc --noEmit

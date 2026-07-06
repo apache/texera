@@ -8,7 +8,7 @@
     "express": "5.2.1",
     "pyright": "1.1.411",
     "typescript": "5.5.4",
-    "vscode-languageserver": "9.0.1",
+    "vscode-languageserver": "10.1.0",
     "vscode-ws-jsonrpc": "3.5.0",
     "ws": "8.21.0"
   },
