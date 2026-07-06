@@ -154,6 +154,7 @@ val excludeJsp = ExclusionRule(organization = "javax.servlet.jsp")
 val excludeXmlBind = ExclusionRule(organization = "javax.xml.bind")
 val excludeJackson = ExclusionRule(organization = "com.fasterxml.jackson.core")
 val excludeJacksonModule = ExclusionRule(organization = "com.fasterxml.jackson.module")
+val excludeNetty = ExclusionRule(organization = "io.netty")
 val log4jVersion = "2.26.1"
 
 libraryDependencies ++= Seq(
@@ -174,7 +175,7 @@ libraryDependencies ++= Seq(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.hadoop" % "hadoop-common" % "3.3.1" excludeAll(
+  "org.apache.hadoop" % "hadoop-common" % "3.4.3" excludeAll(
     excludeXmlBind,
     excludeGlassfishJersey,
     excludeJersey,
@@ -184,7 +185,9 @@ libraryDependencies ++= Seq(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.1" excludeAll(
+  // hadoop 3.4 adds a direct netty-all dependency; exclude it — the netty
+  // artifacts this module needs are declared explicitly above.
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.4.3" excludeAll(
     excludeXmlBind,
     excludeGlassfishJersey,
     excludeJersey,
@@ -192,7 +195,8 @@ libraryDependencies ++= Seq(
     excludeJetty,
     excludeJsp,
     excludeJackson,
-    excludeJacksonModule
+    excludeJacksonModule,
+    excludeNetty
   ),
   // log4j:log4j is excluded build-wide (root build.sbt) because 1.x is EOL
   // with open CVEs. These log4j 2.x bridges keep hadoop/zookeeper's
