@@ -112,8 +112,8 @@ libraryDependencies ++= Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "15.0.2"
-val nettyVersion = "4.1.96.Final"
+val arrowVersion = "19.0.0"
+val nettyVersion = "4.2.15.Final"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
@@ -123,9 +123,11 @@ val arrowDependencies = Seq(
 
 libraryDependencies ++= arrowDependencies
 
-// Netty dependency overrides to ensure compatibility with Arrow
-// Arrow 14.0.1 requires Netty 4.1.96.Final for proper memory allocation
-// The chunkSize field issue occurs when Netty versions are mismatched
+// Netty dependency overrides to ensure compatibility with Arrow 19.0.0, which
+// targets the Netty 4.2 line. The whole family must be pinned to one version:
+// arrow-memory-netty reaches into Netty allocator internals, so a 4.1/4.2 split
+// breaks it (NoClassDefFoundError: ThreadAwareExecutor). Kept in sync with the
+// same list in the root build.sbt (amber module).
 dependencyOverrides ++= Seq(
   "io.netty" % "netty-all" % nettyVersion,
   "io.netty" % "netty-buffer" % nettyVersion,
