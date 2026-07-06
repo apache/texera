@@ -35,8 +35,8 @@ import org.apache.texera.amber.core.workflow.WorkflowContext.{
   DEFAULT_WORKFLOW_ID
 }
 import org.apache.texera.amber.engine.architecture.common.PekkoActorRefMappingService
-import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
-import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
+import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns._
 import org.apache.texera.amber.engine.architecture.scheduling.RegionExecutionManagerTestSupport._
 import org.apache.texera.amber.engine.architecture.scheduling.config.{
@@ -47,7 +47,7 @@ import org.apache.texera.amber.engine.architecture.scheduling.config.{
 }
 import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.texera.amber.engine.common.AmberRuntime
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -58,7 +58,7 @@ import java.util.concurrent.atomic
   * Tests the real region-execution lifecycle around synchronous region kill.
   *
   * The tests let the manager call the real `AsyncRPCClient.workerInterface`, capture the generated
-  * `ControlInvocation`s at the controller output gateway, and fulfill those RPC promises
+  * `ControlInvocation`s at the coordinator output gateway, and fulfill those RPC promises
   * explicitly. This keeps the important production behavior under test:
   *
   *  - regular launch RPCs (`initializeExecutor`, `openExecutor`, `startWorker`) are allowed to
@@ -298,24 +298,24 @@ class RegionExecutionManagerSpec
     seedReusableWorkerExecution(workflowExecution, seedRegionId = 0, physicalOp, workerId)
     workflowExecution.initRegionExecution(region)
 
-    val rpcProbe = new ControllerRpcProbe(_ => None)
-    val controller = createControllerHarness()
-    registerLiveWorker(controller.actorRefService, workerId)
+    val rpcProbe = new CoordinatorRpcProbe(_ => None)
+    val coordinator = createCoordinatorHarness()
+    registerLiveWorker(coordinator.actorRefService, workerId)
 
     new RegionExecutionManager(
       region,
       isRestart = false,
       workflowExecution,
       rpcProbe.asyncRPCClient,
-      ControllerConfig(None, None, None, None),
-      controller.actorService,
-      controller.actorRefService
+      CoordinatorConfig(None, None, None, None),
+      coordinator.actorService,
+      coordinator.actorRefService
     )
   }
 
   private case class SingleRegionFixture(
       manager: RegionExecutionManager,
-      rpcProbe: ControllerRpcProbe,
+      rpcProbe: CoordinatorRpcProbe,
       workflowExecution: WorkflowExecution,
       region: Region,
       physicalOp: PhysicalOp,
@@ -336,14 +336,14 @@ class RegionExecutionManagerSpec
     seedReusableWorkerExecution(workflowExecution, seedRegionId = 0, physicalOp, workerId)
     workflowExecution.initRegionExecution(region)
 
-    val rpcProbe = new ControllerRpcProbe(endWorkerResponse)
-    val controller = createControllerHarness()
-    registerLiveWorker(controller.actorRefService, workerId)
+    val rpcProbe = new CoordinatorRpcProbe(endWorkerResponse)
+    val coordinator = createCoordinatorHarness()
+    registerLiveWorker(coordinator.actorRefService, workerId)
 
     // Seed stale control channels to verify that successful termination removes them.
-    rpcProbe.inputGateway.getChannel(ChannelIdentity(workerId, CONTROLLER, isControl = true))
+    rpcProbe.inputGateway.getChannel(ChannelIdentity(workerId, COORDINATOR, isControl = true))
     rpcProbe.outputGateway.getSequenceNumber(
-      ChannelIdentity(CONTROLLER, workerId, isControl = true)
+      ChannelIdentity(COORDINATOR, workerId, isControl = true)
     )
 
     val manager = new RegionExecutionManager(
@@ -351,9 +351,9 @@ class RegionExecutionManagerSpec
       isRestart = false,
       workflowExecution,
       rpcProbe.asyncRPCClient,
-      ControllerConfig(None, None, None, None),
-      controller.actorService,
-      controller.actorRefService,
+      CoordinatorConfig(None, None, None, None),
+      coordinator.actorService,
+      coordinator.actorRefService,
       maxTerminationAttempts,
       killRetryDelay
     )
@@ -365,13 +365,13 @@ class RegionExecutionManagerSpec
       region = region,
       physicalOp = physicalOp,
       workerId = workerId,
-      actorRefService = controller.actorRefService
+      actorRefService = coordinator.actorRefService
     )
   }
 
   private case class MultiWorkerFixture(
       manager: RegionExecutionManager,
-      rpcProbe: ControllerRpcProbe,
+      rpcProbe: CoordinatorRpcProbe,
       workerIds: Seq[ActorVirtualIdentity]
   )
 
@@ -390,18 +390,18 @@ class RegionExecutionManagerSpec
     seedReusableWorkerExecutions(workflowExecution, seedRegionId = 0, physicalOp, workerIds)
     workflowExecution.initRegionExecution(region)
 
-    val rpcProbe = new ControllerRpcProbe(_ => Some(transientEndWorkerFailure))
-    val controller = createControllerHarness()
-    workerIds.foreach(registerLiveWorker(controller.actorRefService, _))
+    val rpcProbe = new CoordinatorRpcProbe(_ => Some(transientEndWorkerFailure))
+    val coordinator = createCoordinatorHarness()
+    workerIds.foreach(registerLiveWorker(coordinator.actorRefService, _))
 
     val manager = new RegionExecutionManager(
       region,
       isRestart = false,
       workflowExecution,
       rpcProbe.asyncRPCClient,
-      ControllerConfig(None, None, None, None),
-      controller.actorService,
-      controller.actorRefService,
+      CoordinatorConfig(None, None, None, None),
+      coordinator.actorService,
+      coordinator.actorRefService,
       maxTerminationAttempts,
       killRetryDelay
     )
@@ -429,12 +429,12 @@ class RegionExecutionManagerSpec
   private def assertControlChannelsAreRemoved(fixture: SingleRegionFixture): Unit = {
     assert(
       !fixture.rpcProbe.inputGateway.getAllControlChannels.exists(
-        _.channelId == ChannelIdentity(fixture.workerId, CONTROLLER, isControl = true)
+        _.channelId == ChannelIdentity(fixture.workerId, COORDINATOR, isControl = true)
       )
     )
     assert(
       !fixture.rpcProbe.outputGateway.getActiveChannels.exists(
-        _ == ChannelIdentity(CONTROLLER, fixture.workerId, isControl = true)
+        _ == ChannelIdentity(COORDINATOR, fixture.workerId, isControl = true)
       )
     )
   }

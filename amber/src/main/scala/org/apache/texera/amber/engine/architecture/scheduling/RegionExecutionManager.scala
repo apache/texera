@@ -23,7 +23,6 @@ import org.apache.pekko.pattern.gracefulStop
 import com.twitter.util.{Duration => TwitterDuration, Future, JavaTimer, Return, Throw, Timer}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import org.apache.texera.amber.core.storage.VFSURIFactory.decodeURI
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
@@ -31,14 +30,15 @@ import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorService,
   ExecutorDeployment
 }
-import org.apache.texera.amber.engine.architecture.controller.execution.{
+import org.apache.texera.amber.engine.architecture.coordinator.execution.{
   OperatorExecution,
   RegionExecution,
   WorkflowExecution
 }
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerConfig,
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  CoordinatorConfig,
   ExecutionStatsUpdate,
+  OperatorPortResultUriAvailable,
   RuntimeStatisticsPersist,
   WorkerAssignmentUpdate
 }
@@ -55,10 +55,9 @@ import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.FutureBijection._
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.web.SessionState
 import org.apache.texera.web.model.websocket.event.RegionStateEvent
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -104,7 +103,7 @@ class RegionExecutionManager(
     isRestart: Boolean,
     workflowExecution: WorkflowExecution,
     asyncRPCClient: AsyncRPCClient,
-    controllerConfig: ControllerConfig,
+    coordinatorConfig: CoordinatorConfig,
     actorService: PekkoActorService,
     actorRefService: PekkoActorRefMappingService,
     maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
@@ -194,7 +193,7 @@ class RegionExecutionManager(
                 // Remove the actorRef so that no other actors can find the worker and send messages.
                 actorRefService.removeActorRef(workerId)
                 // Restarted regions reuse actorId. Remove stale control channels so the
-                // controller does not reuse old control-message sequence numbers for new workers.
+                // coordinator does not reuse old control-message sequence numbers for new workers.
                 asyncRPCClient.inputGateway.removeControlChannel(workerId)
                 asyncRPCClient.outputGateway.removeControlChannel(workerId)
                 gracefulStop(actorRef, ScalaDuration(5, TimeUnit.SECONDS)).asTwitter()
@@ -413,8 +412,8 @@ class RegionExecutionManager(
       actorService,
       operatorExecution,
       operatorConfig,
-      controllerConfig.stateRestoreConfOpt,
-      controllerConfig.faultToleranceConfOpt
+      coordinatorConfig.stateRestoreConfOpt,
+      coordinatorConfig.faultToleranceConfOpt
     )
   }
 
@@ -532,9 +531,9 @@ class RegionExecutionManager(
   private def connectChannels(links: Set[PhysicalLink]): Future[Seq[EmptyReturn]] = {
     Future.collect(
       links.map { link: PhysicalLink =>
-        asyncRPCClient.controllerInterface.linkWorkers(
+        asyncRPCClient.coordinatorInterface.linkWorkers(
           LinkWorkersRequest(link),
-          asyncRPCClient.mkContext(CONTROLLER)
+          asyncRPCClient.mkContext(COORDINATOR)
         )
       }.toSeq
     )
@@ -642,11 +641,8 @@ class RegionExecutionManager(
             DocumentFactory.createOrReuseDocument(uri, sch, reuseStorage)
         }
         if (!isRestart) {
-          val (_, eid, _, _) = decodeURI(resultURI)
-          WorkflowExecutionsResource.insertOperatorPortResultUri(
-            eid = eid,
-            globalPortId = outputPortId,
-            uri = resultURI
+          asyncRPCClient.sendToClient(
+            OperatorPortResultUriAvailable(outputPortId, resultURI)
           )
         }
     }
@@ -659,5 +655,5 @@ class RegionExecutionManager(
     }
   }
 
-  override def actorId: ActorVirtualIdentity = CONTROLLER
+  override def actorId: ActorVirtualIdentity = COORDINATOR
 }
