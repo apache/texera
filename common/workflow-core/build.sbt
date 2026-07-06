@@ -153,6 +153,7 @@ val excludeJsp = ExclusionRule(organization = "javax.servlet.jsp")
 val excludeXmlBind = ExclusionRule(organization = "javax.xml.bind")
 val excludeJackson = ExclusionRule(organization = "com.fasterxml.jackson.core")
 val excludeJacksonModule = ExclusionRule(organization = "com.fasterxml.jackson.module")
+val excludeNetty = ExclusionRule(organization = "io.netty")
 
 libraryDependencies ++= Seq(
   "org.apache.iceberg" % "iceberg-api" % "1.7.1",
@@ -172,7 +173,7 @@ libraryDependencies ++= Seq(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.hadoop" % "hadoop-common" % "3.3.1" excludeAll(
+  "org.apache.hadoop" % "hadoop-common" % "3.4.3" excludeAll(
     excludeXmlBind,
     excludeGlassfishJersey,
     excludeJersey,
@@ -182,7 +183,9 @@ libraryDependencies ++= Seq(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.1" excludeAll(
+  // hadoop 3.4 adds a direct netty-all dependency; exclude it — the netty
+  // artifacts this module needs are declared explicitly above.
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.4.3" excludeAll(
     excludeXmlBind,
     excludeGlassfishJersey,
     excludeJersey,
@@ -190,7 +193,8 @@ libraryDependencies ++= Seq(
     excludeJetty,
     excludeJsp,
     excludeJackson,
-    excludeJacksonModule
+    excludeJacksonModule,
+    excludeNetty
   ),
   "org.postgresql" % "postgresql" % "42.7.10"
 )
