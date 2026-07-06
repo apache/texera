@@ -227,7 +227,7 @@ Dependencies under the MIT License
 
 Agent service npm packages:
   - @borewit/text-codec@0.1.1
-  - @elysiajs/cors@1.4.0
+  - @elysiajs/cors@1.4.2
   - @pinojs/redact@0.4.0
   - @sinclair/typebox@0.34.41
   - @standard-schema/spec@1.1.0

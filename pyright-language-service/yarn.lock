@@ -504,10 +504,10 @@ proxy-addr@^2.0.7:
     forwarded "0.2.0"
     ipaddr.js "1.9.1"
 
-pyright@1.1.377:
-  version "1.1.377"
-  resolved "https://registry.yarnpkg.com/pyright/-/pyright-1.1.377.tgz#75eedd2f3ecaef920d589cb149ffa3ccc78ac309"
-  integrity sha512-y6ENYuyZXTczPnPWZnqx78pE+ZgyIotEas2M/LFRTq3EfbgVk84EcvuSKLIy2DJeDKjKDxVP/LVmDNHabljD3g==
+pyright@1.1.411:
+  version "1.1.411"
+  resolved "https://registry.yarnpkg.com/pyright/-/pyright-1.1.411.tgz#a6158f123d95cc6ea757db92a8635bcf6f8b8642"
+  integrity sha512-03S/vmS5lF1S/tVbKc2WNXCMq8JWCwta/qIYjj1jvqbQhoy+N3NgBzHTSmUlbYD6DJwqQ5XHf108QujoqeURvw==
   optionalDependencies:
     fsevents "~2.3.3"
 
@@ -715,10 +715,10 @@ vscode-languageserver@9.0.1:
   dependencies:
     vscode-languageserver-protocol "3.17.5"
 
-vscode-ws-jsonrpc@3.3.2:
-  version "3.3.2"
-  resolved "https://registry.yarnpkg.com/vscode-ws-jsonrpc/-/vscode-ws-jsonrpc-3.3.2.tgz#380e5c5819c493a151236dd20a668eee173fdc5e"
-  integrity sha512-jxGHxAuow67sNRkkS2svsW00ZACX+Zrbury9Au2A22px6sg4pe858Nnnwvtg0Pm4D0L/W9Yzn7N7X3R/RIMxsQ==
+vscode-ws-jsonrpc@3.5.0:
+  version "3.5.0"
+  resolved "https://registry.yarnpkg.com/vscode-ws-jsonrpc/-/vscode-ws-jsonrpc-3.5.0.tgz#d41735762aece5d2d3a4f3784fc29238ccd78b4f"
+  integrity sha512-13ZDy7Od4AfEPK2HIfY3DtyRi4FVsvFql1yobVJrpIoHOKGGJpIjVvIJpMxkrHzCZzWlYlg+WEu2hrYkCTvM0Q==
   dependencies:
     vscode-jsonrpc "~8.2.1"
 
