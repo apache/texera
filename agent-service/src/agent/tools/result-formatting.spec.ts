@@ -46,7 +46,7 @@ interface OpInfoOverrides {
   state?: OperatorState;
   error?: string;
   outputTuples?: number;
-  tuplesCount?: number;
+  totalTuplesCount?: number;
   warnings?: string[];
   result?: Record<string, any>[];
   sampleTuples?: [number, Tuple][];
@@ -77,7 +77,7 @@ function makeOpInfo(overrides: OpInfoOverrides = {}): OperatorExecutionSummary {
       sampleTuples:
         overrides.sampleTuples ??
         (Array.isArray(overrides.result) ? toSampleRows(overrides.result) : (overrides.result as any)),
-      tuplesCount: overrides.tuplesCount ?? overrides.outputTuples ?? 0,
+      totalTuplesCount: overrides.totalTuplesCount ?? overrides.outputTuples ?? 0,
     };
   }
   if (overrides.warnings) {
@@ -120,15 +120,15 @@ describe("formatOperatorResult - early returns", () => {
 });
 
 describe("formatOperatorResult - table shape and metadata", () => {
-  test("uses outputTuples for row count when tuplesCount missing", () => {
+  test("uses outputTuples for row count when totalTuplesCount missing", () => {
     const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 7, result: [{ a: 1, b: 2 }] }));
     expect(out).toContain("Output table shape: (7, 2)");
   });
 
-  test("tuplesCount overrides outputTuples in output shape", () => {
+  test("totalTuplesCount overrides outputTuples in output shape", () => {
     const out = formatOperatorResult(
       "op1",
-      makeOpInfo({ outputTuples: 7, tuplesCount: 999, result: [{ a: 1, b: 2 }] })
+      makeOpInfo({ outputTuples: 7, totalTuplesCount: 999, result: [{ a: 1, b: 2 }] })
     );
     expect(out).toContain("Output table shape: (999, 2)");
   });

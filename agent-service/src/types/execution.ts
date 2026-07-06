@@ -108,14 +108,11 @@ export enum OperatorResultMode {
   VISUALIZATION = "visualization",
 }
 
-// An operator's output, summarized for the agent. `sampleTuples` are the
-// symmetrically-truncated output rows as [originalRowIndex, Tuple] pairs (the middle is
-// dropped, so the indices may have gaps).
+// An operator's output summary. Sample tuples carry their original row index.
 export interface OperatorResultSummary {
   resultMode: OperatorResultMode;
   sampleTuples: [number, Tuple][];
-  // Total output rows before truncation (sampleTuples may hold fewer).
-  tuplesCount: number;
+  totalTuplesCount: number;
 }
 
 // Per-operator execution summary returned by the sync-execution backend.

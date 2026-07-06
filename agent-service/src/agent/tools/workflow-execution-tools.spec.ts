@@ -205,7 +205,7 @@ describe("executeOperatorAndFormat - successful runs", () => {
         [target]: {
           state: OperatorState.COMPLETED,
           errorMessages: [],
-          resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples, tuplesCount: 10 },
+          resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples, totalTuplesCount: 10 },
           consoleMessages: [
             { msgType: ConsoleMessageType.PRINT, title: "WARNING: truncated output", message: "" },
             { msgType: ConsoleMessageType.PRINT, title: "just info, not a warning", message: "" },
@@ -259,7 +259,7 @@ describe("executeOperatorAndFormat - successful runs", () => {
         [target]: {
           state: OperatorState.COMPLETED,
           errorMessages: [],
-          resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples: [], tuplesCount: 0 },
+          resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples: [], totalTuplesCount: 0 },
         },
       },
       errors: [],
@@ -284,7 +284,7 @@ describe("executeOperatorAndFormat - successful runs", () => {
         [target]: {
           state: OperatorState.COMPLETED,
           errorMessages: [],
-          resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples, tuplesCount: 12 },
+          resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples, totalTuplesCount: 12 },
         },
       },
       errors: [],
@@ -417,7 +417,7 @@ describe("executeOperatorAndFormat - abort and callback failures", () => {
           resultSummary: {
             resultMode: OperatorResultMode.TABLE,
             sampleTuples: [[0, recordToTuple({ col: "v" })]],
-            tuplesCount: 1,
+            totalTuplesCount: 1,
           },
         },
       },
@@ -446,7 +446,7 @@ describe("createExecuteOperatorTool", () => {
           resultSummary: {
             resultMode: OperatorResultMode.TABLE,
             sampleTuples: [[0, recordToTuple({ col: "v" })]],
-            tuplesCount: 1,
+            totalTuplesCount: 1,
           },
         },
       },
