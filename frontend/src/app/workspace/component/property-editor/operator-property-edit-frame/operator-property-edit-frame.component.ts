@@ -77,6 +77,17 @@ import { map, switchMap, take } from "rxjs/operators";
 
 Quill.register("modules/cursors", QuillCursors);
 
+// The Aggregate "count" function. With an empty attribute it means COUNT(*) (all rows);
+// with a column it counts that column's non-null values. It is the only function whose
+// attribute is optional.
+export const AGGREGATE_COUNT = "count";
+
+// The Aggregate attribute is required for every function except `count` (an empty
+// attribute on count means COUNT(*), which needs no column).
+export function isAggregateAttributeRequired(aggFunction: unknown): boolean {
+  return aggFunction !== AGGREGATE_COUNT;
+}
+
 /**
  * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
  * For example, the JSON Schema of Sentiment Analysis could be:
@@ -543,6 +554,17 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
       if (mappedField.key === "datasetVersionPath") {
         mappedField.type = "datasetversionselector";
+      }
+
+      // Aggregate: the attribute is optional for `count` (an empty attribute means COUNT(*),
+      // counting all rows) and required for every other function. Show the required marker
+      // (red *) accordingly, based on the sibling aggFunction within the same row.
+      if (this.currentOperatorSchema?.operatorType === "Aggregate" && mappedField.key === "attribute") {
+        mappedField.expressions = {
+          ...mappedField.expressions,
+          "props.required": (field: FormlyFieldConfig) =>
+            isAggregateAttributeRequired(field.parent?.model?.aggFunction),
+        };
       }
 
       if (this.currentOperatorSchema?.operatorType === "FileScanOp" && mappedField.key === "outputFileName") {
