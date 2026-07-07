@@ -85,7 +85,7 @@ class GoogleDriveAuthResourceSpec extends AnyFlatSpec {
     assert(body.contains("expired"))
   }
 
-it should "generate a unique state token on every connect call" in {
+  it should "generate a unique state token on every connect call" in {
     val resource = new GoogleDriveAuthResource()
     val url1 = resource.getOAuth().getEntity.toString
     val url2 = resource.getOAuth().getEntity.toString
