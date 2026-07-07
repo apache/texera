@@ -265,6 +265,15 @@ jobs:
             check_exit=1
           fi
           exit "$check_exit"
+      - name: Smoke-test texera-web boots from its dist
+        # Boot the packaged texera-web app to catch runtime classpath/linkage
+        # crashes unit tests miss (e.g. #6204 Hadoop -> Jersey
+        # NoClassDefFoundError). Runs against the postgres provisioned above;
+        # amberHomePath resolves web-config.yml from the checkout (cwd). See #6220.
+        run: |
+          .github/scripts/smoke-boot.sh \
+            "/tmp/dists/amber-*/bin/texera-web-application" \
+            8080 strict
       - name: Create texera_db_for_test_cases
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
@@ -640,16 +649,31 @@ jobs:
         include:
           - service: config-service
             sbt_project: ConfigService
+            port: 9094
+            boot_mode: strict
           - service: access-control-service
             sbt_project: AccessControlService
+            port: 9096
+            boot_mode: strict
           - service: file-service
             sbt_project: FileService
+            port: 9092
+            # file-service fail-fasts on MinIO + LakeFS, which this job does not
+            # provision, so it cannot reach LISTEN here. A shallow check still
+            # catches linkage/module crashes (they surface at/before S3 client init).
+            boot_mode: shallow
           - service: computing-unit-managing-service
             sbt_project: ComputingUnitManagingService
+            port: 8888
+            boot_mode: strict
           - service: workflow-compiling-service
             sbt_project: WorkflowCompilingService
+            port: 9090
+            boot_mode: strict
           - service: notebook-migration-service
             sbt_project: NotebookMigrationService
+            port: 9098
+            boot_mode: strict
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
@@ -725,6 +749,20 @@ jobs:
             check_exit=1
           fi
           exit "$check_exit"
+      - name: Smoke-test ${{ matrix.service }} boots from its dist
+        # CI builds + unit-tests each service but never starts the packaged
+        # artifact, so runtime classpath/linkage crashes on boot (e.g. #6204
+        # Hadoop -> Jersey, #6206 Arrow -> Jackson) slip through. Launch the
+        # just-unzipped dist against the postgres provisioned above and assert
+        # it reaches a listening state. Config resolves from the checkout via
+        # TEXERA_HOME; JDBC uses storage.conf defaults (postgres/postgres @
+        # localhost:5432/texera_db). See #6220.
+        env:
+          TEXERA_HOME: ${{ github.workspace }}
+        run: |
+          .github/scripts/smoke-boot.sh \
+            "/tmp/dists/${{ matrix.service }}-*/bin/${{ matrix.service }}" \
+            "${{ matrix.port }}" "${{ matrix.boot_mode }}"
       - name: Upload ${{ matrix.service }} coverage to Codecov
         # Per-service flag so each matrix entry has its own Codecov view
         # rather than being merged into one umbrella `platform` flag.
