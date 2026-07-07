@@ -169,22 +169,25 @@ val excludeJackson = ExclusionRule(organization = "com.fasterxml.jackson.core")
 val excludeJacksonModule = ExclusionRule(organization = "com.fasterxml.jackson.module")
 val excludeNetty = ExclusionRule(organization = "io.netty")
 val log4jVersion = "2.26.1"
+// Iceberg 1.9.2 pairs with parquet 1.15.2, clearing the parquet-avro CVEs
+// (CVE-2025-30065, CVE-2025-46762) pulled in transitively by older releases.
+val icebergVersion = "1.9.2"
 
 libraryDependencies ++= Seq(
-  "org.apache.iceberg" % "iceberg-api" % "1.7.1",
-  "org.apache.iceberg" % "iceberg-parquet" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-api" % icebergVersion,
+  "org.apache.iceberg" % "iceberg-parquet" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.iceberg" % "iceberg-core" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-core" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.iceberg" % "iceberg-data" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-data" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.iceberg" % "iceberg-aws" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-aws" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
