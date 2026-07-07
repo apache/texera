@@ -26,8 +26,8 @@ import com.twitter.util.{Await, Duration, Promise}
 import com.typesafe.scalalogging.Logger
 import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerConfig,
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  CoordinatorConfig,
   ExecutionStateUpdate
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
@@ -103,7 +103,7 @@ class PauseSpec
         system,
         workflow.context,
         workflow.physicalPlan,
-        ControllerConfig.default,
+        CoordinatorConfig.default,
         error => {}
       )
     val completion = Promise[Unit]()
@@ -114,15 +114,15 @@ class PauseSpec
         }
       })
     val stateWaitTimeout = Duration.fromSeconds(10)
-    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+    Await.result(client.coordinatorInterface.startWorkflow(EmptyRequest(), ()))
     val firstPaused = stateReached(client, PAUSED)
-    Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
+    Await.result(client.coordinatorInterface.pauseWorkflow(EmptyRequest(), ()))
     Await.result(firstPaused, stateWaitTimeout)
-    Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
+    Await.result(client.coordinatorInterface.resumeWorkflow(EmptyRequest(), ()))
     val secondPaused = stateReached(client, PAUSED)
-    Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
+    Await.result(client.coordinatorInterface.pauseWorkflow(EmptyRequest(), ()))
     Await.result(secondPaused, stateWaitTimeout)
-    Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
+    Await.result(client.coordinatorInterface.resumeWorkflow(EmptyRequest(), ()))
     Await.result(completion, Duration.fromMinutes(1))
   }
 

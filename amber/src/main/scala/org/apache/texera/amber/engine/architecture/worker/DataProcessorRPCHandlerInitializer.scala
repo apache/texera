@@ -23,7 +23,6 @@ import com.twitter.util.Future
 import org.apache.texera.amber.core.executor.{
   ExecFactory,
   OpExecInitInfo,
-  OpExecSource,
   OpExecWithClassName,
   OpExecWithCode
 }
@@ -39,9 +38,6 @@ import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServi
 import org.apache.texera.amber.engine.architecture.worker.promisehandlers._
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCHandlerInitializer
-import org.apache.texera.amber.operator.source.cache.CacheSourceOpExec
-
-import java.net.URI
 
 class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     extends AsyncRPCHandlerInitializer(dp.asyncRPCClient, dp.asyncRPCServer)
@@ -89,8 +85,6 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
         ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
       case OpExecWithCode(code, _) =>
         ExecFactory.newExecFromJavaCode(code)
-      case OpExecSource(storageUri, _) =>
-        new CacheSourceOpExec(URI.create(storageUri))
       case OpExecInitInfo.Empty =>
         throw new IllegalArgumentException("Empty executor initialization info")
     }

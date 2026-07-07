@@ -221,9 +221,9 @@ Dependencies under the Apache License, Version 2.0
 
 Scala/Java jars:
   - com.fasterxml.classmate-1.7.0.jar
-  - com.fasterxml.jackson.core.jackson-annotations-2.18.6.jar
-  - com.fasterxml.jackson.core.jackson-core-2.18.6.jar
-  - com.fasterxml.jackson.core.jackson-databind-2.18.6.jar
+  - com.fasterxml.jackson.core.jackson-annotations-2.18.8.jar
+  - com.fasterxml.jackson.core.jackson-core-2.18.8.jar
+  - com.fasterxml.jackson.core.jackson-databind-2.18.8.jar
   - com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.16.1.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-guava-2.16.1.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.16.1.jar
@@ -233,7 +233,7 @@ Scala/Java jars:
   - com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1.jar
   - com.fasterxml.jackson.module.jackson-module-jakarta-xmlbind-annotations-2.16.1.jar
   - com.fasterxml.jackson.module.jackson-module-parameter-names-2.16.1.jar
-  - com.fasterxml.jackson.module.jackson-module-scala_2.13-2.18.6.jar
+  - com.fasterxml.jackson.module.jackson-module-scala_2.13-2.18.8.jar
   - com.github.ben-manes.caffeine.caffeine-3.1.8.jar
   - com.google.code.findbugs.jsr305-3.0.2.jar
   - com.google.errorprone.error_prone_annotations-2.25.0.jar

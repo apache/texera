@@ -57,7 +57,7 @@ case class WorkerConfig(
     workerId: ActorVirtualIdentity,
     pveName: String = "",
     cuid: Option[Int] = None,
-    // Controller-named, execution-scoped base URI under which this worker's large binaries
+    // Coordinator-named, execution-scoped base URI under which this worker's large binaries
     // live; create() appends a unique suffix. Empty when large binaries are unconfigured.
     largeBinaryBaseUri: String = ""
 )
