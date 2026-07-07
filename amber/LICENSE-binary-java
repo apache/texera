@@ -265,7 +265,7 @@ Scala/Java jars:
   - com.google.j2objc.j2objc-annotations-3.1.jar
   - com.google.oauth-client.google-oauth-client-1.34.1.jar
   - com.google.oauth-client.google-oauth-client-java6-1.34.1.jar
-  - com.google.oauth-client.google-oauth-client-jetty-1.34.1.jar
+  - com.google.oauth-client.google-oauth-client-jetty-1.39.0.jar
   - com.googlecode.javaewah.JavaEWAH-1.1.12.jar
   - com.hierynomus.asn-one-0.6.0.jar
   - com.nimbusds.nimbus-jose-jwt-10.4.jar
