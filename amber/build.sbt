@@ -224,7 +224,7 @@ genPythonProto := {
         "Install protoc and `pip install betterproto[compiler]` before launching a Python worker or running pytest."
     )
   } else {
-    val procLogger = scala.sys.process.ProcessLogger(line => log.info(line), line => log.error(line))
+    val procLogger = scala.sys.process.ProcessLogger(line => log.info(line), line => log.info(line))
     val exit = scala.sys.process.Process(Seq("bash", script.getAbsolutePath), repoRoot).!(procLogger)
     if (exit != 0) sys.error(s"python-proto-gen.sh failed with exit code $exit")
   }
