@@ -47,6 +47,8 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowExecutions,
   WorkflowVersion
 }
+import org.apache.texera.amber.engine.architecture.coordinator.OperatorPortResultUriAvailable
+import org.apache.texera.web.service.ExecutionResultService
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
 
@@ -228,6 +230,19 @@ class WorkflowExecutionsResourceSpec
     execution
   }
 
+  // Local convenience over the production callback: fixture rows the
+  // lookup specs below need go through the same insert prod uses, so a
+  // regression in the column list shows up here too.
+  private def insertOperatorPortResult(
+      eid: ExecutionIdentity,
+      globalPortId: GlobalPortIdentity,
+      uri: URI
+  ): Unit =
+    ExecutionResultService.persistOperatorPortResultUri(
+      eid,
+      OperatorPortResultUriAvailable(globalPortId, uri)
+    )
+
   // ─── existing tests (preserved) ───────────────────────────────────────────
 
   "WorkflowExecutionsResource.getWorkflowExecutions" should "return executions with EIDs in descending order" in {
@@ -264,28 +279,8 @@ class WorkflowExecutionsResourceSpec
     )
   }
 
-  "WorkflowExecutionsResource.insertOperatorPortResultUri" should "insert a result URI row" in {
-    val execution = insertExecution(name = "Execution with duplicate result URI insert")
-
-    val executionId = ExecutionIdentity(execution.getEid.longValue())
-    val globalPortId = GlobalPortIdentity(
-      PhysicalOpIdentity(OperatorIdentity("operator-1"), "main"),
-      PortIdentity(),
-      input = false
-    )
-    val uri = URI.create("vfs:///test-result")
-
-    WorkflowExecutionsResource.insertOperatorPortResultUri(executionId, globalPortId, uri)
-
-    val rows = getDSLContext
-      .selectFrom(OPERATOR_PORT_EXECUTIONS)
-      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(execution.getEid))
-      .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
-      .fetch()
-
-    assert(rows.size() == 1)
-    assert(rows.get(0).getResultUri == uri.toString)
-  }
+  // (The production callback body that writes operator_port_executions is
+  // covered by `ExecutionResultServiceSpec.persistOperatorPortResultUri`.)
 
   // ─── new: status-filtered execution listing ───────────────────────────────
 
@@ -441,8 +436,8 @@ class WorkflowExecutionsResourceSpec
       input = false
     )
 
-    WorkflowExecutionsResource.insertOperatorPortResultUri(eid, opA, URI.create("vfs:///A"))
-    WorkflowExecutionsResource.insertOperatorPortResultUri(eid, opB, URI.create("vfs:///B"))
+    insertOperatorPortResult(eid, opA, URI.create("vfs:///A"))
+    insertOperatorPortResult(eid, opB, URI.create("vfs:///B"))
     // Empty-string URI row — the helper should drop it from the returned list.
     getDSLContext
       .insertInto(OPERATOR_PORT_EXECUTIONS)
@@ -522,7 +517,7 @@ class WorkflowExecutionsResourceSpec
       PortIdentity(),
       input = false
     )
-    WorkflowExecutionsResource.insertOperatorPortResultUri(
+    insertOperatorPortResult(
       eid,
       globalPortId,
       URI.create("vfs:///r")
@@ -576,7 +571,7 @@ class WorkflowExecutionsResourceSpec
       PortIdentity(),
       input = false
     )
-    WorkflowExecutionsResource.insertOperatorPortResultUri(
+    insertOperatorPortResult(
       eid,
       globalPortId,
       URI.create("vfs:///r")
@@ -610,7 +605,7 @@ class WorkflowExecutionsResourceSpec
     val targetUri = VFSURIFactory.resultURI(
       VFSURIFactory.createPortBaseURI(wfId, eid, targetGlobalPort)
     )
-    WorkflowExecutionsResource.insertOperatorPortResultUri(eid, targetGlobalPort, targetUri)
+    insertOperatorPortResult(eid, targetGlobalPort, targetUri)
 
     // Distractor: same workflow, different op id.
     val otherGlobalPort = GlobalPortIdentity(
@@ -621,7 +616,7 @@ class WorkflowExecutionsResourceSpec
     val otherUri = VFSURIFactory.resultURI(
       VFSURIFactory.createPortBaseURI(wfId, eid, otherGlobalPort)
     )
-    WorkflowExecutionsResource.insertOperatorPortResultUri(eid, otherGlobalPort, otherUri)
+    insertOperatorPortResult(eid, otherGlobalPort, otherUri)
 
     val found =
       WorkflowExecutionsResource.getResultUriByLogicalPortId(eid, targetOpId, targetPortId)
