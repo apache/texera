@@ -71,13 +71,10 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
   }
 }
 object AccessControlService {
-  def main(args: Array[String]): Unit = {
-    val accessControlPath = ServiceBootstrap.configFilePath(
+  def main(args: Array[String]): Unit =
+    ServiceBootstrap.start(
+      new AccessControlService,
       "access-control-service",
       "access-control-service-web-config.yaml"
     )
-
-    // Start the Dropwizard application
-    new AccessControlService().run("server", accessControlPath)
-  }
 }

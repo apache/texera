@@ -64,14 +64,10 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
 }
 
 object WorkflowCompilingService {
-  def main(args: Array[String]): Unit = {
-    // set the configuration file's path
-    val configFilePath = ServiceBootstrap.configFilePath(
+  def main(args: Array[String]): Unit =
+    ServiceBootstrap.start(
+      new WorkflowCompilingService,
       "workflow-compiling-service",
       "workflow-compiling-service-config.yaml"
     )
-
-    // Start the Dropwizard application
-    new WorkflowCompilingService().run("server", configFilePath)
-  }
 }

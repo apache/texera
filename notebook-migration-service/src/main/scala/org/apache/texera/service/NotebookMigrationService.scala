@@ -49,13 +49,10 @@ class NotebookMigrationService
   }
 }
 object NotebookMigrationService {
-  def main(args: Array[String]): Unit = {
-    val notebookMigrationPath = ServiceBootstrap.configFilePath(
+  def main(args: Array[String]): Unit =
+    ServiceBootstrap.start(
+      new NotebookMigrationService,
       "notebook-migration-service",
       "notebook-migration-service-web-config.yaml"
     )
-
-    // Start the Dropwizard application
-    new NotebookMigrationService().run("server", notebookMigrationPath)
-  }
 }

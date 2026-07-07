@@ -21,7 +21,7 @@ package org.apache.texera.auth
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
-import io.dropwizard.core.Configuration
+import io.dropwizard.core.{Application, Configuration}
 import io.dropwizard.core.setup.Bootstrap
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.SqlServer
@@ -69,4 +69,14 @@ object ServiceBootstrap {
       .resolve(configFileName)
       .toAbsolutePath
       .toString
+
+  /** Launch the Dropwizard `server` command against the conventional config
+    * path, the shared shape of every service `main`.
+    */
+  def start(
+      app: Application[_ <: Configuration],
+      serviceDir: String,
+      configFileName: String
+  ): Unit =
+    app.run("server", configFilePath(serviceDir, configFileName))
 }

@@ -66,12 +66,10 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
 }
 
 object ComputingUnitManagingService {
-  def main(args: Array[String]): Unit = {
-    val configFilePath = ServiceBootstrap.configFilePath(
+  def main(args: Array[String]): Unit =
+    ServiceBootstrap.start(
+      new ComputingUnitManagingService,
       "computing-unit-managing-service",
       "computing-unit-managing-service-config.yaml"
     )
-
-    new ComputingUnitManagingService().run("server", configFilePath)
-  }
 }

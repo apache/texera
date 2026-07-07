@@ -159,12 +159,6 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 }
 
 object FileService {
-  def main(args: Array[String]): Unit = {
-    // Set the configuration file's path
-    val configFilePath =
-      ServiceBootstrap.configFilePath("file-service", "file-service-web-config.yaml")
-
-    // Start the Dropwizard application
-    new FileService().run("server", configFilePath)
-  }
+  def main(args: Array[String]): Unit =
+    ServiceBootstrap.start(new FileService, "file-service", "file-service-web-config.yaml")
 }

@@ -91,11 +91,6 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
 }
 
 object ConfigService {
-  def main(args: Array[String]): Unit = {
-    val configFilePath =
-      ServiceBootstrap.configFilePath("config-service", "config-service-web-config.yaml")
-
-    // Start the Dropwizard application
-    new ConfigService().run("server", configFilePath)
-  }
+  def main(args: Array[String]): Unit =
+    ServiceBootstrap.start(new ConfigService, "config-service", "config-service-web-config.yaml")
 }

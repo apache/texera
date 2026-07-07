@@ -22,7 +22,7 @@ package org.apache.texera.auth
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.dropwizard.configuration.ConfigurationSourceProvider
-import io.dropwizard.core.Configuration
+import io.dropwizard.core.{Application, Configuration}
 import io.dropwizard.core.setup.Bootstrap
 import org.apache.texera.dao.SqlServer
 import org.mockito.ArgumentCaptor
@@ -86,6 +86,17 @@ class ServiceBootstrapSpec extends AnyFlatSpec with Matchers {
       .toString
     result should endWith(expectedSuffix)
     Paths.get(result).isAbsolute shouldBe true
+  }
+
+  "ServiceBootstrap.start" should "launch the Dropwizard server command with the conventional config path" in {
+    val app = mock(classOf[Application[Configuration]])
+
+    ServiceBootstrap.start(app, "config-service", "config-service-web-config.yaml")
+
+    verify(app).run(
+      "server",
+      ServiceBootstrap.configFilePath("config-service", "config-service-web-config.yaml")
+    )
   }
 
   "ServiceBootstrap.initDatabase" should "run the shared SQL connection-pool setup from storage config" in {
