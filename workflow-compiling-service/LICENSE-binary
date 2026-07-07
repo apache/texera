@@ -277,7 +277,7 @@ Scala/Java jars:
   - commons-net.commons-net-3.9.0.jar
   - commons-pool.commons-pool-1.6.jar
   - dev.failsafe.failsafe-3.3.2.jar
-  - io.airlift.aircompressor-0.27.jar
+  - io.airlift.aircompressor-2.0.2.jar
   - io.dropwizard.dropwizard-auth-4.0.7.jar
   - io.dropwizard.dropwizard-configuration-4.0.7.jar
   - io.dropwizard.dropwizard-core-4.0.7.jar
@@ -370,21 +370,21 @@ Scala/Java jars:
   - org.apache.hadoop.hadoop-yarn-common-3.4.3.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-guava-1.5.0.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-protobuf_3_25-1.5.0.jar
-  - org.apache.httpcomponents.client5.httpclient5-5.4.jar
-  - org.apache.httpcomponents.core5.httpcore5-5.3.jar
-  - org.apache.httpcomponents.core5.httpcore5-h2-5.3.jar
+  - org.apache.httpcomponents.client5.httpclient5-5.4.3.jar
+  - org.apache.httpcomponents.core5.httpcore5-5.3.4.jar
+  - org.apache.httpcomponents.core5.httpcore5-h2-5.3.4.jar
   - org.apache.httpcomponents.httpasyncclient-4.1.5.jar
   - org.apache.httpcomponents.httpclient-4.5.13.jar
   - org.apache.httpcomponents.httpcore-4.4.16.jar
   - org.apache.httpcomponents.httpcore-nio-4.4.13.jar
   - org.apache.httpcomponents.httpmime-4.5.13.jar
-  - org.apache.iceberg.iceberg-api-1.7.1.jar
-  - org.apache.iceberg.iceberg-aws-1.7.1.jar
-  - org.apache.iceberg.iceberg-bundled-guava-1.7.1.jar
-  - org.apache.iceberg.iceberg-common-1.7.1.jar
-  - org.apache.iceberg.iceberg-core-1.7.1.jar
-  - org.apache.iceberg.iceberg-data-1.7.1.jar
-  - org.apache.iceberg.iceberg-parquet-1.7.1.jar
+  - org.apache.iceberg.iceberg-api-1.9.2.jar
+  - org.apache.iceberg.iceberg-aws-1.9.2.jar
+  - org.apache.iceberg.iceberg-bundled-guava-1.9.2.jar
+  - org.apache.iceberg.iceberg-common-1.9.2.jar
+  - org.apache.iceberg.iceberg-core-1.9.2.jar
+  - org.apache.iceberg.iceberg-data-1.9.2.jar
+  - org.apache.iceberg.iceberg-parquet-1.9.2.jar
   - org.apache.kerby.kerb-core-2.0.3.jar
   - org.apache.kerby.kerb-crypto-2.0.3.jar
   - org.apache.kerby.kerb-util-2.0.3.jar
@@ -401,16 +401,16 @@ Scala/Java jars:
   - org.apache.lucene.lucene-queries-8.7.0.jar
   - org.apache.lucene.lucene-queryparser-8.7.0.jar
   - org.apache.lucene.lucene-sandbox-8.7.0.jar
-  - org.apache.orc.orc-core-1.9.4-nohive.jar
-  - org.apache.orc.orc-shims-1.9.4.jar
-  - org.apache.parquet.parquet-avro-1.13.1.jar
-  - org.apache.parquet.parquet-column-1.13.1.jar
-  - org.apache.parquet.parquet-common-1.13.1.jar
-  - org.apache.parquet.parquet-encoding-1.13.1.jar
-  - org.apache.parquet.parquet-format-structures-1.13.1.jar
-  - org.apache.parquet.parquet-hadoop-1.13.1.jar
-  - org.apache.parquet.parquet-jackson-1.13.1.jar
-  - org.apache.yetus.audience-annotations-0.13.0.jar
+  - org.apache.orc.orc-core-1.9.5-nohive.jar
+  - org.apache.orc.orc-shims-1.9.5.jar
+  - org.apache.parquet.parquet-avro-1.15.2.jar
+  - org.apache.parquet.parquet-column-1.15.2.jar
+  - org.apache.parquet.parquet-common-1.15.2.jar
+  - org.apache.parquet.parquet-encoding-1.15.2.jar
+  - org.apache.parquet.parquet-format-structures-1.15.2.jar
+  - org.apache.parquet.parquet-hadoop-1.15.2.jar
+  - org.apache.parquet.parquet-jackson-1.15.2.jar
+  - org.apache.yetus.audience-annotations-0.12.0.jar
   - org.apache.zookeeper.zookeeper-3.8.4.jar
   - org.apache.zookeeper.zookeeper-jute-3.8.4.jar
   - org.bitbucket.b_c.jose4j-0.9.6.jar
@@ -447,7 +447,7 @@ Scala/Java jars:
   - org.scala-lang.scala-reflect-2.13.18.jar
   - org.slf4j.jcl-over-slf4j-2.0.12.jar
   - org.slf4j.log4j-over-slf4j-2.0.12.jar
-  - org.xerial.snappy.snappy-java-1.1.10.4.jar
+  - org.xerial.snappy.snappy-java-1.1.10.7.jar
   - org.yaml.snakeyaml-2.2.jar
   - software.amazon.awssdk.annotations-2.29.51.jar
   - software.amazon.awssdk.apache-client-2.29.51.jar
@@ -532,7 +532,7 @@ Dependencies under the BSD 2-Clause License
 --------------------------------------------------------------------------------
 
 Scala/Java jars:
-  - com.github.luben.zstd-jni-1.5.0-1.jar
+  - com.github.luben.zstd-jni-1.5.6-6.jar
   - dnsjava.dnsjava-3.6.1.jar
   - org.codehaus.woodstox.stax2-api-4.2.1.jar
   - org.postgresql.postgresql-42.7.10.jar
