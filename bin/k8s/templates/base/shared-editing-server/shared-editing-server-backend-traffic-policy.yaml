@@ -1,0 +1,49 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Traffic policy for the /rtc shared-editing (y-websocket) cluster.
+# The y-websocket reference server is single-process and every browser tab holds
+# a long-lived WebSocket, so abandoned/leaked connections can pile up against the
+# gateway's per-cluster max_connections circuit breaker (Envoy default: 1024) and
+# starve legitimate realtime traffic. This policy reaps idle upstream connections
+# and raises the connection ceiling for headroom. It is defense-in-depth for the
+# client-side connection leak fixed in the frontend; keep both.
+{{- if .Values.yWebsocketServer.trafficPolicy }}
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: {{ .Release.Name }}-shared-editing-traffic-policy
+  namespace: {{ .Release.Namespace }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: {{ .Release.Name }}-shared-editing-route
+  {{- with .Values.yWebsocketServer.trafficPolicy.maxConnections }}
+  circuitBreaker:
+    # Raise the per-cluster max_connections above Envoy's 1024 default.
+    maxConnections: {{ . }}
+  {{- end }}
+  {{- with .Values.yWebsocketServer.trafficPolicy.connectionIdleTimeout }}
+  timeout:
+    tcp:
+      # Drop upstream connections with no traffic for this long. Active co-editing
+      # exchanges awareness/cursor updates well within this window, so only
+      # genuinely idle (abandoned) sockets are reaped.
+      connectionIdleTimeout: {{ . | quote }}
+  {{- end }}
+{{- end }}

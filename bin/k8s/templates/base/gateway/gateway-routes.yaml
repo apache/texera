@@ -79,13 +79,6 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /rtc
-      backendRefs:
-        - name: y-websocket-server-svc
-          port: 1234
-    - matches:
-        - path:
-            type: PathPrefix
             value: /python-language-server
       backendRefs:
         - name: python-language-server-svc
@@ -100,6 +93,31 @@ spec:
       backendRefs:
         - name: webserver-svc
           port: 8080
+---
+# Shared-editing (y-websocket) route. Kept as its own HTTPRoute so a
+# BackendTrafficPolicy can target only the /rtc cluster (idle-connection reaping
+# + circuit-breaker headroom) without affecting the other static routes.
+# Longest-prefix matching still gives /rtc priority over the / catch-all above.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}-shared-editing-route
+  namespace: {{ .Release.Namespace }}
+spec:
+  parentRefs:
+    - name: {{ .Release.Name }}-gateway
+  {{- if and .Values.gatewayConfig .Values.gatewayConfig.hostname }}
+  hostnames:
+    - {{ .Values.gatewayConfig.hostname }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /rtc
+      backendRefs:
+        - name: {{ .Values.yWebsocketServer.name }}-svc
+          port: 1234
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

@@ -357,6 +357,17 @@ yWebsocketServer:
   name: y-websocket-server
   replicaCount: 1
   image: texera/y-websocket-server:latest
+  # Gateway BackendTrafficPolicy for the /rtc shared-editing WebSocket cluster.
+  # Reaps idle upstream connections and raises the per-cluster connection ceiling
+  # so abandoned/leaked realtime sockets can't starve the gateway's connection cap.
+  # Set to null/false to omit the policy entirely.
+  trafficPolicy:
+    # Drop upstream connections idle (no bytes) for this long. Active co-editing
+    # sends awareness/cursor updates well within the window; only abandoned
+    # sockets are reaped. Envoy/Gateway-API duration string.
+    connectionIdleTimeout: "5m"
+    # Per-cluster max_connections circuit breaker (Envoy default is 1024).
+    maxConnections: 8192
 
 
 pythonLanguageServer:
