@@ -18,6 +18,7 @@
  */
 
 import { TestBed } from "@angular/core/testing";
+import { AppSettings } from "../../../common/app-setting";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { UserPveRecord, WorkflowPveService } from "./virtual-environment.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
@@ -45,7 +46,7 @@ describe("WorkflowPveService", () => {
       expect(resp.veid).toBe(42);
     });
 
-    const req = httpTestingController.expectOne("/pve/db");
+    const req = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/pve/db`);
     expect(req.request.method).toBe("POST");
     expect(req.request.body).toEqual({ name: "env-a", packages });
     req.flush({ veid: 42 });
@@ -57,7 +58,7 @@ describe("WorkflowPveService", () => {
       expect(resp.veid).toBe(7);
     });
 
-    const req = httpTestingController.expectOne("/pve/db/7");
+    const req = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/pve/db/7`);
     expect(req.request.method).toBe("PUT");
     expect(req.request.body).toEqual({ name: "env-b", packages });
     req.flush({ veid: 7 });
@@ -69,7 +70,7 @@ describe("WorkflowPveService", () => {
       expect(resp).toEqual(records);
     });
 
-    const req = httpTestingController.expectOne("/pve/db");
+    const req = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/pve/db`);
     expect(req.request.method).toBe("GET");
     req.flush(records);
   });
@@ -77,7 +78,7 @@ describe("WorkflowPveService", () => {
   it("deleteUserPve() DELETEs /pve/db/{veid}", () => {
     service.deleteUserPve(9).subscribe();
 
-    const req = httpTestingController.expectOne("/pve/db/9");
+    const req = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/pve/db/9`);
     expect(req.request.method).toBe("DELETE");
     req.flush(null);
   });
