@@ -15,9 +15,9 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json}\""
   },
   "dependencies": {
-    "@ai-sdk/openai": "4.0.7",
+    "@ai-sdk/openai": "4.0.8",
     "@elysiajs/cors": "1.4.2",
-    "ai": "7.0.15",
+    "ai": "7.0.16",
     "ajv": "8.18.0",
     "dagre": "0.8.5",
     "elysia": "1.4.29",
