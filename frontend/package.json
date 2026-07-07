@@ -112,9 +112,9 @@
     "@typescript-eslint/parser": "8.62.1",
     "@typescript-eslint/types": "8.59.0",
     "@typescript-eslint/utils": "8.59.0",
-    "@vitest/browser": "4.1.9",
-    "@vitest/browser-playwright": "4.1.9",
-    "@vitest/coverage-v8": "4.1.9",
+    "@vitest/browser": "4.1.10",
+    "@vitest/browser-playwright": "4.1.10",
+    "@vitest/coverage-v8": "4.1.10",
     "buffer": "5.7.1",
     "build-number-generator": "3.1.0",
     "concurrently": "7.4.0",
@@ -131,7 +131,7 @@
     "sass": "1.71.1",
     "ts-proto": "2.2.0",
     "typescript": "5.9.3",
-    "vitest": "4.1.9"
+    "vitest": "4.1.10"
   },
   "browserslist": [
     "defaults",
