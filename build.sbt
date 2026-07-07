@@ -207,8 +207,21 @@ lazy val WorkflowExecutionService = (project in file("amber"))
       "org.slf4j" % "slf4j-api" % "1.7.26",
       "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
       "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
-      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813"
+      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813",
+      // Hadoop 3.5.0 moved its web stack to Jersey 2.46, which drops
+      // AbstractValueFactoryProvider. Left alone, SBT's max-version eviction replaces
+      // Dropwizard 1.3.23's Jersey 2.25.1 (pulled transitively through many hadoop paths:
+      // the direct hadoop-common, workflow-core, and commons-vfs2 -> hadoop-hdfs-client)
+      // and breaks dropwizard-auth's AuthValueFactoryProvider.Binder. Pin the shared Jersey
+      // stack back to 2.25.1 and drop Hadoop's 2.46-only jersey-hk2 module (jersey-inject
+      // did not exist in 2.25.1) so the classpath matches what dropwizard-auth expects.
+      "org.glassfish.jersey.core" % "jersey-server" % "2.25.1",
+      "org.glassfish.jersey.core" % "jersey-common" % "2.25.1",
+      "org.glassfish.jersey.core" % "jersey-client" % "2.25.1",
+      "org.glassfish.jersey.containers" % "jersey-container-servlet" % "2.25.1",
+      "org.glassfish.jersey.containers" % "jersey-container-servlet-core" % "2.25.1"
     ) ++ nettyDependencyOverrides,
+    excludeDependencies += ExclusionRule("org.glassfish.jersey.inject", "jersey-hk2"),
     libraryDependencies ++= Seq(
       "com.squareup.okhttp3" % "okhttp" % "4.10.0" force () // Force usage of OkHttp 4.10.0
     )

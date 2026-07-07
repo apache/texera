@@ -387,9 +387,9 @@ Scala/Java jars:
   - org.apache.curator.curator-client-5.2.0.jar
   - org.apache.curator.curator-framework-5.2.0.jar
   - org.apache.curator.curator-recipes-5.2.0.jar
-  - org.apache.hadoop.hadoop-annotations-3.4.3.jar
-  - org.apache.hadoop.hadoop-auth-3.4.3.jar
-  - org.apache.hadoop.hadoop-common-3.4.3.jar
+  - org.apache.hadoop.hadoop-annotations-3.5.0.jar
+  - org.apache.hadoop.hadoop-auth-3.5.0.jar
+  - org.apache.hadoop.hadoop-common-3.5.0.jar
   - org.apache.hadoop.hadoop-hdfs-client-3.4.3.jar
   - org.apache.hadoop.hadoop-mapreduce-client-core-3.4.3.jar
   - org.apache.hadoop.hadoop-yarn-api-3.4.3.jar
@@ -452,7 +452,6 @@ Scala/Java jars:
   - org.apache.zookeeper.zookeeper-3.8.4.jar
   - org.apache.zookeeper.zookeeper-jute-3.8.4.jar
   - org.bitbucket.b_c.jose4j-0.9.6.jar
-  - org.codehaus.jettison.jettison-1.5.4.jar
   - org.eclipse.jetty.jetty-annotations-9.4.18.v20190429.jar
   - org.eclipse.jetty.jetty-client-9.4.57.v20241219.jar
   - org.eclipse.jetty.jetty-continuation-9.4.18.v20190429.jar
@@ -627,6 +626,7 @@ licensed with GPL-2.0 with Classpath Exception)
 
 Scala/Java jars:
   - jakarta.annotation.jakarta.annotation-api-2.1.1.jar
+  - jakarta.servlet.jsp.jakarta.servlet.jsp-api-2.3.6.jar
   - jakarta.ws.rs.jakarta.ws.rs-api-3.0.0.jar
   - javax.ws.rs.javax.ws.rs-api-2.1.1.jar
   - org.jgrapht.jgrapht-core-1.4.0.jar
@@ -690,9 +690,12 @@ Dependencies under the Eclipse Distribution License, Version 1.0
 
 Scala/Java jars:
   - com.sun.activation.jakarta.activation-2.0.0.jar
+  - com.sun.istack.istack-commons-runtime-3.0.12.jar
   - jakarta.activation.jakarta.activation-api-1.2.1.jar
   - jakarta.xml.bind.jakarta.xml.bind-api-3.0.0.jar
   - org.eclipse.jgit.org.eclipse.jgit-5.13.0.202109080827-r.jar
+  - org.glassfish.jaxb.jaxb-runtime-2.3.9.jar
+  - org.glassfish.jaxb.txw2-2.3.9.jar
 
 --------------------------------------------------------------------------------
 Dependencies in the Public Domain (CC0)
