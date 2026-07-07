@@ -100,7 +100,10 @@
 # Docker infra (postgres / minio / lakefs / lakekeeper / litellm) IS managed
 # here: `up` brings it up via `docker compose` (project texera-local-dev) and
 # `down` tears down any docker targets. The script warns if expected ports are
-# unreachable.
+# unreachable. Before any sbt build the postgres schema is reconciled: a fresh
+# DB is bootstrapped from sql/texera_ddl.sql, and pending sql/updates/*.sql
+# from sql/changelog.xml are applied automatically (tracked in liquibase's
+# databasechangelog table) so jOOQ codegen sees the schema the code expects.
 #
 # Logs and pid book-keeping live under: ${TEXERA_LOCAL_DEV_DIR:-/tmp/texera-local-dev}
 
@@ -1344,16 +1347,17 @@ infra_ensure_db_schema() {
         return 0
     fi
     # `feedback` is one of the newer tables; if it exists we assume the
-    # whole schema is current. (texera_ddl.sql is idempotent with
-    # CREATE TABLE IF NOT EXISTS, so re-applying it is safe even if some
-    # tables already exist, but skipping the copy + exec is faster.)
+    # base schema is in place and only sql/updates/* may be pending.
+    # (texera_ddl.sql is idempotent with CREATE TABLE IF NOT EXISTS, so
+    # re-applying it is safe even if some tables already exist, but
+    # skipping the copy + exec is faster.)
     local has_feedback=""
     has_feedback=$(docker exec "$pg" psql -U texera -d texera_db -tAc \
         "SELECT 1 FROM pg_tables WHERE schemaname='texera_db' AND tablename='feedback'" \
         2>/dev/null || true)
     if [[ "$has_feedback" == "1" ]]; then
-        tui_skip "postgres: schema already current"
-        return 0
+        infra_apply_sql_updates
+        return $?
     fi
     tui_step "postgres: applying sql/texera_ddl.sql (one-time bootstrap)"
     local ddl="$REPO_ROOT/sql/texera_ddl.sql"
@@ -1364,8 +1368,121 @@ infra_ensure_db_schema() {
     docker cp "$ddl" "$pg":/tmp/texera_ddl.sql >/dev/null
     if docker exec -u postgres "$pg" psql -U texera -f /tmp/texera_ddl.sql >/dev/null 2>&1; then
         tui_ok "postgres: schema bootstrapped"
+        # texera_ddl.sql is kept in sync with sql/updates/*, so a fresh
+        # bootstrap already contains every changeSet — record them as
+        # applied instead of replaying them.
+        infra_apply_sql_updates seed
     else
         tui_warn "postgres: ddl exec returned non-zero (check container logs)"
+    fi
+}
+
+# Parse the liquibase changelog (sql/changelog.xml) into "id<TAB>author<TAB>path"
+# lines, in document order, skipping XML comments (the trailing example
+# changeset). Relies on the file's flat convention: a <changeSet id=".."
+# author=".."> line followed by a <sqlFile path=".."/> line.
+parse_changelog_changesets() {
+    local changelog="$1"
+    awk '
+        /<!--/ { c=1 }
+        c { if (/-->/) c=0; next }
+        /<changeSet / {
+            split($0, a, "\"")   # a[2]=id, a[4]=author
+            id=a[2]; author=a[4]; next
+        }
+        /<sqlFile / && id != "" {
+            split($0, b, "\"")   # b[2]=path
+            printf "%s\t%s\t%s\n", id, author, b[2]
+            id=""; author=""
+        }
+    ' "$changelog"
+}
+
+# Reconcile sql/updates/* with the live DB so jOOQ codegen (which reads the
+# database at sbt-compile time) sees the schema the checked-out code expects.
+# The repo's official runner is liquibase (sql/docker-compose.yml — manual,
+# and its hardcoded creds differ from local-dev's); we reuse its bookkeeping,
+# public.databasechangelog, but apply the files with psql, normalizing the
+# same way its compose does: strip the `\c` psql meta-command (not every
+# update file has one — 23.sql doesn't) and connect to texera_db directly.
+# The files' own `SET search_path TO texera_db` targets the right schema.
+# MD5SUM is left NULL — a later real liquibase run fills the checksum in
+# instead of re-executing.
+#   $1 = "seed": record every changeSet as applied without running it (fresh
+#        DB just bootstrapped from texera_ddl.sql, which already has them).
+# Returns non-zero when an update fails to apply — callers abort before the
+# sbt build rather than let the compile die on missing generated tables.
+infra_apply_sql_updates() {
+    local seed="${1:-}"
+    local pg="texera-postgres"
+    local changelog="$REPO_ROOT/sql/changelog.xml"
+    [[ -f "$changelog" ]] || return 0
+
+    local applied=""
+    applied=$(docker exec "$pg" psql -U texera -d texera_db -tAc \
+        "SELECT id FROM public.databasechangelog" 2>/dev/null || true)
+
+    # Collect the pending changeSets first so the common all-current case
+    # stays a single cheap query + parse.
+    local pending=()
+    local line="" id="" author="" path=""
+    while IFS= read -r line; do
+        IFS=$'\t' read -r id author path <<< "$line"
+        [[ -n "$id" && -n "$path" ]] || continue
+        case $'\n'"$applied"$'\n' in
+            *$'\n'"$id"$'\n'*) continue ;;
+        esac
+        pending+=("$line")
+    done < <(parse_changelog_changesets "$changelog")
+
+    if (( ${#pending[@]} == 0 )); then
+        tui_skip "postgres: schema current (all sql/updates applied)"
+        return 0
+    fi
+
+    # Liquibase creates this table on first use; match its DDL so a later
+    # real liquibase run treats our rows as its own.
+    docker exec "$pg" psql -U texera -d texera_db -qc "
+        CREATE TABLE IF NOT EXISTS public.databasechangelog (
+            id VARCHAR(255) NOT NULL, author VARCHAR(255) NOT NULL,
+            filename VARCHAR(255) NOT NULL,
+            dateexecuted TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+            orderexecuted INTEGER NOT NULL, exectype VARCHAR(10) NOT NULL,
+            md5sum VARCHAR(35), description VARCHAR(255),
+            comments VARCHAR(255), tag VARCHAR(255), liquibase VARCHAR(20),
+            contexts VARCHAR(255), labels VARCHAR(255),
+            deployment_id VARCHAR(10))" >/dev/null 2>&1 || {
+        tui_warn "postgres: cannot create databasechangelog -- skipping sql/updates"
+        return 0
+    }
+
+    for line in "${pending[@]}"; do
+        IFS=$'\t' read -r id author path <<< "$line"
+        if [[ -z "$seed" ]]; then
+            local sql_file="$REPO_ROOT/$path"
+            if [[ ! -f "$sql_file" ]]; then
+                tui_err "postgres: changelog references missing file $path"
+                return 1
+            fi
+            tui_step "postgres: applying $path (changeSet $id)"
+            if ! sed 's/^\\c.*$//' "$sql_file" \
+                    | docker exec -i "$pg" psql -U texera -d texera_db \
+                        -v ON_ERROR_STOP=1 -f - >/dev/null 2>&1; then
+                tui_err "postgres: $path failed -- inspect with: docker exec -i texera-postgres psql -U texera -d texera_db < $path"
+                return 1
+            fi
+        fi
+        docker exec "$pg" psql -U texera -d texera_db -qc "
+            INSERT INTO public.databasechangelog
+                (id, author, filename, dateexecuted, orderexecuted, exectype)
+            VALUES ('$id', '$author', 'changelog.xml', now(),
+                (SELECT COALESCE(MAX(orderexecuted),0)+1 FROM public.databasechangelog),
+                'EXECUTED')" >/dev/null 2>&1 || true
+    done
+    if [[ -n "$seed" ]]; then
+        tui_ok "postgres: ${#pending[@]} changeSet(s) recorded as applied (bootstrap DDL already has them)"
+    else
+        tui_ok "postgres: ${#pending[@]} sql/update(s) applied"
     fi
 }
 

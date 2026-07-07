@@ -60,7 +60,7 @@ Compile / scalacOptions ++= Seq(
 
 val dropwizardVersion = "4.0.7"
 val mockitoVersion = "5.4.0"
-val assertjVersion = "3.24.2"
+val assertjVersion = "3.27.7"
 val testcontainersVersion = "0.44.1"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -69,7 +69,7 @@ val testcontainersVersion = "0.44.1"
 
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                   // ScalaMock
-  "org.scalatest" %% "scalatest" % "3.2.17" % Test,                  // ScalaTest
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test,                  // ScalaTest
   "io.dropwizard" % "dropwizard-testing" % dropwizardVersion % Test, // Dropwizard Testing
   "org.mockito" % "mockito-core" % mockitoVersion % Test,            // Mockito for mocking
   "org.assertj" % "assertj-core" % assertjVersion % Test,            // AssertJ for assertions

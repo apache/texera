@@ -65,6 +65,7 @@ export class FilesUploaderComponent {
    */
   @Input() ownerEmail: string = "";
   @Input() datasetName: string = "";
+  @Input() did: number | undefined;
 
   @Output() uploadedFiles = new EventEmitter<FileUploadItem[]>();
 
@@ -149,6 +150,41 @@ export class FilesUploaderComponent {
     });
   }
 
+  private askUploadOrSkip(
+    item: FileUploadItem,
+    showForAll: boolean
+  ): Promise<"upload" | "uploadAll" | "skip" | "skipAll"> {
+    return new Promise(resolve => {
+      const fileName = item.name.split("/").pop() || item.name;
+      let ref: NzModalRef;
+      const button = (label: string, choice: "upload" | "uploadAll" | "skip" | "skipAll", type?: "primary") => ({
+        label,
+        type,
+        onClick: () => {
+          resolve(choice);
+          ref.destroy();
+        },
+      });
+      ref = this.modal.create<ConflictingFileModalContentComponent, ConflictingFileModalData>({
+        nzTitle: "Matching File Found",
+        nzMaskClosable: false,
+        nzClosable: false,
+        nzContent: ConflictingFileModalContentComponent,
+        nzData: {
+          fileName,
+          path: item.name,
+          size: formatSize(item.file.size),
+          hint: "A file with the same path and size exists in this dataset. Skip only if you expect it is the same file.",
+        },
+        nzFooter: [
+          ...(showForAll ? [button("Upload For All", "uploadAll"), button("Skip For All", "skipAll")] : []),
+          button("Upload", "upload"),
+          button("Skip", "skip", "primary"),
+        ],
+      });
+    });
+  }
+
   private async resolveConflicts(items: FileUploadItem[], activePaths: string[]): Promise<FileUploadItem[]> {
     const active = new Set(activePaths ?? []);
     const isConflict = (p: string) => active.has(p) || active.has(encodeURIComponent(p));
@@ -197,6 +233,27 @@ export class FilesUploaderComponent {
         out.push(item);
       }
     }, Promise.resolve());
+
+    return out;
+  }
+
+  private async resolveExistingFiles(items: FileUploadItem[], existingPaths: string[]): Promise<FileUploadItem[]> {
+    const existing = new Set(existingPaths ?? []);
+    const showForAll = items.length > 1;
+    let mode: "ask" | "uploadAll" | "skipAll" = "ask";
+    const out: FileUploadItem[] = [];
+
+    for (const item of items) {
+      if (!existing.has(item.name)) {
+        out.push(item);
+      } else if (mode === "uploadAll") {
+        out.push(item);
+      } else if (mode === "ask") {
+        const choice = await this.askUploadOrSkip(item, showForAll);
+        if (choice === "upload" || choice === "uploadAll") out.push(item);
+        if (choice === "uploadAll" || choice === "skipAll") mode = choice;
+      }
+    }
 
     return out;
   }
@@ -254,20 +311,39 @@ export class FilesUploaderComponent {
       .then(async results => {
         const { ownerEmail, datasetName } = this.getOwnerAndName();
 
-        const activePathsPromise =
-          ownerEmail && datasetName
-            ? firstValueFrom(this.datasetService.listMultipartUploads(ownerEmail, datasetName)).catch(() => [])
-            : [];
-
-        const activePaths = await activePathsPromise;
         const successfulUploads = results
           .filter((r): r is PromiseFulfilledResult<FileUploadItem | null> => r.status === "fulfilled")
           .map(r_1 => r_1.value)
           .filter((item): item is FileUploadItem => item !== null);
-        const filteredUploads = await this.resolveConflicts(successfulUploads, activePaths);
-        if (filteredUploads.length > 0) {
-          const msg = `${filteredUploads.length} file${filteredUploads.length > 1 ? "s" : ""} selected successfully!`;
-          this.showFileUploadBanner("success", msg);
+
+        const activePathsPromise: Promise<string[]> =
+          ownerEmail && datasetName
+            ? firstValueFrom(this.datasetService.listMultipartUploads(ownerEmail, datasetName)).catch(() => [])
+            : Promise.resolve([]);
+        const existingPathsPromise: Promise<string[]> = this.did
+          ? firstValueFrom(
+              this.datasetService.findExistingUploadFiles(
+                this.did,
+                successfulUploads.map(item => ({ path: item.name, sizeBytes: item.file.size }))
+              )
+            ).catch(() => [])
+          : Promise.resolve([]);
+
+        const [activePaths, existingPaths] = await Promise.all([activePathsPromise, existingPathsPromise]);
+        const resumableUploads = await this.resolveConflicts(successfulUploads, activePaths);
+        const filteredUploads = await this.resolveExistingFiles(resumableUploads, existingPaths);
+        const skippedCount = resumableUploads.length - filteredUploads.length;
+        if (filteredUploads.length > 0 || skippedCount > 0) {
+          const messages = [];
+          if (filteredUploads.length > 0) {
+            messages.push(
+              `${filteredUploads.length} file${filteredUploads.length > 1 ? "s" : ""} selected successfully!`
+            );
+          }
+          if (skippedCount > 0) {
+            messages.push(`${skippedCount} matching file${skippedCount > 1 ? "s were" : " was"} skipped.`);
+          }
+          this.showFileUploadBanner(skippedCount > 0 ? "info" : "success", messages.join(" "));
         }
         const failedCount = results.length - successfulUploads.length;
         if (failedCount > 0) {
