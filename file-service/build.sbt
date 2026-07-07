@@ -60,7 +60,7 @@ Compile / scalacOptions ++= Seq(
 
 val dropwizardVersion = "4.0.7"
 val mockitoVersion = "5.4.0"
-val assertjVersion = "3.24.2"
+val assertjVersion = "3.27.7"
 val testcontainersVersion = "0.44.1"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -69,7 +69,7 @@ val testcontainersVersion = "0.44.1"
 
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                   // ScalaMock
-  "org.scalatest" %% "scalatest" % "3.2.17" % Test,                  // ScalaTest
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test,                  // ScalaTest
   "io.dropwizard" % "dropwizard-testing" % dropwizardVersion % Test, // Dropwizard Testing
   "org.mockito" % "mockito-core" % mockitoVersion % Test,            // Mockito for mocking
   "org.assertj" % "assertj-core" % assertjVersion % Test,            // AssertJ for assertions
@@ -87,7 +87,7 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.6",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.8",
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.1.0", // Ensure Jakarta JAX-RS API is available
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",
   "org.playframework" %% "play-json" % "3.1.0-M1",

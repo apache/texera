@@ -48,7 +48,7 @@ class DPThread(
     dp: DataProcessor,
     logManager: ReplayLogManager,
     internalQueue: LinkedBlockingQueue[DPInputQueueElement],
-    // Controller-named, execution-scoped base URI for large binaries created on this
+    // Coordinator-named, execution-scoped base URI for large binaries created on this
     // thread (empty when unconfigured). Seeded into LargeBinaryManager at thread start.
     largeBinaryBaseUri: String = ""
 ) extends AmberLogging {

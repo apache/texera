@@ -60,16 +60,25 @@ class TestRunStateReadingBlock:
         return instance
 
     def test_state_rows_are_emitted_as_state_frames(self, runnable):
-        state_a = State({"loop_counter": 0})
-        state_b = State({"loop_counter": 1})
+        state_a = State({"i": 0})
+        state_b = State({"i": 1})
 
-        # The state document yields opaque tuples; from_tuple deserializes
-        # them. Patch from_tuple so we don't have to wire a real
-        # serialization.
+        # The state document yields opaque multi-column tuples. State.from_tuple
+        # (patched) deserializes the content column; the reader reads the
+        # loop-control columns directly off the row and carries them onto the
+        # emitted StateFrame envelope.
+        row_a = {
+            State.LOOP_COUNTER: 0,
+            State.LOOP_START_ID: "loop-a",
+        }
+        row_b = {
+            State.LOOP_COUNTER: 1,
+            State.LOOP_START_ID: "loop-b",
+        }
         result_doc = MagicMock()
         result_doc.get.return_value = iter([])  # No materialized tuples.
         state_doc = MagicMock()
-        state_doc.get.return_value = iter(["row-a", "row-b"])
+        state_doc.get.return_value = iter([row_a, row_b])
 
         with (
             patch(
@@ -96,4 +105,6 @@ class TestRunStateReadingBlock:
             and isinstance(call.args[0].payload, StateFrame)
         ]
         assert [sf.payload.frame for sf in state_frames] == [state_a, state_b]
+        assert [sf.payload.loop_counter for sf in state_frames] == [0, 1]
+        assert [sf.payload.loop_start_id for sf in state_frames] == ["loop-a", "loop-b"]
         assert runnable._finished is True

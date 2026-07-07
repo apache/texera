@@ -106,7 +106,7 @@ class OutputPortStorageWriterThreadSpec extends AnyFlatSpec {
   // install a writer thread whose close() has already failed. This pins the
   // contract that closeOutputStorageWriterIfNeeded re-throws the captured
   // failure, which is the bridge from the writer thread to the DP thread →
-  // worker actor → controller supervisor → FatalError to client.
+  // worker actor → coordinator supervisor → FatalError to client.
   private def installWriterThread(
       manager: OutputManager,
       portId: PortIdentity,

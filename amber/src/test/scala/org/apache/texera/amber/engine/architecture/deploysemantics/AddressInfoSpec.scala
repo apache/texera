@@ -29,10 +29,10 @@ class AddressInfoSpec extends AnyFlatSpec {
 
   "AddressInfo" should "expose the addresses it was constructed with" in {
     val nodes = Array(addr("h1", 2552), addr("h2", 2552), addr("h3", 2552))
-    val controller = addr("ctrl", 2552)
-    val info = AddressInfo(nodes, controller)
+    val coordinator = addr("ctrl", 2552)
+    val info = AddressInfo(nodes, coordinator)
     assert(info.allAddresses.toList == nodes.toList)
-    assert(info.controllerAddress == controller)
+    assert(info.coordinatorAddress == coordinator)
   }
 
   it should "preserve the order of allAddresses" in {
@@ -44,26 +44,26 @@ class AddressInfoSpec extends AnyFlatSpec {
   }
 
   it should "accept an empty allAddresses array" in {
-    // Edge case: no worker nodes (e.g., controller-only configuration).
+    // Edge case: no worker nodes (e.g., coordinator-only configuration).
     val info = AddressInfo(Array.empty[Address], addr("ctrl", 0))
     assert(info.allAddresses.isEmpty)
-    assert(info.controllerAddress.host.contains("ctrl"))
+    assert(info.coordinatorAddress.host.contains("ctrl"))
   }
 
-  it should "allow the controller to also appear in allAddresses (collocated)" in {
-    val controller = addr("ctrl", 2552)
-    val info = AddressInfo(Array(controller, addr("worker", 2552)), controller)
-    assert(info.allAddresses.contains(controller))
-    assert(info.controllerAddress == controller)
+  it should "allow the coordinator to also appear in allAddresses (collocated)" in {
+    val coordinator = addr("ctrl", 2552)
+    val info = AddressInfo(Array(coordinator, addr("worker", 2552)), coordinator)
+    assert(info.allAddresses.contains(coordinator))
+    assert(info.coordinatorAddress == coordinator)
   }
 
   it should "support copy(), allowing one field to change while the other is preserved" in {
     val a = AddressInfo(Array(addr("h1", 1)), addr("ctrl-a", 0))
-    val b = a.copy(controllerAddress = addr("ctrl-b", 0))
-    assert(b.controllerAddress.host.contains("ctrl-b"))
+    val b = a.copy(coordinatorAddress = addr("ctrl-b", 0))
+    assert(b.coordinatorAddress.host.contains("ctrl-b"))
     assert(b.allAddresses.toList == a.allAddresses.toList)
     // original is unchanged
-    assert(a.controllerAddress.host.contains("ctrl-a"))
+    assert(a.coordinatorAddress.host.contains("ctrl-a"))
   }
 
   it should "use Array reference equality (not element-wise) for the allAddresses field" in {

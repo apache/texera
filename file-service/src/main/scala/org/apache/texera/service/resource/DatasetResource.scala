@@ -202,6 +202,10 @@ object DatasetResource {
       sizeBytes: Option[Long] // Size of the changed file (None for directories)
   )
 
+  case class ExistingUploadFile(path: String, sizeBytes: Long)
+
+  case class ExistingUploadFilesRequest(files: List[ExistingUploadFile])
+
   case class DatasetDescriptionModification(did: Integer, description: String)
 
   case class DatasetNameModification(did: Integer, name: String)
@@ -1027,6 +1031,65 @@ class DatasetResource extends LazyLogging {
           Option(d.getSizeBytes).map(_.longValue())
         )
       )
+    }
+  }
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/existing-upload-files")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def findExistingUploadFiles(
+      @PathParam("did") did: Integer,
+      request: ExistingUploadFilesRequest,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+    withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val requested = Option(request)
+        .flatMap(request => Option(request.files))
+        .getOrElse(List.empty)
+        .map { file =>
+          val originalPath = file.path
+          val path = validateAndNormalizeFilePathOrThrow(originalPath)
+          if (file.sizeBytes < 0L) throw new BadRequestException("sizeBytes must be >= 0")
+          (path, originalPath, file.sizeBytes)
+        }
+
+      val dataset = getDatasetByID(ctx, did)
+      val committed = getLatestDatasetVersion(ctx, did)
+        .map { v =>
+          withLakeFSErrorHandling(
+            s"retrieving committed files of dataset '${dataset.getName}'"
+          ) {
+            LakeFSStorageClient
+              .retrieveObjectsOfVersion(dataset.getRepositoryName, v.getVersionHash)
+              .map(obj => obj.getPath -> obj.getSizeBytes.longValue())
+          }
+        }
+        .getOrElse(List.empty)
+
+      val staged = withLakeFSErrorHandling(
+        s"retrieving staged files of dataset '${dataset.getName}'"
+      ) {
+        LakeFSStorageClient.retrieveUncommittedObjects(dataset.getRepositoryName)
+      }
+        .filterNot(diff => Option(diff.getType).exists(_.getValue.equalsIgnoreCase("removed")))
+        .flatMap(diff => Option(diff.getSizeBytes).map(size => diff.getPath -> size.longValue()))
+
+      val existing = (committed ++ staged).toMap
+      val matches = requested
+        .collect {
+          case (path, originalPath, size) if existing.get(path).contains(size) => originalPath
+        }
+        .toList
+        .distinct
+        .sorted
+
+      Response.ok(Map("filePaths" -> matches.asJava)).build()
     }
   }
 
