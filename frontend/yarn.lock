@@ -4282,15 +4282,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ngx-formly/core@npm:6.3.12":
-  version: 6.3.12
-  resolution: "@ngx-formly/core@npm:6.3.12"
+"@ngx-formly/core@npm:7.1.0":
+  version: 7.1.0
+  resolution: "@ngx-formly/core@npm:7.1.0"
   dependencies:
     tslib: "npm:^2.0.0"
   peerDependencies:
     "@angular/forms": ">=13.2.0"
     rxjs: ^6.5.3 || ^7.0.0
-  checksum: 10c0/c12c8aba938aa8c644e23a7b32aeca990e74603eb83246d35439b757d152d7655251b81e65ac30dbf1bf9e503afb7787e6b38fee59aeba4d93b0072cb7d32ffc
+  checksum: 10c0/defe8d2628c9e7fc46794fc7564a1dc4d98796aa2116965a8b630ad4e627227bbdab0f339cd7d6e918e8ce1be413d3624ef7f85d42ecd94007bca1f86e341f84
   languageName: node
   linkType: hard
 
@@ -10806,7 +10806,7 @@ __metadata:
     "@codingame/monaco-vscode-python-default-extension": "npm:25.1.2"
     "@lezer/python": "npm:1.1.19"
     "@ngneat/until-destroy": "npm:8.1.4"
-    "@ngx-formly/core": "npm:6.3.12"
+    "@ngx-formly/core": "npm:7.1.0"
     "@ngx-formly/ng-zorro-antd": "npm:6.3.12"
     "@nx/angular": "npm:23.0.1"
     "@schematics/angular": "npm:21.2.18"
