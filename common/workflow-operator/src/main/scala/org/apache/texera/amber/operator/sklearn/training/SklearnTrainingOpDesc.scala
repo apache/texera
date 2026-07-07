@@ -26,9 +26,9 @@ import org.apache.texera.amber.operator.sklearn.SklearnModelOpDesc
 
 class SklearnTrainingOpDesc extends SklearnModelOpDesc {
 
-  override def getImportStatements = "from sklearn.ensemble import RandomForestClassifier"
+  override def getImportStatements = ""
 
-  override def getUserFriendlyModelName = "RandomForest Training"
+  override def getUserFriendlyModelName = ""
 
   override def generatePythonCode(): String =
     pyb"""$getImportStatements

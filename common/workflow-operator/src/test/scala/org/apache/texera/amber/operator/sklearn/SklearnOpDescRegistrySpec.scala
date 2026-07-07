@@ -329,10 +329,10 @@ class SklearnOpDescRegistrySpec extends AnyFlatSpec {
       }
   }
 
-  "SklearnTrainingOpDesc default" should "use the RandomForest defaults until a subclass overrides" in {
+  "SklearnTrainingOpDesc default" should "use empty defaults until a subclass overrides" in {
     val base = new SklearnTrainingOpDesc()
-    assert(base.getImportStatements == "from sklearn.ensemble import RandomForestClassifier")
-    assert(base.getUserFriendlyModelName == "RandomForest Training")
+    assert(base.getImportStatements == "")
+    assert(base.getUserFriendlyModelName == "")
   }
 
   it should "embed the import statement into generatePythonCode for a concrete subclass" in {
