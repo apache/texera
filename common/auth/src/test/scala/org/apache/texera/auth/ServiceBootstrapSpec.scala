@@ -25,11 +25,14 @@ import io.dropwizard.configuration.ConfigurationSourceProvider
 import io.dropwizard.core.Configuration
 import io.dropwizard.core.setup.Bootstrap
 import org.apache.texera.dao.SqlServer
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, isA}
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.io.ByteArrayInputStream
+import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
 import scala.util.control.NonFatal
 
@@ -48,6 +51,31 @@ class ServiceBootstrapSpec extends AnyFlatSpec with Matchers {
 
     verify(bootstrap).setConfigurationSourceProvider(any(classOf[ConfigurationSourceProvider]))
     verify(objectMapper).registerModule(isA(classOf[DefaultScalaModule]))
+  }
+
+  it should "install a source provider that substitutes environment variables in the config" in {
+    assume(sys.env.contains("HOME"))
+    val bootstrap = mock(classOf[Bootstrap[Configuration]])
+    val delegate = mock(classOf[ConfigurationSourceProvider])
+    when(bootstrap.getObjectMapper).thenReturn(mock(classOf[ObjectMapper]))
+    when(bootstrap.getConfigurationSourceProvider).thenReturn(delegate)
+    when(delegate.open("config.yaml")).thenReturn(
+      new ByteArrayInputStream(
+        "home: ${HOME}\nliteral: ${TEXERA_UNSET_TEST_VAR}".getBytes(StandardCharsets.UTF_8)
+      )
+    )
+
+    ServiceBootstrap.configure(bootstrap)
+
+    val captor = ArgumentCaptor.forClass(classOf[ConfigurationSourceProvider])
+    verify(bootstrap).setConfigurationSourceProvider(captor.capture())
+    val substituted =
+      new String(captor.getValue.open("config.yaml").readAllBytes(), StandardCharsets.UTF_8)
+
+    substituted should include(sys.env("HOME"))
+    // strict = false: a placeholder with no matching env var must pass through unchanged
+    // rather than fail service startup.
+    substituted should include("${TEXERA_UNSET_TEST_VAR}")
   }
 
   "ServiceBootstrap.configFilePath" should "resolve the conventional resources path under the service dir" in {

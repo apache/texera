@@ -35,7 +35,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest
 }
-import org.apache.texera.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_WORKER_EXECUTION_COMPLETED
+import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceGrpc.METHOD_WORKER_EXECUTION_COMPLETED
 import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
   METHOD_ADD_PARTITIONING,
   METHOD_PAUSE_WORKER,
@@ -51,7 +51,7 @@ import org.apache.texera.amber.engine.common.ambermessage.{
 }
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
-import org.apache.texera.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import org.apache.texera.amber.engine.common.virtualidentity.util.{COORDINATOR, SELF}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -80,25 +80,25 @@ class LoggingSpec
     ControlInvocation(
       METHOD_START_WORKER,
       EmptyRequest(),
-      AsyncRPCContext(CONTROLLER, identifier1),
+      AsyncRPCContext(COORDINATOR, identifier1),
       0
     ),
     ControlInvocation(
       METHOD_ADD_PARTITIONING,
       AddPartitioningRequest(mockLink, mockPolicy),
-      AsyncRPCContext(CONTROLLER, identifier1),
+      AsyncRPCContext(COORDINATOR, identifier1),
       0
     ),
     ControlInvocation(
       METHOD_PAUSE_WORKER,
       EmptyRequest(),
-      AsyncRPCContext(CONTROLLER, identifier1),
+      AsyncRPCContext(COORDINATOR, identifier1),
       0
     ),
     ControlInvocation(
       METHOD_RESUME_WORKER,
       EmptyRequest(),
-      AsyncRPCContext(CONTROLLER, identifier1),
+      AsyncRPCContext(COORDINATOR, identifier1),
       0
     ),
     DataFrame(
@@ -116,13 +116,13 @@ class LoggingSpec
     ControlInvocation(
       METHOD_START_WORKER,
       EmptyRequest(),
-      AsyncRPCContext(CONTROLLER, identifier1),
+      AsyncRPCContext(COORDINATOR, identifier1),
       0
     ),
     ControlInvocation(
       METHOD_WORKER_EXECUTION_COMPLETED,
       EmptyRequest(),
-      AsyncRPCContext(identifier1, CONTROLLER),
+      AsyncRPCContext(identifier1, COORDINATOR),
       0
     )
   )
@@ -135,7 +135,7 @@ class LoggingSpec
     logStorage.deleteStorage()
     val logManager = ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
     payloadToLog.foreach { payload =>
-      val channel = ChannelIdentity(CONTROLLER, SELF, isControl = true)
+      val channel = ChannelIdentity(COORDINATOR, SELF, isControl = true)
       val msgOpt = Some(WorkflowFIFOMessage(channel, 0, payload))
       logManager.withFaultTolerant(channel, msgOpt) {
         // do nothing
