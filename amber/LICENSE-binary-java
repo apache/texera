@@ -611,7 +611,7 @@ Scala/Java jars:
   - com.github.marianobarrios.lbmq-0.6.0.jar
   - dnsjava.dnsjava-3.6.1.jar
   - org.codehaus.woodstox.stax2-api-4.2.1.jar
-  - org.postgresql.postgresql-42.7.12.jar
+  - org.postgresql.postgresql-42.7.13.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the ISC License
