@@ -151,10 +151,10 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.workflowStatusService
-      .getStatusUpdateStream()
+      .getStateUpdateStream()
       .pipe(untilDestroyed(this))
-      .subscribe(statusMap => {
-        if (this.operatorId && statusMap[this.operatorId]?.operatorState === OperatorState.Completed) {
+      .subscribe(stateMap => {
+        if (this.operatorId && stateMap[this.operatorId] === OperatorState.Completed) {
           this.isOperatorFinished = true;
           this.changeDetectorRef.detectChanges();
         } else {

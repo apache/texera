@@ -223,12 +223,12 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
 
   private registerStatusChangeHandler() {
     this.workflowStatusService
-      .getStatusUpdateStream()
+      .getStateUpdateStream()
       .pipe(
         map(
           event =>
-            event[this.currentOperatorId]?.operatorState === OperatorState.Running ||
-            event[this.currentOperatorId]?.operatorState === OperatorState.Paused
+            event[this.currentOperatorId] === OperatorState.Running ||
+            event[this.currentOperatorId] === OperatorState.Paused
         ),
         distinctUntilChanged(),
         untilDestroyed(this)

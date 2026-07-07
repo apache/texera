@@ -63,6 +63,7 @@ import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-gr
 import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-parameters-sync.service";
 import { WorkflowPveService } from "../../../service/virtual-environment/virtual-environment.service";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
+import { OperatorState } from "../../../types/execute-workflow.interface";
 import { TexeraWebsocketEvent } from "../../../types/workflow-websocket.interface";
 import { of, Subject, throwError } from "rxjs";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -2548,23 +2549,32 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(rerenderSpy).not.toHaveBeenCalled();
     });
 
-    it("the status-update subscription records the update for the selected operator", () => {
+    // Wire-shaped payload: the service splits it into the state and statistics concepts.
+    const runningStatus = {
+      operatorState: OperatorState.Running,
+      aggregatedInputRowCount: 0,
+      inputPortMetrics: {},
+      aggregatedOutputRowCount: 0,
+      outputPortMetrics: {},
+    };
+
+    it("the state-update subscription records the state for the selected operator", () => {
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       component.currentOperatorId = mockScanPredicate.operatorID;
       fixture.detectChanges(); // ngOnInit registers the subscription
 
-      emitOperatorStatistics({ [mockScanPredicate.operatorID]: { some: "status" } });
+      emitOperatorStatistics({ [mockScanPredicate.operatorID]: runningStatus });
 
-      expect(component.currentOperatorStatus).toEqual({ some: "status" });
+      expect(component.currentOperatorState).toBe(OperatorState.Running);
     });
 
-    it("the status-update subscription ignores updates while no operator is selected", () => {
+    it("the state-update subscription ignores updates while no operator is selected", () => {
       fixture.detectChanges(); // ngOnInit registers the subscription
       component.currentOperatorId = undefined;
 
-      emitOperatorStatistics({ "op-1": { some: "status" } });
+      emitOperatorStatistics({ "op-1": runningStatus });
 
-      expect(component.currentOperatorStatus).toBeUndefined();
+      expect(component.currentOperatorState).toBeUndefined();
     });
 
     it("the ui-parameter subscription ignores events addressed to a different operator", () => {

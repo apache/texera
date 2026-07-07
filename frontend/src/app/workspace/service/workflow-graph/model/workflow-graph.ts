@@ -635,6 +635,15 @@ export class WorkflowGraph {
   }
 
   /**
+   * Returns the IDs of all operators in the graph. Unlike {@link getAllOperators},
+   * this does not materialize the operator predicates from the shared model, so
+   * it is cheap enough for per-update paths that only need the IDs.
+   */
+  public getAllOperatorIDs(): readonly string[] {
+    return Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>);
+  }
+
+  /**
    * Returns an array of all enabled operators in the graph.
    */
   public getAllEnabledOperators(): ReadonlyArray<OperatorPredicate> {

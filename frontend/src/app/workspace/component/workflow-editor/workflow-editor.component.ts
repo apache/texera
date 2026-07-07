@@ -46,7 +46,6 @@ import { NzContextMenuService, NzDropdownMenuComponent } from "ng-zorro-antd/dro
 import { ActivatedRoute, Router } from "@angular/router";
 import * as _ from "lodash";
 import * as joint from "jointjs";
-import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
@@ -212,7 +211,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleOperatorSelectionEvents();
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
-    this.handleOperatorStatisticsUpdate();
+    this.handleOperatorStatusUpdate();
     this.handleHeatmapOverlay();
     this.handleHeatmapHover();
     this.handleRegionEvents();
@@ -328,44 +327,38 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * This method subscribe to workflowStatusService's status stream
-   * for Each processStatus that has been emitted
-   *    1. enable operatorStatusTooltipDisplay because tooltip will not be empty
-   *    2. for each operator in current texeraGraph:
-   *        - find its Statistics in processStatus, thrown an error if not found
-   *        - generate its corresponding tooltip's id
-   *        - pass the tooltip id and Statistics to jointUIService
-   *          the specific tooltip content will be updated
-   *          - if operator is in a group, save statistics in group's operatorInfo
-   *    3. Whenever a group is expanded
-   *        - for each operatorInfo, display statistics if there are some saved.
+   * Renders WorkflowStatusService's two separate sub-concepts on the paper:
+   *    - the state stream drives each operator's execution-state rendering
+   *      (see {@link effectiveOperatorState} for the fallback/override rules)
+   *    - the statistics stream drives each operator's port row-count labels
+   *      and worker count.
    */
-  private handleOperatorStatisticsUpdate(): void {
+  private handleOperatorStatusUpdate(): void {
     this.workflowStatusService
-      .getStatusUpdateStream()
+      .getStateUpdateStream()
       .pipe(untilDestroyed(this))
-      .subscribe(status => {
+      .subscribe(state => {
         this.workflowActionService
           .getTexeraGraph()
-          .getAllOperators()
-          .forEach(op => {
-            if (
-              isDefined(status[op.operatorID]) &&
-              this.executeWorkflowService.getExecutionState().state === ExecutionState.Recovering
-            ) {
-              status[op.operatorID] = {
-                ...status[op.operatorID],
-                operatorState: OperatorState.Recovering,
-              };
-            }
-
-            this.jointUIService.changeOperatorStatistics(
+          .getAllOperatorIDs()
+          .forEach(operatorID => {
+            this.jointUIService.changeOperatorState(
               this.paper,
-              op.operatorID,
-              status[op.operatorID],
-              this.isSource(op.operatorID),
-              this.isSink(op.operatorID)
+              operatorID,
+              this.effectiveOperatorState(state[operatorID])
             );
+          });
+      });
+
+    this.workflowStatusService
+      .getStatisticsUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(statistics => {
+        this.workflowActionService
+          .getTexeraGraph()
+          .getAllOperatorIDs()
+          .forEach(operatorID => {
+            this.jointUIService.changeOperatorStatistics(this.paper, operatorID, statistics[operatorID]);
           });
       });
 
@@ -386,9 +379,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           }
           this.workflowActionService
             .getTexeraGraph()
-            .getAllOperators()
-            .forEach(op => {
-              this.jointUIService.changeOperatorState(this.paper, op.operatorID, operatorState);
+            .getAllOperatorIDs()
+            .forEach(operatorID => {
+              this.jointUIService.changeOperatorState(this.paper, operatorID, operatorState);
             });
         }
       });
@@ -398,22 +391,17 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // operators are recreated from the workflow JSON — restore their visual
     // state from the cached status so completed runs don't appear to reset.
     // Restores port labels / worker count via changeOperatorStatistics, then
-    // delegates the final border color to applyOperatorBorder so the same
-    // priority rules apply as for the validation pass.
+    // delegates the execution-state rendering and the final border color to
+    // applyOperatorBorder so the same priority rules apply as for the
+    // validation pass.
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorAddStream()
       .pipe(untilDestroyed(this))
       .subscribe(operator => {
-        const statistics = this.workflowStatusService.getCurrentStatus()[operator.operatorID];
+        const statistics = this.workflowStatusService.getCurrentStatistics()[operator.operatorID];
         if (statistics) {
-          this.jointUIService.changeOperatorStatistics(
-            this.paper,
-            operator.operatorID,
-            statistics,
-            this.isSource(operator.operatorID),
-            this.isSink(operator.operatorID)
-          );
+          this.jointUIService.changeOperatorStatistics(this.paper, operator.operatorID, statistics);
         }
         this.applyOperatorBorder(
           operator.operatorID,
@@ -560,16 +548,34 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Single source of truth for the operator's border color. Both the
-   * validation stream and the operator-add stream route through here so
-   * the priority order is consistent regardless of which event fires last:
-   *   1. Invalid operator → red (validation takes priority).
-   *   2. Valid operator with a cached execution status → execution-state color.
-   *   3. Valid operator with no cached status → default valid (gray).
+   * Resolves the execution state to render for an operator: an operator the
+   * state map does not know falls back to Uninitialized, and a reported state
+   * is masked to Recovering while the workflow execution is recovering.
+   */
+  private effectiveOperatorState(reportedState?: OperatorState): OperatorState {
+    if (reportedState === undefined) {
+      return OperatorState.Uninitialized;
+    }
+    if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Recovering) {
+      return OperatorState.Recovering;
+    }
+    return reportedState;
+  }
+
+  /**
+   * Single source of truth for the operator's state rendering and border
+   * color. Both the validation stream and the operator-add stream route
+   * through here so the priority order is consistent regardless of which
+   * event fires last:
+   *   1. A cached execution state repaints the full state rendering first
+   *      (state label, fills), so it survives navigating away and back.
+   *   2. Invalid operator → red stroke on top (validation takes priority).
+   *   3. Valid operator with a cached execution state keeps its state stroke.
+   *   4. Valid operator with no cached state → default valid (gray).
    *
    * Centralizing this here avoids the race where the validation pass
    * overwrites a state-derived stroke (or vice versa) for an operator that
-   * is both invalid and has a cached execution status.
+   * is both invalid and has a cached execution state.
    *
    * Both callers obtain the Validation themselves and pass it in: the
    * validation-stream subscriber forwards the result the stream just emitted,
@@ -578,14 +584,15 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * a recompute hidden inside this helper.
    */
   private applyOperatorBorder(operatorID: string, validation: Validation): void {
+    const operatorState = this.workflowStatusService.getCurrentState()[operatorID];
+    if (operatorState) {
+      this.jointUIService.changeOperatorState(this.paper, operatorID, this.effectiveOperatorState(operatorState));
+    }
     if (!validation.isValid) {
       this.jointUIService.changeOperatorColor(this.paper, operatorID, false);
       return;
     }
-    const statistics = this.workflowStatusService.getCurrentStatus()[operatorID];
-    if (statistics) {
-      this.jointUIService.changeOperatorState(this.paper, operatorID, statistics.operatorState);
-    } else {
+    if (!operatorState) {
       this.jointUIService.changeOperatorColor(this.paper, operatorID, true);
     }
   }
@@ -1582,14 +1589,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .subscribe(linkID => {
         this.paper.getModelById(linkID.linkID).findView(this.paper).hideTools();
       });
-  }
-
-  private isSource(operatorID: string): boolean {
-    return this.workflowActionService.getTexeraGraph().getOperator(operatorID).inputPorts.length == 0;
-  }
-
-  private isSink(operatorID: string): boolean {
-    return this.workflowActionService.getTexeraGraph().getOperator(operatorID).outputPorts.length == 0;
   }
 
   /**
