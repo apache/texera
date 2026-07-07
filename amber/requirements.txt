@@ -18,7 +18,7 @@
 # Not imported directly: `fs` needs pkg_resources at import time (#4199).
 setuptools==80.10.2
 numpy==2.1.0
-pandas==2.2.3
+pandas==3.0.3
 loguru==0.7.3
 pyarrow==23.0.1
 # Not imported directly: runtime dependency of betterproto and pg8000.
