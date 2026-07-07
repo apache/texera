@@ -54,6 +54,7 @@ import { formatSize } from "src/app/common/util/size-formatter.util";
 import { formatRelativeTime, formatCount } from "src/app/common/util/format.util";
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { WorkflowCoverService } from "../../../../service/user/workflow-cover/workflow-cover.service";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
@@ -106,6 +107,10 @@ export class CardItemComponent implements OnChanges {
   /** Resolved preview/cover image; stays the placeholder until a dataset cover loads. */
   coverImageSrc: string = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
 
+  /** The workflow's custom cover image data URL, if one has been set. */
+  private customImage?: string;
+  @ViewChild("backgroundInput") backgroundInput!: ElementRef<HTMLInputElement>;
+
   @Input()
   get entry(): DashboardEntry {
     if (!this._entry) {
@@ -131,8 +136,62 @@ export class CardItemComponent implements OnChanges {
     private hubService: HubService,
     private downloadService: DownloadService,
     private cdr: ChangeDetectorRef,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private workflowCoverService: WorkflowCoverService
   ) {}
+
+  get hasCustomImage(): boolean {
+    return this.customImage !== undefined;
+  }
+
+  /** Whether the cover-image controls are shown: an editable workflow in private search. */
+  get canEditCover(): boolean {
+    return this.isPrivateSearch && this.entry.type === "workflow" && this.entry.workflow.isOwner;
+  }
+
+  openImagePicker(): void {
+    this.backgroundInput?.nativeElement.click();
+  }
+
+  async onImageSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ""; // allow re-selecting the same file
+    if (!file) {
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      this.notificationService.error("Please choose an image file.");
+      return;
+    }
+    if (typeof this.entry.id !== "number") {
+      return;
+    }
+    try {
+      this.customImage = await this.workflowCoverService.setCoverFromFile(this.entry.id, file);
+      this.coverImageSrc = this.customImage;
+      this.cdr.markForCheck();
+    } catch (e) {
+      this.notificationService.error("Failed to set the cover image.");
+    }
+  }
+
+  resetImage(): void {
+    if (typeof this.entry.id !== "number") {
+      return;
+    }
+    this.workflowCoverService
+      .clearCover(this.entry.id)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.customImage = undefined;
+          this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
+          this.cdr.markForCheck();
+        },
+        error: () => this.notificationService.error("Failed to reset the cover image."),
+      });
+  }
 
   initializeEntry() {
     this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
@@ -146,6 +205,14 @@ export class CardItemComponent implements OnChanges {
           this.entryLink = [HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
         }
         this.size = this.entry.size;
+        this.workflowCoverService
+          .getCover(this.entry.id)
+          .pipe(untilDestroyed(this))
+          .subscribe(image => {
+            this.customImage = image;
+            this.coverImageSrc = image ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
+            this.cdr.markForCheck();
+          });
       }
       this.iconType = "project";
     } else if (this.entry.type === "project") {

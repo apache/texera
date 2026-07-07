@@ -281,7 +281,7 @@ class SyncExecutionResource extends LazyLogging {
             killExecution(executionService)
             (executionService.executionStateStore.metadataStore.getState, true, false)
           case TargetResultsReady(_) =>
-            // RegionExecutionCoordinator caches upstream results asynchronously after operators
+            // RegionExecutionManager caches upstream results asynchronously after operators
             // complete; sleep gives that caching a chance to finish before we shut down the client.
             // TODO: replace with a synchronous signal from the engine.
             Thread.sleep(500)
