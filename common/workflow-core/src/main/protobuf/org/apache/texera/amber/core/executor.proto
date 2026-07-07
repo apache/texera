@@ -19,7 +19,6 @@ syntax = "proto3";
 package org.apache.texera.amber.core;
 
 
-import "org/apache/texera/amber/core/virtualidentity.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -39,15 +38,9 @@ message OpExecWithClassName {
   string descString = 2;
 }
 
-message OpExecSource {
-  string storageKey = 1;
-  WorkflowIdentity workflowIdentity = 2 [(scalapb.field).no_box = true];
-}
-
 message OpExecInitInfo {
   oneof sealed_value {
     OpExecWithClassName opExecWithClassName = 1;
-      OpExecWithCode opExecWithCode = 2;
-      OpExecSource opExecSource = 3;
+    OpExecWithCode opExecWithCode = 2;
   }
 }

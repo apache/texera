@@ -33,7 +33,7 @@ class EndWorkerHandler(ControlHandler):
 
     async def end_worker(self, req: EmptyRequest) -> EmptyReturn:
         """
-        The response of EndWorker to the controller indicates that this worker
+        The response of EndWorker to the coordinator indicates that this worker
         has finished not only the data processing logic, but also the processing
         of all the control messages.
         """

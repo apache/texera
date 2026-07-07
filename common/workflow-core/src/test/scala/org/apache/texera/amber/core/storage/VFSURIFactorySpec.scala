@@ -113,4 +113,11 @@ class VFSURIFactorySpec extends AnyFlatSpec {
       VFSURIFactory.decodeURI(new URI("vfs:///wid/1/eid/2/notarealresource"))
     }
   }
+
+  it should "reject a URI where a required key is the final segment with no value" in {
+    // "wid" is present but is the last segment (index + 1 >= segments.length)
+    assertThrows[IllegalArgumentException] {
+      VFSURIFactory.decodeURI(new URI("vfs:///eid/2/wid"))
+    }
+  }
 }

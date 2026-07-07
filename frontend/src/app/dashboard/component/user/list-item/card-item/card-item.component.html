@@ -36,6 +36,39 @@
         [(ngModel)]="entry.checked"
         (ngModelChange)="onCheckboxChange(entry)"></label>
     </div>
+    <!-- Cover-image controls -->
+    <div
+      class="card-image-controls"
+      *ngIf="canEditCover"
+      (click)="$event.stopPropagation()">
+      <button
+        nz-button
+        nzType="text"
+        class="image-control-btn"
+        title="Change cover image"
+        (click)="openImagePicker()">
+        <i
+          nz-icon
+          nzType="camera"></i>
+      </button>
+      <button
+        *ngIf="hasCustomImage"
+        nz-button
+        nzType="text"
+        class="image-control-btn"
+        title="Reset to default image"
+        (click)="resetImage()">
+        <i
+          nz-icon
+          nzType="rollback"></i>
+      </button>
+      <input
+        #backgroundInput
+        type="file"
+        accept="image/*"
+        hidden
+        (change)="onImageSelected($event)" />
+    </div>
     <!-- Placeholder or Preview Image -->
     <img
       class="card-preview-image"

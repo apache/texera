@@ -6,7 +6,7 @@ weight: 30
 **Author: Yinan Zhou**
 
 # Introduction:
-  If you are new to Texera frontend development team or have little frontend experience using angular framework (version 6), this read intends to provide you with a simple guide of how to get started.
+  If you are new to Texera frontend development team or have little frontend experience using the angular framework, this read intends to provide you with a simple guide of how to get started.
 
 # Preparation phase:
   In a nutshell, angular provides modularity, scalability, and robustness to traditional frontend code design. It separates a website into different individual components that can each perform a certain level of independent tasks. It then connects different components with services so they can work collaboratively. It also provides unit testing at the component level as well as application level. 
