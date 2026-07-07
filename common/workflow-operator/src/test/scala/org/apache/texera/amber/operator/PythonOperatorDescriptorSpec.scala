@@ -22,7 +22,12 @@ package org.apache.texera.amber.operator
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity, PreferController}
+import org.apache.texera.amber.core.workflow.{
+  InputPort,
+  OutputPort,
+  PortIdentity,
+  PreferCoordinator
+}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -83,7 +88,7 @@ class PythonOperatorDescriptorSpec extends AnyFlatSpec with Matchers {
 
   it should "build a source PhysicalOp when asSource is true" in {
     val physical = (new SourcePyOp).getPhysicalOp(workflowId, executionId)
-    physical.locationPreference shouldBe Some(PreferController)
+    physical.locationPreference shouldBe Some(PreferCoordinator)
     physical.opExecInitInfo match {
       case OpExecWithCode(c, language) =>
         c shouldBe "yield None"
