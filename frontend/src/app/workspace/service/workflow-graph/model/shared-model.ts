@@ -38,7 +38,7 @@ import { YType } from "../../../types/shared-editing.interface";
  */
 export class SharedModel {
   public yDoc: Y.Doc = new Y.Doc();
-  public wsProvider: WebsocketProvider;
+  public wsProvider?: WebsocketProvider;
   public awareness: Awareness;
   public operatorIDMap: Y.Map<YType<OperatorPredicate>>;
   public commentBoxMap: Y.Map<YType<CommentBox>>;
@@ -56,11 +56,15 @@ export class SharedModel {
    * @param wid workflow ID number, used as part of the address for the shared-editing room.
    * @param user current (local) user info, used for initializing local awareness (user presence).
    * @param productionSharedEditingServer whether to use production shared editing server
+   * @param enableSharedEditing whether to join the shared-editing room over the network. When false, the model is
+   *   purely local: no {@link WebsocketProvider}/`/rtc` socket is opened and a standalone {@link Awareness} is used.
+   *   This is used for throwaway/validation graphs that must never consume a real-time connection.
    */
   constructor(
     public wid?: number,
     public user?: User,
-    private productionSharedEditingServer?: boolean
+    private productionSharedEditingServer?: boolean,
+    private enableSharedEditing: boolean = true
   ) {
     // Initialize Y-structures.
     this.debugState = this.yDoc.getMap("debugActions");
@@ -77,13 +81,17 @@ export class SharedModel {
       }
     );
 
-    // Generate editing room number.
-    const websocketUrl = this.getYWebSocketBaseUrl();
-    const suffix = wid ? `${wid}` : uuid();
-    this.wsProvider = new WebsocketProvider(websocketUrl, suffix, this.yDoc);
-
-    // Initialize local user awareness information.
-    this.awareness = this.wsProvider.awareness;
+    if (this.enableSharedEditing) {
+      // Generate editing room number and join the shared-editing room over the network.
+      const websocketUrl = this.getYWebSocketBaseUrl();
+      const suffix = wid ? `${wid}` : uuid();
+      this.wsProvider = new WebsocketProvider(websocketUrl, suffix, this.yDoc);
+      // Initialize local user awareness information from the provider's awareness.
+      this.awareness = this.wsProvider.awareness;
+    } else {
+      // Local-only: no network. A standalone awareness keeps clientId/awareness reads valid downstream.
+      this.awareness = new Awareness(this.yDoc);
+    }
     this.clientId = this.awareness.clientID.toString();
     if (this.user) {
       const userState: CoeditorState = {
@@ -126,10 +134,14 @@ export class SharedModel {
    * Destroys internal structures related to Yjs and quit the editing room.
    */
   public destroy(): void {
-    this.awareness.destroy();
     try {
-      if (this.wsProvider.shouldConnect && this.wsProvider.wsconnected) this.wsProvider.disconnect();
+      // Fully tear down the provider: destroy() clears the _checkInterval/_resyncInterval reconnect timers,
+      // removes the beforeunload handler, broadcasts awareness removal (peers drop our cursor), and closes the
+      // socket. Calling disconnect() alone (the previous behavior) leaves the reconnect timer running, so the
+      // provider is never garbage-collected and keeps re-opening a zombie /rtc socket for the life of the tab.
+      this.wsProvider?.destroy();
     } catch (e) {}
+    this.awareness.destroy();
     this.yDoc.destroy();
   }
 }

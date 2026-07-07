@@ -778,7 +778,7 @@ export class WorkflowActionService {
    * @param workflow
    */
   public setTempWorkflow(workflow: Workflow): void {
-    if (this.texeraGraph.sharedModel.wsProvider.shouldConnect) {
+    if (this.texeraGraph.sharedModel.wsProvider?.shouldConnect) {
       this.texeraGraph.sharedModel.wsProvider.disconnect();
     }
     this.tempWorkflow = workflow;
@@ -789,7 +789,7 @@ export class WorkflowActionService {
    */
   public resetTempWorkflow(): void {
     this.tempWorkflow = undefined;
-    this.texeraGraph.sharedModel.wsProvider.connect();
+    this.texeraGraph.sharedModel.wsProvider?.connect();
   }
 
   public getTempWorkflow(): Workflow | undefined {

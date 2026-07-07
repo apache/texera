@@ -388,6 +388,13 @@ export class ValidationWorkflowService {
       link => validOperatorIds.has(link.source.operatorID) && validOperatorIds.has(link.target.operatorID)
     );
 
-    return new WorkflowGraph(validOperators, validLinks, texeraGraph.getAllCommentBoxes());
+    // This graph is a throwaway used only to build a logical plan for compilation/validation; it is read once and
+    // never destroyed. Pass enableSharedEditing=false so it does not open (and leak) a /rtc WebSocket per edit.
+    return new WorkflowGraph(
+      validOperators,
+      validLinks,
+      texeraGraph.getAllCommentBoxes(),
+      /* enableSharedEditing */ false
+    );
   }
 }
