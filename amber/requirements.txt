@@ -15,33 +15,36 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Not imported directly: `fs` needs pkg_resources at import time (#4199).
 setuptools==80.10.2
 numpy==2.1.0
 pandas==2.2.3
-ruff==0.14.7
-loguru==0.7.0
+loguru==0.7.3
 pyarrow==23.0.1
+# Not imported directly: runtime dependency of betterproto and pg8000.
 python-dateutil==2.8.2
-protobuf==7.34.1
 betterproto==2.0.0b7
 pampy==0.3.0
-overrides==7.4.0
+overrides==7.7.0
 typing_extensions==4.14.1
-Deprecated==1.2.14
 fs==2.4.16
 bidict==0.22.0
-cached_property==1.5.2
+cached_property==2.0.1
 psutil==5.9.0
 tzlocal==2.1
+# Not imported directly: s3fs (with aiobotocore) backs pyiceberg's
+# fsspec-based S3 FileIO (#4272).
 s3fs==2025.9.0
-aiobotocore==2.25.1
-botocore==1.40.53
+aiobotocore==2.26.0
+botocore==1.41.5
 pyiceberg==0.11.1
 readerwriterlock==1.0.9
 tenacity==8.5.0
-SQLAlchemy==2.0.37
+# Not imported directly: pyiceberg's SqlCatalog needs SQLAlchemy with the
+# pg8000 driver (postgresql+pg8000:// connection string in iceberg_utils.py).
+SQLAlchemy==2.0.51
 pg8000==1.31.5
 pympler==1.1
-boto3==1.40.53
-requests==2.34.0
+boto3==1.41.5
+requests==2.34.2
 urllib3==2.7.0
