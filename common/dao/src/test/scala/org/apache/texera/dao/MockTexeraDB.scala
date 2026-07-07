@@ -26,7 +26,7 @@ import org.scalatest.Outcome
 import org.scalatest.flatspec.AnyFlatSpecLike
 
 import java.nio.file.Paths
-import java.sql.{Connection, DriverManager, Savepoint}
+import java.sql.{Connection, DriverManager}
 import scala.io.Source
 import scala.util.Using
 
@@ -84,8 +84,8 @@ object MockTexeraDB {
 
 trait MockTexeraDB extends AnyFlatSpecLike {
   private var testScopedContext: Option[DSLContext] = None
-  private var connection: Option[Connection] = None
-  private var uniqueDbName: String = ""
+  protected var connection: Option[Connection] = None
+  protected var uniqueDbName: String = ""
 
   def initializeDBAndReplaceDSLContext(): Unit = synchronized {
     if (connection.isEmpty || connection.get.isClosed) {
