@@ -17,16 +17,25 @@
  * under the License.
  */
 
-package org.apache.texera.service.resource
+package org.apache.texera.amber.operator.source.fetcher
 
-import jakarta.annotation.security.PermitAll
-import jakarta.ws.rs.core.MediaType
-import jakarta.ws.rs.{GET, Path, Produces}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-@Path("/healthcheck")
-@PermitAll
-@Produces(Array(MediaType.APPLICATION_JSON))
-class HealthCheckResource {
-  @GET
-  def healthCheck: Map[String, String] = Map("status" -> "ok")
+class DecodingMethodSpec extends AnyFlatSpec with Matchers {
+
+  "DecodingMethod" should "map each constant to its wire value" in {
+    DecodingMethod.UTF_8.getName shouldBe "UTF-8"
+    DecodingMethod.RAW_BYTES.getName shouldBe "RAW BYTES"
+    DecodingMethod.values() should have length 2
+  }
+
+  "DecodingMethod" should "round-trip through Jackson using its wire value" in {
+    objectMapper.writeValueAsString(DecodingMethod.RAW_BYTES) shouldBe "\"RAW BYTES\""
+    objectMapper.readValue(
+      "\"RAW BYTES\"",
+      classOf[DecodingMethod]
+    ) shouldBe DecodingMethod.RAW_BYTES
+  }
 }
