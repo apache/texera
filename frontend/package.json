@@ -38,7 +38,7 @@
     "@lezer/python": "1.1.19",
     "@ngneat/until-destroy": "8.1.4",
     "@ngx-formly/core": "7.1.0",
-    "@ngx-formly/ng-zorro-antd": "6.3.12",
+    "@ngx-formly/ng-zorro-antd": "7.1.0",
     "ai": "5.0.93",
     "ajv": "8.10.0",
     "concaveman": "2.0.0",

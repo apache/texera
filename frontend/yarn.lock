@@ -4294,15 +4294,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ngx-formly/ng-zorro-antd@npm:6.3.12":
-  version: 6.3.12
-  resolution: "@ngx-formly/ng-zorro-antd@npm:6.3.12"
+"@ngx-formly/ng-zorro-antd@npm:7.1.0":
+  version: 7.1.0
+  resolution: "@ngx-formly/ng-zorro-antd@npm:7.1.0"
   dependencies:
     tslib: "npm:^2.0.0"
   peerDependencies:
-    "@ngx-formly/core": 6.3.12
-    ng-zorro-antd: ">=13.0.0"
-  checksum: 10c0/15686a2cbbaaf2a34cad250e9b0a4fe5d533e4c1c8b917dccc825ba76ac2e9bbabe588f0dde8566d726dd800d347b90098dfebf7c1fca4bf6a9edd7e097a0a64
+    "@ngx-formly/core": 7.1.0
+    ng-zorro-antd: ">=16.0.0"
+  checksum: 10c0/cbb421db404d03f02112c303a7f77b49b700db60e4997cb501855cd734d083cc66dac1bdab79af58910faeea848c0ae6798426aaa9b57fd8de73242c3fe75035
   languageName: node
   linkType: hard
 
@@ -10807,7 +10807,7 @@ __metadata:
     "@lezer/python": "npm:1.1.19"
     "@ngneat/until-destroy": "npm:8.1.4"
     "@ngx-formly/core": "npm:7.1.0"
-    "@ngx-formly/ng-zorro-antd": "npm:6.3.12"
+    "@ngx-formly/ng-zorro-antd": "npm:7.1.0"
     "@nx/angular": "npm:23.0.1"
     "@schematics/angular": "npm:21.2.18"
     "@types/backbone": "npm:1.4.23"
