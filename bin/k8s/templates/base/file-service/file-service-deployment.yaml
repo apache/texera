@@ -41,17 +41,21 @@ spec:
           env:
             # LakeFS & S3 Access
             - name: STORAGE_S3_ENDPOINT
-              value: http://{{ .Release.Name }}-minio:9000
+              value: {{ include "texera.s3.endpoint" . }}
+            {{- if .Values.storage.s3.endpoint }}
+            - name: STORAGE_S3_REGION
+              value: {{ .Values.storage.s3.region | quote }}
+            {{- end }}
             - name: STORAGE_S3_AUTH_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-minio
-                  key: root-user
+                  name: {{ include "texera.s3.secretName" . }}
+                  key: {{ include "texera.s3.accessKeyIdKey" . }}
             - name: STORAGE_S3_AUTH_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-minio
-                  key: root-password
+                  name: {{ include "texera.s3.secretName" . }}
+                  key: {{ include "texera.s3.secretAccessKeyKey" . }}
             - name: STORAGE_LAKEFS_ENDPOINT
               value: http://{{ .Release.Name }}-lakefs:8000/api/v1
             - name: STORAGE_LAKEFS_AUTH_USERNAME

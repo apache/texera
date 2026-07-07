@@ -181,4 +181,24 @@ object TestOperators {
     udf
   }
 
+  // Emits `numTuple` rows with a "Region" column, sleeping `delaySeconds`
+  // between rows.
+  def slowRegionSourceOpDesc(numTuple: Int, delaySeconds: Double): PythonUDFSourceOpDescV2 = {
+    val udf = new PythonUDFSourceOpDescV2()
+    udf.workers = 1
+    udf.columns = List(new Attribute("Region", AttributeType.STRING))
+    udf.code = s"""
+                 |from pytexera import *
+                 |import time
+                 |
+                 |class UDFSourceOperator(UDFSourceOperator):
+                 |    @overrides
+                 |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
+                 |        for i in range($numTuple):
+                 |            time.sleep($delaySeconds)
+                 |            yield {'Region': 'Asia'}
+                 |""".stripMargin
+    udf
+  }
+
 }

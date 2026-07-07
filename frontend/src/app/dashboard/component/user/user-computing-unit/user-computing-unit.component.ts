@@ -17,27 +17,13 @@
  * under the License.
  */
 
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import {
-  DashboardWorkflowComputingUnit,
-  WorkflowComputingUnitType,
-} from "../../../../common/type/workflow-computing-unit";
-import { extractErrorMessage } from "../../../../common/util/error";
+import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { NzModalService, NzModalComponent } from "ng-zorro-antd/modal";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "../../../../common/service/user/user.service";
-import { WorkflowComputingUnitManagingService } from "../../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
-import {
-  parseResourceUnit,
-  parseResourceNumber,
-  findNearestValidStep,
-  unitTypeMessageTemplate,
-  isComputingUnitShmTooLarge,
-  getJvmMemorySliderConfig,
-} from "../../../../common/util/computing-unit.util";
 import { ComputingUnitActionsService } from "../../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import { interval } from "rxjs";
 import { NzCardComponent } from "ng-zorro-antd/card";
@@ -49,13 +35,7 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { ɵɵCdkVirtualScrollViewport, ɵɵCdkFixedSizeVirtualScroll, ɵɵCdkVirtualForOf } from "@angular/cdk/overlay";
 import { NzListComponent } from "ng-zorro-antd/list";
 import { UserComputingUnitListItemComponent } from "./user-computing-unit-list-item/user-computing-unit-list-item.component";
-import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
-import { FormsModule } from "@angular/forms";
-import { NgFor, NgIf, TitleCasePipe } from "@angular/common";
-import { NzInputDirective } from "ng-zorro-antd/input";
-import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
-import { NzSliderComponent } from "ng-zorro-antd/slider";
-import { NzAlertComponent } from "ng-zorro-antd/alert";
+import { ComputingUnitCreateModalComponent } from "../../../../common/component/computing-unit-create-modal/computing-unit-create-modal.component";
 
 @UntilDestroy()
 @Component({
@@ -74,17 +54,7 @@ import { NzAlertComponent } from "ng-zorro-antd/alert";
     NzListComponent,
     ɵɵCdkVirtualForOf,
     UserComputingUnitListItemComponent,
-    NzModalComponent,
-    NzSelectComponent,
-    FormsModule,
-    NgFor,
-    NzOptionComponent,
-    NgIf,
-    NzInputDirective,
-    NzTooltipDirective,
-    NzSliderComponent,
-    NzAlertComponent,
-    TitleCasePipe,
+    ComputingUnitCreateModalComponent,
   ],
 })
 export class UserComputingUnitComponent implements OnInit {
@@ -94,37 +64,12 @@ export class UserComputingUnitComponent implements OnInit {
 
   allComputingUnits: DashboardWorkflowComputingUnit[] = [];
 
-  // variables for creating a computing unit
+  // visibility of the shared create-computing-unit modal
   addComputeUnitModalVisible = false;
-  newComputingUnitName: string = "";
-  selectedMemory: string = "";
-  selectedCpu: string = "";
-  selectedGpu: string = "0"; // Default to no GPU
-  selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
-  selectedComputingUnitType?: WorkflowComputingUnitType; // Selected computing unit type
-  selectedShmSize: string = "64Mi"; // Shared memory size
-  shmSizeValue: number = 64; // default to 64
-  shmSizeUnit: "Mi" | "Gi" = "Mi"; // default unit
-  availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
-  localComputingUnitUri: string = ""; // URI for local computing unit
-
-  // JVM memory slider configuration
-  jvmMemorySliderValue: number = 1; // Initial value in GB
-  jvmMemoryMarks: { [key: number]: string } = { 1: "1G" };
-  jvmMemoryMax: number = 1;
-  jvmMemorySteps: number[] = [1]; // Available steps in binary progression (1,2,4,8...)
-  showJvmMemorySlider: boolean = false; // Whether to show the slider
-
-  // cpu&memory limit options from backend
-  cpuOptions: string[] = [];
-  memoryOptions: string[] = [];
-  gpuOptions: string[] = []; // Add GPU options array
 
   constructor(
     private notificationService: NotificationService,
-    private modalService: NzModalService,
     private userService: UserService,
-    private computingUnitService: WorkflowComputingUnitManagingService,
     private computingUnitStatusService: ComputingUnitStatusService,
     private computingUnitActionsService: ComputingUnitActionsService
   ) {
@@ -138,46 +83,6 @@ export class UserComputingUnitComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.localComputingUnitUri = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ""}/wsapi`;
-    this.newComputingUnitName = "My Computing Unit";
-    this.computingUnitService
-      .getComputingUnitTypes()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: ({ typeOptions }) => {
-          this.availableComputingUnitTypes = typeOptions;
-          // Set default selected type if available
-          if (typeOptions.includes("kubernetes")) {
-            this.selectedComputingUnitType = "kubernetes";
-          } else if (typeOptions.length > 0) {
-            this.selectedComputingUnitType = typeOptions[0];
-          }
-        },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to fetch computing unit types: ${extractErrorMessage(err)}`),
-      });
-
-    this.computingUnitService
-      .getComputingUnitLimitOptions()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: ({ cpuLimitOptions, memoryLimitOptions, gpuLimitOptions }) => {
-          this.cpuOptions = cpuLimitOptions;
-          this.memoryOptions = memoryLimitOptions;
-          this.gpuOptions = gpuLimitOptions;
-
-          // fallback defaults
-          this.selectedCpu = this.cpuOptions[0] ?? "1";
-          this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
-          this.selectedGpu = this.gpuOptions[0] ?? "0";
-
-          // Initialize JVM memory slider based on selected memory
-          this.updateJvmMemorySlider();
-        },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
-      });
-
     this.computingUnitStatusService
       .getAllComputingUnits()
       .pipe(untilDestroyed(this))
@@ -204,124 +109,11 @@ export class UserComputingUnitComponent implements OnInit {
     this.computingUnitActionsService.confirmAndTerminate(cuid, unit);
   }
 
-  startComputingUnit(): void {
-    if (this.selectedComputingUnitType === "kubernetes" && this.newComputingUnitName.trim() === "") {
-      this.notificationService.error("Name of the computing unit cannot be empty");
-      return;
-    }
-
-    if (this.selectedComputingUnitType === "local" && this.localComputingUnitUri.trim() === "") {
-      this.notificationService.error("URI for local computing unit cannot be empty");
-      return;
-    }
-
-    if (!this.selectedComputingUnitType) {
-      this.notificationService.error("Please select a valid computing unit type");
-      return;
-    }
-
-    const request = {
-      type: this.selectedComputingUnitType,
-      name: this.newComputingUnitName,
-      cpu: this.selectedCpu,
-      memory: this.selectedMemory,
-      gpu: this.selectedGpu,
-      jvmMemorySize: this.selectedJvmMemorySize,
-      shmSize: `${this.shmSizeValue}${this.shmSizeUnit}`,
-      localUri: this.localComputingUnitUri,
-    };
-
-    this.computingUnitActionsService
-      .create(request)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.notificationService.success("Successfully created the new compute unit");
-          this.computingUnitStatusService.refreshComputingUnitList();
-        },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to start computing unit: ${extractErrorMessage(err)}`),
-      });
-  }
-
-  showGpuSelection(): boolean {
-    // Don't show GPU selection if there are no options or only "0" option
-    return this.gpuOptions.length > 1 || (this.gpuOptions.length === 1 && this.gpuOptions[0] !== "0");
-  }
-
   showAddComputeUnitModalVisible(): void {
     this.addComputeUnitModalVisible = true;
   }
 
-  handleAddComputeUnitModalOk(): void {
-    this.startComputingUnit();
-    this.addComputeUnitModalVisible = false;
-  }
-
-  handleAddComputeUnitModalCancel(): void {
-    this.addComputeUnitModalVisible = false;
-  }
-
-  isShmTooLarge(): boolean {
-    return isComputingUnitShmTooLarge(this.selectedMemory, this.shmSizeValue, this.shmSizeUnit);
-  }
-
-  updateJvmMemorySlider(): void {
-    this.resetJvmMemorySlider();
-  }
-
-  onJvmMemorySliderChange(value: number): void {
-    // Ensure the value is one of the valid steps
-    const validStep = findNearestValidStep(value, this.jvmMemorySteps);
-    this.jvmMemorySliderValue = validStep;
-    this.selectedJvmMemorySize = `${validStep}G`;
-  }
-
-  isMaxJvmMemorySelected(): boolean {
-    // Only show warning for larger memory sizes (>=4GB) where the slider is shown
-    // AND when the maximum value is selected
-    return this.showJvmMemorySlider && this.jvmMemorySliderValue === this.jvmMemoryMax && this.jvmMemoryMax >= 4;
-  }
-
-  // Completely reset the JVM memory slider based on the selected CU memory
-  resetJvmMemorySlider(): void {
-    const config = getJvmMemorySliderConfig(this.selectedMemory);
-
-    this.jvmMemoryMax = config.jvmMemoryMax;
-    this.showJvmMemorySlider = config.showJvmMemorySlider;
-    this.jvmMemorySteps = config.jvmMemorySteps;
-    this.jvmMemoryMarks = config.jvmMemoryMarks;
-    this.jvmMemorySliderValue = config.jvmMemorySliderValue;
-    this.selectedJvmMemorySize = config.selectedJvmMemorySize;
-  }
-
-  onMemorySelectionChange(): void {
-    // Store current JVM memory value for potential reuse
-    const previousJvmMemory = this.jvmMemorySliderValue;
-
-    // Reset slider configuration based on the new memory selection
-    this.resetJvmMemorySlider();
-
-    // For CU memory > 3GB, preserve previous value if valid and >= 2GB
-    // Get the current memory in GB
-    const memoryValue = parseResourceNumber(this.selectedMemory);
-    const memoryUnit = parseResourceUnit(this.selectedMemory);
-    let cuMemoryInGb = memoryUnit === "Gi" ? memoryValue : memoryUnit === "Mi" ? Math.floor(memoryValue / 1024) : 1;
-
-    // Only try to preserve previous value for larger memory sizes where slider is shown
-    if (
-      cuMemoryInGb > 3 &&
-      previousJvmMemory >= 2 &&
-      previousJvmMemory <= this.jvmMemoryMax &&
-      this.jvmMemorySteps.includes(previousJvmMemory)
-    ) {
-      this.jvmMemorySliderValue = previousJvmMemory;
-      this.selectedJvmMemorySize = `${previousJvmMemory}G`;
-    }
-  }
-
-  getCreateModalTitle(): string {
-    if (!this.selectedComputingUnitType) return "Create Computing Unit";
-    return unitTypeMessageTemplate[this.selectedComputingUnitType].createTitle;
+  onComputingUnitCreated(): void {
+    this.computingUnitStatusService.refreshComputingUnitList();
   }
 }

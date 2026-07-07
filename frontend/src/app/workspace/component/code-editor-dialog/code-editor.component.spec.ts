@@ -271,16 +271,16 @@ describe("CodeEditorComponent", () => {
       const fixture = makeFixture(mockJavaUDFPredicate);
       const c = fixture.componentInstance;
 
-      // The accept path reaches into the underlying MonacoEditorLanguageClientWrapper
-      // for `.getEditor()` and into the YText `.code` for `.insert()`. Both are
-      // private so we stub them through bracket access to a minimum that lets
-      // insertTypeAnnotations no-op cleanly. `dispose` is needed because
-      // ngOnDestroy fires at teardown and calls it.
-      (c as any).editorWrapper = {
+      // The accept path reaches into the underlying EditorApp for `.getEditor()`
+      // and into the YText `.code` for `.insert()`. Both are private so we stub
+      // them through bracket access to a minimum that lets insertTypeAnnotations
+      // no-op cleanly. `dispose` is needed because ngOnDestroy fires at teardown
+      // and calls it.
+      (c as any).editorApp = {
         getEditor: () => ({
           getModel: () => ({ getOffsetAt: () => 0 }),
         }),
-        dispose: vi.fn(),
+        dispose: vi.fn().mockResolvedValue(undefined),
       };
       (c as any).code = { insert: vi.fn() };
 

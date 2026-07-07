@@ -67,6 +67,34 @@ class DumbbellPlotOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("go.Scatter(")
   }
 
+  "DumbbellPlotOpDesc.createPlotlyDumbbellLineFigure" should
+    "select the showlegend flag from showLegends" in {
+    val on = new DumbbellPlotOpDesc
+    on.showLegends = true
+    on.createPlotlyDumbbellLineFigure().plain should include("showlegend=True")
+
+    val off = new DumbbellPlotOpDesc // showLegends defaults to false
+    off.createPlotlyDumbbellLineFigure().plain should include("showlegend=False")
+  }
+
+  "DumbbellPlotOpDesc.addPlotlyDots" should
+    "list the configured dot columns and default to an empty list" in {
+    val d = new DumbbellPlotOpDesc
+    val dot1 = new DumbbellDotConfig
+    dot1.dotValue = "q1"
+    val dot2 = new DumbbellDotConfig
+    dot2.dotValue = "q2"
+    d.dots = java.util.Arrays.asList(dot1, dot2)
+    val withDots = d.addPlotlyDots().plain
+    // both configured dots must be emitted: the rendered list has two comma-separated
+    // (base64-encoded) entries, e.g. dotColumnNames = [<enc-q1>,<enc-q2>]
+    val dotsLine = withDots.linesIterator.find(_.contains("dotColumnNames = [")).getOrElse("")
+    dotsLine should not include "dotColumnNames = []"
+    dotsLine.split(",") should have length 2
+
+    (new DumbbellPlotOpDesc).addPlotlyDots().plain should include("dotColumnNames = []")
+  }
+
   "DumbbellPlotOpDesc" should "round-trip its column fields through the polymorphic base" in {
     val d = new DumbbellPlotOpDesc
     d.categoryColumnName = "entity"

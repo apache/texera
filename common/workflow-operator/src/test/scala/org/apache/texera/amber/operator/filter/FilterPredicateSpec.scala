@@ -24,6 +24,8 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.sql.Timestamp
+
 class FilterPredicateSpec extends AnyFlatSpec with Matchers {
 
   private val intSchema = Schema().add(new Attribute("age", AttributeType.INTEGER))
@@ -74,5 +76,73 @@ class FilterPredicateSpec extends AnyFlatSpec with Matchers {
     node.get("condition").asText shouldBe ">="
     node.get("value").asText shouldBe "18"
     objectMapper.readValue(json, classOf[FilterPredicate]) shouldBe p
+  }
+
+  private def singleFieldTuple(attributeType: AttributeType, field: Any): Tuple = {
+    val schema = Schema().add(new Attribute("col", attributeType))
+    Tuple.builder(schema).add("col", attributeType, field).build()
+  }
+
+  "FilterPredicate.evaluate" should "apply the remaining comparison operators" in {
+    new FilterPredicate("age", ComparisonType.GREATER_THAN_OR_EQUAL_TO, "18")
+      .evaluate(ageTuple(18)) shouldBe true
+    new FilterPredicate("age", ComparisonType.GREATER_THAN_OR_EQUAL_TO, "18")
+      .evaluate(ageTuple(17)) shouldBe false
+    new FilterPredicate("age", ComparisonType.LESS_THAN, "18").evaluate(ageTuple(10)) shouldBe true
+    new FilterPredicate("age", ComparisonType.EQUAL_TO, "18").evaluate(ageTuple(18)) shouldBe true
+  }
+
+  it should "return false for non-null-check conditions when the field is null" in {
+    new FilterPredicate("age", ComparisonType.EQUAL_TO, "1").evaluate(ageTuple(null)) shouldBe false
+  }
+
+  it should "evaluate IS_NULL against null and non-null fields" in {
+    new FilterPredicate("age", ComparisonType.IS_NULL, null).evaluate(ageTuple(null)) shouldBe true
+    new FilterPredicate("age", ComparisonType.IS_NULL, null).evaluate(ageTuple(5)) shouldBe false
+    new FilterPredicate("age", ComparisonType.IS_NOT_NULL, null)
+      .evaluate(ageTuple(null)) shouldBe false
+  }
+
+  it should "compare boolean fields case-insensitively against the value" in {
+    val t = singleFieldTuple(AttributeType.BOOLEAN, java.lang.Boolean.TRUE)
+    new FilterPredicate("col", ComparisonType.EQUAL_TO, "TRUE").evaluate(t) shouldBe true
+    new FilterPredicate("col", ComparisonType.EQUAL_TO, "false").evaluate(t) shouldBe false
+    new FilterPredicate("col", ComparisonType.NOT_EQUAL_TO, "false").evaluate(t) shouldBe true
+  }
+
+  it should "compare double fields numerically" in {
+    val t = singleFieldTuple(AttributeType.DOUBLE, java.lang.Double.valueOf(3.5))
+    new FilterPredicate("col", ComparisonType.GREATER_THAN, "3.0").evaluate(t) shouldBe true
+    new FilterPredicate("col", ComparisonType.LESS_THAN_OR_EQUAL_TO, "3.5")
+      .evaluate(t) shouldBe true
+  }
+
+  it should "compare long fields numerically" in {
+    val t = singleFieldTuple(AttributeType.LONG, java.lang.Long.valueOf(100L))
+    new FilterPredicate("col", ComparisonType.LESS_THAN_OR_EQUAL_TO, "100")
+      .evaluate(t) shouldBe true
+    new FilterPredicate("col", ComparisonType.GREATER_THAN, "99").evaluate(t) shouldBe true
+  }
+
+  it should "compare timestamp fields against parsed timestamp values" in {
+    val t =
+      singleFieldTuple(AttributeType.TIMESTAMP, Timestamp.valueOf("2020-01-01 00:00:00"))
+    new FilterPredicate("col", ComparisonType.EQUAL_TO, "2020-01-01 00:00:00")
+      .evaluate(t) shouldBe true
+    new FilterPredicate("col", ComparisonType.GREATER_THAN, "2019-01-01 00:00:00")
+      .evaluate(t) shouldBe true
+  }
+
+  it should "compare numeric strings numerically before falling back to string comparison" in {
+    val t = singleFieldTuple(AttributeType.STRING, "10")
+    // string comparison would put "10" before "9"; the numeric path compares 10 > 9
+    new FilterPredicate("col", ComparisonType.GREATER_THAN, "9").evaluate(t) shouldBe true
+  }
+
+  "FilterPredicate.equals" should "treat the same instance as equal and reject other types" in {
+    val p = new FilterPredicate("age", ComparisonType.EQUAL_TO, "1")
+    p.equals(p) shouldBe true
+    p.equals(null) shouldBe false
+    p.equals("not a predicate") shouldBe false
   }
 }

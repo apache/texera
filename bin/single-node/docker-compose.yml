@@ -219,7 +219,50 @@ services:
         fi
 
         if jq -e --arg name "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME" '.warehouses[]? | select(.name == $$name)' /tmp/warehouses.txt >/dev/null; then
-          echo "Lakekeeper Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' already exists. Skipping creation."
+          # The warehouse persists its S3 endpoint in Lakekeeper's own DB. The
+          # local-dev launcher sets STORAGE_S3_ENDPOINT to the host LAN IP so
+          # both this container and the host JVMs (Iceberg remote-signing) reach
+          # the same MinIO — but that IP changes across networks / DHCP leases.
+          # This init is idempotent and would otherwise just skip, leaving a
+          # stale endpoint that breaks workflow execution with an opaque Iceberg
+          # RESTException. Refresh the stored endpoint on every run (#6195).
+          echo "Lakekeeper Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' already exists. Refreshing its storage endpoint to '$$STORAGE_S3_ENDPOINT'..."
+          WAREHOUSE_ID=$$(jq -r --arg name "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME" '.warehouses[]? | select(.name == $$name) | .id' /tmp/warehouses.txt)
+          UPDATE_PAYLOAD=$$(cat <<EOF
+        {
+          "storage-profile": {
+            "type": "s3",
+            "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
+            "region": "$$STORAGE_S3_REGION",
+            "endpoint": "$$STORAGE_S3_ENDPOINT",
+            "flavor": "s3-compat",
+            "path-style-access": true,
+            "sts-enabled": false
+          },
+          "storage-credential": {
+            "type": "s3",
+            "credential-type": "access-key",
+            "aws-access-key-id": "$$STORAGE_S3_AUTH_USERNAME",
+            "aws-secret-access-key": "$$STORAGE_S3_AUTH_PASSWORD"
+          }
+        }
+        EOF
+          )
+
+          UPDATE_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+              -X POST \
+              -H "Content-Type: application/json" \
+              -d "$$UPDATE_PAYLOAD" \
+              "$$LAKEKEEPER_BASE_URI/management/v1/warehouse/$$WAREHOUSE_ID/storage" || echo "000")
+
+          if [ "$$UPDATE_CODE" -lt 200 ] || [ "$$UPDATE_CODE" -ge 300 ]; then
+            echo "Failed to refresh Lakekeeper Warehouse storage. HTTP Code: $$UPDATE_CODE"
+            echo "ERROR RESPONSE:"
+            if [ -f /tmp/response.txt ]; then cat /tmp/response.txt; fi
+            echo ""
+            exit 1
+          fi
+          echo "Refreshed Lakekeeper Warehouse storage endpoint successfully (HTTP $$UPDATE_CODE)."
         else
           echo "Warehouse not found. Creating '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME'..."
           CREATE_PAYLOAD=$$(cat <<EOF
