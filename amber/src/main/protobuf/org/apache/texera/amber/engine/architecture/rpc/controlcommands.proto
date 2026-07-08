@@ -34,7 +34,7 @@ option (scalapb.options) = {
 
 message ControlRequest {
   oneof sealed_value {
-    // request for controller
+    // request for coordinator
     PropagateEmbeddedControlMessageRequest propagateEmbeddedControlMessageRequest = 1;
     TakeGlobalCheckpointRequest takeGlobalCheckpointRequest = 2;
     DebugCommandRequest debugCommandRequest = 3;
@@ -146,7 +146,7 @@ enum ConsoleMessageType{
 }
 
 message ConsoleMessage {
-  option (scalapb.message).extends = "org.apache.texera.amber.engine.architecture.controller.ClientEvent";
+  option (scalapb.message).extends = "org.apache.texera.amber.engine.architecture.coordinator.ClientEvent";
   string worker_id = 1;
   google.protobuf.Timestamp timestamp = 2  [(scalapb.field).no_box = true];
   ConsoleMessageType msg_type = 3;

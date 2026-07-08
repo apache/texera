@@ -99,7 +99,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         ).start()
 
     def _jump_to_loop_start(
-        self, executor: LoopEndOperator, controller_interface
+        self, executor: LoopEndOperator, coordinator_interface
     ) -> None:
         # The write address is setup config, keyed by the captured id. Fail
         # loud BEFORE the jump RPC so a misconfigured loop does not rewind the
@@ -111,7 +111,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 f"'{self._loop_start_id}' "
                 f"(have: {sorted(self.context.loop_start_state_uris)})"
             )
-        controller_interface.jump_to_operator_region(
+        coordinator_interface.jump_to_operator_region(
             JumpToOperatorRegionRequest(OperatorIdentity(self._loop_start_id))
         )
         writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
@@ -123,11 +123,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def complete(self) -> None:
         """
         Complete the DataProcessor, marking state to COMPLETED, and notify the
-        controller.
+        coordinator.
         """
         # flush the buffered console prints
         self._check_and_report_console_messages(force_flush=True)
-        controller_interface = self._async_rpc_client.controller_stub()
+        coordinator_interface = self._async_rpc_client.coordinator_stub()
         executor = self.context.executor_manager.executor
         if isinstance(executor, LoopEndOperator):
             # condition() evaluates a user-supplied expression on this main
@@ -148,13 +148,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self._check_exception()
                 return
             if should_jump:
-                self._jump_to_loop_start(executor, controller_interface)
+                self._jump_to_loop_start(executor, coordinator_interface)
         executor.close()
         # stop the data processing thread
         self.data_processor.stop()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
         self.context.statistics_manager.update_total_execution_time(time.time_ns())
-        controller_interface.worker_execution_completed(EmptyRequest())
+        coordinator_interface.worker_execution_completed(EmptyRequest())
         self.context.close()
 
     def _check_and_process_control(self) -> None:
@@ -387,7 +387,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         )
 
         if input_port_id is not None:
-            self._async_rpc_client.controller_stub().port_completed(
+            self._async_rpc_client.coordinator_stub().port_completed(
                 PortCompletedRequest(
                     port_id=input_port_id,
                     input=True,
@@ -407,7 +407,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
             # Need to send port completed even if there is no downstream link
             for port_id in self.context.output_manager.get_port_ids():
-                self._async_rpc_client.controller_stub().port_completed(
+                self._async_rpc_client.coordinator_stub().port_completed(
                     PortCompletedRequest(port_id=port_id, input=False)
                 )
             self.complete()
@@ -545,7 +545,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 logger.exception(err)
 
     def _send_console_message(self, console_message: ConsoleMessage):
-        self._async_rpc_client.controller_stub().console_message_triggered(
+        self._async_rpc_client.coordinator_stub().console_message_triggered(
             ConsoleMessageTriggeredRequest(console_message=console_message)
         )
 

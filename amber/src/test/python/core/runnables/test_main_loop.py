@@ -145,7 +145,7 @@ class TestMainLoop:
     @pytest.fixture
     def mock_control_input_channel(self):
         return ChannelIdentity(
-            ActorVirtualIdentity("CONTROLLER"),
+            ActorVirtualIdentity("COORDINATOR"),
             ActorVirtualIdentity("dummy_worker_id"),
             True,
         )
@@ -154,7 +154,7 @@ class TestMainLoop:
     def mock_control_output_channel(self):
         return ChannelIdentity(
             ActorVirtualIdentity("dummy_worker_id"),
-            ActorVirtualIdentity("CONTROLLER"),
+            ActorVirtualIdentity("COORDINATOR"),
             True,
         )
 
@@ -723,7 +723,7 @@ class TestMainLoop:
                     command_id=0,
                     context=AsyncRpcContext(
                         sender=ActorVirtualIdentity(name="dummy_worker_id"),
-                        receiver=ActorVirtualIdentity(name="CONTROLLER"),
+                        receiver=ActorVirtualIdentity(name="COORDINATOR"),
                     ),
                     command=ControlRequest(
                         port_completed_request=PortCompletedRequest(
@@ -743,7 +743,7 @@ class TestMainLoop:
                     command_id=1,
                     context=AsyncRpcContext(
                         sender=ActorVirtualIdentity(name="dummy_worker_id"),
-                        receiver=ActorVirtualIdentity(name="CONTROLLER"),
+                        receiver=ActorVirtualIdentity(name="COORDINATOR"),
                     ),
                     command=ControlRequest(
                         port_completed_request=PortCompletedRequest(
@@ -763,7 +763,7 @@ class TestMainLoop:
                     command_id=2,
                     context=AsyncRpcContext(
                         sender=ActorVirtualIdentity(name="dummy_worker_id"),
-                        receiver=ActorVirtualIdentity(name="CONTROLLER"),
+                        receiver=ActorVirtualIdentity(name="COORDINATOR"),
                     ),
                     command=ControlRequest(empty_request=EmptyRequest()),
                 )
@@ -1746,9 +1746,9 @@ class TestMainLoop:
     def test_console_message_rpc_fires_before_exception_pause(
         self, main_loop, monkeypatch
     ):
-        # Pin the controller-facing contract: when DataProcessor raises
+        # Pin the coordinator-facing contract: when DataProcessor raises
         # during an executor call, the stack-trace ConsoleMessage must
-        # reach the controller *before* the worker enters EXCEPTION_PAUSE
+        # reach the coordinator *before* the worker enters EXCEPTION_PAUSE
         # — otherwise the UI sees a paused worker with no error to show
         # until the user resumes. The DataProcessor side queues the
         # message before the switch (covered by
@@ -1787,7 +1787,7 @@ class TestMainLoop:
 
         kinds = [e[0] for e in events]
         assert kinds == ["rpc", "pause"], (
-            "console message must reach controller before pause; "
+            "console message must reach coordinator before pause; "
             f"observed order: {kinds}"
         )
         assert events[0][1].msg_type == ConsoleMessageType.ERROR
