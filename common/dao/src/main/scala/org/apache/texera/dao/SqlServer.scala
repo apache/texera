@@ -94,37 +94,13 @@ object SqlServer {
     * @return
     */
   def withTransaction[T](dsl: DSLContext)(block: DSLContext => T): T = {
-    val provider = dsl.configuration().connectionProvider()
-    val conn = provider.acquire()
-    val originalAutoCommit = conn.getAutoCommit
+    var result: Option[T] = None
 
-    try {
-      if (originalAutoCommit) {
-        conn.setAutoCommit(false)
-      }
+    dsl.transaction(configuration => {
+      val ctx = DSL.using(configuration)
+      result = Some(block(ctx))
+    })
 
-      val txCtx = org.jooq.impl.DSL.using(conn, dsl.dialect())
-      val result = block(txCtx)
-
-      if (originalAutoCommit) {
-        conn.commit()
-      }
-
-      result
-    } catch {
-      case e: Throwable =>
-        if (originalAutoCommit) {
-          conn.rollback()
-        }
-        throw e
-    } finally {
-      try {
-        if (originalAutoCommit != conn.getAutoCommit) {
-          conn.setAutoCommit(originalAutoCommit)
-        }
-      } finally {
-        provider.release(conn)
-      }
-    }
+    result.getOrElse(throw new RuntimeException("Transaction failed without result!"))
   }
 }

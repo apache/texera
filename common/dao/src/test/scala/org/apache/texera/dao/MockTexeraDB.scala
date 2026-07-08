@@ -19,14 +19,14 @@
 
 package org.apache.texera.dao
 
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
-import org.jooq.impl.DSL
+import org.jooq.impl.{DSL, DataSourceConnectionProvider, DefaultConfiguration}
 import org.jooq.{DSLContext, SQLDialect}
-import org.scalatest.Outcome
-import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.{Outcome, TestSuite, TestSuiteMixin}
 
 import java.nio.file.Paths
-import java.sql.{Connection, DriverManager}
+import java.sql.DriverManager
 import scala.io.Source
 import scala.util.Using
 
@@ -87,14 +87,14 @@ object MockTexeraDB {
   def getDDLScript: String = ddlScript.getOrElse(throw new RuntimeException("DDL not loaded"))
 }
 
-trait MockTexeraDB extends AnyFlatSpecLike {
+trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
   private var testScopedContext: Option[DSLContext] = None
-  protected var connection: Option[Connection] = None
+  protected var dataSource: Option[HikariDataSource] = None
   protected var uniqueDbName: String = ""
 
   def initializeDBAndReplaceDSLContext(): Unit =
     synchronized {
-      if (connection.isEmpty || connection.get.isClosed) {
+      if (dataSource.isEmpty || dataSource.get.isClosed) {
         MockTexeraDB.ensureInitialized()
         val embedded = MockTexeraDB.getDBInstance
 
@@ -105,45 +105,54 @@ trait MockTexeraDB extends AnyFlatSpecLike {
           }
         }
 
-        val conn = embedded.getDatabase("postgres", uniqueDbName).getConnection
-
-        // AutoCommit is TRUE by default, meaning any records inserted in beforeAll()
-        // will be permanently committed to this suite's specific isolated database!
-        Using.resource(conn.createStatement()) { stmt =>
-          stmt.execute(MockTexeraDB.getDDLScript)
+        // Run the DDL once via a throwaway connection (autoCommit is TRUE by default,
+        // so the schema is permanently committed to this suite's isolated database).
+        Using.resource(embedded.getDatabase("postgres", uniqueDbName).getConnection) { conn =>
+          Using.resource(conn.createStatement()) { stmt =>
+            stmt.execute(MockTexeraDB.getDDLScript)
+          }
         }
 
-        connection = Some(conn)
-        val scopedCtx = DSL.using(conn, SQLDialect.POSTGRES)
+        val jdbcUrl = embedded.getJdbcUrl("postgres", uniqueDbName)
+
+        // Back the test DSLContext with a real HikariCP pool so that concurrent
+        // transactions acquire *distinct* connections (matching production), rather
+        // than trampling one shared connection's autoCommit flag.
+        val hikariConfig = new HikariConfig()
+        hikariConfig.setJdbcUrl(jdbcUrl)
+        hikariConfig.setUsername("postgres")
+        hikariConfig.setPassword("")
+        // Must exceed the maximum number of concurrent test threads.
+        hikariConfig.setMaximumPoolSize(10)
+        val ds = new HikariDataSource(hikariConfig)
+        dataSource = Some(ds)
+
+        val jooqCfg = new DefaultConfiguration()
+        jooqCfg.set(new DataSourceConnectionProvider(ds))
+        jooqCfg.set(SQLDialect.POSTGRES)
+        val scopedCtx = DSL.using(jooqCfg)
         testScopedContext = Some(scopedCtx)
 
         // Point the Texera backend exactly to this suite's isolated database
-        SqlServer.initConnection(embedded.getJdbcUrl("postgres", uniqueDbName), "postgres", "")
+        SqlServer.initConnection(jdbcUrl, "postgres", "")
         SqlServer.getInstance().replaceDSLContext(scopedCtx)
       }
     }
 
-  override def withFixture(test: NoArgTest): Outcome = {
+  abstract override def withFixture(test: NoArgTest): Outcome = {
     initializeDBAndReplaceDSLContext()
 
-    val conn = connection.get
     val sqlServerInstance = SqlServer.getInstance()
     val activeContext = testScopedContext.get
-
-    conn.setAutoCommit(true)
 
     try {
       sqlServerInstance.replaceDSLContext(activeContext)
       super.withFixture(test)
     } finally {
       try {
-        if (!conn.isClosed) {
-          if (!conn.getAutoCommit) {
-            conn.rollback()
-            conn.setAutoCommit(true)
-          }
-
-          scala.util.Using.resource(conn.createStatement()) { stmt =>
+        // Truncate all tables on a pooled connection so each test starts clean.
+        Using.resource(dataSource.get.getConnection) { conn =>
+          Using.resource(conn.createStatement()) { stmt =>
             stmt.execute(
               """
               DO $$ DECLARE
@@ -175,17 +184,8 @@ trait MockTexeraDB extends AnyFlatSpecLike {
 
   def shutdownDB(): Unit =
     synchronized {
-      try {
-        connection.foreach { conn =>
-          if (!conn.isClosed) {
-            conn.close()
-          }
-        }
-      } catch {
-        case e: Exception => e.printStackTrace()
-      } finally {
-        connection = None
-        testScopedContext = None
-      }
+      try dataSource.foreach(ds => if (!ds.isClosed) ds.close())
+      catch { case e: Exception => e.printStackTrace() }
+      finally { dataSource = None; testScopedContext = None }
     }
 }
