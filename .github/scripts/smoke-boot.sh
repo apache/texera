@@ -87,8 +87,18 @@ for ((i = 0; i < timeout; i++)); do
   sleep 1
 done
 
-# Stop the service (it may already be gone).
+# Stop the service (it may already be gone). Give it a bounded grace period,
+# then SIGKILL to avoid hanging the CI job.
 kill "$pid" 2>/dev/null || true
+for _ in $(seq 1 10); do
+  if ! kill -0 "$pid" 2>/dev/null; then
+    break
+  fi
+  sleep 1
+done
+if kill -0 "$pid" 2>/dev/null; then
+  kill -9 "$pid" 2>/dev/null || true
+fi
 wait "$pid" 2>/dev/null || true
 
 fail() {
