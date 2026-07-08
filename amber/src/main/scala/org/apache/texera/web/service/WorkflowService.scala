@@ -35,7 +35,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 import org.apache.texera.amber.core.workflow.WorkflowContext
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED
@@ -101,7 +101,6 @@ class WorkflowService(
     with LazyLogging {
 
   // state across execution:
-  private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val stateStore = new WorkflowStateStore()
   var executionService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
 
@@ -150,8 +149,7 @@ class WorkflowService(
         evtPub.subscribe { evts: Iterable[TexeraWebSocketEvent] => evts.foreach(onNext) }
       )
       .toSeq
-    val errorSubscription = errorSubject.subscribe { evt: TexeraWebSocketEvent => onNext(evt) }
-    new CompositeDisposable(subscriptions :+ errorSubscription: _*)
+    new CompositeDisposable(subscriptions: _*)
   }
 
   def connectToExecution(onNext: TexeraWebSocketEvent => Unit): Disposable = {
@@ -200,7 +198,7 @@ class WorkflowService(
     )
 
     val workflowContext: WorkflowContext = createWorkflowContext()
-    var controllerConf = ControllerConfig.default
+    var coordinatorConf = CoordinatorConfig.default
 
     // clean up results from previous run
     val previousExecutionId =
@@ -224,7 +222,7 @@ class WorkflowService(
       ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
         execution => execution.setLogLocation(writeLocation.toString)
       }
-      controllerConf = controllerConf.copy(faultToleranceConfOpt =
+      coordinatorConf = coordinatorConf.copy(faultToleranceConfOpt =
         Some(FaultToleranceConfig(writeTo = writeLocation))
       )
     }
@@ -234,7 +232,7 @@ class WorkflowService(
         .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
         .foreach { execution =>
           val readLocation = new URI(execution.getLogLocation)
-          controllerConf = controllerConf.copy(stateRestoreConfOpt =
+          coordinatorConf = coordinatorConf.copy(stateRestoreConfOpt =
             Some(
               StateRestoreConfig(
                 readFrom = readLocation,
@@ -277,9 +275,14 @@ class WorkflowService(
         }
       }
     }
+    // WorkflowExecutionService construction does no external work and cannot
+    // throw; it registers its error/state diff handler up front. Once published
+    // via `executionService.onNext`, any failure in `executeWorkflow()` is
+    // recorded by `errorHandler` into the metadata store, whose handler emits a
+    // WorkflowErrorEvent that `connectToExecution` forwards.
     try {
       val execution = new WorkflowExecutionService(
-        controllerConf,
+        coordinatorConf,
         workflowContext,
         resultService,
         req,

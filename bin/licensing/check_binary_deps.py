@@ -51,6 +51,7 @@ PER_MODULE_LICENSE_BINARIES: list[str] = [
     "file-service/LICENSE-binary",
     "workflow-compiling-service/LICENSE-binary",
     "computing-unit-managing-service/LICENSE-binary",
+    "notebook-migration-service/LICENSE-binary",
     "amber/LICENSE-binary-java",
     "amber/LICENSE-binary-python",
     "frontend/LICENSE-binary",

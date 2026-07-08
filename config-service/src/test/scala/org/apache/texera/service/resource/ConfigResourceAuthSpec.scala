@@ -101,6 +101,7 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
       "googleLogin",
       "defaultLocalUser",
       "attributionEnabled",
+      "deploymentVersionCheckEnabled",
       "inviteOnly"
     )
   }
@@ -151,6 +152,40 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
       .header("Authorization", s"Bearer ${regularToken()}")
       .get()
     response.getStatus shouldBe 200
+  }
+
+  "GET /config/amber" should "return 401 with a Bearer challenge without an Authorization header" in {
+    val response =
+      resources.target("/config/amber").request(MediaType.APPLICATION_JSON).get()
+    response.getStatus shouldBe 401
+    response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
+  }
+
+  it should "return 200 with a valid Bearer token whose role matches @RolesAllowed" in {
+    val response = resources
+      .target("/config/amber")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${regularToken()}")
+      .get()
+    response.getStatus shouldBe 200
+  }
+
+  it should "expose the engine config separated from the gui payload" in {
+    // The endpoint exists to keep engine configs out of /config/gui (see PR #5545).
+    // Pin that defaultDataTransferBatchSize is served here and not folded back into gui.
+    val amberPayload = resources
+      .target("/config/amber")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${regularToken()}")
+      .get(classOf[Map[String, Any]])
+    amberPayload.keySet should contain("defaultDataTransferBatchSize")
+
+    val guiPayload = resources
+      .target("/config/gui")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${regularToken()}")
+      .get(classOf[Map[String, Any]])
+    guiPayload.keySet should not contain "defaultDataTransferBatchSize"
   }
 
   "GET an @RolesAllowed probe endpoint" should "return 401 without an Authorization header" in {

@@ -20,7 +20,7 @@
 import { DatePipe, registerLocaleData } from "@angular/common";
 import { HTTP_INTERCEPTORS, HttpClientModule } from "@angular/common/http";
 import en from "@angular/common/locales/en";
-import { APP_INITIALIZER, CUSTOM_ELEMENTS_SCHEMA, NgModule } from "@angular/core";
+import { APP_INITIALIZER, CUSTOM_ELEMENTS_SCHEMA, ErrorHandler, NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -53,6 +53,7 @@ import { NullTypeComponent } from "./common/formly/null.type";
 import { ObjectTypeComponent } from "./common/formly/object.type";
 import { UserService } from "./common/service/user/user.service";
 import { GuiConfigService } from "./common/service/gui-config.service";
+import { GlobalErrorHandler } from "./common/service/global-error-handler/global-error-handler.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { ShareAccessComponent } from "./dashboard/component/user/share-access/share-access.component";
@@ -105,6 +106,9 @@ import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-u
 import { AgentPanelComponent } from "./workspace/component/agent/agent-panel/agent-panel.component";
 import { AgentChatComponent } from "./workspace/component/agent/agent-panel/agent-chat/agent-chat.component";
 import { AgentRegistrationComponent } from "./workspace/component/agent/agent-panel/agent-registration/agent-registration.component";
+import { HuggingFaceImageUploadComponent } from "./workspace/component/hugging-face-image-upload/hugging-face-image-upload.component";
+import { HuggingFaceComponent } from "./workspace/component/hugging-face/hugging-face.component";
+import { HuggingFaceAudioUploadComponent } from "./workspace/component/hugging-face-audio-upload/hugging-face-audio-upload.component";
 import { DatasetFileSelectorComponent } from "./workspace/component/dataset-file-selector/dataset-file-selector.component";
 import { DatasetVersionSelectorComponent } from "./workspace/component/dataset-version-selector/dataset-version-selector.component";
 import { DatasetSelectionModalComponent } from "./workspace/component/dataset-selection-modal/dataset-selection-modal.component";
@@ -186,7 +190,6 @@ import { NzProgressModule } from "ng-zorro-antd/progress";
 import { ComputingUnitSelectionComponent } from "./workspace/component/power-button/computing-unit-selection.component";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
-import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.component";
 import { NzInputNumberModule } from "ng-zorro-antd/input-number";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
@@ -268,7 +271,6 @@ registerLocaleData(en);
     NzCheckboxModule,
     NzGridModule,
     ScrollingModule,
-    FormlyRepeatDndComponent,
     UiUdfParametersComponent,
     AdminGmailComponent,
     PublicProjectComponent,
@@ -331,6 +333,9 @@ registerLocaleData(en);
     AgentChatComponent,
     AgentRegistrationComponent,
     AgentInteractionComponent,
+    HuggingFaceComponent,
+    HuggingFaceAudioUploadComponent,
+    HuggingFaceImageUploadComponent,
     DatasetFileSelectorComponent,
     DatasetVersionSelectorComponent,
     DatasetSelectionModalComponent,
@@ -367,6 +372,7 @@ registerLocaleData(en);
     UserVenvComponent,
   ],
   providers: [
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideNzI18n(en_US),
     AuthGuardService,
     AdminGuardService,

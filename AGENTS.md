@@ -9,7 +9,7 @@ engine, an Angular UI, and the agent service. JVM modules wired in
 | Area | Path | Detail |
 | --- | --- | --- |
 | Workflow execution engine (Amber) | `amber/` | [amber/README.md](amber/README.md) |
-| Backend services | `config-service/`, `access-control-service/`, `file-service/`, `computing-unit-managing-service/`, `workflow-compiling-service/` | `build.sbt` |
+| Backend services | `config-service/`, `access-control-service/`, `file-service/`, `computing-unit-managing-service/`, `workflow-compiling-service/`, `notebook-migration-service/` | `build.sbt` |
 | Shared Scala libs | `common/` (`auth`, `config`, `dao`, `workflow-core`, `workflow-operator`, `pybuilder`) | `build.sbt` |
 | Frontend (Angular) | `frontend/` | [frontend/README.md](frontend/README.md) |
 | Agent service (Bun/TS, LLM agents) | `agent-service/` | `agent-service/package.json` |
@@ -34,7 +34,8 @@ engine, an Angular UI, and the agent service. JVM modules wired in
 | PR template | [.github/PULL_REQUEST_TEMPLATE](.github/PULL_REQUEST_TEMPLATE) |
 | Issue templates | [bug](.github/ISSUE_TEMPLATE/bug-template.yaml) / [task](.github/ISSUE_TEMPLATE/task-template.yaml) / [feature](.github/ISSUE_TEMPLATE/feature-template.yaml) |
 | License-header coverage; vendored `workflow-operator` | [.licenserc.yaml](.licenserc.yaml); [project/AddMetaInfLicenseFiles.scala](project/AddMetaInfLicenseFiles.scala) |
-| Local single-node / k8s deploy | [single-node](bin/single-node/README.md), [k8s](bin/k8s/README.md) |
+| Run the local dev stack (infra in Docker; backend/frontend/agent-service native) | [bin/local-dev.sh](bin/local-dev/README.md) |
+| Single-node / k8s deploy | [single-node](bin/single-node/README.md), [k8s](bin/k8s/README.md) |
 
 If a topic is above, **read that file** instead of asking here.
 
@@ -61,6 +62,13 @@ texera-worktrees/<branch>/   # one worktree per PR
 Reset to `upstream/main` at start; `git log upstream/main..HEAD` should
 contain only this PR's commits before pushing; remove the worktree after
 merge.
+
+Prefer [`bin/local-dev.sh`](bin/local-dev/README.md) to run the stack while
+developing. Its native services bind fixed ports and share one PID/state dir,
+so only one worktree's stack runs at a time: `bin/local-dev.sh down` in the
+old worktree before switching, then `up` in the new one. Use the
+non-interactive CLI subcommands (`up` / `down` / `status` / `logs`); the
+interactive TUI (`-i`) is for humans, not agents.
 
 ### Environment
 
@@ -116,8 +124,12 @@ Short, **Conventional Commits**, same shape for branch and commit subject.
 
 Both ≤ ~60 chars. For code changes, if you use a scope, use the module name
 (`amber`, `pyamber`, `frontend`, `agent-service`, `file-service`, …) — not
-`amber-python`. Use `chore(deps): ...` for dependency-only updates, and
-`ci: ...` for CI-only changes. No `Co-authored-by:` trailer for the repo
+`amber-python`. Dependency-only updates split by semantics: `fix(deps): ...` for
+runtime/production dependency bumps (they ship to users),
+`chore(deps): ...` for dev/toolchain-only bumps, and `ci: ...` for
+CI-only changes (including GitHub Actions bumps). Append the module
+as a second scope when the bump is module-specific, e.g.
+`fix(deps, pyamber): ...`; omit it for cross-module bumps (sbt). No `Co-authored-by:` trailer for the repo
 owner.
 
 ### Issues and PRs

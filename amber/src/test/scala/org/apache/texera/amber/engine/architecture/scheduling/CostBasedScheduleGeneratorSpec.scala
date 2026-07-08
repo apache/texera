@@ -21,11 +21,12 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.texera.amber.core.workflow.{
   ExecutionMode,
+  PhysicalPlan,
   PortIdentity,
   WorkflowContext,
   WorkflowSettings
 }
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.workflow.LogicalLink
@@ -80,7 +81,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchNoPruningResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false, oEarlyStop = false)
 
     // Should have explored all possible states (2^4 states)
@@ -89,7 +90,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOChainsResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch(globalSearch = true, oCleanEdges = false, oEarlyStop = false)
 
     // By applying pruning based on Chains alone, it should skip 10 (8 + 2) states. 8 states where CSV->Build is
@@ -101,7 +102,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOCleanEdgesResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch(globalSearch = true, oChains = false, oEarlyStop = false)
 
     // By applying pruning based on Clean edges (bridges) alone, it should skip 8 states. There is one clean edge
@@ -111,7 +112,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOEarlyStopResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false)
 
     // By applying pruning based on Early Stop alone, only 6 states that are not descendants of a schedulable states
@@ -121,7 +122,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchAllPruningEnabledResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).bottomUpSearch(globalSearch = true)
 
     // By combining all pruning techniques, only 3 states should be visited (1 state where both CSV->KeywordFilter and
@@ -175,7 +176,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchNoPruningResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).topDownSearch(globalSearch = true, oChains = false, oCleanEdges = false)
 
     // Should have explored all possible states (2^4 states)
@@ -184,7 +185,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOChainsResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).topDownSearch(globalSearch = true, oCleanEdges = false)
 
     // By applying pruning based on Chains alone, it should start with a state where CSV->Build is pipelined because
@@ -194,7 +195,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOCleanEdgesResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).topDownSearch(globalSearch = true, oChains = false)
 
     // By applying pruning based on Clean Edges (bridges) alone, it should start with a state where Probe->Keyword2 is
@@ -204,7 +205,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchAllPruningEnabledResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     ).topDownSearch(globalSearch = true)
 
     // By combining both pruning techniques, the search should start with a state where both CSV->Build and
@@ -231,7 +232,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val scheduleGenerator = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     )
     val result = scheduleGenerator.getFullyMaterializedSearchState
 
@@ -277,7 +278,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val scheduleGenerator = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     )
     val result = scheduleGenerator.getFullyMaterializedSearchState
 
@@ -342,7 +343,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val scheduleGenerator = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     )
     val result = scheduleGenerator.getFullyMaterializedSearchState
 
@@ -407,7 +408,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val scheduleGenerator = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     )
     val result = scheduleGenerator.getFullyMaterializedSearchState
 
@@ -486,7 +487,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     val scheduleGenerator = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
-      CONTROLLER
+      COORDINATOR
     )
     val result = scheduleGenerator.getFullyMaterializedSearchState
 
@@ -513,6 +514,167 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
       numRegionLinks == numPhysicalLinks,
       s"Expected $numPhysicalLinks region links, got $numRegionLinks"
     )
+  }
+
+  "CostBasedScheduleGenerator.effectiveExecutionMode" should
+    "force MATERIALIZED when an operator requires it, even if PIPELINED is requested" in {
+    val workflow = buildWorkflow(
+      List(TestOperators.headerlessSmallCsvScanOpDesc()),
+      List(),
+      new WorkflowContext()
+    )
+    val planRequiringMaterialization = PhysicalPlan(
+      workflow.physicalPlan.operators.map(_.withRequiresMaterializedExecution(true)),
+      workflow.physicalPlan.links
+    )
+    assert(
+      CostBasedScheduleGenerator.effectiveExecutionMode(
+        planRequiringMaterialization,
+        ExecutionMode.PIPELINED
+      ) == ExecutionMode.MATERIALIZED
+    )
+  }
+
+  it should "keep the requested mode when no operator requires materialization" in {
+    val workflow = buildWorkflow(
+      List(TestOperators.headerlessSmallCsvScanOpDesc()),
+      List(),
+      new WorkflowContext()
+    )
+    val plan = workflow.physicalPlan
+    assert(
+      CostBasedScheduleGenerator.effectiveExecutionMode(plan, ExecutionMode.PIPELINED) ==
+        ExecutionMode.PIPELINED
+    )
+    assert(
+      CostBasedScheduleGenerator.effectiveExecutionMode(plan, ExecutionMode.MATERIALIZED) ==
+        ExecutionMode.MATERIALIZED
+    )
+  }
+
+  "CostBasedRegionPlanGenerator" should "finish bottom-up greedy search (globalSearch=false) in csv->->filter->join->filter2 workflow" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val keywordOpDesc2 = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val workflow = buildWorkflow(
+      List(
+        headerlessCsvOpDesc1,
+        keywordOpDesc,
+        joinOpDesc,
+        keywordOpDesc2
+      ),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        ),
+        LogicalLink(
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc2.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      new WorkflowContext()
+    )
+
+    val scheduleGenerator = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      COORDINATOR
+    )
+
+    // Greedy search (globalSearch = false): at each schedulable/unschedulable state the frontier keeps only
+    // the single lowest-cost neighbor, driving the greedy branch (filteredNeighborStates.nonEmpty + minBy).
+    val greedyResult = scheduleGenerator.bottomUpSearch(globalSearch = false)
+
+    // A schedulable plan should have been found: the region DAG is non-empty and the cost is finite.
+    assert(greedyResult.regionDAG.vertexSet().asScala.nonEmpty)
+    assert(greedyResult.cost < Double.PositiveInfinity)
+
+    // The greedy search enqueues at most one neighbor per explored state, and each bottom-up transition materializes
+    // one more edge, so the number of states it explores is bounded linearly by the number of physical links. This is
+    // a guaranteed property of greedy search, unlike a comparison against global search whose explored count depends on
+    // early-stop pruning and queue ordering.
+    assert(greedyResult.numStatesExplored <= scheduleGenerator.physicalPlan.links.size + 1)
+
+    // The chosen state is a set of materialized non-blocking edges, all of which must be links of the physical plan.
+    assert(greedyResult.state.subsetOf(scheduleGenerator.physicalPlan.links))
+  }
+
+  "CostBasedRegionPlanGenerator" should "finish top-down greedy search (globalSearch=false) in csv->->filter->join->filter2 workflow" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val keywordOpDesc2 = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val workflow = buildWorkflow(
+      List(
+        headerlessCsvOpDesc1,
+        keywordOpDesc,
+        joinOpDesc,
+        keywordOpDesc2
+      ),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        ),
+        LogicalLink(
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc2.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      new WorkflowContext()
+    )
+
+    val scheduleGenerator = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      COORDINATOR
+    )
+
+    // Greedy search (globalSearch = false): starting from the fully materialized seed state, each transition
+    // keeps only the single lowest-cost neighbor, driving the greedy branch (unvisitedNeighborStates.nonEmpty + minBy)
+    // over both the schedulable (Left) and unschedulable-intermediate (Right) legs.
+    val greedyResult = scheduleGenerator.topDownSearch(globalSearch = false)
+
+    // A schedulable plan should have been found: the region DAG is non-empty and the cost is finite.
+    assert(greedyResult.regionDAG.vertexSet().asScala.nonEmpty)
+    assert(greedyResult.cost < Double.PositiveInfinity)
+
+    // The chosen state is a set of materialized non-blocking edges, all of which must be links of the physical plan.
+    assert(greedyResult.state.subsetOf(scheduleGenerator.physicalPlan.links))
   }
 
 }

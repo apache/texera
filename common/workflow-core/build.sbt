@@ -88,7 +88,8 @@ libraryDependencies ++= Seq(
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
   "com.novocode" % "junit-interface" % "0.11" % Test,               // SBT interface for JUnit
   "com.dimafeng" %% "testcontainers-scala-scalatest" % testcontainersVersion % Test,   // Testcontainers ScalaTest integration
-  "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test        // MinIO Testcontainer Scala integration
+  "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test,       // MinIO Testcontainer Scala integration
+  "com.dimafeng" %% "testcontainers-scala-postgresql" % testcontainersVersion % Test   // Postgres Testcontainer (LakeFS metadata store)
 )
 
 
@@ -96,7 +97,7 @@ libraryDependencies ++= Seq(
 // Jackson-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
-val jacksonVersion = "2.18.6"
+val jacksonVersion = "2.18.8"
 libraryDependencies ++= Seq(
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,        // Jackson Databind
@@ -111,20 +112,22 @@ libraryDependencies ++= Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "15.0.2"
-val nettyVersion = "4.1.96.Final"
+val arrowVersion = "19.0.0"
+val nettyVersion = "4.2.15.Final"
 val arrowDependencies = Seq(
-  // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
-  "org.apache.arrow" % "flight-grpc" % arrowVersion,
+  // flight-core bundles the gRPC transport since Arrow 16; the standalone
+  // flight-grpc artifact was discontinued after 15.0.2.
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-core
   "org.apache.arrow" % "flight-core" % arrowVersion
 )
 
 libraryDependencies ++= arrowDependencies
 
-// Netty dependency overrides to ensure compatibility with Arrow
-// Arrow 14.0.1 requires Netty 4.1.96.Final for proper memory allocation
-// The chunkSize field issue occurs when Netty versions are mismatched
+// Netty dependency overrides to ensure compatibility with Arrow 19.0.0, which
+// targets the Netty 4.2 line. The whole family must be pinned to one version:
+// arrow-memory-netty reaches into Netty allocator internals, so a 4.1/4.2 split
+// breaks it (NoClassDefFoundError: ThreadAwareExecutor). Kept in sync with the
+// same list in the root build.sbt (amber module).
 dependencyOverrides ++= Seq(
   "io.netty" % "netty-all" % nettyVersion,
   "io.netty" % "netty-buffer" % nettyVersion,
@@ -139,13 +142,24 @@ dependencyOverrides ++= Seq(
   "io.netty" % "netty-transport" % nettyVersion,
   "io.netty" % "netty-transport-classes-epoll" % nettyVersion,
   "io.netty" % "netty-transport-native-epoll" % nettyVersion,
-  "io.netty" % "netty-transport-native-unix-common" % nettyVersion
+  "io.netty" % "netty-transport-native-unix-common" % nettyVersion,
+  // Arrow 19's transitive deps pull jackson-databind past the 2.18 line that
+  // jackson-module-scala is pinned to; force the Jackson core family back to
+  // jacksonVersion so the Scala module can initialize (else Test aborts with
+  // "Scala module 2.18.x requires Jackson Databind version >= 2.18.0 and
+  // < 2.19.0").
+  "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion
 )
 
 /////////////////////////////////////////////////////////////////////////////
 // Iceberg-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 val excludeJersey = ExclusionRule(organization = "com.sun.jersey")
+// Hadoop 3.3.2+ ships jersey-json via the com.github.pjfanning fork; its Jersey 1.x
+// providers break Jersey 2 auto-discovery at startup, so exclude it as well.
+val excludeJerseyJsonFork = ExclusionRule(organization = "com.github.pjfanning", name = "jersey-json")
 val excludeGlassfishJersey = ExclusionRule(organization = "org.glassfish.jersey")
 val excludeSlf4j = ExclusionRule(organization = "org.slf4j")
 val excludeJetty = ExclusionRule(organization = "org.eclipse.jetty")
@@ -153,45 +167,61 @@ val excludeJsp = ExclusionRule(organization = "javax.servlet.jsp")
 val excludeXmlBind = ExclusionRule(organization = "javax.xml.bind")
 val excludeJackson = ExclusionRule(organization = "com.fasterxml.jackson.core")
 val excludeJacksonModule = ExclusionRule(organization = "com.fasterxml.jackson.module")
+val excludeNetty = ExclusionRule(organization = "io.netty")
+val log4jVersion = "2.26.1"
+// Iceberg 1.9.2 pairs with parquet 1.15.2, clearing the parquet-avro CVEs
+// (CVE-2025-30065, CVE-2025-46762) pulled in transitively by older releases.
+val icebergVersion = "1.9.2"
 
 libraryDependencies ++= Seq(
-  "org.apache.iceberg" % "iceberg-api" % "1.7.1",
-  "org.apache.iceberg" % "iceberg-parquet" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-api" % icebergVersion,
+  "org.apache.iceberg" % "iceberg-parquet" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.iceberg" % "iceberg-core" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-core" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.iceberg" % "iceberg-data" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-data" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.iceberg" % "iceberg-aws" % "1.7.1" excludeAll(
+  "org.apache.iceberg" % "iceberg-aws" % icebergVersion excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.hadoop" % "hadoop-common" % "3.3.1" excludeAll(
+  "org.apache.hadoop" % "hadoop-common" % "3.4.3" excludeAll(
     excludeXmlBind,
     excludeGlassfishJersey,
     excludeJersey,
+    excludeJerseyJsonFork,
     excludeSlf4j,
     excludeJetty,
     excludeJsp,
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.1" excludeAll(
+  // hadoop 3.4 adds a direct netty-all dependency; exclude it — the netty
+  // artifacts this module needs are declared explicitly above.
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.4.3" excludeAll(
     excludeXmlBind,
     excludeGlassfishJersey,
     excludeJersey,
+    excludeJerseyJsonFork,
     excludeSlf4j,
     excludeJetty,
     excludeJsp,
     excludeJackson,
-    excludeJacksonModule
+    excludeJacksonModule,
+    excludeNetty
   ),
+  // log4j:log4j is excluded build-wide (root build.sbt) because 1.x is EOL
+  // with open CVEs. These log4j 2.x bridges keep hadoop/zookeeper's
+  // org.apache.log4j calls working by routing them through the log4j 2 API
+  // into slf4j (and on to logback).
+  "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion,
+  "org.apache.logging.log4j" % "log4j-to-slf4j" % log4jVersion,
   "org.postgresql" % "postgresql" % "42.7.10"
 )
 

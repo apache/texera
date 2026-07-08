@@ -14,18 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Codecov configuration for apache/texera. The repo uploads four flags
-# (frontend, scala, pyamber, agent-service); without an explicit config,
-# defaults bite us in three places that this file fixes:
-#   1. Single-stack PRs leave non-uploaded flags as `?` in the comment
-#      and drop them from the rollup. Carry forward instead.
+# Codecov configuration for apache/texera. CI uploads 11 flags: frontend,
+# amber, amber-integration, pyamber, agent-service, and the six platform
+# services (config-service, access-control-service, file-service,
+# computing-unit-managing-service, workflow-compiling-service,
+# notebook-migration-service). Without an explicit config, defaults bite us
+# in three places that this file fixes:
+#   1. Single-stack PRs leave non-uploaded flags as `?` in the comment and
+#      drop them from the rollup; carrying forward the base-branch report
+#      backfills them.
 #   2. Coverage of generated code (protobuf), build output, and the
 #      tests themselves dilutes the "real" coverage figure. Ignore
 #      those paths.
 #   3. Default status checks fail on any project drop and require 100%
 #      patch coverage, so non-test refactors get a red Codecov check
 #      even when behavior is preserved. Allow 1% slack on project and
-#      keep patch coverage informational.
+#      require 60% patch coverage.
 
 flag_management:
   default_rules:
@@ -68,16 +72,18 @@ coverage:
         threshold: 1%
     patch:
       default:
-        # Surface patch coverage in the Codecov report but don't gate
-        # PRs on it: a 100%-patch policy blocks plenty of legitimate
-        # refactors / config-only changes that have no tests to add.
-        informational: true
+        # Require new/changed lines in a PR to be at least 60% covered.
+        # Lower than a 100%-patch policy so legitimate refactors and
+        # config-only changes aren't blocked, but high enough that net-new
+        # code ships with tests. The 10% threshold softens the quantization
+        # on tiny diffs (e.g. a 2-coverable-line change passes at 1 line /
+        # 50%) — patch passes when coverage is >= target - threshold = 50%.
+        target: 60%
+        threshold: 10%
 
 comment:
-  # `flag_management.default_rules.carryforward: true` above already
-  # backfills missing flags from main, but Codecov's default still
-  # hides those rows from the PR comment. Show them so a frontend-only
-  # or pyamber-only PR's table lists every flag — fresh-data rows track
-  # the patch and carryforward'd rows render with `<ø>` to make their
-  # unchanged status obvious.
+  # CI is label-gated: a single-stack PR (e.g. a frontend-only change)
+  # uploads only its own flag. carryforward backfills the rest from main;
+  # this surfaces those carried rows (rendered `<ø>`) instead of hiding
+  # them, so every PR's table lists all flags.
   show_carryforward_flags: true

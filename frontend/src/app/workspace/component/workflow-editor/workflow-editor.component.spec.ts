@@ -28,6 +28,7 @@ import { workflowEditorTestImports, workflowEditorTestProviders } from "./workfl
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../../service/joint-ui/joint-ui.service";
+import { AgentService } from "../../service/agent/agent.service";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as joint from "jointjs";
@@ -289,6 +290,34 @@ describe("WorkflowEditorComponent", () => {
       // the highlighter element should not exist
       const jointHighlighterElementAfterUnhighlight = jointCellView.$el.children(".joint-highlight-stroke");
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
+    });
+
+    it("pulls the active agent's operator results when an operator's chat popover opens", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      const agentService = TestBed.inject(AgentService);
+      vi.spyOn(agentService, "getActivelyConnectedAgentIds").mockReturnValue(["agent-1"]);
+      const fetchSpy = vi.spyOn(agentService, "fetchOperatorResults").mockImplementation(() => {});
+
+      // The operator's chat button fires `element:chat` (cell view, DOM event, x, y);
+      // opening the popover should pull the active agent's results on demand.
+      (component.paper as any).trigger("element:chat", jointCellView, new Event("click"), 0, 0);
+
+      expect(fetchSpy).toHaveBeenCalledWith("agent-1");
+    });
+
+    it("does not pull operator results when no agent is connected", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      const agentService = TestBed.inject(AgentService);
+      vi.spyOn(agentService, "getActivelyConnectedAgentIds").mockReturnValue([]);
+      const fetchSpy = vi.spyOn(agentService, "fetchOperatorResults").mockImplementation(() => {});
+
+      (component.paper as any).trigger("element:chat", jointCellView, new Event("click"), 0, 0);
+
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it("should react to operator validation and change the color of operator box if the operator is valid ", () => {
@@ -907,6 +936,34 @@ describe("WorkflowEditorComponent", () => {
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
         fixture.detectChanges();
+
+        expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
+      });
+
+      it("uses the Validation passed in instead of recomputing it", () => {
+        // Let the validation chain settle from the operator-add so the spy
+        // below is created after those calls and starts with a clean slate.
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        const validateSpy = vi.spyOn(validationWorkflowService, "validateOperator");
+
+        // Call the helper directly with a Validation argument, mirroring what
+        // the validation-stream subscriber does at runtime
+        // (handleOperatorValidation passes value.validation through).
+        (component as any).applyOperatorBorder(mockScanPredicate.operatorID, { isValid: true });
+
+        expect(validateSpy).not.toHaveBeenCalled();
+      });
+
+      it("honors the passed-in Validation result (paints red when it is invalid)", () => {
+        // Proves the passed-in value actually drives the border, not just that
+        // the recompute is skipped: an invalid result must paint red.
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        (component as any).applyOperatorBorder(mockScanPredicate.operatorID, { isValid: false, messages: {} });
 
         expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
       });

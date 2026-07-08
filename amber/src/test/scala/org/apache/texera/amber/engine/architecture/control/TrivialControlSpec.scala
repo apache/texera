@@ -40,7 +40,7 @@ import org.apache.texera.amber.engine.architecture.rpc.testerservice.RPCTesterGr
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -106,7 +106,7 @@ class TrivialControlSpec
         probe.childActorOf(Props(new TrivialControlTester(id)))
       idMap(id) = ref
     }
-    idMap(CONTROLLER) = probe.ref
+    idMap(COORDINATOR) = probe.ref
     var seqNum = 0
     cmd.foreach {
       case (methodName, msg) =>
@@ -115,12 +115,12 @@ class TrivialControlSpec
           NetworkMessage(
             seqNum,
             WorkflowFIFOMessage(
-              ChannelIdentity(CONTROLLER, ActorVirtualIdentity("0"), isControl = true),
+              ChannelIdentity(COORDINATOR, ActorVirtualIdentity("0"), isControl = true),
               seqNum,
               ControlInvocation(
                 methodName,
                 msg,
-                AsyncRPCContext(CONTROLLER, ActorVirtualIdentity("0")),
+                AsyncRPCContext(COORDINATOR, ActorVirtualIdentity("0")),
                 seqNum
               )
             )

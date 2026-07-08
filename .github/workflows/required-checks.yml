@@ -45,13 +45,13 @@ concurrency:
 jobs:
   # Precheck decides which downstream jobs run for this event:
   #   - On PR events, wait for the Pull Request Labeler workflow to finish so
-  #     the labels it applies (frontend, docs, dev, ...) are available, then
+  #     the labels it applies (frontend, docs, infra, ...) are available, then
   #     gate run_* outputs on those labels.
   #   - run_frontend / run_amber / run_platform / run_pyamber /
   #     run_agent_service: gate the main build stacks. Each labeler-applied
   #     label maps to the stacks it requires (LABEL_STACKS below); the run
   #     set is the union across all PR labels. Empty union (e.g. docs-only
-  #     / dev-only PRs) skips every stack. Push and workflow_dispatch
+  #     PRs) skips every stack. Push and workflow_dispatch
   #     events run every stack.
   #   - backport_targets: JSON array of release/* labels currently on the PR.
   #     Drives the backport matrix; empty array means no backport runs.
@@ -65,11 +65,13 @@ jobs:
       run_platform: ${{ steps.decide.outputs.run_platform }}
       run_pyamber: ${{ steps.decide.outputs.run_pyamber }}
       run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
+      run_infra: ${{ steps.decide.outputs.run_infra }}
+      run_pyright_language_service: ${{ steps.decide.outputs.run_pyright_language_service }}
       backport_targets: ${{ steps.decide.outputs.backport_targets }}
     steps:
       - name: Wait for Pull Request Labeler
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const ref = context.payload.pull_request.head.sha;
@@ -93,7 +95,7 @@ jobs:
 
       - name: Decide which jobs to run
         id: decide
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const eventName = context.eventName;
@@ -115,7 +117,13 @@ jobs:
             // here (release/*, feature, fix, refactor) contribute no stacks.
             // dependencies is intentionally a no-op: every dep manifest the
             // labeler matches lives under a component dir and is already
-            // covered by that component's label.
+            // covered by that component's label — including
+            // pyright-language-service/package.json, kept honest by the
+            // `pyright-language-service` component label below.
+            //
+            // `infra` and `pyright-language-service` are 1:1 self-mapping
+            // labels (each fires only its own like-named stack); they are
+            // omitted from the illustrative table below to keep it narrow.
             //
             //   label             | frontend | amber | amber-integ | platform | pyamber | agent-service
             //   ------------------|----------|-------|-------------|----------|---------|--------------
@@ -131,8 +139,8 @@ jobs:
             //                                                                             config)
             //   ddl-change        |          |   x   |      x      |    x     |         |
             //   ci                |    x     |   x   |      x      |    x     |    x    |     x
-            //   docs / dev /      |          |       |             |          |         |
-            //   deps / release/   |          |       |             |          |         |
+            //   docs / deps /     |          |       |             |          |         |
+            //   release/*         |          |       |             |          |         |
             //   * / branch        |          |       |             |          |         |
             //
             // amber-integration runs the Scala tests tagged
@@ -151,9 +159,11 @@ jobs:
               "amber-integration": ["amber-integration"],
               platform: ["platform"],
               "agent-service": ["agent-service"],
+              "pyright-language-service": ["pyright-language-service"],
               common: ["amber", "amber-integration", "platform"],
               "ddl-change": ["amber", "amber-integration", "platform"],
-              ci: ["frontend", "amber", "amber-integration", "platform", "pyamber", "agent-service"],
+              infra: ["infra"],
+              ci: ["frontend", "amber", "amber-integration", "platform", "pyamber", "agent-service", "infra", "pyright-language-service"],
             };
 
             let runFrontend = true;
@@ -162,6 +172,8 @@ jobs:
             let runPlatform = true;
             let runPyamber = true;
             let runAgentService = true;
+            let runInfra = true;
+            let runPyrightLanguageService = true;
 
             if (eventName === "pull_request") {
               const stacks = new Set();
@@ -176,6 +188,8 @@ jobs:
               runPlatform = stacks.has("platform");
               runPyamber = stacks.has("pyamber");
               runAgentService = stacks.has("agent-service");
+              runInfra = stacks.has("infra");
+              runPyrightLanguageService = stacks.has("pyright-language-service");
               core.info(
                 `Stacks selected by label union: ${[...stacks].sort().join(", ") || "(none)"}`
               );
@@ -187,6 +201,8 @@ jobs:
             core.setOutput("run_platform", runPlatform ? "true" : "false");
             core.setOutput("run_pyamber", runPyamber ? "true" : "false");
             core.setOutput("run_agent_service", runAgentService ? "true" : "false");
+            core.setOutput("run_infra", runInfra ? "true" : "false");
+            core.setOutput("run_pyright_language_service", runPyrightLanguageService ? "true" : "false");
 
             // Backport targets: all current release/* labels on the PR.
             const targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
@@ -202,7 +218,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Cancel obsolete backport check_runs for the removed target
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -242,6 +258,8 @@ jobs:
       run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
       run_pyamber: ${{ needs.precheck.outputs.run_pyamber == 'true' }}
       run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
+      run_infra: ${{ needs.precheck.outputs.run_infra == 'true' }}
+      run_pyright_language_service: ${{ needs.precheck.outputs.run_pyright_language_service == 'true' }}
     secrets: inherit
 
   backport:
@@ -263,6 +281,8 @@ jobs:
       run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
       run_pyamber: ${{ needs.precheck.outputs.run_pyamber == 'true' }}
       run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
+      run_infra: ${{ needs.precheck.outputs.run_infra == 'true' }}
+      run_pyright_language_service: ${{ needs.precheck.outputs.run_pyright_language_service == 'true' }}
     secrets: inherit
 
   required-checks:

@@ -60,6 +60,14 @@ on:
         required: false
         type: boolean
         default: true
+      run_infra:
+        required: false
+        type: boolean
+        default: true
+      run_pyright_language_service:
+        required: false
+        type: boolean
+        default: true
       mode:
         # PR (default) | nightly | release. Only "PR" passes
         # --ignore-transitive-version to check_binary_deps.py.
@@ -88,7 +96,7 @@ jobs:
           - 24.10.0
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -97,11 +105,11 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
       - name: Setup node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           architecture: ${{ matrix.arch }}
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: frontend/.yarn/cache
           key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v4-${{ hashFiles('**/yarn.lock') }}
@@ -127,7 +135,7 @@ jobs:
         run: yarn --cwd frontend run test:ci
       - name: Upload frontend coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && always()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./frontend/coverage/**/lcov.info
@@ -138,7 +146,7 @@ jobs:
         # in the working dir; the @angular/build:unit-test runner forwards
         # vitest config through unchanged.
         if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./frontend/junit.xml
@@ -155,7 +163,7 @@ jobs:
         # the unit-test report). Same `frontend` flag — Codecov merges
         # multi-file uploads under one flag.
         if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./frontend/junit-browser.xml
@@ -193,7 +201,7 @@ jobs:
           --health-retries=5
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -216,8 +224,8 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Lint and build amber distributable bundle
@@ -277,17 +285,20 @@ jobs:
         # those run in the amber-integration job below.
         env:
           AMBER_TEST_FILTER: skip-integration
+          # unit job uses its provisioned postgres catalog; default (rest) needs a Lakekeeper not run here
+          STORAGE_ICEBERG_CATALOG_TYPE: postgres
         run: |
           sbt "DAO/jacoco" \
               "Auth/jacoco" \
               "Config/jacoco" \
+              "Resource/jacoco" \
               "PyBuilder/jacoco" \
               "WorkflowCore/jacoco" \
               "WorkflowOperator/jacoco" \
               "WorkflowExecutionService/jacoco"
       - name: Upload amber and common coverage to Codecov
         if: always()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
@@ -300,7 +311,7 @@ jobs:
         # above. `!cancelled()` so test failures still upload (the point
         # of Test Analytics).
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/test-reports/*.xml
@@ -331,7 +342,7 @@ jobs:
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -431,8 +442,8 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Create texera_db_for_test_cases
@@ -607,7 +618,7 @@ jobs:
         # produce their own JUnit-XMLs and Codecov keys uploads by flag.
         # `!cancelled()` so test failures still upload.
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/test-reports/*.xml,./amber/junit-integration.xml
@@ -637,6 +648,8 @@ jobs:
             sbt_project: ComputingUnitManagingService
           - service: workflow-compiling-service
             sbt_project: WorkflowCompilingService
+          - service: notebook-migration-service
+            sbt_project: NotebookMigrationService
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
@@ -656,7 +669,7 @@ jobs:
           --health-retries=5
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -670,8 +683,8 @@ jobs:
           distribution: "temurin"
           java-version: 17
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Create Databases
@@ -716,7 +729,7 @@ jobs:
         # Per-service flag so each matrix entry has its own Codecov view
         # rather than being merged into one umbrella `platform` flag.
         if: always()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./${{ matrix.service }}/target/scala-2.13/jacoco/report/jacoco.xml
@@ -725,7 +738,7 @@ jobs:
       - name: Upload ${{ matrix.service }} test results to Codecov
         # Per-service Test Analytics, mirroring the coverage upload flag.
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./${{ matrix.service }}/target/test-reports/*.xml
@@ -755,7 +768,7 @@ jobs:
           --health-retries=5
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -766,11 +779,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Unit-test licensing scripts
-        # Stdlib only, no install needed. Runs on every matrix row (3.10 →
-        # 3.13) so the script's behavior is guarded across all supported
-        # Python versions before the license check itself runs (3.12 only).
-        run: python3 -m unittest discover -s bin/licensing -p "test_*.py" -v
       - name: Install dependencies
         # 3.12 is the only leg that drives the binary-license check via
         # pip-licenses. Keep stock pip there so the resolved versions
@@ -798,9 +806,6 @@ jobs:
         run: psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
         env:
           PGPASSWORD: postgres
-      - name: Lint with Ruff
-        run: |
-          cd amber && ruff check src/main/python src/test/python && ruff format --check src/main/python src/test/python
       - name: Install dev dependencies
         # Test-only deps live in amber/dev-requirements.txt and are
         # installed after the LICENSE-binary snapshot above so they never
@@ -809,6 +814,11 @@ jobs:
         run: |
           python -m pip install uv
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
+      - name: Lint with Ruff
+        # ruff comes from dev-requirements.txt, so this must run after the
+        # dev-dependency install above.
+        run: |
+          cd amber && ruff check src/main/python src/test/python && ruff format --check src/main/python src/test/python
       - name: Install protoc
         # Version pinned in bin/protoc-version.txt.
         run: |
@@ -827,7 +837,7 @@ jobs:
           cd amber && pytest -m "not integration" --cov=src/main/python --cov-report=xml --junit-xml=junit.xml -sv
       - name: Upload pyamber coverage to Codecov
         if: matrix.python-version == '3.12' && always()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/coverage.xml
@@ -839,7 +849,7 @@ jobs:
         # rather than `always()` so we still upload on test failure (the
         # whole point of Test Analytics) but skip cancelled runs.
         if: matrix.python-version == '3.12' && !cancelled()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/junit.xml
@@ -862,7 +872,7 @@ jobs:
         working-directory: agent-service
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
@@ -897,7 +907,7 @@ jobs:
         run: bun test --coverage --coverage-reporter=lcov --reporter=junit --reporter-outfile=junit.xml
       - name: Upload agent-service coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && always()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./agent-service/coverage/lcov.info
@@ -907,7 +917,7 @@ jobs:
         # Test Analytics ingestion. Runs on the same ubuntu leg that
         # uploads coverage. `!cancelled()` so test failures still upload.
         if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./agent-service/junit.xml
@@ -915,3 +925,107 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+
+  infra:
+    # Generic project-tooling job — runs the lightweight (no docker, no
+    # sbt, no live stack) unit and smoke tests for anything under
+    # `bin/` that doesn't belong to a specific service. Today that's
+    #   • bin/local-dev*     dev-loop stack manager + TUI
+    #   • bin/licensing/*    LICENSE-binary version-drift checker
+    # New tooling test suites should land here too — bias against
+    # spinning up another CI job unless the suite needs docker / a
+    # heavy install / a different python matrix.
+    if: ${{ inputs.run_infra }}
+    name: ${{ format('infra{0} ({1})', inputs.job_name_suffix, matrix.os) }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.12"]
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Python test deps
+        # amber/dev-requirements.txt pins both `pytest` and `textual` — the
+        # latter so a fresh dev who follows the AGENTS.md venv-setup
+        # instructions ends up with the TUI working.
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r amber/dev-requirements.txt
+      - name: Run shell smoke tests
+        # Discover + run every `test_*.sh` under bin/. New shell test
+        # suites picked up automatically — no edits to this workflow.
+        # `find -print0` instead of bash's `**` glob so this works on
+        # macOS's pinned /bin/bash 3.2 (no `shopt -s globstar`).
+        run: |
+          set -e
+          found=0
+          while IFS= read -r -d '' t; do
+              found=1
+              echo "==> $t"
+              bash "$t"
+          done < <(find bin -type f -name "test_*.sh" -print0)
+          if [ "$found" = 0 ]; then
+              echo "no shell tests found under bin/" >&2
+              exit 1
+          fi
+      - name: Run Python unit tests
+        # `pytest bin/` discovers every `test_*.py` recursively — covers
+        # bin/local-dev/tests (TUI helpers, dirty detection) and
+        # bin/licensing (LICENSE-binary version-drift checker) in one
+        # pass, and any future tooling test suite under bin/ comes
+        # along without this workflow being edited.
+        run: python -m pytest bin/ -v --tb=short
+
+  pyright-language-service:
+    # Typecheck-only job for the standalone Pyright LSP bridge (the language
+    # server the frontend code editor talks to). It is not part of the
+    # frontend yarn workspace and has no other CI coverage, so a dependency
+    # bump here — e.g. a Dependabot vscode-languageserver major — would
+    # otherwise merge unvalidated. `yarn install --frozen-lockfile` proves
+    # the committed classic-yarn lockfile still resolves against the bumped
+    # package.json, and `tsc --noEmit` catches any API breakage the bump
+    # introduces. No dist is built and the server is never booted, so this
+    # stays a fast, docker-free job.
+    if: ${{ inputs.run_pyright_language_service }}
+    name: ${{ format('pyright-language-service{0}', inputs.job_name_suffix) }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pyright-language-service
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup node
+        uses: actions/setup-node@v6
+        with:
+          # Matches the frontend job's pinned Node.
+          node-version: 24.10.0
+      - name: Prepare Yarn 1.22.22
+        # The package ships a classic (v1) lockfile; pin the matching Yarn
+        # via corepack rather than relying on the runner image's bundled
+        # version.
+        run: corepack enable && corepack prepare yarn@1.22.22 --activate
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --network-timeout 100000
+      - name: Typecheck
+        # allowImportingTsExtensions in tsconfig.json requires --noEmit.
+        run: yarn tsc --noEmit

@@ -65,6 +65,18 @@ postgresql:
     initdb:
       scriptsConfigMap: "postgresql-init-script"
 
+# Object storage (S3) used by the Texera services. Leave storage.s3.endpoint
+# empty to use the in-cluster MinIO (the `minio:` block below). Set it to an
+# S3-compatible endpoint URL -- together with region and credentials -- to
+# point the services at an external store (e.g. AWS S3) instead.
+storage:
+  s3:
+    endpoint: ""            # "" => in-cluster MinIO; otherwise an S3 endpoint URL
+    region: "us-west-2"
+    existingSecret: ""      # existing Secret with access-key-id / secret-access-key; "" => chart creates one
+    accessKeyId: ""
+    secretAccessKey: ""
+
 minio:
   mode: standalone
   image:
