@@ -83,6 +83,7 @@ export class DashboardEntry {
       this.likeCount = 0;
       this.isLiked = false;
       this.accessibleUserIds = [];
+      this.coverImageUrl = value.coverImage ?? undefined;
     } else if (isDashboardProject(value)) {
       this.type = EntityType.Project;
       this.id = value.pid;
