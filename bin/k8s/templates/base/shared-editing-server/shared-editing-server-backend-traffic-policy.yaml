@@ -40,10 +40,11 @@ spec:
   {{- end }}
   {{- with .Values.yWebsocketServer.trafficPolicy.connectionIdleTimeout }}
   timeout:
-    tcp:
-      # Drop upstream connections with no traffic for this long. Active co-editing
-      # exchanges awareness/cursor updates well within this window, so only
-      # genuinely idle (abandoned) sockets are reaped.
+    http:
+      # Drop connections that sit with no active request for this long. Active
+      # co-editing exchanges awareness/cursor updates well within this window, so
+      # only genuinely idle (abandoned) connections are reaped. (Envoy Gateway
+      # exposes the idle timeout under timeout.http, not timeout.tcp.)
       connectionIdleTimeout: {{ . | quote }}
   {{- end }}
 {{- end }}
