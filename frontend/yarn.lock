@@ -518,16 +518,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@angular-eslint/template-parser@npm:21.3.1":
-  version: 21.3.1
-  resolution: "@angular-eslint/template-parser@npm:21.3.1"
+"@angular-eslint/template-parser@npm:21.4.0":
+  version: 21.4.0
+  resolution: "@angular-eslint/template-parser@npm:21.4.0"
   dependencies:
-    "@angular-eslint/bundled-angular-compiler": "npm:21.3.1"
+    "@angular-eslint/bundled-angular-compiler": "npm:21.4.0"
     eslint-scope: "npm:9.1.2"
   peerDependencies:
     eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
     typescript: "*"
-  checksum: 10c0/6f08f233be7e7bcea7e49e034d223b1667476afcceca1ee698fbea7de75e1be5691d6c6c7208a911833c88f9178b1dc33e3124fbbe8fbc5ecedcaca55bd1b99e
+  checksum: 10c0/f4d7ac146d41d000c4517c7c3630e773a470394492c7ae43728246a2b11f52d206bdb5644ce4e1bad61de3d133d59ca6bdf0070cafe084e0db6583e9c787c284
   languageName: node
   linkType: hard
 
@@ -10808,7 +10808,7 @@ __metadata:
     "@angular-devkit/schematics": "npm:21.2.18"
     "@angular-eslint/eslint-plugin": "npm:21.3.1"
     "@angular-eslint/eslint-plugin-template": "npm:21.4.0"
-    "@angular-eslint/template-parser": "npm:21.3.1"
+    "@angular-eslint/template-parser": "npm:21.4.0"
     "@angular/animations": "npm:21.2.17"
     "@angular/cdk": "npm:21.2.14"
     "@angular/cli": "npm:21.2.18"
