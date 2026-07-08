@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783431817861,
+  "lastUpdate": 1783516936300,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -3404,6 +3404,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 494.7431117194836,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "18ccda990415e70fc835b1728585cea4d211888f",
+          "message": "chore(deps, frontend): bump the frontend-patch group in /frontend with 4 updates (#6233)\n\nBumps the frontend-patch group in /frontend with 4 updates:\n[@vitest/browser](https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser),\n[@vitest/browser-playwright](https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser-playwright),\n[@vitest/coverage-v8](https://github.com/vitest-dev/vitest/tree/HEAD/packages/coverage-v8)\nand\n[vitest](https://github.com/vitest-dev/vitest/tree/HEAD/packages/vitest).\n\nUpdates `@vitest/browser` from 4.1.9 to 4.1.10\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/vitest-dev/vitest/releases\">@​vitest/browser's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v4.1.10</h2>\n<h3>   🐞 Bug Fixes</h3>\n<ul>\n<li><strong>browser</strong>: Check fs access in builtin commands\n[backport to v4]  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenCode\n(claude-opus-4-8)</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10680\">vitest-dev/vitest#10680</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/5c18dd267\"><!-- raw\nHTML omitted -->(5c18d)<!-- raw HTML omitted --></a></li>\n<li><strong>vm</strong>: Fix external module resolve error with deps\noptimizer query for encoded URI [backport to v4]  -  by <a\nhref=\"https://github.com/SveLil\"><code>@​SveLil</code></a> and <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10661\">vitest-dev/vitest#10661</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/bae52b511\"><!-- raw\nHTML omitted -->(bae52)<!-- raw HTML omitted --></a></li>\n</ul>\n<h5>    <a\nhref=\"https://github.com/vitest-dev/vitest/compare/v4.1.9...v4.1.10\">View\nchanges on GitHub</a></h5>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/db616d227b6e0cb07a94f5d1bba262ee95db7e46\"><code>db616d2</code></a>\nchore: release v4.1.10 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser/issues/10718\">#10718</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/5c18dd267ff7f47f24cab2f615a16b37d90feb7f\"><code>5c18dd2</code></a>\nfix(browser): check fs access in builtin commands [backport to v4] (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser/issues/10680\">#10680</a>)</li>\n<li>See full diff in <a\nhref=\"https://github.com/vitest-dev/vitest/commits/v4.1.10/packages/browser\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `@vitest/browser-playwright` from 4.1.9 to 4.1.10\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/vitest-dev/vitest/releases\">@​vitest/browser-playwright's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v4.1.10</h2>\n<h3>   🐞 Bug Fixes</h3>\n<ul>\n<li><strong>browser</strong>: Check fs access in builtin commands\n[backport to v4]  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenCode\n(claude-opus-4-8)</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10680\">vitest-dev/vitest#10680</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/5c18dd267\"><!-- raw\nHTML omitted -->(5c18d)<!-- raw HTML omitted --></a></li>\n<li><strong>vm</strong>: Fix external module resolve error with deps\noptimizer query for encoded URI [backport to v4]  -  by <a\nhref=\"https://github.com/SveLil\"><code>@​SveLil</code></a> and <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10661\">vitest-dev/vitest#10661</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/bae52b511\"><!-- raw\nHTML omitted -->(bae52)<!-- raw HTML omitted --></a></li>\n</ul>\n<h5>    <a\nhref=\"https://github.com/vitest-dev/vitest/compare/v4.1.9...v4.1.10\">View\nchanges on GitHub</a></h5>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/db616d227b6e0cb07a94f5d1bba262ee95db7e46\"><code>db616d2</code></a>\nchore: release v4.1.10 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser-playwright/issues/10718\">#10718</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/5c18dd267ff7f47f24cab2f615a16b37d90feb7f\"><code>5c18dd2</code></a>\nfix(browser): check fs access in builtin commands [backport to v4] (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser-playwright/issues/10680\">#10680</a>)</li>\n<li>See full diff in <a\nhref=\"https://github.com/vitest-dev/vitest/commits/v4.1.10/packages/browser-playwright\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `@vitest/coverage-v8` from 4.1.9 to 4.1.10\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/vitest-dev/vitest/releases\">@​vitest/coverage-v8's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v4.1.10</h2>\n<h3>   🐞 Bug Fixes</h3>\n<ul>\n<li><strong>browser</strong>: Check fs access in builtin commands\n[backport to v4]  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenCode\n(claude-opus-4-8)</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10680\">vitest-dev/vitest#10680</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/5c18dd267\"><!-- raw\nHTML omitted -->(5c18d)<!-- raw HTML omitted --></a></li>\n<li><strong>vm</strong>: Fix external module resolve error with deps\noptimizer query for encoded URI [backport to v4]  -  by <a\nhref=\"https://github.com/SveLil\"><code>@​SveLil</code></a> and <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10661\">vitest-dev/vitest#10661</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/bae52b511\"><!-- raw\nHTML omitted -->(bae52)<!-- raw HTML omitted --></a></li>\n</ul>\n<h5>    <a\nhref=\"https://github.com/vitest-dev/vitest/compare/v4.1.9...v4.1.10\">View\nchanges on GitHub</a></h5>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/db616d227b6e0cb07a94f5d1bba262ee95db7e46\"><code>db616d2</code></a>\nchore: release v4.1.10 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/coverage-v8/issues/10718\">#10718</a>)</li>\n<li>See full diff in <a\nhref=\"https://github.com/vitest-dev/vitest/commits/v4.1.10/packages/coverage-v8\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `vitest` from 4.1.9 to 4.1.10\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/vitest-dev/vitest/releases\">vitest's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v4.1.10</h2>\n<h3>   🐞 Bug Fixes</h3>\n<ul>\n<li><strong>browser</strong>: Check fs access in builtin commands\n[backport to v4]  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenCode\n(claude-opus-4-8)</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10680\">vitest-dev/vitest#10680</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/5c18dd267\"><!-- raw\nHTML omitted -->(5c18d)<!-- raw HTML omitted --></a></li>\n<li><strong>vm</strong>: Fix external module resolve error with deps\noptimizer query for encoded URI [backport to v4]  -  by <a\nhref=\"https://github.com/SveLil\"><code>@​SveLil</code></a> and <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10661\">vitest-dev/vitest#10661</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/bae52b511\"><!-- raw\nHTML omitted -->(bae52)<!-- raw HTML omitted --></a></li>\n</ul>\n<h5>    <a\nhref=\"https://github.com/vitest-dev/vitest/compare/v4.1.9...v4.1.10\">View\nchanges on GitHub</a></h5>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/db616d227b6e0cb07a94f5d1bba262ee95db7e46\"><code>db616d2</code></a>\nchore: release v4.1.10 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/vitest/issues/10718\">#10718</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/bae52b5112a6fd8200101b88bf8af9685d077295\"><code>bae52b5</code></a>\nfix(vm): fix external module resolve error with deps optimizer query for\nenco...</li>\n<li>See full diff in <a\nhref=\"https://github.com/vitest-dev/vitest/commits/v4.1.10/packages/vitest\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\n\nDependabot will resolve any conflicts with this PR as long as you don't\nalter it yourself. You can also trigger a rebase manually by commenting\n`@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits\nthat have been made to it\n- `@dependabot show <dependency name> ignore conditions` will show all\nof the ignore conditions of the specified dependency\n- `@dependabot ignore <dependency name> major version` will close this\ngroup update PR and stop Dependabot creating any more for the specific\ndependency's major version (unless you unignore this specific\ndependency's major version or upgrade to it yourself)\n- `@dependabot ignore <dependency name> minor version` will close this\ngroup update PR and stop Dependabot creating any more for the specific\ndependency's minor version (unless you unignore this specific\ndependency's minor version or upgrade to it yourself)\n- `@dependabot ignore <dependency name>` will close this group update PR\nand stop Dependabot creating any more for the specific dependency\n(unless you unignore this specific dependency or upgrade to it yourself)\n- `@dependabot unignore <dependency name>` will remove all of the ignore\nconditions of the specified dependency\n- `@dependabot unignore <dependency name> <ignore condition>` will\nremove the ignore condition of the specified dependency and ignore\nconditions\n\n\n</details>\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Xinyuan Lin <xinyual3@uci.edu>",
+          "timestamp": "2026-07-08T06:26:15Z",
+          "url": "https://github.com/apache/texera/commit/18ccda990415e70fc835b1728585cea4d211888f"
+        },
+        "date": 1783516935727,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 738.389529624065,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1316.3451863847793,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1447.403107466287,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 903.0017576753128,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1352.0891821242399,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1443.2101960881923,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 960.5931644346996,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1357.8381486028052,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1437.4133425288583,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 812.6546920204539,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1075.0843232551924,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1104.3727890607338,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 832.8921007610725,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1077.1817148899186,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1102.489418035491,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 834.1160361947989,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1056.994668130237,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1084.4994328016942,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 490.6326563563334,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 569.649397963647,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 572.129137136071,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 470.7727278030421,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 565.2911892555774,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 571.7315256128732,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 464.2501371976959,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 520.9758513922707,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 548.2133332939372,
             "unit": "tuples/sec"
           }
         ]
