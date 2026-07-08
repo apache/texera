@@ -55,7 +55,23 @@ case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
         }
       ]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "aggFunction": { "const": "count" }
+        }
+      },
+      "then": {},
+      "else": {
+        "required": ["attribute"],
+        "properties": {
+          "attribute": { "pattern": "\\S" }
+        }
+      }
+    }
+  ]
 }
 """)
 class AggregationOperation {
@@ -64,8 +80,8 @@ class AggregationOperation {
   @JsonPropertyDescription("sum, count, average, min, max, or concat")
   var aggFunction: AggregationFunction = _
 
-  @JsonProperty(value = "attribute", required = true)
-  @JsonPropertyDescription("column to calculate average value")
+  @JsonProperty(value = "attribute")
+  @JsonPropertyDescription("column to aggregate on")
   @AutofillAttributeName
   var attribute: String = _
 
@@ -106,6 +122,7 @@ class AggregationOperation {
   @JsonIgnore
   def getFinal: AggregationOperation = {
     val newAggFunc = aggFunction match {
+      // COUNT emits partial counts locally; the global stage sums them.
       case AggregationFunction.COUNT => AggregationFunction.SUM
       case a: AggregationFunction    => a
     }
@@ -139,15 +156,13 @@ class AggregationOperation {
   }
 
   private def countAgg(): DistributedAggregation[Integer] = {
+    // An empty attribute means COUNT(*): count every row. Otherwise count only the
+    // rows whose attribute value is non-null (COUNT(column)).
+    val countAllRows = attribute == null || attribute.trim.isEmpty
     new DistributedAggregation[Integer](
       () => 0,
-      (partial, tuple) => {
-        val inc =
-          if (attribute == null) 1
-          else if (tuple.getField(attribute) != null) 1
-          else 0
-        partial + inc
-      },
+      (partial, tuple) =>
+        partial + (if (countAllRows || tuple.getField(attribute) != null) 1 else 0),
       (partial1, partial2) => partial1 + partial2,
       partial => partial
     )

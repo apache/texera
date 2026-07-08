@@ -35,8 +35,8 @@ trait EndHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   /**
-    * The response of endWorker to the controller indicates that this worker has finished not only
-    * the data processing logic, but also , but also the processing of all the control messages.
+    * The response of endWorker to the coordinator indicates that this worker has finished not only
+    * the data processing logic, but also the processing of all the control messages.
     */
   override def endWorker(
       request: EmptyRequest,

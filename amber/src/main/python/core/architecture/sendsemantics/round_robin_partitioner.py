@@ -35,19 +35,8 @@ class RoundRobinPartitioner(Partitioner):
     def __init__(self, partitioning: RoundRobinPartitioning):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
-        # Partitioning contains an ordered list of downstream worker ids.
-        # Currently we are using the index of such an order to choose
-        # a downstream worker to send tuples to.
-        # Must use dict.fromkeys to ensure the order of receiver workers
-        # from partitioning is preserved (using `{}` to create a set
-        # does not preserve order and will not work with input-port
-        # materialization reader threads.)
-        self.receivers = [
-            (rid, [])
-            for rid in dict.fromkeys(
-                channel.to_worker_id for channel in partitioning.channels
-            )
-        ]
+        # Indexed by round_robin_index to choose the downstream worker to send to.
+        self.receivers = self.build_receiver_batches(partitioning.channels)
         self.round_robin_index = 0
 
     @overrides
