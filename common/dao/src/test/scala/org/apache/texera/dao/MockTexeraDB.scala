@@ -45,14 +45,15 @@ object MockTexeraDB {
 
   def ensureInitialized(): Unit =
     synchronized {
-      if (dbInstance.isDefined) return
+      if (dbInstance.isDefined && ddlScript.isDefined) return
 
-      val driver = new org.postgresql.Driver()
-      DriverManager.registerDriver(driver)
+      if (dbInstance.isEmpty) {
+        val driver = new org.postgresql.Driver()
+        DriverManager.registerDriver(driver)
 
-      // Boot the heavy JVM engine exactly once
-      val embedded = EmbeddedPostgres.builder().start()
-      dbInstance = Some(embedded)
+        // Boot the heavy JVM engine exactly once
+        dbInstance = Some(EmbeddedPostgres.builder().start())
+      }
 
       val ddlPath = Paths.get("sql/texera_ddl.sql").toRealPath()
       val source = Source.fromFile(ddlPath.toString)
