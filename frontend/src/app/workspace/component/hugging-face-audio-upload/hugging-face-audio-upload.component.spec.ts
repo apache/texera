@@ -481,4 +481,97 @@ describe("HuggingFaceAudioUploadComponent", () => {
       httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
     });
   });
+
+  // ── Upload marks formControl as dirty and touched ──
+
+  describe("formControl state after upload", () => {
+    it("should mark formControl as dirty and touched after successful upload", async () => {
+      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
+      const uploadPromise = component.onFileSelected(makeFileEvent(file));
+
+      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
+      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
+      await uploadPromise;
+
+      expect(formControl.dirty).toBe(true);
+      expect(formControl.touched).toBe(true);
+    });
+
+    it("should mark formControl as dirty and touched after clear", () => {
+      formControl.setValue("/tmp/clip.wav");
+      const input = document.createElement("input");
+      component.clearAudio(input);
+
+      expect(formControl.dirty).toBe(true);
+      expect(formControl.touched).toBe(true);
+    });
+  });
+
+  // ── Upload updates model ──
+
+  describe("model update on upload", () => {
+    it("should not update model when key is not a string", async () => {
+      const model: Record<string, unknown> = {};
+      component.field = { formControl, key: 42 as any, model } as unknown as FieldTypeConfig;
+
+      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
+      const uploadPromise = component.onFileSelected(makeFileEvent(file));
+
+      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
+      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
+      await uploadPromise;
+
+      expect(formControl.value).toBe("/tmp/clip.wav");
+      expect(model[42 as any]).toBeUndefined();
+    });
+  });
+
+  // ── revokePreviewUrl no-op ──
+
+  describe("revokePreviewUrl", () => {
+    it("should not throw when destroying without any preview", () => {
+      expect(() => component.ngOnDestroy()).not.toThrow();
+    });
+  });
+
+  // ── previewSrc with non-audio data URL ──
+
+  describe("previewSrc edge cases", () => {
+    it("should return empty for non-audio data URL", () => {
+      formControl.setValue("data:image/png;base64,abc123");
+      expect(component.previewSrc).toBe("");
+    });
+
+    it("should return data:audio value with different audio type", () => {
+      const mp3DataUrl = "data:audio/mp3;base64,abc123";
+      formControl.setValue(mp3DataUrl);
+      expect(component.previewSrc).toBe(mp3DataUrl);
+    });
+  });
+
+  // ── Multiple consecutive uploads ──
+
+  describe("consecutive uploads", () => {
+    it("should replace previous upload value with new upload", async () => {
+      // First upload
+      const file1 = new File(["audio-1"], "first.wav", { type: "audio/wav" });
+      const upload1 = component.onFileSelected(makeFileEvent(file1));
+      const req1 = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
+      req1.flush({ path: "/tmp/first.wav", fileName: "first.wav" });
+      await upload1;
+
+      expect(formControl.value).toBe("/tmp/first.wav");
+      expect(component.fileName).toBe("first.wav");
+
+      // Second upload
+      const file2 = new File(["audio-2"], "second.wav", { type: "audio/wav" });
+      const upload2 = component.onFileSelected(makeFileEvent(file2));
+      const req2 = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
+      req2.flush({ path: "/tmp/second.wav", fileName: "second.wav" });
+      await upload2;
+
+      expect(formControl.value).toBe("/tmp/second.wav");
+      expect(component.fileName).toBe("second.wav");
+    });
+  });
 });

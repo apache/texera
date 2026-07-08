@@ -70,6 +70,33 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     intercept[IllegalArgumentException] { d.getPhysicalOp(workflowId, executionId) }
   }
 
+  it should "reject a blank virtual-environment name when the default env is disabled" in {
+    val d = new PythonUDFSourceOpDescV2
+    d.code = "yield"
+    d.defaultEnv = false
+    d.envName = "   "
+    val ex = intercept[RuntimeException] { d.getPhysicalOp(workflowId, executionId) }
+    ex.getMessage shouldBe
+      "Virtual Environment name is required when not using the default Python environment."
+  }
+
+  it should "carry the trimmed virtual-environment name when the default env is disabled" in {
+    val d = new PythonUDFSourceOpDescV2
+    d.code = "yield"
+    d.defaultEnv = false
+    d.envName = "  my-venv  "
+    d.getPhysicalOp(workflowId, executionId).pveName shouldBe "my-venv"
+  }
+
+  it should "mark the op parallelizable with the requested worker count when workers > 1" in {
+    val d = new PythonUDFSourceOpDescV2
+    d.code = "yield"
+    d.workers = 3
+    val physical = d.getPhysicalOp(workflowId, executionId)
+    physical.parallelizable shouldBe true
+    physical.suggestedWorkerNum shouldBe Some(3)
+  }
+
   "PythonUDFSourceOpDescV2" should "round-trip its config fields through the polymorphic base" in {
     val d = new PythonUDFSourceOpDescV2
     d.code = "yield"

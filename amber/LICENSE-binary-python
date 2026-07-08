@@ -310,10 +310,10 @@ Python packages:
   - numpy==2.1.0
   - pandas==2.2.3
   - pg8000==1.31.5
-  - psutil==5.9.0
+  - psutil==7.2.2
   - s3fs==2025.9.0
   - scikit-image==0.25.2
-  - scikit-learn==1.5.0
+  - scikit-learn==1.7.2
   - scipy==1.18.0
   - sympy==1.14.0
   - threadpoolctl==3.6.0
