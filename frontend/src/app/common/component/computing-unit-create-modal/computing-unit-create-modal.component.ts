@@ -173,11 +173,9 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
     this.showAdvancedSettings = !this.showAdvancedSettings;
   }
 
-  // Surfaces the shared-memory warning on the collapsed header so an invalid
-  // value tucked inside the panel can't be submitted unseen.
-  hasCollapsedWarning(): boolean {
-    return !this.showAdvancedSettings && this.isShmTooLarge();
-  }
+hasCollapsedWarning(): boolean {
+  return !this.showAdvancedSettings && this.selectedMemory !== "" && this.isShmTooLarge();
+}
 
   // Determines if the GPU selection dropdown should be shown
   showGpuSelection(): boolean {
