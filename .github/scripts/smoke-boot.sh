@@ -42,12 +42,20 @@
 #   * the backing postgres must already be up; the JVM connects via storage.conf
 #     defaults (postgres/postgres @ localhost:5432/texera_db).
 
-set -uo pipefail
+set -euo pipefail
 
 launcher_glob="${1:?usage: smoke-boot.sh <launcher-glob> <port> <mode> [timeout]}"
 port="${2:?port required}"
 mode="${3:?mode required (strict|shallow)}"
 timeout="${4:-60}"
+
+case "$mode" in
+  strict|shallow) ;;
+  *)
+    echo "::error::smoke-boot: invalid mode '$mode' (expected strict|shallow)"
+    exit 1
+    ;;
+esac
 
 # Resolve the (possibly globbed) launcher to a concrete executable.
 launcher="$(ls $launcher_glob 2>/dev/null | head -n1 || true)"
