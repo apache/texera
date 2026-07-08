@@ -138,6 +138,11 @@ trait MockTexeraDB extends AnyFlatSpecLike {
     } finally {
       try {
         if (!conn.isClosed) {
+          if (!conn.getAutoCommit) {
+            conn.rollback()
+            conn.setAutoCommit(true)
+          }
+
           scala.util.Using.resource(conn.createStatement()) { stmt =>
             stmt.execute(
               """
