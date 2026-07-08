@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783516936300,
+  "lastUpdate": 1783516938734,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -11678,6 +11678,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 2079941.122,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "18ccda990415e70fc835b1728585cea4d211888f",
+          "message": "chore(deps, frontend): bump the frontend-patch group in /frontend with 4 updates (#6233)\n\nBumps the frontend-patch group in /frontend with 4 updates:\n[@vitest/browser](https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser),\n[@vitest/browser-playwright](https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser-playwright),\n[@vitest/coverage-v8](https://github.com/vitest-dev/vitest/tree/HEAD/packages/coverage-v8)\nand\n[vitest](https://github.com/vitest-dev/vitest/tree/HEAD/packages/vitest).\n\nUpdates `@vitest/browser` from 4.1.9 to 4.1.10\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/vitest-dev/vitest/releases\">@​vitest/browser's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v4.1.10</h2>\n<h3>   🐞 Bug Fixes</h3>\n<ul>\n<li><strong>browser</strong>: Check fs access in builtin commands\n[backport to v4]  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenCode\n(claude-opus-4-8)</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10680\">vitest-dev/vitest#10680</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/5c18dd267\"><!-- raw\nHTML omitted -->(5c18d)<!-- raw HTML omitted --></a></li>\n<li><strong>vm</strong>: Fix external module resolve error with deps\noptimizer query for encoded URI [backport to v4]  -  by <a\nhref=\"https://github.com/SveLil\"><code>@​SveLil</code></a> and <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10661\">vitest-dev/vitest#10661</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/bae52b511\"><!-- raw\nHTML omitted -->(bae52)<!-- raw HTML omitted --></a></li>\n</ul>\n<h5>    <a\nhref=\"https://github.com/vitest-dev/vitest/compare/v4.1.9...v4.1.10\">View\nchanges on GitHub</a></h5>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/db616d227b6e0cb07a94f5d1bba262ee95db7e46\"><code>db616d2</code></a>\nchore: release v4.1.10 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser/issues/10718\">#10718</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/5c18dd267ff7f47f24cab2f615a16b37d90feb7f\"><code>5c18dd2</code></a>\nfix(browser): check fs access in builtin commands [backport to v4] (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser/issues/10680\">#10680</a>)</li>\n<li>See full diff in <a\nhref=\"https://github.com/vitest-dev/vitest/commits/v4.1.10/packages/browser\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `@vitest/browser-playwright` from 4.1.9 to 4.1.10\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/vitest-dev/vitest/releases\">@​vitest/browser-playwright's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v4.1.10</h2>\n<h3>   🐞 Bug Fixes</h3>\n<ul>\n<li><strong>browser</strong>: Check fs access in builtin commands\n[backport to v4]  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenCode\n(claude-opus-4-8)</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10680\">vitest-dev/vitest#10680</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/5c18dd267\"><!-- raw\nHTML omitted -->(5c18d)<!-- raw HTML omitted --></a></li>\n<li><strong>vm</strong>: Fix external module resolve error with deps\noptimizer query for encoded URI [backport to v4]  -  by <a\nhref=\"https://github.com/SveLil\"><code>@​SveLil</code></a> and <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10661\">vitest-dev/vitest#10661</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/bae52b511\"><!-- raw\nHTML omitted -->(bae52)<!-- raw HTML omitted --></a></li>\n</ul>\n<h5>    <a\nhref=\"https://github.com/vitest-dev/vitest/compare/v4.1.9...v4.1.10\">View\nchanges on GitHub</a></h5>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/db616d227b6e0cb07a94f5d1bba262ee95db7e46\"><code>db616d2</code></a>\nchore: release v4.1.10 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser-playwright/issues/10718\">#10718</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/5c18dd267ff7f47f24cab2f615a16b37d90feb7f\"><code>5c18dd2</code></a>\nfix(browser): check fs access in builtin commands [backport to v4] (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/browser-playwright/issues/10680\">#10680</a>)</li>\n<li>See full diff in <a\nhref=\"https://github.com/vitest-dev/vitest/commits/v4.1.10/packages/browser-playwright\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `@vitest/coverage-v8` from 4.1.9 to 4.1.10\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/vitest-dev/vitest/releases\">@​vitest/coverage-v8's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v4.1.10</h2>\n<h3>   🐞 Bug Fixes</h3>\n<ul>\n<li><strong>browser</strong>: Check fs access in builtin commands\n[backport to v4]  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenCode\n(claude-opus-4-8)</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10680\">vitest-dev/vitest#10680</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/5c18dd267\"><!-- raw\nHTML omitted -->(5c18d)<!-- raw HTML omitted --></a></li>\n<li><strong>vm</strong>: Fix external module resolve error with deps\noptimizer query for encoded URI [backport to v4]  -  by <a\nhref=\"https://github.com/SveLil\"><code>@​SveLil</code></a> and <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10661\">vitest-dev/vitest#10661</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/bae52b511\"><!-- raw\nHTML omitted -->(bae52)<!-- raw HTML omitted --></a></li>\n</ul>\n<h5>    <a\nhref=\"https://github.com/vitest-dev/vitest/compare/v4.1.9...v4.1.10\">View\nchanges on GitHub</a></h5>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/db616d227b6e0cb07a94f5d1bba262ee95db7e46\"><code>db616d2</code></a>\nchore: release v4.1.10 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/coverage-v8/issues/10718\">#10718</a>)</li>\n<li>See full diff in <a\nhref=\"https://github.com/vitest-dev/vitest/commits/v4.1.10/packages/coverage-v8\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `vitest` from 4.1.9 to 4.1.10\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/vitest-dev/vitest/releases\">vitest's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v4.1.10</h2>\n<h3>   🐞 Bug Fixes</h3>\n<ul>\n<li><strong>browser</strong>: Check fs access in builtin commands\n[backport to v4]  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenCode\n(claude-opus-4-8)</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10680\">vitest-dev/vitest#10680</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/5c18dd267\"><!-- raw\nHTML omitted -->(5c18d)<!-- raw HTML omitted --></a></li>\n<li><strong>vm</strong>: Fix external module resolve error with deps\noptimizer query for encoded URI [backport to v4]  -  by <a\nhref=\"https://github.com/SveLil\"><code>@​SveLil</code></a> and <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10661\">vitest-dev/vitest#10661</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/bae52b511\"><!-- raw\nHTML omitted -->(bae52)<!-- raw HTML omitted --></a></li>\n</ul>\n<h5>    <a\nhref=\"https://github.com/vitest-dev/vitest/compare/v4.1.9...v4.1.10\">View\nchanges on GitHub</a></h5>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/db616d227b6e0cb07a94f5d1bba262ee95db7e46\"><code>db616d2</code></a>\nchore: release v4.1.10 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/vitest/issues/10718\">#10718</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/bae52b5112a6fd8200101b88bf8af9685d077295\"><code>bae52b5</code></a>\nfix(vm): fix external module resolve error with deps optimizer query for\nenco...</li>\n<li>See full diff in <a\nhref=\"https://github.com/vitest-dev/vitest/commits/v4.1.10/packages/vitest\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\n\nDependabot will resolve any conflicts with this PR as long as you don't\nalter it yourself. You can also trigger a rebase manually by commenting\n`@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits\nthat have been made to it\n- `@dependabot show <dependency name> ignore conditions` will show all\nof the ignore conditions of the specified dependency\n- `@dependabot ignore <dependency name> major version` will close this\ngroup update PR and stop Dependabot creating any more for the specific\ndependency's major version (unless you unignore this specific\ndependency's major version or upgrade to it yourself)\n- `@dependabot ignore <dependency name> minor version` will close this\ngroup update PR and stop Dependabot creating any more for the specific\ndependency's minor version (unless you unignore this specific\ndependency's minor version or upgrade to it yourself)\n- `@dependabot ignore <dependency name>` will close this group update PR\nand stop Dependabot creating any more for the specific dependency\n(unless you unignore this specific dependency or upgrade to it yourself)\n- `@dependabot unignore <dependency name>` will remove all of the ignore\nconditions of the specified dependency\n- `@dependabot unignore <dependency name> <ignore condition>` will\nremove the ignore condition of the specified dependency and ignore\nconditions\n\n\n</details>\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Xinyuan Lin <xinyual3@uci.edu>",
+          "timestamp": "2026-07-08T06:26:15Z",
+          "url": "https://github.com/apache/texera/commit/18ccda990415e70fc835b1728585cea4d211888f"
+        },
+        "date": 1783516938177,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 13187.552,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 16184.659,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 19052.257,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 75473.03,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 83631.185,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 94117.686,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 691895.016,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 731680.647,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 750824.401,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 10843.816,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 12594.345,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 15605.528,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 72722.371,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 79887.065,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 87315.899,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 691878.599,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 737447.444,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 765329.779,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 10148.026,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 13389.359,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 15145.969,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 72823.743,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 79843.076,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 84439.27,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 692108.086,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 746119.682,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 773059.455,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 12004.224,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 14995.338,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 18532.131,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 92187.211,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 102795.942,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 107695.703,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 904533.483,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 950334.324,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 992982.494,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 11486.731,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 14615.676,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 18419.813,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 91303.242,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 99873.399,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 108313.543,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 906523.151,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 960112.359,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 997660.562,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 11864.081,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 13972.853,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 18056.075,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 94652.149,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 101342.696,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 106572.219,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 918620.193,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 974214.253,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 988607.22,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 19972.476,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 23626.06,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 25605.529,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 175566.414,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 184530.571,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 196271.525,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1749183.981,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1820668.427,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1898767.269,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 20898.972,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 24553.47,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 26846.048,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 176784.234,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 187213.585,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 199316.467,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1750271.09,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1801262.229,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1822744.063,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 21133.152,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 25753.903,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 29425.887,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 191192.645,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 212747.803,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 244551.446,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1824293.236,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1875150.752,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1896029.895,
             "unit": "us"
           }
         ]
