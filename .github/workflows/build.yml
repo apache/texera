@@ -725,6 +725,16 @@ jobs:
             check_exit=1
           fi
           exit "$check_exit"
+      - name: Upload ${{ matrix.service }} dist for platform-integration
+        # The platform-integration job boots this packaged service against real
+        # infra (postgres + MinIO + LakeFS); ship its dist there as an artifact
+        # so that job doesn't rebuild it. See #6273.
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.service }}
+          path: ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip
+          if-no-files-found: error
+          retention-days: 1
       - name: Upload ${{ matrix.service }} coverage to Codecov
         # Per-service flag so each matrix entry has its own Codecov view
         # rather than being merged into one umbrella `platform` flag.
@@ -746,6 +756,118 @@ jobs:
           report_type: test_results
           disable_search: true
           fail_ci_if_error: false
+
+  platform-integration:
+    # Infra-provisioned home for the platform services' integration checks
+    # (mirrors amber-integration). First inhabitant: a boot smoke test — launch
+    # each packaged service against real postgres + MinIO + LakeFS and assert it
+    # starts without a runtime classpath/linkage crash (see #6220). file-service
+    # in particular fail-fasts on S3 / LakeFS, which the platform build job does
+    # not provision, so it can only reach a listening state here. Dists arrive as
+    # artifacts from the platform job, so nothing is rebuilt. See #6273.
+    if: ${{ inputs.run_platform }}
+    needs: platform
+    runs-on: ubuntu-latest
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 17
+      - name: Create Databases
+        run: |
+          psql -h localhost -U postgres -f sql/texera_ddl.sql
+          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/texera_lakefs.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio --network host \
+            -e MINIO_ROOT_USER=texera_minio \
+            -e MINIO_ROOT_PASSWORD=password \
+            minio/minio:RELEASE.2025-02-28T09-55-16Z server /data
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            echo "Waiting for MinIO... (attempt $i)"; sleep 1
+          done
+          curl -sf http://localhost:9000/minio/health/live
+      - name: Start LakeFS
+        # lakeFS keeps its metadata in the texera_lakefs postgres DB (created
+        # above) and uses MinIO as its S3 blockstore. file-service's boot calls
+        # LakeFSStorageClient.healthCheck(), so this must be up for it to reach a
+        # listening state. Config mirrors bin/single-node (compose + .env),
+        # adapted to CI creds (postgres/postgres @ localhost).
+        run: |
+          docker run -d --name lakefs --network host \
+            -e LAKEFS_DATABASE_TYPE=postgres \
+            -e "LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING=postgres://postgres:postgres@localhost:5432/texera_lakefs?sslmode=disable" \
+            -e LAKEFS_BLOCKSTORE_TYPE=s3 \
+            -e LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE=true \
+            -e LAKEFS_BLOCKSTORE_S3_ENDPOINT=http://localhost:9000 \
+            -e LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=texera_minio \
+            -e LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=password \
+            -e LAKEFS_AUTH_ENCRYPT_SECRET_KEY=random_string_for_lakefs \
+            --entrypoint /bin/sh \
+            treeverse/lakefs:1.51 \
+            -c "lakefs setup --user-name texera-admin --access-key-id AKIAIOSFOLKFSSAMPLES --secret-access-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY || true; lakefs run"
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:8000/api/v1/healthcheck && break
+            echo "Waiting for LakeFS... (attempt $i)"; sleep 1
+          done
+          curl -sf http://localhost:8000/api/v1/healthcheck
+      - name: Download platform service dists
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: /tmp/artifacts
+          merge-multiple: true
+      - name: Unzip dists
+        run: |
+          mkdir -p /tmp/dists
+          for z in /tmp/artifacts/*.zip; do unzip -q "$z" -d /tmp/dists/; done
+      - name: Smoke-test each platform service boots
+        # .github/scripts/smoke-boot.sh launches the packaged service and asserts
+        # it reaches LISTEN without a classpath/linkage crash. Every service has
+        # its real infra here, so all run strict. See #6220.
+        env:
+          TEXERA_HOME: ${{ github.workspace }}
+        run: |
+          set -uo pipefail
+          declare -A PORTS=(
+            [config-service]=9094
+            [access-control-service]=9096
+            [file-service]=9092
+            [computing-unit-managing-service]=8888
+            [workflow-compiling-service]=9090
+            [notebook-migration-service]=9098
+          )
+          rc=0
+          for svc in config-service access-control-service file-service computing-unit-managing-service workflow-compiling-service notebook-migration-service; do
+            echo "::group::smoke-boot ${svc}"
+            .github/scripts/smoke-boot.sh "/tmp/dists/${svc}-*/bin/${svc}" "${PORTS[$svc]}" strict || rc=1
+            echo "::endgroup::"
+          done
+          exit "$rc"
 
   pyamber:
     if: ${{ inputs.run_pyamber }}
