@@ -33,7 +33,7 @@ addSbtPlugin("org.typelevel" % "sbt-fs2-grpc" % "2.11.0")
 
 // JOOQ dependencies for code generation
 libraryDependencies ++= Seq(
-  "org.jooq" % "jooq-codegen" % "3.16.23",
+  "org.jooq" % "jooq-codegen" % "3.19.36",
   "com.typesafe" % "config" % "1.4.6",
   "org.postgresql" % "postgresql" % "42.7.4"
 )
