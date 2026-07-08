@@ -125,6 +125,18 @@ if (typeof idleGlobal.cancelIdleCallback !== "function") {
 }
 
 /**
+ * jsdom doesn't implement `ResizeObserver`; components that watch their own
+ * size (e.g. markdown-description) construct one on render. An inert stub is
+ * enough: jsdom has no layout, so there is never a resize to report.
+ */
+const observerGlobal = globalThis as unknown as { ResizeObserver?: unknown };
+observerGlobal.ResizeObserver ??= class {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+};
+
+/**
  * y-websocket schedules a reconnect timer the moment a service that uses
  * collaborative editing is constructed. When that timer fires AFTER vitest
  * has begun tearing down the jsdom window, jsdom's WebSocket implementation
