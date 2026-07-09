@@ -369,8 +369,8 @@ describe("ComputingUnitCreateModalComponent", () => {
 
     component.onJvmMemorySliderChange(component.jvmMemoryMax - 1);
 
-    expect(component.jvmMemorySteps).toContain(component.jvmMemorySliderValue);
-    expect(component.selectedJvmMemorySize).toBe(`${component.jvmMemorySliderValue}G`);
+    expect(component.jvmMemorySteps).toContain(component.jvmMemorySteps[component.jvmMemorySliderValue]);
+    expect(component.selectedJvmMemorySize).toBe(`${component.jvmMemorySteps[component.jvmMemorySliderValue]}G`);
   });
 
   it("flags max JVM memory only when the slider is shown at its maximum", () => {
@@ -381,7 +381,7 @@ describe("ComputingUnitCreateModalComponent", () => {
     component.onJvmMemorySliderChange(component.jvmMemoryMax);
     expect(component.isMaxJvmMemorySelected()).toBe(true);
 
-    component.onJvmMemorySliderChange(component.jvmMemorySteps[0]);
+    component.onJvmMemorySliderChange(0);
     expect(component.isMaxJvmMemorySelected()).toBe(false);
   });
 
@@ -389,12 +389,12 @@ describe("ComputingUnitCreateModalComponent", () => {
     fixture.detectChanges();
     component.selectedMemory = "8Gi";
     component.onMemorySelectionChange();
-    component.onJvmMemorySliderChange(4);
+    component.onJvmMemorySliderChange(1); // Index 1 for 4G in [2, 4, 6]
 
     component.selectedMemory = "4096Mi";
     component.onMemorySelectionChange();
 
-    expect(component.jvmMemorySliderValue).toBe(4);
+    expect(component.jvmMemorySliderValue).toBe(1);
     expect(component.selectedJvmMemorySize).toBe("4G");
   });
 
@@ -402,7 +402,7 @@ describe("ComputingUnitCreateModalComponent", () => {
     fixture.detectChanges();
     component.selectedMemory = "8Gi";
     component.onMemorySelectionChange();
-    component.onJvmMemorySliderChange(4);
+    component.onJvmMemorySliderChange(1);
 
     component.selectedMemory = "2";
     component.onMemorySelectionChange();
@@ -584,7 +584,7 @@ describe("ComputingUnitCreateModalComponent", () => {
       sliderNgModel.viewToModelUpdate(component.jvmMemoryMax);
       tick();
       expect(component.jvmMemorySliderValue).toBe(component.jvmMemoryMax);
-      expect(component.selectedJvmMemorySize).toBe(`${component.jvmMemoryMax}G`);
+      expect(component.selectedJvmMemorySize).toBe(`${component.jvmMemorySteps[component.jvmMemoryMax]}G`);
 
       clickSelectOption("type-selection", "Local");
       expect(component.selectedComputingUnitType).toBe("local");
@@ -597,7 +597,7 @@ describe("ComputingUnitCreateModalComponent", () => {
       expect(component.localComputingUnitUri).toBe("http://localhost:8085");
     });
 
-    it("falls back to a slider minimum of 2 when no JVM steps are configured", () => {
+    it("falls back to a slider minimum of 0 when no JVM steps are configured", () => {
       mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
         of({ typeOptions: ["kubernetes"] as WorkflowComputingUnitType[] })
       );
@@ -609,7 +609,7 @@ describe("ComputingUnitCreateModalComponent", () => {
 
       const sliderEl = document.querySelector("nz-slider")!;
       const slider = (getDebugNode(sliderEl) as DebugElement).componentInstance as { nzMin: number };
-      expect(slider.nzMin).toBe(2);
+      expect(slider.nzMin).toBe(0);
     });
 
     it("wires the footer buttons to cancel and create", () => {

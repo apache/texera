@@ -171,9 +171,10 @@
                     *ngIf="showJvmMemorySlider"
                     class="jvm-memory-slider"
                     [nzMarks]="jvmMemoryMarks"
-                    [nzMin]="jvmMemorySteps[0] || 2"
+                    [nzMin]="0"
                     [nzMax]="jvmMemoryMax"
-                    [nzStep]="null"
+                    [nzTipFormatter]="jvmMemoryTipFormatter"
+                    [nzStep]="1"
                     [nzIncluded]="false"
                     [ngModel]="jvmMemorySliderValue"
                     (ngModelChange)="onJvmMemorySliderChange($event)">
