@@ -26,6 +26,8 @@ import { getBackendConfig } from "./api/backend-api";
 import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
+import { recommendOperators } from "./recommender/recommender";
+import type { RecommendationRequest } from "./recommender/recommender-types";
 import { env } from "./config/env";
 import { createLogger } from "./logger";
 
@@ -388,6 +390,33 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   );
 
+// Stateless ambient operator recommender (apache/texera#5240). Given the
+// operator a user just added, returns a short ranked list of likely next
+// operators for the canvas to render as suggestions. Version 1 uses a
+// hardcoded rule table with no LLM call, so it needs no user token and no
+// per-request model configuration; it only reads the process-wide operator
+// catalog to validate and label its suggestions.
+const recommendRouter = new Elysia({ prefix: "/recommend" })
+  // Local-scoped error handler, mirroring agentsRouter: body-schema and
+  // malformed-JSON failures are client errors (400), not 500s.
+  .onError(({ code, error, set }) => {
+    log.error({ err: error }, "recommend request error");
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (code === "VALIDATION" || code === "PARSE") {
+      set.status = 400;
+      return { error: errorMessage || "Invalid request body" };
+    }
+    set.status = 500;
+    return { error: errorMessage || "Internal server error" };
+  })
+  .post("/", ({ body }) => recommendOperators(body as RecommendationRequest, WorkflowSystemMetadata.getInstance()), {
+    body: t.Object({
+      operatorType: t.String({ minLength: 1 }),
+      existingOperatorTypes: t.Optional(t.Array(t.String())),
+      limit: t.Optional(t.Number()),
+    }),
+  });
+
 function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummary> {
   const resultState = agent.getWorkflowResultState();
   const visible = resultState.getAllVisible();
@@ -443,6 +472,7 @@ export function buildApp() {
           timestamp: new Date().toISOString(),
         }))
         .use(agentsRouter)
+        .use(recommendRouter)
     )
     .ws(`${env.API_PREFIX}/agents/:id/react`, {
       open(ws) {
