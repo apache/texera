@@ -292,7 +292,7 @@ Scala/Java jars:
   - org.hibernate.validator.hibernate-validator-7.0.5.Final.jar
   - org.javassist.javassist-3.30.2-GA.jar
   - org.jboss.logging.jboss-logging-3.5.3.Final.jar
-  - org.jooq.jooq-3.16.23.jar
+  - org.jooq.jooq-3.19.36.jar
   - org.json4s.json4s-ast_2.13-4.0.1.jar
   - org.json4s.json4s-jackson-core_2.13-4.0.1.jar
   - org.scala-lang.modules.scala-collection-compat_2.13-2.13.0.jar
