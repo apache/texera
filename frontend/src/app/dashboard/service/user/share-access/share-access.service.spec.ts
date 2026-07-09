@@ -20,7 +20,7 @@
 import { BASE, ShareAccessService } from "./share-access.service";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
-import { ShareAccess } from "../../../type/share-access.interface";
+import { Privilege, ShareAccess } from "../../../type/share-access.interface";
 
 describe("ShareAccessService", () => {
   let service: ShareAccessService;
@@ -64,19 +64,22 @@ describe("ShareAccessService", () => {
   });
 
   it("getOwner should respond with type text", () => {
-    service.getOwner(type, id).subscribe();
-
+    let owner: string | undefined;
+    service.getOwner(type, id).subscribe(res => {
+      owner = res;
+    });
     const req = httpMock.expectOne(`${BASE}/${type}/owner/${id}`);
 
     expect(req.request.method).toBe("GET");
     expect(req.request.responseType).toBe("text");
-    req.flush(null);
+    req.flush("owner@example.com");
+    expect(owner).toBe("owner@example.com");
   });
 
   it("getAccessList should resolve to an array", () => {
-    const mockList = [
-      { username: "JohnDaBeast1999", privilege: "write" },
-      { username: "alice", privilege: "read" },
+    const mockList: ReadonlyArray<ShareAccess> = [
+      { email: "JohnDaBeast1999@example.com", name: "John", privilege: Privilege.READ },
+      { email: "alice@example.com", name: "Alice", privilege: Privilege.WRITE },
     ];
 
     let result: ReadonlyArray<ShareAccess> | undefined;
@@ -89,6 +92,6 @@ describe("ShareAccessService", () => {
     expect(req.request.method).toBe("GET");
     req.flush(mockList);
 
-    expect(result).toBe(mockList);
+    expect(result).toEqual(mockList);
   });
 });
