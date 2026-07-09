@@ -54,7 +54,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
 import java.net.URI
-import java.util.concurrent.{CompletableFuture, LinkedBlockingQueue}
+import java.util.concurrent.{CompletableFuture, LinkedBlockingQueue, TimeUnit}
 import scala.collection.mutable
 
 class WorkflowWorkerSpec
@@ -94,7 +94,10 @@ class WorkflowWorkerSpec
     // and apply the returned PartialFunction.
     val handler = worker.underlyingActor.handleActorCommand
     assert(handler.isDefinedAt(Backpressure(true)))
-    handler.apply(Backpressure(true))
+    // The production handler prints the command; silence stdout so it doesn't add test noise.
+    Console.withOut(new java.io.ByteArrayOutputStream()) {
+      handler.apply(Backpressure(true))
+    }
 
     // (c) preRestart tears the worker down; safe because initState already ran (dpThread
     // is non-null) during synchronous TestActorRef construction.
@@ -106,7 +109,7 @@ class WorkflowWorkerSpec
     val f = new CompletableFuture[Boolean]()
     // TestActorRef dispatches synchronously, so receive -> handleTriggerClosure runs inline.
     worker ! MainThreadDelegateMessage(_ => f.complete(true))
-    assert(f.get())
+    assert(f.get(5, TimeUnit.SECONDS))
     worker.underlyingActor.dpThread.stop()
   }
 
