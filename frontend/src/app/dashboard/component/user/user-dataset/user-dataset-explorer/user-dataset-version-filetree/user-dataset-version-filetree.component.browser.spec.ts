@@ -18,14 +18,10 @@
  */
 
 // Browser-mode companion to user-dataset-version-filetree.component.spec.ts.
-// jsdom performs no layout — getBoundingClientRect() is all zeros there — so
-// the tree's virtual scroll measures a 0-height viewport and renders zero
-// rows, and the jsdom spec can only assert an upper bound on rendered rows.
-// These tests run in vitest's Playwright/Chromium browser mode, where the
-// container really lays out, to pin the behaviors that need real geometry:
-// virtualization renders a non-empty window of rows, rows stay exactly
-// TREE_NODE_HEIGHT_PX tall, per-row action buttons fit inside the row, and
-// the container hugs small trees.
+// jsdom does no layout — getBoundingClientRect() is all zeros — so the
+// virtual scroll measures a 0-height viewport and renders zero rows there.
+// These tests run in vitest's Playwright/Chromium browser mode to pin the
+// behaviors that need real geometry.
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserDatasetVersionFiletreeComponent } from "./user-dataset-version-filetree.component";
@@ -53,11 +49,9 @@ describe("UserDatasetVersionFiletreeComponent (browser)", () => {
     component = fixture.componentInstance;
   });
 
-  // whenStable flushes the tree-viewport's setTimeout that measures the
-  // viewport height; the second detectChanges renders the measured window.
-  // The input is assigned inside the Angular zone, as a host template binding
-  // would be, so whenStable also waits for the re-measure timer the
-  // fileTreeNodes setter schedules.
+  // Assign inside the Angular zone, as a host binding would, so whenStable
+  // waits for the viewport-measure timers; the second detectChanges renders
+  // the measured window.
   async function renderTree(nodes: DatasetFileNode[]): Promise<void> {
     if (fixture.ngZone) {
       fixture.ngZone.run(() => (component.fileTreeNodes = nodes));
@@ -100,11 +94,9 @@ describe("UserDatasetVersionFiletreeComponent (browser)", () => {
     expect(buttonRect.bottom).toBeLessThanOrEqual(rowRect.bottom);
   });
 
-  // The tree measures its viewport height once after init (and again only on
-  // scroll). Both hosts create this component with an empty tree and fill it
-  // when data arrives, so a container sized to content must trigger a
-  // re-measure when its height changes — otherwise the 0px initial
-  // measurement sticks and the tree stays blank forever.
+  // Both hosts create the tree empty and fill it when data arrives; the
+  // height change must trigger a viewport re-measure or the 0px initial
+  // measurement sticks and the tree stays blank.
   it("renders rows when files arrive after an initially-empty tree", async () => {
     await renderTree([]);
     await renderTree(makeFlatFileNodes(FILE_COUNT));

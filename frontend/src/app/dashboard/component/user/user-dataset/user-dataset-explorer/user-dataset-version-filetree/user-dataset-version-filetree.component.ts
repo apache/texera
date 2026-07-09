@@ -33,21 +33,16 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"] as const;
 
-// The tree library lays rows out on a fixed pitch: nodeHeight plus a 2px drop
-// slot after every row (its default dropSlotHeight), with one extra leading
-// drop slot before the first row.
+// The library adds a 2px drop slot after every row, plus one extra leading
+// slot before the first row.
 const TREE_DROP_SLOT_HEIGHT_PX = 2;
 
-// Cap on the container height; matches the max-height the container had
-// before virtualization.
+// Container height cap; matches the pre-virtualization max-height.
 const MAX_FILE_TREE_CONTAINER_HEIGHT_PX = 200;
 
-// The library throttles viewport re-measures (TreeViewportComponent's
-// setViewport) to one per 17ms, leading-edge only: a call landing inside the
-// window is dropped and never re-fired. A re-measure scheduled on the next
-// macrotask can land within 17ms of the tree's own post-init measurement and
-// be silently swallowed (leaving a permanently blank tree), so wait out the
-// throttle window before asking for one.
+// The library throttles viewport re-measures to one per 17ms, leading-edge
+// only — a call inside the window is dropped and never re-fired, so
+// re-measures must wait out the window.
 const TREE_VIEWPORT_REMEASURE_DELAY_MS = 25;
 
 // Total node count across the whole tree, including collapsed descendants.
@@ -80,16 +75,11 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
     const newHeight = this.computeContainerHeightPx();
     if (newHeight !== this.fileTreeContainerHeightPx) {
       this.fileTreeContainerHeightPx = newHeight;
-      // The tree measures its viewport height once after init and again only
-      // on scroll. Both hosts create this component with an empty tree and
-      // fill it when data arrives, so ask the tree to re-measure once change
-      // detection has applied the new container height — otherwise the 0px
-      // initial measurement sticks and the tree renders blank. The delay must
-      // clear the library's re-measure throttle (see
-      // TREE_VIEWPORT_REMEASURE_DELAY_MS). The same one-shot measurement means
-      // a host must never instantiate this component inside a hidden
-      // (display: none) container without calling tree.sizeChanged() on
-      // reveal.
+      // The tree measures its viewport once after init and again only on
+      // scroll, so a height change must trigger a re-measure (delayed past
+      // the throttle) — otherwise a tree that starts empty stays blank. For
+      // the same reason, a host that creates this component hidden must call
+      // tree.sizeChanged() on reveal.
       setTimeout(() => this.tree?.sizeChanged(), TREE_VIEWPORT_REMEASURE_DELAY_MS);
     }
   }
@@ -106,20 +96,16 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   @Output()
   setCoverImage = new EventEmitter<string>();
 
-  // Row height (px) used by the tree's virtual scroll to position rows. The
-  // template binds it onto the container as --tree-node-height, which the
-  // SCSS row rules consume, so rows can never drift from the nodeHeight the
-  // tree positions them with.
+  // Row height used by the virtual scroll; the template binds it as
+  // --tree-node-height so the SCSS row rules stay in sync with nodeHeight.
   public readonly TREE_NODE_HEIGHT_PX = 24;
 
-  // Container height bound in the template: hugs the content for small trees
-  // (the pre-virtualization behavior) and caps at 200px for large ones so the
-  // virtual scroll has a definite, bounded viewport.
+  // min(content, 200px); bound in the template so small trees hug their
+  // content while the virtual scroll keeps a definite viewport.
   public fileTreeContainerHeightPx = 0;
 
-  // useVirtualScroll keeps only the visible rows in the DOM; without it a
-  // version with hundreds of files renders one component per file and every
-  // change-detection pass freezes the page for seconds to minutes.
+  // useVirtualScroll keeps only the visible rows in the DOM; without it,
+  // hundreds of files freeze the page for seconds to minutes.
   public fileTreeDisplayOptions: ITreeOptions = {
     displayField: "name",
     hasChildrenField: "children",
@@ -147,7 +133,6 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   constructor() {}
 
   onNodeDeleted(node: DatasetFileNode): void {
-    // look up for the DatasetVersionFileTreeNode
     this.deletedTreeNode.emit(node);
   }
 
@@ -161,10 +146,8 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
     return IMAGE_EXTENSIONS.some(ext => fileName.toLowerCase().endsWith(ext));
   }
 
-  // Content height for the whole tree at the library's row pitch. countNodes
-  // includes collapsed descendants, so a partially collapsed folder tree may
-  // get a container slightly taller than its visible rows — still bounded by
-  // the cap, and exact for the flat file lists both hosts show.
+  // countNodes includes collapsed descendants, so a partially collapsed tree
+  // may get a slightly taller container — still bounded by the cap.
   private computeContainerHeightPx(): number {
     const nodeCount = countNodes(this._fileTreeNodes);
     if (nodeCount === 0) {

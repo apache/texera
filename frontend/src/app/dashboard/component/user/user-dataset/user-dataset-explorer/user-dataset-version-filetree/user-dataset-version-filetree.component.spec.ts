@@ -43,13 +43,11 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     component = fixture.componentInstance;
   });
 
-  // Regression tests for the frontend freeze when a dataset version has
-  // hundreds of files: the tree must virtualize its rows instead of creating
-  // one component per file.
+  // Regression tests for the freeze on versions with hundreds of files: the
+  // tree must virtualize instead of rendering one component per file.
   it("enables virtual scrolling with the 24px node height the row styles pin", () => {
     expect(component.fileTreeDisplayOptions.useVirtualScroll).toBe(true);
-    // The SCSS row height consumes --tree-node-height, which the template
-    // binds from the same constant, so 24 here is the single design value.
+    // 24 is the single design value; the SCSS consumes it via --tree-node-height.
     expect(component.fileTreeDisplayOptions.nodeHeight).toBe(24);
   });
 
@@ -65,10 +63,8 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     expect(renderedRows).toBeLessThan(FILE_COUNT / 5);
   });
 
-  // The container must hug small trees (the pre-virtualization behavior)
-  // while giving the virtual scroll a definite, capped viewport for large
-  // ones. Content height follows the tree's row pitch: nodeHeight plus a 2px
-  // drop slot per row, plus one extra leading 2px drop slot on the first row.
+  // The container hugs small trees and caps at 200px; heights follow the
+  // tree's 26px row pitch plus a 2px leading drop slot.
   it("collapses the container when there are no files", () => {
     component.fileTreeNodes = [];
     fixture.detectChanges();
@@ -97,8 +93,8 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     const emitted: DatasetFileNode[] = [];
     component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
 
-    // The folder branch of the click handler delegates to the tree action
-    // TOGGLE_EXPANDED, which only calls node.toggleExpanded().
+    // The folder branch delegates to TOGGLE_EXPANDED, which only calls
+    // node.toggleExpanded().
     let toggleCalls = 0;
     const onClick = component.fileTreeDisplayOptions.actionMapping!.mouse!.click!;
     const folderNode = {
@@ -119,8 +115,7 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     const emitted: DatasetFileNode[] = [];
     component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
 
-    // Invoke the tree's real click handler with a stub leaf node; the handler
-    // only reads hasChildren and data, so tree and $event are unused.
+    // The handler only reads hasChildren and data; tree and $event are unused.
     const onClick = component.fileTreeDisplayOptions.actionMapping!.mouse!.click!;
     const leafNode = { hasChildren: false, data: component.fileTreeNodes[0] } as never;
     onClick(undefined as never, leafNode, undefined as never);
