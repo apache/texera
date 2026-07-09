@@ -462,7 +462,7 @@ Scala/Java jars:
   - org.jetbrains.kotlin.kotlin-stdlib-jdk7-1.9.10.jar
   - org.jetbrains.kotlin.kotlin-stdlib-jdk8-1.9.10.jar
   - org.jheaps.jheaps-0.11.jar
-  - org.jooq.jooq-3.16.23.jar
+  - org.jooq.jooq-3.19.36.jar
   - org.json4s.json4s-ast_2.13-4.0.1.jar
   - org.json4s.json4s-jackson-core_2.13-4.0.1.jar
   - org.openapitools.jackson-databind-nullable-0.2.6.jar

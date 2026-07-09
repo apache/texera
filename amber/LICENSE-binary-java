@@ -487,7 +487,7 @@ Scala/Java jars:
   - org.jetbrains.kotlin.kotlin-stdlib-jdk8-1.9.10.jar
   - org.jheaps.jheaps-0.11.jar
   - org.joda.joda-convert-2.2.2.jar
-  - org.jooq.jooq-3.16.23.jar
+  - org.jooq.jooq-3.19.36.jar
   - org.json4s.json4s-ast_2.13-4.0.1.jar
   - org.json4s.json4s-jackson-core_2.13-4.0.1.jar
   - org.lz4.lz4-java-1.8.0.jar
@@ -611,7 +611,7 @@ Scala/Java jars:
   - com.github.marianobarrios.lbmq-0.6.0.jar
   - dnsjava.dnsjava-3.6.1.jar
   - org.codehaus.woodstox.stax2-api-4.2.1.jar
-  - org.postgresql.postgresql-42.7.12.jar
+  - org.postgresql.postgresql-42.7.13.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the ISC License
@@ -689,7 +689,6 @@ Dependencies under the Eclipse Distribution License, Version 1.0
 --------------------------------------------------------------------------------
 
 Scala/Java jars:
-  - com.sun.activation.jakarta.activation-2.0.0.jar
   - jakarta.activation.jakarta.activation-api-1.2.1.jar
   - jakarta.xml.bind.jakarta.xml.bind-api-3.0.0.jar
   - org.eclipse.jgit.org.eclipse.jgit-5.13.0.202109080827-r.jar
