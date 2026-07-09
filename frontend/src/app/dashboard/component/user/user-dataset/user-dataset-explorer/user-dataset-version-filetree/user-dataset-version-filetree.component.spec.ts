@@ -46,9 +46,11 @@ describe("UserDatasetVersionFiletreeComponent", () => {
   // Regression tests for the frontend freeze when a dataset version has
   // hundreds of files: the tree must virtualize its rows instead of creating
   // one component per file.
-  it("enables virtual scrolling with a fixed node height", () => {
+  it("enables virtual scrolling with the 24px node height the row styles pin", () => {
     expect(component.fileTreeDisplayOptions.useVirtualScroll).toBe(true);
-    expect(typeof component.fileTreeDisplayOptions.nodeHeight).toBe("number");
+    // The SCSS row height consumes --tree-node-height, which the template
+    // binds from the same constant, so 24 here is the single design value.
+    expect(component.fileTreeDisplayOptions.nodeHeight).toBe(24);
   });
 
   it("keeps the full tree in the model without one DOM row per file", async () => {
@@ -61,6 +63,55 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     expect(component.tree.treeModel.roots.length).toBe(FILE_COUNT);
     const renderedRows = fixture.nativeElement.querySelectorAll("tree-node").length;
     expect(renderedRows).toBeLessThan(FILE_COUNT / 5);
+  });
+
+  // The container must hug small trees (the pre-virtualization behavior)
+  // while giving the virtual scroll a definite, capped viewport for large
+  // ones. Content height follows the tree's row pitch: nodeHeight plus a 2px
+  // drop slot per row, plus one extra leading 2px drop slot on the first row.
+  it("collapses the container when there are no files", () => {
+    component.fileTreeNodes = [];
+    fixture.detectChanges();
+
+    const container = fixture.nativeElement.querySelector(".file-tree-container") as HTMLElement;
+    expect(container.style.height).toBe("0px");
+  });
+
+  it("sizes the container to its content for small trees", () => {
+    component.fileTreeNodes = makeFlatFileNodes(3);
+    fixture.detectChanges();
+
+    const container = fixture.nativeElement.querySelector(".file-tree-container") as HTMLElement;
+    expect(container.style.height).toBe("80px"); // 3 rows x 26px pitch + 2px leading drop slot
+  });
+
+  it("caps the container height at 200px for large trees", () => {
+    component.fileTreeNodes = makeFlatFileNodes(FILE_COUNT);
+    fixture.detectChanges();
+
+    const container = fixture.nativeElement.querySelector(".file-tree-container") as HTMLElement;
+    expect(container.style.height).toBe("200px");
+  });
+
+  it("toggles expansion without emitting selectedTreeNode when a folder is clicked", () => {
+    const emitted: DatasetFileNode[] = [];
+    component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
+
+    // The folder branch of the click handler delegates to the tree action
+    // TOGGLE_EXPANDED, which only calls node.toggleExpanded().
+    let toggleCalls = 0;
+    const onClick = component.fileTreeDisplayOptions.actionMapping!.mouse!.click!;
+    const folderNode = {
+      hasChildren: true,
+      toggleExpanded: () => {
+        toggleCalls++;
+      },
+      data: { name: "dir", type: "directory" as const, parentDir: "/owner/dataset/v1" },
+    } as never;
+    onClick(undefined as never, folderNode, undefined as never);
+
+    expect(toggleCalls).toBe(1);
+    expect(emitted).toEqual([]);
   });
 
   it("emits selectedTreeNode when a leaf node is clicked", () => {

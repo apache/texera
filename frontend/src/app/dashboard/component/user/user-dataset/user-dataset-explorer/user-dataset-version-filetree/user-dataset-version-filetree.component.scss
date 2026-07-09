@@ -21,22 +21,33 @@
   width: 20px;
 }
 
-/* Styles for the delete button */
+/* Styles for the delete / set-cover buttons. ng-zorro's .ant-btn is 32px
+   tall by default, which would bleed out of the fixed-height rows into the
+   neighboring virtualized row (and mis-route clicks near row boundaries). */
 .icon-button {
   width: 15px;
   margin-left: 5px;
+  height: var(--tree-node-height);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Allow text selection so users can copy file/folder names */
+/* Allow text selection so users can copy file/folder names. Keep names on a
+   single line: rows are pinned to the virtual-scroll row height, so a wrapped
+   second line would paint over the next row; long names scroll horizontally
+   inside the tree viewport instead (the title tooltip shows the full name). */
 :host ::ng-deep tree-node-content span {
   user-select: text;
+  white-space: nowrap;
 }
 
 /* Styles for the file tree container. The tree's virtual scroll needs a
-   definite viewport height: the container is fixed at 200px, tree-root fills
-   it, and the lib's tree-viewport (height: 100%, overflow: auto) scrolls. */
+   definite viewport height: the template binds the container height to
+   min(content, 200px) (fileTreeContainerHeightPx), tree-root fills it, and
+   the lib's tree-viewport (height: 100%, overflow: auto) scrolls. */
 .file-tree-container {
-  height: 200px;
   overflow: hidden;
 
   tree-root {
@@ -45,24 +56,13 @@
   }
 }
 
-/* Each row must stay exactly TREE_NODE_HEIGHT_PX tall so the virtual scroll
-   positions rows correctly. */
+/* Each row must stay exactly as tall as the tree's nodeHeight so the virtual
+   scroll positions rows correctly; --tree-node-height is bound in the
+   template from the same TREE_NODE_HEIGHT_PX constant that feeds nodeHeight. */
 :host ::ng-deep .file-tree-container .node-content-wrapper {
-  height: 24px;
+  height: var(--tree-node-height);
   padding-top: 0;
   padding-bottom: 0;
   display: flex;
   align-items: center;
 }
-
-//tree-root .fa-file {
-//  //padding-left: 4%; /* Adjust the value as needed */
-//}
-//
-//tree-root span {
-//  display: inline-block;
-//  max-width: 100%; /* Adjust the width as needed */
-//  text-overflow: ellipsis;
-//  white-space: nowrap;
-//  overflow: hidden;
-//}
