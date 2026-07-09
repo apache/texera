@@ -308,7 +308,7 @@ class Tuple:
         """
         Safely cast each field value to match the target schema.
         If failed, the value will stay not changed.
-        This current conducts these kinds of casts:
+        This method performs the following casts:
             1. cast NaN to None;
             2. cast integral floats and numpy integer scalars to int for
                INT/LONG fields;
