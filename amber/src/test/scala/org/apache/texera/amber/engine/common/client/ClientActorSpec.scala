@@ -62,7 +62,8 @@ class ClientActorSpec
     with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
+    try TestKit.shutdownActorSystem(system)
+    finally super.afterAll()
   }
 
   // TestActorRef gives synchronous, in-thread dispatch (so replies land before
