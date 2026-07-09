@@ -18,17 +18,8 @@
  */
 
 /**
- * Shared fixtures for UserDatasetVersionFiletreeComponent specs.
- *
- * The filetree has two spec files that drive the same component:
- *   - user-dataset-version-filetree.component.spec.ts          (jsdom test target)
- *   - user-dataset-version-filetree.component.browser.spec.ts  (test-browser target,
- *                                                               for the virtual scroll
- *                                                               paths that need real
- *                                                               geometry)
- *
- * Both specs build the same flat file trees. Exporting the factory here
- * keeps them from drifting over time.
+ * Fixtures shared by the filetree component's jsdom and browser specs so the
+ * two cannot drift.
  */
 
 import { DatasetFileNode } from "../../../../../../common/type/datasetVersionFileTree";
