@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783605073436,
+  "lastUpdate": 1783605075750,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -12262,6 +12262,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1896029.895,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "29233cc86ed8687f5eafd6b5b7dd4e51b7000c84",
+          "message": "fix(deps, pyamber): bump aiobotocore to 3.7.0 with s3fs/botocore/boto3 in /amber (#6228)\n\nBumps [aiobotocore](https://github.com/aio-libs/aiobotocore) from 2.26.0\nto 3.7.0.\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/aio-libs/aiobotocore/releases\">aiobotocore's\nreleases</a>.</em></p>\n<blockquote>\n<h2>3.7.0</h2>\n<ul>\n<li>replace per-PR <code>CHANGES.rst</code> / <code>__init__.py</code>\nceremony with an AI-drafted\nrelease flow: contributors no longer touch version or changelog files; a\nworkflow-triggered agent synthesizes merged PRs into a release PR at\nrelease\ntime (closes <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1167\">#1167</a>)\n(<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1592\">#1592</a>)</li>\n<li>add <code>AioSession.warm_up_loader_caches()</code> and\n<code>warm_up_loader_caches</code>\noption in <code>AioConfig</code> to pre-populate botocore loader caches\noff the event\nloop, avoiding blocking file I/O on first client/waiter/paginator use\n(closes <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1199\">#1199</a>)\n(<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1462\">#1462</a>)</li>\n<li>fix race condition in\n<code>AioAssumeRoleProvider._visited_profiles</code> causing\nfalse <code>InfiniteLoopConfigError</code> under concurrent async usage\n(closes <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1455\">#1455</a>)\n(<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1537\">#1537</a>)</li>\n<li>fall back to synchronous <code>subprocess.run</code> (via\n<code>asyncio.to_thread</code>) for\n<code>credential_process</code> when the running event loop does not\nimplement\nsubprocess transports — notably <code>asyncio.SelectorEventLoop</code>\non Windows\n(closes <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1415\">#1415</a>)\n(<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1588\">#1588</a>)</li>\n</ul>\n<h2>3.6.0</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Relax <code>botocore</code> dependency specification by <a\nhref=\"https://github.com/jakob-keller\"><code>@​jakob-keller</code></a>\nin <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1578\">aio-libs/aiobotocore#1578</a></li>\n<li>Relax <code>botocore</code> dependency specification by <a\nhref=\"https://github.com/jakob-keller\"><code>@​jakob-keller</code></a>\nin <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1579\">aio-libs/aiobotocore#1579</a></li>\n</ul>\n<!-- raw HTML omitted -->\n<ul>\n<li>Bump actions/cache from 5.0.4 to 5.0.5 by <a\nhref=\"https://github.com/dependabot\"><code>@​dependabot</code></a>[bot]\nin <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1575\">aio-libs/aiobotocore#1575</a></li>\n<li>Bump packaging from 26.0 to 26.1 by <a\nhref=\"https://github.com/dependabot\"><code>@​dependabot</code></a>[bot]\nin <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1576\">aio-libs/aiobotocore#1576</a></li>\n<li>Bump anthropics/claude-code-action from 1.0.101 to 1.0.105 by <a\nhref=\"https://github.com/dependabot\"><code>@​dependabot</code></a>[bot]\nin <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1580\">aio-libs/aiobotocore#1580</a></li>\n<li>Bump anthropic from 0.96.0 to 0.97.0 by <a\nhref=\"https://github.com/dependabot\"><code>@​dependabot</code></a>[bot]\nin <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1581\">aio-libs/aiobotocore#1581</a></li>\n<li>ci(claude): skip dependabot and fork PRs in pull_request trigger by\n<a href=\"https://github.com/thehesiod\"><code>@​thehesiod</code></a> in\n<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1582\">aio-libs/aiobotocore#1582</a></li>\n<li>Revert pull_request → pull_request_target switch (App token 401) by\n<a href=\"https://github.com/thehesiod\"><code>@​thehesiod</code></a> in\n<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1583\">aio-libs/aiobotocore#1583</a></li>\n</ul>\n<!-- raw HTML omitted -->\n<p><strong>Full Changelog</strong>: <a\nhref=\"https://github.com/aio-libs/aiobotocore/compare/3.5.0...3.6.0\">https://github.com/aio-libs/aiobotocore/compare/3.5.0...3.6.0</a></p>\n<h2>3.5.0</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Relax botocore dependency specification by <a\nhref=\"https://github.com/claude\"><code>@​claude</code></a>[bot] in <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1546\">aio-libs/aiobotocore#1546</a></li>\n<li>Bump botocore dependency specification by <a\nhref=\"https://github.com/claude\"><code>@​claude</code></a>[bot] in <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1571\">aio-libs/aiobotocore#1571</a></li>\n</ul>\n<!-- raw HTML omitted -->\n<ul>\n<li>Fix sync prompt template vars, add MCP commit fallback by <a\nhref=\"https://github.com/thehesiod\"><code>@​thehesiod</code></a> in <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1523\">aio-libs/aiobotocore#1523</a></li>\n<li>Fix Claude bot failing on issue comments by <a\nhref=\"https://github.com/thehesiod\"><code>@​thehesiod</code></a> in <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1536\">aio-libs/aiobotocore#1536</a></li>\n<li>Add dev environment to Claude CI workflow by <a\nhref=\"https://github.com/thehesiod\"><code>@​thehesiod</code></a> in <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1538\">aio-libs/aiobotocore#1538</a></li>\n<li>Bump cryptography from 46.0.6 to 46.0.7 in the uv group across 1\ndirectory by <a\nhref=\"https://github.com/dependabot\"><code>@​dependabot</code></a>[bot]\nin <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1541\">aio-libs/aiobotocore#1541</a></li>\n<li>Bump anthropics/claude-code-action from 1.0.75 to 1.0.87 by <a\nhref=\"https://github.com/dependabot\"><code>@​dependabot</code></a>[bot]\nin <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1542\">aio-libs/aiobotocore#1542</a></li>\n<li>Bump astral-sh/setup-uv from 7.6.0 to 8.0.0 by <a\nhref=\"https://github.com/dependabot\"><code>@​dependabot</code></a>[bot]\nin <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/pull/1543\">aio-libs/aiobotocore#1543</a></li>\n</ul>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/aio-libs/aiobotocore/blob/main/CHANGES.rst\">aiobotocore's\nchangelog</a>.</em></p>\n<blockquote>\n<p>3.7.0 (2026-05-09)\n^^^^^^^^^^^^^^^^^^</p>\n<ul>\n<li>replace per-PR <code>CHANGES.rst</code> / <code>__init__.py</code>\nceremony with an AI-drafted\nrelease flow: contributors no longer touch version or changelog files; a\nworkflow-triggered agent synthesizes merged PRs into a release PR at\nrelease\ntime (closes <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1167\">#1167</a>)\n(<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1592\">#1592</a>)</li>\n<li>add <code>AioSession.warm_up_loader_caches()</code> and\n<code>warm_up_loader_caches</code>\noption in <code>AioConfig</code> to pre-populate botocore loader caches\noff the event\nloop, avoiding blocking file I/O on first client/waiter/paginator use\n(closes <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1199\">#1199</a>)\n(<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1462\">#1462</a>)</li>\n<li>fix race condition in\n<code>AioAssumeRoleProvider._visited_profiles</code> causing\nfalse <code>InfiniteLoopConfigError</code> under concurrent async usage\n(closes <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1455\">#1455</a>)\n(<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1537\">#1537</a>)</li>\n<li>fall back to synchronous <code>subprocess.run</code> (via\n<code>asyncio.to_thread</code>) for\n<code>credential_process</code> when the running event loop does not\nimplement\nsubprocess transports — notably <code>asyncio.SelectorEventLoop</code>\non Windows\n(closes <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1415\">#1415</a>)\n(<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1588\">#1588</a>)</li>\n</ul>\n<p>3.6.0 (2026-04-30)\n^^^^^^^^^^^^^^^^^^</p>\n<ul>\n<li>relax botocore dependency specification to support\n<code>&quot;botocore &gt;= 1.42.90, &lt; 1.43.1&quot;</code></li>\n<li>drop support for Python 3.9 (EOL)</li>\n</ul>\n<p>3.5.0 (2026-04-19)\n^^^^^^^^^^^^^^^^^^</p>\n<ul>\n<li>bump botocore dependency specification to support\n<code>&quot;botocore &gt;= 1.42.90, &lt; 1.42.92&quot;</code></li>\n</ul>\n<p>3.4.0 (2026-04-07)\n^^^^^^^^^^^^^^^^^^</p>\n<ul>\n<li>bump botocore dependency specification to support\n<code>&quot;botocore &gt;= 1.42.79, &lt; 1.42.85&quot;</code></li>\n</ul>\n<p>3.3.0 (2026-03-18)\n^^^^^^^^^^^^^^^^^^</p>\n<ul>\n<li>bump botocore dependency specification to support\n<code>&quot;botocore &gt;= 1.42.62, &lt; 1.42.71&quot;</code></li>\n</ul>\n<p>3.2.1 (2026-03-04)\n^^^^^^^^^^^^^^^^^^</p>\n<ul>\n<li>relax botocore dependency specification to support\n<code>&quot;botocore &gt;= 1.42.53, &lt; 1.42.62&quot;</code></li>\n</ul>\n<p>3.2.0 (2026-02-23)\n^^^^^^^^^^^^^^^^^^</p>\n<ul>\n<li>bump botocore dependency specification to support\n<code>&quot;botocore &gt;= 1.42.53, &lt; 1.42.56&quot;</code></li>\n</ul>\n<p>3.1.3 (2026-02-14)\n^^^^^^^^^^^^^^^^^^</p>\n<ul>\n<li>relax botocore dependency specification to support\n<code>&quot;botocore &gt;= 1.41.0, &lt; 1.42.50&quot;</code></li>\n</ul>\n<p>3.1.2 (2026-02-05)\n^^^^^^^^^^^^^^^^^^</p>\n<ul>\n<li>relax botocore dependency specification to support\n<code>&quot;botocore &gt;= 1.41.0, &lt; 1.42.43&quot;</code></li>\n</ul>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/aio-libs/aiobotocore/commit/d232742cfc2e1098cb3a448f9e1d78eb0899203d\"><code>d232742</code></a>\nRelease v3.7.0 (<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1595\">#1595</a>)</li>\n<li><a\nhref=\"https://github.com/aio-libs/aiobotocore/commit/0fb20e5732b50c1b8336bd952929185fe0528e25\"><code>0fb20e5</code></a>\nfix(draft-release): tighten window boundary + unique-PR count (<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1597\">#1597</a>)</li>\n<li><a\nhref=\"https://github.com/aio-libs/aiobotocore/commit/e8bb50e26d754f5753b75a5b1b5f70be90ea1367\"><code>e8bb50e</code></a>\ndocs(CLAUDE.md): canonical branch-creation pattern for Claude workflows\n(<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1596\">#1596</a>)</li>\n<li><a\nhref=\"https://github.com/aio-libs/aiobotocore/commit/b8c2266f589dcbfe9f0ad04b3a4fc7491969c850\"><code>b8c2266</code></a>\nfix(draft-release): provision uv + Python in workflow (<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1594\">#1594</a>)</li>\n<li><a\nhref=\"https://github.com/aio-libs/aiobotocore/commit/392dfcea287c2348c9924f9578855fb1df065776\"><code>392dfce</code></a>\nfeat: AI-drafted release flow (closes <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1167\">#1167</a>)\n(<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1592\">#1592</a>)</li>\n<li><a\nhref=\"https://github.com/aio-libs/aiobotocore/commit/0cbf43792b4a1d8b1286faa13657ea57d2f2b062\"><code>0cbf437</code></a>\nchore(release): consolidate unreleased 3.6.1/3.7.0/3.7.1 into 3.7.0 (<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1593\">#1593</a>)</li>\n<li><a\nhref=\"https://github.com/aio-libs/aiobotocore/commit/e332cd4727756da8db07e5a8bfc7ff71a0dc9def\"><code>e332cd4</code></a>\nfix: credential_process on Windows + Selector event loop (closes <a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1415\">#1415</a>)\n(<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1588\">#1588</a>)</li>\n<li><a\nhref=\"https://github.com/aio-libs/aiobotocore/commit/4d1dbadaa56133a75f1df0267d619ffe4b43ec3f\"><code>4d1dbad</code></a>\nBump anthropics/claude-code-action from 1.0.105 to 1.0.111 (<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1584\">#1584</a>)</li>\n<li><a\nhref=\"https://github.com/aio-libs/aiobotocore/commit/bc3c5b5827fd8a8f3d3e89589c5abae67ef42584\"><code>bc3c5b5</code></a>\nSupport warm-up of loader caches (<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1462\">#1462</a>)</li>\n<li><a\nhref=\"https://github.com/aio-libs/aiobotocore/commit/804cf28a6f92e9c5fe66d12e02d68783e94b6f02\"><code>804cf28</code></a>\nBump pre-commit from 4.5.1 to 4.6.0 (<a\nhref=\"https://redirect.github.com/aio-libs/aiobotocore/issues/1586\">#1586</a>)</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/aio-libs/aiobotocore/compare/2.26.0...3.7.0\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility\nscore](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=aiobotocore&package-manager=pip&previous-version=2.26.0&new-version=3.7.0)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't\nalter it yourself. You can also trigger a rebase manually by commenting\n`@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits\nthat have been made to it\n- `@dependabot show <dependency name> ignore conditions` will show all\nof the ignore conditions of the specified dependency\n- `@dependabot ignore this major version` will close this PR and stop\nDependabot creating any more for this major version (unless you reopen\nthe PR or upgrade to it yourself)\n- `@dependabot ignore this minor version` will close this PR and stop\nDependabot creating any more for this minor version (unless you reopen\nthe PR or upgrade to it yourself)\n- `@dependabot ignore this dependency` will close this PR and stop\nDependabot creating any more for this dependency (unless you reopen the\nPR or upgrade to it yourself)\n\n\n</details>\n\n---------\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: probe <probe@x>\nCo-authored-by: Meng Wang <mengw15@uci.edu>\nCo-authored-by: Xinyuan Lin <xinyual3@uci.edu>",
+          "timestamp": "2026-07-09T08:56:32Z",
+          "url": "https://github.com/apache/texera/commit/29233cc86ed8687f5eafd6b5b7dd4e51b7000c84"
+        },
+        "date": 1783605075597,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 12173.944,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 16060.699,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 19283.196,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 67536.413,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 78705.66,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 91060.102,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 653741.552,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 679292.572,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 695162.711,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 9625.069,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 11407.134,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 14352.981,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 70372.25,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 75157.067,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 82575.348,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 647554.264,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 667074.243,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 694299.949,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 9087.451,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 10368.135,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 13233.793,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 66943.613,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 72997.199,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 96589.577,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 663410.416,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 692623.442,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 718249.667,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 11068.069,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 13612.448,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 16211.461,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 84506.297,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 92781.959,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 107545.296,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 830543.795,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 862260.584,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 873175.371,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 10907.658,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 12378.948,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 16199.592,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 85043.842,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 90496.753,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 97456.055,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 840015.159,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 873314.598,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 917003.105,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 11005.092,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 13192.758,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 15886.433,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 87752.08,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 92665.077,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 100968.665,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 844133.795,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 886383.548,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 931398.797,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 18225.248,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 19631.467,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 27122.354,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 151776.553,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 160030.182,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 172029.762,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1504708.661,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1583558.827,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1614984.685,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 17600.894,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 18530.356,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 19760.468,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 144131.568,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 154225.379,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 173119.791,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1443865.135,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1515800.136,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1539570.016,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 18416.611,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 22231.348,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 27157.435,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 159666.415,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 169837.093,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 187215.39,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1569118.483,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1624680.313,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1646157.572,
             "unit": "us"
           }
         ]
