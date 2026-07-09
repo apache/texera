@@ -39,7 +39,7 @@ describe("UserDatasetVersionFiletreeComponent (browser)", () => {
   function makeFlatFileNodes(count: number): DatasetFileNode[] {
     return Array.from({ length: count }, (_, i) => ({
       name: `file_${String(i + 1).padStart(4, "0")}.txt`,
-      type: "file" as const,
+      type: "file",
       parentDir: "/owner/dataset/v1",
       size: 1,
     }));

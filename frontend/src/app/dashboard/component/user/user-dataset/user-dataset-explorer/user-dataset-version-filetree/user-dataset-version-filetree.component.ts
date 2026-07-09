@@ -42,6 +42,19 @@ const TREE_DROP_SLOT_HEIGHT_PX = 2;
 // before virtualization.
 const MAX_FILE_TREE_CONTAINER_HEIGHT_PX = 200;
 
+// The library throttles viewport re-measures (TreeViewportComponent's
+// setViewport) to one per 17ms, leading-edge only: a call landing inside the
+// window is dropped and never re-fired. A re-measure scheduled on the next
+// macrotask can land within 17ms of the tree's own post-init measurement and
+// be silently swallowed (leaving a permanently blank tree), so wait out the
+// throttle window before asking for one.
+const TREE_VIEWPORT_REMEASURE_DELAY_MS = 25;
+
+// Total node count across the whole tree, including collapsed descendants.
+function countNodes(nodes: DatasetFileNode[]): number {
+  return nodes.reduce((count, node) => count + 1 + countNodes(node.children ?? []), 0);
+}
+
 @UntilDestroy()
 @Component({
   selector: "texera-user-dataset-version-filetree",
@@ -71,11 +84,13 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
       // on scroll. Both hosts create this component with an empty tree and
       // fill it when data arrives, so ask the tree to re-measure once change
       // detection has applied the new container height — otherwise the 0px
-      // initial measurement sticks and the tree renders blank. The same
-      // one-shot measurement means a host must never instantiate this
-      // component inside a hidden (display: none) container without calling
-      // tree.sizeChanged() on reveal.
-      setTimeout(() => this.tree?.sizeChanged());
+      // initial measurement sticks and the tree renders blank. The delay must
+      // clear the library's re-measure throttle (see
+      // TREE_VIEWPORT_REMEASURE_DELAY_MS). The same one-shot measurement means
+      // a host must never instantiate this component inside a hidden
+      // (display: none) container without calling tree.sizeChanged() on
+      // reveal.
+      setTimeout(() => this.tree?.sizeChanged(), TREE_VIEWPORT_REMEASURE_DELAY_MS);
     }
   }
   public get fileTreeNodes(): DatasetFileNode[] {
@@ -146,26 +161,18 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
     return IMAGE_EXTENSIONS.some(ext => fileName.toLowerCase().endsWith(ext));
   }
 
-  // Content height for the whole tree at the library's row pitch. The count
+  // Content height for the whole tree at the library's row pitch. countNodes
   // includes collapsed descendants, so a partially collapsed folder tree may
   // get a container slightly taller than its visible rows — still bounded by
   // the cap, and exact for the flat file lists both hosts show.
   private computeContainerHeightPx(): number {
-    const nodeCount = UserDatasetVersionFiletreeComponent.countNodes(this._fileTreeNodes);
+    const nodeCount = countNodes(this._fileTreeNodes);
     if (nodeCount === 0) {
       return 0;
     }
     const contentHeightPx =
       nodeCount * (this.TREE_NODE_HEIGHT_PX + TREE_DROP_SLOT_HEIGHT_PX) + TREE_DROP_SLOT_HEIGHT_PX;
     return Math.min(contentHeightPx, MAX_FILE_TREE_CONTAINER_HEIGHT_PX);
-  }
-
-  private static countNodes(nodes: DatasetFileNode[]): number {
-    let count = 0;
-    for (const node of nodes) {
-      count += 1 + (node.children ? UserDatasetVersionFiletreeComponent.countNodes(node.children) : 0);
-    }
-    return count;
   }
 
   onSetCover(nodeData: DatasetFileNode): void {
