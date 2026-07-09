@@ -20,20 +20,11 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserDatasetVersionFiletreeComponent } from "./user-dataset-version-filetree.component";
 import { DatasetFileNode } from "../../../../../../common/type/datasetVersionFileTree";
+import { FILE_COUNT, makeFlatFileNodes } from "./user-dataset-version-filetree.test-utils";
 
 describe("UserDatasetVersionFiletreeComponent", () => {
   let fixture: ComponentFixture<UserDatasetVersionFiletreeComponent>;
   let component: UserDatasetVersionFiletreeComponent;
-
-  const FILE_COUNT = 1000;
-  function makeFlatFileNodes(count: number): DatasetFileNode[] {
-    return Array.from({ length: count }, (_, i) => ({
-      name: `file_${String(i + 1).padStart(4, "0")}.txt`,
-      type: "file",
-      parentDir: "/owner/dataset/v1",
-      size: 1,
-    }));
-  }
 
   function makeFolderNode(fileCount: number): DatasetFileNode {
     return {
