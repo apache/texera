@@ -30,7 +30,7 @@ typing_extensions==4.14.1
 fs==2.4.16
 bidict==0.22.0
 cached_property==2.0.1
-psutil==5.9.0
+psutil==7.2.2
 tzlocal==2.1
 # Not imported directly: s3fs (with aiobotocore) backs pyiceberg's
 # fsspec-based S3 FileIO (#4272).
