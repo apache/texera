@@ -86,4 +86,9 @@ describe("filterDatasetOption", () => {
     expect(filterDatasetOption("", emptyOption)).toBe(true); // empty query → matches all
     expect(filterDatasetOption("iris", emptyOption)).toBe(false); // no data → no match, no throw
   });
+
+  it("treats a null/undefined query as an empty query (matches everything)", () => {
+    expect(filterDatasetOption(null as unknown as string, optionFor("iris", 17))).toBe(true);
+    expect(filterDatasetOption(undefined as unknown as string, optionFor("iris", 17))).toBe(true);
+  });
 });
