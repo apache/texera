@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ApplicationRef, DebugElement, getDebugNode } from "@angular/core";
+import { ApplicationRef, DebugElement, getDebugNode, SimpleChange } from "@angular/core";
 import { NgModel } from "@angular/forms";
 import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
@@ -220,6 +220,94 @@ describe("ComputingUnitCreateModalComponent", () => {
     expect(component.isShmTooLarge()).toBe(false);
   });
 
+  it("toggles the advanced-settings panel", () => {
+    component.showAdvancedSettings = false;
+    component.toggleAdvancedSettings();
+    expect(component.showAdvancedSettings).toBe(true);
+    component.toggleAdvancedSettings();
+    expect(component.showAdvancedSettings).toBe(false);
+  });
+
+  it("re-collapses the advanced-settings panel each time the modal opens", () => {
+    component.showAdvancedSettings = true;
+    component.ngOnChanges({ visible: new SimpleChange(false, true, false) });
+    expect(component.showAdvancedSettings).toBe(false);
+
+    // Closing the modal must not touch the panel state.
+    component.showAdvancedSettings = true;
+    component.ngOnChanges({ visible: new SimpleChange(true, false, false) });
+    expect(component.showAdvancedSettings).toBe(true);
+  });
+
+  it("resets the advanced values each time the modal opens", () => {
+    fixture.detectChanges();
+    component.selectedMemory = "8Gi";
+    component.onMemorySelectionChange();
+    component.shmSizeValue = 4;
+    component.shmSizeUnit = "Gi";
+    component.onJvmMemorySliderChange(component.jvmMemoryMax);
+
+    component.ngOnChanges({ visible: new SimpleChange(false, true, false) });
+
+    const expected = getJvmMemorySliderConfig("8Gi");
+    expect(component.shmSizeValue).toBe(64);
+    expect(component.shmSizeUnit).toBe("Mi");
+    expect(component.jvmMemorySliderValue).toBe(expected.jvmMemorySliderValue);
+    expect(component.selectedJvmMemorySize).toBe(expected.selectedJvmMemorySize);
+
+    // Closing the modal must not touch the values.
+    component.shmSizeValue = 2;
+    component.shmSizeUnit = "Gi";
+    component.ngOnChanges({ visible: new SimpleChange(true, false, false) });
+    expect(component.shmSizeValue).toBe(2);
+    expect(component.shmSizeUnit).toBe("Gi");
+  });
+
+  it("surfaces the max-JVM warning on the collapsed header", () => {
+    vi.spyOn(component, "isShmTooLarge").mockReturnValue(false);
+    vi.spyOn(component, "isMaxJvmMemorySelected").mockReturnValue(true);
+
+    component.showAdvancedSettings = false;
+    expect(component.hasCollapsedWarning()).toBe(true);
+    expect(component.collapsedWarningText()).toBe("JVM memory at maximum");
+
+    // Expanded: the inline nz-alert is visible, so the header stays quiet.
+    component.showAdvancedSettings = true;
+    expect(component.hasCollapsedWarning()).toBe(false);
+  });
+
+  it("prefers the shm warning over the JVM warning when both apply", () => {
+    vi.spyOn(component, "isShmTooLarge").mockReturnValue(true);
+    vi.spyOn(component, "isMaxJvmMemorySelected").mockReturnValue(true);
+
+    component.selectedMemory = "4Gi";
+    component.showAdvancedSettings = false;
+    expect(component.collapsedWarningText()).toBe("Shared memory exceeds total");
+  });
+
+  it("flags a collapsed warning only when collapsed and shm exceeds memory", () => {
+    vi.spyOn(component, "isShmTooLarge").mockReturnValue(true);
+    component.selectedMemory = "4Gi";
+    component.showAdvancedSettings = false;
+    expect(component.hasCollapsedWarning()).toBe(true);
+    // Expanded: the inline warning is visible, so the header stays quiet.
+    component.showAdvancedSettings = true;
+    expect(component.hasCollapsedWarning()).toBe(false);
+  });
+
+  it("suppresses the shm warning until the memory options have loaded", () => {
+    vi.spyOn(component, "isShmTooLarge").mockReturnValue(true);
+    component.selectedMemory = "";
+    component.showAdvancedSettings = false;
+    expect(component.hasCollapsedWarning()).toBe(false);
+  });
+
+  it("does not flag a warning when shm fits within memory", () => {
+    vi.spyOn(component, "isShmTooLarge").mockReturnValue(false);
+    component.showAdvancedSettings = false;
+    expect(component.hasCollapsedWarning()).toBe(false);
+  });
+
   it("initializes the local computing unit URI from the window location", () => {
     fixture.detectChanges();
     expect(component.localComputingUnitUri).toBe(buildLocalComputingUnitUri(window.location));
@@ -346,12 +434,52 @@ describe("ComputingUnitCreateModalComponent", () => {
       expect(document.querySelector(".create-compute-unit-container")).toBeTruthy();
       expect(document.querySelector(".unit-name-input")).toBeTruthy();
       expect(document.querySelector(".gpu-selection")).toBeTruthy();
+
+      // Collapsed: the invalid shm value is announced on the panel header.
+      expect(document.querySelector(".advanced-settings-hint--warning")?.textContent).toContain(
+        "Shared memory exceeds total"
+      );
+
+      // Expand the panel so the advanced controls are actually user-visible
+      // before asserting on them.
+      (document.querySelector(".advanced-settings-toggle") as HTMLButtonElement).click();
+      fixture.detectChanges();
+
       expect(document.querySelector(".shm-warning")?.textContent).toContain(
         "Shared memory cannot be greater than total memory."
       );
       expect(document.querySelector(".jvm-memory-slider")).toBeTruthy();
       expect(document.querySelector("nz-alert")).toBeTruthy();
       expect(document.querySelector(".unit-uri-input")).toBeNull();
+    });
+
+    it("expands and collapses the advanced panel when the toggle button is clicked", () => {
+      mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
+        of({ typeOptions: ["kubernetes"] as WorkflowComputingUnitType[] })
+      );
+      mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(
+        of({ cpuLimitOptions: ["1"], memoryLimitOptions: ["1Gi"], gpuLimitOptions: ["0"] })
+      );
+      fixture.detectChanges();
+      component.visible = true;
+      fixture.detectChanges();
+
+      const toggle = document.querySelector(".advanced-settings-toggle") as HTMLButtonElement;
+      const body = document.querySelector(".advanced-settings-body") as HTMLElement;
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      expect(body.classList.contains("expanded")).toBe(false);
+
+      toggle.click();
+      fixture.detectChanges();
+      expect(component.showAdvancedSettings).toBe(true);
+      expect(toggle.getAttribute("aria-expanded")).toBe("true");
+      expect(body.classList.contains("expanded")).toBe(true);
+
+      toggle.click();
+      fixture.detectChanges();
+      expect(component.showAdvancedSettings).toBe(false);
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      expect(body.classList.contains("expanded")).toBe(false);
     });
 
     it("renders the minimal kubernetes form without GPU select, warnings, or slider", () => {
@@ -428,6 +556,11 @@ describe("ComputingUnitCreateModalComponent", () => {
 
       setInputValue(".unit-name-input", "Typed Name");
       expect(component.newComputingUnitName).toBe("Typed Name");
+
+      // Expand the advanced panel first: the shm input and JVM slider sit in
+      // the collapsed (inert) body, which a real user cannot interact with.
+      (document.querySelector(".advanced-settings-toggle") as HTMLButtonElement).click();
+      tick();
 
       setInputValue(".shm-size-input", "128");
       expect(component.shmSizeValue).toBe(128);
