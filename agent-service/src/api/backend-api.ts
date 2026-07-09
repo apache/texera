@@ -17,67 +17,21 @@
  * under the License.
  */
 
-import { env } from "../config/env";
+import { getServiceEndpoints } from "../config/endpoints";
+import type { OperatorMetadata } from "../types/metadata";
 
-interface BackendConfig {
-  apiEndpoint: string;
-  modelsEndpoint: string;
-  compileEndpoint: string;
-  executionEndpoint: string;
-}
-
-const currentConfig: BackendConfig = {
-  apiEndpoint: env.TEXERA_DASHBOARD_SERVICE_ENDPOINT,
-  modelsEndpoint: env.LLM_ENDPOINT,
-  compileEndpoint: env.WORKFLOW_COMPILING_SERVICE_ENDPOINT,
-  executionEndpoint: env.WORKFLOW_EXECUTION_SERVICE_ENDPOINT,
-};
-
-export function getBackendConfig(): BackendConfig {
-  return { ...currentConfig };
-}
-
-export interface InputPortInfo {
-  displayName?: string;
-  disallowMultiLinks?: boolean;
-  dependencies?: { id: number; internal: boolean }[];
-}
-
-export interface OutputPortInfo {
-  displayName?: string;
-}
-
-interface OperatorAdditionalMetadata {
-  userFriendlyName: string;
-  operatorGroupName: string;
-  operatorDescription?: string;
-  inputPorts: InputPortInfo[];
-  outputPorts: OutputPortInfo[];
-  dynamicInputPorts?: boolean;
-  dynamicOutputPorts?: boolean;
-  supportReconfiguration?: boolean;
-  allowPortCustomization?: boolean;
-}
-
-export interface OperatorSchema {
-  operatorType: string;
-  jsonSchema: any;
-  additionalMetadata: OperatorAdditionalMetadata;
-  operatorVersion: string;
-}
-
-interface GroupInfo {
-  groupName: string;
-  children?: GroupInfo[] | null;
-}
-
-export interface OperatorMetadata {
-  operators: OperatorSchema[];
-  groups: GroupInfo[];
-}
+export type {
+  InputPortInfo,
+  OutputPortInfo,
+  OperatorAdditionalMetadata,
+  OperatorSchema,
+  GroupInfo,
+  OperatorMetadata,
+} from "../types/metadata";
 
 export async function fetchOperatorMetadata(): Promise<OperatorMetadata> {
-  const url = `${currentConfig.apiEndpoint}/api/resources/operator-metadata`;
+  const { apiEndpoint } = getServiceEndpoints();
+  const url = `${apiEndpoint}/api/resources/operator-metadata`;
   const response = await fetch(url);
 
   if (!response.ok) {

@@ -17,17 +17,33 @@
  * under the License.
  */
 
-import type { UserInfo } from "../types/agent";
+import type { UserInfo, UserRole } from "../types/agent";
 
 export type { UserInfo } from "../types/agent";
 
-function decodeJWT(token: string): any {
+/**
+ * Claims this service reads from a Texera JWT (mirrors `JwtAuth.jwtClaims`).
+ * Modeled as the locally-decoded, unverified payload: `sub`/`userId` are always
+ * issued, but the rest are treated as possibly-absent since signature/claim
+ * verification happens downstream at the LLM gateway, not here.
+ */
+interface TexeraJwtClaims {
+  sub: string;
+  userId: number;
+  email?: string;
+  role?: UserRole;
+  googleId?: string;
+  googleAvatar?: string;
+  exp?: number;
+}
+
+function decodeJWT(token: string): TexeraJwtClaims {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) {
       throw new Error("Invalid JWT format");
     }
-    return JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"));
+    return JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8")) as TexeraJwtClaims;
   } catch (error) {
     throw new Error(`Failed to decode JWT: ${error}`);
   }

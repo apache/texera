@@ -78,25 +78,6 @@ describe("ReActStepDetailModalComponent", () => {
     });
   });
 
-  describe("getToolOperatorAccess / hasOperatorAccess", () => {
-    it("returns null when the step has no operator access", () => {
-      expect(component.getToolOperatorAccess({} as any, 0)).toBeNull();
-      expect(component.hasOperatorAccess({} as any)).toBe(false);
-    });
-
-    it("returns the access entry for a tool-call index", () => {
-      const access = { viewedOperatorIds: ["v"], addedOperatorIds: [], modifiedOperatorIds: [] };
-      const step = { operatorAccess: new Map([[0, access]]) } as any;
-      expect(component.getToolOperatorAccess(step, 0)).toBe(access);
-      expect(component.getToolOperatorAccess(step, 1)).toBeNull();
-      expect(component.hasOperatorAccess(step)).toBe(true);
-    });
-
-    it("reports no access for an empty map", () => {
-      expect(component.hasOperatorAccess({ operatorAccess: new Map() } as any)).toBe(false);
-    });
-  });
-
   describe("getMessageRoleColor", () => {
     it("maps known roles and falls back to default", () => {
       expect(component.getMessageRoleColor("user")).toBe("blue");

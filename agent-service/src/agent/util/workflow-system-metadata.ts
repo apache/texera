@@ -20,22 +20,12 @@
 import Ajv from "ajv";
 import { fetchOperatorMetadata, type OperatorSchema, type OperatorMetadata } from "../../api/backend-api";
 import type { ValidationError, Validation } from "../../types/workflow";
+import type { OperatorSchemaInfo, CompactOperatorSchema, OperatorAdditionalMetadata } from "../../types/metadata";
 import { createLogger } from "../../logger";
 
 const log = createLogger("WorkflowSystemMetadata");
 
 export type { ValidationError, Validation } from "../../types/workflow";
-
-interface OperatorSchemaInfo {
-  properties: any;
-  required: any;
-  definitions: any;
-}
-
-interface CompactOperatorSchema {
-  properties: Record<string, any>;
-  required: string[];
-}
 
 const FILTERED_PROPERTY_KEYS = ["dummyPropertyList"];
 
@@ -144,9 +134,10 @@ export class WorkflowSystemMetadata {
     return instance;
   }
 
+  // jsonSchema blobs are dynamically traversed/inlined, so they stay loosely typed.
   private schemas: Map<string, any> = new Map();
   private descriptions: Map<string, string> = new Map();
-  private additionalMetadata: Map<string, any> = new Map();
+  private additionalMetadata: Map<string, OperatorAdditionalMetadata> = new Map();
   private initialized = false;
 
   async initializeFromBackend(): Promise<void> {
@@ -184,7 +175,7 @@ export class WorkflowSystemMetadata {
     return this.descriptions.get(operatorType) || "";
   }
 
-  getAdditionalMetadata(operatorType: string): any | undefined {
+  getAdditionalMetadata(operatorType: string): OperatorAdditionalMetadata | undefined {
     return this.additionalMetadata.get(operatorType);
   }
 
@@ -222,7 +213,7 @@ export class WorkflowSystemMetadata {
     return this.schemas.has(operatorType);
   }
 
-  validateOperatorProperties(operatorType: string, properties: Record<string, any>): Validation {
+  validateOperatorProperties(operatorType: string, properties: Record<string, unknown>): Validation {
     const schema = this.schemas.get(operatorType);
     if (!schema) {
       return { isValid: false, messages: { error: `Unknown operator type: ${operatorType}` } };

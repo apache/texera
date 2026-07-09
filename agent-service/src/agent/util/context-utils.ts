@@ -25,7 +25,7 @@ import type { ModelMessage } from "ai";
 import type { WorkflowState } from "../workflow-state";
 import type { OperatorPredicate, OperatorPortSchemaMap, PortSchema } from "../../types/workflow";
 import type { ReActStep } from "../../types/agent";
-import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../api/compile-api";
+import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../types/dto";
 import { extractOperatorInputPortSchemaMap } from "./workflow-utils";
 import { createLogger } from "../../logger";
 
@@ -176,7 +176,7 @@ function serializeDag(
   );
 
   const outputSchemas = compilationResult?.operatorOutputSchemas ?? {};
-  const compilationErrors = compilationResult?.operatorErrors ?? {};
+  const compilationErrors = compilationResult?.type === "failure" ? compilationResult.operatorErrors : {};
 
   lines.push("## Operators");
   lines.push("");

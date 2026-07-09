@@ -351,67 +351,6 @@
 {{ formatResult(getToolResult(step, idx)) }}</pre
               >
             </div>
-            <div
-              *ngIf="getToolOperatorAccess(step, idx)"
-              style="background: #fafafa; padding: 12px; border-radius: 4px">
-              <div style="margin-bottom: 8px">
-                <strong style="color: #595959">Operator Access:</strong>
-              </div>
-              <div style="background: #fff; padding: 12px; border: 1px solid #d9d9d9; border-radius: 4px">
-                <div
-                  *ngIf="getToolOperatorAccess(step, idx)!.viewedOperatorIds.length > 0"
-                  style="margin-bottom: 8px">
-                  <span style="color: #1890ff; font-weight: 500; margin-right: 8px">
-                    <i
-                      nz-icon
-                      nzType="eye"
-                      nzTheme="outline"
-                      style="margin-right: 4px"></i>
-                    VIEWED:
-                  </span>
-                  <nz-tag
-                    *ngFor="let opId of getToolOperatorAccess(step, idx)!.viewedOperatorIds"
-                    [nzColor]="'blue'"
-                    style="margin: 2px; font-family: monospace; font-size: 12px">
-                    {{ opId }}
-                  </nz-tag>
-                </div>
-                <div
-                  *ngIf="getToolOperatorAccess(step, idx)!.addedOperatorIds.length > 0"
-                  style="margin-bottom: 8px">
-                  <span style="color: #722ed1; font-weight: 500; margin-right: 8px">
-                    <i
-                      nz-icon
-                      nzType="plus-circle"
-                      nzTheme="outline"
-                      style="margin-right: 4px"></i>
-                    ADDED:
-                  </span>
-                  <nz-tag
-                    *ngFor="let opId of getToolOperatorAccess(step, idx)!.addedOperatorIds"
-                    [nzColor]="'purple'"
-                    style="margin: 2px; font-family: monospace; font-size: 12px">
-                    {{ opId }}
-                  </nz-tag>
-                </div>
-                <div *ngIf="getToolOperatorAccess(step, idx)!.modifiedOperatorIds.length > 0">
-                  <span style="color: #52c41a; font-weight: 500; margin-right: 8px">
-                    <i
-                      nz-icon
-                      nzType="edit"
-                      nzTheme="outline"
-                      style="margin-right: 4px"></i>
-                    MODIFIED:
-                  </span>
-                  <nz-tag
-                    *ngFor="let opId of getToolOperatorAccess(step, idx)!.modifiedOperatorIds"
-                    [nzColor]="'green'"
-                    style="margin: 2px; font-family: monospace; font-size: 12px">
-                    {{ opId }}
-                  </nz-tag>
-                </div>
-              </div>
-            </div>
           </nz-collapse-panel>
         </nz-collapse>
       </div>
@@ -422,8 +361,7 @@
           (!step.content || step.content.trim().length === 0) &&
           !step.usage &&
           (!step.inputMessages || step.inputMessages.length === 0) &&
-          (!step.toolCalls || step.toolCalls.length === 0) &&
-          !hasOperatorAccess(step)
+          (!step.toolCalls || step.toolCalls.length === 0)
         "
         style="text-align: center; padding: 40px; color: #8c8c8c">
         <i

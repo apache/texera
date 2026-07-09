@@ -23,16 +23,6 @@ import type { ModelMessage } from "ai";
 export type { ModelMessage };
 
 /**
- * Operator access information for a tool call.
- * Tracks which operators were viewed, added, or modified.
- */
-export interface ToolOperatorAccess {
-  viewedOperatorIds: string[];
-  addedOperatorIds: string[];
-  modifiedOperatorIds: string[];
-}
-
-/**
  * Agent lifecycle state.
  */
 export enum AgentState {
@@ -64,8 +54,6 @@ export interface ReActStep {
   };
   /** Messages array sent to the LLM for this step (only when context optimization is active) */
   inputMessages?: any[];
-  // Map from tool call index to operator access information
-  operatorAccess?: Map<number, ToolOperatorAccess>;
 
   // Versioning fields:
   /** Unique step ID string for tree references */

@@ -103,14 +103,13 @@ export interface OperatorResultSummary {
   state: string;
   inputTuples: number;
   outputTuples: number;
-  inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
+  inputPortShapes?: { portIndex: number; rows: number }[];
   outputColumns?: number;
   error?: string;
   warnings?: string[];
   consoleLogCount?: number;
   totalRowCount?: number;
-  sampleRecords?: Record<string, any>[];
-  resultStatistics?: Record<string, string>;
+  sampleRecords?: Record<string, unknown>[];
 }
 
 interface ApiAgentInfo {
@@ -120,7 +119,6 @@ interface ApiAgentInfo {
   state: string;
   createdAt: string;
   delegate?: {
-    userToken: string;
     userInfo: { uid: number; name: string; email: string; role: string };
     workflowId?: number;
     workflowName?: string;
@@ -132,20 +130,64 @@ interface ApiAgentListResponse {
   agents: ApiAgentInfo[];
 }
 
+/**
+ * Wire shape of a ReAct step as received from the agent-service. Mirrors the
+ * backend `ReActStep` DTO (timestamp is a number on the wire — the frontend
+ * converts it to a `Date`). Kept permissive on nested tool call/result/message
+ * payloads, which the converter handles defensively.
+ */
+interface ApiReActStep {
+  id?: string;
+  parentId?: string;
+  messageId: string;
+  stepId?: number;
+  timestamp: number;
+  role?: "user" | "agent";
+  content?: string;
+  isBegin?: boolean;
+  isEnd?: boolean;
+  toolCalls?: any[];
+  toolResults?: any[];
+  usage?: ReActStep["usage"];
+  inputMessages?: any[];
+  messageSource?: string;
+  beforeWorkflowContent?: any;
+  afterWorkflowContent?: any;
+}
+
 interface ApiReActStepsResponse {
-  steps: any[];
+  steps: ApiReActStep[];
   state: string;
 }
 
-interface ApiMessageResponse {
-  response: string;
-  steps: any[];
-  usage: { inputTokens: number; outputTokens: number; totalTokens: number };
-  stats: any;
-  stopped: boolean;
-  error?: string;
-  workflow: any;
+/**
+ * Server -> client WebSocket frames consumed over `/agents/:id/react`. Mirrors
+ * the agent-service `WsServerEvent` discriminated union (see
+ * `agent-service/src/types/ws/server.ts`).
+ */
+interface WsServerSnapshotEvent {
+  type: "WsServerSnapshotEvent";
+  state: string;
+  steps: ApiReActStep[];
+  headId: string | null;
 }
+
+interface WsServerStepEvent {
+  type: "WsServerStepEvent";
+  step: ApiReActStep;
+}
+
+interface WsServerStatusEvent {
+  type: "WsServerStatusEvent";
+  state: string;
+}
+
+interface WsServerErrorEvent {
+  type: "WsServerErrorEvent";
+  error: string;
+}
+
+type WsServerEvent = WsServerSnapshotEvent | WsServerStepEvent | WsServerStatusEvent | WsServerErrorEvent;
 
 interface LiteLLMModel {
   id: string;
@@ -165,11 +207,6 @@ interface LiteLLMModelsResponse {
 interface AgentStateTracking {
   stateSubject: BehaviorSubject<AgentState>;
   reActStepsSubject: BehaviorSubject<ReActStep[]>;
-  hoveredMessageSubject: BehaviorSubject<{
-    viewedOperatorIds: string[];
-    addedOperatorIds: string[];
-    modifiedOperatorIds: string[];
-  }>;
   /** Current HEAD step ID in the version tree */
   headIdSubject: BehaviorSubject<string | null>;
   workflowSubject: BehaviorSubject<Workflow | null>;
@@ -310,16 +347,7 @@ export class AgentService {
    * Convert API ReActStep to frontend ReActStep format.
    * The backend now sends ReActSteps in the aligned format, so minimal conversion is needed.
    */
-  private convertApiReActStep(apiStep: any): ReActStep {
-    // Convert operator access from object to Map if present
-    let operatorAccess: Map<number, any> | undefined;
-    if (apiStep.operatorAccess) {
-      operatorAccess = new Map();
-      for (const [key, value] of Object.entries(apiStep.operatorAccess)) {
-        operatorAccess.set(parseInt(key), value);
-      }
-    }
-
+  private convertApiReActStep(apiStep: ApiReActStep): ReActStep {
     return {
       messageId: apiStep.messageId,
       stepId: apiStep.stepId || 0,
@@ -337,7 +365,6 @@ export class AgentService {
       })),
       usage: apiStep.usage,
       inputMessages: apiStep.inputMessages,
-      operatorAccess,
       // Versioning fields
       id: apiStep.id || `${apiStep.messageId}-${apiStep.stepId || 0}`,
       parentId: apiStep.parentId,
@@ -358,11 +385,6 @@ export class AgentService {
       tracking = {
         stateSubject: new BehaviorSubject<AgentState>(AgentState.UNAVAILABLE),
         reActStepsSubject: new BehaviorSubject<ReActStep[]>([]),
-        hoveredMessageSubject: new BehaviorSubject<{
-          viewedOperatorIds: string[];
-          addedOperatorIds: string[];
-          modifiedOperatorIds: string[];
-        }>({ viewedOperatorIds: [], addedOperatorIds: [], modifiedOperatorIds: [] }),
         headIdSubject: new BehaviorSubject<string | null>(null),
         workflowSubject: new BehaviorSubject<Workflow | null>(null),
         workflowId,
@@ -447,7 +469,7 @@ export class AgentService {
   /**
    * Handle incoming WebSocket messages
    */
-  private handleWebSocketMessage(agentId: string, tracking: AgentStateTracking, message: any): void {
+  private handleWebSocketMessage(agentId: string, tracking: AgentStateTracking, message: WsServerEvent): void {
     switch (message.type) {
       case "WsServerSnapshotEvent":
         // Initial state and steps
@@ -455,21 +477,12 @@ export class AgentService {
           tracking.stateSubject.next(this.mapStateToAgentState(message.state));
         }
         if (message.steps && Array.isArray(message.steps)) {
-          const steps = message.steps.map((s: any) => this.convertApiReActStep(s));
+          const steps = message.steps.map(s => this.convertApiReActStep(s));
           tracking.reActStepsSubject.next(steps);
         }
         // Handle initial HEAD pointer
         if (message.headId !== undefined) {
           tracking.headIdSubject.next(message.headId);
-        }
-        // Handle initial workflow content from agent service (ground truth)
-        if (message.workflowContent) {
-          tracking.wsWorkflowActive = true;
-          const workflow: Workflow = {
-            ...(message.workflowMetadata || tracking.workflowSubject.getValue() || {}),
-            content: message.workflowContent,
-          };
-          tracking.workflowSubject.next(workflow as Workflow);
         }
         break;
 
@@ -536,7 +549,7 @@ export class AgentService {
         break;
 
       default:
-        console.warn("Unknown agent WebSocket message type:", message.type);
+        console.warn("Unknown agent WebSocket message type:", (message as { type?: string }).type);
     }
   }
 
@@ -898,7 +911,7 @@ export class AgentService {
     return this.http
       .get<ApiReActStepsResponse>(`${this.AGENT_API_BASE}/agents/${agentId}/react-steps`, this.agentHeaders(agentId))
       .pipe(
-        map(response => response.steps.map((s: any) => this.convertApiReActStep(s))),
+        map(response => response.steps.map(s => this.convertApiReActStep(s))),
         catchError(() => of([]))
       );
   }
@@ -1018,78 +1031,6 @@ export class AgentService {
   }
 
   /**
-   * Set hovered message (local UI state).
-   */
-  public setHoveredMessage(agentId: string, step: ReActStep | null): void {
-    const tracking = this.agentStateTracking.get(agentId);
-    if (tracking) {
-      if (step && step.operatorAccess) {
-        const viewedOperatorIds: string[] = [];
-        const addedOperatorIds: string[] = [];
-        const modifiedOperatorIds: string[] = [];
-
-        step.operatorAccess.forEach(access => {
-          viewedOperatorIds.push(...access.viewedOperatorIds);
-          addedOperatorIds.push(...access.addedOperatorIds);
-          modifiedOperatorIds.push(...access.modifiedOperatorIds);
-        });
-
-        tracking.hoveredMessageSubject.next({
-          viewedOperatorIds: [...new Set(viewedOperatorIds)],
-          addedOperatorIds: [...new Set(addedOperatorIds)],
-          modifiedOperatorIds: [...new Set(modifiedOperatorIds)],
-        });
-      } else {
-        tracking.hoveredMessageSubject.next({
-          viewedOperatorIds: [],
-          addedOperatorIds: [],
-          modifiedOperatorIds: [],
-        });
-      }
-    }
-  }
-
-  /**
-   * Get hovered message operators observable.
-   */
-  public getHoveredMessageOperatorsObservable(
-    agentId: string
-  ): Observable<{ viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] }> {
-    const tracking = this.getOrCreateStateTracking(agentId);
-    return tracking.hoveredMessageSubject.asObservable();
-  }
-
-  /**
-   * Get ReActSteps that viewed or modified a specific operator.
-   */
-  public getReActStepsByOperatorAccess(
-    agentId: string,
-    operatorId: string
-  ): Observable<{ viewedBy: ReActStep[]; modifiedBy: ReActStep[] }> {
-    return this.getReActSteps(agentId).pipe(
-      map(allSteps => {
-        const viewedBy: ReActStep[] = [];
-        const modifiedBy: ReActStep[] = [];
-
-        for (const step of allSteps) {
-          if (step.operatorAccess) {
-            step.operatorAccess.forEach(access => {
-              if (access.viewedOperatorIds.includes(operatorId) && !viewedBy.includes(step)) {
-                viewedBy.push(step);
-              }
-              if (access.modifiedOperatorIds.includes(operatorId) && !modifiedBy.includes(step)) {
-                modifiedBy.push(step);
-              }
-            });
-          }
-        }
-
-        return { viewedBy, modifiedBy };
-      })
-    );
-  }
-
-  /**
    * Get workflow observable for an agent.
    * This observable emits the full Workflow object from the backend database
    * whenever the agent's workflow changes.
@@ -1186,11 +1127,11 @@ export class AgentService {
   public getStepsByOperatorIds(agentId: string, operatorIds: string[]): Observable<{ steps: ReActStep[] }> {
     return this.http
       .post<{
-        steps: ReActStep[];
+        steps: ApiReActStep[];
       }>(`${this.AGENT_API_BASE}/agents/${agentId}/steps-by-operators`, { operatorIds }, this.agentHeaders(agentId))
       .pipe(
         map(response => ({
-          steps: response.steps.map((s: any) => this.convertApiReActStep(s)),
+          steps: response.steps.map(s => this.convertApiReActStep(s)),
         })),
         catchError(() =>
           of({

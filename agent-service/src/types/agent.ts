@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import type { ModelMessage } from "ai";
 import type { WorkflowContent } from "./workflow";
 
 export enum AgentState {
@@ -48,15 +49,15 @@ export interface ReActStep {
   toolCalls?: Array<{
     toolName: string;
     toolCallId: string;
-    input: any;
+    input: Record<string, unknown>;
   }>;
   toolResults?: Array<{
     toolCallId: string;
-    output: any;
+    output: string;
     isError?: boolean;
   }>;
   usage?: TokenUsage;
-  inputMessages?: any[];
+  inputMessages?: ModelMessage[];
   messageSource?: "chat" | "feedback";
   beforeWorkflowContent?: WorkflowContent;
   afterWorkflowContent?: WorkflowContent;
@@ -108,11 +109,14 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   ],
 };
 
+/** Mirrors the backend UserRoleEnum. */
+export type UserRole = "INACTIVE" | "RESTRICTED" | "REGULAR" | "ADMIN";
+
 export interface UserInfo {
   uid: number;
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
 }
 
 export interface AgentDelegateConfig {
@@ -142,6 +146,12 @@ export interface AgentInfo {
   createdAt: Date;
   delegate?: AgentDelegateConfig;
   settings?: AgentSettingsApi;
+}
+
+/** `GET /agents/:id` response: an AgentInfo enriched with its loaded workflow. */
+export interface AgentDetail extends AgentInfo {
+  workflow?: WorkflowContent;
+  stepCount: number;
 }
 
 export interface CreateAgentRequest {

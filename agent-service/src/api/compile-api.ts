@@ -17,34 +17,16 @@
  * under the License.
  */
 
-import { getBackendConfig } from "./backend-api";
-import type { LogicalPlan, OperatorPortSchemaMap } from "../types/workflow";
+import { getServiceEndpoints } from "../config/endpoints";
+import type { LogicalPlan } from "../types/workflow";
+import type { WorkflowCompilationResponse } from "../types/dto";
 import { createLogger } from "../logger";
 
 const log = createLogger("CompileAPI");
 
-export interface SchemaAttribute {
-  attributeName: string;
-  attributeType: "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";
-}
-
-export type PortSchema = ReadonlyArray<SchemaAttribute>;
-
-export interface WorkflowFatalError {
-  type: string;
-  message: string;
-  operatorId?: string;
-}
-
-export interface WorkflowCompilationResponse {
-  physicalPlan?: any;
-  operatorOutputSchemas: Record<string, OperatorPortSchemaMap>;
-  operatorErrors: Record<string, WorkflowFatalError>;
-}
-
 export async function compileWorkflowAsync(logicalPlan: LogicalPlan): Promise<WorkflowCompilationResponse | null> {
-  const config = getBackendConfig();
-  const url = `${config.compileEndpoint}/api/compile`;
+  const { compileEndpoint } = getServiceEndpoints();
+  const url = `${compileEndpoint}/api/compile`;
 
   const body = {
     operators: logicalPlan.operators,
@@ -66,7 +48,16 @@ export async function compileWorkflowAsync(logicalPlan: LogicalPlan): Promise<Wo
       return null;
     }
 
-    return (await response.json()) as WorkflowCompilationResponse;
+    // Validate the polymorphic discriminator at the wire boundary rather than
+    // blind-casting, so an unexpected shape surfaces as "no result" instead of
+    // a downstream crash.
+    const data = (await response.json()) as unknown;
+    const type = (data as { type?: unknown })?.type;
+    if (type !== "success" && type !== "failure") {
+      log.warn({ type }, "unrecognized compilation response shape");
+      return null;
+    }
+    return data as WorkflowCompilationResponse;
   } catch (error) {
     log.warn({ err: error }, "compile workflow API error");
     return null;

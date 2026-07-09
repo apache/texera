@@ -17,15 +17,17 @@
  * under the License.
  */
 
+import type { LogicalPlan, WorkflowSettings } from "./workflow";
+
 interface ConsoleMessage {
   msgType: string;
+  title: string;
   message: string;
 }
 
 interface PortShape {
   portIndex: number;
   rows: number;
-  columns: number;
 }
 
 export interface OperatorInfo {
@@ -34,14 +36,25 @@ export interface OperatorInfo {
   outputTuples: number;
   inputPortShapes?: PortShape[];
   resultMode: string;
-  result?: Record<string, any>[];
+  result?: Record<string, unknown>[];
   totalRowCount?: number;
   displayedRows?: number;
   truncated?: boolean;
   consoleLogs?: ConsoleMessage[];
   error?: string;
   warnings?: string[];
-  resultStatistics?: Record<string, string>;
+}
+
+/** `POST /api/execution/{wid}/{cuid}/run` request body (SyncExecutionRequest). */
+export interface SyncExecutionRequest {
+  executionName: string;
+  logicalPlan: LogicalPlan;
+  // Optional on the backend (Scala Option); the agent omits it.
+  workflowSettings?: WorkflowSettings;
+  targetOperatorIds: string[];
+  timeoutSeconds: number;
+  maxOperatorResultCharLimit: number;
+  maxOperatorResultCellCharLimit: number;
 }
 
 export interface SyncExecutionResult {
@@ -68,5 +81,4 @@ export interface OperatorResultSummary {
   consoleLogCount?: number;
   totalRowCount?: number;
   sampleRecords?: Record<string, unknown>[];
-  resultStatistics?: Record<string, string>;
 }

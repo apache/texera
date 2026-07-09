@@ -1,0 +1,50 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { env } from "./env";
+
+/** Base URLs of the backend services this agent service talks to. */
+export interface ServiceEndpoints {
+  apiEndpoint: string;
+  modelsEndpoint: string;
+  compileEndpoint: string;
+  executionEndpoint: string;
+}
+
+const endpoints: ServiceEndpoints = {
+  apiEndpoint: env.TEXERA_DASHBOARD_SERVICE_ENDPOINT,
+  modelsEndpoint: env.LLM_ENDPOINT,
+  compileEndpoint: env.WORKFLOW_COMPILING_SERVICE_ENDPOINT,
+  executionEndpoint: env.WORKFLOW_EXECUTION_SERVICE_ENDPOINT,
+};
+
+export function getServiceEndpoints(): ServiceEndpoints {
+  return { ...endpoints };
+}
+
+/**
+ * Base URL of the execution service for a given computing unit. In k8s each
+ * computing unit is a separate pod, so EXECUTION_ENDPOINT_TEMPLATE (with a
+ * `{cuid}` placeholder) overrides the shared executionEndpoint when set.
+ */
+export function executionEndpointFor(computingUnitId: number): string {
+  return env.EXECUTION_ENDPOINT_TEMPLATE
+    ? env.EXECUTION_ENDPOINT_TEMPLATE.replace("{cuid}", String(computingUnitId))
+    : endpoints.executionEndpoint;
+}

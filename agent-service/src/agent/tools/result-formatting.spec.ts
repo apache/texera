@@ -158,11 +158,11 @@ describe("formatOperatorResult - input port metadata", () => {
       makeOpInfo({
         outputTuples: 1,
         result: [{ a: 1 }],
-        inputPortShapes: [{ portIndex: 0, rows: 5, columns: 3 }],
+        inputPortShapes: [{ portIndex: 0, rows: 5 }],
       }),
       EMPTY_STATE
     );
-    expect(out).toContain("Input operator(table shape): input0(5, 3)");
+    expect(out).toContain("Input operator(table shape): input0(5 rows)");
   });
 
   test("uses upstream operator id when an input link matches the port", () => {
@@ -176,11 +176,11 @@ describe("formatOperatorResult - input port metadata", () => {
       makeOpInfo({
         outputTuples: 4,
         result: [{ a: 1, b: 2 }],
-        inputPortShapes: [{ portIndex: 0, rows: 10, columns: 2 }],
+        inputPortShapes: [{ portIndex: 0, rows: 10 }],
       }),
       state
     );
-    expect(out).toContain("Input operator(table shape): upstream(10, 2)");
+    expect(out).toContain("Input operator(table shape): upstream(10 rows)");
   });
 
   test("sorts multiple input ports by portIndex regardless of input order", () => {
@@ -197,13 +197,13 @@ describe("formatOperatorResult - input port metadata", () => {
         outputTuples: 1,
         result: [{ a: 1 }],
         inputPortShapes: [
-          { portIndex: 1, rows: 2, columns: 2 },
-          { portIndex: 0, rows: 1, columns: 1 },
+          { portIndex: 1, rows: 2 },
+          { portIndex: 0, rows: 1 },
         ],
       }),
       state
     );
-    expect(out).toContain("Input operator(table shape): up0(1, 1), up1(2, 2)");
+    expect(out).toContain("Input operator(table shape): up0(1 rows), up1(2 rows)");
   });
 });
 
