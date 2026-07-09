@@ -52,6 +52,10 @@ on:
         required: false
         type: boolean
         default: true
+      run_platform_integration:
+        required: false
+        type: boolean
+        default: true
       run_pyamber:
         required: false
         type: boolean
@@ -725,16 +729,6 @@ jobs:
             check_exit=1
           fi
           exit "$check_exit"
-      - name: Upload ${{ matrix.service }} dist for platform-integration
-        # The platform-integration job boots this packaged service against real
-        # infra (postgres + MinIO + LakeFS); ship its dist there as an artifact
-        # so that job doesn't rebuild it. See #6273.
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-${{ matrix.service }}
-          path: ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip
-          if-no-files-found: error
-          retention-days: 1
       - name: Upload ${{ matrix.service }} coverage to Codecov
         # Per-service flag so each matrix entry has its own Codecov view
         # rather than being merged into one umbrella `platform` flag.
@@ -758,19 +752,48 @@ jobs:
           fail_ci_if_error: false
 
   platform-integration:
-    # Infra-provisioned home for the platform services' integration checks
-    # (mirrors amber-integration). First inhabitant: a boot smoke test — launch
-    # each packaged service against real postgres + MinIO + LakeFS and assert it
-    # starts without a runtime classpath/linkage crash (see #6220). file-service
-    # in particular fail-fasts on S3 / LakeFS, which the platform build job does
-    # not provision, so it can only reach a listening state here. Dists arrive as
-    # artifacts from the platform job, so nothing is rebuilt. See #6273.
-    if: ${{ inputs.run_platform }}
-    needs: platform
+    # Boot smoke test for the platform services (mirrors amber-integration: an
+    # independent, infra-provisioned integration job that builds on its own
+    # classpath — no artifact hand-off from the `platform` job, so the two run
+    # in parallel). Per-service matrix like `platform`: each service is launched
+    # from its freshly built dist and must reach a listening state without a
+    # runtime classpath/linkage crash (see #6220 and .github/scripts/smoke-boot.sh).
+    # postgres backs every service's JOOQ codegen + boot; file-service also
+    # fail-fasts on S3 / LakeFS during run(), so those are provisioned for it
+    # alone. Unit tests + coverage stay in `platform`. See #6273.
+    if: ${{ inputs.run_platform_integration }}
+    name: ${{ format('platform-integration{0} ({1})', inputs.job_name_suffix, matrix.service) }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: config-service
+            sbt_project: ConfigService
+            port: 9094
+          - service: access-control-service
+            sbt_project: AccessControlService
+            port: 9096
+          - service: file-service
+            sbt_project: FileService
+            port: 9092
+            object_store: true
+          - service: computing-unit-managing-service
+            sbt_project: ComputingUnitManagingService
+            port: 8888
+          - service: workflow-compiling-service
+            sbt_project: WorkflowCompilingService
+            port: 9090
+          - service: notebook-migration-service
+            sbt_project: NotebookMigrationService
+            port: 9098
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
     services:
+      # Every platform service transitively depends on DAO, whose JOOQ code
+      # generation needs the live texera schema at compile time; the service
+      # also connects to it on boot.
       postgres:
         image: postgres
         env:
@@ -788,11 +811,20 @@ jobs:
         with:
           ref: ${{ inputs.checkout_ref || github.sha }}
           fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
       - name: Setup JDK
         uses: actions/setup-java@v5
         with:
           distribution: "temurin"
           java-version: 17
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
@@ -800,7 +832,20 @@ jobs:
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
+      - name: Build ${{ matrix.service }} dist
+        # Self-build on this job's own classpath (mirrors amber-integration
+        # compiling its own tests) rather than downloading an artifact from the
+        # `platform` job, so the two stay independent and run in parallel. No
+        # jacoco here — unit tests + coverage live in `platform`.
+        run: sbt "${{ matrix.sbt_project }}/dist"
+      - name: Unzip ${{ matrix.service }} dist
+        run: |
+          mkdir -p /tmp/dists
+          unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
       - name: Start MinIO
+        # file-service's boot creates its S3 bucket via S3StorageClient; only
+        # that service needs an object store, so the rest of the matrix skips this.
+        if: ${{ matrix.object_store }}
         run: |
           docker run -d --name minio --network host \
             -e MINIO_ROOT_USER=texera_minio \
@@ -817,6 +862,7 @@ jobs:
         # LakeFSStorageClient.healthCheck(), so this must be up for it to reach a
         # listening state. Config mirrors bin/single-node (compose + .env),
         # adapted to CI creds (postgres/postgres @ localhost).
+        if: ${{ matrix.object_store }}
         run: |
           docker run -d --name lakefs --network host \
             -e LAKEFS_DATABASE_TYPE=postgres \
@@ -835,39 +881,12 @@ jobs:
             echo "Waiting for LakeFS... (attempt $i)"; sleep 1
           done
           curl -sf http://localhost:8000/api/v1/healthcheck
-      - name: Download platform service dists
-        uses: actions/download-artifact@v4
-        with:
-          pattern: dist-*
-          path: /tmp/artifacts
-          merge-multiple: true
-      - name: Unzip dists
-        run: |
-          mkdir -p /tmp/dists
-          for z in /tmp/artifacts/*.zip; do unzip -q "$z" -d /tmp/dists/; done
-      - name: Smoke-test each platform service boots
-        # .github/scripts/smoke-boot.sh launches the packaged service and asserts
-        # it reaches LISTEN without a classpath/linkage crash. Every service has
-        # its real infra here, so all run strict. See #6220.
+      - name: Smoke-test ${{ matrix.service }} boots
+        # Launch the packaged service and assert it reaches LISTEN on its port
+        # without a runtime classpath/linkage crash (#6220).
         env:
           TEXERA_HOME: ${{ github.workspace }}
-        run: |
-          set -uo pipefail
-          declare -A PORTS=(
-            [config-service]=9094
-            [access-control-service]=9096
-            [file-service]=9092
-            [computing-unit-managing-service]=8888
-            [workflow-compiling-service]=9090
-            [notebook-migration-service]=9098
-          )
-          rc=0
-          for svc in config-service access-control-service file-service computing-unit-managing-service workflow-compiling-service notebook-migration-service; do
-            echo "::group::smoke-boot ${svc}"
-            .github/scripts/smoke-boot.sh "/tmp/dists/${svc}-*/bin/${svc}" "${PORTS[$svc]}" strict || rc=1
-            echo "::endgroup::"
-          done
-          exit "$rc"
+        run: .github/scripts/smoke-boot.sh "/tmp/dists/${{ matrix.service }}-*/bin/${{ matrix.service }}" "${{ matrix.port }}"
 
   pyamber:
     if: ${{ inputs.run_pyamber }}
