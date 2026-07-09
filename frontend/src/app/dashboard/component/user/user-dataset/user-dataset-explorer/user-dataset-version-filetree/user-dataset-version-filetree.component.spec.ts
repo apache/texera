@@ -35,6 +35,15 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     }));
   }
 
+  function makeFolderNode(fileCount: number): DatasetFileNode {
+    return {
+      name: "dir",
+      type: "directory",
+      parentDir: "/owner/dataset/v1",
+      children: makeFlatFileNodes(fileCount),
+    };
+  }
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [UserDatasetVersionFiletreeComponent],
@@ -89,6 +98,31 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     expect(container.style.height).toBe("200px");
   });
 
+  it("counts nested folder contents when sizing the container", () => {
+    component.fileTreeNodes = [makeFolderNode(2)]; // 1 folder + 2 files = 3 rows when expanded
+    fixture.detectChanges();
+
+    const container = fixture.nativeElement.querySelector(".file-tree-container") as HTMLElement;
+    expect(container.style.height).toBe("80px");
+  });
+
+  it("treats a missing files input as an empty tree", () => {
+    component.fileTreeNodes = undefined as unknown as DatasetFileNode[];
+    fixture.detectChanges();
+
+    expect(component.fileTreeNodes).toEqual([]);
+    const container = fixture.nativeElement.querySelector(".file-tree-container") as HTMLElement;
+    expect(container.style.height).toBe("0px");
+  });
+
+  it("expands all folders after view init when isExpandAllAfterViewInit is set", () => {
+    component.isExpandAllAfterViewInit = true;
+    component.fileTreeNodes = [makeFolderNode(2)];
+    fixture.detectChanges();
+
+    expect(component.tree.treeModel.roots[0].isExpanded).toBe(true);
+  });
+
   it("toggles expansion without emitting selectedTreeNode when a folder is clicked", () => {
     const emitted: DatasetFileNode[] = [];
     component.selectedTreeNode.subscribe((n: DatasetFileNode) => emitted.push(n));
@@ -131,5 +165,21 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     component.onNodeDeleted(component.fileTreeNodes[0]);
 
     expect(emitted).toEqual([component.fileTreeNodes[0]]);
+  });
+
+  it("identifies image files by extension, case-insensitively", () => {
+    expect(component.isImageFile("photo.PNG")).toBe(true);
+    expect(component.isImageFile("data.csv")).toBe(false);
+  });
+
+  it("emits the file's dataset-relative path when set as cover", () => {
+    const emitted: string[] = [];
+    component.setCoverImage.subscribe((path: string) => emitted.push(path));
+
+    // parentDir has exactly the three stripped segments (owner/dataset/version),
+    // so the relative path is just the file name.
+    component.onSetCover({ name: "photo.png", type: "file", parentDir: "/owner/dataset/v1" });
+
+    expect(emitted).toEqual(["photo.png"]);
   });
 });
