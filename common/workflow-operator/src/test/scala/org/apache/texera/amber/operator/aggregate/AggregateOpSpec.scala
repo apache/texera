@@ -61,6 +61,16 @@ class AggregateOpSpec extends AnyFunSuite {
     assert(attr.getType == AttributeType.INTEGER)
   }
 
+  test("getAggregationAttribute maps COUNT result to INTEGER even with a null input type") {
+    // COUNT(*) (empty attribute) has no input column, so schema propagation passes a
+    // null attrType; it must still resolve to INTEGER without dereferencing it.
+    val operation = makeAggregationOp(AggregationFunction.COUNT, "", "row_count")
+    val attr = operation.getAggregationAttribute(null)
+
+    assert(attr.getName == "row_count")
+    assert(attr.getType == AttributeType.INTEGER)
+  }
+
   test("getAggregationAttribute maps CONCAT result type to STRING") {
     val operation = makeAggregationOp(AggregationFunction.CONCAT, "tag", "all_tags")
     val attr = operation.getAggregationAttribute(AttributeType.INTEGER)
@@ -142,7 +152,27 @@ class AggregateOpSpec extends AnyFunSuite {
     assert(math.abs(result - 4.0) < 1e-6)
   }
 
-  test("COUNT aggregation with attribute == null counts all rows") {
+  test("COUNT with an empty attribute (COUNT(*)) counts all rows regardless of nulls") {
+    // An empty attribute means COUNT(*); the GUI sends "" when no column is selected.
+    val schema = makeSchema("points" -> AttributeType.INTEGER)
+    val tuple1 = makeTuple(schema, 10)
+    val tuple2 = makeTuple(schema, null)
+    val tuple3 = makeTuple(schema, 20)
+
+    val operation = makeAggregationOp(AggregationFunction.COUNT, "", "row_count")
+    val agg = operation.getAggFunc(AttributeType.INTEGER)
+
+    var partial = agg.init()
+    partial = agg.iterate(partial, tuple1)
+    partial = agg.iterate(partial, tuple2)
+    partial = agg.iterate(partial, tuple3)
+
+    val result = agg.finalAgg(partial).asInstanceOf[Number].intValue()
+    assert(result == 3)
+  }
+
+  test("COUNT with a null attribute also counts all rows") {
+    // A null attribute is treated the same as empty (COUNT(*)).
     val schema = makeSchema("points" -> AttributeType.INTEGER)
     val tuple1 = makeTuple(schema, 10)
     val tuple2 = makeTuple(schema, null)
@@ -534,5 +564,32 @@ class AggregateOpSpec extends AnyFunSuite {
 
     assert(totalRevenue == 350)
     assert(rowCount == 3)
+  }
+
+  test("AggregateOpExec computes COUNT(*) over every row (including nulls) end-to-end") {
+    // region (ignored), revenue (one null). An empty attribute means COUNT(*), so the
+    // executor must skip the input-column lookup and still count all 3 rows.
+    val schema = makeSchema(
+      "region" -> AttributeType.STRING,
+      "revenue" -> AttributeType.INTEGER
+    )
+
+    val tuple1 = makeTuple(schema, "west", 100)
+    val tuple2 = makeTuple(schema, "east", null)
+    val tuple3 = makeTuple(schema, "west", 50)
+
+    val desc = new AggregateOpDesc()
+    desc.aggregations = List(makeAggregationOp(AggregationFunction.COUNT, "", "row_count"))
+    desc.groupByKeys = List() // global aggregation
+
+    val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc))
+    exec.open()
+    exec.processTuple(tuple1, 0)
+    exec.processTuple(tuple2, 0)
+    exec.processTuple(tuple3, 0)
+
+    val results = exec.onFinish(0).toList
+    assert(results.size == 1)
+    assert(results.head.getFields(0).asInstanceOf[Number].intValue() == 3)
   }
 }

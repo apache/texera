@@ -39,7 +39,7 @@
 //  WorkflowFIFOMessage
 //}
 //import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
-//import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+//import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 //import org.apache.texera.amber.core.virtualidentity.{
 //  ActorVirtualIdentity,
 //  PhysicalLink,
@@ -98,7 +98,7 @@
 //    controls.foreach { ctrl =>
 //      worker ! NetworkMessage(
 //        seq,
-//        WorkflowFIFOMessage(ChannelIdentity(CONTROLLER, identifier1, true), seq, ctrl)
+//        WorkflowFIFOMessage(ChannelIdentity(COORDINATOR, identifier1, true), seq, ctrl)
 //      )
 //      val received = receiveWhile(3.seconds) {
 //        case NetworkAck(id, credits) =>

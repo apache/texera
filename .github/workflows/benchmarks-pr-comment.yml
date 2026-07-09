@@ -61,7 +61,7 @@ jobs:
     steps:
       - name: Download bench-results artifact
         id: artifact
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require("fs");
@@ -117,7 +117,7 @@ jobs:
 
       - name: Upsert PR comment with bench summary
         if: steps.pr.outputs.number != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         with:

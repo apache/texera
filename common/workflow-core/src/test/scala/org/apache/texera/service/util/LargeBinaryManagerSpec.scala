@@ -28,7 +28,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
   /** Execution id used by the bulk of the tests. */
   private val TestExecutionId: Long = 9999L
 
-  /** Seeds the thread's base URI for an execution, as the controller does in production. */
+  /** Seeds the thread's base URI for an execution, as the coordinator does in production. */
   private def setExecutionContext(eid: Long): Unit =
     LargeBinaryManager.setCurrentBaseUri(LargeBinaryManager.baseUriForExecution(eid))
 

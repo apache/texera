@@ -30,9 +30,9 @@
 //  @POST
 //  @Path("/worker") def mockKillWorker: Unit = {
 //    WorkflowWebsocketResource.sessionJobs.foreach(p => {
-//      val controller = p._2._2
+//      val coordinator = p._2._2
 //      Thread.sleep(1500)
-//      controller ! KillAndRecover
+//      coordinator ! KillAndRecover
 //    })
 //  }
 //

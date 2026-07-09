@@ -31,6 +31,8 @@ import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
 import { HUB_WORKFLOW_RESULT_DETAIL, USER_WORKSPACE } from "../../../../../app-routing.constant";
+import { WorkflowCoverService } from "src/app/dashboard/service/user/workflow-cover/workflow-cover.service";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 
 function makeWorkflowEntry(overrides: Partial<DashboardEntry> = {}): DashboardEntry {
@@ -69,16 +71,23 @@ describe("CardItemComponent", () => {
   let component: CardItemComponent;
   let fixture: ComponentFixture<CardItemComponent>;
   let workflowPersistService: Mocked<WorkflowPersistService>;
+  let workflowCoverService: Mocked<WorkflowCoverService>;
   let datasetService: Mocked<DatasetService>;
 
   beforeEach(async () => {
     const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
+    const workflowCoverServiceSpy = {
+      getCover: vi.fn().mockReturnValue(of(undefined)),
+      setCoverFromFile: vi.fn(),
+      clearCover: vi.fn().mockReturnValue(of(undefined)),
+    };
     const datasetServiceSpy = { getDatasetCoverUrl: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [CardItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
       providers: [
         { provide: WorkflowPersistService, useValue: workflowPersistServiceSpy },
+        { provide: WorkflowCoverService, useValue: workflowCoverServiceSpy },
         { provide: DatasetService, useValue: datasetServiceSpy },
         { provide: UserService, useClass: StubUserService },
         NzModalService,
@@ -89,6 +98,7 @@ describe("CardItemComponent", () => {
     fixture = TestBed.createComponent(CardItemComponent);
     component = fixture.componentInstance;
     workflowPersistService = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
+    workflowCoverService = TestBed.inject(WorkflowCoverService) as unknown as Mocked<WorkflowCoverService>;
     datasetService = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
     component.entry = makeWorkflowEntry();
     fixture.detectChanges();
@@ -177,6 +187,133 @@ describe("CardItemComponent", () => {
 
     expect((entry as any).checked).toBe(true);
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("should show cover controls only for an owned workflow in private search", () => {
+    component.isPrivateSearch = true;
+    component.entry = makeWorkflowEntry({ workflow: { isOwner: true } } as any);
+    expect(component.canEditCover).toBe(true);
+
+    component.entry = makeWorkflowEntry({ workflow: { isOwner: false } } as any);
+    expect(component.canEditCover).toBe(false);
+
+    component.entry = makeWorkflowEntry({ workflow: { isOwner: true } } as any);
+    component.isPrivateSearch = false;
+    expect(component.canEditCover).toBe(false);
+  });
+
+  it("should load the stored cover on initialization and use it as the preview image", () => {
+    const cover = "data:image/jpeg;base64,abc";
+    workflowCoverService.getCover.mockReturnValue(of(cover));
+    component.entry = makeWorkflowEntry({ id: 7 });
+
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+
+    expect(workflowCoverService.getCover).toHaveBeenCalledWith(7);
+    expect(component.hasCustomImage).toBe(true);
+    expect(component.coverImageSrc).toBe(cover);
+  });
+
+  it("should fall back to the default preview image when no cover is set", () => {
+    workflowCoverService.getCover.mockReturnValue(of(undefined));
+    component.entry = makeWorkflowEntry({ id: 7 });
+
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+
+    expect(component.hasCustomImage).toBe(false);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("should upload a selected image and use the returned data URL as the cover", async () => {
+    const dataUrl = "data:image/jpeg;base64,xyz";
+    workflowCoverService.setCoverFromFile.mockResolvedValue(dataUrl);
+    component.entry = makeWorkflowEntry({ id: 7 });
+    const file = new File(["x"], "pic.png", { type: "image/png" });
+
+    await component.onImageSelected({ target: { files: [file], value: "pic.png" } } as any);
+
+    expect(workflowCoverService.setCoverFromFile).toHaveBeenCalledWith(7, file);
+    expect(component.coverImageSrc).toBe(dataUrl);
+    expect(component.hasCustomImage).toBe(true);
+  });
+
+  it("should reject a non-image file and not upload it", async () => {
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+    const file = new File(["x"], "notes.txt", { type: "text/plain" });
+
+    await component.onImageSelected({ target: { files: [file], value: "notes.txt" } } as any);
+
+    expect(workflowCoverService.setCoverFromFile).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it("should notify on upload failure and keep the previous preview image", async () => {
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+    workflowCoverService.setCoverFromFile.mockRejectedValue(new Error("boom"));
+    component.entry = makeWorkflowEntry({ id: 7 });
+    const file = new File(["x"], "pic.png", { type: "image/png" });
+
+    await component.onImageSelected({ target: { files: [file], value: "pic.png" } } as any);
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("should clear the cover and revert to the default image on reset", () => {
+    workflowCoverService.clearCover.mockReturnValue(of(undefined));
+    component.entry = makeWorkflowEntry({ id: 7 });
+    (component as any).customImage = "data:image/jpeg;base64,abc";
+
+    component.resetImage();
+
+    expect(workflowCoverService.clearCover).toHaveBeenCalledWith(7);
+    expect(component.hasCustomImage).toBe(false);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("should notify and keep the cover when reset fails", () => {
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+    workflowCoverService.clearCover.mockReturnValue(throwError(() => new Error("boom")));
+    component.entry = makeWorkflowEntry({ id: 7 });
+    (component as any).customImage = "data:image/jpeg;base64,abc";
+
+    component.resetImage();
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(component.hasCustomImage).toBe(true);
+  });
+
+  it("openImagePicker clicks the hidden file input", () => {
+    const clickSpy = vi.fn();
+    (component as any).backgroundInput = { nativeElement: { click: clickSpy } };
+    component.openImagePicker();
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("openImagePicker is a no-op when the file input is absent", () => {
+    (component as any).backgroundInput = undefined;
+    expect(() => component.openImagePicker()).not.toThrow();
+  });
+
+  it("should do nothing when no file is selected", async () => {
+    await component.onImageSelected({ target: { files: [], value: "" } } as any);
+    expect(workflowCoverService.setCoverFromFile).not.toHaveBeenCalled();
+  });
+
+  it("should not upload when the entry id is not numeric", async () => {
+    component.entry = makeWorkflowEntry({ id: "not-a-number" as any });
+    const file = new File(["x"], "pic.png", { type: "image/png" });
+    await component.onImageSelected({ target: { files: [file], value: "pic.png" } } as any);
+    expect(workflowCoverService.setCoverFromFile).not.toHaveBeenCalled();
+  });
+
+  it("resetImage does nothing when the entry id is not numeric", () => {
+    component.entry = makeWorkflowEntry({ id: "not-a-number" as any });
+    component.resetImage();
+    expect(workflowCoverService.clearCover).not.toHaveBeenCalled();
   });
 
   it("should load the dataset cover into the preview when the entry has a cover", () => {
