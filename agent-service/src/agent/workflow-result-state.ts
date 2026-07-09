@@ -17,10 +17,10 @@
  * under the License.
  */
 
-import type { OperatorInfo } from "../types/execution";
+import type { OperatorExecutionSummary } from "../types/execution";
 
 interface ResultEntry {
-  operatorInfo: OperatorInfo;
+  operatorInfo: OperatorExecutionSummary;
   stepId: string;
 }
 
@@ -37,7 +37,7 @@ export class WorkflowResultState {
 
   constructor(private getAncestorPath: () => string[]) {}
 
-  set(operatorId: string, stepId: string, operatorInfo: OperatorInfo): void {
+  set(operatorId: string, stepId: string, operatorInfo: OperatorExecutionSummary): void {
     let versions = this.results.get(operatorId);
     if (!versions) {
       versions = new Map();
@@ -58,7 +58,7 @@ export class WorkflowResultState {
     return undefined;
   }
 
-  getOperatorInfo(operatorId: string): OperatorInfo | undefined {
+  getOperatorInfo(operatorId: string): OperatorExecutionSummary | undefined {
     return this.get(operatorId)?.operatorInfo;
   }
 

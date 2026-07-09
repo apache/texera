@@ -21,7 +21,6 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
-import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
 import { getBackendConfig } from "./api/backend-api";
 import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
@@ -42,7 +41,7 @@ import type {
 import { AgentState, OperatorResultSerializationMode } from "./types/agent";
 import type { WsClientCommand, WsServerEvent } from "./types/ws";
 import { WsServerSnapshotEvent, WsServerStepEvent, WsServerStatusEvent, WsServerErrorEvent } from "./types/ws";
-import type { OperatorResultSummary } from "./types/execution";
+import { OperatorResultMode, type OperatorExecutionSummary, type Tuple } from "./types/execution";
 
 const agentStore = new Map<string, TexeraAgent>();
 let agentCounter = 0;
@@ -388,25 +387,66 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   );
 
-function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummary> {
+interface LegacyOperatorResultSummary {
+  state: string;
+  inputTuples: number;
+  outputTuples: number;
+  inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
+  outputColumns?: number;
+  error?: string;
+  warnings?: string[];
+  consoleLogCount?: number;
+  totalRowCount?: number;
+  sampleRecords?: Record<string, unknown>[];
+  resultStatistics?: Record<string, string>;
+}
+
+function tupleToRecord(tuple: Tuple): Record<string, unknown> {
+  const record: Record<string, unknown> = {};
+  tuple.schema.attributes.forEach((a, i) => {
+    record[a.attributeName] = tuple.fields[i];
+  });
+  return record;
+}
+
+function toLegacyOperatorResultSummary(opInfo: OperatorExecutionSummary): LegacyOperatorResultSummary {
+  const error = opInfo.errorMessages
+    .map(e => e.message)
+    .filter(Boolean)
+    .join("; ");
+  const warnings = (opInfo.consoleMessages ?? []).filter(m => m.title.startsWith("WARNING: ")).map(m => m.title);
+  const sampleRecords: Record<string, unknown>[] | undefined = opInfo.resultSummary?.sampleTuples.map(([rowIndex, tuple]) => ({
+    __row_index__: rowIndex,
+    ...tupleToRecord(tuple),
+  }));
+
+  if (
+    sampleRecords &&
+    sampleRecords.length > 0 &&
+    opInfo.resultSummary?.resultMode === OperatorResultMode.VISUALIZATION
+  ) {
+    sampleRecords[0]["__is_visualization__"] = true;
+  }
+
+  return {
+    state: opInfo.state,
+    inputTuples: 0,
+    outputTuples: opInfo.resultSummary?.totalTuplesCount ?? 0,
+    outputColumns: opInfo.resultSummary?.sampleTuples[0]?.[1].schema.attributes.length,
+    error: error || undefined,
+    warnings: warnings.length > 0 ? warnings : undefined,
+    consoleLogCount: opInfo.consoleMessages?.length,
+    totalRowCount: opInfo.resultSummary?.totalTuplesCount,
+    sampleRecords,
+  };
+}
+
+function getOperatorResultSummaries(agent: TexeraAgent): Record<string, LegacyOperatorResultSummary> {
   const resultState = agent.getWorkflowResultState();
   const visible = resultState.getAllVisible();
-  const results: Record<string, OperatorResultSummary> = {};
+  const results: Record<string, LegacyOperatorResultSummary> = {};
   for (const [opId, entry] of visible) {
-    const info = entry.operatorInfo;
-    results[opId] = {
-      state: info.state,
-      inputTuples: info.inputTuples,
-      outputTuples: info.outputTuples,
-      inputPortShapes: info.inputPortShapes,
-      outputColumns: info.result && info.result.length > 0 ? getVisibleResultHeaders(info.result[0]).length : undefined,
-      error: info.error,
-      warnings: info.warnings,
-      consoleLogCount: info.consoleLogs?.length,
-      totalRowCount: info.totalRowCount,
-      sampleRecords: info.result,
-      resultStatistics: info.resultStatistics,
-    };
+    results[opId] = toLegacyOperatorResultSummary(entry.operatorInfo);
   }
   return results;
 }
