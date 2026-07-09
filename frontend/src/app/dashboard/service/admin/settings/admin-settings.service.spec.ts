@@ -70,27 +70,23 @@ describe("AdminSettingsService", () => {
   });
 
   it("updateSetting issues a PUT request with value and credentials", () => {
-    service.updateSetting(EXAMPLE_SETTING, EXAMPLE_SETTING_VALUE).subscribe()
+    service.updateSetting(EXAMPLE_SETTING, EXAMPLE_SETTING_VALUE).subscribe();
 
-    const req = httpMock.expectOne(
-      `${BASE_URL}/${EXAMPLE_SETTING}`
-    );
+    const req = httpMock.expectOne(`${BASE_URL}/${EXAMPLE_SETTING}`);
 
-    req.flush(null)
-    expect(req.request.method).toBe("PUT")
-    expect(req.request.body).toEqual({value: EXAMPLE_SETTING_VALUE})
-    expect(req.request.withCredentials).toBe(true)
+    req.flush(null);
+    expect(req.request.method).toBe("PUT");
+    expect(req.request.body).toEqual({ value: EXAMPLE_SETTING_VALUE });
+    expect(req.request.withCredentials).toBe(true);
   });
 
   it("resetSetting issues an PUT request with an empty body", () => {
-    service.resetSetting(EXAMPLE_SETTING).subscribe()
+    service.resetSetting(EXAMPLE_SETTING).subscribe();
 
-    const req = httpMock.expectOne(
-      `${BASE_URL}/reset/${EXAMPLE_SETTING}`
-    )
+    const req = httpMock.expectOne(`${BASE_URL}/reset/${EXAMPLE_SETTING}`);
 
-    req.flush(null)
+    req.flush(null);
     expect(req.request.method).toBe("POST");
     expect(req.request.body).toEqual({});
-  })
+  });
 });
