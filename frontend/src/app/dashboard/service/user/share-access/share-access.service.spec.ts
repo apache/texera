@@ -18,17 +18,24 @@
  */
 
 
-import {ShareAccessService} from "./share-access.service";
-import {HttpTestingController} from "@angular/common/http/testing";
+import {BASE, ShareAccessService} from "./share-access.service";
+import {HttpClientTestingModule, HttpTestingController} from "@angular/common/http/testing";
 import {TestBed} from "@angular/core/testing";
+import {ShareAccess} from "../../../type/share-access.interface";
 
 describe('ShareAccessService', () => {
   let service: ShareAccessService
   let httpMock: HttpTestingController
 
+  const type : string = 'resource'
+  const id : number = 42
+  const email : string = 'johnDoe@gmail.com'
+  const privilege : string = 'write'
+  const username : string = "johnDaBeast1999"
+
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpTestingController],
+      imports: [HttpClientTestingModule],
       providers: [ShareAccessService]
     })
     service = TestBed.inject(ShareAccessService);
@@ -37,5 +44,60 @@ describe('ShareAccessService', () => {
 
   afterEach(() => {
     httpMock.verify();
+  })
+
+  it("grantAccess composes the correct PUT url", () => {
+    service.grantAccess(type, id, email, privilege).subscribe()
+
+    const req = httpMock.expectOne(
+      `${BASE}/${type}/grant/${id}/${email}/${privilege}`
+    )
+
+    expect(req.request.method).toBe('PUT')
+    req.flush(null)
+  })
+
+  it("revokeAccess composes the correct DELETE url", () => {
+    service.revokeAccess(type, id, username).subscribe()
+
+    const req = httpMock.expectOne(
+      `${BASE}/${type}/revoke/${id}/${username}`
+    )
+
+    expect(req.request.method).toBe('DELETE')
+    req.flush(null)
+  })
+
+  it("getOwner should respond with type text", () => {
+    service.getOwner(type, id).subscribe()
+
+    const req = httpMock.expectOne(
+      `${BASE}/${type}/owner/${id}`
+    )
+
+    expect(req.request.method).toBe('GET')
+    expect(req.request.responseType).toBe('text')
+    req.flush(null)
+  })
+
+  it("getAccessList should resolve to an array", () => {
+    const mockList = [
+      { username: 'JohnDaBeast1999', privilege: 'write' },
+      { username: 'alice', privilege: 'read' },
+    ];
+
+    let result : ReadonlyArray<ShareAccess> | undefined
+    service.getAccessList(type, id).subscribe(res => {
+      result = res
+    })
+
+    const req = httpMock.expectOne(
+      `${BASE}/${type}/list/${id}`
+    )
+
+    expect(req.request.method).toBe('GET')
+    req.flush(mockList)
+
+    expect(result).toBe(mockList)
   })
 });
