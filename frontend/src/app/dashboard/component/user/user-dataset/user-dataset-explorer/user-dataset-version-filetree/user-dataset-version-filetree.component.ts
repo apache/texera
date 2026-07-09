@@ -63,9 +63,18 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   @Output()
   setCoverImage = new EventEmitter<string>();
 
+  // Row height (px) used by the tree's virtual scroll to position rows; must
+  // match the row height pinned in the SCSS.
+  public readonly TREE_NODE_HEIGHT_PX = 24;
+
+  // useVirtualScroll keeps only the visible rows in the DOM; without it a
+  // version with hundreds of files renders one component per file and every
+  // change-detection pass freezes the page for seconds to minutes.
   public fileTreeDisplayOptions: ITreeOptions = {
     displayField: "name",
     hasChildrenField: "children",
+    useVirtualScroll: true,
+    nodeHeight: this.TREE_NODE_HEIGHT_PX,
     actionMapping: {
       mouse: {
         click: (tree: any, node: any, $event: any) => {
