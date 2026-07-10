@@ -57,8 +57,20 @@ lazy val universalJvmFlagsSettings = Seq(
 // See project/AddMetaInfLicenseFiles.scala.
 // Dist-producing modules additionally override Universal / mappings in their own
 // build.sbt (not here) — see AddMetaInfLicenseFiles.distMappings.
-lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
-lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
+val bouncyCastleVersion = "1.84"
+
+lazy val bouncyCastleOverrides = Seq(
+  "org.bouncycastle" % "bcpkix-jdk18on" % bouncyCastleVersion,
+  "org.bouncycastle" % "bcprov-jdk18on" % bouncyCastleVersion,
+  "org.bouncycastle" % "bcutil-jdk18on" % bouncyCastleVersion
+)
+
+lazy val commonDependencyOverrides = Seq(
+  dependencyOverrides ++= bouncyCastleOverrides
+)
+
+lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings ++ coverageReportSettings ++ universalJvmFlagsSettings ++ commonDependencyOverrides
+lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings ++ coverageReportSettings ++ universalJvmFlagsSettings ++ commonDependencyOverrides
 
 val jacksonVersion = "2.18.8"
 
