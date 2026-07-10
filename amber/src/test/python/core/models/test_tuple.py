@@ -423,28 +423,35 @@ class TestTuple:
     @pytest.mark.parametrize(
         "raw_value, expected",
         [
-            # both ends of the float64 exact-integer window map to a unique
-            # float64, so they must be coerced to Python int
             (np.int64(2**53 - 1), 2**53 - 1),
             (np.int64(-(2**53) + 1), -(2**53) + 1),
+            # beyond the float64 exact-integer window: numpy integers are
+            # exact, so unlike integral floats they are bounded only by the
+            # int64 width of LONG, not by the 2**53 window
+            (np.int64(2**53), 2**53),
+            (np.int64(-(2**53)), -(2**53)),
+            (np.int64(2**62), 2**62),
+            # int64 boundaries
+            (np.int64(2**63 - 1), 2**63 - 1),
+            (np.int64(-(2**63)), -(2**63)),
+            # an in-range uint64 is also a numpy.integer and must be accepted
+            (np.uint64(2**63 - 1), 2**63 - 1),
         ],
     )
-    def test_finalize_coerces_numpy_integer_at_long_window_edge(
-        self, raw_value, expected
-    ):
+    def test_finalize_coerces_large_numpy_integer_to_long(self, raw_value, expected):
         tuple_ = Tuple({"count": raw_value})
         tuple_.finalize(Schema(raw_schema={"count": "LONG"}))
         assert tuple_["count"] == expected
         assert type(tuple_["count"]) is int
 
-    @pytest.mark.parametrize("raw_value", [np.int64(2**53), np.int64(-(2**53))])
-    def test_finalize_rejects_numpy_integer_beyond_long_window(self, raw_value):
-        # Just outside the float64 exact-integer window: even though these fit
-        # int64, LONG is bounded by the 2**53 window, so they must be left
-        # unchanged and fail validation rather than silently coerced.
-        tuple_ = Tuple({"count": raw_value})
-        with pytest.raises(TypeError, match="Unmatched type"):
-            tuple_.finalize(Schema(raw_schema={"count": "LONG"}))
+    def test_finalize_coerces_large_id_numpy_integer_to_long(self):
+        # Real-world regression scenario: database/snowflake IDs (~10**18)
+        # arrive as np.int64 above 2**53 and must coerce to LONG instead of
+        # being rejected by the float64 exact-integer window.
+        tuple_ = Tuple({"id": np.int64(1234567890123456789)})
+        tuple_.finalize(Schema(raw_schema={"id": "LONG"}))
+        assert tuple_["id"] == 1234567890123456789
+        assert type(tuple_["id"]) is int
 
     def test_finalize_coerces_unsigned_numpy_integer_to_int(self):
         # Unsigned numpy integers are also numpy.integer, and int() is exact
@@ -454,10 +461,10 @@ class TestTuple:
         assert tuple_["count"] == 5
         assert type(tuple_["count"]) is int
 
-    def test_finalize_rejects_unsigned_numpy_integer_beyond_long_window(self):
-        # A uint64 above the float64 exact-integer window must not be coerced;
-        # the range check catches large unsigned values the same way.
-        tuple_ = Tuple({"count": np.uint64(2**60)})
+    def test_finalize_rejects_unsigned_numpy_integer_beyond_long_range(self):
+        # A uint64 above int64 max (2**63 - 1) cannot fit a LONG (Arrow int64)
+        # field, so it must be left unchanged and fail validation.
+        tuple_ = Tuple({"count": np.uint64(2**63)})
         with pytest.raises(TypeError, match="Unmatched type"):
             tuple_.finalize(Schema(raw_schema={"count": "LONG"}))
 

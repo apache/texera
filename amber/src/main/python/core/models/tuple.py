@@ -33,6 +33,7 @@ from typing_extensions import Protocol, runtime_checkable
 from core.models.type.large_binary import largebinary
 from .schema.attribute_type import (
     INTEGRAL_TYPE_RANGES,
+    NUMPY_INTEGRAL_RANGES,
     TO_PYOBJECT_MAPPING,
     AttributeType,
 )
@@ -331,14 +332,18 @@ class Tuple:
                         isinstance(field_value, numpy.integer)
                         or (isinstance(field_value, float) and field_value.is_integer())
                     ):
-                        # Integer-valued inputs reach INT/LONG as non-int types:
-                        # pandas 2.2.3 promotes a null-holding int column to
-                        # float64 (119 -> 119.0), and reductions like .sum() /
-                        # .max() return numpy integer scalars. int() is exact for
-                        # both. Coerce only within range; out-of-range values are
-                        # left unchanged so validation still fails. numpy.bool_ is
-                        # not numpy.integer, so bool never crosses into INT/LONG.
-                        min_value, max_value = INTEGRAL_TYPE_RANGES[field_type]
+                        # Coerce numpy integer scalars and integral floats into
+                        # int for INT/LONG (pandas 2.2.3 promotes null-holding
+                        # int columns to float64, and reductions like .sum()
+                        # return numpy ints). Bounds differ by source: numpy
+                        # integers are exact, so only the target width applies
+                        # (LONG -> int64); integral floats stay within the
+                        # float64 exact-integer window (2**53). Out-of-range
+                        # values are left unchanged so validation still fails.
+                        if isinstance(field_value, numpy.integer):
+                            min_value, max_value = NUMPY_INTEGRAL_RANGES[field_type]
+                        else:
+                            min_value, max_value = INTEGRAL_TYPE_RANGES[field_type]
                         int_value = int(field_value)
                         if min_value <= int_value <= max_value:
                             self[field_name] = int_value
