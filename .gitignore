@@ -47,6 +47,7 @@ hs_err_pid*
 
 # Ignoring python related files
 venv/
+.verify-venv/
 __pycache__/
 *.py[cod]
 *$py.class
