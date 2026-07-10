@@ -105,7 +105,6 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
          |from pytexera import *
          |import plotly.graph_objects as go
          |import plotly.io as pio
-         |import pandas as pd
          |import json
          |
          |class ProcessTableOperator(UDFTableOperator):
@@ -157,15 +156,9 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
          |                yield {'html-content': self.render_error(f"Column '{value_col}' not found in input table.")}
          |                return
          |
-         |            table = table.dropna(subset=[value_col]).copy()
-         |            if table.empty:
-         |                yield {'html-content': self.render_error("No valid data rows found after dropping nulls.")}
-         |                return
-         |
-         |            table[value_col] = pd.to_numeric(table[value_col], errors='coerce')
          |            table = table.dropna(subset=[value_col])
          |            if table.empty:
-         |                yield {'html-content': self.render_error(f"Column '{value_col}' does not contain numeric values.")}
+         |                yield {'html-content': self.render_error("No valid data rows found after dropping nulls.")}
          |                return
          |
          |            try:

@@ -69,12 +69,6 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
     decodeOccurrences should be >= 2
   }
 
-  it should "coerce the selected value column to numeric before rendering" in {
-    val code = configured.generatePythonCode()
-    code should include("pd.to_numeric(table[value_col], errors='coerce')")
-    code should include("does not contain numeric values")
-  }
-
   it should "default to an empty steps list when none are configured" in {
     // The bullet-chart template ships with several unrelated `[]` literals
     // (`colors`, `valid_steps`, `step_errors`, `steps_list`, `html_chunks`),
