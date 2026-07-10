@@ -20,19 +20,19 @@
 import { extractErrorMessage } from "./error";
 
 describe("extractErrorMessage", () => {
- it("should return the message from an Error instance", () => {
-   const testError = new Error("error instance");
-   const result = extractErrorMessage(testError);
-   expect(result).toBe(testError.message);
- });
+  it("should return the message from an Error instance", () => {
+    const testError = new Error("error instance");
+    const result = extractErrorMessage(testError);
+    expect(result).toBe(testError.message);
+  });
 
- it("should return the error string when error is a plain string", () => {
-   const testError = {error : "boom"};
-   const result = extractErrorMessage(testError);
-   expect(result).toBe(testError.error);
- });
+  it("should return the error string when error is a plain string", () => {
+    const testError = { error: "boom" };
+    const result = extractErrorMessage(testError);
+    expect(result).toBe(testError.error);
+  });
 
- it("should return the nested message when error is an object with a message", () => {
+  it("should return the nested message when error is an object with a message", () => {
     const testError = { error: { message: "nested" } };
     const result = extractErrorMessage(testError);
     expect(result).toBe(testError.error.message);
@@ -57,11 +57,8 @@ describe("extractErrorMessage", () => {
   });
 
   it("should return the fallback message when error key value is neither a string nor an object with a message", () => {
-    const testError = {error : 123};
+    const testError = { error: 123 };
     const result = extractErrorMessage(testError);
     expect(result).toBe("An unknown error occurred.");
   });
 });
-
-
-
