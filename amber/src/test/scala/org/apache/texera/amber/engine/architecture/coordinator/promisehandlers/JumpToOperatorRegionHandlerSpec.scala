@@ -83,17 +83,21 @@ class JumpToOperatorRegionHandlerSpec extends AnyFlatSpec {
   private val ctx: AsyncRPCContext = AsyncRPCContext(COORDINATOR, COORDINATOR)
 
   "JumpToOperatorRegionHandler" should
-    "move the schedule cursor to the level whose region contains the target operator" in {
+    "reposition the schedule cursor to the level whose region contains the target operator" in {
     val (init, cp, first, second, _) = newHarness()
 
-    // Pull the first region so the cursor is no longer at level 0.
+    // Consume levels 0 and 1, leaving the cursor at level 2 — natural progression would next
+    // yield `third`.
     assert(cp.workflowExecutionManager.schedule.next() == Set(first))
-
-    // collectFirst finds level 1 (which holds "second") and the foreach rebuilds the schedule
-    // with initialLevelIndex = 1.
-    init.jumpToOperatorRegion(JumpToOperatorRegionRequest(OperatorIdentity("second")), ctx)
-
     assert(cp.workflowExecutionManager.schedule.next() == Set(second))
+
+    // Jump *back* to the region holding "first" (level 0). collectFirst finds level 0 and the
+    // foreach rebuilds the schedule with initialLevelIndex = 0. Because level 0 is behind the
+    // current cursor, the next pull yields `first` again instead of the `third` that natural
+    // progression would give — proving the cursor was actually repositioned.
+    init.jumpToOperatorRegion(JumpToOperatorRegionRequest(OperatorIdentity("first")), ctx)
+
+    assert(cp.workflowExecutionManager.schedule.next() == Set(first))
   }
 
   it should "leave the schedule cursor untouched when the target operator is not scheduled" in {
