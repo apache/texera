@@ -80,7 +80,7 @@ class WorkflowWorkerSpec
       new WorkflowWorker(WorkerConfig(identifier1), WorkerReplayInitialization())
     )
 
-  "WorkflowWorker" should "enqueue backpressure, run handleActorCommand directly, and preRestart" in {
+  "WorkflowWorker" should "enqueue backpressure and preRestart" in {
     val worker = mkWorker()
     // Stop the DP thread first: it blocks on inputQueue.take and would otherwise
     // steal the element we enqueue below before we can poll it.
@@ -90,16 +90,7 @@ class WorkflowWorkerSpec
     worker.underlyingActor.handleBackpressure(true)
     assert(worker.underlyingActor.inputQueue.poll() == ActorCommandElement(Backpressure(true)))
 
-    // (b) handleActorCommand is dead code (not wired into receive); invoke it directly
-    // and apply the returned PartialFunction.
-    val handler = worker.underlyingActor.handleActorCommand
-    assert(handler.isDefinedAt(Backpressure(true)))
-    // The production handler prints the command; silence stdout so it doesn't add test noise.
-    Console.withOut(new java.io.ByteArrayOutputStream()) {
-      handler.apply(Backpressure(true))
-    }
-
-    // (c) preRestart tears the worker down; safe because initState already ran (dpThread
+    // (b) preRestart tears the worker down; safe because initState already ran (dpThread
     // is non-null) during synchronous TestActorRef construction.
     worker.underlyingActor.preRestart(new RuntimeException("x"), None)
   }
