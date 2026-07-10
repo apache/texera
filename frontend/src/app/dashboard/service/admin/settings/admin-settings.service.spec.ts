@@ -80,7 +80,7 @@ describe("AdminSettingsService", () => {
     expect(req.request.withCredentials).toBe(true);
   });
 
-  it("resetSetting issues an PUT request with an empty body", () => {
+  it("resetSetting issues a POST request with an empty body", () => {
     service.resetSetting(EXAMPLE_SETTING).subscribe();
 
     const req = httpMock.expectOne(`${BASE_URL}/reset/${EXAMPLE_SETTING}`);
