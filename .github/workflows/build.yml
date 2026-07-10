@@ -613,6 +613,32 @@ jobs:
           sbt scalafmtCheckAll \
               "scalafixAll --check" \
               "WorkflowExecutionService/test"
+      - name: Build amber dist for the texera-web boot test
+        # Boot smoke test for texera-web (mirrors platform-integration for the
+        # platform services): launch the packaged app and assert it reaches a
+        # listening state without a runtime classpath/linkage crash — the check
+        # that would have caught #6204 (Hadoop 3.4 -> Jersey NoClassDefFoundError)
+        # before merge. Self-build the dist here rather than pulling it in from
+        # the `amber` job as an artifact, so this job stays independent of
+        # `amber` and runs in parallel (as platform-integration does vs
+        # platform); the sbt compile is already warm from the integration-test
+        # run above. ubuntu-only: the boot is pure-JVM and OS-independent.
+        if: matrix.os == 'ubuntu-latest'
+        run: sbt "WorkflowExecutionService/dist"
+      - name: Unzip amber dist
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p /tmp/dists
+          unzip -q amber/target/universal/amber-*.zip -d /tmp/dists/
+      - name: Smoke-test texera-web boots
+        # texera-web boots on postgres only (TexeraWebApplication.run ->
+        # SqlServer.initConnection; no S3 / LakeFS), already provisioned above.
+        # It resolves its config via Utils.amberHomePath, which searches the
+        # working directory for a directory named `amber`; run from the checkout
+        # root (the default) that resolves to ./amber and reads
+        # amber/src/main/resources/web-config.yml (port 8080).
+        if: matrix.os == 'ubuntu-latest'
+        run: .github/scripts/smoke-boot.sh "/tmp/dists/amber-*/bin/texera-web-application" 8080
       - name: Run Python integration tests
         # --junit-xml feeds the Test Analytics upload below.
         run: |
