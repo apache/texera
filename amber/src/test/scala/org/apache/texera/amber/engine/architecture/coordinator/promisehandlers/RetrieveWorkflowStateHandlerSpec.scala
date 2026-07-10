@@ -62,7 +62,7 @@ class RetrieveWorkflowStateHandlerSpec extends AnyFlatSpec {
   /**
     * Build a coordinator handler initializer whose dispatched output messages are appended to the returned
     * buffer. `workflowScheduler.physicalPlan` defaults to null, so callers must assign it before invoking the
-    * handler (line 47 of the handler dereferences it).
+    * handler (which dereferences it).
     */
   private def newFixture()
       : (CoordinatorAsyncRPCHandlerInitializer, ArrayBuffer[WorkflowFIFOMessage]) = {
@@ -129,10 +129,11 @@ class RetrieveWorkflowStateHandlerSpec extends AnyFlatSpec {
 
     init.retrieveWorkflowState(EmptyRequest(), rpcContext)
 
-    val expectedOps = physicalPlan.operators.map(_.id).toSeq
+    val expectedOps = physicalPlan.operators.map(_.id)
     val req = dispatchedRequest(sent)
     assert(expectedOps.nonEmpty)
-    assert(req.targetOps == expectedOps)
-    assert(req.scope == expectedOps)
+    // `operators` is a Set, so compare set-wise rather than assuming a stable Seq order.
+    assert(req.targetOps.toSet == expectedOps)
+    assert(req.scope.toSet == expectedOps)
   }
 }
