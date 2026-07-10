@@ -132,8 +132,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     // lives in the same directory as the script (Texera's resolved URIs
     // can't be used directly outside the system).
     val rawPath = fileName.getOrElse("")
-    val sourceUri = new URI(rawPath)
-    val basename = Paths.get(sourceUri.getPath).getFileName.toString
+    val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
 
     val sep = customDelimiter.getOrElse(",")
     // Texera's encoding enum uses values like UTF_8; pandas expects utf-8.
@@ -155,14 +154,11 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
 
     val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
 
-    val readBlock =
-      if (hasHeader) readCall
-      else {
+    if (hasHeader) readCall
+    else {
       // Match Texera's fallback column naming when there's no header
       s"""$readCall
          |out1df.columns = [f"column-{i + 1}" for i in range(len(out1df.columns))]""".stripMargin
-      }
-
-    readBlock
+    }
   }
 }
