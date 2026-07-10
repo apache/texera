@@ -342,7 +342,13 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
         FIFOMessageElement(WorkflowFIFOMessage(dataChannelId, 0, DataFrame(Array(tuples(0)))))
       )
       val result = captured.get(5, TimeUnit.SECONDS)
-      assert(result.isLeft)
+      result match {
+        case Left(MainThreadDelegateMessage(closure)) =>
+          // Running the delegate on the main thread must re-throw the original processing error.
+          val thrown = intercept[RuntimeException](closure(null))
+          assert(thrown.getMessage == "boom")
+        case other => fail(s"expected Left(MainThreadDelegateMessage), got $other")
+      }
     } finally {
       dpThread.stop()
     }
