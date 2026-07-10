@@ -18,7 +18,7 @@
  */
 
 import { Component, OnDestroy, OnInit } from "@angular/core";
-import { DatePipe, DecimalPipe, NgFor, NgIf } from "@angular/common";
+import { DecimalPipe, NgFor, NgIf } from "@angular/common";
 import { Subject, takeUntil } from "rxjs";
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -71,7 +71,6 @@ const SAFE_MAX_POINTS = 28_000;
   imports: [
     NgIf,
     NgFor,
-    DatePipe,
     DecimalPipe,
     ReactiveFormsModule,
     NzAlertComponent,
