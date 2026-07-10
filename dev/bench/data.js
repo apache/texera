@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783605075750,
+  "lastUpdate": 1783689755777,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -3718,6 +3718,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 636.8665590829294,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kunwoo (Chris)",
+            "username": "kunwp1",
+            "email": "143021053+kunwp1@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "45c82a59a3efc3501e5b9edcb5c5cc7b9d6b02b1",
+          "message": "fix(frontend): speed up dataset bulk upload with many files (#6306)\n\n### What changes were proposed in this PR?\n\nBulk-uploading many files to a dataset was extremely slow (~1,100 files\ntook ~12 minutes) because the Pending and Finished lists fully\nre-rendered on every change-detection pass, on the same thread driving\nthe uploads (root cause detailed in #5586).\n\nAs proposed in the issue: replace the `queuedFileNames` getter with a\ncached field refreshed only when the queue changes, virtualize the\nPending and Finished lists with `cdk-virtual-scroll` so only visible\nrows are in the DOM, and add `trackBy` to both lists.\n\n### Any related issues, documentation, discussions?\n\nCloses #5586.\n\n### How was this PR tested?\n\nScreen recording of a successful 1,100-file upload with the fix:\n\n\nhttps://github.com/user-attachments/assets/c23d7612-0317-4d18-970b-c98540005eed\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code, Claude Fable 5",
+          "timestamp": "2026-07-10T05:17:26Z",
+          "url": "https://github.com/apache/texera/commit/45c82a59a3efc3501e5b9edcb5c5cc7b9d6b02b1"
+        },
+        "date": 1783689755334,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 908.8817716770935,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1710.9051137497954,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1848.354567817492,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1230.6805717834975,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1786.9541092570737,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1855.2343249849255,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1234.7829989085544,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1810.5367394001548,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1877.794506045351,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1018.2390766161657,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1395.0586333489791,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1461.5894645454894,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1057.1888043957226,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1398.9281463463678,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1440.6643719676526,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1051.9220204504823,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1393.8208067908463,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1420.3604751719429,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 631.3266117704082,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 749.9013264836586,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 758.183777829515,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 633.3621815239687,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 752.6966708665709,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 749.0416625159155,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 607.5354329351657,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 705.8721839804065,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 718.4753112663799,
             "unit": "tuples/sec"
           }
         ]
