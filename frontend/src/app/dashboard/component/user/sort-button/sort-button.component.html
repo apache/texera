@@ -34,13 +34,15 @@
 
 <nz-dropdown-menu #sortOptions="nzDropdownMenu">
   <ul nz-menu>
-    <li nz-menu-item>
-      <button
-        (click)="lastSort()"
-        nz-button>
-        By Edit Time
-      </button>
-    </li>
+    @if (showEditTime) {
+      <li nz-menu-item>
+        <button
+          (click)="lastSort()"
+          nz-button>
+          By Edit Time
+        </button>
+      </li>
+    }
     <li nz-menu-item>
       <button
         (click)="dateSort()"
@@ -48,13 +50,15 @@
         By Create Time
       </button>
     </li>
-    <li nz-menu-item>
-      <button
-        (click)="execSort()"
-        nz-button>
-        By Execution Time
-      </button>
-    </li>
+    @if (showExecutionTime) {
+      <li nz-menu-item>
+        <button
+          (click)="execSort()"
+          nz-button>
+          By Execution Time
+        </button>
+      </li>
+    }
     <li nz-menu-item>
       <button
         (click)="ascSort()"
