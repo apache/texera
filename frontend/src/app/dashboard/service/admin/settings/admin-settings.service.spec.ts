@@ -50,7 +50,7 @@ describe("AdminSettingsService", () => {
 
     const req = httpMock.expectOne(`${BASE_URL}/${EXAMPLE_SETTING}`);
 
-    req.flush("");
+    req.flush(null);
 
     expect(req.request.method).toBe("GET");
     expect(result).toBeNull();
