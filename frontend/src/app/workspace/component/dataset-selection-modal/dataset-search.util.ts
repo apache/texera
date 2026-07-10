@@ -38,7 +38,7 @@ export function datasetMatchesQuery(
     return true;
   }
   const nameMatches = (name ?? "").toLowerCase().includes(q);
-  const idMatches = did !== null && did !== undefined && String(did).includes(q);
+  const idMatches = did !== null && did !== undefined && `#${did}`.includes(q);
   return nameMatches || idMatches;
 }
 
