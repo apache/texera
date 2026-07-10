@@ -152,6 +152,11 @@ export class DatasetDetailComponent implements OnInit {
 
   userHasPendingChanges: boolean = false;
   pendingChangesCount: number = 0;
+  // Staged paths from the last diff response, plus locally staged paths not yet
+  // in one: counted together so the Finished header keeps pace with the
+  // real-time Pending header between throttled refetches.
+  private confirmedStagedPaths = new Set<string>();
+  private unconfirmedStagedPaths = new Set<string>();
 
   // Uploading setting
   chunkSizeMiB: number = 50;
@@ -276,6 +281,10 @@ export class DatasetDetailComponent implements OnInit {
             this.notificationService.success("Version Created");
             this.isCreatingVersion = false;
             this.versionName = "";
+            // A new version consumes all staged changes.
+            this.confirmedStagedPaths.clear();
+            this.unconfirmedStagedPaths.clear();
+            this.refreshPendingChanges();
             this.retrieveDatasetVersionList();
             this.userMakeChanges.emit();
           },
@@ -424,8 +433,25 @@ export class DatasetDetailComponent implements OnInit {
   }
 
   onStagedObjectsUpdated(stagedObjects: DatasetStagedObject[]) {
-    this.userHasPendingChanges = stagedObjects.length > 0;
-    this.pendingChangesCount = stagedObjects.length;
+    this.confirmedStagedPaths = new Set(stagedObjects.map(obj => obj.path));
+    for (const path of this.confirmedStagedPaths) {
+      this.unconfirmedStagedPaths.delete(path);
+    }
+    this.refreshPendingChanges();
+  }
+
+  // Reflects a locally staged change (finished upload or file deletion) in the
+  // Finished header immediately, ahead of the next diff response.
+  private markPathStaged(path: string): void {
+    if (!this.confirmedStagedPaths.has(path)) {
+      this.unconfirmedStagedPaths.add(path);
+    }
+    this.refreshPendingChanges();
+  }
+
+  private refreshPendingChanges(): void {
+    this.pendingChangesCount = this.confirmedStagedPaths.size + this.unconfirmedStagedPaths.size;
+    this.userHasPendingChanges = this.pendingChangesCount > 0;
   }
 
   onVersionSelected(version: DatasetVersion): void {
@@ -539,6 +565,7 @@ export class DatasetDetailComponent implements OnInit {
                     if (progress.status === "finished" && progress.totalTime !== undefined) {
                       const filename = file.name.split("/").pop() || file.name;
                       this.uploadTimeMap.set(filename, progress.totalTime);
+                      this.markPathStaged(file.name);
                       this.userMakeChanges.emit();
                       this.scheduleHide(taskIndex);
                       this.onUploadComplete();
@@ -572,6 +599,7 @@ export class DatasetDetailComponent implements OnInit {
                   const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
                   if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
                     this.uploadTasks[taskIndex].status = "finished";
+                    this.markPathStaged(file.name);
                     this.userMakeChanges.emit();
                     this.scheduleHide(taskIndex);
                     this.onUploadComplete();
@@ -768,6 +796,7 @@ export class DatasetDetailComponent implements OnInit {
             this.notificationService.success(
               `File ${node.name} is successfully deleted. You may finalize it or revert it at the "Create Version" panel`
             );
+            this.markPathStaged(getRelativePathFromDatasetFileNode(node));
             this.userMakeChanges.emit();
           },
           error: (err: unknown) => {

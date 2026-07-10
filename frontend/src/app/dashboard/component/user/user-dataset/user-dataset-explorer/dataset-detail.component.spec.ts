@@ -31,6 +31,7 @@ import { MOCK_USER, StubUserService } from "../../../../../common/service/user/s
 import { HubService } from "../../../../../hub/service/hub.service";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { FileUploadItem } from "../../../../type/dashboard-file.interface";
+import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
 
 describe("DatasetDetailComponent upload queue", () => {
@@ -83,6 +84,7 @@ describe("DatasetDetailComponent upload queue", () => {
             ),
             retrieveDatasetVersionList: vi.fn(() => of([])),
             getDatasetDiff: vi.fn(() => of([])),
+            createDatasetVersion: vi.fn(() => of({})),
           },
         },
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
@@ -195,6 +197,45 @@ describe("DatasetDetailComponent upload queue", () => {
     expect(uploadedPaths[3]).toBe("f4.txt");
     expect(component.activeCount).toBe(3);
     expect(component.queuedCount).toBe(0);
+  });
+
+  // The Pending header updates per file, so the Finished header must too — it
+  // cannot wait for the throttled staged-objects refetch.
+  it("updates the Finished count immediately when uploads finish", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
+    expect(component.pendingChangesCount).toBe(0);
+
+    finishUpload(0, "f1.txt");
+    expect(component.pendingChangesCount).toBe(1);
+
+    finishUpload(1, "f2.txt");
+    expect(component.pendingChangesCount).toBe(2);
+  });
+
+  it("reconciles the optimistic Finished count with a diff response", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt");
+    finishUpload(0, "f1.txt");
+    finishUpload(1, "f2.txt");
+
+    const diff: DatasetStagedObject[] = [{ path: "f1.txt", pathType: "file", diffType: "added", sizeBytes: 1 }];
+    component.onStagedObjectsUpdated(diff);
+
+    // f1 is confirmed by the response; f2 stays counted until a response includes it.
+    expect(component.pendingChangesCount).toBe(2);
+
+    component.onStagedObjectsUpdated([...diff, { path: "f2.txt", pathType: "file", diffType: "added", sizeBytes: 1 }]);
+    expect(component.pendingChangesCount).toBe(2);
+  });
+
+  it("clears the Finished count when a version is created", () => {
+    dropFiles("f1.txt");
+    finishUpload(0, "f1.txt");
+    expect(component.pendingChangesCount).toBe(1);
+
+    component.versionName = "v1";
+    component.onClickOpenVersionCreator();
+
+    expect(component.pendingChangesCount).toBe(0);
   });
 
   it("does not remove a re-uploaded file's active task when hiding its finished predecessor", () => {
