@@ -817,7 +817,9 @@ class WorkflowResourceSpec
 
     val coverImage = "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
     workflowResource.setCoverImage(
-      workflowId, CoverImageRequest(coverImage), sessionUser1
+      workflowId,
+      CoverImageRequest(coverImage),
+      sessionUser1
     )
 
     // Search workflows
