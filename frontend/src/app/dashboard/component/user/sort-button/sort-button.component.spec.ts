@@ -78,15 +78,17 @@ describe("SortButtonComponent", () => {
   });
 
   it("shows the edit-time and execution-time options by default (e.g. for workflows)", () => {
-    expect(component.showEditTime).toBe(true);
-    expect(component.showExecutionTime).toBe(true);
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? "";
+    expect(text).toContain("By Edit Time");
+    expect(text).toContain("By Execution Time");
   });
 
-  it("can hide edit-time and execution-time options (e.g. for datasets, which have neither)", () => {
+  it("hides edit-time and execution-time options when disabled (e.g. for datasets)", () => {
     component.showEditTime = false;
     component.showExecutionTime = false;
     fixture.detectChanges();
-    expect(component.showEditTime).toBe(false);
-    expect(component.showExecutionTime).toBe(false);
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? "";
+    expect(text).not.toContain("By Edit Time");
+    expect(text).not.toContain("By Execution Time");
   });
 });
