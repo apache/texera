@@ -19,73 +19,16 @@
 
 package org.apache.texera.amber.operator.sklearn.training
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaInt,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.{
-  AutofillAttributeName,
-  CommonOpDescAnnotation,
-  HideAnnotation
-}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.sklearn.SklearnModelOpDesc
 
-class SklearnTrainingOpDesc extends PythonOperatorDescriptor {
+class SklearnTrainingOpDesc extends SklearnModelOpDesc {
 
-  @JsonSchemaTitle("Target Attribute")
-  @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
-  @JsonProperty(required = true)
-  @AutofillAttributeName
-  var target: EncodableString = _
+  override def getImportStatements = ""
 
-  @JsonSchemaTitle("Count Vectorizer")
-  @JsonPropertyDescription("Convert a collection of text documents to a matrix of token counts.")
-  @JsonProperty(defaultValue = "false")
-  var countVectorizer: Boolean = false
-
-  @JsonSchemaTitle("Text Attribute")
-  @JsonPropertyDescription("Attribute in your dataset with text to vectorize.")
-  @JsonSchemaInject(
-    strings = Array(
-      new JsonSchemaString(
-        path = CommonOpDescAnnotation.autofill,
-        value = CommonOpDescAnnotation.attributeName
-      ),
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "countVectorizer"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
-    ),
-    ints = Array(
-      new JsonSchemaInt(path = CommonOpDescAnnotation.autofillAttributeOnPort, value = 0)
-    )
-  )
-  var text: EncodableString = _
-
-  @JsonSchemaTitle("Tfidf Transformer")
-  @JsonPropertyDescription("Transform a count matrix to a normalized tf or tf-idf representation.")
-  @JsonProperty(defaultValue = "false")
-  @JsonSchemaInject(
-    strings = Array(
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "countVectorizer"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
-    )
-  )
-  var tfidfTransformer: Boolean = false
-
-  @JsonIgnore
-  def getImportStatements = "from sklearn.ensemble import RandomForestClassifier"
-
-  @JsonIgnore
-  def getUserFriendlyModelName = "RandomForest Training"
+  override def getUserFriendlyModelName = ""
 
   override def generatePythonCode(): String =
     pyb"""$getImportStatements
@@ -115,14 +58,4 @@ class SklearnTrainingOpDesc extends PythonOperatorDescriptor {
       inputPorts = List(InputPort(PortIdentity(), "training")),
       outputPorts = List(OutputPort(blocking = true))
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    Map(
-      operatorInfo.outputPorts.head.id -> Schema()
-        .add("model_name", AttributeType.STRING)
-        .add("model", AttributeType.BINARY)
-    )
-  }
 }

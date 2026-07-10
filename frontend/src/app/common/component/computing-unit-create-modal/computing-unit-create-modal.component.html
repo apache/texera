@@ -93,65 +93,104 @@
           </nz-select>
         </div>
 
-        <div class="select-unit shared-memory-group">
-          <span>
-            Adjust the Shared Memory Size
+        <!-- Advanced settings: progressive disclosure for the power-user knobs -->
+        <div class="advanced-settings">
+          <button
+            type="button"
+            class="advanced-settings-toggle"
+            [class.expanded]="showAdvancedSettings"
+            [attr.aria-expanded]="showAdvancedSettings"
+            (click)="toggleAdvancedSettings()">
             <i
               nz-icon
-              nzType="info-circle"
-              nz-tooltip
-              [nzTooltipTitle]="
-                'Shared memory (/dev/shm) is used for inter-process communication. If you plan to run ML tasks (e.g., using PyTorch), consider increasing this size. Learn more: https://man7.org/linux/man-pages/man7/shm_overview.7.html'
-              ">
-            </i>
-          </span>
-          <div class="shm-input-row">
-            <input
-              nz-input
-              type="number"
-              min="0"
-              [(ngModel)]="shmSizeValue"
-              class="shm-size-input"
-              placeholder="e.g. 512" />
-            <nz-select
-              class="shm-unit-select"
-              [(ngModel)]="shmSizeUnit">
-              <nz-option
-                nzValue="Mi"
-                nzLabel="Mi"></nz-option>
-              <nz-option
-                nzValue="Gi"
-                nzLabel="Gi"></nz-option>
-            </nz-select>
-          </div>
-          <div
-            *ngIf="isShmTooLarge()"
-            class="shm-warning">
-            Shared memory cannot be greater than total memory.
-          </div>
-        </div>
+              nzType="right"
+              nzTheme="outline"
+              class="advanced-settings-chevron"></i>
+            <span class="advanced-settings-label">Advanced Settings</span>
+            <span
+              class="advanced-settings-hint"
+              [class.advanced-settings-hint--warning]="hasCollapsedWarning()">
+              <ng-container *ngIf="hasCollapsedWarning(); else advancedSettingsHint">
+                <i
+                  nz-icon
+                  nzType="exclamation-circle"
+                  nzTheme="outline"></i>
+                {{ collapsedWarningText() }}
+              </ng-container>
+              <ng-template #advancedSettingsHint>Shared memory · JVM heap size</ng-template>
+            </span>
+          </button>
 
-        <div class="select-unit name-field">
-          <span>JVM Memory Size: {{selectedJvmMemorySize}}</span>
-          <nz-slider
-            *ngIf="showJvmMemorySlider"
-            class="jvm-memory-slider"
-            [nzMarks]="jvmMemoryMarks"
-            [nzMin]="jvmMemorySteps[0] || 2"
-            [nzMax]="jvmMemoryMax"
-            [nzStep]="null"
-            [nzIncluded]="false"
-            [ngModel]="jvmMemorySliderValue"
-            (ngModelChange)="onJvmMemorySliderChange($event)">
-          </nz-slider>
           <div
-            *ngIf="isMaxJvmMemorySelected()"
-            class="memory-warning">
-            <nz-alert
-              nzType="warning"
-              nzMessage="Using maximum JVM memory may affect the performance of Python-based operators."
-              nzShowIcon>
-            </nz-alert>
+            class="advanced-settings-body"
+            [class.expanded]="showAdvancedSettings"
+            [attr.inert]="showAdvancedSettings ? null : ''">
+            <div class="advanced-settings-clip">
+              <div class="advanced-settings-inner">
+                <div class="select-unit shared-memory-group">
+                  <span>
+                    Adjust the Shared Memory Size
+                    <i
+                      nz-icon
+                      nzType="info-circle"
+                      nz-tooltip
+                      [nzTooltipTitle]="
+                        'Shared memory (/dev/shm) is used for inter-process communication. If you plan to run ML tasks (e.g., using PyTorch), consider increasing this size. Learn more: https://man7.org/linux/man-pages/man7/shm_overview.7.html'
+                      ">
+                    </i>
+                  </span>
+                  <div class="shm-input-row">
+                    <input
+                      nz-input
+                      type="number"
+                      min="0"
+                      [(ngModel)]="shmSizeValue"
+                      class="shm-size-input"
+                      placeholder="e.g. 512" />
+                    <nz-select
+                      class="shm-unit-select"
+                      [(ngModel)]="shmSizeUnit">
+                      <nz-option
+                        nzValue="Mi"
+                        nzLabel="Mi"></nz-option>
+                      <nz-option
+                        nzValue="Gi"
+                        nzLabel="Gi"></nz-option>
+                    </nz-select>
+                  </div>
+                  <div
+                    *ngIf="isShmTooLarge()"
+                    class="shm-warning">
+                    Shared memory cannot be greater than total memory.
+                  </div>
+                </div>
+
+                <div class="select-unit jvm-memory-group">
+                  <span>JVM Memory Size: {{selectedJvmMemorySize}}</span>
+                  <nz-slider
+                    *ngIf="showJvmMemorySlider"
+                    class="jvm-memory-slider"
+                    [nzMarks]="jvmMemoryMarks"
+                    [nzMin]="0"
+                    [nzMax]="jvmMemoryMax"
+                    [nzTipFormatter]="jvmMemoryTipFormatter"
+                    [nzStep]="1"
+                    [nzIncluded]="false"
+                    [ngModel]="jvmMemorySliderValue"
+                    (ngModelChange)="onJvmMemorySliderChange($event)">
+                  </nz-slider>
+                  <div
+                    *ngIf="isMaxJvmMemorySelected()"
+                    class="memory-warning">
+                    <nz-alert
+                      nzType="warning"
+                      nzMessage="Using maximum JVM memory may affect the performance of Python-based operators."
+                      nzShowIcon>
+                    </nz-alert>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </ng-container>
