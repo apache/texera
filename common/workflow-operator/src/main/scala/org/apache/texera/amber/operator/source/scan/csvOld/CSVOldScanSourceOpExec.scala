@@ -23,6 +23,7 @@ import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, TupleLike}
+import org.apache.texera.amber.operator.source.scan.ScanRowParseError
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.net.URI
@@ -49,10 +50,10 @@ class CSVOldScanSourceOpExec private[csvOld] (
           )
           TupleLike(ArraySeq.unsafeWrapArray(parsedFields): _*)
         } catch {
-          case _: Throwable => null
+          case e: Throwable =>
+            throw ScanRowParseError.build(fields, schema, desc.INFER_READ_LIMIT, None, e)
         }
       )
-      .filter(tuple => tuple != null)
 
     if (desc.limit.isDefined)
       tuples.take(desc.limit.get)

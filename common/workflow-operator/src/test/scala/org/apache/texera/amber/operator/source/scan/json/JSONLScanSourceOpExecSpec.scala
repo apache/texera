@@ -81,4 +81,39 @@ class JSONLScanSourceOpExecSpec extends AnyFlatSpec {
     val exec = new JSONLScanSourceOpExec(descString(uri, limit = Some(2)))
     assert(drain(exec).map(_.head) == Seq(0, 1))
   }
+
+  it should "fail loudly when a row cannot be parsed into the inferred schema" in {
+    // Type inference samples only the first INFER_READ_LIMIT (=100) rows; those
+    // have integer "v" values, so "v" is inferred as INTEGER. Row 101 holds a
+    // non-integer, which the inferred schema cannot accept, so the scan must
+    // abort loudly rather than dropping the row.
+    val cleanRows = (0 until 100).map(i => s"""{"v":$i}""")
+    val badRow = """{"v":"oops"}"""
+    val exec = new JSONLScanSourceOpExec(descString(writeJsonl((cleanRows :+ badRow): _*)))
+    val ex = intercept[RuntimeException](drain(exec))
+
+    // Column-identified message (no row number for this exec): value, column,
+    // expected type, then the actionable fix.
+    assert(ex.getMessage.startsWith("Value 'oops'")) // the offending value, up front
+    assert(ex.getMessage.contains("'v'")) // the offending column's name
+    assert(ex.getMessage.contains("cannot be read as"))
+    assert(ex.getMessage.contains("INTEGER")) // the inferred/expected type
+    assert(ex.getMessage.contains("clean the data before scanning")) // actionable fix
+    assert(ex.getCause != null) // original parse exception preserved as the cause
+  }
+
+  it should "fall back to a generic row error when a line is not valid JSON" in {
+    // A syntactically malformed line yields no fields at all (readTree throws
+    // before extraction), so no single offending column can be identified and
+    // the generic fallback message must be used. The bad line sits after the
+    // first 100 rows so schema inference (which also parses lines) never sees it.
+    val cleanRows = (0 until 100).map(i => s"""{"v":$i}""")
+    val badRow = """{not valid json"""
+    val exec = new JSONLScanSourceOpExec(descString(writeJsonl((cleanRows :+ badRow): _*)))
+    val ex = intercept[RuntimeException](drain(exec))
+
+    assert(ex.getMessage.contains("could not be parsed into the inferred schema"))
+    assert(ex.getMessage.contains("clean the data before scanning"))
+    assert(ex.getCause != null) // original parse exception preserved as the cause
+  }
 }

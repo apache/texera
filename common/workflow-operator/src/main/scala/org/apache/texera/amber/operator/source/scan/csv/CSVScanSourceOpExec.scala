@@ -24,6 +24,7 @@ import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.{AttributeTypeUtils, Schema, TupleLike}
+import org.apache.texera.amber.operator.source.scan.ScanRowParseError
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.SiteSettings
 
@@ -70,10 +71,16 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
             ): _*
           )
         } catch {
-          case _: Throwable => null
+          case e: Throwable =>
+            throw ScanRowParseError.build(
+              row.toSeq,
+              schema,
+              desc.INFER_READ_LIMIT,
+              Some(numRowGenerated),
+              e
+            )
         }
       })
-      .filter(t => t != null)
 
     if (desc.limit.isDefined) tupleIterator = tupleIterator.take(desc.limit.get)
 

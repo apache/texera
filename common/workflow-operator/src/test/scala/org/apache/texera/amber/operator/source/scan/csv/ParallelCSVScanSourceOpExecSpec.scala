@@ -103,4 +103,25 @@ class ParallelCSVScanSourceOpExecSpec extends AnyFlatSpec {
     assert(keys.size == 4) // each row read exactly once
     assert(rows0.nonEmpty && rows1.nonEmpty)
   }
+
+  it should "fail loudly when a row cannot be parsed into the inferred schema" in {
+    // Type inference samples only the first INFER_READ_LIMIT (=100) data rows;
+    // those are integers, so column "v" is inferred as INTEGER. Row 101 holds a
+    // non-integer, which the inferred schema cannot accept, so the scan must
+    // abort loudly rather than dropping the row. (This is distinct from the
+    // legitimate null returns for exhausted blocks / all-null lines, which the
+    // trailing .filter still drops.)
+    val content = "v\n" + (0 until 100).mkString("\n") + "\noops\n"
+    val exec = new ParallelCSVScanSourceOpExec(descString(writeCsv(content)))
+    val ex = intercept[RuntimeException](drain(exec))
+
+    // Column-identified message (no row number for this exec): value, column,
+    // expected type, then the actionable fix.
+    assert(ex.getMessage.startsWith("Value 'oops'")) // the offending value, up front
+    assert(ex.getMessage.contains("'v'")) // the offending column's name
+    assert(ex.getMessage.contains("cannot be read as"))
+    assert(ex.getMessage.contains("INTEGER")) // the inferred/expected type
+    assert(ex.getMessage.contains("clean the data before scanning")) // actionable fix
+    assert(ex.getCause != null) // original parse exception preserved as the cause
+  }
 }

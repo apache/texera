@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.parseField
 import org.apache.texera.amber.core.tuple.TupleLike
+import org.apache.texera.amber.operator.source.scan.ScanRowParseError
 import org.apache.texera.amber.util.JSONUtils.{JSONToMap, objectMapper}
 
 import java.io.{BufferedReader, InputStreamReader}
@@ -42,16 +43,22 @@ class JSONLScanSourceOpExec private[json] (
   private val schema = desc.sourceSchema()
 
   override def produceTuple(): Iterator[TupleLike] = {
-    rows.flatMap { line =>
+    rows.map { line =>
+      // raw values extracted from the JSON line, in schema order; kept visible to the
+      // failure handler so it can report the offending column and value. Stays empty
+      // when the line itself is malformed JSON (readTree fails before extraction).
+      var rawFields: Seq[Any] = Seq.empty
       Try {
         val data = JSONToMap(objectMapper.readTree(line), desc.flatten).withDefaultValue(null)
-        val fields = schema.getAttributeNames.map { fieldName =>
-          parseField(data(fieldName), schema.getAttribute(fieldName).getType)
+        rawFields = schema.getAttributeNames.map(fieldName => data(fieldName))
+        val fields = rawFields.zip(schema.getAttributes).map {
+          case (value, attribute) => parseField(value, attribute.getType)
         }
         TupleLike(fields: _*)
       } match {
-        case Success(tuple) => Some(tuple)
-        case Failure(_)     => None
+        case Success(tuple) => tuple
+        case Failure(e) =>
+          throw ScanRowParseError.build(rawFields, schema, desc.INFER_READ_LIMIT, None, e)
       }
     }
   }

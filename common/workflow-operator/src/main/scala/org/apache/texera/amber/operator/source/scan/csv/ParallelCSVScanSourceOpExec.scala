@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeTypeUtils, TupleLike}
 import org.apache.texera.amber.operator.source.BufferedBlockReader
+import org.apache.texera.amber.operator.source.scan.ScanRowParseError
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.tukaani.xz.SeekableFileInputStream
 
@@ -46,7 +47,9 @@ class ParallelCSVScanSourceOpExec private[csv] (
       override def hasNext: Boolean = reader.hasNext
 
       override def next(): TupleLike = {
-
+        // raw field values of the current line, hoisted out of the try block so the
+        // failure handler below can report the offending column and value
+        var fields: Array[AnyRef] = null
         try {
           // obtain String representation of each field
           // a null value will present if omit in between fields, e.g., ['hello', null, 'world']
@@ -54,7 +57,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
           if (line == null) {
             return null
           }
-          var fields: Array[AnyRef] = line.toArray
+          fields = line.toArray
 
           if (fields == null || util.Arrays.stream(fields).noneMatch(s => s != null)) {
             // discard tuple if it's null or it only contains null
@@ -81,10 +84,19 @@ class ParallelCSVScanSourceOpExec private[csv] (
           )
           TupleLike(ArraySeq.unsafeWrapArray(parsedFields): _*)
         } catch {
-          case _: Throwable => null
+          case e: Throwable =>
+            throw ScanRowParseError.build(
+              Option(fields).map(_.toSeq).getOrElse(Seq.empty),
+              schema,
+              desc.INFER_READ_LIMIT,
+              None,
+              e
+            )
         }
       }
 
+      // null marks intentionally skipped lines (exhausted block or all-null/blank rows),
+      // not parse failures; parse failures now abort the scan above.
     }.filter(tuple => tuple != null)
 
   override def open(): Unit = {

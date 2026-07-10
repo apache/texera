@@ -185,27 +185,30 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(firstCol == List("2", "3"))
   }
 
-  it should "silently drop rows that cannot be parsed into the inferred schema" in {
-    // No header, so every line is data. The schema is inferred from the first
-    // `limit` rows only (INFER_READ_LIMIT is capped by limit); those are integers,
-    // so the column is inferred as INTEGER. `offset` then shifts the output window
-    // past that inference sample onto a row whose value ("oops") is not an integer,
-    // so parseFields throws and produceTuple filters that row out instead of failing.
-    val exec =
-      execOver(
-        writeTempCsv("1\n2\noops\n3\n4\n"),
-        hasHeader = false,
-        offset = Some(2),
-        limit = Some(2)
-      )
+  it should "fail loudly when a row cannot be parsed into the inferred schema" in {
+    // No header, so every line is data. Type inference samples only the first
+    // INFER_READ_LIMIT (=100) rows; here they are all integers, so the single
+    // column (auto-named "column-1") is inferred as INTEGER. Row 101 holds a
+    // non-integer ("oops"), which does not match the inferred schema. The scan
+    // must abort loudly on that row (surfacing to the UI via
+    // DataProcessor.handleExecutorException) rather than silently dropping it.
+    val content = (1 to 100).mkString("\n") + "\noops\n"
+    val exec = execOver(writeTempCsv(content), hasHeader = false)
     exec.open()
-    val tuples =
+    val ex = intercept[RuntimeException] {
       try exec.produceTuple().toList
       finally exec.close()
+    }
 
-    // Output window is rows 3,4,5 ("oops","3","4"); the bad row is skipped, so we
-    // get the two good ones rather than an exception. Count is below the raw 5 rows.
-    assert(tuples.size == 2)
-    assert(tuples.map(_.getFields(0).toString) == List("3", "4"))
+    // The message must lead with the essentials — row number, offending value,
+    // column name, expected type — then the actionable fix.
+    assert(ex.getMessage.startsWith("Row 101: value")) // 1-based row of the bad value
+    assert(ex.getMessage.contains("'oops'")) // the offending value
+    assert(ex.getMessage.contains("'column-1'")) // the offending column's name
+    assert(ex.getMessage.contains("cannot be read as"))
+    assert(ex.getMessage.contains("INTEGER")) // the inferred/expected type
+    assert(ex.getMessage.contains("clean the data before scanning")) // actionable fix
+    // The original parse exception is preserved as the cause for debugging.
+    assert(ex.getCause != null)
   }
 }
