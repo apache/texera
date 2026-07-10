@@ -19,6 +19,9 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { EventEmitter } from "@angular/core";
+import { By } from "@angular/platform-browser";
+import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { of } from "rxjs";
 import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list.component";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
@@ -30,6 +33,14 @@ describe("UserDatasetStagedObjectsListComponent", () => {
   let fixture: ComponentFixture<UserDatasetStagedObjectsListComponent>;
   let component: UserDatasetStagedObjectsListComponent;
   let getDatasetDiffSpy: ReturnType<typeof vi.fn>;
+  let resetDatasetFileDiffSpy: ReturnType<typeof vi.fn>;
+
+  const renderList = async () => {
+    component.did = 1;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  };
 
   const stagedObjects: DatasetStagedObject[] = [
     { path: "dir/a.txt", pathType: "file", diffType: "added", sizeBytes: 1 },
@@ -38,11 +49,15 @@ describe("UserDatasetStagedObjectsListComponent", () => {
 
   beforeEach(() => {
     getDatasetDiffSpy = vi.fn(() => of(stagedObjects));
+    resetDatasetFileDiffSpy = vi.fn(() => of({}));
 
     TestBed.configureTestingModule({
       imports: [UserDatasetStagedObjectsListComponent, ...commonTestImports],
       providers: [
-        { provide: DatasetService, useValue: { getDatasetDiff: getDatasetDiffSpy } },
+        {
+          provide: DatasetService,
+          useValue: { getDatasetDiff: getDatasetDiffSpy, resetDatasetFileDiff: resetDatasetFileDiffSpy },
+        },
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn() } },
         ...commonTestProviders,
       ],
@@ -100,11 +115,7 @@ describe("UserDatasetStagedObjectsListComponent", () => {
   });
 
   it("renders staged object rows inside the virtual scroll viewport", async () => {
-    component.did = 1;
-
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await renderList();
 
     const viewport = fixture.nativeElement.querySelector("cdk-virtual-scroll-viewport");
     expect(viewport).not.toBeNull();
@@ -112,5 +123,37 @@ describe("UserDatasetStagedObjectsListComponent", () => {
     expect(rows.length).toBe(stagedObjects.length);
     expect(rows[0].textContent).toContain("dir/a.txt");
     expect(rows[1].textContent).toContain("dir/b.txt");
+  });
+
+  it("reverts a staged object from its row's delete button", async () => {
+    await renderList();
+
+    (fixture.nativeElement.querySelector(".delete-button") as HTMLButtonElement).click();
+
+    expect(resetDatasetFileDiffSpy).toHaveBeenCalledWith(1, "dir/a.txt");
+    expect(getDatasetDiffSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the full path and upload time in the row tooltip", async () => {
+    component.uploadTimeMap = new Map([["a.txt", 5]]);
+    await renderList();
+
+    fixture.debugElement.query(By.css(".truncate-file-path")).injector.get(NzTooltipDirective).show();
+    fixture.detectChanges();
+
+    const overlayText = document.querySelector(".cdk-overlay-container")?.textContent ?? "";
+    expect(overlayText).toContain("dir/a.txt");
+    expect(overlayText).toContain("Upload time");
+  });
+
+  it("re-measures the viewport on request", async () => {
+    await renderList();
+    const viewport = fixture.debugElement.query(By.directive(CdkVirtualScrollViewport)).componentInstance;
+    const checkViewportSizeSpy = vi.spyOn(viewport, "checkViewportSize");
+
+    component.remeasureViewport();
+    await new Promise(resolve => setTimeout(resolve));
+
+    expect(checkViewportSizeSpy).toHaveBeenCalled();
   });
 });
