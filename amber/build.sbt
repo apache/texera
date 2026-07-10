@@ -164,10 +164,12 @@ val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
 // providers break Jersey 2 auto-discovery at startup, so exclude it as well.
 val excludeHadoopJerseyJsonFork = ExclusionRule(organization = "com.github.pjfanning", name = "jersey-json")
 // Hadoop 3.5.0 moved its web stack to Jersey 2.x (org.glassfish.jersey.{core,containers,
-// inject}) plus the glassfish JAXB runtime, istack-commons, and the Jakarta JSP API. Left
-// in, Jersey 2.46 would evict Dropwizard 1.3.23's Jersey 2.25.1 (dropping the
-// AbstractValueFactoryProvider that dropwizard-auth needs). Texera uses hadoop only as a
-// filesystem client, so exclude the whole servlet/JAX-RS/JAXB web stack.
+// inject}) plus the glassfish JAXB runtime, istack-commons, and the Jakarta JSP API. This
+// service runs on Dropwizard 1.3.23 (see dropwizardVersion above), whose Jersey 2.25.1
+// provides the AbstractValueFactoryProvider that dropwizard-auth binds against; letting
+// Hadoop's newer Jersey 2.x win the sbt eviction drops that class and breaks auth wiring.
+// Texera uses hadoop only as a filesystem client, so exclude the whole servlet/JAX-RS/JAXB
+// web stack instead.
 val excludeHadoopJersey2Stack = Seq(
   ExclusionRule(organization = "org.glassfish.jersey.core"),
   ExclusionRule(organization = "org.glassfish.jersey.containers"),

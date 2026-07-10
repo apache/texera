@@ -164,9 +164,10 @@ val excludeJerseyJsonFork = ExclusionRule(organization = "com.github.pjfanning",
 // (org.glassfish.jersey.{core,containers,inject}) plus the glassfish JAXB runtime,
 // istack-commons, and the Jakarta JSP API. ExclusionRule matches the organization string
 // exactly, so a bare "org.glassfish.jersey" rule matches none of the real artifacts.
-// Texera uses hadoop only as a filesystem client, so none of this servlet/JAX-RS/JAXB
-// web stack is needed; excluding it keeps Dropwizard's Jersey 2.25.1 from being evicted
-// and keeps these jars out of every service dist.
+// Texera uses hadoop only as a filesystem client, so none of this servlet/JAX-RS/JAXB web
+// stack is needed. Excluding it here keeps those jars out of every downstream service dist
+// and, for services still on a Jersey 2.x server stack (amber), avoids evicting the Jersey
+// their auth wiring depends on.
 val excludeHadoopJersey2Stack = Seq(
   ExclusionRule(organization = "org.glassfish.jersey.core"),
   ExclusionRule(organization = "org.glassfish.jersey.containers"),
