@@ -129,7 +129,7 @@ class WorkflowWorker(
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     super.preRestart(reason, message)
-    logger.error(s"Encountered fatal error, worker is shutting done.", reason)
+    logger.error(s"Encountered fatal error, worker is shutting down.", reason)
     postStop()
   }
 
