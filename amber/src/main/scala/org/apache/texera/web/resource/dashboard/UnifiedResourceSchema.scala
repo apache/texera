@@ -77,7 +77,7 @@ object UnifiedResourceSchema {
       isDatasetDownloadable: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
       datasetUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum]),
       datasetCoverImage: Field[String] = DSL.cast(null, classOf[String]),
-      workflowCoverImage: Field[String] = DSL.cast(null, classOf[String]),
+      workflowCoverImage: Field[String] = DSL.cast(null, classOf[String])
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(
