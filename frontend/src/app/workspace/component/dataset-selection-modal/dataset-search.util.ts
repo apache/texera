@@ -23,8 +23,8 @@ import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.inte
 /**
  * Whether a dataset matches a type-to-search query in the dataset picker.
  *
- * Matches against both the dataset name and its numeric id (shown as `#<id>` in the
- * dropdown), case-insensitively, so typing either `iris` or `17` finds `#17 iris`
+ * Matches against both the dataset name and its id as displayed in the dropdown
+ * (`#<id>`), case-insensitively, so typing `iris`, `17`, or `#17` finds `#17 iris`
  * (per the design decision on the proposal). An empty/whitespace query matches
  * everything.
  */

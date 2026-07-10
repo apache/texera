@@ -32,6 +32,13 @@ describe("datasetMatchesQuery", () => {
     expect(datasetMatchesQuery("iris", 17, "1")).toBe(true); // substring of id
   });
 
+  it("matches the id typed with the leading # shown in the dropdown label", () => {
+    expect(datasetMatchesQuery("iris", 17, "#17")).toBe(true);
+    expect(datasetMatchesQuery("iris", 17, "#1")).toBe(true); // prefix of the displayed #17
+    expect(datasetMatchesQuery("iris", 17, "#99")).toBe(false);
+    expect(datasetMatchesQuery(null, 17, "#17")).toBe(true); // id-only match still works
+  });
+
   it("does not match when neither name nor id contains the query", () => {
     expect(datasetMatchesQuery("iris", 17, "test")).toBe(false);
     expect(datasetMatchesQuery("iris", 17, "99")).toBe(false);
@@ -79,6 +86,11 @@ describe("filterDatasetOption", () => {
   it("matches by dataset #id pulled from the option value", () => {
     expect(filterDatasetOption("17", optionFor("iris", 17))).toBe(true);
     expect(filterDatasetOption("99", optionFor("iris", 17))).toBe(false);
+  });
+
+  it("matches the #<id> form typed as displayed in the UI label", () => {
+    expect(filterDatasetOption("#17", optionFor("iris", 17))).toBe(true);
+    expect(filterDatasetOption("#99", optionFor("iris", 17))).toBe(false);
   });
 
   it("is safe (and matches only on empty query) when the option has no value", () => {
