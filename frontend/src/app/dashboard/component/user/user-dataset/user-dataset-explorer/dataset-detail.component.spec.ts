@@ -230,6 +230,39 @@ describe("DatasetDetailComponent upload queue", () => {
     expect(component.pendingChangesCount).toBe(2);
   });
 
+  it("keeps an in-progress upload's slot while progress events stream in", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
+
+    uploadSubjects[0].next({ filePath: "f1.txt", percentage: 50, status: "uploading" });
+
+    expect(component.uploadTasks.find(t => t.filePath === "f1.txt")?.percentage).toBe(50);
+    expect(component.activeCount).toBe(3);
+    expect(component.queuedCount).toBe(1);
+  });
+
+  it("does not double-count a finished upload already confirmed by a diff response", () => {
+    dropFiles("f1.txt");
+    finishUpload(0, "f1.txt");
+    component.onStagedObjectsUpdated([{ path: "f1.txt", pathType: "file", diffType: "added", sizeBytes: 1 }]);
+    expect(component.pendingChangesCount).toBe(1);
+
+    dropFiles("f1.txt"); // re-upload the already-staged file
+    finishUpload(1, "f1.txt");
+
+    expect(component.pendingChangesCount).toBe(1);
+  });
+
+  it("does not start queued uploads beyond a lowered concurrency limit", () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt");
+    component.maxConcurrentFiles = 1;
+
+    finishUpload(0, "f1.txt");
+
+    expect(component.activeCount).toBe(2);
+    expect(component.queuedCount).toBe(1);
+    expect(multipartUploadSpy).toHaveBeenCalledTimes(3);
+  });
+
   it("clears the Finished count when a version is created", () => {
     dropFiles("f1.txt");
     finishUpload(0, "f1.txt");
@@ -281,6 +314,10 @@ describe("DatasetDetailComponent upload queue", () => {
     fixture.detectChanges();
     // Flush the checkViewportSize timers.
     await new Promise(resolve => setTimeout(resolve));
+
+    // Collapsing again must be a no-op for the re-measure handler.
+    headers.forEach(header => header.click());
+    fixture.detectChanges();
 
     // Cancel a queued file from its row.
     const cancelButton = fixture.nativeElement.querySelector(".pending-file-row button") as HTMLButtonElement;
