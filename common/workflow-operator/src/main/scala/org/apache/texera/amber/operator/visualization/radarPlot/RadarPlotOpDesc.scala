@@ -241,7 +241,9 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
     val traceNameCol = optionalColumn(traceNameAttribute)
     val traceColorCol = optionalColumn(traceColorAttribute)
 
-    s"""def render_error(error_msg):
+    s"""import numpy as np
+       |
+       |def render_error(error_msg):
        |    return '''<h1>Radar Plot is not available.</h1>
        |              <p>Reason is: {} </p>
        |           '''.format(error_msg)

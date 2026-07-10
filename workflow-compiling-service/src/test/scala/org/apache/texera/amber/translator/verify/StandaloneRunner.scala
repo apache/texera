@@ -141,7 +141,10 @@ object StandaloneRunner extends LazyLogging {
     sb.append("import sys\n")
     sb.append("import base64\n")
     sb.append("import pickle\n")
-    sb.append("import numpy as np\n")
+    // NOTE: numpy is intentionally NOT injected here. The production translator
+    // (WorkflowToPythonTranslator) only provides pandas + plotly to standalone
+    // scripts, so any operator whose standalone code needs numpy must import it
+    // itself. Injecting numpy here would mask that class of bug in verify tests.
     sb.append("import pandas as pd\n")
     sb.append("import plotly.express as px\n")
     sb.append("import plotly.graph_objects as go\n")
@@ -171,10 +174,15 @@ object StandaloneRunner extends LazyLogging {
     // make a plain date string column serialize as "...T00:00:00" on only one
     // side. Operators that genuinely need datetimes convert explicitly, so both
     // paths stay in sync.
+    // precise_float=True: pd.read_json's default (ujson) fast double parser is
+    // lossy in the last few ULPs, so a DOUBLE column would load slightly
+    // different values than the schema-typed runtime path (which parses doubles
+    // exactly). Operators that stringify raw cell values (e.g. Radar hover text)
+    // then diverge; precise_float=True keeps both paths bit-identical.
     inputs.toSeq.sortBy(_._1).foreach {
       case (n, path) =>
         sb.append(
-          s"in${n}df = pd.read_json(${py(path.toString)}, lines=True, convert_dates=False)\n"
+          s"in${n}df = pd.read_json(${py(path.toString)}, lines=True, convert_dates=False, precise_float=True)\n"
         )
     }
     sb.append("\n")
