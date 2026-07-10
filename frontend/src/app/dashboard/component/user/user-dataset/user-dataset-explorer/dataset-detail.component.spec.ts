@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ActivatedRoute } from "@angular/router";
 import { of, Subject } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -31,10 +31,12 @@ import { MOCK_USER, StubUserService } from "../../../../../common/service/user/s
 import { HubService } from "../../../../../hub/service/hub.service";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { FileUploadItem } from "../../../../type/dashboard-file.interface";
+import { DatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
 
 describe("DatasetDetailComponent upload queue", () => {
+  let fixture: ComponentFixture<DatasetDetailComponent>;
   let component: DatasetDetailComponent;
   let uploadSubjects: Subject<MultipartUploadProgress>[];
   let uploadedPaths: string[];
@@ -85,6 +87,7 @@ describe("DatasetDetailComponent upload queue", () => {
             retrieveDatasetVersionList: vi.fn(() => of([])),
             getDatasetDiff: vi.fn(() => of([])),
             createDatasetVersion: vi.fn(() => of({})),
+            deleteDatasetFile: vi.fn(() => of({})),
           },
         },
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
@@ -104,7 +107,7 @@ describe("DatasetDetailComponent upload queue", () => {
       ],
     });
 
-    const fixture = TestBed.createComponent(DatasetDetailComponent);
+    fixture = TestBed.createComponent(DatasetDetailComponent);
     component = fixture.componentInstance;
     // Log in so ngOnInit reaches loadUploadSettings (maxConcurrentFiles = 3).
     (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(MOCK_USER);
@@ -256,5 +259,41 @@ describe("DatasetDetailComponent upload queue", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("renders the virtualized pending list and re-measures viewports on panel expand", async () => {
+    dropFiles("f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt");
+    fixture.detectChanges();
+    // Flush the viewport's init microtask, then render the rows.
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(component.pendingListHeightPx).toBe(2 * component.PENDING_ROW_HEIGHT_PX);
+    const rows = fixture.nativeElement.querySelectorAll(".pending-file-row");
+    expect(rows.length).toBe(2);
+
+    // Expand the Pending / Uploading / Finished panels.
+    const headers: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(
+      ".upload-status-panels .ant-collapse-header"
+    );
+    expect(headers.length).toBe(3);
+    headers.forEach(header => header.click());
+    fixture.detectChanges();
+    // Flush the checkViewportSize timers.
+    await new Promise(resolve => setTimeout(resolve));
+
+    // Cancel a queued file from its row.
+    const cancelButton = fixture.nativeElement.querySelector(".pending-file-row button") as HTMLButtonElement;
+    cancelButton.click();
+    expect(component.queuedCount).toBe(1);
+    expect(component.queuedFileNames).toEqual(["f5.txt"]);
+  });
+
+  it("counts a staged file deletion immediately", () => {
+    const node: DatasetFileNode = { name: "a.txt", type: "file", parentDir: "/owner@texera.com/test-dataset/v1" };
+
+    component.onPreviouslyUploadedFileDeleted(node);
+
+    expect(component.pendingChangesCount).toBe(1);
   });
 });
