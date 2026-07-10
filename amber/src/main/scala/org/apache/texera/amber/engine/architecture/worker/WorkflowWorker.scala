@@ -127,11 +127,6 @@ class WorkflowWorker(
       t.closure(this)
   }
 
-  def handleActorCommand: Receive = {
-    case c: ActorCommand =>
-      println(c)
-  }
-
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     super.preRestart(reason, message)
     logger.error(s"Encountered fatal error, worker is shutting done.", reason)
