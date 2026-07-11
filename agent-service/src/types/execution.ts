@@ -22,10 +22,10 @@ export enum WorkflowFatalErrorType {
   EXECUTION_FAILURE = "EXECUTION_FAILURE",
 }
 
-// A fatal error reported for one operator. Reuses the engine's wire shape
-// (workflowruntimestate.proto). The same type the workflow-compiling service
-// returns for compilation errors, so compile and execution errors share one
-// shape. Re-exported by api/compile-api.ts.
+// Canonical agent-service error projection. It follows the engine's
+// workflowruntimestate.proto shape so compile and execution errors share one model.
+// The legacy sync-execution adapter synthesizes metadata the backend does not yet emit.
+// Re-exported by api/compile-api.ts.
 export interface WorkflowFatalError {
   type: { name: WorkflowFatalErrorType };
   timestamp: { seconds: number; nanos: number };
@@ -85,10 +85,9 @@ export interface ConsoleMessageSummary {
   message: string;
 }
 
-// A result row, mirroring the engine's Tuple wire shape
-// (org.apache.texera.amber.core.tuple.Tuple): a schema plus positional field values.
-// Because sampled rows are truncated (typed values become display strings), each Tuple
-// carries a synthetic all-STRING schema over its columns.
+// A normalized result row using the engine Tuple shape: a schema plus positional fields.
+// The legacy backend returns JSON records, so the adapter builds a synthetic all-STRING
+// schema after the backend has truncated values for display.
 export interface Attribute {
   attributeName: string;
   attributeType: string;
@@ -115,8 +114,8 @@ export interface OperatorResultSummary {
   totalTuplesCount: number;
 }
 
-// Per-operator execution summary returned by the sync-execution backend.
-// Orthogonal sub-summaries replace the previous flat `OperatorInfo`.
+// Canonical per-operator summary used inside agent-service and exposed to the frontend.
+// The legacy backend's flat `OperatorInfo` is converted at the execution API boundary.
 export interface OperatorExecutionSummary {
   state: OperatorState;
   // Empty means the operator did not fail.
