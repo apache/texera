@@ -129,9 +129,6 @@ export interface OperatorExecutionSummary {
 
 // The result of one synchronous workflow execution.
 export interface WorkflowExecutionSummary {
-  // True only on a clean run; can be false even when state is "Completed"
-  // (e.g. an operator logged a console error without aborting the run).
-  success: boolean;
   state: WorkflowExecutionState;
   operators: Record<string, OperatorExecutionSummary>;
   // Workflow-level errors (timeouts, init/compile failures, fatal errors);

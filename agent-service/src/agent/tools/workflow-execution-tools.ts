@@ -324,7 +324,6 @@ async function executeWorkflowHttp(
     }
     log.error({ err: error }, "execution failed");
     return {
-      success: false,
       state: WorkflowExecutionState.ERROR,
       operators: {},
       errors: [makeExecutionFailure(error instanceof Error ? error.message : "Unknown error", "")],
@@ -405,7 +404,7 @@ export async function executeOperatorAndFormat(
       abortSignal: options.abortSignal,
     });
 
-    if (!result.success) {
+    if (result.state !== WorkflowExecutionState.COMPLETED) {
       const operatorErrors =
         result.state === WorkflowExecutionState.FAILED
           ? Object.entries(result.operators)

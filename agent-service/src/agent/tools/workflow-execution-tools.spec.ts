@@ -112,7 +112,7 @@ function setFetchRejecting(error: Error): void {
 
 function toLegacyResponse(summary: WorkflowExecutionSummary): LegacySyncExecutionResult {
   return {
-    success: summary.success,
+    success: summary.state === WorkflowExecutionState.COMPLETED,
     state: summary.state,
     operators: Object.fromEntries(
       Object.entries(summary.operators).map(([operatorId, operator]) => {
@@ -237,7 +237,6 @@ describe("executeOperatorAndFormat - successful runs", () => {
     ];
 
     const summary: WorkflowExecutionSummary = {
-      success: true,
       state: WorkflowExecutionState.COMPLETED,
       operators: {
         [target]: {
@@ -277,7 +276,6 @@ describe("executeOperatorAndFormat - successful runs", () => {
   test("returns a placeholder when the operator produced no result summary", async () => {
     const { state, target } = makeLinearState();
     const summary: WorkflowExecutionSummary = {
-      success: true,
       state: WorkflowExecutionState.COMPLETED,
       operators: { [target]: { state: OperatorState.COMPLETED, errorMessages: [] } },
       errors: [],
@@ -291,7 +289,6 @@ describe("executeOperatorAndFormat - successful runs", () => {
   test("emits only the shape line when the result has zero sample rows", async () => {
     const { state, target } = makeLinearState();
     const summary: WorkflowExecutionSummary = {
-      success: true,
       state: WorkflowExecutionState.COMPLETED,
       operators: {
         [target]: {
@@ -316,7 +313,6 @@ describe("executeOperatorAndFormat - successful runs", () => {
       recordToTuple({ col: `value-${i}` }),
     ]);
     const summary: WorkflowExecutionSummary = {
-      success: true,
       state: WorkflowExecutionState.COMPLETED,
       operators: {
         [target]: {
@@ -341,7 +337,6 @@ describe("executeOperatorAndFormat - execution failures", () => {
   test("formats per-operator errors and notifies with a synthetic failure summary (FAILED)", async () => {
     const { state, target } = makeLinearState();
     const summary: WorkflowExecutionSummary = {
-      success: false,
       state: WorkflowExecutionState.FAILED,
       operators: {
         [target]: { state: OperatorState.FAILED, errorMessages: [makeFatal("kaboom")] },
@@ -367,7 +362,6 @@ describe("executeOperatorAndFormat - execution failures", () => {
   test("reports a timeout when the workflow was KILLED (no onResult callback)", async () => {
     const { state, target } = makeLinearState();
     const summary: WorkflowExecutionSummary = {
-      success: false,
       state: WorkflowExecutionState.KILLED,
       operators: {},
       errors: [],
@@ -398,10 +392,9 @@ describe("executeOperatorAndFormat - execution failures", () => {
     expect(out).toContain("network down");
   });
 
-  test("returns a 'no result' error when the operator is missing from a successful run", async () => {
+  test("returns a 'no result' error when the operator is missing from a completed run", async () => {
     const { state, target } = makeLinearState();
     const summary: WorkflowExecutionSummary = {
-      success: true,
       state: WorkflowExecutionState.COMPLETED,
       operators: {},
       errors: [],
@@ -413,10 +406,9 @@ describe("executeOperatorAndFormat - execution failures", () => {
     expect(out).toContain(`No result found for operator: ${target}`);
   });
 
-  test("joins operator error messages when a successful run still reports operator errors", async () => {
+  test("joins operator error messages when a completed run still reports operator errors", async () => {
     const { state, target } = makeLinearState();
     const summary: WorkflowExecutionSummary = {
-      success: true,
       state: WorkflowExecutionState.COMPLETED,
       operators: {
         [target]: { state: OperatorState.FAILED, errorMessages: [makeFatal("e1"), makeFatal("e2")] },
@@ -446,7 +438,6 @@ describe("executeOperatorAndFormat - abort and callback failures", () => {
   test("wraps a throwing onResult callback into an error result", async () => {
     const { state, target } = makeLinearState();
     const summary: WorkflowExecutionSummary = {
-      success: true,
       state: WorkflowExecutionState.COMPLETED,
       operators: {
         [target]: {
@@ -475,7 +466,6 @@ describe("createExecuteOperatorTool", () => {
   test("builds a tool whose execute delegates to executeOperatorAndFormat", async () => {
     const { state, target } = makeLinearState();
     const summary: WorkflowExecutionSummary = {
-      success: true,
       state: WorkflowExecutionState.COMPLETED,
       operators: {
         [target]: {
