@@ -25,6 +25,7 @@ import {
   formatSampleRowsAsTsv,
   getOperatorErrorText,
   getOperatorWarnings,
+  redactVisualizationPayloads,
   tupleColumns,
 } from "./tools-utility";
 import type { WorkflowState } from "../workflow-state";
@@ -454,12 +455,14 @@ export async function executeOperatorAndFormat(
       return createErrorResult(formatExecutionError([{ operatorId, error: opError }]));
     }
 
-    const sampleTuples = opInfo.resultSummary?.sampleTuples;
+    const resultSummary = opInfo.resultSummary;
+    const sampleTuples = resultSummary?.sampleTuples;
     if (!sampleTuples || !Array.isArray(sampleTuples)) {
       return "(no result data)";
     }
 
-    const headers = sampleTuples.length > 0 ? tupleColumns(sampleTuples[0][1]) : [];
+    const rows = redactVisualizationPayloads(sampleTuples, resultSummary.resultMode);
+    const headers = rows.length > 0 ? tupleColumns(rows[0][1]) : [];
     const columns = headers.length;
 
     // Notify for every operator in the execution so upstream stats are also stored.
@@ -471,7 +474,7 @@ export async function executeOperatorAndFormat(
       }
     }
 
-    let dataString = formatSampleRowsAsTsv(sampleTuples);
+    let dataString = formatSampleRowsAsTsv(rows);
 
     // Safety-net: TSV serialization may add padding beyond backend's raw-record budget.
     const charLimit = config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
@@ -509,7 +512,7 @@ export async function executeOperatorAndFormat(
 
     // Output shape only; the agent derives input-port shapes from the DAG + the
     // upstream operators' own output shapes shown in context.
-    const shapeLine = `Output table shape: (${opInfo.resultSummary?.totalTuplesCount ?? 0}, ${columns})`;
+    const shapeLine = `Output table shape: (${resultSummary.totalTuplesCount}, ${columns})`;
 
     const warningLines = getOperatorWarnings(opInfo);
 
