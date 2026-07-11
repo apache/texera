@@ -48,8 +48,8 @@ describe("AgentInteractionComponent", () => {
     };
   }
 
-  function row(rowIndex: number, tuple: Record<string, any>): [number, Tuple] {
-    return [rowIndex, recordToTuple(tuple)];
+  function indexedTuple(rowIndex: number, record: Record<string, any>): readonly [number, Tuple] {
+    return [rowIndex, recordToTuple(record)];
   }
 
   beforeEach(async () => {
@@ -77,8 +77,8 @@ describe("AgentInteractionComponent", () => {
   });
 
   describe("template rendering", () => {
-    it("renders the sample table with a leading Row column when sample rows are present", () => {
-      component.sampleTuples = [row(0, { a: 1, b: "x" }), row(1, { a: 2, b: "y" })];
+    it("renders the sample table with a leading Row column when sample tuples are present", () => {
+      component.sampleTuples = [indexedTuple(0, { a: 1, b: "x" }), indexedTuple(1, { a: 2, b: "y" })];
       component.resultMode = { type: "PaginationMode" };
       fixture.detectChanges();
 
@@ -96,7 +96,7 @@ describe("AgentInteractionComponent", () => {
     });
 
     it("renders an ellipsis row spanning all columns plus the Row column when indices have a gap", () => {
-      component.sampleTuples = [row(0, { a: 1, b: "x" }), row(5, { a: 2, b: "y" })];
+      component.sampleTuples = [indexedTuple(0, { a: 1, b: "x" }), indexedTuple(5, { a: 2, b: "y" })];
       component.resultMode = { type: "PaginationMode" };
       fixture.detectChanges();
 
@@ -108,7 +108,7 @@ describe("AgentInteractionComponent", () => {
     });
 
     it("renders the visualization iframe instead of the table in visualization mode", () => {
-      fixture.componentRef.setInput("sampleTuples", [row(0, { "html-content": "<h1>chart</h1>" })]);
+      fixture.componentRef.setInput("sampleTuples", [indexedTuple(0, { "html-content": "<h1>chart</h1>" })]);
       fixture.componentRef.setInput("resultMode", { type: "SetSnapshotMode" });
       fixture.detectChanges();
 
@@ -116,7 +116,7 @@ describe("AgentInteractionComponent", () => {
       expect(fixture.nativeElement.querySelector(".sample-records-table")).toBeNull();
     });
 
-    it("renders neither the table nor the iframe when there are no sample rows", () => {
+    it("renders neither the table nor the iframe when there are no sample tuples", () => {
       expect(fixture.nativeElement.querySelector(".sample-records-table")).toBeNull();
       expect(fixture.nativeElement.querySelector(".visualization-iframe")).toBeNull();
     });
@@ -124,14 +124,14 @@ describe("AgentInteractionComponent", () => {
 
   describe("ngOnChanges - visualization html caching", () => {
     it("caches sanitized html when a visualization tuple carries html-content", () => {
-      component.sampleTuples = [row(0, { "html-content": "<h1>chart</h1>" })];
+      component.sampleTuples = [indexedTuple(0, { "html-content": "<h1>chart</h1>" })];
       component.ngOnChanges({ sampleTuples: new SimpleChange(undefined, component.sampleTuples, true) });
 
       expect(component.getVisualizationHtml()).toEqual(sanitizer.bypassSecurityTrustHtml("<h1>chart</h1>"));
     });
 
     it("keeps the cached html when the content is unchanged across calls", () => {
-      component.sampleTuples = [row(0, { "html-content": "<p>same</p>" })];
+      component.sampleTuples = [indexedTuple(0, { "html-content": "<p>same</p>" })];
       const changes: SimpleChanges = { sampleTuples: new SimpleChange(undefined, component.sampleTuples, true) };
 
       component.ngOnChanges(changes);
@@ -141,10 +141,10 @@ describe("AgentInteractionComponent", () => {
     });
 
     it("clears the cached html when no html-content is present", () => {
-      component.sampleTuples = [row(0, { "html-content": "<p>x</p>" })];
+      component.sampleTuples = [indexedTuple(0, { "html-content": "<p>x</p>" })];
       component.ngOnChanges({ resultMode: new SimpleChange(undefined, { type: "SetSnapshotMode" }, true) });
       // Now switch to a tuple with no html-content.
-      component.sampleTuples = [row(0, { value: 1 })];
+      component.sampleTuples = [indexedTuple(0, { value: 1 })];
       component.ngOnChanges({ sampleTuples: new SimpleChange(undefined, component.sampleTuples, false) });
 
       expect(component.getVisualizationHtml()).toEqual(sanitizer.bypassSecurityTrustHtml(""));
@@ -171,7 +171,7 @@ describe("AgentInteractionComponent", () => {
 
   describe("getSampleColumns", () => {
     it("returns the keys of the first tuple", () => {
-      component.sampleTuples = [row(0, { a: 1, b: 2 })];
+      component.sampleTuples = [indexedTuple(0, { a: 1, b: 2 })];
       expect(component.getSampleColumns()).toEqual(["a", "b"]);
     });
 
@@ -182,33 +182,38 @@ describe("AgentInteractionComponent", () => {
       component.sampleTuples = undefined;
       expect(component.getSampleColumns()).toEqual([]);
     });
-
-    it("maps a column header to its own name", () => {
-      expect(component.getColumnDisplayName("colX")).toBe("colX");
-    });
   });
 
-  describe("getDisplayRows", () => {
+  describe("getDisplayTuples", () => {
     it("returns an empty array when there are no sample tuples", () => {
       component.sampleTuples = [];
-      expect(component.getDisplayRows()).toEqual([]);
+      expect(component.getDisplayTuples()).toEqual([]);
     });
 
-    it("returns rows without ellipsis when indices are contiguous", () => {
-      component.sampleTuples = [row(0, { a: 1 }), row(1, { a: 2 })];
-      const rows = component.getDisplayRows();
-      expect(rows.length).toBe(2);
-      expect(rows.every(r => !r.isEllipsis)).toBe(true);
+    it("returns the original tuples without ellipsis when indices are contiguous", () => {
+      const firstTuple = recordToTuple({ a: 1 });
+      const secondTuple = recordToTuple({ a: 2 });
+      component.sampleTuples = [
+        [0, firstTuple],
+        [1, secondTuple],
+      ];
+
+      const entries = component.getDisplayTuples();
+
+      expect(entries).toHaveLength(2);
+      expect(entries.every(entry => !entry.isEllipsis)).toBe(true);
+      expect(entries[0]).toEqual({ rowIndex: 0, tuple: firstTuple, isEllipsis: false });
+      expect(entries[1]).toEqual({ rowIndex: 1, tuple: secondTuple, isEllipsis: false });
     });
 
     it("inserts an ellipsis marker when there is a gap between row indices", () => {
-      component.sampleTuples = [row(0, { a: 1 }), row(5, { a: 2 })];
-      const rows = component.getDisplayRows();
+      component.sampleTuples = [indexedTuple(0, { a: 1 }), indexedTuple(5, { a: 2 })];
+      const entries = component.getDisplayTuples();
 
-      expect(rows.length).toBe(3);
-      expect(rows[1].isEllipsis).toBe(true);
-      expect(rows[1].row).toBeUndefined();
-      expect(rows[2].rowIndex).toBe(5);
+      expect(entries).toHaveLength(3);
+      expect(entries[1].isEllipsis).toBe(true);
+      expect(entries[1].tuple).toBeUndefined();
+      expect(entries[2].rowIndex).toBe(5);
     });
   });
 });
