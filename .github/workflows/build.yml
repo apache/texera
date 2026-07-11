@@ -176,13 +176,167 @@ jobs:
           disable_search: true
           fail_ci_if_error: false
 
+  scala-build:
+    # Prebuild: compile the entire Scala world ONCE (main + test scopes),
+    # build every dist, and run the cross-cutting scalafmt/scalafix lints, then
+    # hand the results to the Scala jobs below as artifacts. amber,
+    # amber-integration (Linux leg), platform, and platform-integration all
+    # consume this instead of each recompiling the shared common-module graph
+    # (DAO, WorkflowCore, WorkflowOperator, Auth, Config, ...). Gated on the
+    # union of the four Scala stacks, so a docs-only / frontend-only PR never
+    # runs it (and each downstream Scala job stays skipped in lockstep, since
+    # its own run_* input is false in that case).
+    #
+    # Two artifacts:
+    #   * scala-build-target : per-module target/ tree — compiled classes,
+    #     test-classes, Zinc analysis, generated JOOQ sources, and the 7 dists.
+    #     Restored by the jobs that RUN tests (amber / amber-integration Linux /
+    #     platform) so their jacoco/test reuse compilation. Zinc's analysis
+    #     embeds absolute paths, but github.workspace is stable across
+    #     GitHub-hosted ubuntu runners, so the state validates downstream; if it
+    #     ever does not, sbt just recompiles — slower, never wrong.
+    #   * scala-dists : just the 7 dist zips, for platform-integration, which
+    #     only needs a runnable bundle to smoke-boot.
+    #
+    # macOS amber-integration does NOT consume these — Zinc analysis is not
+    # portable across OSes — so that leg keeps self-compiling.
+    if: ${{ inputs.run_amber || inputs.run_amber_integration || inputs.run_platform || inputs.run_platform_integration }}
+    runs-on: ubuntu-latest
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+    outputs:
+      # Per-invocation artifact names, consumed by the downstream Scala jobs via
+      # needs.scala-build.outputs.*. Computed (not hard-coded) because
+      # required-checks.yml calls build.yml more than once in a single run — the
+      # main build plus one backport leg per release/* target — and v4 artifacts
+      # share one namespace per run, so a fixed name would collide on upload.
+      target: ${{ steps.artifact.outputs.target }}
+      dists: ${{ steps.artifact.outputs.dists }}
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Compute artifact names
+        id: artifact
+        # Derive a per-invocation suffix from the disambiguating inputs so the
+        # parallel scala-build jobs (main + backport legs) don't collide. Values
+        # come in via env (not inline interpolation) and are sanitized to the
+        # charset artifact names allow.
+        env:
+          JOB_SUFFIX: ${{ inputs.job_name_suffix }}
+          BACKPORT_TARGET: ${{ inputs.backport_target_branch }}
+        run: |
+          sane="$(printf '%s' "${JOB_SUFFIX}${BACKPORT_TARGET}" | tr -c 'A-Za-z0-9._-' '-' | sed 's/-*$//')"
+          target="scala-build-target"; dists="scala-dists"
+          if [ -n "$sane" ]; then target="${target}-${sane}"; dists="${dists}-${sane}"; fi
+          echo "target=${target}" >> "$GITHUB_OUTPUT"
+          echo "dists=${dists}" >> "$GITHUB_OUTPUT"
+          echo "Using artifacts: ${target}, ${dists}"
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 17
+      - name: Create Databases
+        # JOOQ source generators connect to texera_db while compiling.
+        run: |
+          psql -h localhost -U postgres -f sql/texera_ddl.sql
+          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/texera_lakefs.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+      - name: Lint, build all dists, and compile all tests
+        # One sbt invocation shares compiled state across every module:
+        #   scalafmt/scalafix : cross-cutting, cover every module (moved here
+        #                       from the amber + amber-integration jobs).
+        #   <svc>/dist        : the 7 distributable bundles (main compile +
+        #                       package) consumed downstream for the binary
+        #                       license/NOTICE checks and platform smoke-boot.
+        #   Test/compile      : compile every module's test scope so downstream
+        #                       jacoco/test reuse it. AMBER_TEST_FILTER selects
+        #                       which specs RUN at runtime (ScalaTest -n/-l tag
+        #                       args, not source exclusion), so compiling every
+        #                       spec here is correct for both the amber
+        #                       (skip-integration) and amber-integration
+        #                       (integration-only) consumers.
+        run: |
+          sbt scalafmtCheckAll \
+              "scalafixAll --check" \
+              WorkflowExecutionService/dist \
+              ConfigService/dist \
+              AccessControlService/dist \
+              FileService/dist \
+              ComputingUnitManagingService/dist \
+              WorkflowCompilingService/dist \
+              NotebookMigrationService/dist \
+              Test/compile
+      - name: Pack compiled state and dists
+        # tar every per-module target/ tree (classes, test-classes, Zinc
+        # analysis, generated JOOQ sources, universal/*.zip dists) plus the root
+        # and sbt meta-build targets. -prune stops descent into a matched
+        # target/ so nested dirs are not re-listed; node_modules is excluded so
+        # the frontend tree never leaks in. zstd for a fast, tight pack;
+        # upload-artifact then stores it as-is (compression-level 0).
+        run: |
+          set -euo pipefail
+          find . -type d -name target -not -path '*/node_modules/*' -prune -print \
+            > /tmp/target-dirs.txt
+          echo "Packing $(wc -l < /tmp/target-dirs.txt) target dirs:"
+          cat /tmp/target-dirs.txt
+          tar --use-compress-program='zstd -3 -T0' \
+              -cf /tmp/scala-target.tar.zst -T /tmp/target-dirs.txt
+          ls -lh /tmp/scala-target.tar.zst
+          mkdir -p /tmp/scala-dists
+          find . -path '*/target/universal/*.zip' -exec cp {} /tmp/scala-dists/ \;
+          echo "Dists:"
+          ls -lh /tmp/scala-dists/
+      - name: Upload compiled state artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.target }}
+          path: /tmp/scala-target.tar.zst
+          retention-days: 1
+          compression-level: 0
+      - name: Upload dists artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.dists }}
+          path: /tmp/scala-dists/*.zip
+          retention-days: 1
+          compression-level: 0
+
   amber:
-    # The amber job runs the cross-cutting Scala lints (scalafmtCheckAll,
-    # scalafixAll --check) once on behalf of every Scala module, then builds
-    # and tests just the WorkflowExecutionService dist. Per-service builds
-    # and tests for the platform services live in the `platform` matrix
-    # below. License-binary checks are scoped to the amber dist.
+    # The amber job runs the WorkflowExecutionService dist's binary license
+    # checks and the amber + common-module unit tests (jacoco). It no longer
+    # compiles or lints: the cross-cutting scalafmt/scalafix and the amber dist
+    # come from the scala-build prebuild, restored below. Per-service builds
+    # and tests for the platform services live in the `platform` matrix below.
     if: ${{ inputs.run_amber }}
+    needs: scala-build
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -232,15 +386,17 @@ jobs:
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
-      - name: Lint and build amber distributable bundle
-        # Single sbt invocation: scalafmt -> scalafix -> amber dist.
-        # scalafmtCheckAll and scalafixAll cover every Scala module, so the
-        # platform matrix below skips them. scalafix triggers compile (and
-        # JOOQ codegen), which the dist command then reuses incrementally.
-        run: |
-          sbt scalafmtCheckAll \
-              "scalafixAll --check" \
-              WorkflowExecutionService/dist
+      - name: Download compiled Scala state
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.scala-build.outputs.target }}
+          path: /tmp/scala-artifact
+      - name: Restore compiled Scala state
+        # Re-hydrate the per-module target/ tree the scala-build job packed:
+        # the amber dist (for the license check below) plus every module's
+        # compiled classes + test-classes + Zinc analysis, so the jacoco run
+        # reuses compilation instead of rebuilding it.
+        run: tar --use-compress-program='zstd -d' -xf /tmp/scala-artifact/scala-target.tar.zst -C .
       - name: Unzip amber dist and check binary LICENSE + NOTICE
         # Per-module LICENSE-binary files live at the repo root after #4668.
         # One step covers the amber dist's third-party content end to end:
@@ -327,9 +483,12 @@ jobs:
     # Runs Scala tests tagged @org.apache.texera.amber.tags.IntegrationTest —
     # currently the e2e specs that spawn Python UDF workers. Provisions
     # Python deps that the lighter `amber` job no longer installs. Cross-
-    # cutting lints (scalafmt / scalafix) and the amber dist + binary
-    # license check stay in `amber`; this job is tests-only.
+    # cutting lints (scalafmt / scalafix) run once in the scala-build prebuild;
+    # this job is tests-only. The Linux leg restores the prebuild's compiled
+    # state and reuses it; the macOS leg self-compiles (Zinc analysis is not
+    # portable across OSes) via the same `WorkflowExecutionService/test` step.
     if: ${{ inputs.run_amber_integration }}
+    needs: scala-build
     strategy:
       # macOS provisions postgres / minio / lakekeeper natively because
       # GitHub-hosted macOS runners have no Docker (and `services:`
@@ -593,26 +752,33 @@ jobs:
         # Integration specs spawn Python UDF workers that import the
         # generated betterproto bindings. Independent of sbt and the JDK.
         run: bash bin/python-proto-gen.sh
-      - name: Lint and run amber integration tests
+      - name: Download compiled Scala state
+        # Linux only — reuse the scala-build prebuild's compilation. macOS
+        # cannot (Zinc analysis is not OS-portable) and self-compiles below.
+        if: ${{ runner.os == 'Linux' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.scala-build.outputs.target }}
+          path: /tmp/scala-artifact
+      - name: Restore compiled Scala state
+        if: ${{ runner.os == 'Linux' }}
+        run: tar --use-compress-program='zstd -d' -xf /tmp/scala-artifact/scala-target.tar.zst -C .
+      - name: Run amber integration tests
         # AMBER_TEST_FILTER=integration-only tells amber/build.sbt to
         # keep only @org.apache.texera.amber.tags.IntegrationTest
         # specs. The Java @TagAnnotation makes the marker visible to
-        # ScalaTest's reflection, so `-n TAG` correctly narrows the
-        # run.
+        # ScalaTest's reflection, so `-n TAG` correctly narrows the run.
         #
-        # scalafmtCheckAll + scalafixAll --check are run here as well
-        # because an integration-only PR fires only the
-        # `amber-integration` label; the amber job's own cross-cutting
-        # lint would not run, and the change would otherwise land
-        # unlinted. Costs ~30s when amber also runs, which is fine.
-        # No jacoco — these specs exercise code paths already covered
-        # by amber's unit-test coverage.
+        # No lint here — scalafmt/scalafix run once in the scala-build
+        # prebuild, which always runs whenever this job does (both are in
+        # its `if:` union). On Linux the restored classes make this a
+        # test-only run; on macOS the same command self-compiles first.
+        # No jacoco — these specs exercise code paths already covered by
+        # amber's unit-test coverage.
         env:
           AMBER_TEST_FILTER: integration-only
         run: |
-          sbt scalafmtCheckAll \
-              "scalafixAll --check" \
-              "WorkflowExecutionService/test"
+          sbt "WorkflowExecutionService/test"
       - name: Run Python integration tests
         # --junit-xml feeds the Test Analytics upload below.
         run: |
@@ -631,11 +797,13 @@ jobs:
           fail_ci_if_error: false
 
   platform:
-    # Per-service build, test, and license check for the non-amber Scala
-    # services. Each matrix entry runs its own dist + test in isolation
-    # against per-module LICENSE-binary (#4668). scalafmt / scalafix already
-    # cover every module in the amber job above, so this matrix skips them.
+    # Per-service test and license check for the non-amber Scala services. The
+    # dist and all compilation come from the scala-build prebuild, restored
+    # below; each matrix entry then runs only its own jacoco tests and checks
+    # its dist against its per-module LICENSE-binary (#4668). scalafmt/scalafix
+    # run once in the prebuild, so this matrix skips them.
     if: ${{ inputs.run_platform }}
+    needs: scala-build
     name: ${{ format('platform{0} ({1})', inputs.job_name_suffix, matrix.service) }}
     runs-on: ubuntu-latest
     strategy:
@@ -698,10 +866,20 @@ jobs:
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
-      - name: Build dist and run ${{ matrix.service }} tests with coverage
-        # Single sbt invocation so dist + test share compiled state. Use
-        # `jacoco` so the codecov upload step has a report to pick up.
-        run: sbt "${{ matrix.sbt_project }}/dist" "${{ matrix.sbt_project }}/jacoco"
+      - name: Download compiled Scala state
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.scala-build.outputs.target }}
+          path: /tmp/scala-artifact
+      - name: Restore compiled Scala state
+        # Re-hydrate the per-module target/ tree: this service's dist (for the
+        # license check below) plus its compiled classes + test-classes + Zinc
+        # analysis, so the jacoco run reuses compilation.
+        run: tar --use-compress-program='zstd -d' -xf /tmp/scala-artifact/scala-target.tar.zst -C .
+      - name: Run ${{ matrix.service }} tests with coverage
+        # Dist is already built (restored above); run only jacoco so the
+        # codecov upload step has a report to pick up.
+        run: sbt "${{ matrix.sbt_project }}/jacoco"
       - name: Unzip ${{ matrix.service }} dist and check binary LICENSE + NOTICE
         # Each platform service has its own LICENSE-binary / NOTICE-binary at
         # the repo root after #4668. One step covers both for this service's
@@ -752,16 +930,16 @@ jobs:
           fail_ci_if_error: false
 
   platform-integration:
-    # Boot smoke test for the platform services (mirrors amber-integration: an
-    # independent, infra-provisioned integration job that builds on its own
-    # classpath — no artifact hand-off from the `platform` job, so the two run
-    # in parallel). Per-service matrix like `platform`: each service is launched
-    # from its freshly built dist and must reach a listening state without a
-    # runtime classpath/linkage crash (see #6220 and .github/scripts/smoke-boot.sh).
-    # postgres backs every service's JOOQ codegen + boot; file-service also
-    # fail-fasts on S3 / LakeFS during run(), so those are provisioned for it
-    # alone. Unit tests + coverage stay in `platform`. See #6273.
+    # Boot smoke test for the platform services. Each service is launched from
+    # its dist — built once by the scala-build prebuild and pulled here via the
+    # lightweight `scala-dists` artifact — and must reach a listening state
+    # without a runtime classpath/linkage crash (see #6220 and
+    # .github/scripts/smoke-boot.sh). No sbt here: this job never compiles, it
+    # only unzips and boots. postgres backs every service's boot; file-service
+    # also fail-fasts on S3 / LakeFS during run(), so those are provisioned for
+    # it alone. Unit tests + coverage stay in `platform`. See #6273.
     if: ${{ inputs.run_platform_integration }}
+    needs: scala-build
     name: ${{ format('platform-integration{0} ({1})', inputs.job_name_suffix, matrix.service) }}
     runs-on: ubuntu-latest
     strategy:
@@ -769,23 +947,17 @@ jobs:
       matrix:
         include:
           - service: config-service
-            sbt_project: ConfigService
             port: 9094
           - service: access-control-service
-            sbt_project: AccessControlService
             port: 9096
           - service: file-service
-            sbt_project: FileService
             port: 9092
             object_store: true
           - service: computing-unit-managing-service
-            sbt_project: ComputingUnitManagingService
             port: 8888
           - service: workflow-compiling-service
-            sbt_project: WorkflowCompilingService
             port: 9090
           - service: notebook-migration-service
-            sbt_project: NotebookMigrationService
             port: 9098
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
@@ -820,11 +992,6 @@ jobs:
         with:
           distribution: "temurin"
           java-version: 17
-      - name: Setup sbt launcher
-        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
-      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
-        with:
-          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
@@ -832,16 +999,16 @@ jobs:
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
-      - name: Build ${{ matrix.service }} dist
-        # Self-build on this job's own classpath (mirrors amber-integration
-        # compiling its own tests) rather than downloading an artifact from the
-        # `platform` job, so the two stay independent and run in parallel. No
-        # jacoco here — unit tests + coverage live in `platform`.
-        run: sbt "${{ matrix.sbt_project }}/dist"
+      - name: Download Scala dists
+        # Just the prebuilt dist zips — this job never compiles.
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.scala-build.outputs.dists }}
+          path: /tmp/scala-dists
       - name: Unzip ${{ matrix.service }} dist
         run: |
           mkdir -p /tmp/dists
-          unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
+          unzip -q /tmp/scala-dists/${{ matrix.service }}-*.zip -d /tmp/dists/
       - name: Start MinIO
         # file-service's boot creates its S3 bucket via S3StorageClient; only
         # that service needs an object store, so the rest of the matrix skips this.
