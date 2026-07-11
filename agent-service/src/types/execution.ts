@@ -17,56 +17,124 @@
  * under the License.
  */
 
-interface ConsoleMessage {
-  msgType: string;
+export enum WorkflowFatalErrorType {
+  COMPILATION_ERROR = "COMPILATION_ERROR",
+  EXECUTION_FAILURE = "EXECUTION_FAILURE",
+}
+
+// A fatal error reported for one operator. Reuses the engine's wire shape
+// (workflowruntimestate.proto). The same type the workflow-compiling service
+// returns for compilation errors, so compile and execution errors share one
+// shape. Re-exported by api/compile-api.ts.
+export interface WorkflowFatalError {
+  type: { name: WorkflowFatalErrorType };
+  timestamp: { seconds: number; nanos: number };
+  message: string;
+  details: string;
+  operatorId: string;
+  workerId: string;
+}
+
+// Lifecycle state of a single operator, as reported by the engine
+// (mirrors the backend's WorkflowAggregatedState string mapping).
+export enum OperatorState {
+  UNINITIALIZED = "Uninitialized",
+  READY = "Ready",
+  RUNNING = "Running",
+  PAUSING = "Pausing",
+  PAUSED = "Paused",
+  RESUMING = "Resuming",
+  COMPLETED = "Completed",
+  FAILED = "Failed",
+  KILLED = "Killed",
+  TERMINATED = "Terminated",
+  UNKNOWN = "Unknown",
+}
+
+// Aggregated state of a whole workflow execution: the OperatorState values the
+// engine reports, plus the synthetic outcomes the sync-execution endpoint adds.
+export enum WorkflowExecutionState {
+  UNINITIALIZED = "Uninitialized",
+  READY = "Ready",
+  RUNNING = "Running",
+  PAUSING = "Pausing",
+  PAUSED = "Paused",
+  RESUMING = "Resuming",
+  COMPLETED = "Completed",
+  FAILED = "Failed",
+  KILLED = "Killed",
+  TERMINATED = "Terminated",
+  UNKNOWN = "Unknown",
+  ERROR = "Error",
+  COMPILATION_FAILED = "CompilationFailed",
+}
+
+export enum ConsoleMessageType {
+  PRINT = "PRINT",
+  ERROR = "ERROR",
+  COMMAND = "COMMAND",
+  DEBUGGER = "DEBUGGER",
+}
+
+// A reduced console-message projection for sync-execution summaries. The engine
+// proto also has workerId/timestamp/source; this summary keeps only the fields
+// consumed by agent-service.
+export interface ConsoleMessageSummary {
+  msgType: ConsoleMessageType;
+  title: string;
   message: string;
 }
 
-interface PortShape {
-  portIndex: number;
-  rows: number;
-  columns: number;
+// A result row, mirroring the engine's Tuple wire shape
+// (org.apache.texera.amber.core.tuple.Tuple): a schema plus positional field values.
+// Because sampled rows are truncated (typed values become display strings), each Tuple
+// carries a synthetic all-STRING schema over its columns.
+export interface Attribute {
+  attributeName: string;
+  attributeType: string;
 }
 
-export interface OperatorInfo {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: PortShape[];
-  resultMode: string;
-  result?: Record<string, any>[];
-  totalRowCount?: number;
-  displayedRows?: number;
-  truncated?: boolean;
-  consoleLogs?: ConsoleMessage[];
-  error?: string;
-  warnings?: string[];
-  resultStatistics?: Record<string, string>;
+export interface Schema {
+  attributes: Attribute[];
 }
 
-export interface SyncExecutionResult {
-  success: boolean;
-  state: string;
-  operators: Record<string, OperatorInfo>;
-  compilationErrors?: Record<string, string>;
-  errors?: string[];
+export interface Tuple {
+  schema: Schema;
+  fields: unknown[];
 }
 
-/**
- * Wire projection of one operator's execution result, summarized for the
- * client: counts and a small record sample instead of full payloads. Returned
- * by the REST route `GET /agents/:id/operator-results`.
- */
+export enum OperatorResultMode {
+  TABLE = "table",
+  VISUALIZATION = "visualization",
+}
+
+// An operator's output summary. Sample tuples carry their original row index.
 export interface OperatorResultSummary {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: PortShape[];
-  outputColumns?: number;
-  error?: string;
-  warnings?: string[];
-  consoleLogCount?: number;
-  totalRowCount?: number;
-  sampleRecords?: Record<string, unknown>[];
-  resultStatistics?: Record<string, string>;
+  resultMode: OperatorResultMode;
+  sampleTuples: [number, Tuple][];
+  totalTuplesCount: number;
+}
+
+// Per-operator execution summary returned by the sync-execution backend.
+// Orthogonal sub-summaries replace the previous flat `OperatorInfo`.
+export interface OperatorExecutionSummary {
+  state: OperatorState;
+  // Empty means the operator did not fail.
+  errorMessages: ReadonlyArray<WorkflowFatalError>;
+  // Absent when the operator produced no materialized result.
+  resultSummary?: OperatorResultSummary;
+  // Absent when the operator produced no console output.
+  consoleMessages?: ConsoleMessageSummary[];
+}
+
+// The result of one synchronous workflow execution.
+export interface WorkflowExecutionSummary {
+  // True only on a clean run; can be false even when state is "Completed"
+  // (e.g. an operator logged a console error without aborting the run).
+  success: boolean;
+  state: WorkflowExecutionState;
+  operators: Record<string, OperatorExecutionSummary>;
+  // Workflow-level errors (timeouts, init/compile failures, fatal errors);
+  // empty means none. For workflow-level failures, operatorId/workerId are empty.
+  errors: WorkflowFatalError[];
 }

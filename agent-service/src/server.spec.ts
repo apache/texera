@@ -21,6 +21,7 @@ import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { buildApp, start, _resetAgentStoreForTests, _getAgentForTests } from "./server";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
+import { OperatorResultMode, OperatorState } from "./types/execution";
 
 const API = env.API_PREFIX;
 const app = buildApp();
@@ -323,6 +324,8 @@ describe("agent read routes", () => {
 
   test("GET /:id/operator-results maps the visible operator results", async () => {
     const agent = _getAgentForTests(id)!;
+    // PR1 keeps the frontend-facing route on the legacy summary shape while
+    // agent-service stores the new OperatorExecutionSummary internally.
     (agent as any).getWorkflowResultState = () => ({
       getAllVisible: () =>
         new Map([
@@ -330,27 +333,41 @@ describe("agent read routes", () => {
             "op-1",
             {
               operatorInfo: {
-                state: "COMPLETED",
-                inputTuples: 1,
-                outputTuples: 2,
-                inputPortShapes: [],
-                result: [{ a: 1 }],
-                error: undefined,
-                warnings: [],
-                consoleLogs: [],
-                totalRowCount: 2,
-                resultStatistics: {},
+                state: OperatorState.COMPLETED,
+                errorMessages: [],
+                resultSummary: {
+                  resultMode: OperatorResultMode.TABLE,
+                  sampleTuples: [
+                    [0, { schema: { attributes: [{ attributeName: "a", attributeType: "string" }] }, fields: [1] }],
+                  ],
+                  totalTuplesCount: 2,
+                },
+                consoleMessages: [{ msgType: "PRINT", title: "WARNING: check me", message: "" }],
               },
             },
           ],
         ]),
     });
 
-    const body = await readJson<{ results: Record<string, { outputTuples: number; outputColumns: number }> }>(
-      await getJson(`${API}/agents/${id}/operator-results`)
-    );
+    const body = await readJson<{
+      results: Record<
+        string,
+        {
+          state: string;
+          outputTuples: number;
+          outputColumns: number;
+          totalRowCount: number;
+          warnings: string[];
+          sampleRecords: Record<string, unknown>[];
+        }
+      >;
+    }>(await getJson(`${API}/agents/${id}/operator-results`));
+    expect(body.results["op-1"].state).toBe("Completed");
     expect(body.results["op-1"].outputTuples).toBe(2);
     expect(body.results["op-1"].outputColumns).toBe(1);
+    expect(body.results["op-1"].totalRowCount).toBe(2);
+    expect(body.results["op-1"].warnings).toEqual(["WARNING: check me"]);
+    expect(body.results["op-1"].sampleRecords).toEqual([{ __row_index__: 0, a: 1 }]);
   });
 });
 

@@ -17,10 +17,72 @@
  * under the License.
  */
 
-export const INTERNAL_RESULT_KEYS: ReadonlySet<string> = new Set(["__row_index__", "__is_visualization__"]);
+import type { OperatorExecutionSummary, Tuple } from "../../types/execution";
 
-export function getVisibleResultHeaders(row: Record<string, any>): string[] {
-  return Object.keys(row).filter(k => !INTERNAL_RESULT_KEYS.has(k));
+// The single definition of "this operator failed": some fatal error carries
+// message text. The engine can emit console ERRORs with empty text, which do
+// not count, matching the previous `error` field's truthiness semantics.
+export function getOperatorErrorText(opInfo: OperatorExecutionSummary): string {
+  return opInfo.errorMessages
+    .map(e => e.message)
+    .filter(Boolean)
+    .join("; ");
+}
+
+// The column names of a tuple, in schema order.
+export function tupleColumns(tuple: Tuple): string[] {
+  return tuple.schema.attributes.map(a => a.attributeName);
+}
+
+// Project a tuple's positional fields back into a column->value record.
+export function tupleToRecord(tuple: Tuple): Record<string, unknown> {
+  const record: Record<string, unknown> = {};
+  tuple.schema.attributes.forEach((a, i) => {
+    record[a.attributeName] = tuple.fields[i];
+  });
+  return record;
+}
+
+// Sampled rows arrive as [originalRowIndex, Tuple] pairs.
+export function formatSampleRowsAsTsv(rows: [number, Tuple][]): string {
+  if (!rows || rows.length === 0) return "";
+
+  const headers = tupleColumns(rows[0][1]);
+  if (headers.length === 0) return "";
+
+  const headerLine = "\t" + headers.join("\t");
+  const formattedRows: string[] = [];
+  let prevIndex = -1;
+
+  for (const [rowIndex, tuple] of rows) {
+    if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
+      const dots = headers.map(() => "...").join("\t");
+      formattedRows.push(`...\t${dots}`);
+    }
+    prevIndex = rowIndex;
+
+    const record = tupleToRecord(tuple);
+    const cells = headers.map(h => {
+      const val = record[h];
+      if (val === null) return "NaN";
+      if (val === undefined) return "";
+      if (typeof val === "number" || typeof val === "boolean") return String(val);
+      if (typeof val === "string") {
+        if (val === "NULL") return "NaN";
+        return val.replace(/\t/g, "\\t").replace(/\n/g, "\\n");
+      }
+      return JSON.stringify(val);
+    });
+    formattedRows.push(`${rowIndex}\t${cells.join("\t")}`);
+  }
+
+  return [headerLine, ...formattedRows].join("\n");
+}
+
+// Warnings are the console messages the engine tags with a "WARNING: " title
+// prefix; derive them rather than carrying a separate field on the summary.
+export function getOperatorWarnings(opInfo: OperatorExecutionSummary): string[] {
+  return (opInfo.consoleMessages ?? []).filter(m => m.title.startsWith("WARNING: ")).map(m => m.title);
 }
 
 export function createToolResult(message: string): string {
