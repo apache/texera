@@ -100,8 +100,11 @@ function normalizeOperatorState(state: string): OperatorState {
   return operatorStates.has(state) ? (state as OperatorState) : OperatorState.UNKNOWN;
 }
 
-function normalizeWorkflowState(state: string): WorkflowExecutionState {
-  return workflowStates.has(state) ? (state as WorkflowExecutionState) : WorkflowExecutionState.UNKNOWN;
+// Keep the legacy boolean at the wire boundary: canonical consumers use state alone,
+// so an unclean legacy completion must become an explicit failure state.
+function normalizeWorkflowState(state: string, success: boolean): WorkflowExecutionState {
+  const normalized = workflowStates.has(state) ? (state as WorkflowExecutionState) : WorkflowExecutionState.UNKNOWN;
+  return !success && normalized === WorkflowExecutionState.COMPLETED ? WorkflowExecutionState.FAILED : normalized;
 }
 
 function normalizeCellValue(value: unknown): unknown {
@@ -204,8 +207,7 @@ export function adaptLegacySyncExecutionResult(input: unknown): WorkflowExecutio
   );
 
   return {
-    success: legacy.success,
-    state: normalizeWorkflowState(legacy.state),
+    state: normalizeWorkflowState(legacy.state, legacy.success),
     operators,
     errors,
   };
