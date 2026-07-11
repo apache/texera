@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import type { OperatorExecutionSummary, Tuple } from "../../types/execution";
+import type { OperatorExecutionSummary, Tuple, WebOutputMode } from "../../types/execution";
 
 // The single definition of "this operator failed": some fatal error carries
 // message text. The engine can emit console ERRORs with empty text, which do
@@ -41,6 +41,21 @@ export function tupleToRecord(tuple: Tuple): Record<string, unknown> {
     record[a.attributeName] = tuple.fields[i];
   });
   return record;
+}
+
+// Keep visualization payloads in stored results for frontend rendering, but do not
+// send their potentially large HTML/JSON bodies to the LLM as tool or DAG context.
+export function redactVisualizationPayloads(rows: [number, Tuple][], resultMode: WebOutputMode): [number, Tuple][] {
+  if (resultMode.type !== "SetSnapshotMode") return rows;
+
+  return rows.map(([rowIndex, tuple]) => {
+    const fields = tuple.schema.attributes.map((attribute, index) =>
+      attribute.attributeName === "html-content" || attribute.attributeName === "json-content"
+        ? "<skipped: visualization content>"
+        : tuple.fields[index]
+    );
+    return [rowIndex, { schema: tuple.schema, fields }];
+  });
 }
 
 // Sampled rows arrive as [originalRowIndex, Tuple] pairs.

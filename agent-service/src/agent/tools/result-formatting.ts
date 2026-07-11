@@ -17,12 +17,13 @@
  * under the License.
  */
 
-import type { OperatorExecutionSummary, Tuple } from "../../types/execution";
+import type { OperatorExecutionSummary } from "../../types/execution";
 import {
   formatExecuteOperatorResult,
   formatSampleRowsAsTsv,
   getOperatorErrorText,
   getOperatorWarnings,
+  redactVisualizationPayloads,
   tupleColumns,
 } from "./tools-utility";
 
@@ -32,22 +33,13 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorExecuti
     return `[ERROR] ${errorText}`;
   }
 
-  const sampleTuples = opInfo.resultSummary?.sampleTuples;
+  const resultSummary = opInfo.resultSummary;
+  const sampleTuples = resultSummary?.sampleTuples;
   if (!sampleTuples || !Array.isArray(sampleTuples)) {
     return "(no result data)";
   }
 
-  const isViz = opInfo.resultSummary?.resultMode.type === "SetSnapshotMode";
-  const rows: [number, Tuple][] = isViz
-    ? sampleTuples.map(([rowIndex, tuple]) => {
-        const fields = tuple.schema.attributes.map((a, i) =>
-          a.attributeName === "html-content" || a.attributeName === "json-content"
-            ? "<skipped: visualization content>"
-            : tuple.fields[i]
-        );
-        return [rowIndex, { schema: tuple.schema, fields }];
-      })
-    : sampleTuples;
+  const rows = redactVisualizationPayloads(sampleTuples, resultSummary.resultMode);
 
   const headers = rows.length > 0 ? tupleColumns(rows[0][1]) : [];
   const columns = headers.length;
@@ -56,7 +48,7 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorExecuti
 
   // Output shape only; input-port shapes are derivable by the agent from the DAG
   // links plus each upstream operator's own output shape shown in context.
-  const outputRows = opInfo.resultSummary?.totalTuplesCount ?? 0;
+  const outputRows = resultSummary.totalTuplesCount;
   const metadataLines = [`Output table shape: (${outputRows}, ${columns})`, ...getOperatorWarnings(opInfo)].filter(
     Boolean
   );

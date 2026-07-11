@@ -331,6 +331,41 @@ describe("executeOperatorAndFormat - successful runs", () => {
     const dataRowCount = out.split("\n").filter(l => /^\d+\t/.test(l)).length;
     expect(dataRowCount).toBeLessThan(12);
   });
+
+  test("redacts visualization payloads from tool text without mutating the stored result", async () => {
+    const { state, target } = makeLinearState();
+    const html = `<div>${"x".repeat(200)}</div>`;
+    const json = JSON.stringify({ points: "y".repeat(200) });
+    const summary: WorkflowExecutionSummary = {
+      state: WorkflowExecutionState.COMPLETED,
+      operators: {
+        [target]: {
+          state: OperatorState.COMPLETED,
+          errorMessages: [],
+          resultSummary: {
+            resultMode: { type: "SetSnapshotMode" },
+            sampleTuples: [[0, recordToTuple({ "html-content": html, "json-content": json, label: "chart" })]],
+            totalTuplesCount: 1,
+          },
+        },
+      },
+      errors: [],
+    };
+    setFetchResolving(jsonResponse(summary));
+
+    const onResult = mock((_operatorId: string, _info: OperatorExecutionSummary) => {});
+    const out = await executeOperatorAndFormat(state, makeConfig({ maxOperatorResultCharLimit: 80 }), target, {
+      onResult,
+    });
+
+    expect(out).toContain("<skipped: visualization content>");
+    expect(out).not.toContain(html);
+    expect(out).not.toContain(json);
+
+    const notified = onResult.mock.calls.find(([operatorId]) => operatorId === target)?.[1];
+    expect(notified?.resultSummary?.sampleTuples[0][1].fields).toContain(html);
+    expect(notified?.resultSummary?.sampleTuples[0][1].fields).toContain(json);
+  });
 });
 
 describe("executeOperatorAndFormat - execution failures", () => {
