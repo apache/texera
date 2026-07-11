@@ -20,14 +20,14 @@
 package org.apache.texera.amber.operator.visualization.ternaryContour
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
@@ -38,25 +38,32 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
   * The points can optionally be color coded using a data field.
   */
 
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "fourthVariable": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
 class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
   @JsonSchemaTitle("Variable 1")
   @JsonPropertyDescription("First variable data field")
-  @AutofillAttributeName var firstVariable: EncodableString = ""
+  @AutofillAttributeName @SampleColumn("simplex_a") var firstVariable: EncodableString = ""
 
   // Add annotations for the second variable
   @JsonProperty(value = "secondVariable", required = true)
   @JsonSchemaTitle("Variable 2")
   @JsonPropertyDescription("Second variable data field")
-  @AutofillAttributeName var secondVariable: EncodableString = ""
+  @AutofillAttributeName @SampleColumn("simplex_b") var secondVariable: EncodableString = ""
 
   // Add annotations for the third variable
   @JsonProperty(value = "thirdVariable", required = true)
   @JsonSchemaTitle("Variable 3")
   @JsonPropertyDescription("Third variable data field")
-  @AutofillAttributeName var thirdVariable: EncodableString = ""
+  @AutofillAttributeName @SampleColumn("simplex_c") var thirdVariable: EncodableString = ""
 
   // Add annotations for the fourth variable
   @JsonProperty(value = "fourthVariable", required = true)

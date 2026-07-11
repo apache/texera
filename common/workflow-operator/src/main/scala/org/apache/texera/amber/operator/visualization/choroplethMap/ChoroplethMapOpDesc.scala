@@ -26,7 +26,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
@@ -50,6 +50,7 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
     "Column used to describe location. Currently only supports countries and needs to be three-letter ISO country code"
   )
   @AutofillAttributeName
+  @SampleColumn("iso_country")
   var locations: EncodableString = ""
 
   @JsonProperty(value = "color", required = true)

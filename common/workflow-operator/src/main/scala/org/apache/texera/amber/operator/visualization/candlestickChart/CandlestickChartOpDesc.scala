@@ -26,7 +26,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 class CandlestickChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
@@ -35,30 +35,35 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor with StandaloneCod
   @JsonSchemaTitle("Date Column")
   @JsonPropertyDescription("the date of the candlestick")
   @AutofillAttributeName
+  @SampleColumn("trade_date")
   var date: EncodableString = ""
 
   @JsonProperty(value = "open", required = true)
   @JsonSchemaTitle("Opening Price Column")
   @JsonPropertyDescription("the opening price of the candlestick")
   @AutofillAttributeName
+  @SampleColumn("open")
   var open: EncodableString = ""
 
   @JsonProperty(value = "high", required = true)
   @JsonSchemaTitle("Highest Price Column")
   @JsonPropertyDescription("the highest price of the candlestick")
   @AutofillAttributeName
+  @SampleColumn("high")
   var high: EncodableString = ""
 
   @JsonProperty(value = "low", required = true)
   @JsonSchemaTitle("Lowest Price Column")
   @JsonPropertyDescription("the lowest price of the candlestick")
   @AutofillAttributeName
+  @SampleColumn("low")
   var low: EncodableString = ""
 
   @JsonProperty(value = "close", required = true)
   @JsonSchemaTitle("Closing Price Column")
   @JsonPropertyDescription("the closing price of the candlestick")
   @AutofillAttributeName
+  @SampleColumn("close")
   var close: EncodableString = ""
 
   override def getOutputSchemas(

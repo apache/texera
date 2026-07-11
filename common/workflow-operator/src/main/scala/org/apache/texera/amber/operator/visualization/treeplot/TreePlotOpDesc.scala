@@ -26,7 +26,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 /**
@@ -42,6 +42,7 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
   @JsonSchemaTitle("Edge List Column")
   @JsonPropertyDescription("Column with [parent, child] pairs")
   @AutofillAttributeName
+  @SampleColumn("edge_pair")
   var edgeListColumn: EncodableString = ""
 
   override def operatorInfo: OperatorInfo =

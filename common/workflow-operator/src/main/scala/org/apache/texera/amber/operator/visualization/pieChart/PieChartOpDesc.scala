@@ -26,7 +26,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
@@ -38,6 +38,9 @@ import javax.validation.constraints.NotNull
   "attributeTypeRules": {
     "value": {
       "enum": ["integer", "long", "double"]
+    },
+    "name": {
+      "enum": ["string"]
     }
   }
 }
@@ -55,6 +58,7 @@ class PieChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
   @JsonSchemaTitle("Name Column")
   @JsonPropertyDescription("The name of the slice of pie")
   @AutofillAttributeName
+  @SampleColumn("uniq_name")
   @NotNull(message = "Name column cannot be empty")
   var name: EncodableString = ""
 
