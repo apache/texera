@@ -17,40 +17,52 @@
  under the License.
 -->
 
-<div class="staged-object-list-container">
-  <nz-list
-    nzSize="small"
+<div
+  class="staged-object-list-container"
+  [class.has-list]="datasetStagedObjects.length > 0">
+  <!-- Virtualized so only visible rows are in the DOM (#5586). The viewport can
+       initialize hidden and measure height 0; the host re-measures it on panel
+       expand (remeasureViewport). -->
+  <cdk-virtual-scroll-viewport
     *ngIf="datasetStagedObjects.length > 0"
-    class="custom-border-list">
-    <nz-list-item *ngFor="let obj of datasetStagedObjects">
-      <span>
-        <nz-tag [nzColor]="obj.diffType === 'added' ? 'green' : 'red'"> {{ obj.diffType }} </nz-tag>
-      </span>
-      <span
-        class="truncate-file-path"
-        nz-tooltip
-        [nzTooltipTitle]="fileTooltipTpl">
-        {{ obj.path }}
-      </span>
-      <ng-template #fileTooltipTpl>
-        <div>{{ obj.path }}</div>
-        <div *ngIf="getFileUploadTime(obj.path) as uploadTime">Upload time: {{ formatTime(uploadTime) }}</div>
-      </ng-template>
-      <!-- Small delete button with tooltip -->
-      <button
-        nz-button
-        nzType="link"
-        class="delete-button"
-        nz-tooltip
-        [nzTooltipTitle]="'Revert the change'"
-        (click)="onObjectReverted(obj)">
-        <i
-          nz-icon
-          nzType="delete"
-          nzTheme="outline"></i>
-      </button>
-    </nz-list-item>
-  </nz-list>
+    class="staged-object-viewport"
+    [itemSize]="STAGED_ROW_HEIGHT_PX"
+    [minBufferPx]="STAGED_LIST_MAX_HEIGHT_PX"
+    [maxBufferPx]="2 * STAGED_LIST_MAX_HEIGHT_PX"
+    [style.height.px]="stagedListHeightPx">
+    <nz-list nzSize="small">
+      <nz-list-item
+        class="staged-object-row"
+        *cdkVirtualFor="let obj of datasetStagedObjects; trackBy: trackByStagedObject">
+        <span>
+          <nz-tag [nzColor]="obj.diffType === 'added' ? 'green' : 'red'"> {{ obj.diffType }} </nz-tag>
+        </span>
+        <span
+          class="truncate-file-path"
+          nz-tooltip
+          [nzTooltipTitle]="fileTooltipTpl">
+          {{ obj.path }}
+        </span>
+        <ng-template #fileTooltipTpl>
+          <div>{{ obj.path }}</div>
+          <div *ngIf="getFileUploadTime(obj.path) as uploadTime">Upload time: {{ formatTime(uploadTime) }}</div>
+        </ng-template>
+        <!-- Small delete button with tooltip -->
+        <button
+          nz-button
+          nzType="link"
+          class="delete-button"
+          nz-tooltip
+          [nzTooltipTitle]="'Revert the change'"
+          (click)="onObjectReverted(obj)">
+          <i
+            nz-icon
+            nzType="delete"
+            nzTheme="outline"></i>
+        </button>
+      </nz-list-item>
+    </nz-list>
+  </cdk-virtual-scroll-viewport>
 
   <nz-empty
     *ngIf="datasetStagedObjects.length === 0"

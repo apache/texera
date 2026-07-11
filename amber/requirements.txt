@@ -34,9 +34,9 @@ psutil==7.2.2
 tzlocal==2.1
 # Not imported directly: s3fs (with aiobotocore) backs pyiceberg's
 # fsspec-based S3 FileIO (#4272).
-s3fs==2025.9.0
-aiobotocore==2.26.0
-botocore==1.41.5
+s3fs==2026.6.0
+aiobotocore==3.7.0
+botocore==1.42.90
 pyiceberg==0.11.1
 readerwriterlock==1.0.9
 tenacity==8.5.0
@@ -45,6 +45,6 @@ tenacity==8.5.0
 SQLAlchemy==2.0.51
 pg8000==1.31.5
 pympler==1.1
-boto3==1.41.5
+boto3==1.42.90
 requests==2.34.2
 urllib3==2.7.0
