@@ -56,8 +56,9 @@ class AsterixDBSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.interval shouldBe 0L
   }
 
-  "AsterixDBSourceOpDesc.sourceSchema" should "be null before a connection is configured" in {
-    (new AsterixDBSourceOpDesc).sourceSchema() shouldBe null
+  "AsterixDBSourceOpDesc.sourceSchema" should "prompt for connection details before a connection is configured" in {
+    val ex = intercept[IllegalArgumentException]((new AsterixDBSourceOpDesc).sourceSchema())
+    ex.getMessage should include("host")
   }
 
   "AsterixDBSourceOpDesc.getPhysicalOp" should

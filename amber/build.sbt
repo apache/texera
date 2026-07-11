@@ -224,7 +224,7 @@ genPythonProto := {
         "Install protoc and `pip install betterproto[compiler]` before launching a Python worker or running pytest."
     )
   } else {
-    val procLogger = scala.sys.process.ProcessLogger(line => log.info(line), line => log.error(line))
+    val procLogger = scala.sys.process.ProcessLogger(line => log.info(line), line => log.info(line))
     val exit = scala.sys.process.Process(Seq("bash", script.getAbsolutePath), repoRoot).!(procLogger)
     if (exit != 0) sys.error(s"python-proto-gen.sh failed with exit code $exit")
   }
@@ -255,7 +255,7 @@ libraryDependencies += "com.flipkart.zjsonpatch" % "zjsonpatch" % "0.4.16"
 libraryDependencies += "io.reactivex.rxjava3" % "rxjava" % "3.1.12"
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
-libraryDependencies += "org.postgresql" % "postgresql" % "42.7.12"
+libraryDependencies += "org.postgresql" % "postgresql" % "42.7.13"
 
 // https://mvnrepository.com/artifact/com.typesafe.scala-logging/scala-logging
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.6"
@@ -276,7 +276,7 @@ libraryDependencies += "com.konghq" % "unirest-java" % "3.14.5"
 libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
-libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
+libraryDependencies += "org.jooq" % "jooq" % "3.19.36"
 
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
