@@ -33,6 +33,7 @@ import {
   type WorkflowFatalError,
 } from "../../types/execution";
 import type { OperatorLink, OperatorPredicate, PortDescription } from "../../types/workflow";
+import type { LegacySyncExecutionResult } from "../../api/execution-api";
 
 // --- fixtures -------------------------------------------------------------
 
@@ -110,8 +111,46 @@ function setFetchRejecting(error: Error): void {
   }) as unknown as typeof fetch;
 }
 
+function toLegacyResponse(summary: WorkflowExecutionSummary): LegacySyncExecutionResult {
+  return {
+    success: summary.success,
+    state: summary.state,
+    operators: Object.fromEntries(
+      Object.entries(summary.operators).map(([operatorId, operator]) => {
+        const resultSummary = operator.resultSummary;
+        const error =
+          operator.errorMessages
+            .map(item => item.message)
+            .filter(Boolean)
+            .join("; ") || undefined;
+        const result = resultSummary?.sampleTuples.map(([rowIndex, tuple]) => ({
+          __row_index__: rowIndex,
+          ...Object.fromEntries(
+            tuple.schema.attributes.map((attribute, index) => [attribute.attributeName, tuple.fields[index]])
+          ),
+        }));
+
+        return [
+          operatorId,
+          {
+            state: operator.state,
+            inputTuples: 0,
+            outputTuples: resultSummary?.totalTuplesCount ?? 0,
+            resultMode: resultSummary?.resultMode ?? OperatorResultMode.TABLE,
+            result,
+            totalRowCount: resultSummary?.totalTuplesCount,
+            consoleLogs: operator.consoleMessages,
+            error,
+          },
+        ];
+      })
+    ),
+    errors: summary.errors.map(error => error.message),
+  };
+}
+
 function jsonResponse(summary: WorkflowExecutionSummary): Response {
-  return new Response(JSON.stringify(summary), {
+  return new Response(JSON.stringify(toLegacyResponse(summary)), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });

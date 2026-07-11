@@ -17,6 +17,19 @@
  * under the License.
  */
 
+import { z } from "zod";
+import {
+  ConsoleMessageType,
+  OperatorResultMode,
+  OperatorState,
+  WorkflowExecutionState,
+  WorkflowFatalErrorType,
+  type OperatorExecutionSummary,
+  type Tuple,
+  type WorkflowExecutionSummary,
+  type WorkflowFatalError,
+} from "../types/execution";
+
 export interface LogicalLink {
   fromOpId: string;
   fromPortId: { id: number; internal: boolean };
@@ -35,4 +48,157 @@ export interface LogicalPlan {
   links: LogicalLink[];
   opsToViewResult?: string[];
   opsToReuseResult?: string[];
+}
+
+const legacyConsoleMessageSchema = z.object({
+  msgType: z.nativeEnum(ConsoleMessageType),
+  title: z.string().default(""),
+  message: z.string(),
+});
+
+const legacyOperatorInfoSchema = z
+  .object({
+    state: z.string(),
+    inputTuples: z.number(),
+    outputTuples: z.number(),
+    resultMode: z.nativeEnum(OperatorResultMode),
+    result: z.array(z.record(z.unknown())).nullish(),
+    totalRowCount: z.number().int().nonnegative().nullish(),
+    displayedRows: z.number().int().nonnegative().nullish(),
+    truncated: z.boolean().nullish(),
+    consoleLogs: z.array(legacyConsoleMessageSchema).nullish(),
+    error: z.string().nullish(),
+    warnings: z.array(z.string()).nullish(),
+  })
+  .passthrough();
+
+const legacySyncExecutionResultSchema = z
+  .object({
+    success: z.boolean(),
+    state: z.string(),
+    operators: z.record(legacyOperatorInfoSchema),
+    compilationErrors: z.record(z.string()).nullish(),
+    errors: z.array(z.string()).nullish(),
+  })
+  .passthrough();
+
+export type LegacySyncExecutionResult = z.input<typeof legacySyncExecutionResultSchema>;
+
+const internalResultKeys = new Set(["__row_index__", "__is_visualization__"]);
+const operatorStates = new Set<string>(Object.values(OperatorState));
+const workflowStates = new Set<string>(Object.values(WorkflowExecutionState));
+
+function normalizeOperatorState(state: string): OperatorState {
+  return operatorStates.has(state) ? (state as OperatorState) : OperatorState.UNKNOWN;
+}
+
+function normalizeWorkflowState(state: string): WorkflowExecutionState {
+  return workflowStates.has(state) ? (state as WorkflowExecutionState) : WorkflowExecutionState.UNKNOWN;
+}
+
+function normalizeCellValue(value: unknown): unknown {
+  if (value === null) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+
+  const serialized = JSON.stringify(value);
+  return serialized === undefined ? String(value) : serialized;
+}
+
+function legacyRowToTuple(row: Record<string, unknown>, fallbackIndex: number): [number, Tuple] {
+  const rowIndexValue = row["__row_index__"];
+  if (rowIndexValue !== undefined && (!Number.isInteger(rowIndexValue) || (rowIndexValue as number) < 0)) {
+    throw new Error(`Invalid __row_index__ for sampled row ${fallbackIndex}`);
+  }
+  const rowIndex = rowIndexValue === undefined ? fallbackIndex : (rowIndexValue as number);
+  const entries = Object.entries(row).filter(([name]) => !internalResultKeys.has(name));
+
+  return [
+    rowIndex,
+    {
+      schema: {
+        attributes: entries.map(([attributeName]) => ({ attributeName, attributeType: "string" })),
+      },
+      fields: entries.map(([, value]) => normalizeCellValue(value)),
+    },
+  ];
+}
+
+function makeWorkflowError(type: WorkflowFatalErrorType, message: string, operatorId: string): WorkflowFatalError {
+  const now = Date.now();
+  return {
+    type: { name: type },
+    timestamp: { seconds: Math.floor(now / 1000), nanos: (now % 1000) * 1_000_000 },
+    message,
+    details: "",
+    operatorId,
+    workerId: "",
+  };
+}
+
+function adaptOperatorInfo(
+  operatorId: string,
+  operator: z.output<typeof legacyOperatorInfoSchema>
+): OperatorExecutionSummary {
+  const resultSummary =
+    operator.result == null
+      ? undefined
+      : {
+          resultMode: operator.resultMode,
+          sampleTuples: operator.result.map(legacyRowToTuple),
+          totalTuplesCount: operator.totalRowCount ?? operator.outputTuples,
+        };
+
+  const consoleMessages = operator.consoleLogs?.length ? operator.consoleLogs : undefined;
+  const errorMessages = operator.error
+    ? [makeWorkflowError(WorkflowFatalErrorType.EXECUTION_FAILURE, operator.error, operatorId)]
+    : [];
+
+  return {
+    state: normalizeOperatorState(operator.state),
+    errorMessages,
+    resultSummary,
+    consoleMessages,
+  };
+}
+
+/**
+ * Compatibility boundary for the current Scala sync-execution response.
+ *
+ * The backend is intentionally left on its legacy contract in this change. Its execution
+ * result model will be redesigned and refactored separately; remove these legacy schemas
+ * and this adapter once that backend work lands.
+ */
+export function adaptLegacySyncExecutionResult(input: unknown): WorkflowExecutionSummary {
+  const parsed = legacySyncExecutionResultSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(`Invalid legacy sync-execution response: ${parsed.error.message}`);
+  }
+
+  const legacy = parsed.data;
+  const operators = Object.fromEntries(
+    Object.entries(legacy.operators).map(([operatorId, operator]) => [
+      operatorId,
+      adaptOperatorInfo(operatorId, operator),
+    ])
+  );
+
+  const compilationMessages = new Set(Object.values(legacy.compilationErrors ?? {}));
+  const allMessages = [...compilationMessages, ...(legacy.errors ?? [])];
+  const errors = [...new Set(allMessages)].map(message =>
+    makeWorkflowError(
+      legacy.state === WorkflowExecutionState.COMPILATION_FAILED || compilationMessages.has(message)
+        ? WorkflowFatalErrorType.COMPILATION_ERROR
+        : WorkflowFatalErrorType.EXECUTION_FAILURE,
+      message,
+      ""
+    )
+  );
+
+  return {
+    success: legacy.success,
+    state: normalizeWorkflowState(legacy.state),
+    operators,
+    errors,
+  };
 }
