@@ -22,15 +22,18 @@ package org.apache.texera.amber.operator.huggingFace
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
+class HuggingFaceSentimentAnalysisOpDesc
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to perform sentiment analysis on")
   @AutofillAttributeName
+  @SampleColumn("short_text")
   var attribute: EncodableString = _
 
   @JsonProperty(
@@ -61,7 +64,6 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
     pyb"""from pytexera import *
        |from transformers import pipeline
        |from transformers import AutoModelForSequenceClassification
-       |from transformers import TFAutoModelForSequenceClassification
        |from transformers import AutoTokenizer, AutoConfig
        |import numpy as np
        |from scipy.special import softmax
@@ -86,6 +88,36 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
        |            score = scores[ranking[i]]
        |            tuple_[label] = np.round(float(score), 4)
        |        yield tuple_""".encode
+  }
+
+  override def producesDataFrame(): Boolean = true
+
+  // Standalone mirror of generatePythonCode: load the model once, then apply the
+  // same per-row softmax-over-3-labels logic to in1df, adding the three DOUBLE
+  // result columns (in the same order as getOutputSchemas) to produce out1df.
+  override def generateStandaloneCode(): String = {
+    s"""from transformers import AutoModelForSequenceClassification
+       |from transformers import AutoTokenizer, AutoConfig
+       |import numpy as np
+       |from scipy.special import softmax
+       |
+       |model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+       |tokenizer = AutoTokenizer.from_pretrained(model_name)
+       |config = AutoConfig.from_pretrained(model_name)
+       |model = AutoModelForSequenceClassification.from_pretrained(model_name)
+       |
+       |out1df = in1df.copy()
+       |labels = {"positive": "$resultAttributePositive", "neutral": "$resultAttributeNeutral", "negative": "$resultAttributeNegative"}
+       |for _col in ("$resultAttributePositive", "$resultAttributeNeutral", "$resultAttributeNegative"):
+       |    out1df[_col] = 0.0
+       |for _idx, _text in out1df["$attribute"].items():
+       |    encoded_input = tokenizer(_text, return_tensors='pt')
+       |    output = model(**encoded_input)
+       |    scores = softmax(output[0][0].detach().numpy())
+       |    ranking = np.argsort(scores)[::-1]
+       |    for i in range(scores.shape[0]):
+       |        label = labels[config.id2label[ranking[i]]]
+       |        out1df.at[_idx, label] = np.round(float(scores[ranking[i]]), 4)""".stripMargin
   }
 
   override def operatorInfo: OperatorInfo =

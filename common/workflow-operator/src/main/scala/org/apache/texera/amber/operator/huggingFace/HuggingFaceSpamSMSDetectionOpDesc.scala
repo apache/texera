@@ -22,15 +22,18 @@ package org.apache.texera.amber.operator.huggingFace
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
+class HuggingFaceSpamSMSDetectionOpDesc
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to perform spam detection on")
   @AutofillAttributeName
+  @SampleColumn("short_text")
   var attribute: EncodableString = _
 
   @JsonProperty(
@@ -64,6 +67,21 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
        |        tuple_[$resultAttributeSpam] = (result["label"] == "LABEL_1")
        |        tuple_[$resultAttributeProbability] = result["score"]
        |        yield tuple_""".encode
+  }
+
+  override def producesDataFrame(): Boolean = true
+
+  // Standalone mirror of generatePythonCode: build the text-classification
+  // pipeline once, run it per row, and add the BOOLEAN spam flag (LABEL_1) and
+  // the DOUBLE score columns (in getOutputSchemas order) to produce out1df.
+  override def generateStandaloneCode(): String = {
+    s"""from transformers import pipeline
+       |
+       |_pipeline = pipeline("text-classification", model="mrm8488/bert-tiny-finetuned-sms-spam-detection")
+       |out1df = in1df.copy()
+       |_results = [_pipeline(_t)[0] for _t in out1df["$attribute"]]
+       |out1df["$resultAttributeSpam"] = [_r["label"] == "LABEL_1" for _r in _results]
+       |out1df["$resultAttributeProbability"] = [_r["score"] for _r in _results]""".stripMargin
   }
 
   override def operatorInfo: OperatorInfo =

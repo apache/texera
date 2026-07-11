@@ -24,20 +24,24 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
+class HuggingFaceIrisLogisticRegressionOpDesc
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator {
 
   @JsonProperty(value = "petalLengthCmAttribute", required = true)
   @JsonPropertyDescription("attribute in your dataset corresponding to PetalLengthCm")
   @AutofillAttributeName
+  @SampleColumn("petal_length")
   var petalLengthCmAttribute: EncodableString = _
 
   @JsonProperty(value = "petalWidthCmAttribute", required = true)
   @JsonPropertyDescription("attribute in your dataset corresponding to PetalWidthCm")
   @AutofillAttributeName
+  @SampleColumn("petal_width")
   var petalWidthCmAttribute: EncodableString = _
 
   @JsonProperty(
@@ -101,6 +105,48 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
        |        tuple_[$predictionProbabilityName] = float(proba)
        |        tuple_[$predictionClassName] = "Iris-setosa" if preds == 1 else "Not Iris-setosa"
        |        yield tuple_""".encode
+  }
+
+  override def producesDataFrame(): Boolean = true
+
+  // Standalone mirror of generatePythonCode: rebuild+load the pretrained linear
+  // model once, then apply the same per-row standardize→sigmoid→threshold logic,
+  // adding the STRING predicted class and DOUBLE probability columns (in
+  // getOutputSchemas order) to produce out1df.
+  override def generateStandaloneCode(): String = {
+    s"""import numpy as np
+       |import torch
+       |import torch.nn as nn
+       |from huggingface_hub import PyTorchModelHubMixin
+       |
+       |class LinearModel(nn.Module, PyTorchModelHubMixin):
+       |    def __init__(self):
+       |        super().__init__()
+       |        self.fc = nn.Linear(2, 1)
+       |
+       |    def forward(self, x):
+       |        return self.fc(x)
+       |
+       |model = LinearModel.from_pretrained("sadhaklal/logistic-regression-iris")
+       |model.eval()
+       |
+       |training_features_means = [3.72666667, 1.17619048]
+       |training_features_stds = [1.72528903, 0.73788937]
+       |out1df = in1df.copy()
+       |_classes = []
+       |_probs = []
+       |for _length, _width in zip(out1df["$petalLengthCmAttribute"], out1df["$petalWidthCmAttribute"]):
+       |    features = np.array([[_length, _width]])
+       |    features = ((features - training_features_means) / training_features_stds)
+       |    features = torch.from_numpy(features).float()
+       |    with torch.no_grad():
+       |        logits = model(features)
+       |    proba = torch.sigmoid(logits.squeeze())
+       |    preds = (proba > 0.5).long()
+       |    _probs.append(float(proba))
+       |    _classes.append("Iris-setosa" if preds == 1 else "Not Iris-setosa")
+       |out1df["$predictionClassName"] = _classes
+       |out1df["$predictionProbabilityName"] = _probs""".stripMargin
   }
 
   override def operatorInfo: OperatorInfo =
