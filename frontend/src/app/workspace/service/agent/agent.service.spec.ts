@@ -895,7 +895,9 @@ describe("AgentService", () => {
 
     it("notifies and rethrows when the settings update fails", () => {
       let message: string | undefined;
-      service.updateAgentSettings("agent-1", { maxSteps: 3 }).subscribe({ error: (e: unknown) => (message = (e as Error).message) });
+      service
+        .updateAgentSettings("agent-1", { maxSteps: 3 })
+        .subscribe({ error: (e: unknown) => (message = (e as Error).message) });
 
       httpMock
         .expectOne(r => r.method === "PATCH" && r.url === "/api/agents/agent-1/settings")
