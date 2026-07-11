@@ -31,7 +31,7 @@ command -v python3 >/dev/null || { echo "python3 is required to run these tests"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 smoke="$script_dir/smoke-boot.sh"
-work="$(mktemp -d)"
+work="$(mktemp -d 2>/dev/null || mktemp -d -t smoke-boot)"
 trap 'rm -rf "$work"' EXIT
 rc=0
 
