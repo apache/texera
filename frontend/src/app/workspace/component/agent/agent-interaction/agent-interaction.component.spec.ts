@@ -1,0 +1,219 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { SimpleChange, SimpleChanges } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { DomSanitizer } from "@angular/platform-browser";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { of } from "rxjs";
+import { AgentInteractionComponent } from "./agent-interaction.component";
+import { AgentService, Tuple } from "../../../service/agent/agent.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
+
+describe("AgentInteractionComponent", () => {
+  let fixture: ComponentFixture<AgentInteractionComponent>;
+  let component: AgentInteractionComponent;
+  let sanitizer: DomSanitizer;
+
+  const agentServiceStub = {
+    getAllAgents: () => of([]),
+    agentChange$: of(null),
+    getActivelyConnectedAgentIds: () => [],
+    isAgentActivelyConnected: () => false,
+    sendMessage: () => {},
+  } as unknown as AgentService;
+
+  function recordToTuple(rec: Record<string, any>): Tuple {
+    return {
+      schema: { attributes: Object.keys(rec).map(name => ({ attributeName: name, attributeType: "string" })) },
+      fields: Object.values(rec),
+    };
+  }
+
+  function indexedTuple(rowIndex: number, record: Record<string, any>): readonly [number, Tuple] {
+    return [rowIndex, recordToTuple(record)];
+  }
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [AgentInteractionComponent, HttpClientTestingModule],
+      providers: [
+        { provide: AgentService, useValue: agentServiceStub },
+        { provide: WorkflowActionService, useValue: {} },
+        { provide: NotificationService, useValue: { error: vi.fn(), success: vi.fn() } },
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(AgentInteractionComponent);
+    component = fixture.componentInstance;
+    sanitizer = TestBed.inject(DomSanitizer);
+    fixture.componentRef.setInput("operatorId", "op-1");
+    fixture.detectChanges();
+  });
+
+  it("should create", () => {
+    expect(component).toBeTruthy();
+  });
+
+  describe("template rendering", () => {
+    it("renders the sample table with a leading Row column when sample tuples are present", () => {
+      component.sampleTuples = [indexedTuple(0, { a: 1, b: "x" }), indexedTuple(1, { a: 2, b: "y" })];
+      component.resultMode = { type: "PaginationMode" };
+      fixture.detectChanges();
+
+      const headers: string[] = Array.from(
+        fixture.nativeElement.querySelectorAll(".sample-records-table thead th") as NodeListOf<HTMLElement>
+      ).map(th => th.textContent?.trim() ?? "");
+      expect(headers).toEqual(["Row", "a", "b"]);
+
+      const firstDataRowCells: string[] = Array.from(
+        fixture.nativeElement.querySelectorAll(
+          ".sample-records-table tbody tr:first-child td"
+        ) as NodeListOf<HTMLElement>
+      ).map(td => td.textContent?.trim() ?? "");
+      expect(firstDataRowCells).toEqual(["0", "1", "x"]);
+    });
+
+    it("renders an ellipsis row spanning all columns plus the Row column when indices have a gap", () => {
+      component.sampleTuples = [indexedTuple(0, { a: 1, b: "x" }), indexedTuple(5, { a: 2, b: "y" })];
+      component.resultMode = { type: "PaginationMode" };
+      fixture.detectChanges();
+
+      const ellipsisCell = fixture.nativeElement.querySelector(".ellipsis-row td") as HTMLElement;
+      expect(ellipsisCell).toBeTruthy();
+      expect(ellipsisCell.textContent?.trim()).toEqual("...");
+      // 2 tuple columns + 1 leading "Row" column
+      expect(ellipsisCell.getAttribute("colspan")).toEqual("3");
+    });
+
+    it("renders the visualization iframe instead of the table in visualization mode", () => {
+      fixture.componentRef.setInput("sampleTuples", [indexedTuple(0, { "html-content": "<h1>chart</h1>" })]);
+      fixture.componentRef.setInput("resultMode", { type: "SetSnapshotMode" });
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".visualization-iframe")).toBeTruthy();
+      expect(fixture.nativeElement.querySelector(".sample-records-table")).toBeNull();
+    });
+
+    it("renders neither the table nor the iframe when there are no sample tuples", () => {
+      expect(fixture.nativeElement.querySelector(".sample-records-table")).toBeNull();
+      expect(fixture.nativeElement.querySelector(".visualization-iframe")).toBeNull();
+    });
+  });
+
+  describe("ngOnChanges - visualization html caching", () => {
+    it("caches sanitized html when a visualization tuple carries html-content", () => {
+      component.sampleTuples = [indexedTuple(0, { "html-content": "<h1>chart</h1>" })];
+      component.ngOnChanges({ sampleTuples: new SimpleChange(undefined, component.sampleTuples, true) });
+
+      expect(component.getVisualizationHtml()).toEqual(sanitizer.bypassSecurityTrustHtml("<h1>chart</h1>"));
+    });
+
+    it("keeps the cached html when the content is unchanged across calls", () => {
+      component.sampleTuples = [indexedTuple(0, { "html-content": "<p>same</p>" })];
+      const changes: SimpleChanges = { sampleTuples: new SimpleChange(undefined, component.sampleTuples, true) };
+
+      component.ngOnChanges(changes);
+      component.ngOnChanges(changes); // identical html -> unchanged branch, cache reused
+
+      expect(component.getVisualizationHtml()).toEqual(sanitizer.bypassSecurityTrustHtml("<p>same</p>"));
+    });
+
+    it("clears the cached html when no html-content is present", () => {
+      component.sampleTuples = [indexedTuple(0, { "html-content": "<p>x</p>" })];
+      component.ngOnChanges({ resultMode: new SimpleChange(undefined, { type: "SetSnapshotMode" }, true) });
+      // Now switch to a tuple with no html-content.
+      component.sampleTuples = [indexedTuple(0, { value: 1 })];
+      component.ngOnChanges({ sampleTuples: new SimpleChange(undefined, component.sampleTuples, false) });
+
+      expect(component.getVisualizationHtml()).toEqual(sanitizer.bypassSecurityTrustHtml(""));
+    });
+
+    it("ignores changes unrelated to sampleTuples/resultMode", () => {
+      component.ngOnChanges({ operatorId: new SimpleChange(undefined, "op-1", true) });
+      expect(component.getVisualizationHtml()).toEqual(sanitizer.bypassSecurityTrustHtml(""));
+    });
+  });
+
+  describe("isVisualization", () => {
+    it("is true only in snapshot mode", () => {
+      component.resultMode = { type: "SetSnapshotMode" };
+      expect(component.isVisualization()).toBe(true);
+
+      component.resultMode = { type: "PaginationMode" };
+      expect(component.isVisualization()).toBe(false);
+
+      component.resultMode = { type: "SetDeltaMode" };
+      expect(component.isVisualization()).toBe(false);
+    });
+  });
+
+  describe("getSampleColumns", () => {
+    it("returns the keys of the first tuple", () => {
+      component.sampleTuples = [indexedTuple(0, { a: 1, b: 2 })];
+      expect(component.getSampleColumns()).toEqual(["a", "b"]);
+    });
+
+    it("returns an empty array when there are no sample tuples", () => {
+      component.sampleTuples = [];
+      expect(component.getSampleColumns()).toEqual([]);
+
+      component.sampleTuples = undefined;
+      expect(component.getSampleColumns()).toEqual([]);
+    });
+  });
+
+  describe("getDisplayTuples", () => {
+    it("returns an empty array when there are no sample tuples", () => {
+      component.sampleTuples = [];
+      expect(component.getDisplayTuples()).toEqual([]);
+    });
+
+    it("returns the original tuples without ellipsis when indices are contiguous", () => {
+      const firstTuple = recordToTuple({ a: 1 });
+      const secondTuple = recordToTuple({ a: 2 });
+      component.sampleTuples = [
+        [0, firstTuple],
+        [1, secondTuple],
+      ];
+
+      const entries = component.getDisplayTuples();
+
+      expect(entries).toHaveLength(2);
+      expect(entries.every(entry => !entry.isEllipsis)).toBe(true);
+      expect(entries[0]).toEqual({ rowIndex: 0, tuple: firstTuple, isEllipsis: false });
+      expect(entries[1]).toEqual({ rowIndex: 1, tuple: secondTuple, isEllipsis: false });
+    });
+
+    it("inserts an ellipsis marker when there is a gap between row indices", () => {
+      component.sampleTuples = [indexedTuple(0, { a: 1 }), indexedTuple(5, { a: 2 })];
+      const entries = component.getDisplayTuples();
+
+      expect(entries).toHaveLength(3);
+      expect(entries[1].isEllipsis).toBe(true);
+      expect(entries[1].tuple).toBeUndefined();
+      expect(entries[2].rowIndex).toBe(5);
+    });
+  });
+});

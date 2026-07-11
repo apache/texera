@@ -17,56 +17,118 @@
  * under the License.
  */
 
-interface ConsoleMessage {
-  msgType: string;
-  message: string;
+export enum WorkflowFatalErrorType {
+  COMPILATION_ERROR = "COMPILATION_ERROR",
+  EXECUTION_FAILURE = "EXECUTION_FAILURE",
 }
 
-interface PortShape {
-  portIndex: number;
-  rows: number;
-  columns: number;
+// Canonical agent-service error projection. It follows the engine's
+// workflowruntimestate.proto shape so compile and execution errors share one model.
+// Re-exported by api/compile-api.ts.
+export interface WorkflowFatalError {
+  readonly type: Readonly<{ name: WorkflowFatalErrorType }>;
+  readonly timestamp: Readonly<{ seconds: number; nanos: number }>;
+  readonly message: string;
+  readonly details: string;
+  readonly operatorId: string;
+  readonly workerId: string;
 }
 
-export interface OperatorInfo {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: PortShape[];
-  resultMode: string;
-  result?: Record<string, any>[];
-  totalRowCount?: number;
-  displayedRows?: number;
-  truncated?: boolean;
-  consoleLogs?: ConsoleMessage[];
-  error?: string;
-  warnings?: string[];
-  resultStatistics?: Record<string, string>;
+// Lifecycle state of a single operator, as reported by the engine
+// (mirrors the backend's WorkflowAggregatedState string mapping).
+export enum OperatorState {
+  UNINITIALIZED = "Uninitialized",
+  READY = "Ready",
+  RUNNING = "Running",
+  PAUSING = "Pausing",
+  PAUSED = "Paused",
+  RESUMING = "Resuming",
+  COMPLETED = "Completed",
+  FAILED = "Failed",
+  KILLED = "Killed",
+  TERMINATED = "Terminated",
+  UNKNOWN = "Unknown",
 }
 
-export interface SyncExecutionResult {
-  success: boolean;
-  state: string;
-  operators: Record<string, OperatorInfo>;
-  compilationErrors?: Record<string, string>;
-  errors?: string[];
+// Aggregated state of a whole workflow execution: the OperatorState values the
+// engine reports, plus agent-service execution outcomes.
+export enum WorkflowExecutionState {
+  UNINITIALIZED = "Uninitialized",
+  READY = "Ready",
+  RUNNING = "Running",
+  PAUSING = "Pausing",
+  PAUSED = "Paused",
+  RESUMING = "Resuming",
+  COMPLETED = "Completed",
+  FAILED = "Failed",
+  KILLED = "Killed",
+  TERMINATED = "Terminated",
+  UNKNOWN = "Unknown",
+  ERROR = "Error",
+  COMPILATION_FAILED = "CompilationFailed",
 }
 
-/**
- * Wire projection of one operator's execution result, summarized for the
- * client: counts and a small record sample instead of full payloads. Returned
- * by the REST route `GET /agents/:id/operator-results`.
- */
+export enum ConsoleMessageType {
+  PRINT = "PRINT",
+  ERROR = "ERROR",
+  COMMAND = "COMMAND",
+  DEBUGGER = "DEBUGGER",
+}
+
+// A reduced console-message projection. The engine proto also has
+// workerId/timestamp/source; this summary keeps only the fields consumed by agent-service.
+export interface ConsoleMessageSummary {
+  readonly msgType: ConsoleMessageType;
+  readonly title: string;
+  readonly message: string;
+}
+
+// A normalized result tuple using the engine Tuple shape: a schema plus positional fields.
+export interface Attribute {
+  readonly attributeName: string;
+  readonly attributeType: string;
+}
+
+export interface Schema {
+  readonly attributes: ReadonlyArray<Attribute>;
+}
+
+export interface Tuple {
+  readonly schema: Schema;
+  readonly fields: ReadonlyArray<unknown>;
+}
+
+export type IndexedTuple = readonly [rowIndex: number, tuple: Tuple];
+
+// Mirrors ExecutionResultService.WebOutputMode's JSON representation.
+export type PaginationMode = Readonly<{ type: "PaginationMode" }>;
+export type SetSnapshotMode = Readonly<{ type: "SetSnapshotMode" }>;
+export type SetDeltaMode = Readonly<{ type: "SetDeltaMode" }>;
+export type WebOutputMode = PaginationMode | SetSnapshotMode | SetDeltaMode;
+
+// An operator's output summary. Sample tuples carry their original row index.
 export interface OperatorResultSummary {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: PortShape[];
-  outputColumns?: number;
-  error?: string;
-  warnings?: string[];
-  consoleLogCount?: number;
-  totalRowCount?: number;
-  sampleRecords?: Record<string, unknown>[];
-  resultStatistics?: Record<string, string>;
+  readonly resultMode: WebOutputMode;
+  readonly sampleTuples: ReadonlyArray<IndexedTuple>;
+  readonly totalTuplesCount: number;
+}
+
+// Canonical per-operator summary used inside agent-service and exposed to the frontend.
+export interface OperatorExecutionSummary {
+  readonly state: OperatorState;
+  // Empty means the operator did not fail.
+  readonly errorMessages: ReadonlyArray<WorkflowFatalError>;
+  // Absent when the operator produced no materialized result.
+  readonly resultSummary?: OperatorResultSummary;
+  // Absent when the operator produced no console output.
+  readonly consoleMessages?: ReadonlyArray<ConsoleMessageSummary>;
+}
+
+// The result of one workflow execution.
+export interface WorkflowExecutionSummary {
+  readonly state: WorkflowExecutionState;
+  readonly operators: Readonly<Record<string, OperatorExecutionSummary>>;
+  // Workflow-level errors (timeouts, init/compile failures, fatal errors);
+  // empty means none. For workflow-level failures, operatorId/workerId are empty.
+  readonly errors: ReadonlyArray<WorkflowFatalError>;
 }
