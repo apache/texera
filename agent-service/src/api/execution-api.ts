@@ -20,12 +20,12 @@
 import { z } from "zod";
 import {
   ConsoleMessageType,
-  OperatorResultMode,
   OperatorState,
   WorkflowExecutionState,
   WorkflowFatalErrorType,
   type OperatorExecutionSummary,
   type Tuple,
+  type WebOutputMode,
   type WorkflowExecutionSummary,
   type WorkflowFatalError,
 } from "../types/execution";
@@ -56,12 +56,20 @@ const legacyConsoleMessageSchema = z.object({
   message: z.string(),
 });
 
+const legacyResultModeSchema = z.enum(["table", "visualization"]);
+type LegacyResultMode = z.output<typeof legacyResultModeSchema>;
+
+const legacyResultModeToWebOutputMode = {
+  table: { type: "PaginationMode" },
+  visualization: { type: "SetSnapshotMode" },
+} satisfies Record<LegacyResultMode, WebOutputMode>;
+
 const legacyOperatorInfoSchema = z
   .object({
     state: z.string(),
     inputTuples: z.number(),
     outputTuples: z.number(),
-    resultMode: z.nativeEnum(OperatorResultMode),
+    resultMode: legacyResultModeSchema,
     result: z.array(z.record(z.unknown())).nullish(),
     totalRowCount: z.number().int().nonnegative().nullish(),
     displayedRows: z.number().int().nonnegative().nullish(),
@@ -144,7 +152,7 @@ function adaptOperatorInfo(
     operator.result == null
       ? undefined
       : {
-          resultMode: operator.resultMode,
+          resultMode: legacyResultModeToWebOutputMode[operator.resultMode],
           sampleTuples: operator.result.map(legacyRowToTuple),
           totalTuplesCount: operator.totalRowCount ?? operator.outputTuples,
         };

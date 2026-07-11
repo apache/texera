@@ -40,7 +40,8 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzInputDirective, NzAutosizeDirective } from "ng-zorro-antd/input";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { OperatorResultMode, Tuple, tupleColumns, tupleToRecord } from "../../../service/agent/agent.service";
+import { Tuple, tupleColumns, tupleToRecord } from "../../../service/agent/agent.service";
+import type { WebOutputMode } from "../../../types/execute-workflow.interface";
 
 /**
  * AgentInteractionComponent provides a compact interface for users to send feedback
@@ -77,7 +78,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   @Input() operatorId!: string;
   @Input() operatorDisplayName?: string;
   @Input() sampleTuples?: [number, Tuple][];
-  @Input() resultMode?: OperatorResultMode;
+  @Input() resultMode?: WebOutputMode;
 
   public availableAgents: Array<{ id: string; name: string; isConnected: boolean }> = [];
   public selectedAgentId: string | null = null;
@@ -179,7 +180,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   }
 
   public isVisualization(): boolean {
-    return this.resultMode === OperatorResultMode.VISUALIZATION;
+    return this.resultMode?.type === "SetSnapshotMode";
   }
 
   /**
