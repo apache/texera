@@ -16,46 +16,76 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Regression test for smoke-boot.sh's crash-detection regex. Pulls `crash_re`
-# straight out of smoke-boot.sh (single source of truth -- no duplicated pattern
-# that could drift) and checks it against fixture boot logs.
+# End-to-end regression tests for smoke-boot.sh. Each case launches a fake
+# "service" through smoke-boot.sh and checks its verdict from the exit code --
+# smoke-boot no longer scans logs, so its decision is driven purely by whether
+# the process reaches LISTEN, exits, or hangs.
 #
-# Guards issue #6332: jOOQ prints a random "tip of the day" banner naming
-# NoClassDefFoundError / ClassNotFoundException in prose, which must NOT read as
-# a boot crash -- while real thrown linkage errors still must.
+# Guards issue #6332: a service that boots fine but prints exception-name prose
+# in its log (e.g. jOOQ's random "tip of the day") must PASS; and a service that
+# crashes on boot must still FAIL.
 
 set -uo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Load only the crash_re assignment line from smoke-boot.sh. Use command
-# substitution (not `source <(...)`, which races the feeder process) so grep
-# fully completes before eval runs. Input is our own controlled file.
-eval "$(grep -E '^crash_re=' "$script_dir/smoke-boot.sh")"
+command -v python3 >/dev/null || { echo "python3 is required to run these tests" >&2; exit 1; }
 
-if [[ -z "${crash_re:-}" ]]; then
-  echo "FAIL: could not read crash_re from smoke-boot.sh" >&2
-  exit 1
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+smoke="$script_dir/smoke-boot.sh"
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+rc=0
+
+# Print a likely-free localhost TCP port.
+free_port() {
+  python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()'
+}
+
+pass()   { echo "ok:   $1"; }
+failed() { echo "FAIL: $1"; rc=1; }
+
+# --- #6332: a healthy service that logs the jOOQ tip must PASS ---
+# It prints prose naming NoClassDefFoundError / ClassNotFoundException, then
+# opens its port and stays up. The old log-scanning check flagged this as a
+# crash; the process-based check must not.
+port="$(free_port)"
+cat >"$work/healthy" <<EOF
+#!/usr/bin/env bash
+echo "jOOQ tip of the day: A NoClassDefFoundError or ClassNotFoundException is often a sign of a version mismatch"
+exec python3 -c "import socket, time; s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(('127.0.0.1', $port)); s.listen(); time.sleep(30)"
+EOF
+chmod +x "$work/healthy"
+if "$smoke" "$work/healthy" "$port" 15 >/dev/null 2>&1; then
+  pass "healthy boot that logs the jOOQ tip -> OK (#6332)"
+else
+  failed "healthy boot that logs the jOOQ tip should be OK"
 fi
 
-rc=0
-# assert_no_crash <description>   (boot log on stdin)
-assert_no_crash() {
-  if grep -qE "$crash_re"; then echo "FAIL: $1 -- matched crash_re"; rc=1; else echo "ok:   $1"; fi
-}
-# assert_crash <description>      (boot log on stdin)
-assert_crash() {
-  if grep -qE "$crash_re"; then echo "ok:   $1"; else echo "FAIL: $1 -- did not match crash_re"; rc=1; fi
-}
+# --- a service that crashes on boot (exits before listening) must FAIL ---
+port="$(free_port)"
+cat >"$work/crasher" <<EOF
+#!/usr/bin/env bash
+echo "startup failed" >&2
+exit 1
+EOF
+chmod +x "$work/crasher"
+if "$smoke" "$work/crasher" "$port" 15 >/dev/null 2>&1; then
+  failed "crash on boot should FAIL"
+else
+  pass "crash on boot (exits before listening) -> FAIL"
+fi
 
-# --- informational prose must NOT be treated as a crash (no random failures) ---
-assert_no_crash "jOOQ tip of the day (#6332)" <<<"jOOQ tip of the day: A NoClassDefFoundError or ClassNotFoundException is often a sign that your jOOQ code is generated with a different version of jOOQ than runtime library you're using"
-assert_no_crash "clean boot log" <<<"INFO org.eclipse.jetty.server.Server: jetty-11.0.20 started"
-assert_no_crash "bare linkage-name mention without a fully-qualified type" <<<"DEBUG a NoSuchMethodError can occur when APIs drift"
-
-# --- real thrown linkage failures must still be caught ---
-assert_crash "thrown java.lang.NoClassDefFoundError" <<<"Exception in thread \"main\" java.lang.NoClassDefFoundError: com/fasterxml/jackson/databind/ObjectMapper"
-assert_crash "Caused by java.lang.ClassNotFoundException" <<<"Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.fs.FileSystem"
-assert_crash "Jackson Databind version conflict (#6206)" <<<"com.fasterxml.jackson.module.scala.JsonScalaEnumeration requires Jackson Databind version >= 2.15 but found 2.14"
+# --- a service that hangs without ever listening must FAIL (timeout) ---
+port="$(free_port)"
+cat >"$work/hang" <<EOF
+#!/usr/bin/env bash
+exec sleep 300
+EOF
+chmod +x "$work/hang"
+if "$smoke" "$work/hang" "$port" 3 >/dev/null 2>&1; then
+  failed "hang without listening should FAIL"
+else
+  pass "hang without listening -> FAIL (timeout)"
+fi
 
 if [[ "$rc" -ne 0 ]]; then
   echo "smoke-boot regression tests FAILED"

@@ -17,11 +17,20 @@
 # under the License.
 
 # smoke-boot.sh -- launch a packaged Texera service from its unpacked dist and
-# assert it boots (reaches a listening port) without a runtime classpath/linkage
-# failure (NoClassDefFoundError, LinkageError, Jackson/Scala-module version
-# conflict). That class of bug compiles and unit-tests clean but crashes the real
-# `main`, so it slips through CI, which otherwise only builds + unit-tests each
-# service and never starts it. See https://github.com/apache/texera/issues/6220.
+# assert it boots (reaches a listening port) instead of crashing on startup with
+# a runtime classpath/linkage failure (NoClassDefFoundError, LinkageError,
+# Jackson/Scala-module version conflict, ...). That class of bug compiles and
+# unit-tests clean but crashes the real `main`, so it slips through CI, which
+# otherwise only builds + unit-tests each service and never starts it. See
+# https://github.com/apache/texera/issues/6220.
+#
+# The verdict is based on the process's own behaviour, not on scanning its logs:
+#   * reaches LISTEN         -> booted OK
+#   * exits before LISTEN    -> crashed on boot (report its exit code)
+#   * neither, within timeout -> hung / failed to come up
+# Scanning stdout/stderr for exception names was fragile -- any library that
+# merely prints an exception name in prose (e.g. jOOQ's random "tip of the day")
+# tripped it. See https://github.com/apache/texera/issues/6332.
 #
 # Usage:
 #   smoke-boot.sh <launcher-glob> <port> [timeout_secs]
@@ -55,15 +64,6 @@ echo "smoke-boot: launching '$launcher' (port=$port timeout=${timeout}s)"
 "$launcher" >"$log" 2>&1 &
 pid=$!
 
-# Runtime classpath / linkage / module failures -- the class of regression this
-# check exists to catch. Match the exception as an actual *thrown* type -- a
-# fully-qualified java.lang.* name, or an "Exception in thread" header -- not the
-# bare class name, which also shows up in harmless informational log prose (e.g.
-# jOOQ prints a random "tip of the day" banner naming NoClassDefFoundError /
-# ClassNotFoundException). Regression test: .github/scripts/test_smoke_boot.sh.
-# See https://github.com/apache/texera/issues/6332.
-crash_re='java\.lang\.(NoClassDefFoundError|ClassNotFoundException|LinkageError|NoSuchMethodError|AbstractMethodError|ExceptionInInitializerError|IncompatibleClassChangeError)|Exception in thread|requires Jackson Databind'
-
 port_open() {
   if command -v nc >/dev/null 2>&1; then
     nc -z localhost "$port" >/dev/null 2>&1
@@ -72,27 +72,14 @@ port_open() {
   fi
 }
 
+# Wait for the service to reach one of three terminal states: it opens its port
+# (booted), it exits on its own (crashed), or neither happens in time (hung).
 outcome="timeout"
 for ((i = 0; i < timeout; i++)); do
   if port_open; then outcome="listen"; break; fi
   if ! kill -0 "$pid" 2>/dev/null; then outcome="exited"; break; fi
   sleep 1
 done
-
-# Stop the service (it may already be gone). SIGTERM, then a bounded grace
-# period, then SIGKILL -- so a service that ignores SIGTERM or hangs in shutdown
-# can't leave the CI step running indefinitely.
-kill "$pid" 2>/dev/null || true
-for _ in $(seq 1 10); do
-  if ! kill -0 "$pid" 2>/dev/null; then
-    break
-  fi
-  sleep 1
-done
-if kill -0 "$pid" 2>/dev/null; then
-  kill -9 "$pid" 2>/dev/null || true
-fi
-wait "$pid" 2>/dev/null || true
 
 fail() {
   echo "::error::smoke-boot: $*"
@@ -101,19 +88,33 @@ fail() {
   exit 1
 }
 
-# A linkage/module error on boot fails regardless of whether the port came up.
-if grep -qE "$crash_re" "$log"; then
-  fail "'$launcher' hit a runtime classpath/linkage error on boot"
-fi
+# Stop a still-running service. SIGTERM, then a bounded grace period, then
+# SIGKILL -- so a service that ignores SIGTERM or hangs in shutdown can't leave
+# the CI step running indefinitely.
+stop_service() {
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 10); do
+    kill -0 "$pid" 2>/dev/null || return 0
+    sleep 1
+  done
+  kill -9 "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+}
 
 case "$outcome" in
   listen)
+    stop_service
     echo "smoke-boot: OK -- '$launcher' reached LISTEN on :$port"
     ;;
   exited)
-    fail "'$launcher' exited before listening on :$port"
+    # The service died before it ever listened -- a boot crash. Its own exit
+    # code is the signal; reap it (the process has already exited) and report it.
+    code=0
+    wait "$pid" 2>/dev/null || code=$?
+    fail "'$launcher' exited on boot (exit code $code) before listening on :$port"
     ;;
   *)
+    stop_service
     fail "'$launcher' did not listen on :$port within ${timeout}s"
     ;;
 esac
