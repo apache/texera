@@ -22,9 +22,9 @@ import { formatOperatorResult } from "./result-formatting";
 import {
   ConsoleMessageType,
   OperatorState,
-  OperatorResultMode,
   WorkflowFatalErrorType,
   type OperatorExecutionSummary,
+  type WebOutputMode,
   type WorkflowFatalError,
   type Tuple,
 } from "../../types/execution";
@@ -50,7 +50,7 @@ interface OpInfoOverrides {
   warnings?: string[];
   result?: Record<string, any>[];
   sampleTuples?: [number, Tuple][];
-  resultMode?: OperatorResultMode;
+  resultMode?: WebOutputMode;
 }
 
 function makeExecutionFailure(message: string): WorkflowFatalError {
@@ -72,7 +72,7 @@ function makeOpInfo(overrides: OpInfoOverrides = {}): OperatorExecutionSummary {
   // The result summary is present only when the operator produced a result.
   if (overrides.result !== undefined || overrides.sampleTuples !== undefined) {
     summary.resultSummary = {
-      resultMode: overrides.resultMode ?? OperatorResultMode.TABLE,
+      resultMode: overrides.resultMode ?? { type: "PaginationMode" },
       // Non-arrays are passed through to exercise the "(no result data)" guard.
       sampleTuples:
         overrides.sampleTuples ??
@@ -167,7 +167,7 @@ describe("formatOperatorResult - visualization rows", () => {
       "op1",
       makeOpInfo({
         outputTuples: 1,
-        resultMode: OperatorResultMode.VISUALIZATION,
+        resultMode: { type: "SetSnapshotMode" },
         result: [
           {
             "html-content": "<div>hidden</div>",
@@ -188,7 +188,7 @@ describe("formatOperatorResult - visualization rows", () => {
       "op1",
       makeOpInfo({
         outputTuples: 1,
-        resultMode: OperatorResultMode.TABLE,
+        resultMode: { type: "PaginationMode" },
         result: [{ "html-content": "<keep/>" }],
       })
     );

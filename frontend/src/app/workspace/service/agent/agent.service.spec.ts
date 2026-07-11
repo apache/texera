@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { AgentService, AgentInfo, OperatorExecutionSummary, OperatorResultMode } from "./agent.service";
+import { AgentService, AgentInfo, OperatorExecutionSummary } from "./agent.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
@@ -105,7 +105,7 @@ describe("AgentService", () => {
         results: {
           "op-1": {
             resultSummary: {
-              resultMode: OperatorResultMode.TABLE,
+              resultMode: { type: "PaginationMode" },
               sampleTuples: [
                 [
                   0,
@@ -122,6 +122,7 @@ describe("AgentService", () => {
       });
 
       expect(latest?.has("op-1")).toBe(true);
+      expect(latest?.get("op-1")?.resultSummary?.resultMode).toEqual({ type: "PaginationMode" });
       expect(latest?.get("op-1")?.resultSummary?.sampleTuples).toEqual([
         [
           0,

@@ -19,13 +19,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { adaptLegacySyncExecutionResult } from "./execution-api";
-import {
-  ConsoleMessageType,
-  OperatorResultMode,
-  OperatorState,
-  WorkflowExecutionState,
-  WorkflowFatalErrorType,
-} from "../types/execution";
+import { ConsoleMessageType, OperatorState, WorkflowExecutionState, WorkflowFatalErrorType } from "../types/execution";
 
 describe("adaptLegacySyncExecutionResult", () => {
   test("normalizes sampled table rows, row gaps, counts, and console messages", () => {
@@ -61,7 +55,7 @@ describe("adaptLegacySyncExecutionResult", () => {
           errorMessages: [],
           consoleMessages: [{ msgType: ConsoleMessageType.PRINT, title: "WARNING: sampled", message: "sampled" }],
           resultSummary: {
-            resultMode: OperatorResultMode.TABLE,
+            resultMode: { type: "PaginationMode" },
             totalTuplesCount: 10,
           },
         },
@@ -114,7 +108,7 @@ describe("adaptLegacySyncExecutionResult", () => {
     });
 
     expect(summary.operators.chart.resultSummary).toEqual({
-      resultMode: OperatorResultMode.VISUALIZATION,
+      resultMode: { type: "SetSnapshotMode" },
       sampleTuples: [
         [
           0,
@@ -197,6 +191,23 @@ describe("adaptLegacySyncExecutionResult", () => {
     expect(() => adaptLegacySyncExecutionResult({ success: "yes", state: "Completed", operators: {} })).toThrow(
       "Invalid legacy sync-execution response"
     );
+  });
+
+  test("rejects an unsupported legacy result mode", () => {
+    expect(() =>
+      adaptLegacySyncExecutionResult({
+        success: true,
+        state: "Completed",
+        operators: {
+          target: {
+            state: "Completed",
+            inputTuples: 1,
+            outputTuples: 1,
+            resultMode: "delta",
+          },
+        },
+      })
+    ).toThrow("Invalid legacy sync-execution response");
   });
 
   test("rejects malformed row-index metadata", () => {

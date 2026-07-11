@@ -43,7 +43,8 @@ import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
-import { AgentService, OperatorExecutionSummary, OperatorResultMode, Tuple } from "../../service/agent/agent.service";
+import { AgentService, OperatorExecutionSummary, Tuple } from "../../service/agent/agent.service";
+import type { WebOutputMode } from "../../types/execute-workflow.interface";
 import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { NgIf } from "@angular/common";
@@ -1700,12 +1701,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     return this.operatorSummaries.get(operatorId)?.resultSummary?.sampleTuples;
   }
 
-  getOperatorResultMode(operatorId: string): OperatorResultMode | undefined {
+  getOperatorResultMode(operatorId: string): WebOutputMode | undefined {
     return this.operatorSummaries.get(operatorId)?.resultSummary?.resultMode;
   }
 
   isOperatorVisualization(operatorId: string): boolean {
-    return this.getOperatorResultMode(operatorId) === OperatorResultMode.VISUALIZATION;
+    return this.getOperatorResultMode(operatorId)?.type === "SetSnapshotMode";
   }
 
   /**

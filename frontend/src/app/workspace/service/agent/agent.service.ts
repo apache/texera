@@ -40,6 +40,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import type { WebOutputMode } from "../../types/execute-workflow.interface";
 
 /**
  * Agent settings for API (serializable format).
@@ -127,15 +128,10 @@ export function tupleToRecord(tuple: Tuple): Record<string, unknown> {
 }
 
 export interface OperatorResultSummary {
-  resultMode: OperatorResultMode;
+  resultMode: WebOutputMode;
   // Sampled output rows; each tuple carries its original row index.
   sampleTuples: [number, Tuple][];
   totalTuplesCount: number;
-}
-
-export enum OperatorResultMode {
-  TABLE = "table",
-  VISUALIZATION = "visualization",
 }
 
 // Mirrors agent-service's canonical per-operator summary, but the frontend only
