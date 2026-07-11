@@ -52,18 +52,32 @@ launcher_glob="${1:?usage: smoke-boot.sh <launcher-glob> <port> [timeout]}"
 port="${2:?port required}"
 timeout="${3:-60}"
 
-# Resolve the (possibly globbed) launcher to a concrete executable.
-launcher="$(ls $launcher_glob 2>/dev/null | head -n1 || true)"
-if [[ -z "$launcher" || ! -x "$launcher" ]]; then
-  echo "::error::smoke-boot: launcher not found or not executable: $launcher_glob"
+# Resolve the (possibly globbed) launcher to exactly one concrete executable.
+# Erroring on multiple matches avoids silently smoke-testing the wrong (e.g.
+# lexicographically-first) binary if a dist dir ever accumulates versions.
+matches="$(ls -d $launcher_glob 2>/dev/null || true)"
+count="$(printf '%s' "$matches" | grep -c . || true)"
+if [[ "$count" -eq 0 ]]; then
+  echo "::error::smoke-boot: launcher not found: $launcher_glob"
+  exit 1
+fi
+if [[ "$count" -gt 1 ]]; then
+  echo "::error::smoke-boot: launcher glob matched $count files, expected exactly 1: $launcher_glob"
+  exit 1
+fi
+launcher="$matches"
+if [[ ! -x "$launcher" ]]; then
+  echo "::error::smoke-boot: launcher not executable: $launcher"
   exit 1
 fi
 
 port_open() {
+  # Probe 127.0.0.1 explicitly (not "localhost", which can resolve to ::1 first
+  # while the JVM binds IPv4 0.0.0.0, giving a false "not listening").
   if command -v nc >/dev/null 2>&1; then
-    nc -z localhost "$port" >/dev/null 2>&1
+    nc -z 127.0.0.1 "$port" >/dev/null 2>&1
   else
-    (exec 3<>"/dev/tcp/localhost/$port") 2>/dev/null
+    (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null
   fi
 }
 
@@ -80,6 +94,10 @@ log="$(mktemp)"
 echo "smoke-boot: launching '$launcher' (port=$port timeout=${timeout}s)"
 "$launcher" >"$log" 2>&1 &
 pid=$!
+
+# On any exit -- including an unexpected abort under `set -e` -- stop the service
+# and remove the log, so a failing script can't orphan the JVM or leak temp files.
+trap 'kill "$pid" 2>/dev/null || true; rm -f "$log"' EXIT
 
 # Wait for the service to reach one of three terminal states: it opens its port
 # (booted), it exits on its own (crashed), or neither happens in time (hung).
