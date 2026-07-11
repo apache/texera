@@ -22,12 +22,11 @@ package org.apache.texera.web.resource
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
-import lombok.Generated
 import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.core.storage.model.VirtualDocument
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -45,12 +44,6 @@ import org.apache.texera.amber.engine.common.executionruntimestate.{
   ExecutionMetadataStore,
   ExecutionStatsStore
 }
-import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.{
-  COMPILATION_ERROR,
-  EXECUTION_FAILURE
-}
-import org.apache.texera.amber.core.workflowruntimestate.{FatalErrorType, WorkflowFatalError}
-import com.google.protobuf.timestamp.Timestamp
 import io.reactivex.rxjava3.core.Observable
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
@@ -62,7 +55,6 @@ import org.apache.texera.web.service.{ExecutionResultService, WorkflowService}
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 
 import java.net.URI
-import java.time.Instant
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -71,7 +63,6 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import com.fasterxml.jackson.databind.ObjectMapper
 
-@Generated
 case class SyncExecutionRequest(
     executionName: String,
     logicalPlan: LogicalPlanPojo,
@@ -82,44 +73,39 @@ case class SyncExecutionRequest(
     maxOperatorResultCellCharLimit: Int
 )
 
-@Generated
-case class ConsoleMessageSummary(
+case class ConsoleMessageInfo(
     msgType: String,
     title: String,
     message: String
 )
 
-@Generated
-case class OperatorResultSummary(
-    resultMode: String, // "table" or "visualization"
-    // Sampled output rows; each tuple carries its original row index.
-    sampleTuples: List[(Int, Tuple)],
-    totalTuplesCount: Int
+case class PortShape(
+    portIndex: Int,
+    rows: Long
 )
 
-// Per-operator execution summary. Orthogonal sub-summaries replace the previous
-// flat OperatorInfo; must stay in sync with agent-service's OperatorExecutionSummary.
-// `errorMessages` reuses the engine's WorkflowFatalError, the same type the
-// compiling service returns for compilation errors, for one consistent wire shape.
-@Generated
-case class OperatorExecutionSummary(
+case class OperatorInfo(
     state: String,
-    errorMessages: List[WorkflowFatalError], // empty means the operator did not fail
-    resultSummary: Option[OperatorResultSummary],
-    consoleMessages: Option[List[ConsoleMessageSummary]]
+    inputTuples: Long,
+    outputTuples: Long,
+    inputPortShapes: Option[List[PortShape]],
+    resultMode: String, // "table" or "visualization"
+    result: Option[Any], // JSON array (List[ObjectNode])
+    totalRowCount: Option[Int],
+    displayedRows: Option[Int],
+    truncated: Option[Boolean],
+    consoleLogs: Option[List[ConsoleMessageInfo]],
+    error: Option[String],
+    warnings: Option[List[String]]
 )
 
-@Generated
-case class WorkflowExecutionSummary(
+case class SyncExecutionResult(
     success: Boolean,
     state: String,
-    operators: Map[String, OperatorExecutionSummary],
-    errors: List[WorkflowFatalError] // empty means none
+    operators: Map[String, OperatorInfo],
+    compilationErrors: Option[Map[String, String]],
+    errors: Option[List[String]]
 )
-
-// Internal (not serialized): a sampled row's original index plus its processed/truncated
-// JSON node, used while sampling and size-estimating before conversion to an engine Tuple.
-private case class SampledRow(rowIndex: Int, node: ObjectNode)
 
 sealed trait TerminationReason
 case class TerminalStateReached(state: ExecutionMetadataStore) extends TerminationReason
@@ -143,7 +129,7 @@ class SyncExecutionResource extends LazyLogging {
       @PathParam("cuid") computingUnitId: Int,
       request: SyncExecutionRequest,
       @Auth user: SessionUser
-  ): WorkflowExecutionSummary = {
+  ): SyncExecutionResult = {
     val timeoutSeconds = request.timeoutSeconds
 
     val maxOperatorResultCharLimit =
@@ -190,11 +176,12 @@ class SyncExecutionResource extends LazyLogging {
 
       val executionService = workflowService.executionService.getValue
       if (executionService == null) {
-        return WorkflowExecutionSummary(
+        return SyncExecutionResult(
           success = false,
           state = "Error",
           operators = Map.empty,
-          errors = List(workflowError(EXECUTION_FAILURE, "Failed to initialize execution service"))
+          compilationErrors = None,
+          errors = Some(List("Failed to initialize execution service"))
         )
       }
 
@@ -267,20 +254,21 @@ class SyncExecutionResource extends LazyLogging {
           } catch {
             case _: java.util.concurrent.TimeoutException =>
               killExecution(executionService)
-              return WorkflowExecutionSummary(
+              return SyncExecutionResult(
                 success = false,
                 state = "Killed",
                 operators = Map.empty,
-                errors =
-                  List(workflowError(EXECUTION_FAILURE, s"Timeout after $timeoutSeconds seconds"))
+                compilationErrors = None,
+                errors = Some(List(s"Timeout after $timeoutSeconds seconds"))
               )
             case e: Exception =>
               logger.error(s"Error waiting for execution: ${e.getMessage}", e)
-              return WorkflowExecutionSummary(
+              return SyncExecutionResult(
                 success = false,
                 state = "Error",
                 operators = Map.empty,
-                errors = List(workflowError(EXECUTION_FAILURE, messageOrUnknown(e)))
+                compilationErrors = None,
+                errors = Some(List(e.getMessage))
               )
           }
         }
@@ -326,11 +314,26 @@ class SyncExecutionResource extends LazyLogging {
         inMemoryConsoleState
       )
 
-      assembleExecutionSummary(
-        finalState,
-        operatorInfos,
-        terminatedByConsoleError,
-        terminatedByTargetResults
+      val fatalErrors = finalState.fatalErrors
+        .map(err => s"${err.`type`}: ${err.message}")
+        .toList
+
+      val hasOperatorConsoleError = operatorInfos.values.exists(_.error.isDefined)
+
+      val stateString =
+        if (terminatedByConsoleError) "Failed"
+        else if (terminatedByTargetResults) "Completed"
+        else stateToString(finalState.state)
+
+      val isSuccess = (finalState.state == COMPLETED || terminatedByTargetResults) &&
+        !hasOperatorConsoleError && !terminatedByConsoleError
+
+      SyncExecutionResult(
+        success = isSuccess,
+        state = stateString,
+        operators = operatorInfos,
+        compilationErrors = None,
+        errors = if (fatalErrors.nonEmpty) Some(fatalErrors) else None
       )
 
     } catch {
@@ -338,38 +341,6 @@ class SyncExecutionResource extends LazyLogging {
         logger.error(s"Sync execution error: ${e.getMessage}", e)
         handleExecutionError(e)
     }
-  }
-
-  /**
-    * Assemble the final workflow execution summary from the terminal metadata state, the
-    * per-operator summaries, and the termination flags. Extracted from `executeWorkflowSync`
-    * as a pure function so the success/state derivation can be unit-tested without a live
-    * engine. Behavior is identical to the inlined version.
-    */
-  private[resource] def assembleExecutionSummary(
-      finalState: ExecutionMetadataStore,
-      operatorInfos: Map[String, OperatorExecutionSummary],
-      terminatedByConsoleError: Boolean,
-      terminatedByTargetResults: Boolean
-  ): WorkflowExecutionSummary = {
-    val fatalErrors = finalState.fatalErrors.toList
-
-    val hasOperatorConsoleError = operatorInfos.values.exists(_.errorMessages.nonEmpty)
-
-    val stateString =
-      if (terminatedByConsoleError) "Failed"
-      else if (terminatedByTargetResults) "Completed"
-      else stateToString(finalState.state)
-
-    val isSuccess = (finalState.state == COMPLETED || terminatedByTargetResults) &&
-      !hasOperatorConsoleError && !terminatedByConsoleError
-
-    WorkflowExecutionSummary(
-      success = isSuccess,
-      state = stateString,
-      operators = operatorInfos,
-      errors = fatalErrors
-    )
   }
 
   private def shutdownPreviousExecution(workflowService: WorkflowService): Unit = {
@@ -410,9 +381,9 @@ class SyncExecutionResource extends LazyLogging {
       targetOperatorIds: List[String],
       maxOperatorResultCharLimit: Int,
       maxOperatorResultCellCharLimit: Int,
-      inMemoryConsoleState: Option[ExecutionConsoleStore]
-  ): Map[String, OperatorExecutionSummary] = {
-    val operatorInfos = mutable.Map[String, OperatorExecutionSummary]()
+      inMemoryConsoleState: Option[ExecutionConsoleStore] = None
+  ): Map[String, OperatorInfo] = {
+    val operatorInfos = mutable.Map[String, OperatorInfo]()
 
     val statsState = executionService.executionStateStore.statsStore.getState
     val operatorStats = statsState.operatorInfo
@@ -435,9 +406,23 @@ class SyncExecutionResource extends LazyLogging {
 
     for (opId <- targetOps) {
       val stats = operatorStats.get(opId)
-      val state = stats.map(s => stateToString(s.operatorState)).getOrElse("Unknown")
+      val (state, inputTuples, outputTuples): (String, Long, Long) = stats match {
+        case Some(s) =>
+          val inputCount = s.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum
+          val outputCount = s.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum
+          (stateToString(s.operatorState), inputCount, outputCount)
+        case None => ("Unknown", 0L, 0L)
+      }
 
-      val (resultMode, result, totalTuplesCount) =
+      val inputPortShapes: Option[List[PortShape]] = stats
+        .map { s =>
+          s.operatorStatistics.inputMetrics.map { pm =>
+            PortShape(pm.portId.id, pm.tupleMetrics.count)
+          }.toList
+        }
+        .filter(_.nonEmpty)
+
+      val (resultMode, result, totalRowCount, displayedRows, truncated) =
         collectOperatorResult(
           executionId,
           opId,
@@ -454,7 +439,7 @@ class SyncExecutionResource extends LazyLogging {
             .get(opId)
             .map { opConsole =>
               opConsole.consoleMessages.map { msg =>
-                ConsoleMessageSummary(
+                ConsoleMessageInfo(
                   msgType = msg.msgType.name,
                   title = msg.title,
                   message = msg.message
@@ -465,70 +450,40 @@ class SyncExecutionResource extends LazyLogging {
         }
       }
 
-      operatorInfos(opId) = buildOperatorExecutionSummary(
-        opId,
-        state,
-        resultMode,
-        result,
-        totalTuplesCount,
-        consoleLogs
+      // Python writes the full error text to `message`; Scala writes it to `title`
+      // (with a stack trace in `message`). Pick whichever is longer to avoid losing detail.
+      val errorMsg = consoleLogs.flatMap(
+        _.find(_.msgType == "ERROR").map { e =>
+          if (e.message.nonEmpty && e.message.length > e.title.length) e.message
+          else e.title
+        }
+      )
+
+      // Convention: PRINT messages prefixed with "WARNING: " surface as warnings.
+      val warningMsgs = consoleLogs
+        .map(_.filter(_.title.startsWith("WARNING: ")).map(_.title))
+        .filter(_.nonEmpty)
+
+      operatorInfos(opId) = OperatorInfo(
+        state = state,
+        inputTuples = inputTuples,
+        outputTuples = outputTuples,
+        inputPortShapes = inputPortShapes,
+        resultMode = resultMode,
+        result = result,
+        totalRowCount = totalRowCount,
+        displayedRows = displayedRows,
+        truncated = truncated,
+        consoleLogs = consoleLogs,
+        error = errorMsg,
+        warnings = warningMsgs
       )
     }
 
     operatorInfos.toMap
   }
 
-  /**
-    * Build the per-operator execution summary from the operator's state, materialized result,
-    * and console logs. Extracted from `collectOperatorInfos` as a pure function so the
-    * error-extraction and sub-summary wiring can be unit-tested directly. Behavior is
-    * identical to the inlined version.
-    */
-  private[resource] def buildOperatorExecutionSummary(
-      opId: String,
-      state: String,
-      resultMode: String,
-      result: Option[List[SampledRow]],
-      totalTuplesCount: Option[Int],
-      consoleLogs: Option[List[ConsoleMessageSummary]]
-  ): OperatorExecutionSummary = {
-    // Python writes the full error text to `message`; Scala writes it to `title`
-    // (with a stack trace in `message`). Pick whichever is longer to avoid losing detail.
-    val errorMsg = consoleLogs.flatMap(
-      _.find(_.msgType == "ERROR").map { e =>
-        if (e.message.nonEmpty && e.message.length > e.title.length) e.message
-        else e.title
-      }
-    )
-
-    // Absent when the operator produced no materialized result. `result` and
-    // `totalTuplesCount` are populated together, so map over the former.
-    val resultSummary = result.map { rows =>
-      OperatorResultSummary(
-        resultMode = resultMode,
-        sampleTuples = rows.map(r => (r.rowIndex, toStringTuple(r.node))),
-        totalTuplesCount = totalTuplesCount.getOrElse(0)
-      )
-    }
-
-    // Per-operator runtime errors come from console ERROR logs; surface them as
-    // EXECUTION_FAILURE WorkflowFatalErrors (same type the compiler emits for
-    // COMPILATION_ERRORs). Empty list means the operator did not fail.
-    val errorMessages = errorMsg
-      .map(msg =>
-        List(WorkflowFatalError(EXECUTION_FAILURE, Timestamp(Instant.now), msg, "", opId))
-      )
-      .getOrElse(List.empty)
-
-    OperatorExecutionSummary(
-      state = state,
-      errorMessages = errorMessages,
-      resultSummary = resultSummary,
-      consoleMessages = consoleLogs
-    )
-  }
-
-  private def handleExecutionError(e: Exception): WorkflowExecutionSummary = {
+  private def handleExecutionError(e: Exception): SyncExecutionResult = {
     val errorMsg = e.getMessage
     val isCompilationError = errorMsg != null && (
       errorMsg.contains("compilation") ||
@@ -538,44 +493,22 @@ class SyncExecutionResource extends LazyLogging {
     )
 
     if (isCompilationError) {
-      WorkflowExecutionSummary(
+      SyncExecutionResult(
         success = false,
         state = "CompilationFailed",
         operators = Map.empty,
-        errors = List(workflowError(COMPILATION_ERROR, errorMsg))
+        compilationErrors = Some(Map("error" -> errorMsg)),
+        errors = Some(List(errorMsg))
       )
     } else {
-      WorkflowExecutionSummary(
+      SyncExecutionResult(
         success = false,
         state = "Error",
         operators = Map.empty,
-        errors = List(workflowError(EXECUTION_FAILURE, messageOrUnknown(e)))
+        compilationErrors = None,
+        errors = Some(List(Option(e.getMessage).getOrElse("Unknown error")))
       )
     }
-  }
-
-  private def workflowError(errorType: FatalErrorType, message: String): WorkflowFatalError =
-    WorkflowFatalError(errorType, Timestamp(Instant.now), message, "", "", "")
-
-  private def messageOrUnknown(e: Exception): String =
-    Option(e.getMessage).getOrElse("Unknown error")
-
-  // Wrap a processed/truncated JSON row in an engine Tuple. Cell truncation replaces typed
-  // values (e.g. binary) with display strings that no longer match the operator's real column
-  // types, so each row gets a synthetic all-STRING schema over its columns. Null stays null;
-  // container values are emitted as their JSON text.
-  private def toStringTuple(node: ObjectNode): Tuple = {
-    val fieldNames = node.fieldNames().asScala.toList
-    val schema = Schema(fieldNames.map(name => new Attribute(name, AttributeType.STRING)))
-    val fields: Array[Any] = fieldNames.map { name =>
-      node.get(name) match {
-        case null               => null
-        case v if v.isNull      => null
-        case v if v.isValueNode => v.asText()
-        case v                  => v.toString
-      }
-    }.toArray
-    Tuple(schema, fields)
   }
 
   /**
@@ -588,7 +521,9 @@ class SyncExecutionResource extends LazyLogging {
       opId: String,
       maxOperatorResultCharLimit: Int,
       maxOperatorResultCellCharLimit: Int
-  ): (String, Option[List[SampledRow]], Option[Int]) = {
+  ): (String, Option[Any], Option[Int], Option[Int], Option[Boolean]) = {
+    import com.fasterxml.jackson.databind.node.ObjectNode
+
     try {
       val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
         executionId,
@@ -596,154 +531,171 @@ class SyncExecutionResource extends LazyLogging {
         PortIdentity()
       )
 
-      if (storageUriOption.isEmpty) {
-        ("table", None, None)
-      } else {
-        val document = DocumentFactory
-          .openDocument(storageUriOption.get)
-          ._1
-          .asInstanceOf[VirtualDocument[Tuple]]
+      storageUriOption match {
+        case Some(storageUri) =>
+          val document = DocumentFactory
+            .openDocument(storageUri)
+            ._1
+            .asInstanceOf[VirtualDocument[Tuple]]
 
-        sampleAndTruncateTuples(
-          document.get(),
-          document.getCount.toInt,
-          maxOperatorResultCharLimit,
-          maxOperatorResultCellCharLimit
-        )
+          val totalCount = document.getCount.toInt
+          val mapper = new ObjectMapper()
+          val tupleIterator = document.get()
+
+          if (totalCount == 0 || !tupleIterator.hasNext) {
+            return (
+              "table",
+              Some(List.empty[ObjectNode].asJava),
+              Some(0),
+              Some(0),
+              Some(false)
+            )
+          }
+
+          // A single tuple with html-content / json-content is a visualization payload —
+          // the frontend renders it as an iframe rather than a table.
+          val firstTuple = tupleIterator.next()
+          if (totalCount == 1 && isVisualizationTuple(firstTuple)) {
+            val jsonResults =
+              ExecutionResultService.convertTuplesToJson(List(firstTuple), isVisualization = true)
+            jsonResults.foreach(
+              _.asInstanceOf[ObjectNode].put("__is_visualization__", true)
+            )
+            return (
+              "visualization",
+              Some(jsonResults),
+              Some(totalCount),
+              Some(1),
+              Some(false)
+            )
+          }
+
+          // __row_index__ preserves the original position so the frontend can show
+          // "row N" correctly after symmetric truncation drops the middle.
+          var rowIndex = 0
+          val firstJson = ExecutionResultService.convertTuplesToJson(List(firstTuple)).head
+          val truncatedFirst = truncateSingleTuple(firstJson, maxOperatorResultCellCharLimit)
+          truncatedFirst.put("__row_index__", rowIndex)
+          val firstSize = estimateTupleSize(truncatedFirst, mapper)
+
+          if (firstSize >= maxOperatorResultCharLimit) {
+            return (
+              "table",
+              Some(List(truncatedFirst).asJava),
+              Some(totalCount),
+              Some(1),
+              Some(true)
+            )
+          }
+
+          val halfLimit = maxOperatorResultCharLimit / 2
+          val truncationNoticeSize = 50 // reserved for the "...skipped..." marker
+
+          val frontTuples = mutable.ListBuffer[ObjectNode](truncatedFirst)
+          var frontSize = firstSize
+          var processedCount = 1
+
+          while (tupleIterator.hasNext && frontSize < halfLimit) {
+            val tuple = tupleIterator.next()
+            rowIndex += 1
+            processedCount += 1
+            val jsonTuple = ExecutionResultService.convertTuplesToJson(List(tuple)).head
+            val truncatedTuple = truncateSingleTuple(jsonTuple, maxOperatorResultCellCharLimit)
+            truncatedTuple.put("__row_index__", rowIndex)
+            val tupleSize = estimateTupleSize(truncatedTuple, mapper)
+
+            if (frontSize + tupleSize <= halfLimit) {
+              frontTuples += truncatedTuple
+              frontSize += tupleSize
+            } else {
+              // Front is full — switch to a sliding window for the back half.
+              val backBuffer = mutable.ArrayBuffer[(ObjectNode, Int)]()
+              backBuffer += ((truncatedTuple, tupleSize))
+              var backSize = tupleSize
+
+              while (tupleIterator.hasNext) {
+                val t = tupleIterator.next()
+                rowIndex += 1
+                processedCount += 1
+                val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
+                val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
+                tt.put("__row_index__", rowIndex)
+                val ts = estimateTupleSize(tt, mapper)
+
+                backBuffer += ((tt, ts))
+                backSize += ts
+
+                while (backSize > halfLimit - truncationNoticeSize && backBuffer.size > 1) {
+                  val (_, removedSize) = backBuffer.remove(0)
+                  backSize -= removedSize
+                }
+              }
+
+              val backTuples = backBuffer.map(_._1).toList
+              val allTuples = frontTuples.toList ++ backTuples
+              val skippedRows = totalCount - allTuples.size
+
+              return (
+                "table",
+                Some(allTuples.asJava),
+                Some(totalCount),
+                Some(allTuples.size),
+                Some(skippedRows > 0)
+              )
+            }
+          }
+
+          if (tupleIterator.hasNext) {
+            val backBuffer = mutable.ArrayBuffer[(ObjectNode, Int)]()
+            var backSize = 0
+
+            while (tupleIterator.hasNext) {
+              val t = tupleIterator.next()
+              rowIndex += 1
+              processedCount += 1
+              val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
+              val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
+              tt.put("__row_index__", rowIndex)
+              val ts = estimateTupleSize(tt, mapper)
+
+              backBuffer += ((tt, ts))
+              backSize += ts
+
+              while (backSize > halfLimit - truncationNoticeSize && backBuffer.size > 1) {
+                val (_, removedSize) = backBuffer.remove(0)
+                backSize -= removedSize
+              }
+            }
+
+            val backTuples = backBuffer.map(_._1).toList
+            val allTuples = frontTuples.toList ++ backTuples
+            val skippedRows = totalCount - allTuples.size
+
+            (
+              "table",
+              Some(allTuples.asJava),
+              Some(totalCount),
+              Some(allTuples.size),
+              Some(skippedRows > 0)
+            )
+          } else {
+            (
+              "table",
+              Some(frontTuples.toList.asJava),
+              Some(totalCount),
+              Some(frontTuples.size),
+              Some(false)
+            )
+          }
+
+        case None =>
+          ("table", None, None, None, None)
       }
     } catch {
       case e: Exception =>
-        logger.warn(s"Error collecting result for operator $opId", e)
-        ("table", None, None)
+        logger.warn(s"Error collecting result for operator $opId: ${e.getMessage}", e)
+        ("table", None, None, None, None)
     }
-  }
-
-  /**
-    * Sample and symmetrically truncate the tuples of a materialized result so the payload
-    * stays within `maxOperatorResultCharLimit`. Extracted from `collectOperatorResult` as a
-    * pure function over the tuple iterator so the sampling/truncation branches can be
-    * unit-tested without a storage backend. Behavior is identical to the inlined version.
-    */
-  private[resource] def sampleAndTruncateTuples(
-      tupleIterator: Iterator[Tuple],
-      totalCount: Int,
-      maxOperatorResultCharLimit: Int,
-      maxOperatorResultCellCharLimit: Int
-  ): (String, Option[List[SampledRow]], Option[Int]) = {
-    val mapper = new ObjectMapper()
-
-    if (totalCount == 0 || !tupleIterator.hasNext) {
-      return ("table", Some(List.empty[SampledRow]), Some(0))
-    }
-
-    // A single tuple with html-content / json-content is a visualization payload —
-    // the frontend renders it as an iframe rather than a table.
-    val firstTuple = tupleIterator.next()
-    if (totalCount == 1 && isVisualizationTuple(firstTuple)) {
-      val jsonResults =
-        ExecutionResultService.convertTuplesToJson(List(firstTuple), isVisualization = true)
-      val rows = jsonResults.zipWithIndex.map { case (json, idx) => SampledRow(idx, json) }
-      return ("visualization", Some(rows), Some(totalCount))
-    }
-
-    // rowIndex preserves the original position so the client can show "row N"
-    // correctly after symmetric truncation drops the middle.
-    var rowIndex = 0
-    val firstJson = ExecutionResultService.convertTuplesToJson(List(firstTuple)).head
-    val truncatedFirst = truncateSingleTuple(firstJson, maxOperatorResultCellCharLimit)
-    val firstSize = estimateTupleSize(truncatedFirst, mapper)
-
-    if (firstSize >= maxOperatorResultCharLimit) {
-      return ("table", Some(List(SampledRow(rowIndex, truncatedFirst))), Some(totalCount))
-    }
-
-    val halfLimit = maxOperatorResultCharLimit / 2
-    val truncationNoticeSize = 50 // reserved for the "...skipped..." marker
-
-    val frontRows = mutable.ListBuffer[SampledRow](SampledRow(rowIndex, truncatedFirst))
-    var frontSize = firstSize
-
-    while (tupleIterator.hasNext && frontSize < halfLimit) {
-      val tuple = tupleIterator.next()
-      rowIndex += 1
-      val jsonTuple = ExecutionResultService.convertTuplesToJson(List(tuple)).head
-      val truncatedTuple = truncateSingleTuple(jsonTuple, maxOperatorResultCellCharLimit)
-      val tupleSize = estimateTupleSize(truncatedTuple, mapper)
-      val row = SampledRow(rowIndex, truncatedTuple)
-
-      if (frontSize + tupleSize <= halfLimit) {
-        frontRows += row
-        frontSize += tupleSize
-      } else {
-        // Front is full — switch to a sliding window for the back half, seeded with the
-        // row that overflowed the front.
-        val backRows = collectBackWindow(
-          tupleIterator,
-          rowIndex,
-          Some((row, tupleSize)),
-          halfLimit - truncationNoticeSize,
-          maxOperatorResultCellCharLimit,
-          mapper
-        )
-        return ("table", Some(frontRows.toList ++ backRows), Some(totalCount))
-      }
-    }
-
-    if (tupleIterator.hasNext) {
-      val backRows = collectBackWindow(
-        tupleIterator,
-        rowIndex,
-        None,
-        halfLimit - truncationNoticeSize,
-        maxOperatorResultCellCharLimit,
-        mapper
-      )
-      ("table", Some(frontRows.toList ++ backRows), Some(totalCount))
-    } else {
-      ("table", Some(frontRows.toList), Some(totalCount))
-    }
-  }
-
-  /**
-    * Consume the remaining tuples into a sliding back-window that keeps the most recent rows
-    * within `backSizeLimit` estimated characters, always retaining at least one row. `seed`
-    * is the already-processed row (and its size) that overflowed the front half, if any.
-    * Shared by the "front already full" and trailing back-window branches of
-    * `sampleAndTruncateTuples`.
-    */
-  private def collectBackWindow(
-      tupleIterator: Iterator[Tuple],
-      startRowIndex: Int,
-      seed: Option[(SampledRow, Int)],
-      backSizeLimit: Int,
-      maxOperatorResultCellCharLimit: Int,
-      mapper: ObjectMapper
-  ): List[SampledRow] = {
-    val backBuffer = mutable.ArrayBuffer[(SampledRow, Int)]()
-    var backSize = 0
-    seed.foreach {
-      case (row, size) =>
-        backBuffer += ((row, size))
-        backSize += size
-    }
-
-    var rowIndex = startRowIndex
-    while (tupleIterator.hasNext) {
-      val t = tupleIterator.next()
-      rowIndex += 1
-      val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
-      val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
-      val ts = estimateTupleSize(tt, mapper)
-
-      backBuffer += ((SampledRow(rowIndex, tt), ts))
-      backSize += ts
-
-      while (backSize > backSizeLimit && backBuffer.size > 1) {
-        backSize -= backBuffer.remove(0)._2
-      }
-    }
-
-    backBuffer.map(_._1).toList
   }
 
   private def truncateSingleTuple(
@@ -810,7 +762,7 @@ class SyncExecutionResource extends LazyLogging {
   private def collectConsoleLogs(
       executionId: ExecutionIdentity,
       opId: String
-  ): Option[List[ConsoleMessageSummary]] = {
+  ): Option[List[ConsoleMessageInfo]] = {
     try {
       val uriOption = getConsoleMessageUri(executionId, OperatorIdentity(opId))
 
@@ -825,7 +777,7 @@ class SyncExecutionResource extends LazyLogging {
             val protoString = tuple.getField[String](0)
             val msg = ConsoleMessage.fromAscii(protoString)
             Some(
-              ConsoleMessageSummary(
+              ConsoleMessageInfo(
                 msgType = msg.msgType.name,
                 title = msg.title,
                 message = msg.message

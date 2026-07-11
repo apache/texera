@@ -30,7 +30,7 @@ import {
 import type { WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
 import { env } from "../../config/env";
-import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
+import { adaptLegacySyncExecutionResult, type LogicalPlan, type LogicalLink } from "../../api/execution-api";
 import {
   OperatorState,
   WorkflowFatalErrorType,
@@ -326,7 +326,7 @@ async function executeWorkflowHttp(
       throw new Error(`Execution request failed: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    return (await response.json()) as WorkflowExecutionSummary;
+    return adaptLegacySyncExecutionResult(await response.json());
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw error;

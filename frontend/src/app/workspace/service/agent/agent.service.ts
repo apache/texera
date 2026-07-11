@@ -96,7 +96,7 @@ export interface ModelType {
 /**
  * API response types
  */
-// A result row, mirroring the engine's Tuple wire shape (schema + positional fields).
+// A normalized result row from agent-service (schema + positional fields).
 // Sampled rows are truncated, so each Tuple carries a synthetic all-STRING schema.
 export interface Attribute {
   attributeName: string;
@@ -138,8 +138,8 @@ export enum OperatorResultMode {
   VISUALIZATION = "visualization",
 }
 
-// Mirrors the sync-execution backend's per-operator summary, but the frontend
-// only consumes `resultSummary`. The backend's state/errorMessages/consoleMessages
+// Mirrors agent-service's canonical per-operator summary, but the frontend only
+// consumes `resultSummary`. Its state/errorMessages/consoleMessages
 // are intentionally omitted here (no consumer reads them) to keep the surface minimal.
 export interface OperatorExecutionSummary {
   resultSummary?: OperatorResultSummary;

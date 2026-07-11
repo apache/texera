@@ -106,7 +106,15 @@ describe("AgentService", () => {
           "op-1": {
             resultSummary: {
               resultMode: OperatorResultMode.TABLE,
-              sampleTuples: [{ rowIndex: 0, tuple: { a: 1 } }],
+              sampleTuples: [
+                [
+                  0,
+                  {
+                    schema: { attributes: [{ attributeName: "a", attributeType: "string" }] },
+                    fields: ["1"],
+                  },
+                ],
+              ],
               totalTuplesCount: 1,
             },
           },
@@ -114,7 +122,15 @@ describe("AgentService", () => {
       });
 
       expect(latest?.has("op-1")).toBe(true);
-      expect(latest?.get("op-1")?.resultSummary?.sampleTuples).toEqual([{ rowIndex: 0, tuple: { a: 1 } }]);
+      expect(latest?.get("op-1")?.resultSummary?.sampleTuples).toEqual([
+        [
+          0,
+          {
+            schema: { attributes: [{ attributeName: "a", attributeType: "string" }] },
+            fields: ["1"],
+          },
+        ],
+      ]);
     });
 
     it("falls back to empty results when the request fails", () => {
