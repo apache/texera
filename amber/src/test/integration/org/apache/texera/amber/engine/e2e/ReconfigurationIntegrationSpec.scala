@@ -29,8 +29,8 @@ import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerConfig,
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  CoordinatorConfig,
   ExecutionStateUpdate
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
@@ -105,31 +105,36 @@ class ReconfigurationIntegrationSpec
   }
 
   /**
-    * Run a trivial pure-Scala workflow (TextInput → terminal) once before the
-    * timed tests start, so the first 5-second `startWorkflow` await in
-    * [[TestUtils.shouldReconfigure]] doesn't have to absorb JVM JIT
-    * warmup, pekko dispatcher first-touch, and `RegionExecutionCoordinator`
-    * class loading.
-    *
-    * Hard-capped at 10 seconds total, defensively wrapped: if warmup itself
-    * times out or throws, log and continue — the existing `Retries` mixin
-    * still backs up individual test cases. This ensures warmup can never
-    * hang the suite.
+    * Runs a TextInput -> Python UDF workflow once before the timed tests so
+    * Python worker cold-start is paid here, not inside a timed test. Capped and
+    * wrapped so warmup can never fail or hang the suite.
     */
   private def warmupOnce(): Unit = {
-    val warmupCap = Duration.fromSeconds(10)
+    val warmupCap = Duration.fromSeconds(60)
     setUpWorkflowExecutionData(specId)
     var client: AmberClient = null
     try {
       val src = new TextInputSourceOpDesc()
       src.textInput = "warmup"
+      val udf = TestOperators.pythonOpDesc()
       val warmupCtx = TestUtils.workflowContext(specId)
-      val workflow = buildWorkflow(List(src), List.empty, warmupCtx)
+      val workflow = buildWorkflow(
+        List(src, udf),
+        List(
+          LogicalLink(
+            src.operatorIdentifier,
+            PortIdentity(),
+            udf.operatorIdentifier,
+            PortIdentity()
+          )
+        ),
+        warmupCtx
+      )
       client = new AmberClient(
         system,
         workflow.context,
         workflow.physicalPlan,
-        ControllerConfig.default,
+        CoordinatorConfig.default,
         _ => {}
       )
       val completion = Promise[Unit]()
@@ -137,7 +142,7 @@ class ReconfigurationIntegrationSpec
         if (evt.state == COMPLETED) completion.updateIfEmpty(Return(()))
       })
       Await.result(
-        client.controllerInterface.startWorkflow(EmptyRequest(), ()),
+        client.coordinatorInterface.startWorkflow(EmptyRequest(), ()),
         warmupCap
       )
       Await.result(completion, warmupCap)
@@ -166,8 +171,13 @@ class ReconfigurationIntegrationSpec
   ): Map[OperatorIdentity, List[Tuple]] =
     TestUtils.shouldReconfigure(system, ctx, operators, links, targetOps, newOpExecInitInfo)
 
+  // Small source that emits slowly (30 rows, 0.25s apart) so a pause lands
+  // mid-run and the workflow still completes quickly after resume.
+  private def slowSource() =
+    TestOperators.slowRegionSourceOpDesc(numTuple = 30, delaySeconds = 0.25)
+
   "Engine" should "be able to modify a python UDF worker in workflow" in {
-    val sourceOpDesc = TestOperators.smallCsvScanOpDesc()
+    val sourceOpDesc = slowSource()
     val udfOpDesc = TestOperators.pythonOpDesc()
     val code = """
                  |from pytexera import *
@@ -198,7 +208,7 @@ class ReconfigurationIntegrationSpec
   }
 
   "Engine" should "propagate reconfiguration through a source operator in workflow" in {
-    val sourceOpDesc = TestOperators.pythonSourceOpDesc(10000)
+    val sourceOpDesc = slowSource()
     val udfOpDesc = TestOperators.pythonOpDesc()
     val code = """
                  |from pytexera import *
@@ -206,7 +216,7 @@ class ReconfigurationIntegrationSpec
                  |class ProcessTupleOperator(UDFOperatorV2):
                  |    @overrides
                  |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-                 |        tuple_['field_1'] = tuple_['field_1'] + '_reconfigured'
+                 |        tuple_['Region'] = tuple_['Region'] + '_reconfigured'
                  |        yield tuple_
                  |""".stripMargin
     val result = shouldReconfigure(
@@ -223,12 +233,12 @@ class ReconfigurationIntegrationSpec
       OpExecWithCode(code, "python")
     )
     assert(result(udfOpDesc.operatorIdentifier).exists { t =>
-      t.getField("field_1").asInstanceOf[String].contains("_reconfigured")
+      t.getField("Region").asInstanceOf[String].contains("_reconfigured")
     })
   }
 
   "Engine" should "be able to modify two python UDFs in workflow" in {
-    val sourceOpDesc = TestOperators.smallCsvScanOpDesc()
+    val sourceOpDesc = slowSource()
     val udfOpDesc1 = TestOperators.pythonOpDesc()
     val udfOpDesc2 = TestOperators.pythonOpDesc()
     val code = """

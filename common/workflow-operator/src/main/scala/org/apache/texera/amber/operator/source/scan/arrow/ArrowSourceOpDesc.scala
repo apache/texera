@@ -71,7 +71,20 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    val file = DocumentFactory.openReadonlyDocument(new URI(fileName.get)).asFile()
+    require(
+      fileResolved(),
+      "No file selected. Please select a valid .arrow file from the 'File' dropdown in the right panel."
+    )
+
+    val uri = new URI(fileName.get)
+    if (uri.getScheme == "file") {
+      require(
+        new java.io.File(uri).isFile,
+        "The selected item is a folder or does not exist. Please select an actual .arrow file from the 'File' dropdown."
+      )
+    }
+    val file = DocumentFactory.openReadonlyDocument(uri).asFile()
+
     val allocator = new RootAllocator()
 
     Using
@@ -81,8 +94,15 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
         val arrowSchema: ArrowSchema = reader.getVectorSchemaRoot.getSchema
         ArrowUtils.toTexeraSchema(arrowSchema)
       }
-      .getOrElse {
-        throw new IOException("Failed to infer schema from Arrow file.")
+      .recoverWith {
+        case scala.util.control.NonFatal(e) =>
+          scala.util.Failure(
+            new RuntimeException(
+              "Failed to read the .arrow file. Please ensure it is a valid Arrow file.",
+              e
+            )
+          )
       }
+      .get
   }
 }

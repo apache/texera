@@ -99,7 +99,11 @@ case class LogicalPlan(
       case operator @ (scanOp: ScanSourceOpDesc) =>
         Try {
           // Resolve file path for ScanSourceOpDesc
-          val fileName = scanOp.fileName.getOrElse(throw new RuntimeException("no input file name"))
+          val fileName = scanOp.fileName.getOrElse(
+            throw new RuntimeException(
+              "No file selected. Please select a file from the 'File' dropdown in the right panel."
+            )
+          )
           val fileUri = FileResolver.resolve(fileName) // Convert to URI
 
           // Set the URI in the ScanSourceOpDesc

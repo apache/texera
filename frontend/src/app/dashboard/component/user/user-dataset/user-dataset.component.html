@@ -32,26 +32,32 @@
           nzTheme="outline"></i>
         <span>Create Dataset</span>
       </button>
-      <button
-        nz-button
-        title="List View"
-        (click)="setViewType('list')"
-        [nzType]="viewType === 'list' ? 'primary' : 'default'">
-        <i
-          nz-icon
-          nzType="bars"
-          nzTheme="outline"></i>
-      </button>
-      <button
-        nz-button
-        title="Card View"
-        (click)="setViewType('card')"
-        [nzType]="viewType === 'card' ? 'primary' : 'default'">
-        <i
-          nz-icon
-          nzType="appstore"
-          nzTheme="outline"></i>
-      </button>
+      <nz-space-compact class="utility-button-group">
+        <texera-sort-button
+          [showEditTime]="false"
+          [showExecutionTime]="false"
+          (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
+        <button
+          nz-button
+          title="List View"
+          (click)="setViewType('list')"
+          [nzType]="viewType === 'list' ? 'primary' : 'default'">
+          <i
+            nz-icon
+            nzType="bars"
+            nzTheme="outline"></i>
+        </button>
+        <button
+          nz-button
+          title="Card View"
+          (click)="setViewType('card')"
+          [nzType]="viewType === 'card' ? 'primary' : 'default'">
+          <i
+            nz-icon
+            nzType="appstore"
+            nzTheme="outline"></i>
+        </button>
+      </nz-space-compact>
       <texera-filters #filters></texera-filters>
     </div>
   </nz-card>

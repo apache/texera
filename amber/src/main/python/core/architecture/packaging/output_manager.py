@@ -97,7 +97,7 @@ class OutputManager:
         This method is only used for ensuring correct region execution.
         Some operators may have input port dependency relationships, for
         which we currently use a two-phase region execution scheme.
-        (See `RegionExecutionCoordinator.scala` for details.)
+        (See `RegionExecutionManager.scala` for details.)
         This logic will only be executed when the worker is part of an
         `executingDependeePortPhase` region-execution phase.
         We currently assume that in this phase the operator (worker) will

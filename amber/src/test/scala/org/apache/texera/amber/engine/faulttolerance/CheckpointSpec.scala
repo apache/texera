@@ -22,14 +22,14 @@ package org.apache.texera.amber.engine.faulttolerance
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerConfig,
-  ControllerProcessor
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  CoordinatorConfig,
+  CoordinatorProcessor
 }
 import org.apache.texera.amber.engine.architecture.worker.DataProcessor
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.DPInputQueueElement
 import org.apache.texera.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
-import org.apache.texera.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import org.apache.texera.amber.engine.common.virtualidentity.util.{COORDINATOR, SELF}
 import org.apache.texera.amber.engine.common.{AmberRuntime, CheckpointState}
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
@@ -63,17 +63,17 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
 
-  "Default controller state" should "round-trip through CheckpointState" in {
+  "Default coordinator state" should "round-trip through CheckpointState" in {
     val cp =
-      new ControllerProcessor(
+      new CoordinatorProcessor(
         workflow.context,
-        ControllerConfig.default,
-        CONTROLLER,
+        CoordinatorConfig.default,
+        COORDINATOR,
         msg => {}
       )
     val chkpt = new CheckpointState()
     chkpt.save(CP_STATE_KEY, cp)
-    val restored: ControllerProcessor = chkpt.load(CP_STATE_KEY)
+    val restored: CoordinatorProcessor = chkpt.load(CP_STATE_KEY)
     assert(restored.actorId == cp.actorId)
   }
 
@@ -131,16 +131,16 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 //      workflow.context,
 //      workflow.physicalPlan,
 //      resultStorage,
-//      ControllerConfig.default,
+//      CoordinatorConfig.default,
 //      error => {}
 //    )
-//    Await.result(client1.controllerInterface.startWorkflow(EmptyRequest(), ()))
+//    Await.result(client1.coordinatorInterface.startWorkflow(EmptyRequest(), ()))
 //    Thread.sleep(100)
-//    Await.result(client1.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
+//    Await.result(client1.coordinatorInterface.pauseWorkflow(EmptyRequest(), ()))
 //    val checkpointId = EmbeddedControlMessageIdentity(s"Checkpoint_test_1")
 //    val uri = new URI("ram:///recovery-logs/tmp/")
 //    Await.result(
-//      client1.controllerInterface.takeGlobalCheckpoint(
+//      client1.coordinatorInterface.takeGlobalCheckpoint(
 //        TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString),
 //        ()
 //      ),
@@ -148,16 +148,16 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 //    )
 //    client1.shutdown()
 //    Thread.sleep(100)
-//    var controllerConfig = ControllerConfig.default
-//    controllerConfig =
-//      controllerConfig.copy(stateRestoreConfOpt = Some(StateRestoreConfig(uri, checkpointId)))
+//    var coordinatorConfig = CoordinatorConfig.default
+//    coordinatorConfig =
+//      coordinatorConfig.copy(stateRestoreConfOpt = Some(StateRestoreConfig(uri, checkpointId)))
 //    val completableFuture = new CompletableFuture[Unit]()
 //    val client2 = new AmberClient(
 //      system,
 //      workflow.context,
 //      workflow.physicalPlan,
 //      resultStorage,
-//      controllerConfig,
+//      coordinatorConfig,
 //      error => {}
 //    )
 //    client2.registerCallback[ExecutionStateUpdate] { evt =>
@@ -168,11 +168,11 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 //    Thread.sleep(1000)
 //    assert(
 //      Await
-//        .result(client2.controllerInterface.startWorkflow(EmptyRequest(), ()))
+//        .result(client2.coordinatorInterface.startWorkflow(EmptyRequest(), ()))
 //        .workflowState == PAUSED
 //    )
 //    Thread.sleep(5000)
-//    Await.result(client2.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
+//    Await.result(client2.coordinatorInterface.resumeWorkflow(EmptyRequest(), ()))
 //    completableFuture.get(30000, TimeUnit.MILLISECONDS)
 //  }
 

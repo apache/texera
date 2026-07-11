@@ -33,29 +33,59 @@ jobs:
     name: Discover direct backport targets
     runs-on: ubuntu-latest
     outputs:
-      pr_number: ${{ steps.discover.outputs.pr_number }}
-      targets: ${{ steps.discover.outputs.targets }}
+      entries: ${{ steps.discover.outputs.entries }}
       has_targets: ${{ steps.discover.outputs.has_targets }}
     steps:
-      - name: Resolve merged PR and green targets
+      - name: Resolve merged PRs and green targets
         id: discover
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const sha = context.sha;
             const { owner, repo } = context.repo;
+
+            // A push can carry several squash merges when auto-merges land on
+            // main close together. Every commit in the push must be examined —
+            // looking only at the head commit silently drops the release/*
+            // labels of the other PRs in the same push (see #6119: #5802 and
+            // #6111 were never backported this way).
+            async function listPushCommits() {
+              const before = context.payload?.before;
+              const zeroSha = "0000000000000000000000000000000000000000";
+              if (before && before !== zeroSha) {
+                try {
+                  // compareCommits returns the commits oldest-first, which is
+                  // also the order the cherry-picks must apply in.
+                  const { data: comparison } = await github.rest.repos.compareCommits({
+                    owner,
+                    repo,
+                    base: before,
+                    head: sha,
+                  });
+                  if (comparison.commits.length > 0) {
+                    return comparison.commits.map((c) => ({
+                      sha: c.sha,
+                      message: c.commit.message,
+                    }));
+                  }
+                  core.warning(`compare ${before}...${sha} returned no commits; falling back to the head commit.`);
+                } catch (e) {
+                  core.warning(`compare ${before}...${sha} failed: ${e.message}; falling back to the head commit.`);
+                }
+              }
+              return [{ sha, message: context.payload?.head_commit?.message ?? "" }];
+            }
 
             // Strategy 1 (preferred): parse the squash-merge commit message.
             // ASF .asf.yaml forces squash merges with PR_TITLE_AND_DESC, so the
             // first line ends with "(#NNNN)". This is deterministic and avoids
             // the commit↔PR association index, which can lag for tens of seconds
             // after a merge.
-            async function resolvePrFromMessage() {
-              const message = context.payload?.head_commit?.message ?? "";
-              const firstLine = message.split("\n", 1)[0];
+            async function resolvePrFromMessage(commit) {
+              const firstLine = commit.message.split("\n", 1)[0];
               const match = firstLine.match(/\(#(\d+)\)\s*$/);
               if (!match) {
-                core.info('Commit message does not end with "(#N)"; falling back to API.');
+                core.info(`Message of ${commit.sha} does not end with "(#N)"; falling back to API.`);
                 return null;
               }
               const prNumber = Number(match[1]);
@@ -66,10 +96,10 @@ jobs:
                   pull_number: prNumber,
                 });
                 if (!pr.merged) {
-                  core.warning(`PR #${prNumber} extracted from commit message is not merged; falling back to API.`);
+                  core.warning(`PR #${prNumber} extracted from ${commit.sha} is not merged; falling back to API.`);
                   return null;
                 }
-                core.info(`Resolved PR #${prNumber} from commit message.`);
+                core.info(`Resolved PR #${prNumber} from the message of ${commit.sha}.`);
                 return pr;
               } catch (e) {
                 core.warning(`Failed to fetch PR #${prNumber}: ${e.message}. Falling back to API.`);
@@ -79,7 +109,7 @@ jobs:
 
             // Strategy 2 (fallback): GET /commits/{sha}/pulls with exponential
             // backoff. 5 attempts at 0/2/4/8/16s — total worst case ~30s.
-            async function resolvePrFromApi() {
+            async function resolvePrFromApi(commit) {
               const backoffsMs = [0, 2000, 4000, 8000, 16000];
               for (let i = 0; i < backoffsMs.length; i++) {
                 if (backoffsMs[i] > 0) {
@@ -91,56 +121,35 @@ jobs:
                   {
                     owner,
                     repo,
-                    commit_sha: sha,
+                    commit_sha: commit.sha,
                   }
                 );
-                const pr = response.data.find((p) => p.merge_commit_sha === sha) ?? response.data[0];
+                const pr = response.data.find((p) => p.merge_commit_sha === commit.sha) ?? response.data[0];
                 if (pr) {
-                  core.info(`Resolved PR #${pr.number} from commits/${sha}/pulls on attempt ${i + 1}.`);
+                  core.info(`Resolved PR #${pr.number} from commits/${commit.sha}/pulls on attempt ${i + 1}.`);
                   return pr;
                 }
               }
               return null;
             }
 
-            const pullRequest = (await resolvePrFromMessage()) ?? (await resolvePrFromApi());
-            if (!pullRequest) {
-              core.info(`No merged pull request is associated with ${sha}.`);
-              core.setOutput("pr_number", "");
-              core.setOutput("targets", "[]");
-              core.setOutput("has_targets", "false");
-              return;
-            }
+            async function greenTargetsFor(pullRequest, requestedTargets) {
+              const buildRuns = await github.paginate(
+                github.rest.actions.listWorkflowRuns,
+                {
+                  owner,
+                  repo,
+                  workflow_id: "required-checks.yml",
+                  head_sha: pullRequest.head.sha,
+                  per_page: 100,
+                }
+              );
 
-            const requestedTargets = [...new Set(
-              pullRequest.labels
-                .map((label) => label.name)
-                .filter((name) => /^release\/.+$/.test(name))
-            )].sort();
-
-            if (requestedTargets.length === 0) {
-              core.info(`PR #${pullRequest.number} does not request any backports.`);
-              core.setOutput("pr_number", String(pullRequest.number));
-              core.setOutput("targets", "[]");
-              core.setOutput("has_targets", "false");
-              return;
-            }
-
-            const buildRuns = await github.paginate(
-              github.rest.actions.listWorkflowRuns,
-              {
-                owner,
-                repo,
-                workflow_id: "required-checks.yml",
-                head_sha: pullRequest.head.sha,
-                per_page: 100,
+              if (buildRuns.length === 0) {
+                core.warning(`No Build workflow runs found for ${pullRequest.head.sha}.`);
+                return [];
               }
-            );
 
-            let greenTargets = [];
-            if (buildRuns.length === 0) {
-              core.warning(`No Build workflow runs found for ${pullRequest.head.sha}.`);
-            } else {
               const allJobs = [];
               for (const run of buildRuns) {
                 const jobs = await github.paginate(
@@ -155,7 +164,7 @@ jobs:
                 allJobs.push(...jobs);
               }
 
-              greenTargets = requestedTargets.filter((target) => {
+              return requestedTargets.filter((target) => {
                 const prefix = `backport (${target}) / `;
                 const targetJobs = allJobs.filter((job) => job.name.startsWith(prefix));
                 // Treat skipped as green: precheck legitimately skips stacks
@@ -169,26 +178,70 @@ jobs:
               });
             }
 
-            const skippedTargets = requestedTargets.filter((target) => !greenTargets.includes(target));
-            if (skippedTargets.length > 0) {
-              core.warning(`Skipping targets without a successful Backport run: ${skippedTargets.join(", ")}`);
+            const commits = await listPushCommits();
+            core.info(`Push contains ${commits.length} commit(s).`);
+
+            // One matrix entry per (PR, target) pair, in commit order.
+            const entries = [];
+            const seenPrNumbers = new Set();
+            for (const commit of commits) {
+              const pullRequest =
+                (await resolvePrFromMessage(commit)) ?? (await resolvePrFromApi(commit));
+              if (!pullRequest) {
+                core.info(`No merged pull request is associated with ${commit.sha}.`);
+                continue;
+              }
+              if (seenPrNumbers.has(pullRequest.number)) {
+                continue;
+              }
+              seenPrNumbers.add(pullRequest.number);
+
+              const requestedTargets = [...new Set(
+                pullRequest.labels
+                  .map((label) => label.name)
+                  .filter((name) => /^release\/.+$/.test(name))
+              )].sort();
+
+              if (requestedTargets.length === 0) {
+                core.info(`PR #${pullRequest.number} does not request any backports.`);
+                continue;
+              }
+
+              const greenTargets = await greenTargetsFor(pullRequest, requestedTargets);
+              const skippedTargets = requestedTargets.filter((target) => !greenTargets.includes(target));
+              if (skippedTargets.length > 0) {
+                core.warning(`PR #${pullRequest.number}: skipping targets without a successful Backport run: ${skippedTargets.join(", ")}`);
+              }
+
+              for (const target of greenTargets) {
+                entries.push({
+                  pr_number: pullRequest.number,
+                  merge_sha: commit.sha,
+                  target,
+                });
+              }
             }
 
-            core.setOutput("pr_number", String(pullRequest.number));
-            core.setOutput("targets", JSON.stringify(greenTargets));
-            core.setOutput("has_targets", greenTargets.length > 0 ? "true" : "false");
+            core.info(`Backport entries: ${JSON.stringify(entries)}`);
+            core.setOutput("entries", JSON.stringify(entries));
+            core.setOutput("has_targets", entries.length > 0 ? "true" : "false");
 
   push-backports:
     needs: discover
     if: ${{ needs.discover.outputs.has_targets == 'true' }}
     runs-on: ubuntu-latest
+    name: "backport #${{ matrix.pr_number }} to ${{ matrix.target }}"
     strategy:
       fail-fast: false
+      # One leg per (PR, target) pair. max-parallel: 1 applies cherry-picks
+      # in commit order and keeps two legs from racing pushes to the same
+      # release branch.
+      max-parallel: 1
       matrix:
-        target: ${{ fromJson(needs.discover.outputs.targets) }}
+        include: ${{ fromJson(needs.discover.outputs.entries) }}
     steps:
       - name: Checkout main
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           # Use AUTO_MERGE_TOKEN (fine-grained PAT) so the push to the release
@@ -199,7 +252,7 @@ jobs:
       - name: Cherry-pick merge commit onto target branch
         id: cherry_pick
         env:
-          MERGE_SHA: ${{ github.sha }}
+          MERGE_SHA: ${{ matrix.merge_sha }}
           TARGET_BRANCH: ${{ matrix.target }}
         run: |
           set -euo pipefail
@@ -401,12 +454,12 @@ jobs:
 
       - name: Annotate original PR and commit on success
         if: success()
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
-          MERGE_SHA: ${{ github.sha }}
+          MERGE_SHA: ${{ matrix.merge_sha }}
           TARGET_BRANCH: ${{ matrix.target }}
           NEW_SHA: ${{ steps.cherry_pick.outputs.new_sha }}
-          PR_NUMBER: ${{ needs.discover.outputs.pr_number }}
+          PR_NUMBER: ${{ matrix.pr_number }}
         with:
           script: |
             const { MERGE_SHA, TARGET_BRANCH, NEW_SHA, PR_NUMBER } = process.env;
@@ -504,11 +557,11 @@ jobs:
 
       - name: Annotate original PR and commit on failure
         if: failure()
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
-          MERGE_SHA: ${{ github.sha }}
+          MERGE_SHA: ${{ matrix.merge_sha }}
           TARGET_BRANCH: ${{ matrix.target }}
-          PR_NUMBER: ${{ needs.discover.outputs.pr_number }}
+          PR_NUMBER: ${{ matrix.pr_number }}
         with:
           script: |
             const { MERGE_SHA, TARGET_BRANCH, PR_NUMBER } = process.env;
@@ -558,13 +611,15 @@ jobs:
               }),
             );
             if (jobs) {
-              const me = jobs.find((j) => j.name.includes(`(${TARGET_BRANCH})`));
+              const me = jobs.find(
+                (j) => j.name.includes(`#${PR_NUMBER} `) && j.name.includes(TARGET_BRANCH),
+              );
               if (me?.html_url) {
                 jobUrl = me.html_url;
                 core.info(`Resolved job URL for matrix leg: ${jobUrl}`);
               } else {
                 core.info(
-                  `No job matched name including "(${TARGET_BRANCH})"; ` +
+                  `No job matched name including "#${PR_NUMBER}" and "${TARGET_BRANCH}"; ` +
                   "falling back to run URL.",
                 );
               }

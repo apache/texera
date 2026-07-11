@@ -74,6 +74,48 @@ const SAMPLE_FILE_NODES: DatasetFileNode[] = [
   { name: "root", type: "directory", parentDir: "", children: [] as DatasetFileNode[] } as DatasetFileNode,
 ];
 
+class FakeXMLHttpRequest {
+  static instances: FakeXMLHttpRequest[] = [];
+
+  readonly upload = {
+    addEventListener: vi.fn(),
+  };
+  status = 0;
+  url = "";
+  private listeners = new Map<string, EventListener[]>();
+
+  open(_method: string, url: string): void {
+    this.url = url;
+  }
+
+  setRequestHeader(): void {}
+
+  send(): void {
+    FakeXMLHttpRequest.instances.push(this);
+  }
+
+  abort(): void {}
+
+  addEventListener(type: string, listener: EventListener): void {
+    this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+  }
+
+  respond(status: number): void {
+    this.status = status;
+    this.emit("load");
+  }
+
+  fail(): void {
+    this.emit("error");
+  }
+
+  private emit(type: string): void {
+    for (const listener of this.listeners.get(type) ?? []) {
+      listener(new Event(type));
+    }
+  }
+}
+
 describe("DatasetService", () => {
   let service: DatasetService;
   let http: HttpTestingController;
@@ -89,6 +131,7 @@ describe("DatasetService", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     http.verify();
   });
 
@@ -221,6 +264,80 @@ describe("DatasetService", () => {
   });
 
   // ─── finalizeMultipartUpload (abort vs finish) ────────────────────────────
+
+  it("multipartUpload resumes a failed upload by sending only missing parts", async () => {
+    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
+    FakeXMLHttpRequest.instances = [];
+    const file = new File(["abcdefgh"], "resume.txt");
+    const firstProgress: string[] = [];
+
+    const firstAttempt = new Promise<unknown>(resolve => {
+      service.multipartUpload("a@b.com", "ds", "resume.txt", file, 4, 1, false).subscribe({
+        next: progress => firstProgress.push(progress.status),
+        error: (error: unknown): void => {
+          resolve(error);
+        },
+        complete: () => resolve(undefined),
+      });
+    });
+
+    http
+      .expectOne(r => r.url === `${API}/${DATASET_BASE_URL}/multipart-upload` && r.params.get("type") === "init")
+      .flush({ missingParts: [1, 2], completedPartsCount: 0 });
+
+    expect(FakeXMLHttpRequest.instances[0].url).toContain("partNumber=1");
+    FakeXMLHttpRequest.instances[0].respond(204);
+    expect(FakeXMLHttpRequest.instances[1].url).toContain("partNumber=2");
+    FakeXMLHttpRequest.instances[1].fail();
+
+    expect(await firstAttempt).toBeInstanceOf(Error);
+    expect(firstProgress).toContain("failed");
+
+    FakeXMLHttpRequest.instances = [];
+    const secondProgress: Array<{ percentage: number; status: string }> = [];
+    const secondAttempt = new Promise<void>((resolve, reject) => {
+      service.multipartUpload("a@b.com", "ds", "resume.txt", file, 4, 1, false).subscribe({
+        next: progress => secondProgress.push({ percentage: progress.percentage, status: progress.status }),
+        error: (error: unknown): void => {
+          reject(error);
+        },
+        complete: resolve,
+      });
+    });
+
+    http
+      .expectOne(r => r.url === `${API}/${DATASET_BASE_URL}/multipart-upload` && r.params.get("type") === "init")
+      .flush({ missingParts: [2], completedPartsCount: 1 });
+
+    expect(secondProgress[0]).toEqual({ percentage: 50, status: "initializing" });
+    expect(
+      FakeXMLHttpRequest.instances.map(xhr => new URL(xhr.url, "http://localhost").searchParams.get("partNumber"))
+    ).toEqual(["2"]);
+    FakeXMLHttpRequest.instances[0].respond(204);
+
+    http
+      .expectOne(r => r.url === `${API}/${DATASET_BASE_URL}/multipart-upload` && r.params.get("type") === "finish")
+      .flush({});
+
+    await secondAttempt;
+    expect(secondProgress.at(-1)).toEqual({ percentage: 100, status: "finished" });
+  });
+
+  it("findExistingUploadFiles posts path and size candidates", async () => {
+    const pending = firstValueFrom(service.findExistingUploadFiles(7, [{ path: "a.csv", sizeBytes: 12 }]));
+    const req = http.expectOne(`${API}/${DATASET_BASE_URL}/7/existing-upload-files`);
+    expect(req.request.method).toBe("POST");
+    expect(req.request.body).toEqual({ files: [{ path: "a.csv", sizeBytes: 12 }] });
+    req.flush({ filePaths: ["a.csv"] });
+    expect(await pending).toEqual(["a.csv"]);
+  });
+
+  it("findExistingUploadFiles tolerates a null payload", async () => {
+    const pending = firstValueFrom(service.findExistingUploadFiles(7, [{ path: "a.csv", sizeBytes: 12 }]));
+    const req = http.expectOne(`${API}/${DATASET_BASE_URL}/7/existing-upload-files`);
+    req.flush(null);
+    expect(await pending).toEqual([]);
+  });
 
   it("finalizeMultipartUpload routes through type=finish when not aborting", () => {
     service.finalizeMultipartUpload("a@b.com", "ds", "f", false).subscribe();
