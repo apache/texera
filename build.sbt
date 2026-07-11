@@ -60,11 +60,25 @@ lazy val universalJvmFlagsSettings = Seq(
 lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings
 lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings
 
+val bouncyCastleVersion = "1.84"
+
+lazy val bouncyCastleOverrides = Seq(
+  "org.bouncycastle" % "bcpkix-jdk18on" % bouncyCastleVersion,
+  "org.bouncycastle" % "bcprov-jdk18on" % bouncyCastleVersion,
+  "org.bouncycastle" % "bcutil-jdk18on" % bouncyCastleVersion
+)
+
+lazy val commonDependencyOverrides = Seq(
+  dependencyOverrides ++= bouncyCastleOverrides
+)
+
 // Aggregate of the settings every module shares. These are independent
 // concerns — ASF licensing, jacoco XML coverage, and universal JVM flags —
 // grouped only so each module can apply them with a single .settings(...) call.
-lazy val commonModuleSettings = asfLicensingSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
-lazy val commonModuleSettingsWithVendored = asfLicensingSettingsWithVendored ++ coverageReportSettings ++ universalJvmFlagsSettings
+lazy val commonModuleSettings =
+  asfLicensingSettings ++ coverageReportSettings ++ universalJvmFlagsSettings ++ commonDependencyOverrides
+lazy val commonModuleSettingsWithVendored =
+  asfLicensingSettingsWithVendored ++ coverageReportSettings ++ universalJvmFlagsSettings ++ commonDependencyOverrides
 
 val jacksonVersion = "2.18.8"
 

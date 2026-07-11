@@ -7,7 +7,7 @@ This guide explains how to enable the AI agent feature in Texera. For detailed e
 
 ## Prerequisites
 - Already know how to setup Texera
-- Python 3.10+
+- Python 3.11+
 - API key from a supported LLM provider (e.g., Anthropic, OpenAI)
 
 ## Step 1: Install LiteLLM

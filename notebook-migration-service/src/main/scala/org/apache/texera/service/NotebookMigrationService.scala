@@ -20,7 +20,12 @@ package org.apache.texera.service
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, ServiceBootstrap}
+import org.apache.texera.auth.{
+  AuthFeatures,
+  RequestLoggingFilter,
+  RoleAnnotationEnforcer,
+  ServiceBootstrap
+}
 import org.apache.texera.service.resource.{HealthCheckResource, NotebookMigrationResource}
 
 class NotebookMigrationService
@@ -43,6 +48,11 @@ class NotebookMigrationService
     AuthFeatures.register(environment)
 
     environment.jersey.register(classOf[NotebookMigrationResource])
+
+    RoleAnnotationEnforcer.enforce(
+      environment.jersey.getResourceConfig,
+      "NotebookMigrationService"
+    )
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)

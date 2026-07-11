@@ -210,7 +210,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val err = result.operatorIdToError(orphan.operatorIdentifier)
     assert(err.`type` == COMPILATION_ERROR)
     assert(err.operatorId == orphan.operatorIdentifier.id)
-    assert(err.message.contains("no input file name"), s"unexpected message: ${err.message}")
+    assert(err.message.contains("No file selected"), s"unexpected message: ${err.message}")
     assert(err.details.nonEmpty, "stack-trace details should be populated for UI display")
   }
 

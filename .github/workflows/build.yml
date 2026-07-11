@@ -52,6 +52,10 @@ on:
         required: false
         type: boolean
         default: true
+      run_platform_integration:
+        required: false
+        type: boolean
+        default: true
       run_pyamber:
         required: false
         type: boolean
@@ -747,12 +751,149 @@ jobs:
           disable_search: true
           fail_ci_if_error: false
 
+  platform-integration:
+    # Boot smoke test for the platform services (mirrors amber-integration: an
+    # independent, infra-provisioned integration job that builds on its own
+    # classpath — no artifact hand-off from the `platform` job, so the two run
+    # in parallel). Per-service matrix like `platform`: each service is launched
+    # from its freshly built dist and must reach a listening state without a
+    # runtime classpath/linkage crash (see #6220 and .github/scripts/smoke-boot.sh).
+    # postgres backs every service's JOOQ codegen + boot; file-service also
+    # fail-fasts on S3 / LakeFS during run(), so those are provisioned for it
+    # alone. Unit tests + coverage stay in `platform`. See #6273.
+    if: ${{ inputs.run_platform_integration }}
+    name: ${{ format('platform-integration{0} ({1})', inputs.job_name_suffix, matrix.service) }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: config-service
+            sbt_project: ConfigService
+            port: 9094
+          - service: access-control-service
+            sbt_project: AccessControlService
+            port: 9096
+          - service: file-service
+            sbt_project: FileService
+            port: 9092
+            object_store: true
+          - service: computing-unit-managing-service
+            sbt_project: ComputingUnitManagingService
+            port: 8888
+          - service: workflow-compiling-service
+            sbt_project: WorkflowCompilingService
+            port: 9090
+          - service: notebook-migration-service
+            sbt_project: NotebookMigrationService
+            port: 9098
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+    services:
+      # Every platform service transitively depends on DAO, whose JOOQ code
+      # generation needs the live texera schema at compile time; the service
+      # also connects to it on boot.
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 17
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+      - name: Create Databases
+        run: |
+          psql -h localhost -U postgres -f sql/texera_ddl.sql
+          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/texera_lakefs.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Build ${{ matrix.service }} dist
+        # Self-build on this job's own classpath (mirrors amber-integration
+        # compiling its own tests) rather than downloading an artifact from the
+        # `platform` job, so the two stay independent and run in parallel. No
+        # jacoco here — unit tests + coverage live in `platform`.
+        run: sbt "${{ matrix.sbt_project }}/dist"
+      - name: Unzip ${{ matrix.service }} dist
+        run: |
+          mkdir -p /tmp/dists
+          unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
+      - name: Start MinIO
+        # file-service's boot creates its S3 bucket via S3StorageClient; only
+        # that service needs an object store, so the rest of the matrix skips this.
+        if: ${{ matrix.object_store }}
+        run: |
+          docker run -d --name minio --network host \
+            -e MINIO_ROOT_USER=texera_minio \
+            -e MINIO_ROOT_PASSWORD=password \
+            minio/minio:RELEASE.2025-02-28T09-55-16Z server /data
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            echo "Waiting for MinIO... (attempt $i)"; sleep 1
+          done
+          curl -sf http://localhost:9000/minio/health/live
+      - name: Start LakeFS
+        # lakeFS keeps its metadata in the texera_lakefs postgres DB (created
+        # above) and uses MinIO as its S3 blockstore. file-service's boot calls
+        # LakeFSStorageClient.healthCheck(), so this must be up for it to reach a
+        # listening state. Config mirrors bin/single-node (compose + .env),
+        # adapted to CI creds (postgres/postgres @ localhost).
+        if: ${{ matrix.object_store }}
+        run: |
+          docker run -d --name lakefs --network host \
+            -e LAKEFS_DATABASE_TYPE=postgres \
+            -e "LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING=postgres://postgres:postgres@localhost:5432/texera_lakefs?sslmode=disable" \
+            -e LAKEFS_BLOCKSTORE_TYPE=s3 \
+            -e LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE=true \
+            -e LAKEFS_BLOCKSTORE_S3_ENDPOINT=http://localhost:9000 \
+            -e LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=texera_minio \
+            -e LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=password \
+            -e LAKEFS_AUTH_ENCRYPT_SECRET_KEY=random_string_for_lakefs \
+            --entrypoint /bin/sh \
+            treeverse/lakefs:1.51 \
+            -c "lakefs setup --user-name texera-admin --access-key-id AKIAIOSFOLKFSSAMPLES --secret-access-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY || true; lakefs run"
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:8000/api/v1/healthcheck && break
+            echo "Waiting for LakeFS... (attempt $i)"; sleep 1
+          done
+          curl -sf http://localhost:8000/api/v1/healthcheck
+      - name: Smoke-test ${{ matrix.service }} boots
+        # Launch the packaged service and assert it reaches LISTEN on its port
+        # without a runtime classpath/linkage crash (#6220).
+        env:
+          TEXERA_HOME: ${{ github.workspace }}
+        run: .github/scripts/smoke-boot.sh "/tmp/dists/${{ matrix.service }}-*/bin/${{ matrix.service }}" "${{ matrix.port }}"
+
   pyamber:
     if: ${{ inputs.run_pyamber }}
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
     services:
       postgres:
