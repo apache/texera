@@ -28,7 +28,7 @@
       sandbox="allow-scripts"></iframe>
   </div>
 
-  <!-- Sample Records Table -->
+  <!-- Sample Tuples Table -->
   <div
     *ngIf="sampleTuples && sampleTuples.length > 0 && !isVisualization()"
     class="sample-records-section">
@@ -37,11 +37,11 @@
         <thead>
           <tr>
             <th>Row</th>
-            <th *ngFor="let col of getSampleColumns()">{{ getColumnDisplayName(col) }}</th>
+            <th *ngFor="let col of getSampleColumns()">{{ col }}</th>
           </tr>
         </thead>
         <tbody>
-          <ng-container *ngFor="let entry of getDisplayRows()">
+          <ng-container *ngFor="let entry of getDisplayTuples()">
             <tr
               *ngIf="entry.isEllipsis"
               class="ellipsis-row">
@@ -49,7 +49,7 @@
             </tr>
             <tr *ngIf="!entry.isEllipsis">
               <td>{{ entry.rowIndex }}</td>
-              <td *ngFor="let col of getSampleColumns()">{{ entry.row![col] }}</td>
+              <td *ngFor="let field of entry.tuple!.fields">{{ field }}</td>
             </tr>
           </ng-container>
         </tbody>

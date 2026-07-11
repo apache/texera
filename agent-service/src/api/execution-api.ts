@@ -23,8 +23,8 @@ import {
   OperatorState,
   WorkflowExecutionState,
   WorkflowFatalErrorType,
+  type IndexedTuple,
   type OperatorExecutionSummary,
-  type Tuple,
   type WebOutputMode,
   type WorkflowExecutionSummary,
   type WorkflowFatalError,
@@ -50,6 +50,18 @@ export interface LogicalPlan {
   opsToReuseResult?: string[];
 }
 
+/**
+ * TEMPORARY BACKEND COMPATIBILITY LAYER.
+ *
+ * The schemas and inferred wire-format types below exist only to validate and
+ * convert the backend's current execution response. They MUST NOT be reused
+ * outside this file; all other code must use the canonical types from
+ * `types/execution`. Remove this compatibility layer once backend execution is
+ * refactored to return the canonical model.
+ *
+ * TypeScript types are erased at runtime, so Zod validates the untrusted JSON
+ * response before it enters the canonical agent-service execution model.
+ */
 const legacyConsoleMessageSchema = z.object({
   msgType: z.nativeEnum(ConsoleMessageType),
   title: z.string().default(""),
@@ -64,33 +76,27 @@ const legacyResultModeToWebOutputMode = {
   visualization: { type: "SetSnapshotMode" },
 } satisfies Record<LegacyResultMode, WebOutputMode>;
 
-const legacyOperatorInfoSchema = z
-  .object({
-    state: z.string(),
-    inputTuples: z.number(),
-    outputTuples: z.number(),
-    resultMode: legacyResultModeSchema,
-    result: z.array(z.record(z.unknown())).nullish(),
-    totalRowCount: z.number().int().nonnegative().nullish(),
-    displayedRows: z.number().int().nonnegative().nullish(),
-    truncated: z.boolean().nullish(),
-    consoleLogs: z.array(legacyConsoleMessageSchema).nullish(),
-    error: z.string().nullish(),
-    warnings: z.array(z.string()).nullish(),
-  })
-  .passthrough();
+const legacyOperatorInfoSchema = z.object({
+  state: z.string(),
+  inputTuples: z.number(),
+  outputTuples: z.number(),
+  resultMode: legacyResultModeSchema,
+  result: z.array(z.record(z.unknown())).nullish(),
+  totalRowCount: z.number().int().nonnegative().nullish(),
+  displayedRows: z.number().int().nonnegative().nullish(),
+  truncated: z.boolean().nullish(),
+  consoleLogs: z.array(legacyConsoleMessageSchema).nullish(),
+  error: z.string().nullish(),
+  warnings: z.array(z.string()).nullish(),
+});
 
-const legacySyncExecutionResultSchema = z
-  .object({
-    success: z.boolean(),
-    state: z.string(),
-    operators: z.record(legacyOperatorInfoSchema),
-    compilationErrors: z.record(z.string()).nullish(),
-    errors: z.array(z.string()).nullish(),
-  })
-  .passthrough();
-
-export type LegacySyncExecutionResult = z.input<typeof legacySyncExecutionResultSchema>;
+const legacySyncExecutionResultSchema = z.object({
+  success: z.boolean(),
+  state: z.string(),
+  operators: z.record(legacyOperatorInfoSchema),
+  compilationErrors: z.record(z.string()).nullish(),
+  errors: z.array(z.string()).nullish(),
+});
 
 const internalResultKeys = new Set(["__row_index__", "__is_visualization__"]);
 const operatorStates = new Set<string>(Object.values(OperatorState));
@@ -116,7 +122,7 @@ function normalizeCellValue(value: unknown): unknown {
   return serialized === undefined ? String(value) : serialized;
 }
 
-function legacyRowToTuple(row: Record<string, unknown>, fallbackIndex: number): [number, Tuple] {
+function legacyRowToTuple(row: Record<string, unknown>, fallbackIndex: number): IndexedTuple {
   const rowIndexValue = row["__row_index__"];
   if (rowIndexValue !== undefined && (!Number.isInteger(rowIndexValue) || (rowIndexValue as number) < 0)) {
     throw new Error(`Invalid __row_index__ for sampled row ${fallbackIndex}`);
