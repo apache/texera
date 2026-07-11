@@ -48,20 +48,14 @@ assert_crash() {
 }
 
 # --- informational prose must NOT be treated as a crash (no random failures) ---
-printf '%s\n' "jOOQ tip of the day: A NoClassDefFoundError or ClassNotFoundException is often a sign that your jOOQ code is generated with a different version of jOOQ than runtime library you're using" \
-  | assert_no_crash "jOOQ tip of the day (#6332)"
-printf '%s\n' 'INFO org.eclipse.jetty.server.Server: jetty-11.0.20 started' \
-  | assert_no_crash "clean boot log"
-printf '%s\n' 'DEBUG a NoSuchMethodError can occur when APIs drift' \
-  | assert_no_crash "bare linkage-name mention without a fully-qualified type"
+assert_no_crash "jOOQ tip of the day (#6332)" <<<"jOOQ tip of the day: A NoClassDefFoundError or ClassNotFoundException is often a sign that your jOOQ code is generated with a different version of jOOQ than runtime library you're using"
+assert_no_crash "clean boot log" <<<"INFO org.eclipse.jetty.server.Server: jetty-11.0.20 started"
+assert_no_crash "bare linkage-name mention without a fully-qualified type" <<<"DEBUG a NoSuchMethodError can occur when APIs drift"
 
 # --- real thrown linkage failures must still be caught ---
-printf '%s\n' 'Exception in thread "main" java.lang.NoClassDefFoundError: com/fasterxml/jackson/databind/ObjectMapper' \
-  | assert_crash "thrown java.lang.NoClassDefFoundError"
-printf '%s\n' 'Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.fs.FileSystem' \
-  | assert_crash "Caused by java.lang.ClassNotFoundException"
-printf '%s\n' 'com.fasterxml.jackson.module.scala.JsonScalaEnumeration requires Jackson Databind version >= 2.15 but found 2.14' \
-  | assert_crash "Jackson Databind version conflict (#6206)"
+assert_crash "thrown java.lang.NoClassDefFoundError" <<<"Exception in thread \"main\" java.lang.NoClassDefFoundError: com/fasterxml/jackson/databind/ObjectMapper"
+assert_crash "Caused by java.lang.ClassNotFoundException" <<<"Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.fs.FileSystem"
+assert_crash "Jackson Databind version conflict (#6206)" <<<"com.fasterxml.jackson.module.scala.JsonScalaEnumeration requires Jackson Databind version >= 2.15 but found 2.14"
 
 if [[ "$rc" -ne 0 ]]; then
   echo "smoke-boot regression tests FAILED"
