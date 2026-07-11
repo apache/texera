@@ -56,8 +56,13 @@ echo "smoke-boot: launching '$launcher' (port=$port timeout=${timeout}s)"
 pid=$!
 
 # Runtime classpath / linkage / module failures -- the class of regression this
-# check exists to catch.
-crash_re='NoClassDefFoundError|ClassNotFoundException|LinkageError|NoSuchMethodError|AbstractMethodError|ExceptionInInitializerError|IncompatibleClassChangeError|requires Jackson Databind'
+# check exists to catch. Match the exception as an actual *thrown* type -- a
+# fully-qualified java.lang.* name, or an "Exception in thread" header -- not the
+# bare class name, which also shows up in harmless informational log prose (e.g.
+# jOOQ prints a random "tip of the day" banner naming NoClassDefFoundError /
+# ClassNotFoundException). Regression test: .github/scripts/test_smoke_boot.sh.
+# See https://github.com/apache/texera/issues/6332.
+crash_re='java\.lang\.(NoClassDefFoundError|ClassNotFoundException|LinkageError|NoSuchMethodError|AbstractMethodError|ExceptionInInitializerError|IncompatibleClassChangeError)|Exception in thread|requires Jackson Databind'
 
 port_open() {
   if command -v nc >/dev/null 2>&1; then
