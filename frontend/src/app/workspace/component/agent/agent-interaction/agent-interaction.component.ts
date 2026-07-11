@@ -40,8 +40,14 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzInputDirective, NzAutosizeDirective } from "ng-zorro-antd/input";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { Tuple, tupleColumns, tupleToRecord } from "../../../service/agent/agent.service";
+import { IndexedTuple, Tuple, tupleColumns, tupleToRecord } from "../../../service/agent/agent.service";
 import type { WebOutputMode } from "../../../types/execute-workflow.interface";
+
+interface TupleDisplayEntry {
+  readonly rowIndex?: number;
+  readonly tuple?: Tuple;
+  readonly isEllipsis: boolean;
+}
 
 /**
  * AgentInteractionComponent provides a compact interface for users to send feedback
@@ -77,7 +83,7 @@ import type { WebOutputMode } from "../../../types/execute-workflow.interface";
 export class AgentInteractionComponent implements OnInit, OnChanges {
   @Input() operatorId!: string;
   @Input() operatorDisplayName?: string;
-  @Input() sampleTuples?: [number, Tuple][];
+  @Input() sampleTuples?: ReadonlyArray<IndexedTuple>;
   @Input() resultMode?: WebOutputMode;
 
   public availableAgents: Array<{ id: string; name: string; isConnected: boolean }> = [];
@@ -184,14 +190,14 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Get the cached sanitized HTML content from a visualization record for iframe srcdoc.
+   * Get the cached sanitized HTML content from a visualization tuple for iframe srcdoc.
    */
   public getVisualizationHtml(): SafeHtml {
     return this.cachedVisualizationHtml || this.sanitizer.bypassSecurityTrustHtml("");
   }
 
   /**
-   * Get visible column names from sample rows.
+   * Get visible column names from the first sample tuple.
    */
   public getSampleColumns(): string[] {
     if (!this.sampleTuples || this.sampleTuples.length === 0) return [];
@@ -199,27 +205,23 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Get display name for a column header.
+   * Build the operator-result preview while marking gaps between sampled tuples.
    */
-  public getColumnDisplayName(col: string): string {
-    return col;
-  }
-
-  public getDisplayRows(): Array<{ rowIndex?: number; row?: Record<string, unknown>; isEllipsis: boolean }> {
+  public getDisplayTuples(): ReadonlyArray<TupleDisplayEntry> {
     if (!this.sampleTuples || this.sampleTuples.length === 0) return [];
 
-    const rows: Array<{ rowIndex?: number; row?: Record<string, unknown>; isEllipsis: boolean }> = [];
+    const entries: TupleDisplayEntry[] = [];
     for (let i = 0; i < this.sampleTuples.length; i++) {
       if (i > 0) {
         const prevIdx = this.sampleTuples[i - 1][0];
         const currIdx = this.sampleTuples[i][0];
         if (currIdx - prevIdx > 1) {
-          rows.push({ isEllipsis: true });
+          entries.push({ isEllipsis: true });
         }
       }
       const [rowIndex, tuple] = this.sampleTuples[i];
-      rows.push({ rowIndex, row: tupleToRecord(tuple), isEllipsis: false });
+      entries.push({ rowIndex, tuple, isEllipsis: false });
     }
-    return rows;
+    return entries;
   }
 }

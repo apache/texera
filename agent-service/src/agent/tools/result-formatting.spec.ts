@@ -23,6 +23,7 @@ import {
   ConsoleMessageType,
   OperatorState,
   WorkflowFatalErrorType,
+  type IndexedTuple,
   type OperatorExecutionSummary,
   type WebOutputMode,
   type WorkflowFatalError,
@@ -30,27 +31,27 @@ import {
 } from "../../types/execution";
 
 // Build an engine-style Tuple with an all-STRING schema from a column->value record,
-// matching how the backend emits truncated sampled rows.
-function recordToTuple(row: Record<string, any>): Tuple {
+// matching the adapter's representation of backend-truncated samples.
+function recordToTuple(record: Record<string, any>): Tuple {
   return {
-    schema: { attributes: Object.keys(row).map(name => ({ attributeName: name, attributeType: "string" })) },
-    fields: Object.values(row),
+    schema: { attributes: Object.keys(record).map(name => ({ attributeName: name, attributeType: "string" })) },
+    fields: Object.values(record),
   };
 }
 
-function toSampleRows(rows: Record<string, any>[]): [number, Tuple][] {
-  return rows.map((row, rowIndex) => [rowIndex, recordToTuple(row)]);
+function toSampleTuples(records: ReadonlyArray<Record<string, any>>): ReadonlyArray<IndexedTuple> {
+  return records.map((record, rowIndex) => [rowIndex, recordToTuple(record)]);
 }
 
 interface OpInfoOverrides {
-  state?: OperatorState;
-  error?: string;
-  outputTuples?: number;
-  totalTuplesCount?: number;
-  warnings?: string[];
-  result?: Record<string, any>[];
-  sampleTuples?: [number, Tuple][];
-  resultMode?: WebOutputMode;
+  readonly state?: OperatorState;
+  readonly error?: string;
+  readonly outputTuples?: number;
+  readonly totalTuplesCount?: number;
+  readonly warnings?: ReadonlyArray<string>;
+  readonly result?: ReadonlyArray<Record<string, any>>;
+  readonly sampleTuples?: ReadonlyArray<IndexedTuple>;
+  readonly resultMode?: WebOutputMode;
 }
 
 function makeExecutionFailure(message: string): WorkflowFatalError {
@@ -65,30 +66,30 @@ function makeExecutionFailure(message: string): WorkflowFatalError {
 }
 
 function makeOpInfo(overrides: OpInfoOverrides = {}): OperatorExecutionSummary {
-  const summary: OperatorExecutionSummary = {
+  const hasResult = overrides.result !== undefined || overrides.sampleTuples !== undefined;
+  const resultSummary = hasResult
+    ? {
+        resultMode: overrides.resultMode ?? ({ type: "PaginationMode" } as const),
+        // Non-arrays are passed through to exercise the "(no result data)" guard.
+        sampleTuples:
+          overrides.sampleTuples ??
+          (Array.isArray(overrides.result) ? toSampleTuples(overrides.result) : (overrides.result as any)),
+        totalTuplesCount: overrides.totalTuplesCount ?? overrides.outputTuples ?? 0,
+      }
+    : undefined;
+  const consoleMessages = overrides.warnings?.map(warning => ({
+    msgType: ConsoleMessageType.PRINT,
+    title: warning,
+    message: "",
+  }));
+
+  return {
     state: overrides.state ?? OperatorState.COMPLETED,
     errorMessages: overrides.error ? [makeExecutionFailure(overrides.error)] : [],
-  };
-  // The result summary is present only when the operator produced a result.
-  if (overrides.result !== undefined || overrides.sampleTuples !== undefined) {
-    summary.resultSummary = {
-      resultMode: overrides.resultMode ?? { type: "PaginationMode" },
-      // Non-arrays are passed through to exercise the "(no result data)" guard.
-      sampleTuples:
-        overrides.sampleTuples ??
-        (Array.isArray(overrides.result) ? toSampleRows(overrides.result) : (overrides.result as any)),
-      totalTuplesCount: overrides.totalTuplesCount ?? overrides.outputTuples ?? 0,
-    };
-  }
-  if (overrides.warnings) {
+    ...(resultSummary ? { resultSummary } : {}),
     // Warnings are derived from console messages whose title is "WARNING: ...".
-    summary.consoleMessages = overrides.warnings.map(w => ({
-      msgType: ConsoleMessageType.PRINT,
-      title: w,
-      message: "",
-    }));
-  }
-  return summary;
+    ...(consoleMessages ? { consoleMessages } : {}),
+  };
 }
 
 describe("formatOperatorResult - early returns", () => {

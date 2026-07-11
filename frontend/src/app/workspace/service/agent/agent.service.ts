@@ -97,21 +97,23 @@ export interface ModelType {
 /**
  * API response types
  */
-// A normalized result row from agent-service (schema + positional fields).
-// Sampled rows are truncated, so each Tuple carries a synthetic all-STRING schema.
+// A normalized result tuple from agent-service (schema + positional fields).
+// Sampled tuples are truncated, so each Tuple carries a synthetic all-STRING schema.
 export interface Attribute {
-  attributeName: string;
-  attributeType: string;
+  readonly attributeName: string;
+  readonly attributeType: string;
 }
 
 export interface Schema {
-  attributes: Attribute[];
+  readonly attributes: ReadonlyArray<Attribute>;
 }
 
 export interface Tuple {
-  schema: Schema;
-  fields: unknown[];
+  readonly schema: Schema;
+  readonly fields: ReadonlyArray<unknown>;
 }
+
+export type IndexedTuple = readonly [rowIndex: number, tuple: Tuple];
 
 // The column names of a tuple, in schema order.
 export function tupleColumns(tuple: Tuple): string[] {
@@ -128,17 +130,17 @@ export function tupleToRecord(tuple: Tuple): Record<string, unknown> {
 }
 
 export interface OperatorResultSummary {
-  resultMode: WebOutputMode;
-  // Sampled output rows; each tuple carries its original row index.
-  sampleTuples: [number, Tuple][];
-  totalTuplesCount: number;
+  readonly resultMode: WebOutputMode;
+  // Sampled output tuples paired with their original row indices.
+  readonly sampleTuples: ReadonlyArray<IndexedTuple>;
+  readonly totalTuplesCount: number;
 }
 
 // Mirrors agent-service's canonical per-operator summary, but the frontend only
 // consumes `resultSummary`. Its state/errorMessages/consoleMessages
 // are intentionally omitted here (no consumer reads them) to keep the surface minimal.
 export interface OperatorExecutionSummary {
-  resultSummary?: OperatorResultSummary;
+  readonly resultSummary?: OperatorResultSummary;
 }
 
 interface ApiAgentInfo {

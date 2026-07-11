@@ -32,7 +32,6 @@ import {
   type WorkflowFatalError,
 } from "../../types/execution";
 import type { OperatorLink, OperatorPredicate, PortDescription } from "../../types/workflow";
-import type { LegacySyncExecutionResult } from "../../api/execution-api";
 
 // --- fixtures -------------------------------------------------------------
 
@@ -110,7 +109,7 @@ function setFetchRejecting(error: Error): void {
   }) as unknown as typeof fetch;
 }
 
-function toLegacyResponse(summary: WorkflowExecutionSummary): LegacySyncExecutionResult {
+function toLegacyResponse(summary: WorkflowExecutionSummary) {
   return {
     success: summary.state === WorkflowExecutionState.COMPLETED,
     state: summary.state,
@@ -138,7 +137,7 @@ function toLegacyResponse(summary: WorkflowExecutionSummary): LegacySyncExecutio
             resultMode: resultSummary?.resultMode.type === "SetSnapshotMode" ? "visualization" : "table",
             result,
             totalRowCount: resultSummary?.totalTuplesCount,
-            consoleLogs: operator.consoleMessages,
+            consoleLogs: operator.consoleMessages ? [...operator.consoleMessages] : undefined,
             error,
           },
         ];
@@ -286,7 +285,7 @@ describe("executeOperatorAndFormat - successful runs", () => {
     expect(out).toBe("(no result data)");
   });
 
-  test("emits only the shape line when the result has zero sample rows", async () => {
+  test("emits only the shape line when the result has zero sample tuples", async () => {
     const { state, target } = makeLinearState();
     const summary: WorkflowExecutionSummary = {
       state: WorkflowExecutionState.COMPLETED,

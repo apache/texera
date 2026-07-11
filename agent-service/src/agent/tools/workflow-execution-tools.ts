@@ -22,7 +22,7 @@ import { tool } from "ai";
 import {
   createErrorResult,
   formatExecuteOperatorResult,
-  formatSampleRowsAsTsv,
+  formatSampleTuplesAsTsv,
   getOperatorErrorText,
   getOperatorWarnings,
   redactVisualizationPayloads,
@@ -342,8 +342,8 @@ async function executeWorkflowHttp(
 }
 
 function formatExecutionError(
-  operatorErrors?: Array<{ operatorId: string; error: string }>,
-  generalErrors?: WorkflowFatalError[]
+  operatorErrors?: ReadonlyArray<{ operatorId: string; error: string }>,
+  generalErrors?: ReadonlyArray<WorkflowFatalError>
 ): string {
   const lines: string[] = ["Execution failed due to the following error:"];
 
@@ -461,8 +461,8 @@ export async function executeOperatorAndFormat(
       return "(no result data)";
     }
 
-    const rows = redactVisualizationPayloads(sampleTuples, resultSummary.resultMode);
-    const headers = rows.length > 0 ? tupleColumns(rows[0][1]) : [];
+    const displayTuples = redactVisualizationPayloads(sampleTuples, resultSummary.resultMode);
+    const headers = displayTuples.length > 0 ? tupleColumns(displayTuples[0][1]) : [];
     const columns = headers.length;
 
     // Notify for every operator in the execution so upstream stats are also stored.
@@ -474,7 +474,7 @@ export async function executeOperatorAndFormat(
       }
     }
 
-    let dataString = formatSampleRowsAsTsv(rows);
+    let dataString = formatSampleTuplesAsTsv(displayTuples);
 
     // Safety-net: TSV serialization may add padding beyond backend's raw-record budget.
     const charLimit = config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
