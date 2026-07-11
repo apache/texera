@@ -19,13 +19,13 @@
 
 import { describe, expect, test } from "bun:test";
 import { WorkflowResultState } from "./workflow-result-state";
-import { OperatorResultMode, OperatorState, type OperatorExecutionSummary } from "../types/execution";
+import { OperatorState, type OperatorExecutionSummary } from "../types/execution";
 
 function makeInfo(totalTuplesCount: number): OperatorExecutionSummary {
   return {
     state: OperatorState.COMPLETED,
     errorMessages: [],
-    resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples: [], totalTuplesCount },
+    resultSummary: { resultMode: { type: "PaginationMode" }, sampleTuples: [], totalTuplesCount },
   };
 }
 

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { OperatorResultMode, type OperatorExecutionSummary, type Tuple } from "../../types/execution";
+import type { OperatorExecutionSummary, Tuple } from "../../types/execution";
 import {
   formatExecuteOperatorResult,
   formatSampleRowsAsTsv,
@@ -37,7 +37,7 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorExecuti
     return "(no result data)";
   }
 
-  const isViz = opInfo.resultSummary?.resultMode === OperatorResultMode.VISUALIZATION;
+  const isViz = opInfo.resultSummary?.resultMode.type === "SetSnapshotMode";
   const rows: [number, Tuple][] = isViz
     ? sampleTuples.map(([rowIndex, tuple]) => {
         const fields = tuple.schema.attributes.map((a, i) =>

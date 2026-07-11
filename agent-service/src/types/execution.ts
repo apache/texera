@@ -102,14 +102,15 @@ export interface Tuple {
   fields: unknown[];
 }
 
-export enum OperatorResultMode {
-  TABLE = "table",
-  VISUALIZATION = "visualization",
-}
+// Mirrors ExecutionResultService.WebOutputMode's JSON representation.
+export type PaginationMode = Readonly<{ type: "PaginationMode" }>;
+export type SetSnapshotMode = Readonly<{ type: "SetSnapshotMode" }>;
+export type SetDeltaMode = Readonly<{ type: "SetDeltaMode" }>;
+export type WebOutputMode = PaginationMode | SetSnapshotMode | SetDeltaMode;
 
 // An operator's output summary. Sample tuples carry their original row index.
 export interface OperatorResultSummary {
-  resultMode: OperatorResultMode;
+  resultMode: WebOutputMode;
   sampleTuples: [number, Tuple][];
   totalTuplesCount: number;
 }
