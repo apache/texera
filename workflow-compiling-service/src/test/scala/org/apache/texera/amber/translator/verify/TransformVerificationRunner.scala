@@ -69,6 +69,7 @@ import org.apache.texera.amber.operator.visualization.histogram2d.Histogram2DOpD
 import org.apache.texera.amber.operator.visualization.histogram.HistogramChartOpDesc
 import org.apache.texera.amber.operator.visualization.lineChart.LineChartOpDesc
 import org.apache.texera.amber.operator.visualization.nestedTable.NestedTableOpDesc
+import org.apache.texera.amber.operator.visualization.networkGraph.NetworkGraphOpDesc
 import org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot.ParallelCoordinatesPlotOpDesc
 import org.apache.texera.amber.operator.visualization.pieChart.PieChartOpDesc
 import org.apache.texera.amber.operator.visualization.polarChart.PolarChartOpDesc
@@ -208,12 +209,25 @@ object TransformVerificationRunner {
     classOf[NestedTableOpDesc] ->
       ("non-deterministic HTML: emits a pandas Styler table whose element ids/" +
         "classes embed a random per-process uuid, so the two paths' HTML never " +
-        "matches; it builds no Plotly figure, so there is no JSON to compare")
+        "matches; it builds no Plotly figure, so there is no JSON to compare"),
+    classOf[NetworkGraphOpDesc] ->
+      ("non-deterministic layout: the native path calls nx.spring_layout with no " +
+        "seed, so node coordinates are random per run (and differ from the " +
+        "seeded standalone path); it also builds its node set via a hash-ordered " +
+        "set() over element-wise-concatenated columns, so the two paths' Plotly " +
+        "figures never match numerically")
   )
 
   sealed trait Disposition
   final case class Runnable(tier: String) extends Disposition // "auto" | "curated"
   final case class Flagged(reason: String) extends Disposition
+
+  /** When `VERIFY_FORCE_AUTO=1`, ignore CuratedHandlers so every operator is
+    * exercised through the shared-CSV auto path instead. Lets us measure how
+    * much of the hand-written curated set the auto tier can now replace: an op
+    * that stays RUNNABLE/passes under force-auto no longer needs its curated
+    * handler. */
+  private def forceAuto: Boolean = sys.env.get("VERIFY_FORCE_AUTO").contains("1")
 
   /** Static classification — cheap (reflection only, no subprocesses), called
     * at spec construction time to decide test-vs-ignore. */
@@ -228,8 +242,12 @@ object TransformVerificationRunner {
               if (visualizationJsonOps.contains(opClass) || visualizationHtmlOps.contains(opClass))
                 Runnable("visualization")
               else Flagged("visualization: no DataFrame output to compare")
-            else if (CuratedHandlers.byClass.contains(opClass))
-              Runnable("curated")
+            else if (!forceAuto && CuratedHandlers.byClass.contains(opClass))
+              // The sklearn family is a systematic, auto-discovered tier with a
+              // shared fixture + predict-compare — label it "ml-auto" so
+              // "curated" is reserved for genuine one-off fixtures (joins, etc.).
+              if (CuratedHandlers.sklearnAutoClasses.contains(opClass)) Runnable("ml-auto")
+              else Runnable("curated")
             else
               ConfigGenerator.generate(opClass, CanonicalFixture.schemasByPort) match {
                 case Left(reason) => Flagged(s"cannot auto-configure: $reason")
@@ -277,7 +295,7 @@ object TransformVerificationRunner {
   def run(opClass: Class[_ <: LogicalOp]): Unit = {
     val testRoot = Files.createTempDirectory(s"verify-${opClass.getSimpleName}-")
 
-    val (opDesc, inputs) = CuratedHandlers.byClass.get(opClass) match {
+    val (opDesc, inputs) = (if (forceAuto) None else CuratedHandlers.byClass.get(opClass)) match {
       case Some(handler) => handler.fixture(testRoot)
       case None =>
         val configured = ConfigGenerator

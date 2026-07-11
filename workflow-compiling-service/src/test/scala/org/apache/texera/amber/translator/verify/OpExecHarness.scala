@@ -37,6 +37,7 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.nio.file.{Files, Path}
+import java.sql.Timestamp
 import java.util.Base64
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
@@ -59,8 +60,8 @@ import scala.jdk.CollectionConverters._
   *     are out of scope because driving them needs a real Python worker.
   *   - Single worker only (idx=0, workerCount=1). Multi-worker partitioning
   *     would require coordinating partitioners across executors.
-  *   - JSONL types: STRING / INTEGER / LONG / DOUBLE / BOOLEAN. TIMESTAMP and
-  *     BINARY require explicit codecs; add when first operator needs them.
+  *   - JSONL types: STRING / INTEGER / LONG / DOUBLE / BOOLEAN / BINARY /
+  *     TIMESTAMP (the latter two via explicit base64 / JDBC-string codecs).
   */
 object OpExecHarness extends LazyLogging {
 
@@ -399,6 +400,14 @@ object TupleIO {
               case AttributeType.BOOLEAN => Boolean.box(fieldNode.asBoolean())
               case AttributeType.BINARY =>
                 Base64.getDecoder.decode(fieldNode.asText())
+              // Timestamps round-trip through the JDBC string form
+              // ("yyyy-mm-dd hh:mm:ss[.f]"), the exact inverse of Timestamp.toString
+              // below — timezone-free, so no shift across write/read. The Python
+              // side reads this column with convert_dates=False (see
+              // StandaloneRunner) and treats it as an opaque string, so both paths
+              // agree on pass-through.
+              case AttributeType.TIMESTAMP =>
+                Timestamp.valueOf(fieldNode.asText())
               case other =>
                 throw new UnsupportedOperationException(
                   s"TupleIO MVP doesn't support $other yet"
@@ -430,6 +439,8 @@ object TupleIO {
                 case AttributeType.BOOLEAN => node.put(attr.getName, v.asInstanceOf[Boolean])
                 case AttributeType.BINARY =>
                   node.put(attr.getName, Base64.getEncoder.encodeToString(v.asInstanceOf[Array[Byte]]))
+                case AttributeType.TIMESTAMP =>
+                  node.put(attr.getName, v.asInstanceOf[Timestamp].toString)
                 case other =>
                   throw new UnsupportedOperationException(
                     s"TupleIO MVP doesn't support $other yet"

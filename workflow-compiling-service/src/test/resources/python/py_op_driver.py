@@ -183,8 +183,13 @@ def _coerce_field(raw: Any, attr_type: AttributeType) -> Any:
         return bool(raw)
     if attr_type == AttributeType.BINARY:
         return base64.b64decode(raw)
-    # TIMESTAMP / LARGE_BINARY: defer until an operator actually exercises
-    # them. Failing loud beats silently passing a string through.
+    if attr_type == AttributeType.TIMESTAMP:
+        # TupleIO writes java.sql.Timestamp.toString ("YYYY-MM-DD HH:MM:SS[.f]");
+        # the native path's schema maps TIMESTAMP -> datetime.datetime, and
+        # pandas parses the JDBC form robustly.
+        return pd.Timestamp(raw).to_pydatetime()
+    # LARGE_BINARY: defer until an operator actually exercises it. Failing loud
+    # beats silently passing a string through.
     raise NotImplementedError(
         f"py_op_driver: reading attribute type {attr_type!r} from JSONL is "
         f"not implemented yet"
@@ -272,6 +277,13 @@ def _jsonify(value: Any, attr_type: AttributeType) -> Any:
         # across processes, so the two verification paths compare equal.
         raw = value if isinstance(value, (bytes, bytearray)) else pickle.dumps(value)
         return base64.b64encode(raw).decode("ascii")
+    if attr_type == AttributeType.TIMESTAMP:
+        # Emit the same JDBC string java.sql.Timestamp.toString produces (>=1
+        # fractional digit), so a passed-through timestamp column matches the
+        # standalone path, which carries it as that exact string.
+        ts = pd.Timestamp(value)
+        frac = f"{ts.microsecond:06d}".rstrip("0") or "0"
+        return ts.strftime("%Y-%m-%d %H:%M:%S") + "." + frac
     raise NotImplementedError(
         f"py_op_driver: writing attribute type {attr_type!r} to JSONL is "
         f"not implemented yet"

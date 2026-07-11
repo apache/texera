@@ -131,6 +131,12 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrain
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import org.apache.texera.amber.operator.visualization.htmlviz.HtmlVizOpDesc
 import org.apache.texera.amber.operator.visualization.urlviz.UrlVizOpDesc
+import org.apache.texera.amber.operator.huggingFace.{
+  HuggingFaceSentimentAnalysisOpDesc,
+  HuggingFaceSpamSMSDetectionOpDesc,
+  HuggingFaceTextSummarizationOpDesc,
+  HuggingFaceIrisLogisticRegressionOpDesc
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -174,10 +180,13 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     disposition(classOf[ScatterMatrixChartOpDesc]) shouldBe Runnable("visualization")
   }
 
-  it should "route operators with a curated handler to the curated tier" in {
+  it should "route genuine one-off curated ops to the curated tier" in {
     disposition(classOf[IntersectOpDesc]) shouldBe Runnable("curated")
-    disposition(classOf[SklearnTrainingLogisticRegressionOpDesc]) shouldBe Runnable("curated")
     disposition(classOf[MachineLearningScorerOpDesc]) shouldBe Runnable("curated")
+  }
+
+  it should "route sklearn ops to the ml-auto tier (auto-discovered shared fixture)" in {
+    disposition(classOf[SklearnTrainingLogisticRegressionOpDesc]) shouldBe Runnable("ml-auto")
   }
 
   it should "route auto-configurable operators to the auto tier" in {
@@ -194,6 +203,27 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
   // and its config is fully derivable.
   it should "verify LimitOpDesc end-to-end via the auto tier" in {
     TransformVerificationRunner.run(classOf[LimitOpDesc])
+  }
+
+  // Hugging Face operators: python-udf transforms that add columns. Their
+  // @SampleColumn tags bind the text/numeric fields to the fixture's
+  // short_text / long_text / petal_length / petal_width columns. Parity loads
+  // the pretrained model once per path and compares the added columns. Requires
+  // transformers/torch/huggingface_hub in the UDF venv + network for the models.
+  it should "verify HuggingFaceSentimentAnalysisOpDesc end-to-end" in {
+    TransformVerificationRunner.run(classOf[HuggingFaceSentimentAnalysisOpDesc])
+  }
+
+  it should "verify HuggingFaceSpamSMSDetectionOpDesc end-to-end" in {
+    TransformVerificationRunner.run(classOf[HuggingFaceSpamSMSDetectionOpDesc])
+  }
+
+  it should "verify HuggingFaceTextSummarizationOpDesc end-to-end" in {
+    TransformVerificationRunner.run(classOf[HuggingFaceTextSummarizationOpDesc])
+  }
+
+  it should "verify HuggingFaceIrisLogisticRegressionOpDesc end-to-end" in {
+    TransformVerificationRunner.run(classOf[HuggingFaceIrisLogisticRegressionOpDesc])
   }
 
   it should "verify DotPlotOpDesc end-to-end via Plotly JSON comparison" in {

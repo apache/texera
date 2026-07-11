@@ -33,7 +33,21 @@ class WorkflowToPythonTranslator extends LazyLogging {
   // (e.g. Split has port 0 and port 1, each with its own assigned dfN var).
   private type PortKey = (String, Int) // (opId, portIdx)
 
-  def translate(logicalPlan: LogicalPlan): String = {
+  def translate(logicalPlan: LogicalPlan): String = translateWithLeafVars(logicalPlan)._1
+
+  /**
+    * Test-only variant of [[translate]]: returns the same stitched script AND a
+    * map from each DataFrame leaf port `(opId, portIdx)` to the Python variable
+    * (`dfN`) that holds its result. Production callers use [[translate]], whose
+    * emitted script is byte-for-byte identical to this one's first element — the
+    * leaf map is derived from the same `outputVar`/`dataFrameLeafPorts` state, so
+    * exposing it changes no generated code. A workflow-level verification harness
+    * needs the leaf→var mapping to append `dfN.to_json(...)` for each leaf so both
+    * paths can be compared as JSONL (the script itself only `print(dfN.head())`s).
+    */
+  def translateWithLeafVars(
+      logicalPlan: LogicalPlan
+  ): (String, Map[(String, Int), String]) = {
     // Track downstream connections per (opId, fromPortIdx). A port is a leaf
     // if it has no outgoing edges — operator-level "no outgoing links" is too
     // coarse for multi-output ops (Split's port 0 may have downstream while
@@ -139,7 +153,10 @@ class WorkflowToPythonTranslator extends LazyLogging {
         }
     }
 
-    script.mkString("\n")
+    val leafVars: Map[(String, Int), String] =
+      dataFrameLeafPorts.map(key => key -> outputVar(key)).toMap
+
+    (script.mkString("\n"), leafVars)
   }
 
   // Replaces in{N}df / out{N}df placeholders with concrete variable names.

@@ -22,17 +22,20 @@ package org.apache.texera.amber.translator.verify
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonSubTypes}
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
-import org.apache.texera.amber.core.tuple.Schema
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList,
-  AutofillAttributeNameOnPort1
+  AutofillAttributeNameOnPort1,
+  SampleColumn
 }
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.lang.reflect.{Field, Modifier, ParameterizedType}
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 /**
@@ -105,10 +108,23 @@ object ConfigGenerator {
   private def buildObject(
       clazz: Class[_],
       schemas: Map[Int, Schema]
+  ): Either[String, ObjectNode] =
+    buildObject(clazz, schemas, mutable.Set.empty[(Int, String)])
+
+  /** `used` tracks (port, column) already assigned within THIS operator, so that
+    * sibling autofill fields resolve to DISTINCT columns (e.g. a scatter's x and
+    * y don't both collapse onto the first numeric column, which would be a
+    * degenerate diagonal). Shared across the operator, nested objects included.
+    * An explicit `@SampleColumn` always wins even if the column is already taken;
+    * only the type-match and first-column tiers avoid reuse. */
+  private def buildObject(
+      clazz: Class[_],
+      schemas: Map[Int, Schema],
+      used: mutable.Set[(Int, String)]
   ): Either[String, ObjectNode] = {
     val node = objectMapper.createObjectNode()
     configFields(clazz).foreach { f =>
-      decide(f, schemas) match {
+      decide(f, schemas, used) match {
         case Fill(name, value) => node.set[JsonNode](name, value)
         case Skip              => ()
         case Fail(reason)      => return Left(s"${clazz.getSimpleName}.${f.getName}: $reason")
@@ -125,7 +141,7 @@ object ConfigGenerator {
   /** Decide whether/how to fill one field, applying required-vs-optional policy:
     * required (or autofill) fields that can't be filled fail the whole operator;
     * optional scalars without a meaningful value are skipped (left at default). */
-  private def decide(f: Field, schemas: Map[Int, Schema]): Decision = {
+  private def decide(f: Field, schemas: Map[Int, Schema], used: mutable.Set[(Int, String)]): Decision = {
     val jp = Option(f.getAnnotation(classOf[JsonProperty]))
     val jsonName = jp.map(_.value).filter(_.nonEmpty).getOrElse(f.getName)
     val required = jp.exists(_.required)
@@ -133,7 +149,7 @@ object ConfigGenerator {
     val meaningful = required || autofill || f.getType.isEnum || isList(f.getType) ||
       isOption(f.getType) || isNestedObject(f.getType) || jp.map(_.defaultValue).exists(_.nonEmpty)
 
-    valueFor(f, schemas) match {
+    valueFor(f, schemas, used) match {
       case Right(v) if meaningful => Fill(jsonName, v)
       case Right(_)               => Skip // optional plain scalar w/o default — leave operator default
       case Left(reason) if required || autofill => Fail(reason)
@@ -145,38 +161,51 @@ object ConfigGenerator {
 
   /** Resolve a JSON value node for a field: autofill column refs first, then by
     * declared type (list / option / scalar / nested object). */
-  private def valueFor(f: Field, schemas: Map[Int, Schema]): Either[String, JsonNode] = {
+  private def valueFor(f: Field, schemas: Map[Int, Schema], used: mutable.Set[(Int, String)]): Either[String, JsonNode] = {
     if (f.isAnnotationPresent(classOf[AutofillAttributeNameList]))
       columnNames(schemas, 0).map { names =>
-        val arr = objectMapper.createArrayNode(); names.foreach(arr.add); arr
+        // Honor the field's attributeTypeRules (same production metadata scalar
+        // autofill fields use) so a numeric-only list doesn't pick up string
+        // columns; fall back to all columns if no column matches the rule.
+        val filtered = allowedTypes(f) match {
+          case Some(types) =>
+            val matching = schemas
+              .get(0)
+              .map(_.getAttributes.filter(a => types.contains(a.getType)).map(_.getName))
+              .getOrElse(Seq.empty)
+            if (matching.nonEmpty) matching else names
+          case None => names
+        }
+        val arr = objectMapper.createArrayNode(); filtered.foreach(arr.add); arr
       }
     else if (f.isAnnotationPresent(classOf[AutofillAttributeNameOnPort1]))
-      firstColumn(schemas, 1).map(objectMapper.getNodeFactory.textNode)
+      resolveColumn(f, schemas, 1, used).map(objectMapper.getNodeFactory.textNode)
     else if (f.isAnnotationPresent(classOf[AutofillAttributeName]))
-      firstColumn(schemas, 0).map(objectMapper.getNodeFactory.textNode)
+      resolveColumn(f, schemas, 0, used).map(objectMapper.getNodeFactory.textNode)
     else {
       val t = f.getType
       if (isList(t))
-        elementType(f).flatMap(scalarOrNested(_, schemas)).map { e =>
+        elementType(f).flatMap(scalarOrNested(_, schemas, used)).map { e =>
           val arr: ArrayNode = objectMapper.createArrayNode(); arr.add(e); arr
         }
       else if (isOption(t))
-        elementType(f).flatMap(scalarOrNested(_, schemas))
-      else scalarNode(t, defaultOf(f), schemas)
+        elementType(f).flatMap(scalarOrNested(_, schemas, used))
+      else scalarNode(t, defaultOf(f), schemas, used)
     }
   }
 
   /** A node for a list element or Option inner type — no `defaultValue` to read
     * (that lives on the field, not the element), so scalars get the canonical. */
-  private def scalarOrNested(clazz: Class[_], schemas: Map[Int, Schema]): Either[String, JsonNode] =
-    scalarNode(clazz, None, schemas)
+  private def scalarOrNested(clazz: Class[_], schemas: Map[Int, Schema], used: mutable.Set[(Int, String)]): Either[String, JsonNode] =
+    scalarNode(clazz, None, schemas, used)
 
   /** A node for a concrete (non-list, non-option) type, honoring an optional
     * `defaultValue` string from the field's `@JsonProperty`. */
   private def scalarNode(
       t: Class[_],
       default: Option[String],
-      schemas: Map[Int, Schema]
+      schemas: Map[Int, Schema],
+      used: mutable.Set[(Int, String)]
   ): Either[String, JsonNode] = {
     val nf = objectMapper.getNodeFactory
     if (t.isEnum)
@@ -196,7 +225,7 @@ object ConfigGenerator {
     else if (t == classOf[String])
       Right(nf.textNode(default.getOrElse(CanonicalString)))
     else if (isNestedObject(t))
-      buildObject(t, schemas)
+      buildObject(t, schemas, used)
     else Left(s"unhandled type ${t.getName}")
   }
 
@@ -269,4 +298,81 @@ object ConfigGenerator {
 
   private def firstColumn(schemas: Map[Int, Schema], port: Int): Either[String, String] =
     columnNames(schemas, port).map(_.head)
+
+  /** First column at `port` not yet claimed by a sibling field of the same
+    * operator (so two un-annotated / same-type fields don't collapse onto the
+    * same column); the first column if every column is already taken. Marks the
+    * pick in `used`. */
+  private def firstUnused(
+      schemas: Map[Int, Schema],
+      port: Int,
+      used: mutable.Set[(Int, String)]
+  ): Either[String, String] =
+    columnNames(schemas, port).map { names =>
+      val col = names.find(c => !used.contains((port, c))).getOrElse(names.head)
+      used += ((port, col)); col
+    }
+
+  /** Pick which input column fills an `@AutofillAttributeName*` field, in
+    * priority order:
+    *   1. `@SampleColumn("x")` — an explicit semantic pick (e.g. a valid ISO
+    *      country code or a real OHLC column) that the column's type can't
+    *      express; always honored, even if already used;
+    *   2. the first *unused* column whose [[AttributeType]] satisfies the field's
+    *      `attributeTypeRules` (falling back to the first matching column if all
+    *      are taken);
+    *   3. the first unused column (the original first-column behavior, made
+    *      distinct-aware).
+    * Tiers 1–2 keep the parity test on realistic, type-correct input; the
+    * distinct-column preference stops sibling fields (x/y, source/target) from
+    * collapsing onto one column and producing a degenerate result. */
+  private def resolveColumn(
+      f: Field,
+      schemas: Map[Int, Schema],
+      port: Int,
+      used: mutable.Set[(Int, String)]
+  ): Either[String, String] = {
+    def take(col: String): String = { used += ((port, col)); col }
+    Option(f.getAnnotation(classOf[SampleColumn])).map(_.value) match {
+      case Some(col) =>
+        columnNames(schemas, port).flatMap { names =>
+          if (names.contains(col)) Right(take(col))
+          else Left(s"@SampleColumn(\"$col\") not present at port $port (have: ${names.mkString(", ")})")
+        }
+      case None =>
+        allowedTypes(f) match {
+          case Some(types) =>
+            schemas.get(port).map(_.getAttributes.filter(a => types.contains(a.getType)).map(_.getName)) match {
+              case Some(cols) if cols.nonEmpty =>
+                Right(take(cols.find(c => !used.contains((port, c))).getOrElse(cols.head)))
+              case _ => firstUnused(schemas, port, used) // no type-matching column; fall back
+            }
+          case None => firstUnused(schemas, port, used)
+        }
+    }
+  }
+
+  /** [[AttributeType]]s permitted for `f` by its declaring class's
+    * `@JsonSchemaInject(json = ...)` `attributeTypeRules`, keyed by the field's
+    * JSON name. `None` when the field is unconstrained. */
+  private def allowedTypes(f: Field): Option[Set[AttributeType]] = {
+    val jsonName =
+      Option(f.getAnnotation(classOf[JsonProperty])).map(_.value).filter(_.nonEmpty).getOrElse(f.getName)
+    Option(f.getDeclaringClass.getAnnotation(classOf[JsonSchemaInject]))
+      .map(_.json)
+      .filter(_.nonEmpty)
+      .flatMap { js =>
+        Try {
+          val enumNode =
+            objectMapper.readTree(js).path("attributeTypeRules").path(jsonName).path("enum")
+          if (enumNode.isArray) {
+            val set = enumNode.elements().asScala.flatMap(n => typeFromString(n.asText())).toSet
+            if (set.nonEmpty) Some(set) else None
+          } else None
+        }.toOption.flatten
+      }
+  }
+
+  private def typeFromString(s: String): Option[AttributeType] =
+    AttributeType.values().find(_.name.equalsIgnoreCase(s))
 }
