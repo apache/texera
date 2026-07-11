@@ -36,9 +36,15 @@ import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServi
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   FIFOMessageElement,
+  MainThreadDelegateMessage,
   TimerBasedControlElement
 }
-import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
+import org.apache.texera.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
+import org.apache.texera.amber.engine.common.ambermessage.{
+  DataFrame,
+  DataPayload,
+  WorkflowFIFOMessage
+}
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.engine.common.virtualidentity.util.SELF
@@ -268,6 +274,84 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     assert(uri.startsWith(s"s3://${LargeBinaryManager.DEFAULT_BUCKET}/objects/$eid/"))
     // a unique suffix is appended to the execution-scoped base URI
     assert(uri.length > baseUri.length)
+  }
+
+  "DP Thread" should "toggle backpressureStatus on Backpressure and ignore other ActorCommands" in {
+    // Single-threaded: exercise handleActorCommand directly, without start(), so the
+    // read of backpressureStatus is on the same thread that mutated it.
+    val q = new LinkedBlockingQueue[DPInputQueueElement]()
+    val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = q)
+    val dpThread = new DPThread(workerId, dp, logManager, q)
+
+    dpThread.handleActorCommand(Backpressure(enableBackpressure = true))
+    assert(dpThread.backpressureStatus)
+
+    dpThread.handleActorCommand(Backpressure(enableBackpressure = false))
+    assert(!dpThread.backpressureStatus)
+
+    // CreditUpdate is the other ActorCommand oneof subtype. It falls through to the
+    // `case _ => // no op` arm and must leave backpressureStatus untouched.
+    dpThread.handleActorCommand(CreditUpdate())
+    assert(!dpThread.backpressureStatus)
+  }
+
+  "DP Thread" should "treat a second start() as a no-op" in {
+    val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
+    (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
+    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
+    try {
+      dpThread.start()
+      val executorAfterFirstStart = dpThread.dpThreadExecutor
+      val futureAfterFirstStart = dpThread.dpThread
+      // The second start() should log "already running" and change nothing:
+      // no new executor, no second worker thread.
+      dpThread.start()
+      assert(dpThread.dpThreadExecutor eq executorAfterFirstStart)
+      assert(dpThread.dpThread eq futureAfterFirstStart)
+    } finally {
+      dpThread.stop()
+    }
+  }
+
+  "DP Thread" should "forward an uncaught processing error to the main thread" in {
+    // A processing error escaping the main logic must be caught in run() and delegated
+    // back to the main thread as a Left(MainThreadDelegateMessage). We throw from
+    // DataProcessor.processDataPayload (not from a mock executor: DataProcessor swallows
+    // executor exceptions in handleExecutorException, so they never reach DPThread).
+    val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    val captured =
+      new CompletableFuture[Either[MainThreadDelegateMessage, WorkflowFIFOMessage]]()
+    val outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit =
+      e => captured.complete(e)
+    val dp = new DataProcessor(workerId, outputHandler, inputMessageQueue = inputQueue) {
+      override def processDataPayload(
+          channelId: ChannelIdentity,
+          dataPayload: DataPayload
+      ): Unit = throw new RuntimeException("boom")
+    }
+    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
+    dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
+    dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
+    (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
+    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
+    try {
+      dpThread.start()
+      inputQueue.put(
+        FIFOMessageElement(WorkflowFIFOMessage(dataChannelId, 0, DataFrame(Array(tuples(0)))))
+      )
+      val result = captured.get(5, TimeUnit.SECONDS)
+      result match {
+        case Left(MainThreadDelegateMessage(closure)) =>
+          // Running the delegate on the main thread must re-throw the original processing error.
+          val thrown = intercept[RuntimeException](closure(null))
+          assert(thrown.getMessage == "boom")
+        case other => fail(s"expected Left(MainThreadDelegateMessage), got $other")
+      }
+    } finally {
+      dpThread.stop()
+    }
   }
 
 }

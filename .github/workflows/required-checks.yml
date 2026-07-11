@@ -63,6 +63,7 @@ jobs:
       run_amber: ${{ steps.decide.outputs.run_amber }}
       run_amber_integration: ${{ steps.decide.outputs.run_amber_integration }}
       run_platform: ${{ steps.decide.outputs.run_platform }}
+      run_platform_integration: ${{ steps.decide.outputs.run_platform_integration }}
       run_pyamber: ${{ steps.decide.outputs.run_pyamber }}
       run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
       run_infra: ${{ steps.decide.outputs.run_infra }}
@@ -125,6 +126,13 @@ jobs:
             // labels (each fires only its own like-named stack); they are
             // omitted from the illustrative table below to keep it narrow.
             //
+            // `platform-integration` mirrors `amber-integration`: a dedicated
+            // `platform-integration` label fires only the integration stack
+            // (a spec-only change) without the full `platform` job. It is
+            // omitted from the table below to keep it narrow. No labeler rule
+            // applies it yet — platform has no integration specs (#6047) — so
+            // today it is a forward hook (applied manually until then).
+            //
             //   label             | frontend | amber | amber-integ | platform | pyamber | agent-service
             //   ------------------|----------|-------|-------------|----------|---------|--------------
             //   frontend          |    x     |       |             |          |         |
@@ -157,19 +165,21 @@ jobs:
               pyamber: ["amber-integration", "pyamber"],
               engine: ["amber", "amber-integration"],
               "amber-integration": ["amber-integration"],
-              platform: ["platform"],
+              platform: ["platform", "platform-integration"],
+              "platform-integration": ["platform-integration"],
               "agent-service": ["agent-service"],
               "pyright-language-service": ["pyright-language-service"],
-              common: ["amber", "amber-integration", "platform"],
-              "ddl-change": ["amber", "amber-integration", "platform"],
+              common: ["amber", "amber-integration", "platform", "platform-integration"],
+              "ddl-change": ["amber", "amber-integration", "platform", "platform-integration"],
               infra: ["infra"],
-              ci: ["frontend", "amber", "amber-integration", "platform", "pyamber", "agent-service", "infra", "pyright-language-service"],
+              ci: ["frontend", "amber", "amber-integration", "platform", "platform-integration", "pyamber", "agent-service", "infra", "pyright-language-service"],
             };
 
             let runFrontend = true;
             let runAmber = true;
             let runAmberIntegration = true;
             let runPlatform = true;
+            let runPlatformIntegration = true;
             let runPyamber = true;
             let runAgentService = true;
             let runInfra = true;
@@ -186,6 +196,7 @@ jobs:
               runAmber = stacks.has("amber");
               runAmberIntegration = stacks.has("amber-integration");
               runPlatform = stacks.has("platform");
+              runPlatformIntegration = stacks.has("platform-integration");
               runPyamber = stacks.has("pyamber");
               runAgentService = stacks.has("agent-service");
               runInfra = stacks.has("infra");
@@ -199,6 +210,7 @@ jobs:
             core.setOutput("run_amber", runAmber ? "true" : "false");
             core.setOutput("run_amber_integration", runAmberIntegration ? "true" : "false");
             core.setOutput("run_platform", runPlatform ? "true" : "false");
+            core.setOutput("run_platform_integration", runPlatformIntegration ? "true" : "false");
             core.setOutput("run_pyamber", runPyamber ? "true" : "false");
             core.setOutput("run_agent_service", runAgentService ? "true" : "false");
             core.setOutput("run_infra", runInfra ? "true" : "false");
@@ -256,6 +268,7 @@ jobs:
       run_amber: ${{ needs.precheck.outputs.run_amber == 'true' }}
       run_amber_integration: ${{ needs.precheck.outputs.run_amber_integration == 'true' }}
       run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
+      run_platform_integration: ${{ needs.precheck.outputs.run_platform_integration == 'true' }}
       run_pyamber: ${{ needs.precheck.outputs.run_pyamber == 'true' }}
       run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
       run_infra: ${{ needs.precheck.outputs.run_infra == 'true' }}
@@ -279,6 +292,7 @@ jobs:
       run_amber: ${{ needs.precheck.outputs.run_amber == 'true' }}
       run_amber_integration: ${{ needs.precheck.outputs.run_amber_integration == 'true' }}
       run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
+      run_platform_integration: ${{ needs.precheck.outputs.run_platform_integration == 'true' }}
       run_pyamber: ${{ needs.precheck.outputs.run_pyamber == 'true' }}
       run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
       run_infra: ${{ needs.precheck.outputs.run_infra == 'true' }}
