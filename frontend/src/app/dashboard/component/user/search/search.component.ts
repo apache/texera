@@ -110,6 +110,10 @@ export class SearchComponent implements AfterViewInit {
   }
 
   async search(): Promise<void> {
+    // Keep the highlight keywords in sync with the current filters. This is read
+    // by the template's search-results binding; the template must not call the
+    // `filters` getter directly, since it throws until the ViewChild resolves.
+    this.searchKeywords = this.filters.getSearchKeywords();
     const sameList =
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList[i]);
