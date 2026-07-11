@@ -87,6 +87,26 @@ else
   pass "hang without listening -> FAIL (timeout)"
 fi
 
+# --- #6336: a crash must not be masked by a pre-existing listener on the port.
+# Hold the port with an unrelated listener, then boot a crasher on it: the port
+# is busy at launch, so smoke-boot must FAIL fast rather than mistake the
+# squatter's LISTEN for a healthy boot. ---
+port="$(free_port)"
+python3 -c "import socket, time; s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(('127.0.0.1', $port)); s.listen(); time.sleep(60)" &
+squatter=$!
+# Wait until the squatter is actually accepting connections before testing.
+for _ in $(seq 1 50); do
+  python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.2); sys.exit(0 if s.connect_ex(('127.0.0.1',$port))==0 else 1)" && break
+  sleep 0.1
+done
+if "$smoke" "$work/crasher" "$port" 5 >/dev/null 2>&1; then
+  failed "a crash masked by a pre-existing listener should FAIL (#6336)"
+else
+  pass "port already in use -> FAIL fast, crash not masked (#6336)"
+fi
+kill "$squatter" 2>/dev/null || true
+wait "$squatter" 2>/dev/null || true
+
 if [[ "$rc" -ne 0 ]]; then
   echo "smoke-boot regression tests FAILED"
   exit 1

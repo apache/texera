@@ -59,11 +59,6 @@ if [[ -z "$launcher" || ! -x "$launcher" ]]; then
   exit 1
 fi
 
-log="$(mktemp)"
-echo "smoke-boot: launching '$launcher' (port=$port timeout=${timeout}s)"
-"$launcher" >"$log" 2>&1 &
-pid=$!
-
 port_open() {
   if command -v nc >/dev/null 2>&1; then
     nc -z localhost "$port" >/dev/null 2>&1
@@ -71,6 +66,20 @@ port_open() {
     (exec 3<>"/dev/tcp/localhost/$port") 2>/dev/null
   fi
 }
+
+# Fail fast if the port is already taken. The wait loop below treats "something
+# is LISTENing on :port" as a healthy boot, so a leftover/unrelated listener
+# could otherwise mask a crashed service. Requiring the port to be free at launch
+# means a listener detected afterwards is the service we started.
+if port_open; then
+  echo "::error::smoke-boot: port $port is already in use before launching '$launcher'"
+  exit 1
+fi
+
+log="$(mktemp)"
+echo "smoke-boot: launching '$launcher' (port=$port timeout=${timeout}s)"
+"$launcher" >"$log" 2>&1 &
+pid=$!
 
 # Wait for the service to reach one of three terminal states: it opens its port
 # (booted), it exits on its own (crashed), or neither happens in time (hung).
@@ -94,7 +103,10 @@ fail() {
 stop_service() {
   kill "$pid" 2>/dev/null || true
   for _ in $(seq 1 10); do
-    kill -0 "$pid" 2>/dev/null || return 0
+    if ! kill -0 "$pid" 2>/dev/null; then
+      wait "$pid" 2>/dev/null || true
+      return 0
+    fi
     sleep 1
   done
   kill -9 "$pid" 2>/dev/null || true
