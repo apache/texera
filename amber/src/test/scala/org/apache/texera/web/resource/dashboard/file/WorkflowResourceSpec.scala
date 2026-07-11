@@ -836,4 +836,22 @@ class WorkflowResourceSpec
     assert(workflowEntry.coverImage.contains(coverImage))
   }
 
+  it should "return no workflow cover image when None is set" in {
+    // Create workflow
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+
+    // Search workflows with no cover
+    val results =
+      dashboardResource.searchAllResourcesCall(
+        sessionUser1,
+        SearchQueryParams(resourceType = "workflow")
+      )
+
+    // Verify cover image is returned without a cover image
+    assert(results.results.length == 1)
+
+    val workflowEntry = results.results.head.workflow.get
+    assert(workflowEntry.coverImage.isEmpty)
+  }
+
 }
