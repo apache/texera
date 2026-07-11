@@ -45,8 +45,8 @@ describe("adaptLegacySyncExecutionResult", () => {
       },
     });
 
+    expect(summary).not.toHaveProperty("success");
     expect(summary).toMatchObject({
-      success: true,
       state: WorkflowExecutionState.COMPLETED,
       errors: [],
       operators: {
@@ -149,6 +149,25 @@ describe("adaptLegacySyncExecutionResult", () => {
       message: "workflow stopped",
       operatorId: "",
     });
+  });
+
+  test("normalizes a completed legacy failure to the failed state", () => {
+    const summary = adaptLegacySyncExecutionResult({
+      success: false,
+      state: "Completed",
+      operators: {
+        target: {
+          state: "Completed",
+          inputTuples: 1,
+          outputTuples: 1,
+          resultMode: "table",
+          error: "console error",
+        },
+      },
+    });
+
+    expect(summary).not.toHaveProperty("success");
+    expect(summary.state).toBe(WorkflowExecutionState.FAILED);
   });
 
   test("deduplicates the legacy compilation error projections", () => {
