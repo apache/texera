@@ -115,7 +115,7 @@ jobs:
 
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.set-parameters.outputs.branch }}
 
@@ -126,9 +126,9 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
 
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
 
@@ -156,7 +156,7 @@ jobs:
         run: sbt DAO/jooqGenerate
 
       - name: Upload JOOQ generated code
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: jooq-code
           path: |
@@ -174,7 +174,7 @@ jobs:
       need_manifest: ${{ steps.set-platforms.outputs.need_manifest }}
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.set-parameters.outputs.branch }}
 
@@ -317,7 +317,7 @@ jobs:
 
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.set-parameters.outputs.branch }}
 
@@ -328,14 +328,14 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
 
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
 
       - name: Download JOOQ generated code
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: jooq-code
           path: common/dao/src/main/scala/org/apache/texera/dao/jooq/generated/
@@ -349,11 +349,11 @@ jobs:
           df -h
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Log in to GitHub Container Registry
         if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -361,13 +361,13 @@ jobs:
 
       - name: Log in to Docker Hub
         if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and push AMD64 image
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -397,7 +397,7 @@ jobs:
 
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.set-parameters.outputs.branch }}
 
@@ -408,14 +408,14 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+        uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
 
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
 
       - name: Download JOOQ generated code
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: jooq-code
           path: common/dao/src/main/scala/org/apache/texera/dao/jooq/generated/
@@ -430,16 +430,16 @@ jobs:
 
       # Set up QEMU for ARM64 emulation
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
         with:
           platforms: linux/arm64
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Log in to GitHub Container Registry
         if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -447,13 +447,13 @@ jobs:
 
       - name: Log in to Docker Hub
         if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and push ARM64 image
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -481,7 +481,7 @@ jobs:
     steps:
       - name: Log in to GitHub Container Registry
         if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -489,7 +489,7 @@ jobs:
 
       - name: Log in to Docker Hub
         if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}

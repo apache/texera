@@ -35,16 +35,16 @@ class WorkflowCoreTypesSpec extends AnyFlatSpec {
   // LocationPreference
   // ---------------------------------------------------------------------------
 
-  "LocationPreference" should "have PreferController and RoundRobinPreference as singleton subtypes" in {
-    val a: LocationPreference = PreferController
+  "LocationPreference" should "have PreferCoordinator and RoundRobinPreference as singleton subtypes" in {
+    val a: LocationPreference = PreferCoordinator
     val b: LocationPreference = RoundRobinPreference
-    assert(a eq PreferController)
+    assert(a eq PreferCoordinator)
     assert(b eq RoundRobinPreference)
     assert(a != b)
   }
 
   it should "be Serializable on every subtype" in {
-    val all: Seq[LocationPreference] = Seq(PreferController, RoundRobinPreference)
+    val all: Seq[LocationPreference] = Seq(PreferCoordinator, RoundRobinPreference)
     all.foreach(p => assert(p.isInstanceOf[Serializable]))
   }
 
@@ -131,8 +131,8 @@ class WorkflowCoreTypesSpec extends AnyFlatSpec {
   }
 
   "PhysicalOp.withLocationPreference" should "store the location preference" in {
-    val op = newPhysicalOp("a").withLocationPreference(Some(PreferController))
-    assert(op.locationPreference.contains(PreferController))
+    val op = newPhysicalOp("a").withLocationPreference(Some(PreferCoordinator))
+    assert(op.locationPreference.contains(PreferCoordinator))
   }
 
   "PhysicalOp.withParallelizable" should "set the parallelizable flag and round-trip through copy" in {

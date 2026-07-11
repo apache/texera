@@ -20,7 +20,7 @@
 package org.apache.texera.web.service
 
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
-import org.apache.texera.amber.engine.architecture.controller.{UpdateExecutorCompleted, Workflow}
+import org.apache.texera.amber.engine.architecture.coordinator.{UpdateExecutorCompleted, Workflow}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   UpdateExecutorRequest,
   WorkflowReconfigureRequest
@@ -107,7 +107,7 @@ class ExecutionReconfigurationService(
 
   // Seam for unit testing the dispatch path without spinning up an AmberClient.
   protected def dispatch(request: WorkflowReconfigureRequest): Unit = {
-    client.controllerInterface.reconfigureWorkflow(request, ())
+    client.coordinatorInterface.reconfigureWorkflow(request, ())
   }
 
   // Seam for unit testing — production wires the engine's UpdateExecutorCompleted
