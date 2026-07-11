@@ -967,10 +967,12 @@ describe("WorkflowEditorComponent", () => {
         expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
       });
 
-      it("supplies a computed Validation from the operator-add path", () => {
-        // The operator-add subscriber now obtains the Validation itself (via
-        // validateOperator) and forwards it to applyOperatorBorder, so the
-        // helper's parameter can stay required with no fallback recompute.
+      it("always supplies a Validation to applyOperatorBorder when an operator is added", () => {
+        // Both subscribers (operator-add and the validation stream) call
+        // applyOperatorBorder on add with identical args, so this asserts the
+        // required-parameter contract holds through the add flow — every call
+        // carries a Validation, never undefined — rather than isolating the
+        // operator-add caller specifically.
         vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
         const applyBorderSpy = vi.spyOn(component as any, "applyOperatorBorder");
