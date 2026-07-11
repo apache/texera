@@ -21,7 +21,7 @@ import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { buildApp, start, _resetAgentStoreForTests, _getAgentForTests } from "./server";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
-import { OperatorResultMode, OperatorState } from "./types/execution";
+import { OperatorState } from "./types/execution";
 
 const API = env.API_PREFIX;
 const app = buildApp();
@@ -335,7 +335,7 @@ describe("agent read routes", () => {
                 state: OperatorState.COMPLETED,
                 errorMessages: [],
                 resultSummary: {
-                  resultMode: OperatorResultMode.TABLE,
+                  resultMode: { type: "PaginationMode" },
                   sampleTuples: [
                     [0, { schema: { attributes: [{ attributeName: "a", attributeType: "string" }] }, fields: [1] }],
                   ],

@@ -23,7 +23,7 @@ import { DomSanitizer } from "@angular/platform-browser";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { of } from "rxjs";
 import { AgentInteractionComponent } from "./agent-interaction.component";
-import { AgentService, OperatorResultMode, Tuple } from "../../../service/agent/agent.service";
+import { AgentService, Tuple } from "../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -79,7 +79,7 @@ describe("AgentInteractionComponent", () => {
   describe("template rendering", () => {
     it("renders the sample table with a leading Row column when sample rows are present", () => {
       component.sampleTuples = [row(0, { a: 1, b: "x" }), row(1, { a: 2, b: "y" })];
-      component.resultMode = OperatorResultMode.TABLE;
+      component.resultMode = { type: "PaginationMode" };
       fixture.detectChanges();
 
       const headers: string[] = Array.from(
@@ -97,7 +97,7 @@ describe("AgentInteractionComponent", () => {
 
     it("renders an ellipsis row spanning all columns plus the Row column when indices have a gap", () => {
       component.sampleTuples = [row(0, { a: 1, b: "x" }), row(5, { a: 2, b: "y" })];
-      component.resultMode = OperatorResultMode.TABLE;
+      component.resultMode = { type: "PaginationMode" };
       fixture.detectChanges();
 
       const ellipsisCell = fixture.nativeElement.querySelector(".ellipsis-row td") as HTMLElement;
@@ -109,7 +109,7 @@ describe("AgentInteractionComponent", () => {
 
     it("renders the visualization iframe instead of the table in visualization mode", () => {
       fixture.componentRef.setInput("sampleTuples", [row(0, { "html-content": "<h1>chart</h1>" })]);
-      fixture.componentRef.setInput("resultMode", OperatorResultMode.VISUALIZATION);
+      fixture.componentRef.setInput("resultMode", { type: "SetSnapshotMode" });
       fixture.detectChanges();
 
       expect(fixture.nativeElement.querySelector(".visualization-iframe")).toBeTruthy();
@@ -142,7 +142,7 @@ describe("AgentInteractionComponent", () => {
 
     it("clears the cached html when no html-content is present", () => {
       component.sampleTuples = [row(0, { "html-content": "<p>x</p>" })];
-      component.ngOnChanges({ resultMode: new SimpleChange(undefined, OperatorResultMode.VISUALIZATION, true) });
+      component.ngOnChanges({ resultMode: new SimpleChange(undefined, { type: "SetSnapshotMode" }, true) });
       // Now switch to a tuple with no html-content.
       component.sampleTuples = [row(0, { value: 1 })];
       component.ngOnChanges({ sampleTuples: new SimpleChange(undefined, component.sampleTuples, false) });
@@ -157,11 +157,14 @@ describe("AgentInteractionComponent", () => {
   });
 
   describe("isVisualization", () => {
-    it("is true only in visualization mode", () => {
-      component.resultMode = OperatorResultMode.VISUALIZATION;
+    it("is true only in snapshot mode", () => {
+      component.resultMode = { type: "SetSnapshotMode" };
       expect(component.isVisualization()).toBe(true);
 
-      component.resultMode = OperatorResultMode.TABLE;
+      component.resultMode = { type: "PaginationMode" };
+      expect(component.isVisualization()).toBe(false);
+
+      component.resultMode = { type: "SetDeltaMode" };
       expect(component.isVisualization()).toBe(false);
     });
   });

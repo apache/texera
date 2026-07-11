@@ -23,7 +23,6 @@ import { WorkflowState } from "../workflow-state";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import {
   ConsoleMessageType,
-  OperatorResultMode,
   OperatorState,
   WorkflowExecutionState,
   WorkflowFatalErrorType,
@@ -136,7 +135,7 @@ function toLegacyResponse(summary: WorkflowExecutionSummary): LegacySyncExecutio
             state: operator.state,
             inputTuples: 0,
             outputTuples: resultSummary?.totalTuplesCount ?? 0,
-            resultMode: resultSummary?.resultMode ?? OperatorResultMode.TABLE,
+            resultMode: resultSummary?.resultMode.type === "SetSnapshotMode" ? "visualization" : "table",
             result,
             totalRowCount: resultSummary?.totalTuplesCount,
             consoleLogs: operator.consoleMessages,
@@ -244,7 +243,7 @@ describe("executeOperatorAndFormat - successful runs", () => {
         [target]: {
           state: OperatorState.COMPLETED,
           errorMessages: [],
-          resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples, totalTuplesCount: 10 },
+          resultSummary: { resultMode: { type: "PaginationMode" }, sampleTuples, totalTuplesCount: 10 },
           consoleMessages: [
             { msgType: ConsoleMessageType.PRINT, title: "WARNING: truncated output", message: "" },
             { msgType: ConsoleMessageType.PRINT, title: "just info, not a warning", message: "" },
@@ -298,7 +297,7 @@ describe("executeOperatorAndFormat - successful runs", () => {
         [target]: {
           state: OperatorState.COMPLETED,
           errorMessages: [],
-          resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples: [], totalTuplesCount: 0 },
+          resultSummary: { resultMode: { type: "PaginationMode" }, sampleTuples: [], totalTuplesCount: 0 },
         },
       },
       errors: [],
@@ -323,7 +322,7 @@ describe("executeOperatorAndFormat - successful runs", () => {
         [target]: {
           state: OperatorState.COMPLETED,
           errorMessages: [],
-          resultSummary: { resultMode: OperatorResultMode.TABLE, sampleTuples, totalTuplesCount: 12 },
+          resultSummary: { resultMode: { type: "PaginationMode" }, sampleTuples, totalTuplesCount: 12 },
         },
       },
       errors: [],
@@ -454,7 +453,7 @@ describe("executeOperatorAndFormat - abort and callback failures", () => {
           state: OperatorState.COMPLETED,
           errorMessages: [],
           resultSummary: {
-            resultMode: OperatorResultMode.TABLE,
+            resultMode: { type: "PaginationMode" },
             sampleTuples: [[0, recordToTuple({ col: "v" })]],
             totalTuplesCount: 1,
           },
@@ -483,7 +482,7 @@ describe("createExecuteOperatorTool", () => {
           state: OperatorState.COMPLETED,
           errorMessages: [],
           resultSummary: {
-            resultMode: OperatorResultMode.TABLE,
+            resultMode: { type: "PaginationMode" },
             sampleTuples: [[0, recordToTuple({ col: "v" })]],
             totalTuplesCount: 1,
           },
