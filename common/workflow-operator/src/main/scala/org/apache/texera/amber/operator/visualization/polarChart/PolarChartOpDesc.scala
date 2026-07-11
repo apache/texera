@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.polarChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
@@ -30,6 +30,14 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "r": { "enum": ["integer", "long", "double"] },
+    "theta": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
 class PolarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "r", required = true)

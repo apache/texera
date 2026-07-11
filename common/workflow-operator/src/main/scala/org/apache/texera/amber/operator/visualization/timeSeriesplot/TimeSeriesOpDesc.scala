@@ -30,6 +30,16 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 
 import javax.validation.constraints.{NotBlank, NotNull}
 
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "timeColumn": { "enum": ["timestamp"] },
+    "valueColumn": { "enum": ["integer", "long", "double"] },
+    "categoryColumn": { "enum": ["string"] },
+    "facetColumn": { "enum": ["string"] }
+  }
+}
+""")
 class TimeSeriesOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "timeColumn", required = true)

@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.waterfallChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -30,6 +30,14 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "xColumn": { "enum": ["string"] },
+    "yColumn": { "enum": ["double"] }
+  }
+}
+""")
 class WaterfallChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "xColumn", required = true)

@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.histogram
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -29,6 +29,17 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "value": { "enum": ["integer", "long", "double"] },
+    "color": { "enum": ["string"] },
+    "separateBy": { "enum": ["string"] },
+    "pattern": { "enum": ["string"] }
+  }
+}
+""")
 class HistogramChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")

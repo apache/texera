@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.stripChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -29,6 +29,16 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "x": { "enum": ["integer", "long", "double"] },
+    "y": { "enum": ["string"] },
+    "colorBy": { "enum": ["string"] },
+    "facetColumn": { "enum": ["string"] }
+  }
+}
+""")
 class StripChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "x", required = true)

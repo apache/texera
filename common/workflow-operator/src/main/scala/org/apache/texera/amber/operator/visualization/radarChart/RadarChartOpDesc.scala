@@ -41,6 +41,9 @@ import javax.validation.constraints.NotNull
   "attributeTypeRules": {
     "valueColumns": {
       "enum": ["integer", "long", "double"]
+    },
+    "nameColumn": {
+      "enum": ["string"]
     }
   }
 }
