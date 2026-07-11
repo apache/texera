@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import type { OperatorExecutionSummary, Tuple, WebOutputMode } from "../../types/execution";
+import type { IndexedTuple, OperatorExecutionSummary, Tuple, WebOutputMode } from "../../types/execution";
 
 // The single definition of "this operator failed": some fatal error carries
 // message text. The engine can emit console ERRORs with empty text, which do
@@ -45,31 +45,34 @@ export function tupleToRecord(tuple: Tuple): Record<string, unknown> {
 
 // Keep visualization payloads in stored results for frontend rendering, but do not
 // send their potentially large HTML/JSON bodies to the LLM as tool or DAG context.
-export function redactVisualizationPayloads(rows: [number, Tuple][], resultMode: WebOutputMode): [number, Tuple][] {
-  if (resultMode.type !== "SetSnapshotMode") return rows;
+export function redactVisualizationPayloads(
+  sampleTuples: ReadonlyArray<IndexedTuple>,
+  resultMode: WebOutputMode
+): ReadonlyArray<IndexedTuple> {
+  if (resultMode.type !== "SetSnapshotMode") return sampleTuples;
 
-  return rows.map(([rowIndex, tuple]) => {
+  return sampleTuples.map(([rowIndex, tuple]) => {
     const fields = tuple.schema.attributes.map((attribute, index) =>
       attribute.attributeName === "html-content" || attribute.attributeName === "json-content"
         ? "<skipped: visualization content>"
         : tuple.fields[index]
     );
-    return [rowIndex, { schema: tuple.schema, fields }];
+    return [rowIndex, { schema: tuple.schema, fields }] as const;
   });
 }
 
-// Sampled rows arrive as [originalRowIndex, Tuple] pairs.
-export function formatSampleRowsAsTsv(rows: [number, Tuple][]): string {
-  if (!rows || rows.length === 0) return "";
+// Sampled tuples arrive paired with their original row indices.
+export function formatSampleTuplesAsTsv(sampleTuples: ReadonlyArray<IndexedTuple>): string {
+  if (!sampleTuples || sampleTuples.length === 0) return "";
 
-  const headers = tupleColumns(rows[0][1]);
+  const headers = tupleColumns(sampleTuples[0][1]);
   if (headers.length === 0) return "";
 
   const headerLine = "\t" + headers.join("\t");
   const formattedRows: string[] = [];
   let prevIndex = -1;
 
-  for (const [rowIndex, tuple] of rows) {
+  for (const [rowIndex, tuple] of sampleTuples) {
     if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
       const dots = headers.map(() => "...").join("\t");
       formattedRows.push(`...\t${dots}`);

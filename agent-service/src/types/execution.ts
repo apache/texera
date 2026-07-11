@@ -24,15 +24,14 @@ export enum WorkflowFatalErrorType {
 
 // Canonical agent-service error projection. It follows the engine's
 // workflowruntimestate.proto shape so compile and execution errors share one model.
-// The legacy sync-execution adapter synthesizes metadata the backend does not yet emit.
 // Re-exported by api/compile-api.ts.
 export interface WorkflowFatalError {
-  type: { name: WorkflowFatalErrorType };
-  timestamp: { seconds: number; nanos: number };
-  message: string;
-  details: string;
-  operatorId: string;
-  workerId: string;
+  readonly type: Readonly<{ name: WorkflowFatalErrorType }>;
+  readonly timestamp: Readonly<{ seconds: number; nanos: number }>;
+  readonly message: string;
+  readonly details: string;
+  readonly operatorId: string;
+  readonly workerId: string;
 }
 
 // Lifecycle state of a single operator, as reported by the engine
@@ -52,7 +51,7 @@ export enum OperatorState {
 }
 
 // Aggregated state of a whole workflow execution: the OperatorState values the
-// engine reports, plus the synthetic outcomes the sync-execution endpoint adds.
+// engine reports, plus agent-service execution outcomes.
 export enum WorkflowExecutionState {
   UNINITIALIZED = "Uninitialized",
   READY = "Ready",
@@ -76,31 +75,30 @@ export enum ConsoleMessageType {
   DEBUGGER = "DEBUGGER",
 }
 
-// A reduced console-message projection for sync-execution summaries. The engine
-// proto also has workerId/timestamp/source; this summary keeps only the fields
-// consumed by agent-service.
+// A reduced console-message projection. The engine proto also has
+// workerId/timestamp/source; this summary keeps only the fields consumed by agent-service.
 export interface ConsoleMessageSummary {
-  msgType: ConsoleMessageType;
-  title: string;
-  message: string;
+  readonly msgType: ConsoleMessageType;
+  readonly title: string;
+  readonly message: string;
 }
 
-// A normalized result row using the engine Tuple shape: a schema plus positional fields.
-// The legacy backend returns JSON records, so the adapter builds a synthetic all-STRING
-// schema after the backend has truncated values for display.
+// A normalized result tuple using the engine Tuple shape: a schema plus positional fields.
 export interface Attribute {
-  attributeName: string;
-  attributeType: string;
+  readonly attributeName: string;
+  readonly attributeType: string;
 }
 
 export interface Schema {
-  attributes: Attribute[];
+  readonly attributes: ReadonlyArray<Attribute>;
 }
 
 export interface Tuple {
-  schema: Schema;
-  fields: unknown[];
+  readonly schema: Schema;
+  readonly fields: ReadonlyArray<unknown>;
 }
+
+export type IndexedTuple = readonly [rowIndex: number, tuple: Tuple];
 
 // Mirrors ExecutionResultService.WebOutputMode's JSON representation.
 export type PaginationMode = Readonly<{ type: "PaginationMode" }>;
@@ -110,28 +108,27 @@ export type WebOutputMode = PaginationMode | SetSnapshotMode | SetDeltaMode;
 
 // An operator's output summary. Sample tuples carry their original row index.
 export interface OperatorResultSummary {
-  resultMode: WebOutputMode;
-  sampleTuples: [number, Tuple][];
-  totalTuplesCount: number;
+  readonly resultMode: WebOutputMode;
+  readonly sampleTuples: ReadonlyArray<IndexedTuple>;
+  readonly totalTuplesCount: number;
 }
 
 // Canonical per-operator summary used inside agent-service and exposed to the frontend.
-// The legacy backend's flat `OperatorInfo` is converted at the execution API boundary.
 export interface OperatorExecutionSummary {
-  state: OperatorState;
+  readonly state: OperatorState;
   // Empty means the operator did not fail.
-  errorMessages: ReadonlyArray<WorkflowFatalError>;
+  readonly errorMessages: ReadonlyArray<WorkflowFatalError>;
   // Absent when the operator produced no materialized result.
-  resultSummary?: OperatorResultSummary;
+  readonly resultSummary?: OperatorResultSummary;
   // Absent when the operator produced no console output.
-  consoleMessages?: ConsoleMessageSummary[];
+  readonly consoleMessages?: ReadonlyArray<ConsoleMessageSummary>;
 }
 
-// The result of one synchronous workflow execution.
+// The result of one workflow execution.
 export interface WorkflowExecutionSummary {
-  state: WorkflowExecutionState;
-  operators: Record<string, OperatorExecutionSummary>;
+  readonly state: WorkflowExecutionState;
+  readonly operators: Readonly<Record<string, OperatorExecutionSummary>>;
   // Workflow-level errors (timeouts, init/compile failures, fatal errors);
   // empty means none. For workflow-level failures, operatorId/workerId are empty.
-  errors: WorkflowFatalError[];
+  readonly errors: ReadonlyArray<WorkflowFatalError>;
 }

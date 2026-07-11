@@ -20,7 +20,7 @@
 import type { OperatorExecutionSummary } from "../../types/execution";
 import {
   formatExecuteOperatorResult,
-  formatSampleRowsAsTsv,
+  formatSampleTuplesAsTsv,
   getOperatorErrorText,
   getOperatorWarnings,
   redactVisualizationPayloads,
@@ -39,12 +39,12 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorExecuti
     return "(no result data)";
   }
 
-  const rows = redactVisualizationPayloads(sampleTuples, resultSummary.resultMode);
+  const displayTuples = redactVisualizationPayloads(sampleTuples, resultSummary.resultMode);
 
-  const headers = rows.length > 0 ? tupleColumns(rows[0][1]) : [];
+  const headers = displayTuples.length > 0 ? tupleColumns(displayTuples[0][1]) : [];
   const columns = headers.length;
 
-  const dataString = formatSampleRowsAsTsv(rows);
+  const dataString = formatSampleTuplesAsTsv(displayTuples);
 
   // Output shape only; input-port shapes are derivable by the agent from the DAG
   // links plus each upstream operator's own output shape shown in context.
