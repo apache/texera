@@ -837,9 +837,13 @@ class WorkflowResourceSpec
   }
 
   it should "create a workflow with coverImage set to None" in {
-    val result = workflowResource.createWorkflow(testWorkflow1, sessionUser1)
+    val workflow = new Workflow()
+    workflow.setName("test_create_workflow")
+    workflow.setContent(exampleContent)
 
-    assert(result.workflow.getName == "test_workflow1")
+    val result = workflowResource.createWorkflow(workflow, sessionUser1)
+
+    assert(result.workflow.getName == "test_create_workflow")
     assert(result.coverImage.isEmpty)
   }
 
