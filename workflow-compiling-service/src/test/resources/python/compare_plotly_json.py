@@ -2,7 +2,7 @@
 """
 Compare a Plotly visualization tuple JSONL file against a Plotly JSON file.
 
-Usage: xicompare_plotly_json.py <actual.jsonl> <expected.json>
+Usage: compare_plotly_json.py <actual.jsonl> <expected.json>
 
 The actual file is the Texera path output: a one-row JSONL file with either
 `html-content` or `json-content`. For `html-content`, the script extracts the
