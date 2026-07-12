@@ -183,6 +183,15 @@ G.requestIdleCallback ??= (cb: (d: { didTimeout: boolean; timeRemaining: () => n
   setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 50 }), 0);
 G.cancelIdleCallback ??= (id: number) => clearTimeout(id);
 
+// `ResizeObserver` — jsdom doesn't implement it; components that watch their
+// own size (e.g. markdown-description) construct one on render. An inert stub
+// is enough: jsdom has no layout, so there is never a resize to report.
+G.ResizeObserver ??= class {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+};
+
 // `WebSocket` — y-websocket schedules a reconnect timer the moment a
 // collaborative-editing service is constructed. When that timer fires AFTER
 // vitest has begun tearing down the jsdom window, jsdom's WebSocket

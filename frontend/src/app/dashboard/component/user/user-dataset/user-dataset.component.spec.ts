@@ -130,6 +130,13 @@ describe("UserDatasetComponent", () => {
     });
   });
 
+  describe("default sort", () => {
+    it("defaults to CreateTimeDesc so newest datasets appear first", () => {
+      // Datasets have no last-modified time, so EditTimeDesc would leave the sort key NULL.
+      expect(component.sortMethod).toBe(SortMethod.CreateTimeDesc);
+    });
+  });
+
   describe("ngAfterViewInit", () => {
     it("subscribes to userChanged and calls search on each emission", () => {
       const searchSpy = vi.spyOn(component, "search").mockResolvedValue();

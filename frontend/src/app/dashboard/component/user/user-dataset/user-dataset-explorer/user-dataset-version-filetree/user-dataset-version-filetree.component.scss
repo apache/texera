@@ -21,32 +21,43 @@
   width: 20px;
 }
 
-/* Styles for the delete button */
+/* Delete / set-cover buttons: ng-zorro's .ant-btn defaults to 32px tall,
+   which would bleed into the neighboring fixed-height row. */
 .icon-button {
   width: 15px;
   margin-left: 5px;
+  height: var(--tree-node-height);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Allow text selection so users can copy file/folder names */
+/* Names stay selectable for copying and on a single line — a wrapped line
+   would paint over the next fixed-height row. */
 :host ::ng-deep tree-node-content span {
   user-select: text;
+  white-space: nowrap;
 }
 
-/* Styles for the file tree container */
+/* The virtual scroll needs a definite viewport height: the template binds
+   min(content, 200px), tree-root fills it, and the lib's tree-viewport
+   (height: 100%, overflow: auto) scrolls. */
 .file-tree-container {
-  max-height: 200px; /* Adjust the max-height as needed */
-  overflow-y: auto; /* Enables vertical scrolling when content exceeds max-height */
-  overflow-x: auto; /* Prevents horizontal scrolling */
+  overflow: hidden;
+
+  tree-root {
+    display: block;
+    height: 100%;
+  }
 }
 
-//tree-root .fa-file {
-//  //padding-left: 4%; /* Adjust the value as needed */
-//}
-//
-//tree-root span {
-//  display: inline-block;
-//  max-width: 100%; /* Adjust the width as needed */
-//  text-overflow: ellipsis;
-//  white-space: nowrap;
-//  overflow: hidden;
-//}
+/* Rows must stay exactly nodeHeight tall for the virtual scroll to position
+   them; --tree-node-height is bound from the same constant. */
+:host ::ng-deep .file-tree-container .node-content-wrapper {
+  height: var(--tree-node-height);
+  padding-top: 0;
+  padding-bottom: 0;
+  display: flex;
+  align-items: center;
+}
