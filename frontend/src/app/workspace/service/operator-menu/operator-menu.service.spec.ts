@@ -51,6 +51,14 @@ describe("OperatorMenuService", () => {
       providers: [
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+        // Stub the two collaborators OperatorMenuService only calls into (executeWorkflow,
+        // error/info toasts) so the spec doesn't boot the real execution/notification stacks
+        // (websocket heartbeats, NgZorro notification overlays).
+        { provide: ExecuteWorkflowService, useValue: { executeWorkflow: vi.fn() } },
+        {
+          provide: NotificationService,
+          useValue: { error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() },
+        },
         ...commonTestProviders,
       ],
       imports: [HttpClientTestingModule],
@@ -327,8 +335,9 @@ describe("OperatorMenuService", () => {
 
       expect(writeText).toHaveBeenCalledTimes(1);
       const serialized = JSON.parse(writeText.mock.calls[0][0]);
-      expect(serialized.operators.map((op: any) => op.operatorID).sort()).toEqual(["1", "2"]);
-      expect(Object.keys(serialized.operatorPositions).sort()).toEqual(["1", "2"]);
+      const copiedIds = [mockScanPredicate.operatorID, mockSentimentPredicate.operatorID].sort();
+      expect(serialized.operators.map((op: any) => op.operatorID).sort()).toEqual(copiedIds);
+      expect(Object.keys(serialized.operatorPositions).sort()).toEqual(copiedIds);
       // the serialized position mirrors what the graph reports for that operator.
       expect(serialized.operatorPositions[mockScanPredicate.operatorID]).toEqual(
         wrapper.getElementPosition(mockScanPredicate.operatorID)
@@ -392,6 +401,11 @@ describe("OperatorMenuService", () => {
       // fresh IDs are assigned; none of the originals are reused.
       expect(pastedOperators.map(op => op.operatorID)).not.toContain(mockScanPredicate.operatorID);
       expect(pastedOperators.map(op => op.operatorID)).not.toContain(mockSentimentPredicate.operatorID);
+      // both clipboard entries carried the same position, so getNonOverlappingPosition must have
+      // shifted the second paste off the first: the two pasted elements end up at distinct spots.
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      const [posA, posB] = pastedOperators.map(op => wrapper.getElementPosition(op.operatorID));
+      expect(posA).not.toEqual(posB);
       expect(texeraGraph.getAllLinks().length).toBe(1);
       expect(texeraGraph.getAllCommentBoxes().length).toBe(1);
       // the pasted comment box is a distinct copy, not the original.
