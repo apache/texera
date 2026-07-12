@@ -1080,6 +1080,9 @@ describe("WorkflowEditorComponent", () => {
         // clicking the blank canvas unhighlights everything
         (component.paper as any).trigger("blank:pointerdown");
         expect(wrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
+        // blank:pointerdown starts the paper-pan gesture, which listens on document.mousemove
+        // until a mouseup; fire mouseup so that listener does not leak into later tests.
+        document.dispatchEvent(new MouseEvent("mouseup"));
       });
 
       it("opens the comment box modal on a comment box double-click", () => {
