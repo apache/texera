@@ -19,7 +19,9 @@
 
 package org.apache.texera.amber.operator.source.scan.text
 
+import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -179,5 +181,28 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   def readFileIntoString(filePath: String): String = {
     val path: Path = Paths.get(filePath)
     new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
+  }
+
+  "TextInputSourceOpDesc.getPhysicalOp" should
+    "wire the TextInputSourceOpExec class as a source op with one output port" in {
+    val physical =
+      textInputSourceOpDesc.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
+    physical.opExecInitInfo match {
+      case OpExecWithClassName(className, _) =>
+        assert(className == classOf[TextInputSourceOpExec].getName)
+      case other => fail(s"expected OpExecWithClassName, got $other")
+    }
+    assert(physical.inputPorts.isEmpty)
+    assert(physical.outputPorts.size == 1)
+  }
+
+  it should "propagate sourceSchema to its single output port" in {
+    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
+    val physical =
+      textInputSourceOpDesc.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
+    val outPortId = textInputSourceOpDesc.operatorInfo.outputPorts.head.id
+    val out = physical.propagateSchema.func(Map.empty)
+    assert(out.keySet == Set(outPortId))
+    assert(out(outPortId) == textInputSourceOpDesc.sourceSchema())
   }
 }

@@ -77,6 +77,12 @@ object WorkflowResource {
     )
   private def workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
 
+  /** Max length of a stored cover-image data URL. */
+  private val COVER_IMAGE_MAX_CHARS: Int = 4 * 1024 * 1024
+
+  /** JSON body/response for a workflow's cover image data URL. */
+  case class CoverImageRequest(image: String)
+
   def getWorkflowName(wid: Integer): String = {
     val workflow = workflowDao.fetchOneByWid(wid)
     if (workflow == null) {
@@ -709,6 +715,73 @@ class WorkflowResource extends LazyLogging {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
     workflow.setIsPublic(false)
     workflowDao.update(workflow)
+  }
+
+  /** Returns the workflow's cover image; 404 if none set. */
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{wid}/cover")
+  def getCoverImage(@PathParam("wid") wid: Integer, @Auth user: SessionUser): CoverImageRequest = {
+    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have access to workflow $wid")
+    }
+    val image = context
+      .select(WORKFLOW_COVER_IMAGE.IMAGE)
+      .from(WORKFLOW_COVER_IMAGE)
+      .where(WORKFLOW_COVER_IMAGE.WID.eq(wid))
+      .fetchOne(WORKFLOW_COVER_IMAGE.IMAGE)
+    if (image == null) {
+      throw new NotFoundException(s"Workflow $wid has no cover image")
+    }
+    CoverImageRequest(image)
+  }
+
+  /** Sets or replaces the workflow's cover image. */
+  @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{wid}/cover")
+  def setCoverImage(
+      @PathParam("wid") wid: Integer,
+      request: CoverImageRequest,
+      @Auth user: SessionUser
+  ): Unit = {
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+    val image = Option(request.image).map(_.trim).getOrElse("")
+    if (image.isEmpty) {
+      throw new BadRequestException("Cover image is required")
+    }
+    if (!image.startsWith("data:image/")) {
+      throw new BadRequestException("Cover image must be an image data URL")
+    }
+    if (image.length > COVER_IMAGE_MAX_CHARS) {
+      throw new BadRequestException(
+        s"Cover image is too large (limit ${COVER_IMAGE_MAX_CHARS / (1024 * 1024)} MB)"
+      )
+    }
+    context
+      .insertInto(WORKFLOW_COVER_IMAGE)
+      .set(WORKFLOW_COVER_IMAGE.WID, wid)
+      .set(WORKFLOW_COVER_IMAGE.IMAGE, image)
+      .onConflict(WORKFLOW_COVER_IMAGE.WID)
+      .doUpdate()
+      .set(WORKFLOW_COVER_IMAGE.IMAGE, image)
+      .execute()
+  }
+
+  /** Removes the workflow's cover image. Idempotent. */
+  @DELETE
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{wid}/cover")
+  def deleteCoverImage(@PathParam("wid") wid: Integer, @Auth user: SessionUser): Unit = {
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+    context
+      .deleteFrom(WORKFLOW_COVER_IMAGE)
+      .where(WORKFLOW_COVER_IMAGE.WID.eq(wid))
+      .execute()
   }
 
   @GET

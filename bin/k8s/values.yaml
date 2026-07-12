@@ -408,3 +408,65 @@ envoy-gateway:
       extensionApis:
         enableBackend: true
         enableEnvoyPatchPolicy: true
+
+# Observability stack (hand-rolled, mirrors bin/observability + the
+# single-node docker-compose profiles). Everything is gated behind
+# `enabled` (default off) so the standard install is unchanged. When
+# enabled, the Scala services emit OTLP to the in-cluster collector,
+# which fans logs/metrics/traces to the backends below. All Services are
+# ClusterIP only (no Ingress), matching the loopback-only posture of the
+# compose deployment. Profiling (Parca) is intentionally not included: it
+# needs a privileged eBPF DaemonSet and is a separate change.
+observability:
+  # Master switch for the whole stack.
+  enabled: false
+
+  # OpenTelemetry Collector: the single OTLP ingress. Required whenever
+  # any signal below is enabled (it is what the services emit to).
+  collector:
+    enabled: true
+    image: otel/opentelemetry-collector-contrib:0.153.0
+    grpcPort: 4317
+    httpPort: 4318
+    resources:
+      limits:
+        memory: 768Mi
+        cpu: "1"
+
+  # VictoriaLogs: log store (OTLP ingest + LogsQL).
+  logs:
+    enabled: true
+    image: victoriametrics/victoria-logs:v1.50.0
+    port: 9428
+    retentionPeriod: 30d
+    storage: 10Gi
+    storageClass: local-path
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: "1"
+
+  # VictoriaMetrics: metrics store (Prometheus remote-write + MetricsQL).
+  metrics:
+    enabled: true
+    image: victoriametrics/victoria-metrics:v1.144.0
+    port: 8428
+    retentionPeriod: 90d
+    storage: 10Gi
+    storageClass: local-path
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: "1"
+
+  # Jaeger v2: traces backend + UI. In-memory storage (restart wipes
+  # traces); swap in persistent storage for production.
+  traces:
+    enabled: true
+    image: jaegertracing/jaeger:2.18.0
+    queryPort: 16686
+    otlpPort: 4317
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: "1"
