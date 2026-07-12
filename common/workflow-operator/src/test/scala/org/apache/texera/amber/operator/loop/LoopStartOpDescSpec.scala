@@ -80,7 +80,7 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     code should include(s"exec(${decodeExpr("i = 0")}, {}, self.state)")
     code should include("def process_table(self, table: Table, port: int)")
     // The output expression runs through the guarded eval_output helper so
-    // `table`/`output` stay out of the persistent loop state.
+    // the reserved `table` stays out of the persistent loop state.
     code should include(s"yield self.eval_output(${decodeExpr("table.iloc[i]")}, table)")
   }
 
@@ -119,7 +119,7 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
 
   it should "not reuse output storage across re-execution" in {
     // The output port's `reuseStorage` flag is consumed by
-    // RegionExecutionCoordinator (via DocumentFactory.createOrReuseDocument) to
+    // RegionExecutionManager (via DocumentFactory.createOrReuseDocument) to
     // skip recreating result/state tables across loop iterations. LoopStart's
     // port must NOT carry it -- only LoopEnd (which accumulates output) does.
     val physical = desc().getPhysicalOp(workflowId, executionId)

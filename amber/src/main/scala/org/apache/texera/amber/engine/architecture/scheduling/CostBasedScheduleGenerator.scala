@@ -331,8 +331,9 @@ class CostBasedScheduleGenerator(
           .filter(_.requiresMaterializedExecution)
           .map(_.id.logicalOpId.id)
         logger.warn(
-          s"Overriding requested execution mode $requestedMode with $effectiveMode: " +
-            s"operator(s) ${requiringOps.mkString(", ")} require materialized execution."
+          s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, " +
+            s"overriding requested execution mode $requestedMode with $effectiveMode: " +
+            s"operator(s) ${requiringOps.toSeq.sorted.mkString(", ")} require materialized execution."
         )
       }
       effectiveMode match {

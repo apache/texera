@@ -445,10 +445,10 @@ class LoopEndOperator(TableOperator):
         input_table = table_from_ipc_bytes(state[_TABLE_KEY])
         namespace = {**state, _TABLE_KEY: input_table}
         exec(update_code, {}, namespace)
-        # `table` is runtime-owned; a user `update` that rebinds it (a loop
-        # variable named `table`) would be silently dropped by the strip below,
-        # so flag the collision instead.
-        if namespace[_TABLE_KEY] is not input_table:
+        # `table` is runtime-owned; a user `update` that rebinds (or deletes)
+        # it (a loop variable named `table`) would be silently dropped by the
+        # strip below, so flag the collision instead.
+        if namespace.get(_TABLE_KEY) is not input_table:
             raise _reserved_name_error(_TABLE_KEY)
         self._loop_table = input_table
         self.state = _strip_reserved(namespace)

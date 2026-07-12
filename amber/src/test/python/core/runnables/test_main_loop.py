@@ -1346,7 +1346,6 @@ class TestMainLoop:
         reraise()
 
     @pytest.mark.timeout(2)
-    @pytest.mark.timeout(2)
     def test_process_input_state_persists_output_state_to_storage(
         self,
         main_loop,
@@ -1790,6 +1789,7 @@ class TestMainLoop:
         assert "ValueError" in error_msgs[0].title
         assert "name 'i' is not defined" in error_msgs[0].title
 
+    @pytest.mark.timeout(2)
     def test_complete_reports_loopback_write_error_instead_of_crashing(
         self, main_loop, monkeypatch
     ):
@@ -2006,8 +2006,7 @@ class TestMainLoop:
         )
         assert isinstance(passed_to_operator, State)
         assert set(passed_to_operator.keys()) == {"i", "acc"}
-        assert "LoopStartId" not in passed_to_operator
-        assert "LoopStartStateURI" not in passed_to_operator
+        assert "loop_start_id" not in passed_to_operator
         assert "loop_counter" not in passed_to_operator
 
     # ------------------------------------------------------------------ #
@@ -2023,15 +2022,15 @@ class TestMainLoop:
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def _stub_controller(record):
-        """A controller_interface stand-in that records every
+    def _stub_coordinator(record):
+        """A coordinator_interface stand-in that records every
         jump_to_operator_region call into ``record``."""
 
-        class _Controller:
+        class _Coordinator:
             def jump_to_operator_region(self, request):
                 record.append(request)
 
-        return _Controller()
+        return _Coordinator()
 
     @staticmethod
     def _patch_create_document(monkeypatch, write_log):
@@ -2082,14 +2081,14 @@ class TestMainLoop:
         events = []
         self._patch_create_document(monkeypatch, events)
 
-        class _Controller:
+        class _Coordinator:
             def jump_to_operator_region(self, request):
                 events.append(("jump", request))
 
         class _Executor:
             state = State({"i": 7})
 
-        main_loop._jump_to_loop_start(_Executor(), _Controller())
+        main_loop._jump_to_loop_start(_Executor(), _Coordinator())
 
         assert len(events) == 5
         # (i) The jump RPC fires before any storage event, carrying the
@@ -2133,7 +2132,9 @@ class TestMainLoop:
             state = State({"i": 7})
 
         with pytest.raises(RuntimeError, match="no loop-back state URI"):
-            main_loop._jump_to_loop_start(_Executor(), self._stub_controller(rpc_calls))
+            main_loop._jump_to_loop_start(
+                _Executor(), self._stub_coordinator(rpc_calls)
+            )
 
         assert rpc_calls == [], "must fail before the jump RPC"
         assert write_log == [], "must fail before touching storage"

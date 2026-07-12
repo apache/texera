@@ -81,19 +81,19 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     // loop_counter is owned by the runtime; the nested-loop pass-through happens
     // in main_loop._process_state_frame before the operator is invoked, so the
     // generated LoopEnd only runs the matching-loop (consume) path. The user
-    // `update` runs through the guarded run_update helper (which keeps
-    // `table`/`output` out of self.state), not inline against self.state.
+    // `update` runs through the guarded run_update helper (which keeps the
+    // reserved `table` out of self.state), not inline against self.state.
     val code = desc(update = "i = i + 7").generatePythonCode()
     code should not include "loop_counter"
     code should include(s"self.run_update(${decodeExpr("i = i + 7")}, state)")
   }
 
   it should "not exec user code inline against self.state (the guard lives in the base helpers)" in {
-    // The table unpickling and the user update/condition exec now run in the
-    // LoopEnd base helpers (run_update / eval_condition) against a throwaway
-    // namespace, so `table`/`output` never persist in or get clobbered out of
-    // the loop state. The generated operator must not touch them directly or
-    // exec user code against self.state.
+    // The table decode (Arrow IPC) and the user update/condition exec run in
+    // the LoopEnd base helpers (run_update / eval_condition) against a
+    // throwaway namespace, so the reserved `table` never persists in the loop
+    // state (a user rebind raises). The generated operator must not touch it
+    // directly or exec user code against self.state.
     val code = desc(update = "i = i + 7", condition = "i < 3").generatePythonCode()
     code should not include "exec("
     code should not include "self.state[\"table\"]"
@@ -137,10 +137,10 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     desc().getPhysicalOp(workflowId, executionId).isLoopStart shouldBe false
   }
 
-  it should "reuse its output storage across re-execution so RegionExecutionCoordinator skips iceberg recreation" in {
+  it should "reuse its output storage across re-execution so RegionExecutionManager skips iceberg recreation" in {
     // The output port's `reuseStorage` flag drives the create-or-reuse
     // decision in DocumentFactory.createOrReuseDocument (called by
-    // RegionExecutionCoordinator). Without it, every loop iteration would
+    // RegionExecutionManager). Without it, every loop iteration would
     // unconditionally recreate the result/state tables and lose accumulated
     // data. The flag must be set on Loop End's output port.
     val physical = desc().getPhysicalOp(workflowId, executionId)

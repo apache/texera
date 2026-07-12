@@ -30,9 +30,13 @@ Coverage:
   - The guarded eval/exec helpers (eval_output / run_update / eval_condition)
     keep the reserved `table` name out of the persistent loop state, so user
     code cannot silently clobber loop machinery. The table crosses the loop
-    boundary as Arrow IPC bytes (see table_to_ipc_bytes in core.models.table).
+    boundary as Arrow IPC bytes (see table_to_ipc_bytes in core.models.table);
+    a user loop variable named `table` is a raised collision, not a silent
+    drop (TestReservedNameCollision).
   - A multi-iteration loop driven to completion through the operators and the
     State to_tuple/from_tuple round-trip (TestLoopRunsToCompletion).
+  - The exact generated-code shape -- base64 + decode_python_template + exec,
+    with quote/newline-bearing expressions (TestGeneratedCodeShape).
 
 loop_counter and the LoopStart jump metadata (LoopStartId) are owned by the
 worker runtime, not these operators -- they ride the StateFrame envelope as
@@ -382,9 +386,10 @@ class TestLoopRunsToCompletion:
 
 
 class TestReservedStateKeysConstant:
-    """The reserved-name filtering in ``run_update`` /
-    ``produce_state_on_finish`` reads against a single
-    ``_RESERVED_STATE_KEYS`` constant; pin its exact (frozen) contents."""
+    """The reserved-name handling -- the strip in ``run_update`` and the
+    collision raises in ``run_update`` / ``produce_state_on_finish`` -- keys
+    off the single ``_TABLE_KEY`` / ``_RESERVED_STATE_KEYS`` constants; pin
+    the exact (frozen) contents."""
 
     def test_reserved_state_keys_is_exactly_frozen_table(self):
         # Envelope names (loop_counter / LoopStartId) are deliberately NOT
@@ -405,14 +410,23 @@ class TestReservedNameCollision:
         # overwritten by the input table in produce_state_on_finish.
         op = _StubLoopStart(initialization="table = 1")
         op.open()
-        with pytest.raises(ValueError, match="reserved by the loop runtime"):
+        with pytest.raises(ValueError, match="'table' is reserved by the loop runtime"):
             op.produce_state_on_finish(port=0)
 
     def test_loop_end_raises_when_update_rebinds_table(self):
         # `update` rebinds `table`, which run_update would otherwise strip.
         op = _StubLoopEnd(update="table = 1")
         incoming = State({"i": 1, "table": _ipc_one_row()})
-        with pytest.raises(ValueError, match="reserved by the loop runtime"):
+        with pytest.raises(ValueError, match="'table' is reserved by the loop runtime"):
+            op.process_state(incoming, port=0)
+
+    def test_loop_end_raises_when_update_deletes_table(self):
+        # `update` deletes `table` outright; run_update's identity check must
+        # still flag the reserved-name collision (namespace.get) rather than
+        # escape as a bare KeyError on the missing key.
+        op = _StubLoopEnd(update="del table")
+        incoming = State({"i": 1, "table": _ipc_one_row()})
+        with pytest.raises(ValueError, match="'table' is reserved by the loop runtime"):
             op.process_state(incoming, port=0)
 
 

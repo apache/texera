@@ -96,8 +96,8 @@ class Context:
         queue its stack trace as an error console message.
 
         Shared by DataProcessor (a UDF error on the data path) and MainLoop
-        (a Loop End condition() error on the main-loop thread) so both report
-        identically. Reporting must happen before the reporting worker
+        (a Loop End condition() or loop-back write error on the main-loop
+        thread) so both report identically. Reporting must happen before the reporting worker
         switches/pauses, so the console message reaches the coordinator with
         the error rather than after the worker resumes.
         """
