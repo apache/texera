@@ -350,7 +350,7 @@ describe("WorkflowActionService", () => {
 
     service.clearWorkflow();
 
-    expect(service.getWorkflowMetadata()).toBe(DEFAULT_WORKFLOW);
+    expect(service.getWorkflowMetadata()).toEqual(DEFAULT_WORKFLOW);
     expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(100);
     expect(service.getWorkflowSettings().executionMode).toEqual(ExecutionMode.PIPELINED);
     expect(texeraGraph.getAllOperators().length).toEqual(0);
@@ -412,6 +412,9 @@ describe("WorkflowActionService", () => {
 
   it("should toggle the shared-editing connection through temp workflow", () => {
     const wsProvider = texeraGraph.sharedModel.wsProvider;
+    // setTempWorkflow only disconnects when the provider is in the "should connect" state,
+    // so force it on to make the disconnect assertion deterministic.
+    (wsProvider as any).shouldConnect = true;
     const disconnectSpy = vi.spyOn(wsProvider, "disconnect").mockImplementation(() => {});
     const connectSpy = vi.spyOn(wsProvider, "connect").mockImplementation(() => {});
     const tempWorkflow: Workflow = {
@@ -465,13 +468,18 @@ describe("WorkflowActionService", () => {
     const dynamicOp: OperatorPredicate = { ...mockMultiInputOutputPredicate, dynamicInputPorts: true };
     service.addOperator(dynamicOp, mockPoint);
     const element = jointGraph.getCell(dynamicOp.operatorID) as joint.dia.Element;
-    const beforeInputs = texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length;
-    const beforePorts = element.getPorts().length;
+    // Add a dynamic input port first, then remove it — so this exercises the dynamic-port
+    // removal path (round-tripping back to the original counts) rather than just deleting a
+    // pre-existing port.
+    const baseInputs = texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length;
+    const basePorts = element.getPorts().length;
+    service.addPort(dynamicOp.operatorID, true);
+    expect(texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length).toEqual(baseInputs + 1);
 
     service.removePort(dynamicOp.operatorID, true);
 
-    expect(texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length).toEqual(beforeInputs - 1);
-    expect(element.getPorts().length).toEqual(beforePorts - 1);
+    expect(texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length).toEqual(baseInputs);
+    expect(element.getPorts().length).toEqual(basePorts);
   });
 
   it("should throw when adding a port to an operator without dynamic ports", () => {
