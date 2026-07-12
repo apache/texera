@@ -66,7 +66,7 @@ object VirtualIdentityUtils {
       case workerNamePattern(_, operator, layerName, _) =>
         PhysicalOpIdentity(OperatorIdentity(operator), layerName)
       case other =>
-        // for special actorId such as SELF, CONTROLLER
+        // for special actorId such as SELF, COORDINATOR
         PhysicalOpIdentity(OperatorIdentity("__DummyOperator"), "__DummyLayer")
     }
   }
@@ -96,7 +96,7 @@ object VirtualIdentityUtils {
       case workerNamePattern(_, _, _, idx) =>
         Some(idx.toInt)
       case _ =>
-        // for special actorId such as SELF, CONTROLLER
+        // for special actorId such as SELF, COORDINATOR
         None
     }
   }

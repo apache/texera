@@ -198,7 +198,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   "WorkflowCompiler in strict mode (no errorList)" should
     "throw when a scan source has no fileName set" in {
     // CSVScanSourceOpDesc defaults fileName to None; `resolveScanSourceOpFileName(None)`
-    // hits `scanOp.fileName.getOrElse(throw new RuntimeException("no input file name"))`
+    // hits the "No file selected" RuntimeException thrown from `scanOp.fileName.getOrElse`
     // and surfaces that exception out of `compile` because the compiler passes
     // `None` for the errorList (i.e. fail-fast on the execution path).
     val orphanCsv = new CSVScanSourceOpDesc()
@@ -207,6 +207,6 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val ex = intercept[RuntimeException] {
       new WorkflowCompiler(ctx).compile(pojo(List(orphanCsv), List.empty))
     }
-    assert(ex.getMessage == "no input file name")
+    assert(ex.getMessage.contains("No file selected"))
   }
 }

@@ -64,7 +64,7 @@ libraryDependencies ++= Seq(
 // Jackson-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
-val jacksonVersion = "2.18.6"
+val jacksonVersion = "2.18.8"
 libraryDependencies ++= Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,                  // Jackson Databind
   "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion,               // Jackson Annotation
@@ -96,6 +96,15 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
   // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
   "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
+)
+
+// Arrow 19's transitive deps pull jackson-databind past the 2.18 line that
+// jackson-module-scala is pinned to; force the Jackson core family back to
+// jacksonVersion so the Scala module can initialize.
+dependencyOverrides ++= Seq(
+  "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion
 )
 
 /////////////////////////////////////////////////////////////////////////////

@@ -1,0 +1,111 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+
+{{- if and .Values.observability.enabled .Values.observability.logs.enabled }}
+# VictoriaLogs: log store, k8s counterpart of the docker-compose
+# victorialogs service. OTLP ingest + LogsQL query API on one port.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-victorialogs-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-victorialogs
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- with .Values.observability.logs.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.observability.logs.storage }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-victorialogs
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-victorialogs
+spec:
+  replicas: 1
+  # Single writer bound to one RWO volume; never run two at once.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-victorialogs
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-victorialogs
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10002
+        fsGroup: 10002
+      containers:
+        - name: victorialogs
+          image: {{ .Values.observability.logs.image }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
+          args:
+            - "-storageDataPath=/data"
+            - "-retentionPeriod={{ .Values.observability.logs.retentionPeriod }}"
+            - "-httpListenAddr=:{{ .Values.observability.logs.port }}"
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.observability.logs.port }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.observability.logs.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.observability.logs.resources | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-victorialogs-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-victorialogs
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-victorialogs
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-victorialogs
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.observability.logs.port }}
+      targetPort: {{ .Values.observability.logs.port }}
+{{- end }}
