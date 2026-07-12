@@ -376,6 +376,7 @@ Scala/Java jars:
   - jakarta.validation.jakarta.validation-api-3.0.2.jar
   - javax.inject.javax.inject-1.jar
   - javax.validation.validation-api-2.0.1.Final.jar
+  - net.jodah.failsafe-2.4.4.jar
   - org.apache.arrow.arrow-format-19.0.0.jar
   - org.apache.arrow.arrow-memory-core-19.0.0.jar
   - org.apache.arrow.arrow-memory-netty-19.0.0.jar
@@ -394,14 +395,14 @@ Scala/Java jars:
   - org.apache.curator.curator-client-5.2.0.jar
   - org.apache.curator.curator-framework-5.2.0.jar
   - org.apache.curator.curator-recipes-5.2.0.jar
-  - org.apache.hadoop.hadoop-annotations-3.4.3.jar
-  - org.apache.hadoop.hadoop-auth-3.4.3.jar
-  - org.apache.hadoop.hadoop-common-3.4.3.jar
-  - org.apache.hadoop.hadoop-hdfs-client-3.4.3.jar
-  - org.apache.hadoop.hadoop-mapreduce-client-core-3.4.3.jar
-  - org.apache.hadoop.hadoop-yarn-api-3.4.3.jar
-  - org.apache.hadoop.hadoop-yarn-client-3.4.3.jar
-  - org.apache.hadoop.hadoop-yarn-common-3.4.3.jar
+  - org.apache.hadoop.hadoop-annotations-3.5.0.jar
+  - org.apache.hadoop.hadoop-auth-3.5.0.jar
+  - org.apache.hadoop.hadoop-common-3.5.0.jar
+  - org.apache.hadoop.hadoop-hdfs-client-3.5.0.jar
+  - org.apache.hadoop.hadoop-mapreduce-client-core-3.5.0.jar
+  - org.apache.hadoop.hadoop-yarn-api-3.5.0.jar
+  - org.apache.hadoop.hadoop-yarn-client-3.5.0.jar
+  - org.apache.hadoop.hadoop-yarn-common-3.5.0.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-guava-1.5.0.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-protobuf_3_25-1.5.0.jar
   - org.apache.httpcomponents.client5.httpclient5-5.4.3.jar
@@ -610,7 +611,6 @@ CDDL 1.0
 
 Scala/Java jars:
   - javax.annotation.javax.annotation-api-1.3.2.jar
-  - javax.servlet.javax.servlet-api-3.1.0.jar
   - javax.ws.rs.jsr311-api-1.1.1.jar
 
 
@@ -618,7 +618,6 @@ CDDL 1.1
 ~~~~~~~~
 
 Scala/Java jars:
-  - com.sun.jersey.contribs.jersey-guice-1.19.4.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Eclipse Distribution License, Version 1.0
