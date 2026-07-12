@@ -44,7 +44,6 @@ from core.models.state import State
 from core.runnables.data_processor import DataProcessor
 from core.storage.document_factory import DocumentFactory
 from core.util import StoppableQueueBlockingRunnable, get_one_of
-from core.util.console_message.error_message import create_error_console_message
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.customized_queue.queue_base import QueueElement
 from core.util.virtual_identity import get_logical_op_id
@@ -131,20 +130,16 @@ class MainLoop(StoppableQueueBlockingRunnable):
         executor = self.context.executor_manager.executor
         if isinstance(executor, LoopEndOperator):
             # condition() evaluates a user-supplied expression on this main
-            # loop thread. A UDF error on the data path is caught and
-            # reported (DataProcessor._executor_session); mirror that here so
-            # a bad condition (a typo, an undefined name) surfaces as an
-            # operator-facing error and pauses the worker, instead of killing
-            # the thread through run()'s @logger.catch(reraise=True).
+            # loop thread. A UDF error on the data path is caught and reported
+            # via Context.report_exception (DataProcessor._executor_session);
+            # reuse it here so a bad condition (a typo, an undefined name)
+            # surfaces as an operator-facing error and pauses the worker,
+            # instead of killing the thread through run()'s
+            # @logger.catch(reraise=True).
             try:
                 should_jump = executor.condition()
             except Exception as err:
-                logger.exception(err)
-                exc_info = (type(err), err, err.__traceback__)
-                self.context.exception_manager.set_exception_info(exc_info)
-                self.context.console_message_manager.put_message(
-                    create_error_console_message(self.context.worker_id, exc_info)
-                )
+                self.context.report_exception(err)
                 self._check_exception()
                 return
             if should_jump:
