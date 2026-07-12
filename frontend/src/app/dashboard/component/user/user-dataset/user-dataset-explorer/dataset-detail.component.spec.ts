@@ -455,6 +455,9 @@ describe("DatasetDetailComponent behavior", () => {
       hubServiceStub.postView.mockReturnValue(of(42));
 
       createComponent({ did: 5 });
+      // Drive the genuine logged-out path rather than relying on StubUserService's emission
+      // quirk (its user makes isLogin default to true).
+      component.isLogin = false;
       fixture.detectChanges();
 
       expect(datasetServiceStub.getDataset).toHaveBeenCalled();
@@ -947,18 +950,24 @@ describe("DatasetDetailComponent behavior", () => {
   });
 
   describe("copyCurrentFilePath", () => {
-    let originalClipboard: Clipboard;
+    let originalClipboardDescriptor: PropertyDescriptor | undefined;
     let writeText: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
-      originalClipboard = navigator.clipboard;
+      // Capture the original own-property descriptor (undefined if navigator has no own
+      // `clipboard`, e.g. under jsdom) so afterEach can restore the exact shape.
+      originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
       writeText = vi.fn().mockResolvedValue(undefined);
       Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
       createComponent();
     });
 
     afterEach(() => {
-      Object.defineProperty(navigator, "clipboard", { value: originalClipboard, configurable: true });
+      if (originalClipboardDescriptor) {
+        Object.defineProperty(navigator, "clipboard", originalClipboardDescriptor);
+      } else {
+        delete (navigator as any).clipboard;
+      }
     });
 
     it("writes the displayed path to the clipboard and toasts success", async () => {
