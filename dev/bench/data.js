@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783862039358,
+  "lastUpdate": 1783862041973,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -14014,6 +14014,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1681596.996,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "afa8af22b2ac0279fbcc0c610cfe54e3ee0ef0b8",
+          "message": "test(frontend): add unit test coverage for formly-utils field helpers (#6365)\n\n### What changes were proposed in this PR?\n\nAdd unit test coverage for the pure `FormlyFieldConfig` helpers in\n`frontend/src/app/common/formly/formly-utils.ts` — `getFieldByName`,\n`setHideExpression`, and the `createShouldHideFieldFunc` predicate\nfactory. A Vitest spec on plain objects (no `TestBed`). No\nproduction-code changes.\n\nThe rxjs `createOutputFormChangeEventStream` (debounce/distinct/share\nstream) is out of scope for this issue.\n\n### Any related issues, documentation, discussions?\n\nCloses #6361. See `frontend/TESTING.md`.\n\n### How was this PR tested?\n\n```\nng test --watch=false --include src/app/common/formly/formly-utils.spec.ts\n```\n\n9 pass. ESLint and Prettier on the new spec are clean. The spec is pure\n— it builds plain `FormlyFieldConfig` objects (no `TestBed`) and covers:\n`getFieldByName` (match / no-match / first-of-duplicate-keys);\n`setHideExpression` (sets the hide expression on present fields, no-op\nfor absent names); and the `createShouldHideFieldFunc` predicate\n(missing model → `false`, null target → `hideOnNull`, anchored regex\nmatch, and `equals` via `toString()`).\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])\n\n---------\n\nSigned-off-by: Meng Wang <mengw15@uci.edu>\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>",
+          "timestamp": "2026-07-12T07:27:05Z",
+          "url": "https://github.com/apache/texera/commit/afa8af22b2ac0279fbcc0c610cfe54e3ee0ef0b8"
+        },
+        "date": 1783862041427,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 15803.326,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 20450.234,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 25216.385,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 93766.02,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 101884.083,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 107997.962,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 889551.999,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 926666.052,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 947279.227,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 12937.788,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 18891.056,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 39798.306,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 92237.23,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 98099.333,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 105206.397,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 885621.576,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 922935.5,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 943920.108,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 12031.146,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 14346.069,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 16024.293,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 92038.501,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 97975.779,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 105827.861,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 883357.644,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 918725.695,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 947617.412,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 14014.316,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 19151.071,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 21546.491,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 114133.678,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 122220.588,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 138797.431,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 1089280.087,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 1127310.008,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 1145187.55,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 13997.913,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 15924.009,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 21791.224,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 111970.482,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 119381.765,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 135604.457,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 1112304.76,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1151317.267,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1166376.949,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 13905.951,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 16427.269,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 20546.645,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 113516.527,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 121372.275,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 135694.906,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 1130657.854,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 1173335.256,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1204843.34,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 23172.667,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 24532.394,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 28335.224,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 198408.239,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 206174.006,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 223401.054,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1941785.402,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1999273.641,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 2052290.756,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 23088.752,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 23932.813,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 24928.467,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 202534.66,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 209970.695,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 223008.759,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1977359.855,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 2023769.823,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 2052623.196,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 24179.967,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 28435.604,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 33485.793,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 208670.973,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 217998.907,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 230700.692,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 2057959.693,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 2093082.819,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 2108937.309,
             "unit": "us"
           }
         ]
