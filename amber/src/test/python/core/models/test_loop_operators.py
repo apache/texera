@@ -40,6 +40,7 @@ their own columns (the loop-back write address is setup config, not state) --
 so their handling is covered in test_main_loop.py::TestMainLoop.
 """
 
+import base64
 from typing import Iterator, Optional
 
 import pyarrow as pa
@@ -392,3 +393,87 @@ class TestReservedStateKeysConstant:
         # so it is an ordinary user variable.
         assert _RESERVED_STATE_KEYS == frozenset({"table"})
         assert isinstance(_RESERVED_STATE_KEYS, frozenset)
+
+
+# The stub subclasses above skip the base64 + `decode_python_template` layer
+# that the real generated operators go through. These templates mirror
+# LoopStart/LoopEndOpDesc.generatePythonCode exactly (user expressions arrive
+# as `self.decode_python_template('<base64>')`); if those Scala templates
+# change, update these -- the *OpDescSpec `code should include(...)` assertions
+# pin the generated shape on the Scala side.
+_LOOP_START_TEMPLATE = """from pytexera import *
+class ProcessLoopStartOperator(LoopStartOperator):
+    @overrides
+    def open(self):
+        self.state = {}
+        exec(self.decode_python_template('__INIT__'), {}, self.state)
+
+    @overrides
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        yield self.eval_output(self.decode_python_template('__OUTPUT__'), table)
+"""
+
+_LOOP_END_TEMPLATE = """from pytexera import *
+class ProcessLoopEndOperator(LoopEndOperator):
+    @overrides
+    def process_state(self, state: State, port: int) -> Optional[State]:
+        self.run_update(self.decode_python_template('__UPDATE__'), state)
+        return None
+
+    @overrides
+    def condition(self) -> bool:
+        return self.eval_condition(self.decode_python_template('__CONDITION__'))
+"""
+
+
+def _b64(expr: str) -> str:
+    # Mirror the `pyb` builder: base64 of the UTF-8 expression, which the
+    # generated code hands to self.decode_python_template(...).
+    return base64.b64encode(expr.encode("utf-8")).decode("ascii")
+
+
+class TestGeneratedCodeShape:
+    """Exec the *actual* generated-code shape (base64 +
+    ``decode_python_template`` + exec/eval), which the plain stubs skip. Uses a
+    quote and a newline in the user expressions -- a raw paste into the
+    generated source would break on those -- so drift between the codegen and
+    the runtime is caught here, without the slow @IntegrationTest job."""
+
+    def test_generated_loop_start_execs_tricky_expressions(self):
+        # initialization is exec'd (statements, so a newline is fine); output
+        # is eval'd (a single expression, so use a quote, not a newline).
+        init_expr = "i = 0\nnote = 'it\\'s fine'"
+        output_expr = 'table.assign(msg="quote \' here")'
+        source = _LOOP_START_TEMPLATE.replace("__INIT__", _b64(init_expr)).replace(
+            "__OUTPUT__", _b64(output_expr)
+        )
+        # __name__ so the exec'd class's methods get a real __module__ (the
+        # @overrides decorator on the generated methods inspects it).
+        namespace: dict = {"__name__": "generated_loop_operator"}
+        exec(source, namespace)
+
+        op = namespace["ProcessLoopStartOperator"]()
+        op.open()
+        assert op.state["i"] == 0
+        # The apostrophe survived base64 -> decode_python_template -> exec.
+        assert op.state["note"] == "it's fine"
+
+        (out,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
+        assert list(out["msg"]) == ["quote ' here"]
+
+    def test_generated_loop_end_execs_tricky_expressions(self):
+        update_expr = "i += 1"
+        # A double-quoted string containing an apostrophe in the condition
+        # expression: it must survive the base64 round-trip intact.
+        condition_expr = 'note == "it\'s" and i < 3'
+        source = _LOOP_END_TEMPLATE.replace("__UPDATE__", _b64(update_expr)).replace(
+            "__CONDITION__", _b64(condition_expr)
+        )
+        namespace: dict = {"__name__": "generated_loop_operator"}
+        exec(source, namespace)
+
+        op = namespace["ProcessLoopEndOperator"]()
+        incoming = State({"i": 1, "note": "it's", "table": _ipc_one_row()})
+        assert op.process_state(incoming, port=0) is None
+        assert op.state["i"] == 2  # update ran
+        assert op.condition() is True  # quoted condition round-tripped
