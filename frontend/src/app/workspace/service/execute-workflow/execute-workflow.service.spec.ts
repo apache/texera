@@ -30,7 +30,8 @@ import { UndoRedoService } from "../undo-redo/undo-redo.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
-import { of } from "rxjs";
+import { of, Subject } from "rxjs";
+import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -96,10 +97,12 @@ describe("ExecuteWorkflowService", () => {
     sessionStorage.clear();
   });
 
-  // Push an event through the same Subject the real WorkflowWebsocketService feeds, so the
+  // Push an event through the stream the real WorkflowWebsocketService exposes, so the
   // constructor subscription in ExecuteWorkflowService runs exactly as it would in production.
+  // websocketEvent() publicly returns the underlying Subject; casting to Subject for the test
+  // avoids reaching into the service's private fields.
   const emitWsEvent = (event: TexeraWebsocketEvent): void => {
-    (service as any).workflowWebsocketService.webSocketResponseSubject.next(event);
+    (TestBed.inject(WorkflowWebsocketService).websocketEvent() as Subject<TexeraWebsocketEvent>).next(event);
   };
 
   it("should be created", inject([ExecuteWorkflowService], (injectedService: ExecuteWorkflowService) => {
