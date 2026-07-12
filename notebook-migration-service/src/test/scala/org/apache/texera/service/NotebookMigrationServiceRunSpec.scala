@@ -21,6 +21,7 @@ package org.apache.texera.service
 
 import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.core.setup.Environment
+import io.dropwizard.jersey.DropwizardResourceConfig
 import io.dropwizard.jersey.setup.JerseyEnvironment
 import io.dropwizard.jetty.MutableServletContextHandler
 import io.dropwizard.jetty.setup.ServletEnvironment
@@ -42,6 +43,7 @@ class NotebookMigrationServiceRunSpec extends AnyFlatSpec with Matchers {
     when(env.jersey).thenReturn(jersey)
     when(env.servlets).thenReturn(servlets)
     when(env.getApplicationContext).thenReturn(context)
+    when(jersey.getResourceConfig).thenReturn(new DropwizardResourceConfig())
 
     val service = new NotebookMigrationService
     service.run(mock(classOf[NotebookMigrationServiceConfiguration]), env)

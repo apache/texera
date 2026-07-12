@@ -41,7 +41,7 @@ To try these examples on your local Texera instance:
 
 1. Launch Texera following the [Getting Started](/docs/getting-started/) guide.
 2. Open the **Workflow Editor** in your browser at `http://localhost:4200`.
-3. Import an example workflow file (`.json`) from the [Texera Example Repository](https://github.com/Texera/texera/tree/master/examples).
+3. Import an example workflow file (`.json`) into the editor.
 4. Run the workflow to see Texera’s operators and data visualizations in action.
 
 ---
@@ -49,7 +49,7 @@ To try these examples on your local Texera instance:
 ## 🧠 Want to Contribute an Example?
 
 If you’ve built your own workflow and want to share it:
-- Fork the [Texera repository](https://github.com/Texera/texera).
+- Fork the [Texera repository](https://github.com/apache/texera).
 - Add your workflow under `examples/` with a short README.
 - Submit a pull request following our [Contribution Guidelines](/docs/contribution-guidelines/).
 

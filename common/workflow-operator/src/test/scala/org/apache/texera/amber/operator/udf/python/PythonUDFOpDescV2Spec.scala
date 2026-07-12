@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.udf.python
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.core.workflow.{PortIdentity, UnknownPartition}
+import org.apache.texera.amber.operator.{LogicalOp, PortDescription}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -133,5 +134,107 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     p.defaultEnv shouldBe false
     p.envName shouldBe "myenv"
     p.outputColumns shouldBe List(new Attribute("res", AttributeType.INTEGER))
+  }
+
+  "PythonUDFOpDescV2.getPhysicalOp" should
+    "use a parallelizable one-to-one op with the suggested worker count when workers > 1" in {
+    val d = new PythonUDFOpDescV2
+    d.code = "yield t"
+    d.workers = 4
+    val physical = d.getPhysicalOp(workflowId, executionId)
+    physical.parallelizable shouldBe true
+    physical.suggestedWorkerNum shouldBe Some(4)
+    physical.opExecInitInfo match {
+      case OpExecWithCode(code, language) =>
+        code shouldBe "yield t"
+        language shouldBe "python"
+      case other => fail(s"expected OpExecWithCode, got $other")
+    }
+  }
+
+  it should "carry the trimmed virtual-environment name when the default env is disabled" in {
+    val d = new PythonUDFOpDescV2
+    d.defaultEnv = false
+    d.envName = "  myenv  "
+    d.getPhysicalOp(workflowId, executionId).pveName shouldBe "myenv"
+  }
+
+  it should "map each custom input port's partitionRequirement into the physical op" in {
+    val d = new PythonUDFOpDescV2
+    d.code = "yield t"
+    d.inputPorts = List(
+      PortDescription(
+        portID = "p0",
+        displayName = "in",
+        disallowMultiInputs = false,
+        isDynamicPort = false,
+        partitionRequirement = UnknownPartition(),
+        dependencies = List.empty
+      )
+    )
+    d.getPhysicalOp(workflowId, executionId).partitionRequirement shouldBe List(
+      Some(UnknownPartition())
+    )
+  }
+
+  "PythonUDFOpDescV2.operatorInfo" should
+    "derive input ports from a custom inputPorts descriptor list" in {
+    val d = new PythonUDFOpDescV2
+    d.inputPorts = List(
+      PortDescription(
+        portID = "p0",
+        displayName = "left",
+        disallowMultiInputs = true,
+        isDynamicPort = false,
+        partitionRequirement = UnknownPartition(),
+        dependencies = List.empty
+      ),
+      PortDescription(
+        portID = "p1",
+        displayName = "right",
+        disallowMultiInputs = false,
+        isDynamicPort = false,
+        partitionRequirement = UnknownPartition(),
+        dependencies = List(0)
+      )
+    )
+    val info = d.operatorInfo
+    info.inputPorts should have length 2
+    info.inputPorts.head.displayName shouldBe "left"
+    info.inputPorts.head.disallowMultiLinks shouldBe true
+    info.inputPorts(1).displayName shouldBe "right"
+    info.inputPorts(1).dependencies shouldBe List(PortIdentity(0))
+  }
+
+  it should "derive output ports from a custom outputPorts descriptor list" in {
+    val d = new PythonUDFOpDescV2
+    d.outputPorts = List(
+      PortDescription(
+        portID = "o0",
+        displayName = "result",
+        disallowMultiInputs = false,
+        isDynamicPort = false,
+        partitionRequirement = UnknownPartition(),
+        dependencies = List.empty
+      )
+    )
+    val info = d.operatorInfo
+    info.outputPorts should have length 1
+    info.outputPorts.head.displayName shouldBe "result"
+  }
+
+  "PythonUDFOpDescV2.runtimeReconfiguration" should
+    "return the new op's physical op with no state transfer" in {
+    val oldOp = new PythonUDFOpDescV2
+    val newOp = new PythonUDFOpDescV2
+    newOp.code = "yield reconfigured"
+    val result = oldOp.runtimeReconfiguration(workflowId, executionId, oldOp, newOp)
+    result.isSuccess shouldBe true
+    val (physical, stateTransfer) = result.get
+    stateTransfer shouldBe None
+    physical.opExecInitInfo match {
+      case OpExecWithCode(code, _) => code shouldBe "yield reconfigured"
+      case other                   => fail(s"expected OpExecWithCode, got $other")
+    }
   }
 }
