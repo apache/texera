@@ -387,6 +387,7 @@ describe("SavedWorkflowSectionComponent", () => {
       accessLevel: "Write",
       projectIDs: [],
       ownerId: 1,
+      coverImage: null,
     });
 
     const makeEntry = (wid: number | undefined, name: string, checked = false): DashboardEntry => {
