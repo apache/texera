@@ -94,7 +94,9 @@ class LoopIntegrationSpec
   // Unique per-suite id so the seeded user/workflow/version/execution rows
   // (and the context's workflow/execution ids) don't collide with the other
   // integration suites running against the shared test database (#5888).
-  private val specId = 5
+  // 1-4 and 5 are taken by the other e2e/integration specs (5 by
+  // MultiRegionWorkflowIntegrationSpec), so this suite uses 6.
+  private val specId = 6
 
   override protected def beforeEach(): Unit = setUpWorkflowExecutionData(specId)
 
