@@ -42,7 +42,7 @@ describe("compileWorkflowAsync", () => {
     expect(result).toEqual(compilation);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/api/compile");
+    expect(url).toMatch(/\/api\/compile$/);
     expect(init.method).toBe("POST");
     expect(init.headers).toEqual({ "Content-Type": "application/json" });
     expect(JSON.parse(init.body as string)).toEqual({
