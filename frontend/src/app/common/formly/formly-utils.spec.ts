@@ -58,9 +58,14 @@ describe("createShouldHideFieldFunc", () => {
   const fieldWithModel = (model: any): FormlyFieldConfig => ({ parent: { model } }) as FormlyFieldConfig;
 
   it("returns false when the parent model is missing", () => {
-    const hide = createShouldHideFieldFunc("target", "equals", "x", false);
-    expect(hide(undefined)).toBe(false);
-    expect(hide({} as FormlyFieldConfig)).toBe(false);
+    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    try {
+      const hide = createShouldHideFieldFunc("target", "equals", "x", false);
+      expect(hide(undefined)).toBe(false);
+      expect(hide({} as FormlyFieldConfig)).toBe(false);
+    } finally {
+      debugSpy.mockRestore();
+    }
   });
 
   it("returns hideOnNull when the target value is null/undefined", () => {
