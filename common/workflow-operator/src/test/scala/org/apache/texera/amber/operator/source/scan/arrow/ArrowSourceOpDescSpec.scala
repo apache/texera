@@ -153,13 +153,13 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.inferSchema() shouldBe schema
   }
 
-  it should "throw an IOException when the file is not a valid Arrow file" in {
+  it should "throw a friendly error when the file is not a valid Arrow file" in {
     val bogus = File.createTempFile("not-arrow-", ".arrow")
     bogus.deleteOnExit()
     Files.write(bogus.toPath, "this is not arrow".getBytes)
     val d = new ArrowSourceOpDesc
     d.fileName = Some(bogus.toURI.toString)
-    val ex = intercept[java.io.IOException](d.inferSchema())
-    ex.getMessage shouldBe "Failed to infer schema from Arrow file."
+    val ex = intercept[RuntimeException](d.inferSchema())
+    ex.getMessage shouldBe "Failed to read the .arrow file. Please ensure it is a valid Arrow file."
   }
 }

@@ -23,6 +23,8 @@
   <nz-select
     nz-col
     nzFlex="auto"
+    nzShowSearch
+    [nzFilterOption]="datasetFilterOption"
     nzPlaceHolder="Select dataset"
     [(ngModel)]="selectedDataset"
     (ngModelChange)="onDatasetChange()">
@@ -41,6 +43,7 @@
   <nz-select
     nz-col
     nzFlex="130px"
+    nzShowSearch
     nzPlaceHolder="Select version"
     [(ngModel)]="selectedVersion"
     (ngModelChange)="onVersionChange()">

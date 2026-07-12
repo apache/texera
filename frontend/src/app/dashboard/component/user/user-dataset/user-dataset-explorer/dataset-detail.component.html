@@ -349,10 +349,26 @@
             class="upload-status-panels">
             <nz-collapse-panel
               *ngIf="queuedCount > 0"
-              [nzHeader]="'Pending: ' + queuedCount + ' file(s)'">
-              <div class="upload-progress-wrapper-pending">
-                <div *ngFor="let fileName of queuedFileNames">
-                  <span>{{ fileName }}</span>
+              [nzHeader]="'Pending: ' + queuedCount + ' file(s)'"
+              (nzActiveChange)="onPendingPanelActiveChange($event)">
+              <!-- Virtualized so only visible rows are in the DOM (#5586). The viewport
+                   measures height 0 while the panel is collapsed, so it is re-measured
+                   on expand. -->
+              <cdk-virtual-scroll-viewport
+                class="upload-progress-wrapper-pending"
+                [itemSize]="PENDING_ROW_HEIGHT_PX"
+                [minBufferPx]="PENDING_LIST_MAX_HEIGHT_PX"
+                [maxBufferPx]="2 * PENDING_LIST_MAX_HEIGHT_PX"
+                [style.height.px]="pendingListHeightPx">
+                <div
+                  class="pending-file-row"
+                  *cdkVirtualFor="let fileName of queuedFileNames; trackBy: trackByPendingFile">
+                  <span
+                    class="pending-file-name"
+                    nz-tooltip
+                    [nzTooltipTitle]="fileName"
+                    >{{ fileName }}</span
+                  >
                   <button
                     nz-button
                     nzType="text"
@@ -366,7 +382,7 @@
                       nzTheme="outline"></span>
                   </button>
                 </div>
-              </div>
+              </cdk-virtual-scroll-viewport>
             </nz-collapse-panel>
 
             <nz-divider
@@ -425,8 +441,10 @@
 
             <nz-collapse-panel
               *ngIf="hasAnyActivity"
-              [nzHeader]="'Finished: ' + pendingChangesCount + ' file(s)'">
+              [nzHeader]="'Finished: ' + pendingChangesCount + ' file(s)'"
+              (nzActiveChange)="$event && stagedObjectsList.remeasureViewport()">
               <texera-dataset-staged-objects-list
+                #stagedObjectsList
                 [uploadTimeMap]="uploadTimeMap"
                 [did]="did"
                 [userMakeChangesEvent]="userMakeChanges"
