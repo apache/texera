@@ -111,11 +111,19 @@ describe("AgentChatComponent", () => {
   let createObjectURL: ReturnType<typeof vi.fn>;
   let revokeObjectURL: ReturnType<typeof vi.fn>;
   let scrollIntoViewMock: ReturnType<typeof vi.fn>;
+  // Originals of the globals we overwrite below, captured so afterEach can restore them
+  // (direct assignment is not undone by vi.restoreAllMocks, so they would leak across spec files).
+  let origScrollIntoView: typeof Element.prototype.scrollIntoView;
+  let origCreateObjectURL: typeof URL.createObjectURL;
+  let origRevokeObjectURL: typeof URL.revokeObjectURL;
 
   beforeEach(async () => {
     // jsdom gaps: Element#scrollIntoView and URL.createObjectURL/revokeObjectURL
     // are not implemented; the component calls them from scrollToMessage and
     // exportReActSteps.
+    origScrollIntoView = Element.prototype.scrollIntoView;
+    origCreateObjectURL = URL.createObjectURL;
+    origRevokeObjectURL = URL.revokeObjectURL;
     scrollIntoViewMock = vi.fn();
     (Element.prototype as any).scrollIntoView = scrollIntoViewMock;
     createObjectURL = vi.fn(() => "blob:mock-url");
@@ -146,10 +154,21 @@ describe("AgentChatComponent", () => {
   });
 
   afterEach(() => {
-    fixture?.destroy();
-    // The system-info modal renders into the CDK overlay attached to
-    // document.body; remove it so document-level queries stay test-local.
-    document.querySelectorAll(".cdk-overlay-container").forEach(el => el.remove());
+    // Some tests destroy the fixture themselves; guard against a double-destroy.
+    try {
+      fixture?.destroy();
+    } catch {
+      // already destroyed
+    }
+    fixture = undefined as unknown as ComponentFixture<AgentChatComponent>;
+    // The system-info modal renders into the CDK overlay attached to document.body.
+    // Clear its contents (rather than removing the container) so document-level queries
+    // stay test-local without detaching the element CDK's OverlayContainer caches.
+    document.querySelectorAll(".cdk-overlay-container").forEach(el => (el.innerHTML = ""));
+    // Restore the globals overwritten by direct assignment in beforeEach.
+    Element.prototype.scrollIntoView = origScrollIntoView;
+    URL.createObjectURL = origCreateObjectURL;
+    URL.revokeObjectURL = origRevokeObjectURL;
     vi.restoreAllMocks();
   });
 
