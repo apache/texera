@@ -65,6 +65,7 @@ import { SearchService } from "../../../service/user/search.service";
 import { StubSearchService } from "../../../service/user/stub-search.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { delay, firstValueFrom, of, throwError } from "rxjs";
+import JSZip from "jszip";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { DownloadService } from "../../../service/user/download/download.service";
@@ -587,11 +588,22 @@ describe("SavedWorkflowSectionComponent", () => {
         expect(persist.createWorkflow).toHaveBeenCalledWith(content, DEFAULT_WORKFLOW_NAME);
       });
 
-      // handleZipUploads is intentionally not covered here: its first statement is
-      // `new JSZip()` against the `import * as JSZip from "jszip"` namespace, which
-      // crashes under Vitest ("... is not a constructor"). The same limitation is
-      // documented and skipped in download.service.spec.ts. nameWorkflow's dedup
-      // logic is exercised below with a lightweight fake that mimics `zip.files`.
+      it("imports every workflow file inside an uploaded .zip", async () => {
+        const persist = TestBed.inject(WorkflowPersistService) as any;
+        persist.createWorkflow = vi.fn().mockReturnValue(of(makeDashboardWorkflow(1, "z")));
+        vi.spyOn(component, "search").mockResolvedValue(undefined);
+        const zip = new JSZip();
+        zip.file("a.json", JSON.stringify(testWorkflowContent([])));
+        zip.file("b.json", JSON.stringify(testWorkflowContent([])));
+        const blob = await zip.generateAsync({ type: "blob" });
+        const file = new File([blob], "workflows.zip");
+
+        await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
+
+        // handleZipUploads unpacks the archive and imports each entry.
+        expect(persist.createWorkflow).toHaveBeenCalledTimes(2);
+      });
+
       it("nameWorkflow resolves name conflicts by suffixing an increasing counter", () => {
         const fakeZip = { files: { "wf.json": {}, "wf-1.json": {} } } as any;
 
