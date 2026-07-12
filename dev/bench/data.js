@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783774892827,
+  "lastUpdate": 1783862039358,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -4032,6 +4032,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 635.4583393076158,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "afa8af22b2ac0279fbcc0c610cfe54e3ee0ef0b8",
+          "message": "test(frontend): add unit test coverage for formly-utils field helpers (#6365)\n\n### What changes were proposed in this PR?\n\nAdd unit test coverage for the pure `FormlyFieldConfig` helpers in\n`frontend/src/app/common/formly/formly-utils.ts` — `getFieldByName`,\n`setHideExpression`, and the `createShouldHideFieldFunc` predicate\nfactory. A Vitest spec on plain objects (no `TestBed`). No\nproduction-code changes.\n\nThe rxjs `createOutputFormChangeEventStream` (debounce/distinct/share\nstream) is out of scope for this issue.\n\n### Any related issues, documentation, discussions?\n\nCloses #6361. See `frontend/TESTING.md`.\n\n### How was this PR tested?\n\n```\nng test --watch=false --include src/app/common/formly/formly-utils.spec.ts\n```\n\n9 pass. ESLint and Prettier on the new spec are clean. The spec is pure\n— it builds plain `FormlyFieldConfig` objects (no `TestBed`) and covers:\n`getFieldByName` (match / no-match / first-of-duplicate-keys);\n`setHideExpression` (sets the hide expression on present fields, no-op\nfor absent names); and the `createShouldHideFieldFunc` predicate\n(missing model → `false`, null target → `hideOnNull`, anchored regex\nmatch, and `equals` via `toString()`).\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])\n\n---------\n\nSigned-off-by: Meng Wang <mengw15@uci.edu>\nCo-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>",
+          "timestamp": "2026-07-12T07:27:05Z",
+          "url": "https://github.com/apache/texera/commit/afa8af22b2ac0279fbcc0c610cfe54e3ee0ef0b8"
+        },
+        "date": 1783862038815,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 616.553348030171,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1060.9214859861086,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1123.781370445201,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 683.1668394089886,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1078.507724165791,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1128.2421013126677,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 815.4770159185297,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1079.0055709966693,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1130.8732442312796,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 683.0325544780166,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 868.2286827289545,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 917.7272282012459,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 700.9889409678419,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 885.8323420698533,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 899.3155711555212,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 707.264099615806,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 871.4110082498714,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 884.8401553633173,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 426.92712372505304,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 501.15873099380497,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 514.0825536614508,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 431.156297049877,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 493.33958897042487,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 505.24652761912245,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 406.4067782791857,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 479.17205701439195,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 486.12225383037566,
             "unit": "tuples/sec"
           }
         ]
