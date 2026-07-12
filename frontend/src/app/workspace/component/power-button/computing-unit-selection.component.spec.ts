@@ -1196,7 +1196,10 @@ describe("PowerButtonComponent", () => {
 
   describe("template rendering (overlays)", () => {
     afterEach(() => {
-      document.querySelectorAll(".cdk-overlay-container").forEach(el => el.remove());
+      // Clear the overlay contents rather than removing the container element itself:
+      // CDK's OverlayContainer caches that element, so removing it would make later
+      // overlays render into a detached node.
+      document.querySelectorAll(".cdk-overlay-container").forEach(el => (el.innerHTML = ""));
     });
 
     it("renders the PVE modal body: system section, saved environments and env cards", () => {
