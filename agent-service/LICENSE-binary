@@ -211,13 +211,13 @@ Dependencies under the Apache License, Version 2.0
 --------------------------------------------------------------------------------
 
 Agent service npm packages:
-  - @ai-sdk/gateway@3.0.133
-  - @ai-sdk/openai@3.0.73
-  - @ai-sdk/provider-utils@4.0.30
-  - @ai-sdk/provider@3.0.10
-  - @opentelemetry/api@1.9.0
+  - @ai-sdk/gateway@4.0.12
+  - @ai-sdk/openai@4.0.7
+  - @ai-sdk/provider-utils@5.0.5
+  - @ai-sdk/provider@4.0.2
   - @vercel/oidc@3.2.0
-  - ai@6.0.208
+  - @workflow/serde@4.1.0
+  - ai@7.0.15
   - rxjs@7.8.2
   - typescript@6.0.3
 
@@ -227,7 +227,7 @@ Dependencies under the MIT License
 
 Agent service npm packages:
   - @borewit/text-codec@0.1.1
-  - @elysiajs/cors@1.4.0
+  - @elysiajs/cors@1.4.2
   - @pinojs/redact@0.4.0
   - @sinclair/typebox@0.34.41
   - @standard-schema/spec@1.1.0

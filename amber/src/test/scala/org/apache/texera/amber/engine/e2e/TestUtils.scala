@@ -32,10 +32,11 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext, WorkflowSettings}
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerConfig,
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  CoordinatorConfig,
   ExecutionStateUpdate,
   FatalError,
+  OperatorPortResultUriAvailable,
   Workflow
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
@@ -66,6 +67,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 }
 import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
+import org.apache.texera.web.service.ExecutionResultService
 import org.apache.texera.workflow.{LogicalLink, WorkflowCompiler}
 
 object TestUtils {
@@ -157,11 +159,19 @@ object TestUtils {
       system,
       workflow.context,
       workflow.physicalPlan,
-      ControllerConfig.default,
+      CoordinatorConfig.default,
       e => completion.updateIfEmpty(Throw(e))
     )
     try {
       client.registerCallback[FatalError](evt => completion.updateIfEmpty(Throw(evt.e)))
+      // The engine emits `OperatorPortResultUriAvailable` for each
+      // materialized output port; production wires this to a DB insert in
+      // `ExecutionResultService.persistOperatorPortResultUri`. The e2e
+      // harness doesn't construct an `ExecutionResultService` (it builds an
+      // `AmberClient` directly), so register the same callback here so the
+      // post-completion `readMaterializedResults` lookup via
+      // `getResultUriByLogicalPortId` finds the rows.
+      registerResultUriPersistence(client, workflow.context.executionId)
       client.registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
           completion.updateIfEmpty(
@@ -169,12 +179,24 @@ object TestUtils {
           )
         }
       })
-      Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+      Await.result(client.coordinatorInterface.startWorkflow(EmptyRequest(), ()))
       Await.result(completion, completionTimeout)
     } finally {
       client.shutdown()
     }
   }
+
+  /**
+    * Mirror the production `OperatorPortResultUriAvailable` → DB write that
+    * `ExecutionResultService.persistOperatorPortResultUri` does, but driven
+    * from a test-owned `AmberClient`. Specs that build their own client
+    * (the harness above, or `shouldReconfigure` for the pause/resume flow)
+    * call this so subsequent `getResultUriByLogicalPortId` lookups succeed.
+    */
+  def registerResultUriPersistence(client: AmberClient, executionId: ExecutionIdentity): Unit =
+    client.registerCallback[OperatorPortResultUriAvailable](evt =>
+      ExecutionResultService.persistOperatorPortResultUri(executionId, evt)
+    )
 
   /**
     * Convenience over `runWorkflowAndReadResults` for the common case: run
@@ -298,9 +320,12 @@ object TestUtils {
       system,
       workflow.context,
       workflow.physicalPlan,
-      ControllerConfig.default,
+      CoordinatorConfig.default,
       error => {}
     )
+    // Timeout for control-command acks (start/pause/reconfigure/resume).
+    val commandTimeout = Duration.fromSeconds(30)
+    registerResultUriPersistence(client, workflow.context.executionId)
     val completion = Promise[Unit]()
     var result: Map[OperatorIdentity, List[Tuple]] = null
     client.registerCallback[ExecutionStateUpdate](evt => {
@@ -310,31 +335,31 @@ object TestUtils {
       }
     })
     Await.result(
-      client.controllerInterface.startWorkflow(EmptyRequest(), ()),
-      Duration.fromSeconds(5)
+      client.coordinatorInterface.startWorkflow(EmptyRequest(), ()),
+      commandTimeout
     )
     val pausedReached = stateReached(client, PAUSED)
     Await.result(
-      client.controllerInterface.pauseWorkflow(EmptyRequest(), ()),
-      Duration.fromSeconds(5)
+      client.coordinatorInterface.pauseWorkflow(EmptyRequest(), ()),
+      commandTimeout
     )
-    Await.result(pausedReached, Duration.fromSeconds(10))
+    Await.result(pausedReached, commandTimeout)
     val physicalOps = targetOps.flatMap(op =>
       workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
     )
     Await.result(
-      client.controllerInterface.reconfigureWorkflow(
+      client.coordinatorInterface.reconfigureWorkflow(
         WorkflowReconfigureRequest(
           reconfiguration = physicalOps.map(op => UpdateExecutorRequest(op.id, newOpExecInitInfo)),
           reconfigurationId = "test-reconfigure-1"
         ),
         ()
       ),
-      Duration.fromSeconds(5)
+      commandTimeout
     )
     Await.result(
-      client.controllerInterface.resumeWorkflow(EmptyRequest(), ()),
-      Duration.fromSeconds(5)
+      client.coordinatorInterface.resumeWorkflow(EmptyRequest(), ()),
+      commandTimeout
     )
     Await.result(completion, Duration.fromMinutes(1))
     result

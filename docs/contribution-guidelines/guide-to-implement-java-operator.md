@@ -8,7 +8,7 @@ In this page, we'll explain the basic concepts in Texera and use examples to sho
 
 ### Code structure of every operator:
 
-Every operator ideally has three classes that are found in each operator package in `core\workflow-operator\src\main\scala\edu\uci\ics\amber\operator`
+Every operator ideally has three classes that are found in each operator package in `common/workflow-operator/src/main/scala/org/apache/texera/amber/operator`
 * LogicalOp
 * OperatorExecutor
 * OperatorExecutorConfig
@@ -49,7 +49,7 @@ schema.getAttributes().get(1) // Attribute("tweet", AttributeType.String)
 
 A regular expression operator matches a regular expression (regex) on each input tuple. For example, if we search the regex "weather" on the `tweet` attribute, then only tuple 2 will be the result. In other words, the regular expression operator is a kind of `filter()` operation in many programming languages.
 
-To implement a regular expression operator, you will first need to write an `LogicalOp`. The following code is part of class [`RegexOpDesc`](https://github.com/apache/texera/blob/main/core/workflow-operator/src/main/scala/edu/uci/ics/amber/operator/regex/RegexOpDesc.scala) .
+To implement a regular expression operator, you will first need to write an `LogicalOp`. The following code is part of class [`RegexOpDesc`](https://github.com/apache/texera/blob/main/common/workflow-operator/src/main/scala/org/apache/texera/amber/operator/regex/RegexOpDesc.scala) .
 
 ```scala
 class RegexOpDesc extends FilterOpDesc {
@@ -127,7 +127,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
 
 Now this operator will be automatically available in the frontend. We can now start the system and test this operator.
 
-To add an image for this operator, go to `core/gui/src/assets/operator_images`, then add an image with the _**SAME NAME**_ as what's specified in the operator registration. The image file should be in `png` format, with a transparent background, black and white, and should be square. 
+To add an image for this operator, go to `frontend/src/assets/operator_images`, then add an image with the _**SAME NAME**_ as what's specified in the operator registration. The image file should be in `png` format, with a transparent background, black and white, and should be square. 
 
 For example, for the regex operator, the code `new Type(value = classOf[RegexOpDesc], name = "Regex")` specified a name `Regex`, then the image file name should be `Regex.png`. 
 
@@ -146,7 +146,7 @@ id		tweet					sentiment
 ```
 
 
-The following code is the implementation of class [`SentimentAnalysisOpDesc`](https://github.com/apache/texera/blob/main/core/workflow-operator/src/main/scala/edu/uci/ics/amber/operator/huggingFace/HuggingFaceSentimentAnalysisOpDesc.scala) in Java.
+The following code is the implementation of class [`SentimentAnalysisOpDesc`](https://github.com/apache/texera/blob/main/common/workflow-operator/src/main/scala/org/apache/texera/amber/operator/huggingFace/HuggingFaceSentimentAnalysisOpDesc.scala) in Java.
 
 ```java
 public class SentimentAnalysisOpDesc extends MapOpDesc {
@@ -202,7 +202,7 @@ In Texera, currently we have 4 pre-defined operations you can extend.
   - `flatmap()`: for each input tuple, transforms it to a list of output tuples. 
   - `aggregate()`: performs an aggregation, such as sum, count, average, etc. 
 
-To implement an operator, you can first check if your operator can be implemented using the 4 pre-defined operations. You can find these pre-defined operations under [`texera/workflow/common/operators`](https://github.com/Texera/texera/tree/master/core/amber/src/main/scala/edu/uci/ics/texera/workflow/common/operators). Your own operator implementation should be in [`texera/workflow/operators/youroperator`](https://github.com/Texera/texera/tree/master/core/amber/src/main/scala/edu/uci/ics/texera/workflow/operators).
+To implement an operator, you can first check if your operator can be implemented using the 4 pre-defined operations. You can find these pre-defined operations under [`common/workflow-operator`](https://github.com/apache/texera/tree/main/common/workflow-operator/src/main/scala/org/apache/texera/amber/operator) (e.g., the `map`, `filter`, `flatmap`, and `aggregate` packages). Your own operator implementation should be in its own package under [the same directory](https://github.com/apache/texera/tree/main/common/workflow-operator/src/main/scala/org/apache/texera/amber/operator).
 
 ### Low-level OperatorExecutor API
 For more complicated operators, if they cannot be implemented using these operations, then you need to implement `OperatorExecutor` using the following low-level interface.
@@ -278,6 +278,6 @@ Texera's backend is responsible for determining the UI information to the fronte
     ```
 
 ### Registration and icon
-In the file `amber/src/main/scala/edu/uci/ics/texera/workflow/common/operators/LogicalOp.scala`, you will find a list of all registered operators, complete with their descriptor classes and names. After adding an operator's information, you can assign an icon to it. All operator icons are stored in the `/core/new-gui/src/assets/operator_images` directory. It's essential to ensure that the icon filename matches its respective operator descriptor name.
+In the file `common/workflow-operator/src/main/scala/org/apache/texera/amber/operator/LogicalOp.scala`, you will find a list of all registered operators, complete with their descriptor classes and names. After adding an operator's information, you can assign an icon to it. All operator icons are stored in the `frontend/src/assets/operator_images` directory. It's essential to ensure that the icon filename matches its respective operator descriptor name.
 
 

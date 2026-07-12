@@ -106,7 +106,7 @@ class DataProcessor(Runnable, Stoppable):
         back to MainLoop on exit. Reporting must happen *before* the
         switch: MainLoop's post-switch hook flushes console messages and
         then enters EXCEPTION_PAUSE, so anything queued after the switch
-        would arrive at the controller only after the worker resumes.
+        would arrive at the coordinator only after the worker resumes.
         """
         try:
             executor = self._context.executor_manager.executor

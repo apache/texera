@@ -19,6 +19,16 @@ frontend:
       - any-glob-to-any-file:
           - 'frontend/**'
 
+pyright-language-service:
+  # Standalone Pyright LSP bridge served to the frontend code editor. It is
+  # NOT part of the frontend yarn workspace (own classic-yarn lockfile) and
+  # nothing else builds it, so without this label a change here — most often
+  # a Dependabot bump to pyright-language-service/package.json — would land
+  # only `dependencies` (a no-op stack) and silently skip every CI stack.
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'pyright-language-service/**'
+
 common:
   - changed-files:
       - any-glob-to-any-file:
