@@ -51,6 +51,7 @@ export class MockGuiConfigService {
     expirationTimeInMinutes: 2880,
     activeTimeInMinutes: 15,
     copilotEnabled: false,
+    operatorRecommendationEnabled: false,
     limitColumns: 15,
     attributionEnabled: false,
     pythonNotebookMigrationEnabled: false,

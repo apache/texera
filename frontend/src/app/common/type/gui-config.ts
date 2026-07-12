@@ -42,6 +42,7 @@ export interface GuiConfig {
   expirationTimeInMinutes: number;
   activeTimeInMinutes: number;
   copilotEnabled: boolean;
+  operatorRecommendationEnabled: boolean;
   limitColumns: number;
   attributionEnabled: boolean;
   pythonNotebookMigrationEnabled: boolean;

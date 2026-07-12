@@ -46,4 +46,24 @@
       </div>
     </div>
   </div>
+
+  <!-- Ambient operator recommender: operator suggestions on the output port -->
+  @if (operatorSuggestion) {
+  <div
+    class="operator-recommendation-container"
+    [style.left.px]="operatorSuggestion.position.x"
+    [style.top.px]="operatorSuggestion.position.y">
+    @for (recommendation of operatorSuggestion.recommendations; track recommendation.operatorType) {
+    <button
+      type="button"
+      class="operator-recommendation-item"
+      [title]="recommendation.reason"
+      (click)="materializeRecommendation(recommendation)">
+      <span class="operator-recommendation-name"
+        >{{ recommendation.userFriendlyName || recommendation.operatorType }}</span
+      >
+    </button>
+    }
+  </div>
+  }
 </div>

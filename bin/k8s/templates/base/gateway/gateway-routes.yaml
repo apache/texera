@@ -154,6 +154,11 @@ spec:
         - path:
             type: PathPrefix
             value: /api/agents
+        # Ambient operator recommender endpoint (apache/texera#5240) is served
+        # by the agent-service alongside /api/agents.
+        - path:
+            type: PathPrefix
+            value: /api/recommend
       backendRefs:
         - name: agent-service-svc
           port: 3001

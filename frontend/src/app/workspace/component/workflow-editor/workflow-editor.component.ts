@@ -44,6 +44,10 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
 import { OperatorResultSummary, AgentService } from "../../service/agent/agent.service";
+import {
+  OperatorRecommendation,
+  OperatorRecommendationService,
+} from "../../service/operator-recommendation/operator-recommendation.service";
 import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { NgIf } from "@angular/common";
@@ -108,6 +112,16 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     position: { x: number; y: number };
   } | null = null;
 
+  // Ambient operator recommender state (apache/texera#5240). Holds the faded
+  // next-operator suggestions anchored on the output port of the
+  // operator that was just added; null when nothing is being suggested.
+  public operatorSuggestion: {
+    operatorId: string;
+    sourceOutputPortID: string;
+    position: { x: number; y: number };
+    recommendations: OperatorRecommendation[];
+  } | null = null;
+
   // Cached agent result summaries for port label display
 
   constructor(
@@ -128,7 +142,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     public nzContextMenu: NzContextMenuService,
     private elementRef: ElementRef,
     private config: GuiConfigService,
-    private agentService: AgentService
+    private agentService: AgentService,
+    private operatorRecommendationService: OperatorRecommendationService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -205,6 +220,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.invokeResize();
     this.handleCenterEvent();
     this.handleOperatorChatButton();
+    this.handleOperatorRecommendation();
   }
 
   ngOnDestroy(): void {
@@ -1710,6 +1726,146 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   isOperatorVisualization(operatorId: string): boolean {
     return this.operatorSummaries.get(operatorId)?.sampleRecords?.[0]?.["__is_visualization__"] === true;
+  }
+
+  /**
+   * Ambient operator recommender (apache/texera#5240). When an operator is
+   * added, ask the recommender for likely next operators and float them as
+   * suggestion chips on the operator's output port; clicking one materializes
+   * it. The whole feature is opt-in and self-effacing: if it is disabled or the
+   * backend returns nothing, the canvas is untouched.
+   */
+  private handleOperatorRecommendation(): void {
+    if (!this.operatorRecommendationService.isEnabled()) {
+      return;
+    }
+
+    // Trigger: an operator was just added to the canvas.
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorAddStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(operator => this.showRecommendationsFor(operator));
+
+    // Dismiss when the user clicks on blank canvas.
+    fromJointPaperEvent(this.paper, "blank:pointerdown")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.closeRecommendations());
+
+    // Dismiss if the anchor operator is deleted out from under the suggestions.
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorDeleteStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(({ deletedOperatorID }) => {
+        if (this.operatorSuggestion?.operatorId === deletedOperatorID) {
+          this.closeRecommendations();
+        }
+      });
+
+    // Keep the suggestions anchored to the operator's output port as it moves.
+    this.paper.model.on("change:position", (cell: joint.dia.Cell) => {
+      if (this.operatorSuggestion && cell.id.toString() === this.operatorSuggestion.operatorId) {
+        this.repositionRecommendations();
+      }
+    });
+
+    // Keep the suggestions anchored on zoom / pan.
+    this.wrapper
+      .getWorkflowEditorZoomStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.operatorSuggestion) {
+          this.repositionRecommendations();
+        }
+      });
+  }
+
+  private showRecommendationsFor(operator: OperatorPredicate): void {
+    this.closeRecommendations();
+    if (operator.outputPorts.length === 0) {
+      return;
+    }
+    const sourceOutputPortID = operator.outputPorts[0].portID;
+
+    this.operatorRecommendationService
+      .getRecommendations(operator)
+      .pipe(untilDestroyed(this))
+      .subscribe(recommendations => {
+        // The operator may have been deleted while the request was in flight.
+        if (
+          recommendations.length === 0 ||
+          !this.workflowActionService.getTexeraGraph().hasOperator(operator.operatorID)
+        ) {
+          return;
+        }
+        const position = this.getRecommendationPosition(operator.operatorID);
+        if (!position) {
+          return;
+        }
+        this.operatorSuggestion = {
+          operatorId: operator.operatorID,
+          sourceOutputPortID,
+          position,
+          recommendations,
+        };
+        this.changeDetectorRef.detectChanges();
+      });
+  }
+
+  /**
+   * Materialize a clicked suggestion into a real operator wired onto the
+   * source operator's output port.
+   */
+  materializeRecommendation(recommendation: OperatorRecommendation): void {
+    if (!this.operatorSuggestion) {
+      return;
+    }
+    const graph = this.workflowActionService.getTexeraGraph();
+    if (graph.hasOperator(this.operatorSuggestion.operatorId)) {
+      const sourceOperator = graph.getOperator(this.operatorSuggestion.operatorId);
+      this.operatorRecommendationService.materialize(
+        sourceOperator,
+        this.operatorSuggestion.sourceOutputPortID,
+        recommendation.operatorType
+      );
+    }
+    this.closeRecommendations();
+  }
+
+  closeRecommendations(): void {
+    if (this.operatorSuggestion) {
+      this.operatorSuggestion = null;
+      this.changeDetectorRef.detectChanges();
+    }
+  }
+
+  private repositionRecommendations(): void {
+    if (!this.operatorSuggestion) {
+      return;
+    }
+    const position = this.getRecommendationPosition(this.operatorSuggestion.operatorId);
+    if (position) {
+      this.operatorSuggestion = { ...this.operatorSuggestion, position };
+    }
+    this.changeDetectorRef.detectChanges();
+  }
+
+  /**
+   * Screen position for the suggestions: just off the right edge of the
+   * operator, vertically centered — the direction its output port faces.
+   */
+  private getRecommendationPosition(operatorId: string): { x: number; y: number } | null {
+    const jointCell = this.paper.getModelById(operatorId);
+    if (!jointCell) {
+      return null;
+    }
+    const bbox = jointCell.getBBox();
+    const scale = this.paper.scale();
+    const translate = this.paper.translate();
+    const screenX = (bbox.x + bbox.width) * scale.sx + translate.tx + 20;
+    const screenY = (bbox.y + bbox.height / 2) * scale.sy + translate.ty;
+    return { x: screenX, y: screenY };
   }
 
   /**
