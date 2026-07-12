@@ -22,7 +22,7 @@ package org.apache.texera.web.service
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.WorkflowContext
-import org.apache.texera.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import org.apache.texera.amber.engine.architecture.coordinator.{CoordinatorConfig, Workflow}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import org.apache.texera.amber.engine.common.Utils
@@ -55,7 +55,7 @@ object WorkflowExecutionService {
 }
 
 class WorkflowExecutionService(
-    controllerConfig: ControllerConfig,
+    coordinatorConfig: CoordinatorConfig,
     val workflowContext: WorkflowContext,
     resultService: ExecutionResultService,
     request: WorkflowExecuteRequest,
@@ -120,7 +120,7 @@ class WorkflowExecutionService(
     client = ComputingUnitMaster.createAmberRuntime(
       workflow.context,
       workflow.physicalPlan,
-      controllerConfig,
+      coordinatorConfig,
       errorHandler
     )
     executionReconfigurationService =
@@ -131,7 +131,7 @@ class WorkflowExecutionService(
       executionStateStore,
       wsInput,
       executionReconfigurationService,
-      controllerConfig.faultToleranceConfOpt,
+      coordinatorConfig.faultToleranceConfOpt,
       workflowContext.workflowId.id,
       request.emailNotificationEnabled,
       userEmailOpt,
@@ -154,7 +154,7 @@ class WorkflowExecutionService(
     executionStateStore.statsStore.updateState(stats =>
       stats.withStartTimeStamp(System.currentTimeMillis())
     )
-    client.controllerInterface
+    client.coordinatorInterface
       .startWorkflow(EmptyRequest(), ())
       .onFailure(err => {
         errorHandler(err)

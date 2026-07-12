@@ -58,7 +58,7 @@ jobs:
       # branch (never the fork head), so checking out the message
       # templates below is safe. They live in .txt files so editing the
       # wording does not touch workflow logic.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           sparse-checkout: |
@@ -69,7 +69,7 @@ jobs:
       # other triggers exist for the template check (step 2).
       - name: Welcome first-time contributors
         if: github.event.action == 'opened'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -156,7 +156,7 @@ jobs:
       # warning once it is. Runs on every trigger (open, edit, and issue
       # type changes) so it can resolve itself.
       - name: Warn when the template is not followed
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

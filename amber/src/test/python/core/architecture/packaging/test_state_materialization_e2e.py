@@ -162,7 +162,7 @@ def test_state_written_by_output_manager_is_replayed_by_reader():
     port_id = PortIdentity(id=0, internal=False)
     worker_schema_for_result = State.SCHEMA  # producer-side: only state matters
 
-    # 1. RegionExecutionCoordinator's responsibility: provision result +
+    # 1. RegionExecutionManager's responsibility: provision result +
     # state documents at the port base URI before any worker starts.
     # We emulate that here.
     DocumentFactory.create_document(

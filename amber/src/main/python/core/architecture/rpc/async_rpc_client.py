@@ -32,7 +32,7 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ReturnInvocation,
     ControlReturn,
     ControlInvocation,
-    ControllerServiceStub,
+    CoordinatorServiceStub,
     WorkerServiceStub,
     ControlRequest,
 )
@@ -62,16 +62,16 @@ class AsyncRPCClient:
         self._send_sequences: Dict[ActorVirtualIdentity, int] = defaultdict(int)
         self._unfulfilled_promises: Dict[(ActorVirtualIdentity, int), Future] = dict()
         # TODO: is this correct?
-        self._controller_service_stub = ControllerServiceStub("")
+        self._coordinator_service_stub = CoordinatorServiceStub("")
         rpc_context = AsyncRpcContext(
             ActorVirtualIdentity(self._context.worker_id),
-            ActorVirtualIdentity(name="CONTROLLER"),
+            ActorVirtualIdentity(name="COORDINATOR"),
         )
-        self._controller_service_stub._unary_unary = AsyncRPCClient._assign_context(
+        self._coordinator_service_stub._unary_unary = AsyncRPCClient._assign_context(
             self, rpc_context
         )
-        # Apply async_run to all async methods of the controller service stub
-        self._wrap_all_async_methods_with_async_run(self._controller_service_stub)
+        # Apply async_run to all async methods of the coordinator service stub
+        self._wrap_all_async_methods_with_async_run(self._coordinator_service_stub)
 
     def _assign_context(
         self, rpc_context: AsyncRpcContext
@@ -108,11 +108,11 @@ class AsyncRPCClient:
             if inspect.iscoroutinefunction(attr):
                 setattr(instance, attr_name, async_run(attr))
 
-    def controller_stub(self) -> ControllerServiceStub:
+    def coordinator_stub(self) -> CoordinatorServiceStub:
         """
-        Returns a proxy for interacting with the controller interface.
+        Returns a proxy for interacting with the coordinator interface.
         """
-        return self._controller_service_stub
+        return self._coordinator_service_stub
 
     def get_worker_interface(self, target_worker) -> WorkerServiceStub:
         """

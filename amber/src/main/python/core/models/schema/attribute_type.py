@@ -99,3 +99,14 @@ FROM_PYOBJECT_MAPPING = {
     datetime.datetime: AttributeType.TIMESTAMP,
     largebinary: AttributeType.LARGE_BINARY,
 }
+
+# Signed value ranges within which an integral float can be safely cast back
+# to int. INT is bounded by Arrow int32 capacity. LONG is bounded by the
+# float64 exact-integer window rather than int64 capacity: above 2**53 float64
+# rounds, so the received float may already be a corrupted rendition of the
+# original integer. The endpoint 2**53 itself is excluded because it is
+# ambiguous (2**53 + 1 also rounds to float 2**53).
+INTEGRAL_TYPE_RANGES = {
+    AttributeType.INT: (-(2**31), 2**31 - 1),
+    AttributeType.LONG: (-(2**53) + 1, 2**53 - 1),
+}

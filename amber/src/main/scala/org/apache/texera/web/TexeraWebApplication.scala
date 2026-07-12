@@ -197,6 +197,13 @@ class TexeraWebApplication
       java.util.EnumSet.allOf(classOf[javax.servlet.DispatcherType])
     )
 
+    // Set Cache-Control on static frontend asset responses.
+    environment.getApplicationContext.addFilter(
+      new FilterHolder(new StaticAssetCacheFilter),
+      "/*",
+      java.util.EnumSet.allOf(classOf[javax.servlet.DispatcherType])
+    )
+
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL.
     // TODO: replace with RequestLoggingFilter.register() from common/auth once Dropwizard is upgraded to 4.x
     val requestLogger = org.slf4j.LoggerFactory.getLogger("org.eclipse.jetty.server.RequestLog")
