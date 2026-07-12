@@ -49,9 +49,11 @@ function makeOperator(id: string): OperatorPredicate {
   };
 }
 
-// assembleContext always joins string sections, so narrowing the ModelMessage
-// content to string is safe.
+// assembleContext always returns a single user message whose content is a joined string.
 function contentOf(result: ModelMessage[]): string {
+  expect(result).toHaveLength(1);
+  expect(result[0].role).toBe("user");
+  expect(typeof result[0].content).toBe("string");
   return result[0].content as string;
 }
 
