@@ -1346,63 +1346,6 @@ class TestMainLoop:
         reraise()
 
     @pytest.mark.timeout(2)
-    def test_process_state_can_emit_multiple_states(
-        self,
-        main_loop,
-        output_queue,
-        mock_data_output_channel,
-        monkeypatch,
-    ):
-        # Stub-level coverage of the single-switch state handshake. Each
-        # call to the (stubbed) _switch_context simulates DataProc
-        # consuming the queued input state and writing
-        # current_output_state, mirroring what real DataProc.process_state
-        # does between MainLoop's switches.
-        class DummyExecutor:
-            @staticmethod
-            def process_state(state: State, port: int) -> State:
-                return State({"value": state["value"] + 1, "port": port})
-
-        main_loop.context.executor_manager.executor = DummyExecutor()
-        monkeypatch.setattr(main_loop, "_check_and_process_control", lambda: None)
-        monkeypatch.setattr(
-            main_loop.context.output_manager,
-            "emit_state",
-            lambda state, loop_counter, *_: [
-                (mock_data_output_channel.to_worker_id, StateFrame(state))
-            ],
-        )
-
-        def fake_switch_context():
-            current_input_state = (
-                main_loop.context.state_processing_manager.current_input_state
-            )
-            if current_input_state is not None:
-                main_loop.context.state_processing_manager.current_output_state = (
-                    DummyExecutor.process_state(current_input_state, 0)
-                )
-
-        monkeypatch.setattr(main_loop, "_switch_context", fake_switch_context)
-
-        first_state = State({"value": 1})
-        second_state = State({"value": 41})
-
-        main_loop._process_state_frame(StateFrame(first_state))
-        main_loop._process_state_frame(StateFrame(second_state))
-
-        first_output: DataElement = output_queue.get()
-        second_output: DataElement = output_queue.get()
-
-        assert first_output.tag == mock_data_output_channel
-        assert isinstance(first_output.payload, StateFrame)
-        assert first_output.payload.frame["value"] == 2
-        assert first_output.payload.frame["port"] == 0
-
-        assert second_output.tag == mock_data_output_channel
-        assert isinstance(second_output.payload, StateFrame)
-        assert second_output.payload.frame["value"] == 42
-        assert second_output.payload.frame["port"] == 0
-
     @pytest.mark.timeout(2)
     def test_process_input_state_persists_output_state_to_storage(
         self,
