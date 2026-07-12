@@ -304,14 +304,23 @@ class TableOperator(TupleOperatorV2):
         yield
 
 
-# ``table`` is seeded into the eval/exec namespaces the loop expressions run
-# in and stripped from every state dict that crosses Loop Start / Loop End,
-# so user code can neither persist nor clobber it. The envelope names
-# (``loop_counter`` / ``loop_start_id``) never enter user state -- they ride
-# the StateFrame envelope (see ``core.models.payload``). The loop-back write
-# address is setup config, not state (see ``loopStartStateUris`` on the
-# ``InitializeExecutorRequest`` proto).
-_RESERVED_STATE_KEYS: frozenset = frozenset({"table"})
+# ``table`` is the loop's input table, seeded by the runtime into the eval/exec
+# namespaces the loop expressions run in. It is NOT user state: a user loop
+# variable of the same name collides with it, so both operators raise on
+# collision (see ``_reserved_name_error``) rather than silently dropping the
+# user's value. The envelope names (``loop_counter`` / ``loop_start_id``) never
+# enter user state -- they ride the StateFrame envelope (see
+# ``core.models.payload``). The loop-back write address is setup config, not
+# state (see ``loopStartStateUris`` on the ``InitializeExecutorRequest`` proto).
+_TABLE_KEY = "table"
+_RESERVED_STATE_KEYS: frozenset = frozenset({_TABLE_KEY})
+
+
+def _reserved_name_error(name: str) -> ValueError:
+    return ValueError(
+        f"'{name}' is reserved by the loop runtime (it is the loop's input "
+        f"table); rename the loop variable."
+    )
 
 
 def _strip_reserved(state: State) -> State:
@@ -329,7 +338,7 @@ def _eval_loop_expr(expr: str, state: State, table: Optional[Table]):
     persistent loop ``state``. Shared by LoopStart's ``output`` expression and
     LoopEnd's ``condition``.
     """
-    namespace = {**state, "table": table}
+    namespace = {**state, _TABLE_KEY: table}
     return eval(expr, {}, namespace)
 
 
@@ -376,8 +385,12 @@ class LoopStartOperator(TableOperator):
         # (see `table_to_ipc_bytes` in core.models.table for why). Reads the
         # buffer through `_buffered_table` so a rename of `TableOperator`
         # doesn't silently break this.
-        produced = _strip_reserved(self.state)
-        produced["table"] = table_to_ipc_bytes(self._buffered_table(port))
+        # A user loop variable named `table` would be overwritten by the input
+        # table below, so flag the collision instead of silently dropping it.
+        if _TABLE_KEY in self.state:
+            raise _reserved_name_error(_TABLE_KEY)
+        produced = State(self.state)
+        produced[_TABLE_KEY] = table_to_ipc_bytes(self._buffered_table(port))
         return produced
 
 
@@ -429,13 +442,15 @@ class LoopEndOperator(TableOperator):
         # stream, not pickle (see `table_to_ipc_bytes` in core.models.table
         # for why); the decoded table is kept on self._loop_table so
         # condition() can read it after the update.
-        table = table_from_ipc_bytes(state["table"])
-        # Equivalent to stripping the reserved keys first: "table" is the only
-        # reserved key (pinned by TestReservedStateKeysConstant) and it is
-        # overwritten by the seeded value here anyway.
-        namespace = {**state, "table": table}
+        input_table = table_from_ipc_bytes(state[_TABLE_KEY])
+        namespace = {**state, _TABLE_KEY: input_table}
         exec(update_code, {}, namespace)
-        self._loop_table = table
+        # `table` is runtime-owned; a user `update` that rebinds it (a loop
+        # variable named `table`) would be silently dropped by the strip below,
+        # so flag the collision instead.
+        if namespace[_TABLE_KEY] is not input_table:
+            raise _reserved_name_error(_TABLE_KEY)
+        self._loop_table = input_table
         self.state = _strip_reserved(namespace)
 
     @overrides.final

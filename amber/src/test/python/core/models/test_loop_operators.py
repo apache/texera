@@ -395,6 +395,27 @@ class TestReservedStateKeysConstant:
         assert isinstance(_RESERVED_STATE_KEYS, frozenset)
 
 
+class TestReservedNameCollision:
+    """A user loop variable named `table` collides with the runtime's input
+    table. Both operators raise on the collision rather than silently dropping
+    the user's value."""
+
+    def test_loop_start_raises_when_user_variable_named_table(self):
+        # `initialization` defines a variable named `table`, which would be
+        # overwritten by the input table in produce_state_on_finish.
+        op = _StubLoopStart(initialization="table = 1")
+        op.open()
+        with pytest.raises(ValueError, match="reserved by the loop runtime"):
+            op.produce_state_on_finish(port=0)
+
+    def test_loop_end_raises_when_update_rebinds_table(self):
+        # `update` rebinds `table`, which run_update would otherwise strip.
+        op = _StubLoopEnd(update="table = 1")
+        incoming = State({"i": 1, "table": _ipc_one_row()})
+        with pytest.raises(ValueError, match="reserved by the loop runtime"):
+            op.process_state(incoming, port=0)
+
+
 # The stub subclasses above skip the base64 + `decode_python_template` layer
 # that the real generated operators go through. These templates mirror
 # LoopStart/LoopEndOpDesc.generatePythonCode exactly (user expressions arrive
