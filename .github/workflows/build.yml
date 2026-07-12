@@ -639,6 +639,19 @@ jobs:
         # amber/src/main/resources/web-config.yml (port 8080).
         if: matrix.os == 'ubuntu-latest'
         run: .github/scripts/smoke-boot.sh "/tmp/dists/amber-*/bin/texera-web-application" 8080
+      - name: Smoke-test computing-unit-master boots
+        # computing-unit-master boots on postgres only, like texera-web: main
+        # starts a LOCAL Pekko actor master (clusterMode defaults to false with
+        # no --cluster arg, so no external seed/discovery and the cluster-only
+        # checkip.amazonaws.com lookup is never reached), then run() calls
+        # SqlServer.initConnection against the postgres provisioned above. The
+        # boot-time result-store cleanup is gated on
+        # ApplicationConfig.cleanupAllExecutionResults, which defaults to false,
+        # so no iceberg / S3 access. Config resolves via Utils.amberHomePath to
+        # amber/src/main/resources/computing-unit-master-config.yml (port 8085).
+        # Reuses the amber dist built + unzipped above for the texera-web boot.
+        if: matrix.os == 'ubuntu-latest'
+        run: .github/scripts/smoke-boot.sh "/tmp/dists/amber-*/bin/computing-unit-master" 8085
       - name: Run Python integration tests
         # --junit-xml feeds the Test Analytics upload below.
         run: |
