@@ -1790,6 +1790,69 @@ class TestMainLoop:
         assert "ValueError" in error_msgs[0].title
         assert "name 'i' is not defined" in error_msgs[0].title
 
+    def test_complete_reports_loopback_write_error_instead_of_crashing(
+        self, main_loop, monkeypatch
+    ):
+        # Reviewer feedback (#discussion_r3561096471): the back-edge state
+        # write in _jump_to_loop_start runs after the jump DCM, on the main
+        # loop thread, outside DataProcessor's guarded executor session. A
+        # put_one/close failure must be reported the same way as a condition
+        # error (exception manager + ERROR console message + EXCEPTION_PAUSE)
+        # and skip completion, not propagate and kill the worker thread.
+        class _JumpingLoopEnd(LoopEndOperator):
+            def __init__(self):
+                super().__init__()
+                self.closed = False
+
+            def condition(self):
+                return True
+
+            def close(self):
+                self.closed = True
+
+        executor = _JumpingLoopEnd()
+        executor.state = State({"i": 1})
+        main_loop.context.executor_manager.executor = executor
+        main_loop._loop_start_id = "loop-start-1"
+        main_loop.context.loop_start_state_uris = {"loop-start-1": "vfs:///x/state"}
+
+        console_msgs = []
+        pauses = []
+        monkeypatch.setattr(
+            main_loop, "_send_console_message", lambda msg: console_msgs.append(msg)
+        )
+        monkeypatch.setattr(
+            main_loop.context.pause_manager,
+            "pause",
+            lambda pause_type, change_state=True: pauses.append(pause_type),
+        )
+
+        class _BoomWriter:
+            def put_one(self, item):
+                raise OSError("iceberg commit failed")
+
+            def close(self):
+                pass
+
+        class _Doc:
+            def writer(self, name):
+                return _BoomWriter()
+
+        monkeypatch.setattr(
+            "core.runnables.main_loop.DocumentFactory.create_document",
+            lambda uri, schema: _Doc(),
+        )
+
+        # Must not raise: a failed back-edge write is reported, not propagated.
+        main_loop.complete()
+
+        assert not executor.closed, "must return before completing the worker"
+        assert main_loop.context.exception_manager.has_exception()
+        assert pauses == [PauseType.EXCEPTION_PAUSE]
+        error_msgs = [m for m in console_msgs if m.msg_type == ConsoleMessageType.ERROR]
+        assert len(error_msgs) == 1
+        assert "iceberg commit failed" in error_msgs[0].title
+
     # -- Loop counter is runtime-owned (relocated from test_loop_operators) ---
     #
     # loop_counter is not part of State; it rides on the StateFrame envelope and

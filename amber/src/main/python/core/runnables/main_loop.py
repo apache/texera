@@ -102,7 +102,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
     ) -> None:
         # The write address is setup config, keyed by the captured id. Fail
         # loud BEFORE the jump RPC so a misconfigured loop does not rewind the
-        # schedule without a back-edge write.
+        # schedule without a back-edge write. Anything raised here (a missing
+        # URI, or a failed state write after the jump) is reported by
+        # complete()'s guard as an operator-facing error.
         uri = self.context.loop_start_state_uris.get(self._loop_start_id)
         if not uri:
             raise RuntimeError(
@@ -129,21 +131,23 @@ class MainLoop(StoppableQueueBlockingRunnable):
         coordinator_interface = self._async_rpc_client.coordinator_stub()
         executor = self.context.executor_manager.executor
         if isinstance(executor, LoopEndOperator):
-            # condition() evaluates a user-supplied expression on this main
-            # loop thread. A UDF error on the data path is caught and reported
-            # via Context.report_exception (DataProcessor._executor_session);
-            # reuse it here so a bad condition (a typo, an undefined name)
-            # surfaces as an operator-facing error and pauses the worker,
-            # instead of killing the thread through run()'s
+            # condition() evaluates a user-supplied expression, and the
+            # loop-back edge writes state to iceberg after the jump DCM --
+            # both on this main loop thread, outside DataProcessor's guarded
+            # executor session. A UDF error on the data path is caught and
+            # reported via Context.report_exception
+            # (DataProcessor._executor_session); reuse it here so a bad
+            # condition (a typo, an undefined name) or a failed back-edge
+            # write surfaces as an operator-facing error and pauses the
+            # worker, instead of killing the thread through run()'s
             # @logger.catch(reraise=True).
             try:
-                should_jump = executor.condition()
+                if executor.condition():
+                    self._jump_to_loop_start(executor, coordinator_interface)
             except Exception as err:
                 self.context.report_exception(err)
                 self._check_exception()
                 return
-            if should_jump:
-                self._jump_to_loop_start(executor, coordinator_interface)
         executor.close()
         # stop the data processing thread
         self.data_processor.stop()
