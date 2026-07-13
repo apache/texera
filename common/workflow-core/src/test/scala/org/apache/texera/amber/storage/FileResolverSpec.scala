@@ -125,7 +125,7 @@ class FileResolverSpec
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
 }

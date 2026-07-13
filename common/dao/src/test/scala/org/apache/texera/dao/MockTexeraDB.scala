@@ -177,10 +177,14 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
     MockTexeraDB.getDBInstance.getDatabase(username, uniqueDbName).getConnection
   }
 
-  def shutdownDB(): Unit =
+  def closeConnectionPool(): Unit = {
+    //git issue #6063 asked for a no-op shutdown, however this was before
+    //MockTexeraDB held a connection pool, since we own explicit resources
+    //we must close them.
     synchronized {
       try dataSource.foreach(ds => if (!ds.isClosed) ds.close())
       catch { case e: Exception => e.printStackTrace() }
       finally { dataSource = None; testScopedContext = None }
     }
+  }
 }

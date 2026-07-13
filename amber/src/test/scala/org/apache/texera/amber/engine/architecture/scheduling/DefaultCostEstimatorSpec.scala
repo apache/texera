@@ -116,7 +116,7 @@ class DefaultCostEstimatorSpec
 
   override protected def afterEach(): Unit = {
     document.clear()
-    shutdownDB()
+    closeConnectionPool()
   }
 
   "DefaultCostEstimator" should "use fallback method when no past statistics are available" in {

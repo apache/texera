@@ -269,7 +269,7 @@ class DatasetResourceSpec
   }
 
   override protected def afterAll(): Unit = {
-    try shutdownDB()
+    try closeConnectionPool()
     finally {
       try savedLevels.foreach { case (name, prev) => setLoggerLevel(name, prev) } finally super
         .afterAll()
