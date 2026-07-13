@@ -55,10 +55,8 @@ object JwtAuth {
     val claims = new JwtClaims
     claims.setSubject(user.getName)
     claims.setClaim("userId", user.getUid)
-    claims.setClaim("googleId", user.getGoogleId)
     claims.setClaim("email", user.getEmail)
     claims.setClaim("role", user.getRole)
-    claims.setClaim("googleAvatar", user.getGoogleAvatar)
     claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
     claims
   }

@@ -22,10 +22,10 @@ package org.apache.texera.web.resource.auth
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables.USER
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
@@ -53,17 +53,40 @@ object AuthResource {
     * @return
     */
   def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
-    if (password == null) return None
-    if (name == null) return None
-    Option(
-      SqlServer
-        .getInstance()
-        .createDSLContext()
-        .select()
-        .from(USER)
-        .where(USER.NAME.eq(name))
-        .fetchOneInto(classOf[User])
-    ).filter(user => new StrongPasswordEncryptor().checkPassword(password, user.getPassword))
+    if (password == null || name == null) return None
+
+    val record = SqlServer
+      .getInstance()
+      .createDSLContext()
+      .select()
+      .from(USER)
+      .join(AUTH_PROVIDER).on(AUTH_PROVIDER.UID.eq(USER.UID))
+      .where(USER.NAME.eq(name))
+      .fetchOne()
+
+    Option(record).flatMap { r =>
+      val encryptedPassword = r.get(AUTH_PROVIDER.PASSWORD)
+      if (new StrongPasswordEncryptor().checkPassword(password, encryptedPassword)) {
+        Some(r.into(USER).into(classOf[User]))
+      } else {
+        None
+      }
+    }
+  }
+
+  private def InsertUser(user: User, hashedPassword: String): Unit = {
+    SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
+      val txUserDao = new UserDao(ctx.configuration())
+      val txAuthDao = new AuthProviderDao(ctx.configuration())
+
+      txUserDao.insert(user)
+
+      val auth = new AuthProvider
+      auth.setUid(user.getUid)
+      auth.setProviderType(ProviderTypeEnum.LOCAL)
+      auth.setPassword(hashedPassword)
+      txAuthDao.insert(auth)
+    }
   }
 
   def createAdminUser(): Unit = {
@@ -77,8 +100,9 @@ object AuthResource {
         user.setName(adminUsername)
         user.setEmail(adminUsername)
         user.setRole(UserRoleEnum.ADMIN)
-        user.setPassword(new StrongPasswordEncryptor().encryptPassword(adminPassword))
-        userDao.insert(user)
+
+        val hashedPassword = new StrongPasswordEncryptor().encryptPassword(adminPassword)
+        InsertUser(user, hashedPassword)
       }
     }
   }
@@ -111,14 +135,16 @@ class AuthResource {
         user.setName(username)
         user.setEmail(username)
         user.setRole(UserRoleEnum.RESTRICTED)
+
         // hash the plain text password
-        user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
-        userDao.insert(user)
+        val hashedPassword = new StrongPasswordEncryptor().encryptPassword(request.password)
+        InsertUser(user, hashedPassword)
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
       case _ =>
         // the username exists already
         throw new NotAcceptableException("Username exists already.")
     }
   }
+
 
 }

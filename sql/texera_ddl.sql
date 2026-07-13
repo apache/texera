@@ -86,11 +86,13 @@ DROP TABLE IF EXISTS virtual_environments CASCADE;
 DROP TYPE IF EXISTS user_role_enum CASCADE;
 DROP TYPE IF EXISTS privilege_enum CASCADE;
 DROP TYPE IF EXISTS action_enum CASCADE;
+DROP TYPE IF EXISTS provider_type_enum CASCADE;
 
 CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN');
 CREATE TYPE action_enum AS ENUM ('like', 'unlike', 'view', 'clone');
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
 CREATE TYPE workflow_computing_unit_type_enum AS ENUM ('local', 'kubernetes');
+CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE');
 
 -- ============================================
 -- 5. Create tables
@@ -106,7 +108,25 @@ CREATE TABLE IF NOT EXISTS "user"
     comment                 TEXT,
     account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
     affiliation             VARCHAR(128),
-    joining_reason          VARCHAR(500),
+    joining_reason          VARCHAR(500)
+    );
+
+-- auth_provider: credentials per (user, provider); one row per provider a user has
+CREATE TABLE IF NOT EXISTS auth_provider
+(
+    uid               INT                 NOT NULL,
+    provider_type     provider_type_enum  NOT NULL,
+    provider_id       VARCHAR(256),          -- external subject id (Google sub); NULL for LOCAL
+    password          VARCHAR(256),          -- hashed credential; only for LOCAL
+    provider_avatar   VARCHAR(100),          -- e.g. Google avatar; NULL for LOCAL
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (uid, provider_type),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    CONSTRAINT uq_provider_identity UNIQUE (provider_type, provider_id),
+    CONSTRAINT ck_provider_credential CHECK (
+        (provider_type = 'LOCAL'  AND password    IS NOT NULL AND provider_id IS NULL) OR
+        (provider_type = 'GOOGLE' AND provider_id IS NOT NULL AND password    IS NULL)
+    )
     );
 
 -- user_config

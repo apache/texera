@@ -23,26 +23,60 @@ SET search_path TO texera_db;
 
 BEGIN;
 
--- match the existing user_role_enum style in texera_ddl.sql
-CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'provider_type_enum') THEN
+        CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE');
+    END IF;
+END
+$$;
 
+-- 2. The auth_provider table.
 CREATE TABLE IF NOT EXISTS auth_provider (
     uid               INT                 NOT NULL,
     provider_type     provider_type_enum  NOT NULL,
-
-    provider_id       VARCHAR(256),
-    password          VARCHAR(256),
-    provider_avatar   VARCHAR(100),
+    provider_id       VARCHAR(256),          -- external subject id (Google sub); NULL for LOCAL
+    password          VARCHAR(256),          -- hashed credential; only for LOCAL
+    provider_avatar   VARCHAR(100),          -- e.g. Google avatar; NULL for LOCAL
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     PRIMARY KEY (uid, provider_type),
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
 
+    -- one external identity maps to exactly one Texera user
     CONSTRAINT uq_provider_identity UNIQUE (provider_type, provider_id),
+
+    -- credential shape must match the provider (replaces the old ck_nulltest)
     CONSTRAINT ck_provider_credential CHECK (
         (provider_type = 'LOCAL'  AND password    IS NOT NULL AND provider_id IS NULL) OR
         (provider_type = 'GOOGLE' AND provider_id IS NOT NULL AND password    IS NULL)
     )
- );
+);
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user' AND column_name = 'password'
+    ) THEN
+        INSERT INTO auth_provider (uid, provider_type, password)
+        SELECT uid, 'LOCAL'::provider_type_enum, password
+        FROM "user"
+        WHERE password IS NOT NULL
+        ON CONFLICT (uid, provider_type) DO NOTHING;
+
+        INSERT INTO auth_provider (uid, provider_type, provider_id, provider_avatar)
+        SELECT uid, 'GOOGLE'::provider_type_enum, google_id, google_avatar
+        FROM "user"
+        WHERE google_id IS NOT NULL
+        ON CONFLICT (uid, provider_type) DO NOTHING;
+    END IF;
+END
+$$;
+
+ALTER TABLE "user" DROP CONSTRAINT IF EXISTS ck_nulltest;
+ALTER TABLE "user" DROP COLUMN IF EXISTS password;
+ALTER TABLE "user" DROP COLUMN IF EXISTS google_id;
+ALTER TABLE "user" DROP COLUMN IF EXISTS google_avatar;
 
 COMMIT;
