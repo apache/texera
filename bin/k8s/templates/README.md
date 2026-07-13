@@ -37,10 +37,10 @@ piece sits together:
 ```
 base/
   access-control-service/   # access-control-service Deployment + Service
-  agent-service/            # agent-service Deployment + Service + Secret + traffic policy
+  agent-service/            # agent-service Deployment + Service + Secret
   config-service/
   file-service/
-  gateway/                  # Envoy Gateway + routes + backends + security policy
+  gateway/                  # Envoy Gateway + routes + backends + security/traffic policies
   lakefs/
   lakekeeper/
   litellm/
