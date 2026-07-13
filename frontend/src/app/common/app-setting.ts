@@ -24,3 +24,7 @@ export class AppSettings {
     return environment.apiUrl;
   }
 }
+
+// Python Virtual Environments are hard-disabled on the 1.2 release line;
+// flip to re-enable the UI entry points.
+export const PVE_ENABLED = false;

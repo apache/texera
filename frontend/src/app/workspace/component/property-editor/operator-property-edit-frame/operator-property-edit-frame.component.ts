@@ -36,6 +36,7 @@ import {
   hideTypes,
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
+import { PVE_ENABLED } from "../../../../common/app-setting";
 import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
@@ -204,6 +205,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     }
   }
 
+  private hidePveFields(): void {
+    for (const key of ["defaultEnv", "envName"]) {
+      const field = this.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+      if (field) {
+        field.hide = true;
+      }
+    }
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     this.currentOperatorId = changes.currentOperatorId?.currentValue;
     if (!this.currentOperatorId) {
@@ -281,13 +291,16 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       this.currentOperatorSchema.operatorType === "PythonUDFV2" ||
       this.currentOperatorSchema.operatorType === "DualInputPortsPythonUDFV2" ||
       this.currentOperatorSchema.operatorType === "PythonUDFSourceV2";
-    if (isPythonUdf && this.formData.defaultEnv === undefined) {
+    if (isPythonUdf && (this.formData.defaultEnv === undefined || !PVE_ENABLED)) {
       this.formData.defaultEnv = true;
     }
 
     const baseSchema = cloneDeep(this.currentOperatorSchema.jsonSchema);
 
-    if (isPythonUdf) {
+    if (isPythonUdf && !PVE_ENABLED) {
+      this.setFormlyFormBinding(baseSchema);
+      this.hidePveFields();
+    } else if (isPythonUdf) {
       this.computingUnitStatusService
         .getSelectedComputingUnit()
         .pipe(

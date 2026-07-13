@@ -25,6 +25,7 @@ import {
   WorkflowComputingUnitType,
 } from "../../../common/type/workflow-computing-unit";
 import { NotificationService } from "../../../common/service/notification/notification.service";
+import { PVE_ENABLED } from "../../../common/app-setting";
 import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -136,6 +137,7 @@ type PveDraft = {
   ],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
+  protected readonly pveEnabled = PVE_ENABLED;
   // variables for creating a virtual environment
   pves: PveDraft[] = [];
   systemPackages: { name: string; version: string }[] = [];

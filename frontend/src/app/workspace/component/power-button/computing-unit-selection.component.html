@@ -164,7 +164,7 @@
             nz-icon
             nzType="plus"
             nz-tooltip
-            *ngIf="unit.isOwner"
+            *ngIf="pveEnabled && unit.isOwner"
             [nzTooltipTitle]="'Python Environment'"
             (click)="selectedComputingUnit = unit; showPVEmodalVisible(); $event.stopPropagation()">
           </i>
