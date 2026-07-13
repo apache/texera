@@ -100,7 +100,10 @@ describe("ResultTableFrameComponent", () => {
   const queryParams = (pageIndex: number): NzTableQueryParams => ({ pageIndex, pageSize: 5, sort: [], filter: [] });
 
   // Re-creates the component so spies installed on service streams are picked up by ngOnInit.
+  // Destroys the fixture created in beforeEach (or a prior recreate) first so its
+  // untilDestroyed subscriptions are torn down and cannot leak across the test.
   const recreateComponent = (operatorId?: string): void => {
+    fixture?.destroy();
     fixture = TestBed.createComponent(ResultTableFrameComponent);
     component = fixture.componentInstance;
     component.operatorId = operatorId;
@@ -136,6 +139,7 @@ describe("ResultTableFrameComponent", () => {
   });
 
   afterEach(() => {
+    fixture?.destroy();
     document.querySelectorAll(".cdk-overlay-container").forEach(container => (container.innerHTML = ""));
     vi.restoreAllMocks();
   });
