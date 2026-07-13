@@ -196,6 +196,9 @@ object TestUtils {
     * If a test case accesses the user system through singleton resources that cache the DSLContext (e.g., executes a
     * workflow, which accesses WorkflowExecutionsResource), we use a separate texera_db specifically for such test cases.
     * Note such test cases need to clean up the database at the end of running each test case.
+    *
+    * This backs the e2e specs with MockTexeraDB's embedded Postgres instead of an external test Postgres
+    * (depends on #4179).
     */
   def initiateTexeraDBForTestCases(): Unit = {
     org.apache.texera.dao.MockTexeraDB.ensureInitialized()
@@ -205,16 +208,16 @@ object TestUtils {
 
     scala.util.Using.resource(embedded.getPostgresDatabase.getConnection) { conn =>
       scala.util.Using.resource(conn.createStatement()) { stmt =>
-        stmt.execute(s"DROP DATABASE IF EXISTS $dbName")
         stmt.execute(s"CREATE DATABASE $dbName")
       }
     }
 
-    val targetDbConn = embedded.getDatabase("postgres", dbName).getConnection
-    scala.util.Using.resource(targetDbConn.createStatement()) { stmt =>
-      stmt.execute(org.apache.texera.dao.MockTexeraDB.getDDLScript)
+    scala.util.Using.resource(embedded.getDatabase("postgres", dbName).getConnection) {
+      targetDbConn =>
+        scala.util.Using.resource(targetDbConn.createStatement()) { stmt =>
+          stmt.execute(org.apache.texera.dao.MockTexeraDB.getDDLScript)
+        }
     }
-    targetDbConn.close()
 
     SqlServer.initConnection(
       embedded.getJdbcUrl("postgres", dbName),
