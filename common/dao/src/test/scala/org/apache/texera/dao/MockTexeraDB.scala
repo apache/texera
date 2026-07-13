@@ -65,12 +65,14 @@ object MockTexeraDB {
         finally source.close()
 
       val parts: Array[String] = content.split(splitDatabaseRegex)
-      val sqlBody = parts.lift(1).getOrElse(
+      val sqlBody = parts
+        .lift(1)
+        .getOrElse(
           throw new RuntimeException(
             s"Couldn't split SQL body from $texeraDDLPath: " +
-            s"expected it to match pattern $splitDatabaseRegex"
+              s"expected it to match pattern $splitDatabaseRegex"
           )
-      )
+        )
 
       def removeCCommands(sql: String): String =
         sql.linesIterator.filterNot(_.trim.startsWith("\\c")).mkString("\n")
@@ -100,7 +102,7 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
   protected var dataSource: Option[HikariDataSource] = None
   protected var uniqueDbName: String = ""
 
-  def createHikariConfig(jbdcUrl: String) : HikariConfig = {
+  def createHikariConfig(jbdcUrl: String): HikariConfig = {
     val hikariConfig = new HikariConfig()
     hikariConfig.setJdbcUrl(jbdcUrl)
     hikariConfig.setUsername(username)
@@ -131,7 +133,7 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
         }
 
         val jdbcUrl = embedded.getJdbcUrl("postgres", uniqueDbName)
-        val ds = new HikariDataSource(createHikariConfig(jbdcUrl =  jdbcUrl))
+        val ds = new HikariDataSource(createHikariConfig(jbdcUrl = jdbcUrl))
         dataSource = Some(ds)
 
         val jooqCfg = new DefaultConfiguration()
@@ -158,7 +160,7 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
       /*TODO: Need to truncate texeraDB tables when the fixture is complete.
          This will require refactoring the spec tests using MockTexeraDB
          to move initialization logic outside of BeforeAll into BeforeEach
-      */
+       */
     }
   }
 
