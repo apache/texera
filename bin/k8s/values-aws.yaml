@@ -47,8 +47,13 @@ storage:
 
 # Point LakeFS at external S3: a region-only blockstore (the AWS SDK resolves
 # the endpoint from the region) with credentials injected via the same Secret
-# the chart/app uses. Override the secretKeyRef name if you set
-# storage.s3.existingSecret above.
+# the chart/app uses.
+#
+# NOTE: the secretKeyRef "name" below is "texera-s3-credentials", which assumes
+# the Helm release is named "texera" (the chart generates the credentials Secret
+# as "<release>-s3-credentials"). If you install with a different release name,
+# or set storage.s3.existingSecret above, update both "name:" fields below to
+# match that Secret.
 lakefs:
   lakefsConfig: |
     database:

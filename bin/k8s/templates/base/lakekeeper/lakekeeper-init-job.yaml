@@ -16,6 +16,9 @@
 # under the License.
 
 {{- if .Values.lakekeeperInit.enabled }}
+{{- if not (has .Values.lakekeeperInit.warehouse.flavor (list "s3-compat" "aws")) }}
+{{- fail (printf "lakekeeperInit.warehouse.flavor must be \"s3-compat\" or \"aws\", got %q" .Values.lakekeeperInit.warehouse.flavor) }}
+{{- end }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -62,9 +65,7 @@ spec:
             - |
               set -e
 
-              apk add --no-cache curl ca-certificates wget
-              wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
-              chmod +x /usr/local/bin/mc
+              apk add --no-cache curl ca-certificates
 
               check_status() {
                 if [ "$1" -ge 200 ] && [ "$1" -lt 300 ]; then
@@ -87,13 +88,12 @@ spec:
 
 {{- if .Values.lakekeeperInit.createBucket }}
               echo "Step 1: Initializing object-store bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}'..."
-              mc alias set minio "${STORAGE_S3_ENDPOINT}" "${STORAGE_S3_AUTH_USERNAME}" "${STORAGE_S3_AUTH_PASSWORD}" || true
-              if mc ls minio/${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET} > /dev/null 2>&1; then
-                echo "Bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}' already exists."
-              else
-                mc mb minio/${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET} || true
-                echo "Bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}' created successfully."
-              fi
+              apk add --no-cache wget
+              wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
+              chmod +x /usr/local/bin/mc
+              mc alias set minio "${STORAGE_S3_ENDPOINT}" "${STORAGE_S3_AUTH_USERNAME}" "${STORAGE_S3_AUTH_PASSWORD}"
+              mc mb --ignore-existing minio/${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}
+              echo "Bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}' is ready."
 {{- else }}
               echo "Step 1: skipping bucket creation (createBucket=false; using pre-existing external S3 bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}')."
 {{- end }}
