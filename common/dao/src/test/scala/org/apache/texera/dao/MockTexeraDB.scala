@@ -21,6 +21,7 @@ package org.apache.texera.dao
 
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
+import org.apache.texera.dao.MockTexeraDB.{MaxPoolSize, password, username}
 import org.jooq.impl.{DSL, DataSourceConnectionProvider, DefaultConfiguration}
 import org.jooq.{DSLContext, SQLDialect}
 import org.scalatest.{Outcome, TestSuite, TestSuiteMixin}
@@ -39,6 +40,8 @@ object MockTexeraDB {
   private val password: String = ""
   private val texeraDDLPath = "sql/texera_ddl.sql"
   private val splitDatabaseRegex = "(?m)^CREATE DATABASE :\"DB_NAME\";"
+
+  val MaxPoolSize: Int = math.max(10, Runtime.getRuntime.availableProcessors() * 2)
 
   @volatile private var dbInstance: Option[EmbeddedPostgres] = None
   @volatile private var ddlScript: Option[String] = None
@@ -97,6 +100,15 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
   protected var dataSource: Option[HikariDataSource] = None
   protected var uniqueDbName: String = ""
 
+  def createHikariConfig(jbdcUrl: String) : HikariConfig = {
+    val hikariConfig = new HikariConfig()
+    hikariConfig.setJdbcUrl(jbdcUrl)
+    hikariConfig.setUsername(username)
+    hikariConfig.setPassword(password)
+    hikariConfig.setMaximumPoolSize(MaxPoolSize)
+    hikariConfig
+  }
+
   def initializeDBAndReplaceDSLContext(): Unit =
     synchronized {
       if (dataSource.isEmpty || dataSource.get.isClosed) {
@@ -119,17 +131,7 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
         }
 
         val jdbcUrl = embedded.getJdbcUrl("postgres", uniqueDbName)
-
-        // Back the test DSLContext with a real HikariCP pool so that concurrent
-        // transactions acquire *distinct* connections (matching production), rather
-        // than trampling one shared connection's autoCommit flag.
-        val hikariConfig = new HikariConfig()
-        hikariConfig.setJdbcUrl(jdbcUrl)
-        hikariConfig.setUsername("postgres")
-        hikariConfig.setPassword("")
-        // Must exceed the maximum number of concurrent test threads.
-        hikariConfig.setMaximumPoolSize(10)
-        val ds = new HikariDataSource(hikariConfig)
+        val ds = new HikariDataSource(createHikariConfig(jbdcUrl =  jdbcUrl))
         dataSource = Some(ds)
 
         val jooqCfg = new DefaultConfiguration()
@@ -138,8 +140,7 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
         val scopedCtx = DSL.using(jooqCfg)
         testScopedContext = Some(scopedCtx)
 
-        // Point the Texera backend exactly to this suite's isolated database
-        SqlServer.initConnection(jdbcUrl, "postgres", "")
+        SqlServer.initConnection(jdbcUrl, username, password)
         SqlServer.getInstance().replaceDSLContext(scopedCtx)
       }
     }
