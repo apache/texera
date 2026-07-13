@@ -61,4 +61,10 @@ describe("extractErrorMessage", () => {
     const result = extractErrorMessage(testError);
     expect(result).toBe("An unknown error occurred.");
   });
+
+  it("should return the fallback message when error key value is null", () => {
+    const testError = { error: null };
+    const result = extractErrorMessage(testError);
+    expect(result).toBe("An unknown error occurred.");
+  });
 });
