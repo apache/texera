@@ -29,7 +29,6 @@ import {
 } from "../../../types/workflow-common.interface";
 import { CoeditorState, User } from "../../../../common/type/user";
 import { getWebsocketUrl } from "../../../../common/util/url";
-import { v4 as uuid } from "uuid";
 import { YType } from "../../../types/shared-editing.interface";
 
 /**
@@ -49,22 +48,20 @@ export class SharedModel {
   public clientId: string;
 
   /**
-   * Initializes yjs-related structures and join the shared-editing room. A room number is required for initialization.
-   * When wid is present, it will be used as part of the room number to enable shared editing.
-   * When no wid is provided (new workflow canvas, landing page, etc.), a random room number will be assigned so that
-   * users don't interfere with each other.
-   * @param wid workflow ID number, used as part of the address for the shared-editing room.
+   * Initializes yjs-related structures and lazily joins the shared-editing room. A shared-editing `/rtc` connection is
+   * opened over the network only when a workflow ID ({@link wid}) is provided: its presence is the signal that there is
+   * a real, saved workflow to collaborate on. When no wid is provided (throwaway validation/compilation graphs, a new
+   * unsaved canvas, the landing page, etc.) the model stays purely local — no {@link WebsocketProvider}/`/rtc` socket is
+   * opened and a standalone {@link Awareness} is used. This lazy gating is what prevents short-lived graphs from leaking
+   * self-reconnecting `/rtc` connections.
+   * @param wid workflow ID number, used as the shared-editing room address. Its presence is what enables shared editing.
    * @param user current (local) user info, used for initializing local awareness (user presence).
    * @param productionSharedEditingServer whether to use production shared editing server
-   * @param enableSharedEditing whether to join the shared-editing room over the network. When false, the model is
-   *   purely local: no {@link WebsocketProvider}/`/rtc` socket is opened and a standalone {@link Awareness} is used.
-   *   This is used for throwaway/validation graphs that must never consume a real-time connection.
    */
   constructor(
     public wid?: number,
     public user?: User,
-    private productionSharedEditingServer?: boolean,
-    private enableSharedEditing: boolean = true
+    private productionSharedEditingServer?: boolean
   ) {
     // Initialize Y-structures.
     this.debugState = this.yDoc.getMap("debugActions");
@@ -81,15 +78,15 @@ export class SharedModel {
       }
     );
 
-    if (this.enableSharedEditing) {
-      // Generate editing room number and join the shared-editing room over the network.
+    if (this.wid !== undefined) {
+      // A workflow ID is present: join the shared-editing room for that workflow over the network.
       const websocketUrl = this.getYWebSocketBaseUrl();
-      const suffix = wid ? `${wid}` : uuid();
-      this.wsProvider = new WebsocketProvider(websocketUrl, suffix, this.yDoc);
+      this.wsProvider = new WebsocketProvider(websocketUrl, `${this.wid}`, this.yDoc);
       // Initialize local user awareness information from the provider's awareness.
       this.awareness = this.wsProvider.awareness;
     } else {
-      // Local-only: no network. A standalone awareness keeps clientId/awareness reads valid downstream.
+      // No workflow ID: stay local-only, no network. A standalone awareness keeps clientId/awareness reads valid
+      // downstream.
       this.awareness = new Awareness(this.yDoc);
     }
     this.clientId = this.awareness.clientID.toString();

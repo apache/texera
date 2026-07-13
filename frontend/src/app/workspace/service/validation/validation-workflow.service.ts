@@ -389,12 +389,8 @@ export class ValidationWorkflowService {
     );
 
     // This graph is a throwaway used only to build a logical plan for compilation/validation; it is read once and
-    // never destroyed. Pass enableSharedEditing=false so it does not open (and leak) a /rtc WebSocket per edit.
-    return new WorkflowGraph(
-      validOperators,
-      validLinks,
-      texeraGraph.getAllCommentBoxes(),
-      /* enableSharedEditing */ false
-    );
+    // never destroyed. It has no workflow ID, so its SharedModel stays local-only and never opens (or leaks) a /rtc
+    // WebSocket per edit.
+    return new WorkflowGraph(validOperators, validLinks, texeraGraph.getAllCommentBoxes());
   }
 }

@@ -160,13 +160,12 @@ export class WorkflowGraph {
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
     operatorLinks: OperatorLink[] = [],
-    commentBoxes: CommentBox[] = [],
-    enableSharedEditing: boolean = true
+    commentBoxes: CommentBox[] = []
   ) {
-    // Initialize sharedModel in constructor to ensure config is loaded.
-    // Throwaway graphs (e.g. validation/compilation graphs) pass enableSharedEditing=false so they never open a
-    // /rtc WebSocket. Otherwise every such short-lived graph would leak a self-reconnecting connection.
-    this.sharedModel = new SharedModel(undefined, undefined, undefined, enableSharedEditing);
+    // Initialize a local-only sharedModel: with no workflow ID it never opens a /rtc WebSocket. A real shared-editing
+    // session is joined later via loadNewYModel(workflowId, ...) once there is a saved workflow to collaborate on.
+    // This keeps throwaway graphs (e.g. validation/compilation graphs) from leaking self-reconnecting connections.
+    this.sharedModel = new SharedModel();
 
     operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.sharedModel.operatorLinkMap.set(link.linkID, link));

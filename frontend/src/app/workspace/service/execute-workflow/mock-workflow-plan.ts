@@ -31,8 +31,7 @@ import { LogicalPlan } from "../../types/execute-workflow.interface";
 export const mockWorkflowPlan_scan_result: WorkflowGraph = new WorkflowGraph(
   [mockScanPredicate, mockResultPredicate],
   [mockScanResultLink],
-  [],
-  /* enableSharedEditing */ false
+  []
 );
 
 export const mockLogicalPlan_scan_result: LogicalPlan = {
@@ -67,8 +66,7 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
 export const mockWorkflowPlan_scan_sentiment_result: WorkflowGraph = new WorkflowGraph(
   [mockScanPredicate, mockSentimentPredicate, mockResultPredicate],
   [mockScanSentimentLink, mockSentimentResultLink],
-  [],
-  /* enableSharedEditing */ false
+  []
 );
 
 export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {

@@ -779,7 +779,7 @@ export class WorkflowActionService {
    */
   public setTempWorkflow(workflow: Workflow): void {
     if (this.texeraGraph.sharedModel.wsProvider?.shouldConnect) {
-      this.texeraGraph.sharedModel.wsProvider.disconnect();
+      this.texeraGraph.sharedModel.wsProvider?.disconnect();
     }
     this.tempWorkflow = workflow;
   }
