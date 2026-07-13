@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783862041973,
+  "lastUpdate": 1783950138624,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -4189,6 +4189,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 486.12225383037566,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "0cdba7b5cd13ad9b19f0349ce402b3165e876c8c",
+          "message": "test(frontend): add unit test coverage for UserProjectService (#6392)\n\n### What changes were proposed in this PR?\n\nAdds a Vitest spec for `UserProjectService`\n\n(`frontend/src/app/dashboard/service/user/project/user-project.service.ts`),\nwhich previously had no dedicated spec (codecov ~33%). The service is an\n`HttpClient` wrapper for the project dashboard, plus two static color\nhelpers.\n\n19 tests, using `HttpClientTestingModule` + `HttpTestingController` (no\nbackend):\n\n- **HTTP methods (14)** — each asserts request method / URL (built from\nthe\n  service's exported URL constants) / body, and the emitted response:\n`getProjectList`, `retrieveWorkflowsOfProject`,\n`retrieveFilesOfProject`,\n  `retrieveProject`, `createProject`, `updateProjectName`,\n  `updateProjectDescription` (raw-string body), `deleteProject`,\n`addWorkflowToProject`, `removeWorkflowFromProject`, `addFileToProject`,\n  `updateProjectColor`, `deleteProjectColor`, `removeFileFromProject`.\n- **Cached file list (3)** — `getProjectFiles` starts empty;\n`refreshFilesOfProject` fetches and caches;\n`deleteDashboardUserFileEntry`\n  deletes then refreshes the cache (two-request flow).\n- **Static helpers (2)** — `isInvalidColorFormat` and `isLightColor`\nacross\n  null / wrong-length / non-hex / 3- and 6-digit / white / black inputs.\n\n`NotificationService` (unused by this service, but a constructor\ndependency\nthat pulls in ng-zorro) is stubbed so `TestBed` stays hermetic. No\nproduction\ncode was changed.\n\n### Any related issues, documentation, discussions?\n\nCloses #6388\n\n### How was this PR tested?\n\nNew unit tests, run locally in `frontend/` (all green; the failure path\nwas\nverified by breaking a URL assertion to confirm the suite goes red):\n\n```\nng test --watch=false --include src/app/dashboard/service/user/project/user-project.service.spec.ts\n# Tests  19 passed (19)\neslint <spec>       # clean\nprettier --check    # clean\n```\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-07-13T07:36:40Z",
+          "url": "https://github.com/apache/texera/commit/0cdba7b5cd13ad9b19f0349ce402b3165e876c8c"
+        },
+        "date": 1783950138157,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 628.6604244353706,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1102.9115544963865,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1190.933111558125,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 814.0229854424945,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1148.9066537912588,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1199.2857841176926,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 841.5324839053673,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1166.4600028288964,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1189.4570014266378,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 729.9903819204742,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 926.7265521955081,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 961.7693947852977,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 748.9138430451359,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 935.1508190246788,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 947.2127016569978,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 740.7920968387727,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 923.8707663385852,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 942.2594294727555,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 459.8369480673994,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 534.2583010841123,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 540.7032669145849,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 457.4430647406327,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 528.0233936455884,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 540.1515995739181,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 435.60489219081336,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 509.07423977147937,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 512.618757419611,
             "unit": "tuples/sec"
           }
         ]
