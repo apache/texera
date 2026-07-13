@@ -1233,7 +1233,7 @@ class DatasetResourceSpec
     val filePath = uniqueFilePath("init-session-row-locked")
     initUpload(filePath, numParts = 2).getStatus shouldEqual 200
 
-    val connection = MockTexeraDB.getDBInstance.getDatabase("postgres", uniqueDbName).getConnection
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -1622,7 +1622,7 @@ class DatasetResourceSpec
     initUpload(filePath, numParts = 2).getStatus shouldEqual 200
 
     // Open a completely independent connection to simulate a second concurrent user
-    val connection = MockTexeraDB.getDBInstance.getDatabase("postgres", uniqueDbName).getConnection
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -1864,7 +1864,7 @@ class DatasetResourceSpec
     initUpload(filePath, numParts = 2)
     val uploadId = fetchUploadIdOrFail(filePath)
 
-    val connection = MockTexeraDB.getDBInstance.getDatabase("postgres", uniqueDbName).getConnection
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -1896,7 +1896,7 @@ class DatasetResourceSpec
     initUpload(filePath, numParts = 2)
     val uploadId = fetchUploadIdOrFail(filePath)
 
-    val connection = MockTexeraDB.getDBInstance.getDatabase("postgres", uniqueDbName).getConnection
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2101,7 +2101,7 @@ class DatasetResourceSpec
     initUpload(filePath, numParts = 1)
     uploadPart(filePath, 1, tinyBytes(1.toByte)).getStatus shouldEqual 200
 
-    val connection = MockTexeraDB.getDBInstance.getDatabase("postgres", uniqueDbName).getConnection
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {
@@ -2161,7 +2161,7 @@ class DatasetResourceSpec
     val filePath = uniqueFilePath("abort-lock-race")
     initUpload(filePath, numParts = 1)
 
-    val connection = MockTexeraDB.getDBInstance.getDatabase("postgres", uniqueDbName).getConnection
+    val connection = newRawConnection()
     connection.setAutoCommit(false)
 
     try {

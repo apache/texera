@@ -171,6 +171,9 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
     }
 
   def getDBInstance: EmbeddedPostgres = MockTexeraDB.getDBInstance
+  def newRawConnection(): java.sql.Connection = {
+    MockTexeraDB.getDBInstance.getDatabase(username, uniqueDbName).getConnection
+  }
 
   def shutdownDB(): Unit =
     synchronized {
