@@ -187,4 +187,7 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
       finally { dataSource = None; testScopedContext = None }
     }
   }
+
+  /** Backwards-compat alias for specs on `main` that still call shutdownDB(). */
+  def shutdownDB(): Unit = closeConnectionPool()
 }
