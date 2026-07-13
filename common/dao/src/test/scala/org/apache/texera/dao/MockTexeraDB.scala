@@ -32,13 +32,13 @@ import scala.util.Using
 
 /**
   * Provides a JVM-singleton EmbeddedPostgres for tests. Multiple specs that mix
-  * in this trait share one Postgres instance for the lifetime of the JVM, which
-  * avoids the OverlappingFileLockException that occurs when each spec tries to
-  * extract the embedded Postgres binaries into the same directory in parallel.
+  * in this trait share one Postgres instance for the lifetime of the JVM.
   */
 object MockTexeraDB {
   private val username: String = "postgres"
   private val password: String = ""
+  private val texeraDDLPath = "sql/texera_ddl.sql"
+  private val splitDatabaseRegex = "(?m)^CREATE DATABASE :\"DB_NAME\";"
 
   @volatile private var dbInstance: Option[EmbeddedPostgres] = None
   @volatile private var ddlScript: Option[String] = None
@@ -55,19 +55,24 @@ object MockTexeraDB {
         dbInstance = Some(EmbeddedPostgres.builder().start())
       }
 
-      val ddlPath = Paths.get("sql/texera_ddl.sql").toRealPath()
+      val ddlPath = Paths.get(texeraDDLPath).toRealPath()
       val source = Source.fromFile(ddlPath.toString)
       val content =
         try source.mkString
         finally source.close()
 
-      val parts: Array[String] = content.split("(?m)^CREATE DATABASE :\"DB_NAME\";")
-      val sqlBody = if (parts.length > 1) parts(1) else content
+      val parts: Array[String] = content.split(splitDatabaseRegex)
+      val sqlBody = parts.lift(1).getOrElse(
+          throw new RuntimeException(
+            s"Couldn't split SQL body from $texeraDDLPath: " +
+            s"expected it to match pattern $splitDatabaseRegex"
+          )
+      )
 
       def removeCCommands(sql: String): String =
         sql.linesIterator.filterNot(_.trim.startsWith("\\c")).mkString("\n")
 
-      var tablesAndIndexCreation = removeCCommands(sqlBody)
+      val tablesAndIndexCreation = removeCCommands(sqlBody)
 
       val blockPattern =
         """(?s)-- START Fulltext search index creation \(DO NOT EDIT THIS LINE\).*?-- END Fulltext search index creation \(DO NOT EDIT THIS LINE\)\n?""".r
@@ -149,26 +154,10 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
       sqlServerInstance.replaceDSLContext(activeContext)
       super.withFixture(test)
     } finally {
-      try {
-        // Truncate all tables on a pooled connection so each test starts clean.
-        Using.resource(dataSource.get.getConnection) { conn =>
-          Using.resource(conn.createStatement()) { stmt =>
-            stmt.execute(
-              """
-              DO $$ DECLARE
-                  r RECORD;
-              BEGIN
-                  FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
-                      EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE';
-                  END LOOP;
-              END $$;
-              """
-            )
-          }
-        }
-      } catch {
-        case e: Exception => e.printStackTrace()
-      }
+      /*TODO: Need to truncate texeraDB tables when the fixture is complete.
+         This will require refactoring the spec tests using MockTexeraDB
+         to move initialization logic outside of BeforeAll into BeforeEach
+      */
     }
   }
 
