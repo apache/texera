@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.translator.verify
 
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
@@ -28,14 +29,17 @@ import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDes
 import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileWriter
+import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowSchema}
-import org.apache.arrow.vector.{IntVector, VarCharVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{Float8Vector, IntVector, VarCharVector, VectorSchemaRoot}
 
 import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, StandardOpenOption}
+import scala.jdk.CollectionConverters._
 import scala.util.Using
 
 /**
@@ -143,49 +147,149 @@ trait SourceHandler {
 }
 
 /**
-  * Handler for `CSVScanSourceOpDesc`. Writes a 3-row CSV with an integer
-  * column and a string column — enough to exercise the read + type
-  * inference + header parsing in both paths.
+  * The shared row data every structured-file source reads. Mirrors
+  * [[CanonicalFixture]] / [[SklearnFixture]]: the rows live in a checked-in,
+  * human-readable JSON resource (source_fixture.json) and are loaded once here.
+  *
+  * A source has no input port, so the fixture is delivered not as an input
+  * JSONL but as a file the operator opens itself. Each `writeXxx` encodes the
+  * same rows into one on-disk format (CSV / JSONL / Arrow); a source handler
+  * picks the encoder its operator understands and points `fileName` at the
+  * result. So CSV, CSVOld, JSONL and Arrow all verify that the operator can
+  * reconstruct one shared 3-column table — instead of each asserting against
+  * its own ad-hoc sample.
+  *
+  * Types (id INTEGER, name STRING, score DOUBLE) round-trip cleanly across all
+  * three formats and are inferred identically by Texera (Path A) and pandas
+  * (Path B): every `name` is non-numeric and every `score` carries a decimal,
+  * so neither column is mis-inferred as numeric/integer.
+  */
+object CanonicalSourceFixture {
+
+  val schema: Schema = new Schema(
+    new Attribute("id", AttributeType.INTEGER),
+    new Attribute("name", AttributeType.STRING),
+    new Attribute("score", AttributeType.DOUBLE)
+  )
+
+  private val fixtureResource = "/verify/source_fixture.json"
+
+  val rows: Vector[Tuple] = {
+    val stream = Option(getClass.getResourceAsStream(fixtureResource))
+      .getOrElse(sys.error(s"source fixture not found on classpath: $fixtureResource"))
+    val root =
+      try new ObjectMapper().readTree(stream)
+      finally stream.close()
+    root.elements().asScala.map { node =>
+      val b = Tuple.builder(schema)
+      schema.getAttributes.foreach { attr =>
+        val cell = node.get(attr.getName)
+        require(cell != null, s"source fixture row missing column '${attr.getName}'")
+        val value: AnyRef = attr.getType match {
+          case AttributeType.INTEGER => Int.box(cell.asInt())
+          case AttributeType.DOUBLE  => Double.box(cell.asDouble())
+          case _                     => cell.asText()
+        }
+        b.add(attr, value)
+      }
+      b.build()
+    }.toVector
+  }
+
+  /** Write the rows as a header-first, comma-delimited CSV. */
+  def writeCsv(dir: Path): Path = {
+    val path = dir.resolve("sample.csv")
+    val header = schema.getAttributes.map(_.getName).mkString(",")
+    val body = rows.map { t =>
+      schema.getAttributes.map(a => t.getField(a.getName).toString).mkString(",")
+    }
+    Files.write(
+      path,
+      ((header +: body).mkString("\n") + "\n").getBytes(StandardCharsets.UTF_8)
+    )
+    path
+  }
+
+  /** Write the rows as JSON Lines (one object per line, keys in schema order).
+    * Reuses [[TupleIO.writeTuples]] — the same writer the transform fixtures
+    * use; it also drops a `.schema.json` sidecar the source ignores. */
+  def writeJsonl(dir: Path): Path = {
+    val path = dir.resolve("sample.jsonl")
+    TupleIO.writeTuples(path, rows.iterator, schema)
+    path
+  }
+
+  /** Write the rows as an uncompressed Arrow IPC ("file" format) stream — the
+    * format both `ArrowFileReader` (Path A) and `pd.read_feather` (Path B)
+    * read. */
+  def writeArrow(dir: Path): Path = {
+    val path = dir.resolve("sample.arrow")
+    val arrowSchema = new ArrowSchema(
+      java.util.Arrays.asList(
+        new Field("id", FieldType.nullable(new ArrowType.Int(32, true)), null),
+        new Field("name", FieldType.nullable(ArrowType.Utf8.INSTANCE), null),
+        new Field(
+          "score",
+          FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+          null
+        )
+      )
+    )
+    Using.Manager { use =>
+      val allocator = use(new RootAllocator())
+      val root = use(VectorSchemaRoot.create(arrowSchema, allocator))
+      root.allocateNew()
+      val ids = root.getVector("id").asInstanceOf[IntVector]
+      val names = root.getVector("name").asInstanceOf[VarCharVector]
+      val scores = root.getVector("score").asInstanceOf[Float8Vector]
+      rows.zipWithIndex.foreach {
+        case (t, i) =>
+          ids.setSafe(i, t.getField("id").asInstanceOf[Int])
+          names.setSafe(
+            i,
+            t.getField("name").asInstanceOf[String].getBytes(StandardCharsets.UTF_8)
+          )
+          scores.setSafe(i, t.getField("score").asInstanceOf[Double])
+      }
+      root.setRowCount(rows.size)
+      val channel = use(
+        FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE)
+      )
+      val writer = use(new ArrowFileWriter(root, null, channel))
+      writer.start()
+      writer.writeBatch()
+      writer.end()
+    }.get
+    path
+  }
+}
+
+/**
+  * Handler for `CSVScanSourceOpDesc`. Reads the shared
+  * [[CanonicalSourceFixture]] table encoded as CSV — exercises read + type
+  * inference + header parsing on both paths.
   */
 object CsvScanHandler extends SourceHandler {
 
   override val opDescClass: Class[_ <: LogicalOp] = classOf[CSVScanSourceOpDesc]
 
   override def makeOpDesc(testRoot: Path): LogicalOp = {
-    val csvPath = testRoot.resolve("sample.csv")
-    val csvContent =
-      """id,name
-        |1,alice
-        |2,bob
-        |3,carol
-        |""".stripMargin
-    Files.write(csvPath, csvContent.getBytes(StandardCharsets.UTF_8))
-
     val desc = new CSVScanSourceOpDesc()
-    desc.fileName = Some(csvPath.toUri.toString)
+    desc.fileName = Some(CanonicalSourceFixture.writeCsv(testRoot).toUri.toString)
     desc.customDelimiter = Some(",")
     desc.hasHeader = true
     desc
   }
 }
 
-/** Handler for `CSVOldScanSourceOpDesc`. Same fixture shape as [[CsvScanHandler]]. */
+/** Handler for `CSVOldScanSourceOpDesc`. Same shared CSV fixture as [[CsvScanHandler]]. */
 object CsvOldScanHandler extends SourceHandler {
 
   override val opDescClass: Class[_ <: LogicalOp] = classOf[CSVOldScanSourceOpDesc]
 
   override def makeOpDesc(testRoot: Path): LogicalOp = {
-    val csvPath = testRoot.resolve("sample.csv")
-    val csvContent =
-      """id,name
-        |1,alice
-        |2,bob
-        |3,carol
-        |""".stripMargin
-    Files.write(csvPath, csvContent.getBytes(StandardCharsets.UTF_8))
-
     val desc = new CSVOldScanSourceOpDesc()
-    desc.fileName = Some(csvPath.toUri.toString)
+    desc.fileName = Some(CanonicalSourceFixture.writeCsv(testRoot).toUri.toString)
     desc.customDelimiter = Some(",")
     desc.hasHeader = true
     desc
@@ -193,8 +297,9 @@ object CsvOldScanHandler extends SourceHandler {
 }
 
 /**
-  * Handler for `JSONLScanSourceOpDesc`. Keys are in alphabetical order so both
-  * paths agree on column order: Texera sorts inferred field names, while
+  * Handler for `JSONLScanSourceOpDesc`. The shared [[CanonicalSourceFixture]]
+  * is written with keys in schema order (id, name, score — alphabetical), so
+  * both paths agree on column order: Texera sorts inferred field names while
   * pandas keeps the first record's key order.
   */
 object JsonlScanHandler extends SourceHandler {
@@ -202,16 +307,8 @@ object JsonlScanHandler extends SourceHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[JSONLScanSourceOpDesc]
 
   override def makeOpDesc(testRoot: Path): LogicalOp = {
-    val jsonlPath = testRoot.resolve("sample.jsonl")
-    val jsonlContent =
-      """{"id": 1, "name": "alice"}
-        |{"id": 2, "name": "bob"}
-        |{"id": 3, "name": "carol"}
-        |""".stripMargin
-    Files.write(jsonlPath, jsonlContent.getBytes(StandardCharsets.UTF_8))
-
     val desc = new JSONLScanSourceOpDesc()
-    desc.fileName = Some(jsonlPath.toUri.toString)
+    desc.fileName = Some(CanonicalSourceFixture.writeJsonl(testRoot).toUri.toString)
     desc.flatten = false
     desc
   }
@@ -245,46 +342,16 @@ object FileScanSourceHandler extends SourceHandler {
 }
 
 /**
-  * Handler for `ArrowSourceOpDesc`. Writes a 3-row Arrow IPC file (the
-  * uncompressed "file" format) with the Java Arrow API — the same format
-  * `ArrowFileReader` (Path A) and `pd.read_feather` (Path B) both read.
+  * Handler for `ArrowSourceOpDesc`. Reads the shared [[CanonicalSourceFixture]]
+  * table encoded as an Arrow IPC file.
   */
 object ArrowScanHandler extends SourceHandler {
 
   override val opDescClass: Class[_ <: LogicalOp] = classOf[ArrowSourceOpDesc]
 
   override def makeOpDesc(testRoot: Path): LogicalOp = {
-    val arrowPath = testRoot.resolve("sample.arrow")
-    val arrowSchema = new ArrowSchema(
-      java.util.Arrays.asList(
-        new Field("id", FieldType.nullable(new ArrowType.Int(32, true)), null),
-        new Field("name", FieldType.nullable(ArrowType.Utf8.INSTANCE), null)
-      )
-    )
-
-    Using.Manager { use =>
-      val allocator = use(new RootAllocator())
-      val root = use(VectorSchemaRoot.create(arrowSchema, allocator))
-      root.allocateNew()
-      val ids = root.getVector("id").asInstanceOf[IntVector]
-      val names = root.getVector("name").asInstanceOf[VarCharVector]
-      Seq(1, 2, 3).zipWithIndex.foreach { case (v, i) => ids.setSafe(i, v) }
-      Seq("alice", "bob", "carol").zipWithIndex.foreach {
-        case (v, i) => names.setSafe(i, v.getBytes(StandardCharsets.UTF_8))
-      }
-      root.setRowCount(3)
-
-      val channel = use(
-        FileChannel.open(arrowPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE)
-      )
-      val writer = use(new ArrowFileWriter(root, null, channel))
-      writer.start()
-      writer.writeBatch()
-      writer.end()
-    }.get
-
     val desc = new ArrowSourceOpDesc()
-    desc.fileName = Some(arrowPath.toUri.toString)
+    desc.fileName = Some(CanonicalSourceFixture.writeArrow(testRoot).toUri.toString)
     desc
   }
 }
