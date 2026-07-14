@@ -47,7 +47,10 @@ class UserResource {
   def isJoiningReasonRequired(@QueryParam("uid") uid: Int): java.lang.Boolean = {
     val user = UserResource.userDao.fetchOneByUid(uid)
     if (user == null) {
-      throw new WebApplicationException(new RuntimeException("User not found"), Response.Status.NOT_FOUND)
+      throw new WebApplicationException(
+        new RuntimeException("User not found"),
+        Response.Status.NOT_FOUND
+      )
     }
     java.lang.Boolean.valueOf(user.getJoiningReason == null)
   }

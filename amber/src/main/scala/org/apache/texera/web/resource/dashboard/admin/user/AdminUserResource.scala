@@ -31,7 +31,6 @@ import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.use
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 
-import java.time.OffsetDateTime
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._

@@ -20,7 +20,12 @@
 package org.apache.texera.web.resource.dashboard.user.workflow
 
 import io.dropwizard.auth.Auth
-import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver, VFSResourceType, VFSURIFactory}
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  FileResolver,
+  VFSResourceType,
+  VFSURIFactory
+}
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity._
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
