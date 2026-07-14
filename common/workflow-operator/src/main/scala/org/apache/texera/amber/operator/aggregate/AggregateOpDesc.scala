@@ -88,9 +88,17 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
     val finalInputPort = InputPort(PortIdentity(0, internal = true))
     val finalOutputPort = OutputPort(PortIdentity(0), blocking = true)
-    // change aggregations to final
+    // Build the final-stage descriptor (getFinal rewrites COUNT→SUM etc. for
+    // the second stage of the distributed aggregation) WITHOUT leaving `this`
+    // mutated: temporarily rewrite the field, serialize, then restore it. This
+    // keeps getPhysicalPlan side-effect-free and idempotent, so other consumers
+    // of the same OpDesc (e.g. generateStandaloneCode) still see the original
+    // aggregations, and a repeated call still serializes the partial stage as
+    // the original (non-final) aggregations.
+    val savedAggregations = aggregations
     aggregations = aggregations.map(aggr => aggr.getFinal)
     val finalDesc = objectMapper.writeValueAsString(this)
+    aggregations = savedAggregations
 
     val finalPhysicalOp = PhysicalOp
       .oneToOnePhysicalOp(

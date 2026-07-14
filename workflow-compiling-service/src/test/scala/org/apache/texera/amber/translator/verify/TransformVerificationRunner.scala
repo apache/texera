@@ -295,25 +295,58 @@ object TransformVerificationRunner {
   def run(opClass: Class[_ <: LogicalOp]): Unit = {
     val testRoot = Files.createTempDirectory(s"verify-${opClass.getSimpleName}-")
 
-    val (opDesc, inputs) = (if (forceAuto) None else CuratedHandlers.byClass.get(opClass)) match {
-      case Some(handler) => handler.fixture(testRoot)
-      case None =>
-        val configured = ConfigGenerator
-          .generate(opClass, CanonicalFixture.schemasByPort)
-          .fold(
-            reason => throw new IllegalStateException(s"cannot auto-configure: $reason"),
-            identity
-          )
-        val inputPortCount = configured.operatorInfo.inputPorts.size
-        (configured, CanonicalFixture.writeInputs(testRoot, inputPortCount))
-    }
+    // Resolve the fixture. Curated ops yield a single hand-written config; auto
+    // ops yield the base config PLUS one variant per enum value, so each enum
+    // branch (e.g. a line chart's mode = line / dots / line+dots) is exercised,
+    // not just the default. All variants share the same input files.
+    val (variants, inputs): (Seq[(String, LogicalOp)], Map[PortIdentity, Path]) =
+      (if (forceAuto) None else CuratedHandlers.byClass.get(opClass)) match {
+        case Some(handler) =>
+          val (op, in) = handler.fixture(testRoot)
+          // Sweep the curated op's enums too (e.g. Aggregate's sum/min/max/…);
+          // fall back to the single curated config if it can't be swept.
+          val vs = ConfigGenerator.variantsOf(op).fold(_ => Seq("default" -> op), identity)
+          (vs, in)
+        case None =>
+          val vs = ConfigGenerator
+            .generateVariants(opClass, CanonicalFixture.schemasByPort)
+            .fold(
+              reason => throw new IllegalStateException(s"cannot auto-configure: $reason"),
+              identity
+            )
+          val inputPortCount = vs.head._2.operatorInfo.inputPorts.size
+          (vs, CanonicalFixture.writeInputs(testRoot, inputPortCount))
+      }
 
+    variants.foreach {
+      case (label, opDesc) =>
+        val workDir =
+          if (variants.size == 1) testRoot
+          else testRoot.resolve(label.replaceAll("[^A-Za-z0-9]+", "_"))
+        Files.createDirectories(workDir)
+        try runVariant(opClass, opDesc, inputs, workDir)
+        catch {
+          case e: Throwable =>
+            throw new AssertionError(s"[variant: $label] ${e.getMessage}", e)
+        }
+    }
+  }
+
+  /** Run one configured variant of `opDesc` through both paths against `inputs`,
+    * writing all intermediate/output files under `workDir`, and assert parity on
+    * every declared output port. */
+  private def runVariant(
+      opClass: Class[_ <: LogicalOp],
+      opDesc: LogicalOp,
+      inputs: Map[PortIdentity, Path],
+      workDir: Path
+  ): Unit = {
     val outputPortCount = opDesc.operatorInfo.outputPorts.size
-    val actualDir = testRoot.resolve("actual")
+    val actualDir = workDir.resolve("actual")
     Files.createDirectories(actualDir)
 
     if (!opDesc.asInstanceOf[StandaloneCodeGenerator].producesDataFrame()) {
-      runVisualization(opClass, opDesc, inputs, outputPortCount, actualDir, testRoot)
+      runVisualization(opClass, opDesc, inputs, outputPortCount, actualDir, workDir)
       return
     }
 
@@ -336,7 +369,7 @@ object TransformVerificationRunner {
       opDesc = opDesc,
       inputs = standaloneInputs,
       outputPortCount = outputPortCount,
-      workDir = testRoot
+      workDir = workDir
     )
 
     val orderSensitive = !orderInsensitiveOps.contains(opClass)

@@ -94,6 +94,124 @@ object ConfigGenerator {
     }
   }
 
+  /**
+    * Like [[generate]], but also sweeps every enum field: returns the base
+    * config plus one variant per non-default enum value (one enum flipped at a
+    * time — linear, NOT the combinatorial product). Lets the runner exercise
+    * each enum branch (e.g. LineChart's line mode = line / dots / line+dots)
+    * instead of only the default. The label identifies the flipped value.
+    */
+  def generateVariants(
+      opClass: Class[_ <: LogicalOp],
+      inputSchemas: Map[Int, Schema]
+  ): Either[String, Seq[(String, LogicalOp)]] =
+    typeNameByClass.get(opClass) match {
+      case None => Left(s"${opClass.getSimpleName} not registered in LogicalOp @JsonSubTypes")
+      case Some(typeName) =>
+        buildObject(opClass, inputSchemas).flatMap { baseNode =>
+          baseNode.put("operatorType", typeName)
+          deserialize(baseNode, opClass).flatMap(baseOp => sweepVariants(opClass, baseNode, baseOp))
+        }
+    }
+
+  /**
+    * Enum-sweep an ALREADY-configured op (e.g. a curated handler's OpDesc):
+    * serialize it to JSON, then return the base op plus one variant per
+    * non-default enum value found anywhere in it (including inside lists with
+    * more than one element). Lets curated fixtures cover every enum branch too,
+    * not just the single value the handler hard-coded.
+    */
+  def variantsOf(opDesc: LogicalOp): Either[String, Seq[(String, LogicalOp)]] = {
+    val opClass = opDesc.getClass.asInstanceOf[Class[_ <: LogicalOp]]
+    objectMapper.valueToTree[JsonNode](opDesc) match {
+      case node: ObjectNode =>
+        if (!node.has("operatorType")) typeNameByClass.get(opClass).foreach(node.put("operatorType", _))
+        // base = the original op (preserve the curated config exactly); variants
+        // are deserialized from the JSON with one enum flipped.
+        sweepVariants(opClass, node, opDesc)
+      case _ =>
+        Left(s"${opClass.getSimpleName} did not serialize to a JSON object")
+    }
+  }
+
+  private def deserialize(node: ObjectNode, opClass: Class[_ <: LogicalOp]): Either[String, LogicalOp] =
+    Try(objectMapper.treeToValue(node, opClass)).toEither.left
+      .map(e => s"deserialization failed: ${e.getMessage}")
+
+  /** `baseOp` (already valid, from `baseNode`) plus one variant per non-default
+    * enum value reachable in `baseNode`. One enum flipped at a time — linear. */
+  private def sweepVariants(
+      opClass: Class[_ <: LogicalOp],
+      baseNode: ObjectNode,
+      baseOp: LogicalOp
+  ): Either[String, Seq[(String, LogicalOp)]] = {
+    val variantResults: Seq[Either[String, (String, LogicalOp)]] =
+      enumSites(opClass, baseNode, "").flatMap { site =>
+        val baseVal = baseNode.at(site.pointer)
+        site.values.filterNot(_ == baseVal).map { v =>
+          val clone = baseNode.deepCopy()
+          setAtPointer(clone, site.pointer, v)
+          deserialize(clone, opClass).map(op => (s"${site.pointer.stripPrefix("/")}=${v.asText}", op))
+        }
+      }
+    variantResults.collectFirst { case Left(err) => err } match {
+      case Some(err) => Left(err)
+      case None      => Right(("default", baseOp) +: variantResults.collect { case Right(ok) => ok })
+    }
+  }
+
+  /** An enum-typed position in the config JSON: its JSON Pointer plus every
+    * possible JSON value (each enum constant serialized via its `@JsonValue`). */
+  private final case class EnumSite(pointer: String, values: Seq[JsonNode])
+
+  /** Collect every enum-typed leaf reachable in `node`. Walks the operator's
+    * fields for type info but the ACTUAL JSON for structure, so it honours real
+    * list lengths (a curated fixture may hold >1 element) and skipped optionals.
+    * `path` is the JSON Pointer of the sub-node currently typed by `clazz`. */
+  private def enumSites(clazz: Class[_], node: JsonNode, path: String): Seq[EnumSite] =
+    configFields(clazz).flatMap { f =>
+      if (hasAutofill(f)) Seq.empty
+      else {
+        val jp = Option(f.getAnnotation(classOf[JsonProperty]))
+        val jsonName = jp.map(_.value).filter(_.nonEmpty).getOrElse(f.getName)
+        val childPath = s"$path/$jsonName"
+        val child = node.at(childPath)
+        if (child.isMissingNode || child.isNull) Seq.empty
+        else {
+          val t = f.getType
+          if (isList(t))
+            elementType(f).toOption.toSeq.flatMap { elem =>
+              if (child.isArray) (0 until child.size()).flatMap(i => enumSiteFor(elem, node, s"$childPath/$i"))
+              else Seq.empty
+            }
+          else if (isOption(t)) elementType(f).toOption.toSeq.flatMap(elem => enumSiteFor(elem, node, childPath))
+          else enumSiteFor(t, node, childPath)
+        }
+      }
+    }
+
+  private def enumSiteFor(t: Class[_], node: JsonNode, path: String): Seq[EnumSite] =
+    if (t.isEnum) {
+      val vals = t.getEnumConstants.toSeq.map(c => objectMapper.valueToTree[JsonNode](c))
+      if (vals.size > 1) Seq(EnumSite(path, vals)) else Seq.empty
+    } else if (isNestedObject(t)) enumSites(t, node, path)
+    else Seq.empty
+
+  /** Set `value` at a JSON Pointer inside `root` — used to clone the base config
+    * and flip one enum leaf. Handles object fields and array indices. */
+  private def setAtPointer(root: ObjectNode, pointer: String, value: JsonNode): Unit = {
+    val tokens = pointer.stripPrefix("/").split("/").toList
+    var cur: JsonNode = root
+    tokens.dropRight(1).foreach { tk =>
+      cur = if (cur.isArray) cur.get(tk.toInt) else cur.get(tk)
+    }
+    (cur, tokens.last) match {
+      case (o: ObjectNode, name) => o.set[JsonNode](name, value)
+      case (a: ArrayNode, idx)   => a.set(idx.toInt, value); ()
+      case _                     => ()
+    }
+  }
+
   /** Maps each registered operator class to its `operatorType` discriminator,
     * read from [[LogicalOp]]'s `@JsonSubTypes` (the same registry Jackson uses). */
   private val typeNameByClass: Map[Class[_], String] = {
