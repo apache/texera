@@ -60,7 +60,9 @@ object AuthResource {
       .createDSLContext()
       .select()
       .from(USER)
-      .join(AUTH_PROVIDER).on(AUTH_PROVIDER.UID.eq(USER.UID))
+      .join(AUTH_PROVIDER)
+      .on(AUTH_PROVIDER.UID.eq(USER.UID))
+      .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.LOCAL))
       .where(USER.NAME.eq(name))
       .fetchOne()
 
@@ -145,6 +147,5 @@ class AuthResource {
         throw new NotAcceptableException("Username exists already.")
     }
   }
-
 
 }
