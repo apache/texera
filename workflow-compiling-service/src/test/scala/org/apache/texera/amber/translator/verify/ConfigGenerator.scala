@@ -62,10 +62,14 @@ import scala.util.Try
   */
 object ConfigGenerator {
 
-  /** Canonical literal for free-form fields; present in the synthetic dataset so
-    * filters/comparisons actually match rows. Parses as INTEGER/LONG/DOUBLE and
-    * is a valid STRING. */
+  /** Canonical literal for free-form STRING fields; present in the synthetic
+    * dataset so filters/comparisons actually match rows. */
   private val CanonicalString = "1"
+
+  /** Row count used to size the numeric "middle of the range" fallback when a
+    * caller doesn't supply one (real verification callers pass the fixture's
+    * actual row count). See [[numericFill]]. */
+  private val DefaultRowCount = 10
 
   /**
     * @param opClass      the operator descriptor class to configure.
@@ -78,9 +82,10 @@ object ConfigGenerator {
     */
   def generate(
       opClass: Class[_ <: LogicalOp],
-      inputSchemas: Map[Int, Schema]
+      inputSchemas: Map[Int, Schema],
+      rowCount: Int = DefaultRowCount
   ): Either[String, LogicalOp] = {
-    buildObject(opClass, inputSchemas).flatMap { node =>
+    buildObject(opClass, inputSchemas, rowCount).flatMap { node =>
       // LogicalOp is polymorphic (@JsonTypeInfo on `operatorType`); Jackson needs
       // the registered type id to deserialize the concrete subtype.
       typeNameByClass.get(opClass) match {
@@ -103,12 +108,13 @@ object ConfigGenerator {
     */
   def generateVariants(
       opClass: Class[_ <: LogicalOp],
-      inputSchemas: Map[Int, Schema]
+      inputSchemas: Map[Int, Schema],
+      rowCount: Int = DefaultRowCount
   ): Either[String, Seq[(String, LogicalOp)]] =
     typeNameByClass.get(opClass) match {
       case None => Left(s"${opClass.getSimpleName} not registered in LogicalOp @JsonSubTypes")
       case Some(typeName) =>
-        buildObject(opClass, inputSchemas).flatMap { baseNode =>
+        buildObject(opClass, inputSchemas, rowCount).flatMap { baseNode =>
           baseNode.put("operatorType", typeName)
           deserialize(baseNode, opClass).flatMap(baseOp => sweepVariants(opClass, baseNode, baseOp))
         }
@@ -194,6 +200,10 @@ object ConfigGenerator {
     if (t.isEnum) {
       val vals = t.getEnumConstants.toSeq.map(c => objectMapper.valueToTree[JsonNode](c))
       if (vals.size > 1) Seq(EnumSite(path, vals)) else Seq.empty
+    } else if (t == classOf[Boolean] || t == classOf[java.lang.Boolean]) {
+      // A Boolean is a 2-value "enum": sweep both true and false.
+      val nf = objectMapper.getNodeFactory
+      Seq(EnumSite(path, Seq(nf.booleanNode(true), nf.booleanNode(false))))
     } else if (isNestedObject(t)) enumSites(t, node, path)
     else Seq.empty
 
@@ -222,12 +232,14 @@ object ConfigGenerator {
 
   // ── object assembly ──────────────────────────────────────────────────────
 
-  /** Build a JSON object for `clazz` by filling each of its config fields. */
+  /** Build a JSON object for `clazz` by filling each of its config fields.
+    * `rowCount` sizes the numeric fallback for range-less fields (e.g. Limit). */
   private def buildObject(
       clazz: Class[_],
-      schemas: Map[Int, Schema]
+      schemas: Map[Int, Schema],
+      rowCount: Int
   ): Either[String, ObjectNode] =
-    buildObject(clazz, schemas, mutable.Set.empty[(Int, String)])
+    buildObject(clazz, schemas, mutable.Set.empty[(Int, String)], rowCount)
 
   /** `used` tracks (port, column) already assigned within THIS operator, so that
     * sibling autofill fields resolve to DISTINCT columns (e.g. a scatter's x and
@@ -238,11 +250,12 @@ object ConfigGenerator {
   private def buildObject(
       clazz: Class[_],
       schemas: Map[Int, Schema],
-      used: mutable.Set[(Int, String)]
+      used: mutable.Set[(Int, String)],
+      rowCount: Int
   ): Either[String, ObjectNode] = {
     val node = objectMapper.createObjectNode()
     configFields(clazz).foreach { f =>
-      decide(f, schemas, used) match {
+      decide(f, schemas, used, rowCount) match {
         case Fill(name, value) => node.set[JsonNode](name, value)
         case Skip              => ()
         case Fail(reason)      => return Left(s"${clazz.getSimpleName}.${f.getName}: $reason")
@@ -259,15 +272,16 @@ object ConfigGenerator {
   /** Decide whether/how to fill one field, applying required-vs-optional policy:
     * required (or autofill) fields that can't be filled fail the whole operator;
     * optional scalars without a meaningful value are skipped (left at default). */
-  private def decide(f: Field, schemas: Map[Int, Schema], used: mutable.Set[(Int, String)]): Decision = {
+  private def decide(f: Field, schemas: Map[Int, Schema], used: mutable.Set[(Int, String)], rowCount: Int): Decision = {
     val jp = Option(f.getAnnotation(classOf[JsonProperty]))
     val jsonName = jp.map(_.value).filter(_.nonEmpty).getOrElse(f.getName)
     val required = jp.exists(_.required)
     val autofill = hasAutofill(f)
-    val meaningful = required || autofill || f.getType.isEnum || isList(f.getType) ||
+    val isBoolean = f.getType == classOf[Boolean] || f.getType == classOf[java.lang.Boolean]
+    val meaningful = required || autofill || f.getType.isEnum || isBoolean || isList(f.getType) ||
       isOption(f.getType) || isNestedObject(f.getType) || jp.map(_.defaultValue).exists(_.nonEmpty)
 
-    valueFor(f, schemas, used) match {
+    valueFor(f, schemas, used, rowCount) match {
       case Right(v) if meaningful => Fill(jsonName, v)
       case Right(_)               => Skip // optional plain scalar w/o default — leave operator default
       case Left(reason) if required || autofill => Fail(reason)
@@ -279,7 +293,7 @@ object ConfigGenerator {
 
   /** Resolve a JSON value node for a field: autofill column refs first, then by
     * declared type (list / option / scalar / nested object). */
-  private def valueFor(f: Field, schemas: Map[Int, Schema], used: mutable.Set[(Int, String)]): Either[String, JsonNode] = {
+  private def valueFor(f: Field, schemas: Map[Int, Schema], used: mutable.Set[(Int, String)], rowCount: Int): Either[String, JsonNode] = {
     if (f.isAnnotationPresent(classOf[AutofillAttributeNameList]))
       columnNames(schemas, 0).map { names =>
         // Honor the field's attributeTypeRules (same production metadata scalar
@@ -303,27 +317,43 @@ object ConfigGenerator {
     else {
       val t = f.getType
       if (isList(t))
-        elementType(f).flatMap(scalarOrNested(_, schemas, used)).map { e =>
+        elementType(f).flatMap(scalarOrNested(_, schemas, used, rowCount)).map { e =>
           val arr: ArrayNode = objectMapper.createArrayNode(); arr.add(e); arr
         }
       else if (isOption(t))
-        elementType(f).flatMap(scalarOrNested(_, schemas, used))
-      else scalarNode(t, defaultOf(f), schemas, used)
+        elementType(f).flatMap(scalarOrNested(_, schemas, used, rowCount))
+      else scalarNode(t, defaultOf(f), schemas, used, NumHint(declaredRange(f), rowCount))
     }
   }
 
-  /** A node for a list element or Option inner type — no `defaultValue` to read
-    * (that lives on the field, not the element), so scalars get the canonical. */
-  private def scalarOrNested(clazz: Class[_], schemas: Map[Int, Schema], used: mutable.Set[(Int, String)]): Either[String, JsonNode] =
-    scalarNode(clazz, None, schemas, used)
+  /** A node for a list element or Option inner type — no field-level default or
+    * range annotation (those live on the field, not the element type). */
+  private def scalarOrNested(clazz: Class[_], schemas: Map[Int, Schema], used: mutable.Set[(Int, String)], rowCount: Int): Either[String, JsonNode] =
+    scalarNode(clazz, None, schemas, used, NumHint(None, rowCount))
 
-  /** A node for a concrete (non-list, non-option) type, honoring an optional
-    * `defaultValue` string from the field's `@JsonProperty`. */
+  /** How to fill a numeric field: `@JsonProperty(defaultValue)` if present, else
+    * the middle of the declared `[min, max]` range (e.g. an opacity's 0–1 → 0.5),
+    * else half the row count (the middle of `[0, rowCount]`, e.g. Limit). */
+  private final case class NumHint(range: Option[(Double, Double)], rowCount: Int)
+
+  private def numericFill(default: Option[String], hint: NumHint): Double =
+    default.flatMap(s => Try(s.trim.toDouble).toOption) match {
+      case Some(d) => d
+      case None =>
+        hint.range match {
+          case Some((mn, mx)) => (mn + mx) / 2.0
+          case None           => hint.rowCount / 2.0
+        }
+    }
+
+  /** A node for a concrete (non-list, non-option) type. Numeric fields follow
+    * [[numericFill]]; enums/strings honor an optional `@JsonProperty(defaultValue)`. */
   private def scalarNode(
       t: Class[_],
       default: Option[String],
       schemas: Map[Int, Schema],
-      used: mutable.Set[(Int, String)]
+      used: mutable.Set[(Int, String)],
+      hint: NumHint
   ): Either[String, JsonNode] = {
     val nf = objectMapper.getNodeFactory
     if (t.isEnum)
@@ -335,17 +365,29 @@ object ConfigGenerator {
     else if (t == classOf[Boolean] || t == classOf[java.lang.Boolean])
       Right(nf.booleanNode(default.map(_.trim.toBoolean).getOrElse(false)))
     else if (t == classOf[Int] || t == classOf[java.lang.Integer] || t == classOf[Short])
-      Right(nf.numberNode(default.flatMap(s => Try(s.trim.toInt).toOption).getOrElse(1)))
+      Right(nf.numberNode(numericFill(default, hint).round.toInt))
     else if (t == classOf[Long] || t == classOf[java.lang.Long])
-      Right(nf.numberNode(default.flatMap(s => Try(s.trim.toLong).toOption).getOrElse(1L)))
+      Right(nf.numberNode(numericFill(default, hint).round))
     else if (t == classOf[Double] || t == classOf[java.lang.Double] || t == classOf[Float])
-      Right(nf.numberNode(default.flatMap(s => Try(s.trim.toDouble).toOption).getOrElse(1.0)))
+      Right(nf.numberNode(numericFill(default, hint)))
     else if (t == classOf[String])
       Right(nf.textNode(default.getOrElse(CanonicalString)))
     else if (isNestedObject(t))
-      buildObject(t, schemas, used)
+      buildObject(t, schemas, used, hint.rowCount)
     else Left(s"unhandled type ${t.getName}")
   }
+
+  /** The `[minimum, maximum]` a field declares via `@JsonSchemaInject` (e.g. an
+    * opacity's 0.0–1.0). `None` if the field declares no complete range. */
+  private def declaredRange(f: Field): Option[(Double, Double)] =
+    Option(f.getAnnotation(classOf[JsonSchemaInject])).map(_.json).filter(_.nonEmpty).flatMap { js =>
+      Try {
+        val node = objectMapper.readTree(js)
+        val mn = node.path("minimum")
+        val mx = node.path("maximum")
+        if (mn.isNumber && mx.isNumber) Some((mn.asDouble(), mx.asDouble())) else None
+      }.toOption.flatten
+    }
 
   // ── reflection helpers ───────────────────────────────────────────────────
 

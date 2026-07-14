@@ -309,7 +309,7 @@ object TransformVerificationRunner {
           (vs, in)
         case None =>
           val vs = ConfigGenerator
-            .generateVariants(opClass, CanonicalFixture.schemasByPort)
+            .generateVariants(opClass, CanonicalFixture.schemasByPort, CanonicalFixture.port0Rows.size)
             .fold(
               reason => throw new IllegalStateException(s"cannot auto-configure: $reason"),
               identity

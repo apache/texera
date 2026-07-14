@@ -736,23 +736,30 @@ object FilledAreaPlotVisualizationHandler extends TransformHandler {
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
     val schema = new Schema(
       new Attribute("x", AttributeType.INTEGER),
-      new Attribute("y", AttributeType.INTEGER)
+      new Attribute("y", AttributeType.INTEGER),
+      new Attribute("grp", AttributeType.STRING)
     )
 
-    def tup(x: Int, y: Int): Tuple = {
+    def tup(x: Int, y: Int, grp: String): Tuple = {
       val builder = Tuple.builder(schema)
       builder.add(schema.getAttribute("x"), Int.box(x))
       builder.add(schema.getAttribute("y"), Int.box(y))
+      builder.add(schema.getAttribute("grp"), grp)
       builder.build()
     }
 
-    val rows = Seq(tup(1, 2), tup(2, 4), tup(3, 3), tup(4, 5))
+    // Both groups share the same x values (1,2): the operator rejects line
+    // groups with disjoint x sets, and facetColumn=true facets by grp.
+    val rows = Seq(tup(1, 2, "a"), tup(2, 4, "a"), tup(1, 3, "b"), tup(2, 5, "b"))
     val inputPath = testRoot.resolve("input_port_0.jsonl")
     TupleIO.writeTuples(inputPath, rows.iterator, schema)
 
     val desc = new FilledAreaPlotOpDesc()
     desc.x = "x"
     desc.y = "y"
+    // Supply the column facetColumn=true depends on (facet_col=lineGroup) so the
+    // sweep can exercise facetColumn=true without an empty column name.
+    desc.lineGroup = "grp"
     desc.facetColumn = false
 
     (desc, Map(PortIdentity(0) -> inputPath))
