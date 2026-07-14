@@ -23,11 +23,8 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
-import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpDesc
-import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
-import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
-import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.arrow.memory.RootAllocator
@@ -40,42 +37,60 @@ import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.jdk.CollectionConverters._
-import scala.util.Using
+import scala.util.{Try, Using}
 
 /**
   * Per-category test runner for source operators (operators with no input
   * ports — they read from an external resource and emit tuples).
   *
-  * Adding a new source operator to Texera should yield free behavioral
-  * verification: enumerate via [[LogicalOp]]'s `@JsonSubTypes`, dispatch
-  * here if the operator's class is in [[handlers]], otherwise mark the
-  * test as ignored. Adding support for a new source format (parquet, ORC,
-  * a SQL adapter) means writing one [[SourceHandler]] object — the only
-  * file in the test tree that needs editing.
+  * Dispatch is auto-first:
+  *   - Auto tier: a scan source declares the file format it reads via
+  *     [[ScanSourceOpDesc.fileTypeName]]. If that tag is in [[encoderByFileType]],
+  *     the operator is fixtured with zero per-operator code — the shared
+  *     [[CanonicalSourceFixture]] is encoded into that format and `fileName`
+  *     points at it. A newly added file-scan source in a known format
+  *     (CSV/JSONL/Arrow/…) is verified the moment it is registered in
+  *     [[LogicalOp]]'s `@JsonSubTypes`, no edit here.
+  *   - Special tier: sources that can't take the shared table (text-family
+  *     single-`line` output, or inline-config data) keep a hand-written
+  *     [[SourceHandler]] in [[specialHandlersByClass]].
+  *   - Otherwise the test is flagged (a [[knownIssues]] reason, an unsupported
+  *     declared format, or no match) — never silently skipped.
   *
-  * Each handler is responsible for two things:
-  *   1. Generating a sample file the operator can read (CSV bytes, JSONL
-  *      bytes, Arrow stream, …). The file lives in `testRoot`.
-  *   2. Returning a fully-configured OpDesc instance pointing at that file
-  *      with all required fields populated.
-  *
-  * The runner itself is operator-agnostic: it asks the handler for an
-  * OpDesc, drives [[OpExecHarness]] (Path A) and [[StandaloneRunner]]
-  * (Path B), compares via [[Comparator]]. Sources have no input ports so
-  * `inputs = Map.empty` for both paths.
+  * The runner itself is operator-agnostic: it builds an OpDesc, drives
+  * [[OpExecHarness]] (Path A) and [[StandaloneRunner]] (Path B), compares via
+  * [[Comparator]]. Sources have no input ports so `inputs = Map.empty` for both.
   */
 object SourceCategoryRunner {
 
-  /** Maps an OpDesc class to the handler that knows how to fixture it. */
-  private val handlersByClass: Map[Class[_ <: LogicalOp], SourceHandler] =
-    Seq[SourceHandler](
-      CsvScanHandler,
-      CsvOldScanHandler,
-      JsonlScanHandler,
-      TextInputHandler,
-      FileScanSourceHandler,
-      ArrowScanHandler
-    ).map(h => h.opDescClass -> h).toMap
+  /**
+    * Sources that keep a hand-written handler because they can't go through the
+    * shared-fixture + encoder path: their output isn't the shared 3-column
+    * table (text-family, single `line` column) or their data is inline config
+    * rather than a file.
+    */
+  private val specialHandlersByClass: Map[Class[_ <: LogicalOp], SourceHandler] =
+    Seq[SourceHandler](TextInputHandler, FileScanSourceHandler)
+      .map(h => h.opDescClass -> h)
+      .toMap
+
+  /**
+    * The auto tier. A scan source declares the file format it reads via
+    * [[ScanSourceOpDesc.fileTypeName]] ("CSV", "JSONL", "Arrow", …). Map that
+    * tag to the [[CanonicalSourceFixture]] encoder that writes a file in that
+    * format. Any source whose `fileTypeName` is a key here runs with zero
+    * per-operator code, so a newly added file-scan source in a known format is
+    * verified the moment it is registered in `@JsonSubTypes` — no handler, no
+    * edit here. (ParallelCSV also declares "CSV" and would be covered for free,
+    * but it is currently commented out of `@JsonSubTypes`, so the suite doesn't
+    * enumerate it.)
+    */
+  private val encoderByFileType: Map[String, Path => Path] = Map(
+    "CSV" -> CanonicalSourceFixture.writeCsv,
+    "CSVOld" -> CanonicalSourceFixture.writeCsv,
+    "JSONL" -> CanonicalSourceFixture.writeJsonl,
+    "Arrow" -> CanonicalSourceFixture.writeArrow
+  )
 
   /**
     * Sources this runner cannot verify, with the honest reason. Mirrors
@@ -91,25 +106,61 @@ object SourceCategoryRunner {
         "(NameError in Path B); verifying would also depend on a live network fetch")
   )
 
-  def canRun(opDescClass: Class[_ <: LogicalOp]): Boolean =
-    handlersByClass.contains(opDescClass)
+  /** The format tag a source declares, or `None` if it isn't an instantiable
+    * ScanSourceOpDesc (non-scan sources, or ones that fail to construct). */
+  private def declaredFileType(opDescClass: Class[_ <: LogicalOp]): Option[String] =
+    Try(opDescClass.getDeclaredConstructor().newInstance()).toOption.collect {
+      case scan: ScanSourceOpDesc => scan.fileTypeName
+    }.flatten
 
-  /** Why a non-runnable source is flagged (specific known issue, else no handler yet). */
+  def canRun(opDescClass: Class[_ <: LogicalOp]): Boolean =
+    specialHandlersByClass.contains(opDescClass) ||
+      declaredFileType(opDescClass).exists(encoderByFileType.contains)
+
+  /** Why a non-runnable source is flagged: a specific known issue, an
+    * unsupported declared format, or no handler/format match at all. */
   def flagReason(opDescClass: Class[_ <: LogicalOp]): String =
-    knownIssues.getOrElse(opDescClass, "no source handler registered yet")
+    knownIssues.getOrElse(
+      opDescClass,
+      declaredFileType(opDescClass) match {
+        case Some(fileType) =>
+          s"unsupported source format '$fileType' — no encoder registered in SourceCategoryRunner"
+        case None => "no source handler registered yet"
+      }
+    )
+
+  /**
+    * Build the configured OpDesc: a hand-written special handler if one is
+    * registered, otherwise the auto path — instantiate the operator, encode the
+    * shared fixture in the format it declares, and point `fileName` at the file.
+    */
+  private def makeOpDesc(opDescClass: Class[_ <: LogicalOp], testRoot: Path): LogicalOp =
+    specialHandlersByClass.get(opDescClass) match {
+      case Some(handler) => handler.makeOpDesc(testRoot)
+      case None =>
+        val scan = opDescClass.getDeclaredConstructor().newInstance() match {
+          case s: ScanSourceOpDesc => s
+          case other =>
+            throw new IllegalArgumentException(
+              s"${opDescClass.getSimpleName} has no special handler and is not a " +
+                s"ScanSourceOpDesc (${other.getClass.getName})"
+            )
+        }
+        val fileType = scan.fileTypeName.getOrElse("")
+        val encoder = encoderByFileType.getOrElse(
+          fileType,
+          throw new IllegalArgumentException(
+            s"No encoder for ${opDescClass.getSimpleName} (fileTypeName='$fileType')"
+          )
+        )
+        scan.fileName = Some(encoder(testRoot).toUri.toString)
+        scan
+    }
 
   /** Runs the parity test for the operator. Throws on mismatch. */
   def run(opDescClass: Class[_ <: LogicalOp]): Unit = {
-    val handler = handlersByClass.getOrElse(
-      opDescClass,
-      throw new IllegalArgumentException(
-        s"No SourceHandler registered for ${opDescClass.getSimpleName}. " +
-          s"Add one to SourceCategoryRunner.handlersByClass."
-      )
-    )
-
     val testRoot = Files.createTempDirectory(s"op-behavior-${opDescClass.getSimpleName}-")
-    val opDesc = handler.makeOpDesc(testRoot)
+    val opDesc = makeOpDesc(opDescClass, testRoot)
 
     val actualDir = testRoot.resolve("actual")
     Files.createDirectories(actualDir)
@@ -129,10 +180,10 @@ object SourceCategoryRunner {
 }
 
 /**
-  * One source operator's recipe: which OpDesc class it handles, how to
-  * fixture a working instance of it. Operators in the same family share
-  * a handler (e.g. all CSV variants reuse [[CsvScanHandler]]'s sample
-  * file, even if they have different OpDesc classes).
+  * A hand-written recipe for one source that can't use the auto tier
+  * (fileTypeName + [[CanonicalSourceFixture]] encoder): which OpDesc class it
+  * handles and how to fixture a working instance. Used for the text-family
+  * sources ([[TextInputHandler]], [[FileScanSourceHandler]]).
   */
 trait SourceHandler {
 
@@ -264,56 +315,6 @@ object CanonicalSourceFixture {
   }
 }
 
-/**
-  * Handler for `CSVScanSourceOpDesc`. Reads the shared
-  * [[CanonicalSourceFixture]] table encoded as CSV — exercises read + type
-  * inference + header parsing on both paths.
-  */
-object CsvScanHandler extends SourceHandler {
-
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[CSVScanSourceOpDesc]
-
-  override def makeOpDesc(testRoot: Path): LogicalOp = {
-    val desc = new CSVScanSourceOpDesc()
-    desc.fileName = Some(CanonicalSourceFixture.writeCsv(testRoot).toUri.toString)
-    desc.customDelimiter = Some(",")
-    desc.hasHeader = true
-    desc
-  }
-}
-
-/** Handler for `CSVOldScanSourceOpDesc`. Same shared CSV fixture as [[CsvScanHandler]]. */
-object CsvOldScanHandler extends SourceHandler {
-
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[CSVOldScanSourceOpDesc]
-
-  override def makeOpDesc(testRoot: Path): LogicalOp = {
-    val desc = new CSVOldScanSourceOpDesc()
-    desc.fileName = Some(CanonicalSourceFixture.writeCsv(testRoot).toUri.toString)
-    desc.customDelimiter = Some(",")
-    desc.hasHeader = true
-    desc
-  }
-}
-
-/**
-  * Handler for `JSONLScanSourceOpDesc`. The shared [[CanonicalSourceFixture]]
-  * is written with keys in schema order (id, name, score — alphabetical), so
-  * both paths agree on column order: Texera sorts inferred field names while
-  * pandas keeps the first record's key order.
-  */
-object JsonlScanHandler extends SourceHandler {
-
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[JSONLScanSourceOpDesc]
-
-  override def makeOpDesc(testRoot: Path): LogicalOp = {
-    val desc = new JSONLScanSourceOpDesc()
-    desc.fileName = Some(CanonicalSourceFixture.writeJsonl(testRoot).toUri.toString)
-    desc.flatten = false
-    desc
-  }
-}
-
 /** Handler for `TextInputSourceOpDesc`. The text lives in the config — no fixture file. */
 object TextInputHandler extends SourceHandler {
 
@@ -338,20 +339,5 @@ object FileScanSourceHandler extends SourceHandler {
     val desc = new FileScanSourceOpDesc()
     desc.fileName = Some(txtPath.toUri.toString)
     desc // defaults: attributeType STRING (one row per line), attributeName "line"
-  }
-}
-
-/**
-  * Handler for `ArrowSourceOpDesc`. Reads the shared [[CanonicalSourceFixture]]
-  * table encoded as an Arrow IPC file.
-  */
-object ArrowScanHandler extends SourceHandler {
-
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[ArrowSourceOpDesc]
-
-  override def makeOpDesc(testRoot: Path): LogicalOp = {
-    val desc = new ArrowSourceOpDesc()
-    desc.fileName = Some(CanonicalSourceFixture.writeArrow(testRoot).toUri.toString)
-    desc
   }
 }
