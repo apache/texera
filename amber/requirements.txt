@@ -16,7 +16,7 @@
 # under the License.
 
 # Not imported directly: `fs` needs pkg_resources at import time (#4199).
-setuptools==80.10.2
+setuptools==83.0.0
 numpy==2.1.0
 pandas==2.2.3
 loguru==0.7.3
