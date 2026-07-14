@@ -87,8 +87,6 @@ class WorkflowExecutionsResourceSpec
     testUser.setUid(testUserId)
     testUser.setName("test_user")
     testUser.setEmail("test@example.com")
-    testUser.setPassword("password")
-    testUser.setGoogleAvatar("avatar_url")
 
     testWorkflow = new Workflow
     testWorkflow.setWid(testWorkflowWid)
@@ -649,7 +647,6 @@ class WorkflowExecutionsResourceSpec
     otherUser.setUid(otherUid)
     otherUser.setName("dataset-owner")
     otherUser.setEmail("owner@example.com")
-    otherUser.setPassword("password")
     userDao.insert(otherUser)
 
     val dataset = new Dataset

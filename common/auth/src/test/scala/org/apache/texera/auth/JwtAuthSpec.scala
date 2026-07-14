@@ -33,19 +33,15 @@ class JwtAuthSpec extends AnyFlatSpec with Matchers {
     user.setUid(42)
     user.setName("alice")
     user.setEmail("alice@example.com")
-    user.setGoogleId("g-123")
-    user.setGoogleAvatar("avatar-blob")
     user.setRole(UserRoleEnum.ADMIN)
     user
   }
 
-  "JwtAuth.jwtClaims" should "map every User field onto the matching claim" in {
+  "JwtAuth.jwtClaims" should "map the issued User fields onto the matching claim" in {
     val claims = JwtAuth.jwtClaims(buildUser(), 7)
     claims.getSubject shouldBe "alice"
     claims.getClaimValueAsString("userId") shouldBe "42"
-    claims.getClaimValueAsString("googleId") shouldBe "g-123"
     claims.getClaimValueAsString("email") shouldBe "alice@example.com"
-    claims.getClaimValueAsString("googleAvatar") shouldBe "avatar-blob"
     claims.getClaimValueAsString("role") shouldBe UserRoleEnum.ADMIN.name
   }
 
@@ -68,8 +64,6 @@ class JwtAuthSpec extends AnyFlatSpec with Matchers {
     user.getUid shouldBe 42
     user.getName shouldBe "alice"
     user.getEmail shouldBe "alice@example.com"
-    user.getGoogleId shouldBe "g-123"
-    user.getGoogleAvatar shouldBe "avatar-blob"
     user.getRole shouldBe UserRoleEnum.ADMIN
   }
 

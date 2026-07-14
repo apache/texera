@@ -93,10 +93,8 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
     val c = new JwtClaims
     c.setSubject("alice")
     c.setClaim("userId", 42)
-    c.setClaim("googleId", "g-123")
     c.setClaim("email", "alice@example.com")
     c.setClaim("role", UserRoleEnum.ADMIN.name)
-    c.setClaim("googleAvatar", "avatar")
     c.setExpirationTimeMinutesInTheFuture(10f)
     c
   }
