@@ -20,17 +20,18 @@
 package org.apache.texera.web.resource.dashboard.admin.user
 
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.User.USER
+import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
 import org.apache.texera.dao.jooq.generated.tables.UserLastActiveTime.USER_LAST_ACTIVE_TIME
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
 import org.apache.texera.web.resource.EmailTemplate.createRoleChangeTemplate
 import org.apache.texera.web.resource.GmailResource.sendEmail
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 
+import java.time.OffsetDateTime
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -71,14 +72,16 @@ class AdminUserResource {
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def list(): util.List[UserInfo] = {
+    // NOTE: fetchInto maps by constructor position, so the column order below
+    // must match the field order of UserInfo.
     AdminUserResource.context
       .select(
         USER.UID,
         USER.NAME,
         USER.EMAIL,
-        USER.GOOGLE_ID,
+        AUTH_PROVIDER.PROVIDER_ID,
         USER.ROLE,
-        USER.GOOGLE_AVATAR,
+        AUTH_PROVIDER.PROVIDER_AVATAR,
         USER.COMMENT,
         USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME,
         USER.ACCOUNT_CREATION_TIME,
@@ -88,6 +91,9 @@ class AdminUserResource {
       .from(USER)
       .leftJoin(USER_LAST_ACTIVE_TIME)
       .on(USER.UID.eq(USER_LAST_ACTIVE_TIME.UID))
+      .leftJoin(AUTH_PROVIDER)
+      .on(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
+      .and(AUTH_PROVIDER.UID.eq(USER.UID))
       .fetchInto(classOf[UserInfo])
   }
 
@@ -96,7 +102,10 @@ class AdminUserResource {
   def updateUser(user: User): Unit = {
     val existingUser = userDao.fetchOneByEmail(user.getEmail)
     if (existingUser != null && existingUser.getUid != user.getUid) {
-      throw new WebApplicationException("Email already exists", Response.Status.CONFLICT)
+      throw new WebApplicationException(
+        new RuntimeException("Email already exists"),
+        Response.Status.CONFLICT
+      )
     }
     val updatedUser = userDao.fetchOneByUid(user.getUid)
     val roleChanged = updatedUser.getRole != user.getRole
@@ -117,11 +126,24 @@ class AdminUserResource {
   @Path("/add")
   def addUser(): Unit = {
     val random = System.currentTimeMillis().toString
-    val newUser = new User
-    newUser.setName("User" + random)
-    newUser.setPassword(new StrongPasswordEncryptor().encryptPassword(random))
-    newUser.setRole(UserRoleEnum.INACTIVE)
-    userDao.insert(newUser)
+    val hashedPassword = new StrongPasswordEncryptor().encryptPassword(random)
+
+    SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
+      val txUserDao = new UserDao(ctx.configuration())
+      val txAuthDao = new AuthProviderDao(ctx.configuration())
+
+      val newUser = new User
+      newUser.setName("User" + random)
+      newUser.setRole(UserRoleEnum.INACTIVE)
+      txUserDao.insert(newUser)
+
+      val newAuth = new AuthProvider()
+      newAuth.setUid(newUser.getUid)
+      newAuth.setPassword(hashedPassword)
+      newAuth.setProviderType(ProviderTypeEnum.LOCAL)
+      txAuthDao.insert(newAuth)
+    }
+
   }
 
   @GET
