@@ -76,8 +76,10 @@ import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import org.apache.texera.amber.operator.huggingFace.HuggingFaceSpamSMSDetectionOpDesc
+import com.fasterxml.jackson.databind.ObjectMapper
 import java.nio.file.Path
 import java.util
+import scala.jdk.CollectionConverters._
 
 /**
   * A curated handler ships a configured OpDesc and the input fixtures it
@@ -246,22 +248,59 @@ object CuratedHandlers {
   }
 
   /** Two-input balanced binary-classification fixture (train on port 0, test on
-    * port 1) for the Sklearn classifier/regressor operators. */
+    * port 1) for the Sklearn classifier/regressor operators. Both ports get the
+    * same rows from the shared [[SklearnFixture]] resource. */
   def writeClassification2Input(testRoot: Path): (Path, Path) = {
-    val cols = Seq(
-      "x1" -> AttributeType.DOUBLE,
-      "x2" -> AttributeType.DOUBLE,
-      "y" -> AttributeType.INTEGER
-    )
-    val rows: Seq[Seq[Any]] = Seq(
-      Seq(0.0, 0.0, 0), Seq(0.1, 0.2, 0), Seq(0.2, 0.1, 0), Seq(0.3, 0.3, 0),
-      Seq(0.15, 0.05, 0), Seq(0.05, 0.25, 0),
-      Seq(1.0, 1.0, 1), Seq(0.9, 0.8, 1), Seq(1.1, 0.9, 1), Seq(0.8, 1.2, 1),
-      Seq(1.15, 1.05, 1), Seq(0.95, 1.25, 1)
-    )
-    val train = writeFixture(testRoot.resolve("input_port_0.jsonl"), cols, rows)
-    val test = writeFixture(testRoot.resolve("input_port_1.jsonl"), cols, rows)
+    val train = testRoot.resolve("input_port_0.jsonl")
+    val test = testRoot.resolve("input_port_1.jsonl")
+    TupleIO.writeTuples(train, SklearnFixture.rows.iterator, SklearnFixture.schema)
+    TupleIO.writeTuples(test, SklearnFixture.rows.iterator, SklearnFixture.schema)
     (train, test)
+  }
+}
+
+/**
+  * The shared numeric dataset for the Sklearn operator families, promoted to a
+  * checked-in JSON resource (mirrors [[CanonicalFixture]]) so the table is
+  * human-readable and lives in one place instead of duplicated inline across
+  * handlers. A small, well-separated 2-feature binary-classification table:
+  * 6 rows per class — enough members for cv=5 estimators (LogisticRegressionCV,
+  * probability calibration). Numeric-only because sklearn cannot fit the
+  * canonical auto-fixture's string columns.
+  *
+  * Source of truth: src/test/resources/verify/sklearn_fixture.json. `schema`
+  * below stays authoritative for column types (JSON has no typed columns).
+  */
+object SklearnFixture {
+
+  val schema: Schema = new Schema(
+    new Attribute("x1", AttributeType.DOUBLE),
+    new Attribute("x2", AttributeType.DOUBLE),
+    new Attribute("y", AttributeType.INTEGER)
+  )
+
+  private val fixtureResource = "/verify/sklearn_fixture.json"
+
+  val rows: Vector[Tuple] = {
+    val stream = Option(getClass.getResourceAsStream(fixtureResource))
+      .getOrElse(sys.error(s"sklearn fixture not found on classpath: $fixtureResource"))
+    val root =
+      try new ObjectMapper().readTree(stream)
+      finally stream.close()
+    root.elements().asScala.map { node =>
+      val b = Tuple.builder(schema)
+      schema.getAttributes.foreach { attr =>
+        val cell = node.get(attr.getName)
+        require(cell != null, s"sklearn fixture row missing column '${attr.getName}'")
+        val value: AnyRef = attr.getType match {
+          case AttributeType.INTEGER => Int.box(cell.asInt())
+          case AttributeType.DOUBLE  => Double.box(cell.asDouble())
+          case _                     => cell.asText()
+        }
+        b.add(attr, value)
+      }
+      b.build()
+    }.toVector
   }
 }
 
@@ -814,39 +853,8 @@ abstract class SklearnTrainingTransformHandler extends TransformHandler {
   protected def newDesc(): SklearnTrainingOpDesc
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val schema = new Schema(
-      new Attribute("x1", AttributeType.DOUBLE),
-      new Attribute("x2", AttributeType.DOUBLE),
-      new Attribute("y", AttributeType.INTEGER)
-    )
-
-    def tup(x1: Double, x2: Double, y: Int): Tuple = {
-      val builder = Tuple.builder(schema)
-      builder.add(schema.getAttribute("x1"), x1)
-      builder.add(schema.getAttribute("x2"), x2)
-      builder.add(schema.getAttribute("y"), Int.box(y))
-      builder.build()
-    }
-
-    // Two well-separated clusters, 6 rows per class. Enough members per class
-    // for cross-validated estimators (LogisticRegressionCV / probability
-    // calibration use cv=5, which needs >= 5 samples in each class).
-    val rows = Seq(
-      tup(0.0, 0.0, 0),
-      tup(0.1, 0.2, 0),
-      tup(0.2, 0.1, 0),
-      tup(0.3, 0.3, 0),
-      tup(0.15, 0.05, 0),
-      tup(0.05, 0.25, 0),
-      tup(1.0, 1.0, 1),
-      tup(0.9, 0.8, 1),
-      tup(1.1, 0.9, 1),
-      tup(0.8, 1.2, 1),
-      tup(1.15, 1.05, 1),
-      tup(0.95, 1.25, 1)
-    )
     val inputPath = testRoot.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(inputPath, rows.iterator, schema)
+    TupleIO.writeTuples(inputPath, SklearnFixture.rows.iterator, SklearnFixture.schema)
 
     val desc = newDesc()
     desc.target = "y"
