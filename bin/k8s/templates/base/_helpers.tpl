@@ -54,3 +54,23 @@ services fall back to the in-cluster MinIO Service and its auto-generated
 {{- define "texera.s3.secretAccessKeyKey" -}}
 {{- if .Values.storage.s3.endpoint -}}secret-access-key{{- else -}}root-password{{- end -}}
 {{- end -}}
+
+{{/*
+Observability emission env for a Scala service pod.
+
+Renders OTEL_EXPORTER_OTLP_ENDPOINT (pointing at the in-cluster OTel
+Collector Service) plus TEXERA_OTEL_ALLOWED_HOSTS. OtelInit validates the
+endpoint host against an allowlist whose default is localhost only, so the
+collector's Service name must be added explicitly or the SDK rejects it and
+emits nothing. Renders nothing unless both the observability stack and the
+collector are enabled, so the default install is unchanged. Include inside a
+container's `env:` list, e.g. `{{- include "texera.observability.env" . | nindent 12 }}`.
+*/}}
+{{- define "texera.observability.env" -}}
+{{- if and .Values.observability.enabled .Values.observability.collector.enabled }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: "http://{{ .Release.Name }}-otel-collector:{{ .Values.observability.collector.grpcPort }}"
+- name: TEXERA_OTEL_ALLOWED_HOSTS
+  value: "{{ .Release.Name }}-otel-collector"
+{{- end }}
+{{- end -}}
