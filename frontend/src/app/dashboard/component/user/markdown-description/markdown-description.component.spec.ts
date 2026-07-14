@@ -75,6 +75,18 @@ describe("MarkdownDescriptionComponent", () => {
     expect(fixture.nativeElement.querySelector(".md-actions")).toBeNull();
   });
 
+  it("binds enableViewMore by toggling the preview collapsed class", async () => {
+    const fixture = await createFixture();
+    fixture.componentInstance.enableViewMore = true;
+    fixture.detectChanges();
+
+    const previewBox = fixture.nativeElement.querySelector(".preview-box") as HTMLElement;
+    expect(previewBox.classList.contains("collapsed")).toBe(true);
+
+    fixture.componentInstance.enableViewMore = false;
+    fixture.detectChanges();
+    expect(previewBox.classList.contains("collapsed")).toBe(false);
+  });
   it("ngOnInit starts in preview mode and seeds editingContent from description (inline)", async () => {
     const fixture = await createFixture();
     const component = fixture.componentInstance;
