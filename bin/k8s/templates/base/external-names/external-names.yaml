@@ -73,13 +73,16 @@ to access services in the main namespace using the same service names.
   "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.webserver.name $namespace)
 ) | nindent 0 }}
 
+{{- if .Values.minio.enabled }}
 ---
-{{/* MinIO ExternalName */}}
-{{- include "external-name-service" (dict 
+{{/* MinIO ExternalName -- only when the in-cluster MinIO is enabled; with an
+     external S3 store the CU pods reach it directly via STORAGE_S3_ENDPOINT. */}}
+{{- include "external-name-service" (dict
   "name" (printf "%s-minio" .Release.Name)
   "namespace" $workflowComputingUnitPoolNamespace
   "externalName" (printf "%s-minio.%s.svc.cluster.local" .Release.Name $namespace)
 ) | nindent 0 }}
+{{- end }}
 
 ---
 {{/* Lakekeeper ExternalName */}}

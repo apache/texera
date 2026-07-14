@@ -26,6 +26,8 @@ import org.apache.texera.amber.core.tuple.{
   SchemaEnforceable,
   Tuple
 }
+import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -95,5 +97,25 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
     assert(processedTuple.getField[String]("filename") == inputFilePath)
     fileScanOpExec.close()
+  }
+
+  "FileScanOpDesc.getPhysicalOp" should
+    "wire the FileScanOpExec class with one input port and one output port" in {
+    val physical = fileScanOpDesc.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
+    physical.opExecInitInfo match {
+      case OpExecWithClassName(className, payload) =>
+        assert(className == classOf[FileScanOpExec].getName)
+        assert(payload.nonEmpty)
+      case other => fail(s"expected OpExecWithClassName, got $other")
+    }
+    assert(physical.inputPorts.size == 1)
+    assert(physical.outputPorts.size == 1)
+  }
+
+  it should "propagate sourceSchema to its single output port" in {
+    val physical = fileScanOpDesc.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
+    val outPortId = fileScanOpDesc.operatorInfo.outputPorts.head.id
+    val out = physical.propagateSchema.func(Map.empty)
+    assert(out(outPortId) == fileScanOpDesc.sourceSchema())
   }
 }

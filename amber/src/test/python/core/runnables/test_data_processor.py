@@ -145,7 +145,7 @@ class TestExecutorSession:
         assert "boom-from-executor" in str(exc_info[1])
         # And the stack-trace console message was queued *before* the
         # finally-clause switch — without this, the worker would pause
-        # before ever sending the error to the controller.
+        # before ever sending the error to the coordinator.
         assert len(seen_at_switch) == 1
         msg = seen_at_switch[0]
         assert msg.worker_id == "test-worker"
