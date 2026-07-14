@@ -279,13 +279,7 @@ class DatasetResource extends LazyLogging {
       val isDatasetPublic = request.isDatasetPublic
       val isDatasetDownloadable = request.isDatasetDownloadable
 
-      // validate dataset name
-      try {
-        validateDatasetName(datasetName)
-      } catch {
-        case e: IllegalArgumentException =>
-          throw new BadRequestException(e.getMessage)
-      }
+      validateDatasetName(datasetName)
 
       // Check if a dataset with the same name already exists
       val duplicateExists = ctx.fetchExists(
@@ -307,18 +301,12 @@ class DatasetResource extends LazyLogging {
       dataset.setOwnerUid(uid)
 
       // insert record and get created dataset with did
-      val createdDataset = try {
+      val createdDataset = failOnDuplicateDatasetName {
         ctx
           .insertInto(DATASET)
           .set(ctx.newRecord(DATASET, dataset))
           .returning()
           .fetchOne()
-      } catch {
-        case e: DataAccessException
-            if Option(e.getCause)
-              .collect { case s: SQLException => s.getSQLState }
-              .contains("23505") =>
-          throw new BadRequestException("Dataset with the same name already exists")
       }
 
       // Initialize the repository in LakeFS
@@ -523,12 +511,7 @@ class DatasetResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      try {
-        validateDatasetName(modificator.name)
-      } catch {
-        case e: IllegalArgumentException =>
-          throw new BadRequestException(e.getMessage)
-      }
+      validateDatasetName(modificator.name)
 
       // Check if the owner already has another dataset with the same name
       val duplicateExists = ctx.fetchExists(
@@ -543,14 +526,8 @@ class DatasetResource extends LazyLogging {
       }
 
       dataset.setName(modificator.name)
-      try {
+      failOnDuplicateDatasetName {
         datasetDao.update(dataset)
-      } catch {
-        case e: DataAccessException
-            if Option(e.getCause)
-              .collect { case s: SQLException => s.getSQLState }
-              .contains("23505") =>
-          throw new BadRequestException("Dataset with the same name already exists")
       }
       Response.ok().build()
     }
@@ -1460,34 +1437,41 @@ class DatasetResource extends LazyLogging {
   }
 
   private val DATASET_NAME_MAX_LENGTH = 128
+  private val DATASET_NAME_PATTERN = "^[A-Za-z0-9_-]+$".r
 
   /**
     * Validates the dataset name.
     *
     * Rules:
-    * - Must be at least 1 character long.
-    * - At most 128 characters long.
+    * - Must be 1 to 128 characters long.
     * - Only letters, numbers, underscores, and hyphens are allowed.
     *
     * @param name The dataset name to validate.
-    * @throws java.lang.IllegalArgumentException if the name is invalid.
+    * @throws jakarta.ws.rs.BadRequestException if the name is invalid.
     */
   private def validateDatasetName(name: String): Unit = {
-    if (name == null || name.isEmpty) {
-      throw new IllegalArgumentException(
-        "Invalid dataset name: name must not be empty."
+    if (name == null || !DATASET_NAME_PATTERN.matches(name)) {
+      throw new BadRequestException(
+        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed."
       )
     }
     if (name.length > DATASET_NAME_MAX_LENGTH) {
-      throw new IllegalArgumentException(
+      throw new BadRequestException(
         s"Invalid dataset name: name must be at most $DATASET_NAME_MAX_LENGTH characters long."
       )
     }
-    val datasetNamePattern = "^[A-Za-z0-9_-]+$".r
-    if (!datasetNamePattern.matches(name)) {
-      throw new IllegalArgumentException(
-        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed."
-      )
+  }
+
+  /**
+    * Runs a dataset write and translates a (owner_uid, name) unique-constraint
+    * violation into the same BadRequestException the pre-checks throw, so
+    * requests losing a concurrent race get a 400 instead of a 500.
+    */
+  private def failOnDuplicateDatasetName[T](op: => T): T = {
+    try op
+    catch {
+      case e: DataAccessException if e.sqlState() == "23505" =>
+        throw new BadRequestException("Dataset with the same name already exists")
     }
   }
 

@@ -20,7 +20,7 @@
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { Dataset } from "../../../../../common/type/dataset";
-import { DatasetService } from "../../../../service/user/dataset/dataset.service";
+import { DatasetService, validateDatasetName } from "../../../../service/user/dataset/dataset.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { extractErrorMessage } from "../../../../../common/util/error";
@@ -120,10 +120,9 @@ export class UserDatasetListItemComponent {
       return;
     }
 
-    if (!/^[A-Za-z0-9_-]+$/.test(name) || name.length > 128) {
-      this.notificationService.error(
-        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)"
-      );
+    const nameError = validateDatasetName(name);
+    if (nameError) {
+      this.notificationService.error(nameError);
       return;
     }
 

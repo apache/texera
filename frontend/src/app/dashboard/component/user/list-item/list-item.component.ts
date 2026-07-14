@@ -43,7 +43,7 @@ import { ActionType, HubService } from "../../../../hub/service/hub.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { formatCount, formatRelativeTime } from "src/app/common/util/format.util";
-import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
+import { DatasetService, DEFAULT_DATASET_NAME, validateDatasetName } from "../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { extractErrorMessage } from "../../../../common/util/error";
 import {
@@ -337,11 +337,12 @@ export class ListItemComponent implements OnChanges {
   public confirmUpdateCustomName(name: string): void {
     const newName = this.entry.type === "workflow" ? name || DEFAULT_WORKFLOW_NAME : name || DEFAULT_DATASET_NAME;
 
-    if (this.entry.type === "dataset" && (!/^[A-Za-z0-9_-]+$/.test(newName) || newName.length > 128)) {
-      this.notificationService.error(
-        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)"
-      );
-      return;
+    if (this.entry.type === "dataset") {
+      const nameError = validateDatasetName(newName);
+      if (nameError) {
+        this.notificationService.error(nameError);
+        return;
+      }
     }
 
     if (this.entry.type === "workflow") {
