@@ -39,8 +39,6 @@ import org.apache.texera.service.resource.DatasetAccessResource.{
 }
 import org.jooq.{DSLContext, EnumType}
 
-import javax.ws.rs.ForbiddenException
-
 object DatasetAccessResource {
   private def context: DSLContext =
     SqlServer
