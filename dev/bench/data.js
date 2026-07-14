@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783950140718,
+  "lastUpdate": 1784034904964,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -4346,6 +4346,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 512.618757419611,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Prateek Ganigi",
+            "username": "PG1204",
+            "email": "91584519+PG1204@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "0485d022d9aabc818c8ed1589ec7854c66645af8",
+          "message": "refactor(frontend): have both callers supply Validation to applyOperatorBorder (#6075)\n\n### What changes were proposed in this PR?\n\nFollow-up to #5702. `WorkflowEditorComponent.applyOperatorBorder`\ndecides an operator's border color and has two callers:\n\n- `handleOperatorValidation`: the validation-stream subscriber, which\nalready had the `Validation` and passed it in.\n- The operator-add stream subscriber: which passed no `Validation` and\nrelied on an optional-parameter fallback that recomputed it inside the\nhelper.\n\nThis PR unifies the two paths so both callers obtain the `Validation`\nthemselves and pass it in:\n\n- The operator-add subscriber now computes it via\n`validationWorkflowService.validateOperator(...)` and passes it,\nmirroring the validation-stream caller.\n- `applyOperatorBorder`'s `validation` parameter becomes **required**,\nand the `?? validateOperator(...)` fallback is removed. The color\ndecision no longer silently depends on a recompute hidden inside the\nhelper.\n\nThis is a non-functional cleanup and no behavioral change. In\nparticular, the operator-add subscriber still paints the border\nimmediately (and restores cached run statistics), preserving the\nnavigation-reset behavior from #3614.\n\nNote on scope: the issue's summary mentions \"painted exactly once.\"\nTruly collapsing to a single paint conflicts with the #3614 requirement\nthat borders render immediately on reload without waiting for validation\nevents, and would need fragile \"just-added\" state tracking in the\nvalidation handler. This PR implements the safe, behavior-preserving\nunification (consistent validation acquisition, fallback removed) rather\nthan suppressing either paint.\n\n### Any related issues, documentation, discussions?\n\nPart of #5726. \nRelated: #5702 (added the optional parameter; this issue arose from its\nreview), #5146 (introduced `applyOperatorBorder` and the #3614\nnavigation fix).\n\n### How was this PR tested?\n\nUpdated `workflow-editor.component.spec.ts`:\n- Renamed the \"uses the Validation passed in instead of recomputing it\"\ntest to \"relies solely on the passed-in Validation (never recomputes\ninside the helper)\": the old name implied a recompute path that no\nlonger exists.\n- Added \"supplies a computed Validation from the operator-add path\",\nasserting the operator-add subscriber calls `applyOperatorBorder` with a\n`Validation` object.\n- Existing border-outcome tests (green / gray / red /\ninvalid-over-cached priority) remain and continue to pass.\n\nVerified locally:\n- `tsc --noEmit`: clean\n- `prettier --check` / `eslint`: clean\n- `ng test` (jsdom): 30/30 pass in the editor spec\n- `ng run gui:test-browser`: 13/13 pass\n\n### Was this PR authored or co-authored using generative AI tooling?\nCo-authored with Claude Opus 4.8 in compliance with ASF",
+          "timestamp": "2026-07-14T04:56:00Z",
+          "url": "https://github.com/apache/texera/commit/0485d022d9aabc818c8ed1589ec7854c66645af8"
+        },
+        "date": 1784034904617,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 729.2878086265739,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1314.7328644853992,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1450.0159785953526,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 964.7129171076301,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1328.772321807221,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1455.6228200346238,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 965.2618095388043,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1370.2957653025765,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1448.8050405180286,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 781.692171505176,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1072.0896249927441,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1123.3728678330199,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 803.0077545178057,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1094.4374345614276,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1121.1954166965822,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 816.2629907020372,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1054.7155911508553,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1095.6342170209025,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 458.4500062524902,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 554.1686134141322,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 582.127320305553,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 476.98147103110455,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 572.4705744681244,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 578.2717191867455,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 476.6588001575522,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 548.2509558449354,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 542.1905505592515,
             "unit": "tuples/sec"
           }
         ]
