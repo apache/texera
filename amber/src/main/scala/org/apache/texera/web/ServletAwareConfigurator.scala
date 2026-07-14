@@ -66,19 +66,13 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
 
         config.getUserProperties.put(
           classOf[User].getName,
-          new User(
-            userId,
-            userName,
-            userEmail,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
-          )
+          {
+            val user = new User()
+            user.setUid(userId)
+            user.setName(userName)
+            user.setEmail(userEmail)
+            user
+          }
         )
         logger.debug(s"User created from headers: ID=$userId, Name=$userName")
       } else {
@@ -97,19 +91,13 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
             val claims = jwtConsumer.process(token).getJwtClaims
             config.getUserProperties.put(
               classOf[User].getName,
-              new User(
-                claims.getClaimValue("userId").asInstanceOf[Long].toInt,
-                claims.getSubject,
-                String.valueOf(claims.getClaimValue("email").asInstanceOf[String]),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-              )
+              {
+                val user = new User()
+                user.setUid(claims.getClaimValue("userId").asInstanceOf[Long].toInt)
+                user.setName(claims.getSubject)
+                user.setEmail(String.valueOf(claims.getClaimValue("email").asInstanceOf[String]))
+                user
+              }
             )
           })
       }
