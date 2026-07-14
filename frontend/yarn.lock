@@ -10893,7 +10893,7 @@ __metadata:
     vitest: "npm:4.1.10"
     y-monaco: "npm:0.1.6"
     y-protocols: "npm:1.0.7"
-    y-quill: "npm:0.1.5"
+    y-quill: "npm:1.0.0"
     y-websocket: "npm:1.5.4"
     yjs: "npm:13.5.41"
     zod: "npm:3.25.76"
@@ -12218,7 +12218,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lib0@npm:^0.2.31, lib0@npm:^0.2.42, lib0@npm:^0.2.43, lib0@npm:^0.2.49, lib0@npm:^0.2.52, lib0@npm:^0.2.85":
+"lib0@npm:^0.2.31, lib0@npm:^0.2.43, lib0@npm:^0.2.49, lib0@npm:^0.2.52, lib0@npm:^0.2.85, lib0@npm:^0.2.93":
   version: 0.2.117
   resolution: "lib0@npm:0.2.117"
   dependencies:
@@ -18243,7 +18243,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"y-protocols@npm:1.0.7, y-protocols@npm:^1.0.5":
+"y-protocols@npm:1.0.7, y-protocols@npm:^1.0.5, y-protocols@npm:^1.0.6":
   version: 1.0.7
   resolution: "y-protocols@npm:1.0.7"
   dependencies:
@@ -18254,16 +18254,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"y-quill@npm:0.1.5":
-  version: 0.1.5
-  resolution: "y-quill@npm:0.1.5"
+"y-quill@npm:1.0.0":
+  version: 1.0.0
+  resolution: "y-quill@npm:1.0.0"
   dependencies:
-    lib0: "npm:^0.2.42"
-    y-protocols: "npm:^1.0.5"
+    lib0: "npm:^0.2.93"
+    y-protocols: "npm:^1.0.6"
   peerDependencies:
-    quill: ^1.3.7
-    yjs: ^13.0.0
-  checksum: 10c0/d84ba98166c704021e069a50816ac604ac315d539228da311a20c38ec714bace9de8a9a85844a1f63e7500bf553a215b51a3487bf53d60e476ae96c77b7a1838
+    quill: ^2.0.0
+    quill-cursors: ^4.0.2
+    yjs: ^13.6.14
+  checksum: 10c0/331ca1dac0771c52720045ed20d015600ea9cf461efb2a0d8e9467025ceb13724e4f7db9be176e37cc6071ef763fbf6cddb735e862337a372ff3f8b8935a94e7
   languageName: node
   linkType: hard
 
