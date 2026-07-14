@@ -368,6 +368,7 @@ Scala/Java jars:
   - javax.inject.javax.inject-1.jar
   - javax.validation.validation-api-2.0.1.Final.jar
   - joda-time.joda-time-2.11.0.jar
+  - net.jodah.failsafe-2.4.4.jar
   - org.agrona.agrona-1.22.0.jar
   - org.apache.arrow.arrow-format-19.0.0.jar
   - org.apache.arrow.arrow-memory-core-19.0.0.jar
@@ -387,14 +388,14 @@ Scala/Java jars:
   - org.apache.curator.curator-client-5.2.0.jar
   - org.apache.curator.curator-framework-5.2.0.jar
   - org.apache.curator.curator-recipes-5.2.0.jar
-  - org.apache.hadoop.hadoop-annotations-3.4.3.jar
-  - org.apache.hadoop.hadoop-auth-3.4.3.jar
-  - org.apache.hadoop.hadoop-common-3.4.3.jar
-  - org.apache.hadoop.hadoop-hdfs-client-3.4.3.jar
-  - org.apache.hadoop.hadoop-mapreduce-client-core-3.4.3.jar
-  - org.apache.hadoop.hadoop-yarn-api-3.4.3.jar
-  - org.apache.hadoop.hadoop-yarn-client-3.4.3.jar
-  - org.apache.hadoop.hadoop-yarn-common-3.4.3.jar
+  - org.apache.hadoop.hadoop-annotations-3.5.0.jar
+  - org.apache.hadoop.hadoop-auth-3.5.0.jar
+  - org.apache.hadoop.hadoop-common-3.5.0.jar
+  - org.apache.hadoop.hadoop-hdfs-client-3.5.0.jar
+  - org.apache.hadoop.hadoop-mapreduce-client-core-3.5.0.jar
+  - org.apache.hadoop.hadoop-yarn-api-3.5.0.jar
+  - org.apache.hadoop.hadoop-yarn-client-3.5.0.jar
+  - org.apache.hadoop.hadoop-yarn-common-3.5.0.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-guava-1.5.0.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-protobuf_3_25-1.5.0.jar
   - org.apache.httpcomponents.client5.httpclient5-5.4.3.jar
@@ -627,6 +628,7 @@ licensed with GPL-2.0 with Classpath Exception)
 
 Scala/Java jars:
   - jakarta.annotation.jakarta.annotation-api-2.1.1.jar
+  - jakarta.servlet.jakarta.servlet-api-4.0.4.jar
   - jakarta.ws.rs.jakarta.ws.rs-api-3.0.0.jar
   - javax.ws.rs.javax.ws.rs-api-2.1.1.jar
   - org.jgrapht.jgrapht-core-1.4.0.jar
@@ -678,7 +680,6 @@ CDDL 1.1
 ~~~~~~~~
 
 Scala/Java jars:
-  - com.sun.jersey.contribs.jersey-guice-1.19.4.jar
   - javax.websocket.javax.websocket-api-1.0.jar
   - javax.websocket.javax.websocket-client-api-1.0.jar
   - javax.xml.bind.jaxb-api-2.3.0.jar

@@ -1,0 +1,86 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# ---------------------------------------------------------------------------
+# Example overlay for running Texera against an external S3 store (e.g. AWS S3)
+# instead of the bundled in-cluster MinIO.
+#
+#   helm install texera bin/k8s -f bin/k8s/values-aws.yaml
+#
+# Replace the placeholder bucket names, region, and credentials below with your
+# own. The buckets must already exist (the init job does not create them).
+# ---------------------------------------------------------------------------
+
+# Turn off the bundled MinIO object store; the services talk to external S3.
+minio:
+  enabled: false
+  persistence:
+    enabled: false
+
+# External S3 object store shared by the app tier, LakeFS, and Lakekeeper.
+storage:
+  s3:
+    # Regional S3 endpoint. For AWS S3 use https://s3.<region>.amazonaws.com.
+    endpoint: "https://s3.us-west-2.amazonaws.com"
+    region: "us-west-2"
+    # Recommended: reference a pre-created Secret with keys access-key-id /
+    # secret-access-key (e.g. one synced from AWS Secrets Manager), and leave
+    # accessKeyId / secretAccessKey empty. Otherwise the chart creates a Secret
+    # named "<release>-s3-credentials" from the inline values below.
+    existingSecret: ""
+    accessKeyId: "REPLACE_WITH_ACCESS_KEY_ID"
+    secretAccessKey: "REPLACE_WITH_SECRET_ACCESS_KEY"
+
+# Point LakeFS at external S3: a region-only blockstore (the AWS SDK resolves
+# the endpoint from the region) with credentials injected via the same Secret
+# the chart/app uses.
+#
+# NOTE: the secretKeyRef "name" below is "texera-s3-credentials", which assumes
+# the Helm release is named "texera" (the chart generates the credentials Secret
+# as "<release>-s3-credentials"). If you install with a different release name,
+# or set storage.s3.existingSecret above, update both "name:" fields below to
+# match that Secret.
+lakefs:
+  lakefsConfig: |
+    database:
+      type: postgres
+    blockstore:
+      type: s3
+      s3:
+        region: us-west-2
+        pre_signed_expiry: 15m
+  extraEnvVars:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: texera-s3-credentials
+          key: access-key-id
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: texera-s3-credentials
+          key: secret-access-key
+
+# Lakekeeper Iceberg warehouse on external S3: skip bucket creation (the bucket
+# pre-exists and the IAM principal may lack CreateBucket) and use the native
+# AWS S3 storage-profile flavor (no custom endpoint / path-style access).
+lakekeeperInit:
+  createBucket: false
+  warehouse:
+    region: us-west-2
+    s3Bucket: texera-iceberg
+    flavor: aws

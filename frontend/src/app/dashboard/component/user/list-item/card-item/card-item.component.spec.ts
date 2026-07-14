@@ -202,24 +202,27 @@ describe("CardItemComponent", () => {
     expect(component.canEditCover).toBe(false);
   });
 
-  it("should load the stored cover on initialization and use it as the preview image", () => {
+  it("should use the stored cover image on initialization", () => {
     const cover = "data:image/jpeg;base64,abc";
-    workflowCoverService.getCover.mockReturnValue(of(cover));
-    component.entry = makeWorkflowEntry({ id: 7 });
+    const entry = makeWorkflowEntry({ id: 7 });
+    entry.coverImageUrl = cover;
 
+    component.entry = entry;
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
-    expect(workflowCoverService.getCover).toHaveBeenCalledWith(7);
+    expect(workflowCoverService.getCover).not.toHaveBeenCalled();
     expect(component.hasCustomImage).toBe(true);
     expect(component.coverImageSrc).toBe(cover);
   });
 
   it("should fall back to the default preview image when no cover is set", () => {
-    workflowCoverService.getCover.mockReturnValue(of(undefined));
-    component.entry = makeWorkflowEntry({ id: 7 });
+    const entry = makeWorkflowEntry({ id: 7 });
+    entry.coverImageUrl = undefined;
 
+    component.entry = entry;
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
+    expect(workflowCoverService.getCover).not.toHaveBeenCalled();
     expect(component.hasCustomImage).toBe(false);
     expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });

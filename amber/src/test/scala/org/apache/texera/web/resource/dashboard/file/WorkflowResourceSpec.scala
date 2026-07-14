@@ -26,6 +26,7 @@ import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Project, User, Workflow}
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.CoverImageRequest
 import org.apache.texera.web.resource.dashboard.user.project.ProjectResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
@@ -804,6 +805,46 @@ class WorkflowResourceSpec
 
     // Verify it returns 3 results
     assert(resources.results.length == 3)
+  }
+
+  it should "include workflow cover image in search results" in {
+    // Create workflow
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+
+    // Set cover image
+    val workflowId =
+      workflowResource.retrieveWorkflowsBySessionUser(sessionUser1).head.workflow.getWid
+
+    val coverImage = "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
+    workflowResource.setCoverImage(
+      workflowId,
+      CoverImageRequest(coverImage),
+      sessionUser1
+    )
+
+    // Search workflows
+    val results =
+      dashboardResource.searchAllResourcesCall(
+        sessionUser1,
+        SearchQueryParams(resourceType = "workflow")
+      )
+
+    // Verify cover image is included in response
+    assert(results.results.length == 1)
+
+    val workflowEntry = results.results.head.workflow.get
+    assert(workflowEntry.coverImage.contains(coverImage))
+  }
+
+  it should "create a workflow with coverImage set to None" in {
+    val workflow = new Workflow()
+    workflow.setName("test_create_workflow")
+    workflow.setContent(exampleContent)
+
+    val result = workflowResource.createWorkflow(workflow, sessionUser1)
+
+    assert(result.workflow.getName == "test_create_workflow")
+    assert(result.coverImage.isEmpty)
   }
 
 }
