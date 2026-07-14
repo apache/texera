@@ -20,6 +20,7 @@
 package org.apache.texera.amber.translator.verify
 
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
@@ -197,6 +198,13 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
   // exercises two input ports + the order-insensitive comparator branch.
   "run" should "verify IntersectOpDesc end-to-end via the curated tier" in {
     TransformVerificationRunner.run(classOf[IntersectOpDesc])
+  }
+
+  // Curated Filter, but the enum sweep exercises every ComparisonType on each
+  // predicate (=, >, >=, <, <=, !=, is null, is not null), not just the two
+  // hand-written conditions.
+  it should "verify SpecializedFilterOpDesc end-to-end across every ComparisonType variant" in {
+    TransformVerificationRunner.run(classOf[SpecializedFilterOpDesc])
   }
 
   // End-to-end smoke of the auto path: Limit is single-input single-output
