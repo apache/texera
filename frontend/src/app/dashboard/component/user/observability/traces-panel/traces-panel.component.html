@@ -1,0 +1,94 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<form
+  [formGroup]="form"
+  class="traces-panel">
+  <div class="row">
+    <input
+      nz-input
+      type="text"
+      formControlName="traceId"
+      placeholder="Trace id (32 lowercase hex chars)"
+      maxlength="32" />
+    <button
+      nz-button
+      nzType="primary"
+      type="button"
+      [disabled]="loading || form.invalid"
+      (click)="fetch()">
+      Open
+    </button>
+  </div>
+
+  <nz-alert
+    *ngIf="errorMessage"
+    nzType="error"
+    [nzMessage]="errorMessage"
+    nzShowIcon></nz-alert>
+</form>
+
+<div
+  *ngIf="loading"
+  class="loading-indicator">
+  <nz-spin nzSimple></nz-spin>
+  <span>Loading trace…</span>
+</div>
+
+<div
+  class="tree"
+  *ngIf="!loading && trace; else noTrace">
+  <p class="trace-header">Trace <span class="mono">{{ trace.traceId }}</span> — {{ trace.spans.length }} span(s)</p>
+
+  <ng-container *ngTemplateOutlet="nodeTpl; context: { nodes: spanTree, depth: 0 }"> </ng-container>
+
+  <ng-template
+    #nodeTpl
+    let-nodes="nodes"
+    let-depth="depth">
+    <ul class="span-list">
+      <li
+        *ngFor="let n of nodes"
+        class="span-row"
+        [style.paddingLeft.px]="depth * 16">
+        <!--
+          Span name is bound via {{ }} interpolation only — never
+          via [innerHTML]. The gateway has redacted it, but the
+          renderer must stay trustworthy too.
+        -->
+        <span class="span-name">{{ n.span.name }}</span>
+        <span class="duration">{{ n.durationMs }} ms</span>
+        <ul
+          class="attrs"
+          *ngIf="n.span.attributes && (n.span.attributes | keyvalue)?.length">
+          <li *ngFor="let attr of n.span.attributes | keyvalue">
+            <span class="attr-key">{{ attr.key }}</span>
+            <span class="attr-val">{{ attr.value }}</span>
+          </li>
+        </ul>
+        <ng-container *ngTemplateOutlet="nodeTpl; context: { nodes: n.children, depth: depth + 1 }"> </ng-container>
+      </li>
+    </ul>
+  </ng-template>
+</div>
+
+<ng-template #noTrace>
+  <nz-empty
+    *ngIf="!errorMessage && !loading"
+    nzNotFoundContent="Paste a trace id above to view the span tree. Trace ids appear in log rows as a clickable button — clicking it pivots here."></nz-empty>
+</ng-template>

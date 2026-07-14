@@ -51,6 +51,7 @@ spec:
             - name: {{ .name }}
               value: "{{ .value }}"
             {{- end }}
+            {{- include "texera.observability.env" . | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /api/healthcheck

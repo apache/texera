@@ -183,9 +183,14 @@ G.requestIdleCallback ??= (cb: (d: { didTimeout: boolean; timeRemaining: () => n
   setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 50 }), 0);
 G.cancelIdleCallback ??= (id: number) => clearTimeout(id);
 
-// `ResizeObserver` — jsdom doesn't implement it; components that watch their
-// own size (e.g. markdown-description) construct one on render. An inert stub
-// is enough: jsdom has no layout, so there is never a resize to report.
+// `ResizeObserver`: jsdom doesn't implement it. ngx-echarts constructs one in
+// its directive's `ngOnInit` to track the chart container's size (metrics /
+// traces panels), and other components that watch their own size (e.g.
+// markdown-description) do the same. Without it those specs crash with
+// `Error: please install a polyfill for ResizeObserver` on first render. An
+// inert stub is enough: jsdom has no layout, so there is never a resize to
+// report, and specs assert on bound state, not rendered geometry.
+// (`queryCommandSupported` is already stubbed above via installIfMissing.)
 G.ResizeObserver ??= class {
   observe(): void {}
   unobserve(): void {}

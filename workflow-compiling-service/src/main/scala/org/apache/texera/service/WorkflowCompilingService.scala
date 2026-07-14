@@ -49,6 +49,8 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
       configuration: WorkflowCompilingServiceConfiguration,
       environment: Environment
   ): Unit = {
+    // Bridge this service's logs to the OTel collector under its own service.name.
+    org.apache.texera.observability.OtelInit.init("workflow-compiling-service")
     ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
 
     // serve backend at /api
