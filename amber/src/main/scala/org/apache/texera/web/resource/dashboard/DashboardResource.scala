@@ -22,7 +22,6 @@ package org.apache.texera.web.resource.dashboard
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.ProviderTypeEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos._
 import org.apache.texera.web.resource.dashboard.DashboardResource._
 import org.apache.texera.web.resource.dashboard.SearchQueryBuilder.{ALL_RESOURCE_TYPE, context}
@@ -222,11 +221,8 @@ class DashboardResource {
     val scalaUserIds: Set[Integer] = userIds.asScala.toSet
 
     val records = context
-      .select(USER.UID, USER.NAME, AUTH_PROVIDER.PROVIDER_AVATAR)
+      .select(USER.UID, USER.NAME, USER.AVATAR)
       .from(USER)
-      .leftJoin(AUTH_PROVIDER)
-      .on(AUTH_PROVIDER.UID.eq(USER.UID))
-      .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
       .where(USER.UID.in(scalaUserIds.asJava))
       .fetch()
 
@@ -234,7 +230,7 @@ class DashboardResource {
       .map { record =>
         val userId = record.get(USER.UID)
         val userName = record.get(USER.NAME)
-        val googleAvatar = Option(record.get(AUTH_PROVIDER.PROVIDER_AVATAR))
+        val googleAvatar = Option(record.get(USER.AVATAR))
         userId -> UserInfo(userId, userName, googleAvatar)
       }
       .toMap

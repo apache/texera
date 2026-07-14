@@ -37,7 +37,6 @@ CREATE TABLE IF NOT EXISTS auth_provider (
     provider_type     provider_type_enum  NOT NULL,
     provider_id       VARCHAR(256),          -- external subject id (Google sub); NULL for LOCAL
     password          VARCHAR(256),          -- hashed credential; only for LOCAL
-    provider_avatar   VARCHAR(100),          -- e.g. Google avatar; NULL for LOCAL
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     PRIMARY KEY (uid, provider_type),
@@ -65,8 +64,8 @@ BEGIN
         WHERE password IS NOT NULL
         ON CONFLICT (uid, provider_type) DO NOTHING;
 
-        INSERT INTO auth_provider (uid, provider_type, provider_id, provider_avatar)
-        SELECT uid, 'GOOGLE'::provider_type_enum, google_id, google_avatar
+        INSERT INTO auth_provider (uid, provider_type, provider_id)
+        SELECT uid, 'GOOGLE'::provider_type_enum, google_id
         FROM "user"
         WHERE google_id IS NOT NULL
         ON CONFLICT (uid, provider_type) DO NOTHING;
@@ -74,9 +73,24 @@ BEGIN
 END
 $$;
 
+-- Keep the avatar as a provider-neutral profile column on "user" (rename in place).
+-- Guarded so it is a no-op on a fresh DB where "user" already has "avatar".
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user' AND column_name = 'google_avatar'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'texera_db' AND table_name = 'user' AND column_name = 'avatar'
+    ) THEN
+        ALTER TABLE "user" RENAME COLUMN google_avatar TO avatar;
+    END IF;
+END
+$$;
+
 ALTER TABLE "user" DROP CONSTRAINT IF EXISTS ck_nulltest;
 ALTER TABLE "user" DROP COLUMN IF EXISTS password;
 ALTER TABLE "user" DROP COLUMN IF EXISTS google_id;
-ALTER TABLE "user" DROP COLUMN IF EXISTS google_avatar;
 
 COMMIT;

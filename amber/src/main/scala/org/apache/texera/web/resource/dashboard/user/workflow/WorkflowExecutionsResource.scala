@@ -33,7 +33,7 @@ import org.apache.texera.auth.{JwtParser, SessionUser}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{WorkflowExecutions, User => UserPojo}
 import org.apache.texera.web.model.http.request.result.ResultExportRequest
@@ -316,7 +316,7 @@ object WorkflowExecutionsResource {
         WORKFLOW_EXECUTIONS.VID,
         WORKFLOW_EXECUTIONS.CUID,
         USER.NAME,
-        AUTH_PROVIDER.PROVIDER_AVATAR,
+        USER.AVATAR,
         WORKFLOW_EXECUTIONS.STATUS,
         WORKFLOW_EXECUTIONS.RESULT,
         WORKFLOW_EXECUTIONS.STARTING_TIME,
@@ -326,9 +326,6 @@ object WorkflowExecutionsResource {
         WORKFLOW_EXECUTIONS.LOG_LOCATION
       )
       .from(WORKFLOW_EXECUTIONS)
-      .leftJoin(AUTH_PROVIDER)
-      .on(AUTH_PROVIDER.UID.eq(USER.UID))
-      .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
       .join(WORKFLOW_VERSION)
       .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
       .join(USER)
@@ -554,7 +551,7 @@ class WorkflowExecutionsResource {
             WORKFLOW_EXECUTIONS.VID,
             WORKFLOW_EXECUTIONS.CUID,
             USER.NAME,
-            AUTH_PROVIDER.PROVIDER_AVATAR,
+            USER.AVATAR,
             WORKFLOW_EXECUTIONS.STATUS,
             WORKFLOW_EXECUTIONS.RESULT,
             WORKFLOW_EXECUTIONS.STARTING_TIME,
@@ -564,9 +561,6 @@ class WorkflowExecutionsResource {
             WORKFLOW_EXECUTIONS.LOG_LOCATION
           )
           .from(WORKFLOW_EXECUTIONS)
-          .leftJoin(AUTH_PROVIDER)
-          .on(AUTH_PROVIDER.UID.eq(USER.UID))
-          .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
           .join(WORKFLOW_VERSION)
           .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
           .join(USER)

@@ -85,27 +85,23 @@ class GoogleAuthResource {
           case Some(record) =>
             val uid = record.get(USER.UID)
             val user = txUserDao.fetchOneByUid(uid)
-            if (user.getName != googleName || user.getEmail != googleEmail) {
+            // name/email/avatar are profile fields on "user"; refresh from Google if changed
+            if (
+              user.getName != googleName || user.getEmail != googleEmail || user.getAvatar != googleAvatar
+            ) {
               user.setName(googleName)
               user.setEmail(googleEmail)
+              user.setAvatar(googleAvatar)
               txUserDao.update(user)
-            }
-
-            if (record.get(AUTH_PROVIDER.PROVIDER_AVATAR) != googleAvatar) {
-              ctx
-                .update(AUTH_PROVIDER)
-                .set(AUTH_PROVIDER.PROVIDER_AVATAR, googleAvatar)
-                .where(AUTH_PROVIDER.UID.eq(uid))
-                .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
-                .execute()
             }
             user
 
           case None =>
             val user = Option(txUserDao.fetchOneByEmail(googleEmail)) match {
               case Some(user) =>
-                if (user.getName != googleName) {
+                if (user.getName != googleName || user.getAvatar != googleAvatar) {
                   user.setName(googleName)
+                  user.setAvatar(googleAvatar)
                   txUserDao.update(user)
                 }
                 user
@@ -113,6 +109,7 @@ class GoogleAuthResource {
                 val user = new User
                 user.setName(googleName)
                 user.setEmail(googleEmail)
+                user.setAvatar(googleAvatar)
                 user.setRole(UserRoleEnum.INACTIVE)
                 txUserDao.insert(user)
                 user
@@ -130,7 +127,6 @@ class GoogleAuthResource {
               ctx
                 .update(AUTH_PROVIDER)
                 .set(AUTH_PROVIDER.PROVIDER_ID, googleId)
-                .set(AUTH_PROVIDER.PROVIDER_AVATAR, googleAvatar)
                 .where(AUTH_PROVIDER.UID.eq(user.getUid))
                 .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
                 .execute()
@@ -139,7 +135,6 @@ class GoogleAuthResource {
               auth.setUid(user.getUid)
               auth.setProviderType(ProviderTypeEnum.GOOGLE)
               auth.setProviderId(googleId)
-              auth.setProviderAvatar(googleAvatar)
               auth.setCreatedAt(OffsetDateTime.now())
               txAuthDao.insert(auth)
             }

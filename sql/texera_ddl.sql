@@ -108,7 +108,8 @@ CREATE TABLE IF NOT EXISTS "user"
     comment                 TEXT,
     account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
     affiliation             VARCHAR(128),
-    joining_reason          VARCHAR(500)
+    joining_reason          VARCHAR(500),
+    avatar                  VARCHAR(100)
     );
 
 -- auth_provider: credentials per (user, provider); one row per provider a user has
@@ -118,7 +119,6 @@ CREATE TABLE IF NOT EXISTS auth_provider
     provider_type     provider_type_enum  NOT NULL,
     provider_id       VARCHAR(256),          -- external subject id (Google sub); NULL for LOCAL
     password          VARCHAR(256),          -- hashed credential; only for LOCAL
-    provider_avatar   VARCHAR(100),          -- e.g. Google avatar; NULL for LOCAL
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (uid, provider_type),
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,

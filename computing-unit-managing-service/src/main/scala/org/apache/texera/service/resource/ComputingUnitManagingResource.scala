@@ -430,7 +430,7 @@ class ComputingUnitManagingResource {
       val userDao = new UserDao(ctx.configuration())
       val ownerUser = Option(userDao.fetchOneByUid(user.getUid))
       val ownerGoogleAvatar: String =
-        ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+        ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
       val ownerUsername: String =
         ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
@@ -536,7 +536,7 @@ class ComputingUnitManagingResource {
           .fetchByUid(ownerUids: _*)
           .asScala
           .map { u =>
-            val avatar = Option(u.getGoogleAvatar).filter(_.nonEmpty).orNull
+            val avatar = Option(u.getAvatar).filter(_.nonEmpty).orNull
             val name = Option(u.getName).filter(_.nonEmpty).orNull
             u.getUid -> (avatar, name)
           }
@@ -607,7 +607,7 @@ class ComputingUnitManagingResource {
     val userDao = new UserDao(context.configuration())
     val ownerUser = Option(userDao.fetchOneByUid(unit.getUid))
     val ownerGoogleAvatar: String =
-      ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+      ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
     val ownerUsername: String =
       ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
