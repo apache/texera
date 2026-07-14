@@ -506,7 +506,7 @@ Scala/Java jars:
   - com.konghq.unirest-java-3.14.2.jar
   - io.github.classgraph.classgraph-4.8.157.jar
   - net.sourceforge.argparse4j.argparse4j-0.9.0.jar
-  - org.bouncycastle.bcprov-jdk18on-1.82.jar
+  - org.bouncycastle.bcprov-jdk18on-1.84.jar
   - org.checkerframework.checker-qual-3.52.0.jar
   - org.codehaus.mojo.animal-sniffer-annotations-1.26.jar
   - org.projectlombok.lombok-1.18.24.jar
