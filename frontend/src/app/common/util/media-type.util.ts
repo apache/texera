@@ -20,18 +20,18 @@
 export function isVideoUrl(value: string): boolean {
   if (typeof value !== "string") return false;
   return (
-    value.match(/\.(mp4|webm|ogv)(\?.*)?$/i) !== null ||
+    /^https?:\/\/.+\.(mp4|webm|ogv)(\?.*)?$/i.test(value) ||
     value.startsWith("data:video/") ||
-    value.startsWith("https://v3b.fal.media/files/")
+    /^https:\/\/[a-z0-9-]+\.fal\.media\/files\//i.test(value)
   );
 }
 
 export function isAudioUrl(value: string): boolean {
   if (typeof value !== "string") return false;
-  return value.match(/\.(mp3|wav|ogg|m4a|flac)(\?.*)?$/i) !== null || value.startsWith("data:audio/");
+  return /^https?:\/\/.+\.(mp3|wav|ogg|m4a|flac)(\?.*)?$/i.test(value) || value.startsWith("data:audio/");
 }
 
 export function isImageUrl(value: string): boolean {
   if (typeof value !== "string") return false;
-  return value.match(/\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i) !== null || value.startsWith("data:image/");
+  return /^https?:\/\/.+\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i.test(value) || value.startsWith("data:image/");
 }
