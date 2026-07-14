@@ -11,6 +11,9 @@
 # test coverage
 /coverage
 
+# vitest junit reporter output
+/junit.xml
+
 # vitest browser-mode snapshot baselines
 **/__screenshots__/
 

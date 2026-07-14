@@ -52,6 +52,8 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
       configuration: ComputingUnitManagingServiceConfiguration,
       environment: Environment
   ): Unit = {
+    // Bridge this service's logs to the OTel collector under its own service.name.
+    org.apache.texera.observability.OtelInit.init("computing-unit-managing-service")
     // Register http resources
     environment.jersey.setUrlPattern("/api/*")
     environment.jersey.register(classOf[HealthCheckResource])

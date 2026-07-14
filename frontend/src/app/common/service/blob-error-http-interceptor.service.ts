@@ -44,11 +44,15 @@ export class BlobErrorHttpInterceptor implements HttpInterceptor {
                     url: err.url !== null ? err.url : undefined,
                   })
                 );
-              } catch (_) {
+              } catch (parseErr) {
+                // eslint-disable-next-line no-console
+                console.error("[http] failed to parse JSON error body delivered as a Blob", parseErr);
                 reject(err);
               }
             };
-            reader.onerror = _ => {
+            reader.onerror = readerErr => {
+              // eslint-disable-next-line no-console
+              console.error("[http] FileReader could not read the Blob error body", readerErr);
               reject(err);
             };
             reader.readAsText(err.error);
