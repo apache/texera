@@ -382,7 +382,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             this.isSink(operator.operatorID)
           );
         }
-        this.applyOperatorBorder(operator.operatorID);
+        this.applyOperatorBorder(
+          operator.operatorID,
+          this.validationWorkflowService.validateOperator(operator.operatorID)
+        );
       });
   }
 
@@ -398,13 +401,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * overwrites a state-derived stroke (or vice versa) for an operator that
    * is both invalid and has a cached execution status.
    *
-   * Callers that already have a Validation result (the validation stream
-   * subscriber) may pass it in to avoid recomputing it; callers without one
-   * (the operator-add stream subscriber) let the helper fetch it lazily.
+   * Both callers obtain the Validation themselves and pass it in: the
+   * validation-stream subscriber forwards the result the stream just emitted,
+   * and the operator-add subscriber computes it via validateOperator. Keeping
+   * the parameter required means the color decision never silently depends on
+   * a recompute hidden inside this helper.
    */
-  private applyOperatorBorder(operatorID: string, validation?: Validation): void {
-    const resolved = validation ?? this.validationWorkflowService.validateOperator(operatorID);
-    if (!resolved.isValid) {
+  private applyOperatorBorder(operatorID: string, validation: Validation): void {
+    if (!validation.isValid) {
       this.jointUIService.changeOperatorColor(this.paper, operatorID, false);
       return;
     }
