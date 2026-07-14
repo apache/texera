@@ -45,6 +45,7 @@ import { formatSize } from "src/app/common/util/size-formatter.util";
 import { formatCount, formatRelativeTime } from "src/app/common/util/format.util";
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { extractErrorMessage } from "../../../../common/util/error";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
@@ -311,8 +312,8 @@ export class ListItemComponent implements OnChanges {
             this.renderMarkdownPreview(newValue);
           }
         },
-        error: () => {
-          this.notificationService.error("Update failed");
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
           (this.entry as any)[propertyName] = originalValue ?? ""; // Fallback to original value
           if (propertyName === "description") {
             this.renderMarkdownPreview(originalValue);
@@ -335,6 +336,13 @@ export class ListItemComponent implements OnChanges {
 
   public confirmUpdateCustomName(name: string): void {
     const newName = this.entry.type === "workflow" ? name || DEFAULT_WORKFLOW_NAME : name || DEFAULT_DATASET_NAME;
+
+    if (this.entry.type === "dataset" && (!/^[A-Za-z0-9_-]+$/.test(newName) || newName.length > 128)) {
+      this.notificationService.error(
+        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)"
+      );
+      return;
+    }
 
     if (this.entry.type === "workflow") {
       this.updateProperty(

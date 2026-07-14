@@ -23,6 +23,7 @@ import { Dataset } from "../../../../../common/type/dataset";
 import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { extractErrorMessage } from "../../../../../common/util/error";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 import { USER_DATASET } from "../../../../../app-routing.constant";
@@ -119,10 +120,9 @@ export class UserDatasetListItemComponent {
       return;
     }
 
-    // Mirrors the backend dataset name rule in DatasetResource.validateDatasetName
-    if (!/^[A-Za-z0-9_-]+$/.test(name)) {
+    if (!/^[A-Za-z0-9_-]+$/.test(name) || name.length > 128) {
       this.notificationService.error(
-        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed"
+        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)"
       );
       return;
     }
@@ -137,8 +137,7 @@ export class UserDatasetListItemComponent {
             this.editingName = false;
           },
           error: (err: unknown) => {
-            const backendMessage = (err as { error?: { message?: string } })?.error?.message;
-            this.notificationService.error(backendMessage ?? "Update dataset name failed");
+            this.notificationService.error(extractErrorMessage(err));
             this.editingName = false;
           },
         });

@@ -288,12 +288,13 @@ class DatasetResource extends LazyLogging {
       }
 
       // Check if a dataset with the same name already exists
-      val existingDatasets = context
-        .selectFrom(DATASET)
-        .where(DATASET.OWNER_UID.eq(uid))
-        .and(DATASET.NAME.eq(datasetName))
-        .fetch()
-      if (!existingDatasets.isEmpty) {
+      val duplicateExists = ctx.fetchExists(
+        ctx
+          .selectFrom(DATASET)
+          .where(DATASET.OWNER_UID.eq(uid))
+          .and(DATASET.NAME.eq(datasetName))
+      )
+      if (duplicateExists) {
         throw new BadRequestException("Dataset with the same name already exists")
       }
 
@@ -306,11 +307,19 @@ class DatasetResource extends LazyLogging {
       dataset.setOwnerUid(uid)
 
       // insert record and get created dataset with did
-      val createdDataset = ctx
-        .insertInto(DATASET)
-        .set(ctx.newRecord(DATASET, dataset))
-        .returning()
-        .fetchOne()
+      val createdDataset = try {
+        ctx
+          .insertInto(DATASET)
+          .set(ctx.newRecord(DATASET, dataset))
+          .returning()
+          .fetchOne()
+      } catch {
+        case e: DataAccessException
+            if Option(e.getCause)
+              .collect { case s: SQLException => s.getSQLState }
+              .contains("23505") =>
+          throw new BadRequestException("Dataset with the same name already exists")
+      }
 
       // Initialize the repository in LakeFS
       val repositoryName = s"dataset-${createdDataset.getDid}"
@@ -522,18 +531,27 @@ class DatasetResource extends LazyLogging {
       }
 
       // Check if the owner already has another dataset with the same name
-      val existingDatasets = ctx
-        .selectFrom(DATASET)
-        .where(DATASET.OWNER_UID.eq(dataset.getOwnerUid))
-        .and(DATASET.NAME.eq(modificator.name))
-        .and(DATASET.DID.notEqual(modificator.did))
-        .fetch()
-      if (!existingDatasets.isEmpty) {
+      val duplicateExists = ctx.fetchExists(
+        ctx
+          .selectFrom(DATASET)
+          .where(DATASET.OWNER_UID.eq(dataset.getOwnerUid))
+          .and(DATASET.NAME.eq(modificator.name))
+          .and(DATASET.DID.notEqual(dataset.getDid))
+      )
+      if (duplicateExists) {
         throw new BadRequestException("Dataset with the same name already exists")
       }
 
       dataset.setName(modificator.name)
-      datasetDao.update(dataset)
+      try {
+        datasetDao.update(dataset)
+      } catch {
+        case e: DataAccessException
+            if Option(e.getCause)
+              .collect { case s: SQLException => s.getSQLState }
+              .contains("23505") =>
+          throw new BadRequestException("Dataset with the same name already exists")
+      }
       Response.ok().build()
     }
   }
@@ -1441,25 +1459,34 @@ class DatasetResource extends LazyLogging {
       .fetchInto(classOf[String])
   }
 
+  private val DATASET_NAME_MAX_LENGTH = 128
+
   /**
     * Validates the dataset name.
     *
     * Rules:
     * - Must be at least 1 character long.
-    * - Only lowercase letters, numbers, underscores, and hyphens are allowed.
-    * - Cannot start with a hyphen.
+    * - At most 128 characters long.
+    * - Only letters, numbers, underscores, and hyphens are allowed.
     *
     * @param name The dataset name to validate.
     * @throws java.lang.IllegalArgumentException if the name is invalid.
     */
   private def validateDatasetName(name: String): Unit = {
+    if (name == null || name.isEmpty) {
+      throw new IllegalArgumentException(
+        "Invalid dataset name: name must not be empty."
+      )
+    }
+    if (name.length > DATASET_NAME_MAX_LENGTH) {
+      throw new IllegalArgumentException(
+        s"Invalid dataset name: name must be at most $DATASET_NAME_MAX_LENGTH characters long."
+      )
+    }
     val datasetNamePattern = "^[A-Za-z0-9_-]+$".r
     if (!datasetNamePattern.matches(name)) {
       throw new IllegalArgumentException(
-        s"Invalid dataset name: '$name'. " +
-          "Dataset names must be at least 1 character long and " +
-          "contain only lowercase letters, numbers, underscores, and hyphens, " +
-          "and cannot start with a hyphen."
+        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed."
       )
     }
   }

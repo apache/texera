@@ -203,7 +203,7 @@ describe("UserDatasetListItemComponent", () => {
 
         expect(datasetService.updateDatasetName).not.toHaveBeenCalled();
         expect(notificationService.error).toHaveBeenCalledExactlyOnceWith(
-          "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed"
+          "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)"
         );
         expect(component.entry.dataset.name).toBe(originalName);
         expect(component.editingName).toBe(true);
