@@ -109,7 +109,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
       - name: Setup node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
           architecture: ${{ matrix.arch }}
@@ -1182,7 +1182,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
       - name: Setup node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           # Matches the frontend job's pinned Node.
           node-version: 24.10.0
