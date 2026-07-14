@@ -89,6 +89,20 @@ class VFSURIFactory:
         )
 
     @staticmethod
+    def warehouse_from_uri(uri: str) -> Optional[str]:
+        """
+        Extracts the warehouse name from the optional leading "/wh/<name>" segment
+        of a VFS URI, or None if absent. Mirrors VFSURIFactory.warehouseFromURI
+        (Scala) so a URI fully identifies which warehouse its tables live in.
+        """
+        segments = urlparse(uri).path.lstrip("/").split("/")
+        try:
+            idx = segments.index("wh")
+        except ValueError:
+            return None
+        return segments[idx + 1] if idx + 1 < len(segments) else None
+
+    @staticmethod
     def create_port_base_uri(workflow_id, execution_id, global_port_id) -> str:
         """Base URI for a port. Result and state URIs derive from it via
         `result_uri` / `state_uri`.

@@ -40,6 +40,20 @@ object VFSResourceType extends Enumeration {
 object VFSURIFactory {
   val VFS_FILE_URI_SCHEME = "vfs"
 
+  // Warehouse is carried as a leading `/wh/<name>` path segment so a storage URI
+  // fully identifies which warehouse its table lives in. Absent for non-BYO storage.
+  private def warehousePathSegment(warehouse: Option[String]): String =
+    warehouse.map(name => s"/wh/$name").getOrElse("")
+
+  /**
+    * Extracts the warehouse name encoded in a VFS URI, if present.
+    */
+  def warehouseFromURI(uri: URI): Option[String] = {
+    val segments = uri.getPath.stripPrefix("/").split("/").toList
+    val idx = segments.indexOf("wh")
+    if (idx >= 0 && idx + 1 < segments.length) Some(segments(idx + 1)) else None
+  }
+
   /**
     * Parses a VFS URI and extracts its components
     *
@@ -90,10 +104,11 @@ object VFSURIFactory {
   def createPortBaseURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      globalPortId: GlobalPortIdentity
+      globalPortId: GlobalPortIdentity,
+      warehouse: Option[String] = None
   ): URI =
     new URI(
-      s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}" +
+      s"$VFS_FILE_URI_SCHEME://${warehousePathSegment(warehouse)}/wid/${workflowId.id}/eid/${executionId.id}" +
         s"/globalportid/${globalPortId.serializeAsString}"
     )
 
@@ -109,12 +124,14 @@ object VFSURIFactory {
     */
   def createRuntimeStatisticsURI(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
+      executionId: ExecutionIdentity,
+      warehouse: Option[String] = None
   ): URI = {
     createNonResultVFSURI(
       VFSResourceType.RUNTIME_STATISTICS,
       workflowId,
-      executionId
+      executionId,
+      warehouse = warehouse
     )
   }
 
@@ -124,13 +141,15 @@ object VFSURIFactory {
   def createConsoleMessagesURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: OperatorIdentity
+      operatorId: OperatorIdentity,
+      warehouse: Option[String] = None
   ): URI = {
     createNonResultVFSURI(
       VFSResourceType.CONSOLE_MESSAGES,
       workflowId,
       executionId,
-      Some(operatorId)
+      Some(operatorId),
+      warehouse
     )
   }
 
@@ -150,7 +169,8 @@ object VFSURIFactory {
       resourceType: VFSResourceType.Value,
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: Option[OperatorIdentity] = None
+      operatorId: Option[OperatorIdentity] = None,
+      warehouse: Option[String] = None
   ): URI = {
 
     if (resourceType == VFSResourceType.RESULT) {
@@ -171,10 +191,11 @@ object VFSURIFactory {
       )
     }
 
+    val whSegment = warehousePathSegment(warehouse)
     val baseUri = operatorId match {
       case Some(opId) =>
-        s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/opid/${opId.id}"
-      case None => s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}"
+        s"$VFS_FILE_URI_SCHEME://$whSegment/wid/${workflowId.id}/eid/${executionId.id}/opid/${opId.id}"
+      case None => s"$VFS_FILE_URI_SCHEME://$whSegment/wid/${workflowId.id}/eid/${executionId.id}"
     }
 
     new URI(s"$baseUri/${resourceType.toString.toLowerCase}")

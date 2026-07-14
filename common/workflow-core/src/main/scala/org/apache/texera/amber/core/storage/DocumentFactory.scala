@@ -22,7 +22,11 @@ package org.apache.texera.amber.core.storage
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.storage.FileResolver.DATASET_FILE_URI_SCHEME
 import org.apache.texera.amber.core.storage.VFSResourceType._
-import org.apache.texera.amber.core.storage.VFSURIFactory.{VFS_FILE_URI_SCHEME, decodeURI}
+import org.apache.texera.amber.core.storage.VFSURIFactory.{
+  VFS_FILE_URI_SCHEME,
+  decodeURI,
+  warehouseFromURI
+}
 import org.apache.texera.amber.core.storage.model._
 import org.apache.texera.amber.core.storage.result.iceberg.IcebergDocument
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
@@ -38,7 +42,12 @@ object DocumentFactory {
   val ICEBERG = "iceberg"
 
   private def sanitizeURIPath(uri: URI): String =
-    uri.getPath.stripPrefix("/").replace("/", "_")
+    uri.getPath.stripPrefix("/").replaceFirst("^wh/[^/]+/", "").replace("/", "_")
+
+  // The warehouse a URI's table lives in, encoded as a leading `/wh/<name>` path
+  // segment; absent for non-BYO storage, which falls back to the configured warehouse.
+  private def warehouseOf(uri: URI): String =
+    warehouseFromURI(uri).getOrElse(StorageConfig.icebergRESTCatalogWarehouseName)
 
   private def resolveNamespace(resourceType: VFSResourceType.Value): String =
     resourceType match {
@@ -74,6 +83,7 @@ object DocumentFactory {
     * @return the created document
     */
   def createDocument(uri: URI, schema: Schema): VirtualDocument[_] = {
+    val warehouse = warehouseOf(uri)
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
         val (_, _, _, resourceType) = decodeURI(uri)
@@ -82,7 +92,7 @@ object DocumentFactory {
 
         val icebergSchema = IcebergUtil.toIcebergSchema(schema)
         IcebergUtil.createTable(
-          IcebergCatalogInstance.getInstance(),
+          IcebergCatalogInstance.getInstance(warehouse),
           namespace,
           storageKey,
           icebergSchema,
@@ -97,7 +107,8 @@ object DocumentFactory {
           storageKey,
           icebergSchema,
           serde,
-          deserde
+          deserde,
+          warehouse
         )
       case unsupportedScheme =>
         throw new UnsupportedOperationException(
@@ -117,13 +128,14 @@ object DocumentFactory {
     *                                  iceberg namespace mapping.
     */
   def documentExists(uri: URI): Boolean = {
+    val warehouse = warehouseOf(uri)
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
         val (_, _, _, resourceType) = decodeURI(uri)
         val storageKey = sanitizeURIPath(uri)
         val namespace = resolveNamespace(resourceType)
         IcebergCatalogInstance
-          .getInstance()
+          .getInstance(warehouse)
           .tableExists(TableIdentifier.of(namespace, storageKey))
 
       case unsupportedScheme =>
@@ -162,6 +174,7 @@ object DocumentFactory {
     * @return the VirtualDocument, which is the handler of the data; the Schema, which is the schema of the data stored in the document
     */
   def openDocument(uri: URI): (VirtualDocument[_], Option[Schema]) = {
+    val warehouse = warehouseOf(uri)
     uri.getScheme match {
       case DATASET_FILE_URI_SCHEME => (new DatasetFileDocument(uri), None)
       case VFS_FILE_URI_SCHEME =>
@@ -171,7 +184,7 @@ object DocumentFactory {
 
         val table = IcebergUtil
           .loadTableMetadata(
-            IcebergCatalogInstance.getInstance(),
+            IcebergCatalogInstance.getInstance(warehouse),
             namespace,
             storageKey
           )
@@ -190,7 +203,8 @@ object DocumentFactory {
             storageKey,
             table.schema(),
             serde,
-            deserde
+            deserde,
+            warehouse
           ),
           Some(amberSchema)
         )

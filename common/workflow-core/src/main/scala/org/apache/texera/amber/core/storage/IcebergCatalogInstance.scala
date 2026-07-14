@@ -23,57 +23,67 @@ import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 
+import scala.collection.mutable
+
 /**
-  * IcebergCatalogInstance is a singleton that manages the Iceberg catalog instance.
-  * - Provides a single shared catalog for all Iceberg table-related operations in the Texera application.
-  * - Lazily initializes the catalog on first access.
-  * - Supports replacing the catalog instance primarily for testing or reconfiguration.
+  * IcebergCatalogInstance manages the Iceberg catalog clients used across the Texera application.
+  *
+  * Catalogs are cached per warehouse: each distinct warehouse name gets its own lazily-created
+  * catalog client, so a single JVM may hold several catalogs, one per warehouse it touches. Callers
+  * that do not specify a warehouse use the configured default, preserving single-warehouse (non-BYO)
+  * behavior.
+  *
+  * Only the REST catalog varies by warehouse; the hadoop and postgres catalogs are warehouse-agnostic
+  * and ignore the warehouse argument.
+  *
+  * Access is synchronized because the same JVM serves multiple warehouses concurrently.
   */
 object IcebergCatalogInstance {
 
-  private var instance: Option[Catalog] = None
+  private val catalogs = mutable.Map.empty[String, Catalog]
+
+  private def defaultWarehouse: String = StorageConfig.icebergRESTCatalogWarehouseName
 
   /**
-    * Retrieves the singleton Iceberg catalog instance.
-    * - If the catalog is not initialized, it is lazily created using the configured properties.
+    * Retrieves the catalog for the given warehouse, creating and caching it on first access.
     *
-    * @return the Iceberg catalog instance.
+    * @param warehouse the warehouse to obtain a catalog for; defaults to the configured warehouse.
+    * @return the Iceberg catalog for that warehouse.
     */
-  def getInstance(): Catalog = {
-    instance match {
-      case Some(catalog) => catalog
-      case None =>
-        val catalog = StorageConfig.icebergCatalogType match {
-          case "hadoop" =>
-            IcebergUtil.createHadoopCatalog(
-              "texera_iceberg",
-              StorageConfig.fileStorageDirectoryPath
-            )
-          case "rest" =>
-            IcebergUtil.createRestCatalog(
-              "texera_iceberg",
-              StorageConfig.icebergRESTCatalogWarehouseName
-            )
-          case "postgres" =>
-            IcebergUtil.createPostgresCatalog(
-              "texera_iceberg",
-              StorageConfig.fileStorageDirectoryPath
-            )
-          case unsupported =>
-            throw new IllegalArgumentException(s"Unsupported catalog type: $unsupported")
-        }
-        instance = Some(catalog)
-        catalog
+  def getInstance(warehouse: String = defaultWarehouse): Catalog =
+    synchronized {
+      catalogs.getOrElseUpdate(warehouse, createCatalog(warehouse))
     }
-  }
+
+  private def createCatalog(warehouse: String): Catalog =
+    StorageConfig.icebergCatalogType match {
+      case "hadoop" =>
+        IcebergUtil.createHadoopCatalog(
+          "texera_iceberg",
+          StorageConfig.fileStorageDirectoryPath
+        )
+      case "rest" =>
+        IcebergUtil.createRestCatalog(
+          "texera_iceberg",
+          warehouse
+        )
+      case "postgres" =>
+        IcebergUtil.createPostgresCatalog(
+          "texera_iceberg",
+          StorageConfig.fileStorageDirectoryPath
+        )
+      case unsupported =>
+        throw new IllegalArgumentException(s"Unsupported catalog type: $unsupported")
+    }
 
   /**
-    * Replaces the existing Iceberg catalog instance.
-    * - This method is useful for testing or dynamically updating the catalog.
+    * Replaces the cached catalog for a warehouse, primarily for testing or reconfiguration.
     *
-    * @param catalog the new Iceberg catalog instance to replace the current one.
+    * @param catalog   the catalog to cache.
+    * @param warehouse the warehouse to cache it under; defaults to the configured warehouse.
     */
-  def replaceInstance(catalog: Catalog): Unit = {
-    instance = Some(catalog)
-  }
+  def replaceInstance(catalog: Catalog, warehouse: String = defaultWarehouse): Unit =
+    synchronized {
+      catalogs(warehouse) = catalog
+    }
 }
