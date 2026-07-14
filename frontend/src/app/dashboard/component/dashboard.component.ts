@@ -32,6 +32,7 @@ import {
   ABOUT,
   ADMIN_EXECUTION,
   ADMIN_GMAIL,
+  ADMIN_OBSERVABILITY,
   ADMIN_SETTINGS,
   ADMIN_USER,
   USER_COMPUTING_UNIT,
@@ -119,6 +120,7 @@ export class DashboardComponent implements OnInit {
   protected readonly ADMIN_GMAIL = ADMIN_GMAIL;
   protected readonly ADMIN_EXECUTION = ADMIN_EXECUTION;
   protected readonly ADMIN_SETTINGS = ADMIN_SETTINGS;
+  protected readonly ADMIN_OBSERVABILITY = ADMIN_OBSERVABILITY;
   protected readonly ABOUT = ABOUT;
   protected readonly String = String;
 

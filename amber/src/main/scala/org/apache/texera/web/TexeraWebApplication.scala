@@ -31,7 +31,14 @@ import org.apache.texera.amber.engine.common.Utils
 import org.apache.texera.amber.util.ObjectMapperUtils
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.observability.OtelInit
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
+import org.apache.texera.web.observability.gateway.{
+  GatewayContext,
+  LogsResource,
+  MetricsResource,
+  ObservabilityHealthResource
+}
 import org.apache.texera.web.resource._
 import org.apache.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import org.apache.texera.web.resource.dashboard.DashboardResource
@@ -59,7 +66,7 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 import java.time.Duration
 
-object TexeraWebApplication {
+object TexeraWebApplication extends LazyLogging {
 
   def main(args: Array[String]): Unit = {
 
@@ -67,6 +74,7 @@ object TexeraWebApplication {
     // Currently in kubernetes, multiple pods calling this function can result into thread competition
     // discardUncommittedChangesOfAllDatasets()
 
+    logger.info("Starting TexeraWebApplication")
     // start web server
     new TexeraWebApplication().run(
       "server",
@@ -101,11 +109,15 @@ class TexeraWebApplication
   }
 
   override def run(configuration: TexeraWebConfiguration, environment: Environment): Unit = {
+    logger.info("Initializing TexeraWebApplication web server")
+    OtelInit.init("texera-web")
+
     ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
 
     // serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 
+    logger.debug(s"Connecting to database at ${StorageConfig.jdbcUrl}")
     SqlServer.initConnection(
       StorageConfig.jdbcUrl,
       StorageConfig.jdbcUsername,
@@ -141,6 +153,11 @@ class TexeraWebApplication
     )
     environment.jersey.register(classOf[RolesAllowedDynamicFeature])
 
+    // Tag every log record emitted while handling a request with the
+    // authenticated user's id (MDC key `texera.user.id`). Registered
+    // here so it runs AFTER the JWT auth filter set up by setupJwtAuth.
+    environment.jersey.register(classOf[org.apache.texera.web.observability.UserContextMdcFilter])
+
     environment.jersey.register(classOf[AuthResource])
     environment.jersey.register(classOf[GoogleAuthResource])
     environment.jersey.register(classOf[UserConfigResource])
@@ -163,7 +180,29 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AIAssistantResource])
     environment.jersey.register(classOf[HuggingFaceModelResource])
 
+    // Observability gateway. A single GatewayContext is shared by all
+    // resources so the rate-limiter buckets and the backend HTTP clients
+    // are reused across requests. The health resource lands here in
+    // gateway-core; the per-signal resources are registered by their
+    // respective PRs (obs/pr10..13).
+    logger.debug("Registering observability gateway resources")
+    val obsCtx = GatewayContext.default()
+    environment.jersey.register(new LogsResource(obsCtx))
+    environment.jersey.register(new MetricsResource(obsCtx))
+    environment.jersey.register(new ObservabilityHealthResource(obsCtx))
+
     AuthResource.createAdminUser()
+
+    // Tag every log record emitted during request handling with the
+    // workflow / execution / computing-unit id when one is visible in
+    // the URL or headers. Required so the observability dashboard's
+    // CU/workflow filters match live records (the JVM otherwise emits
+    // them without any per-request context).
+    environment.getApplicationContext.addFilter(
+      new FilterHolder(new org.apache.texera.web.observability.RequestContextMdcFilter()),
+      "/*",
+      java.util.EnumSet.allOf(classOf[javax.servlet.DispatcherType])
+    )
 
     // Set Cache-Control on static frontend asset responses.
     environment.getApplicationContext.addFilter(
@@ -197,5 +236,7 @@ class TexeraWebApplication
       "/*",
       java.util.EnumSet.allOf(classOf[javax.servlet.DispatcherType])
     )
+
+    logger.info("TexeraWebApplication web server initialized and ready")
   }
 }

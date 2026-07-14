@@ -21,6 +21,7 @@ package org.apache.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
+import io.opentelemetry.api.trace.Span
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import org.apache.texera.common.config.ApplicationConfig
@@ -49,6 +50,7 @@ import org.apache.texera.amber.error.ErrorUtils.{
   getStackTraceWithAllCauses
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.observability.TexeraTracer
 import org.apache.texera.service.util.LargeBinaryManager
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
@@ -183,6 +185,25 @@ class WorkflowService(
       userOpt: Option[User],
       sessionUri: URI
   ): Unit = {
+    TexeraTracer.withSpan(
+      "workflow.execute",
+      _.setAttribute("texera.workflow.id", workflowId.id.toString)
+    ) { span =>
+      initExecutionServiceSpanned(req, userOpt, sessionUri, span)
+    }
+  }
+
+  /** Body of [[initExecutionService]], run inside the run-level span so
+    * logs on the setup path carry its trace id. The span covers the
+    * synchronous setup and the handoff to async execution via
+    * `executeWorkflow()`; it does not span the full async run.
+    */
+  private def initExecutionServiceSpanned(
+      req: WorkflowExecuteRequest,
+      userOpt: Option[User],
+      sessionUri: URI,
+      span: Span
+  ): Unit = {
 
     if (executionService.hasValue) {
       executionService.getValue.unsubscribeAll()
@@ -214,6 +235,9 @@ class WorkflowService(
       convertToJson(req.engineVersion),
       req.computingUnitId
     )
+    span.setAttribute("texera.execution.id", workflowContext.executionId.id.toString)
+    // A run has started: record the start counter and stamp its start time.
+    org.apache.texera.web.observability.WorkflowMetricsRecorder.onStart(workflowContext.executionId)
 
     if (ApplicationConfig.faultToleranceLogRootFolder.isDefined) {
       val writeLocation = ApplicationConfig.faultToleranceLogRootFolder.get.resolve(
