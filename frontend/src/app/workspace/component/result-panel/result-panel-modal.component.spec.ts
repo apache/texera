@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { RowModalComponent } from "./result-panel-modal.component";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
@@ -234,5 +235,61 @@ describe("RowModalComponent (with pre-loaded rowData)", () => {
     expect(component.rowEntries.length).toBe(2);
     const idEntry = component.rowEntries.find(e => e.key === "id");
     expect(idEntry?.value).toBe("123");
+  });
+});
+
+describe("RowModalComponent (template rendering)", () => {
+  let component: RowModalComponent;
+  let fixture: ComponentFixture<RowModalComponent>;
+  let httpMock: HttpTestingController;
+
+  const rowData = {
+    video: "data:video/mp4;base64,vid123",
+    image: "data:image/png;base64,img123",
+  };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [RowModalComponent, HttpClientTestingModule],
+      providers: [
+        { provide: NZ_MODAL_DATA, useValue: { operatorId: "op-3", rowIndex: 0, rowData } },
+        { provide: NzModalRef, useValue: { getConfig: () => ({}), close: vi.fn() } },
+        {
+          provide: WorkflowResultService,
+          useValue: { getPaginatedResultService: vi.fn().mockReturnValue(null) },
+        },
+        { provide: PanelResizeService, useValue: { pageSize: 10 } },
+      ],
+    }).compileComponents();
+
+    httpMock = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(RowModalComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it("should bind the video element's src to the video entry's mediaSrc", () => {
+    const videoEl = fixture.debugElement.query(By.css("video")).nativeElement as HTMLVideoElement;
+    expect(videoEl.src).toBe(rowData.video);
+  });
+
+  it("should bind the image element's src to the image entry's mediaSrc", () => {
+    const imgEl = fixture.debugElement.query(By.css("img")).nativeElement as HTMLImageElement;
+    expect(imgEl.src).toBe(rowData.image);
+  });
+
+  it("should call copyText with the entry's value when its Copy button is clicked", () => {
+    const copyTextSpy = vi.spyOn(component, "copyText").mockImplementation(() => undefined);
+    const copyButtons = fixture.debugElement.queryAll(By.css(".row-detail-header button"));
+    const videoEntryButton = copyButtons[0];
+
+    videoEntryButton.triggerEventHandler("click", null);
+
+    expect(copyTextSpy).toHaveBeenCalledWith(rowData.video);
+    copyTextSpy.mockRestore();
   });
 });
