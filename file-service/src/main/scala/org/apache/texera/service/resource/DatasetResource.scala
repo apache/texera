@@ -514,6 +514,24 @@ class DatasetResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
+      try {
+        validateDatasetName(modificator.name)
+      } catch {
+        case e: IllegalArgumentException =>
+          throw new BadRequestException(e.getMessage)
+      }
+
+      // Check if the owner already has another dataset with the same name
+      val existingDatasets = ctx
+        .selectFrom(DATASET)
+        .where(DATASET.OWNER_UID.eq(dataset.getOwnerUid))
+        .and(DATASET.NAME.eq(modificator.name))
+        .and(DATASET.DID.notEqual(modificator.did))
+        .fetch()
+      if (!existingDatasets.isEmpty) {
+        throw new BadRequestException("Dataset with the same name already exists")
+      }
+
       dataset.setName(modificator.name)
       datasetDao.update(dataset)
       Response.ok().build()

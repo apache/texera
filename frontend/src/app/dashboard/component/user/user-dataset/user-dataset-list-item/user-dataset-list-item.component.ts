@@ -119,6 +119,14 @@ export class UserDatasetListItemComponent {
       return;
     }
 
+    // Mirrors the backend dataset name rule in DatasetResource.validateDatasetName
+    if (!/^[A-Za-z0-9_-]+$/.test(name)) {
+      this.notificationService.error(
+        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed"
+      );
+      return;
+    }
+
     if (this.entry.dataset.did)
       this.datasetService
         .updateDatasetName(this.entry.dataset.did, name)
@@ -128,8 +136,9 @@ export class UserDatasetListItemComponent {
             this.entry.dataset.name = name;
             this.editingName = false;
           },
-          error: () => {
-            this.notificationService.error("Update dataset name failed");
+          error: (err: unknown) => {
+            const backendMessage = (err as { error?: { message?: string } })?.error?.message;
+            this.notificationService.error(backendMessage ?? "Update dataset name failed");
             this.editingName = false;
           },
         });

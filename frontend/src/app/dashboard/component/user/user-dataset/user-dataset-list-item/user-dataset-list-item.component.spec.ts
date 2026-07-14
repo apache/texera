@@ -193,6 +193,36 @@ describe("UserDatasetListItemComponent", () => {
       expect(component.entry.dataset.name).toBe(originalName);
       expect(component.editingName).toBe(false);
     });
+
+    ["", "a/b", "has space", "名前"].forEach(invalidName => {
+      it(`rejects the invalid name '${invalidName}' without calling the service`, () => {
+        const originalName = component.entry.dataset.name;
+        component.editingName = true;
+
+        component.confirmUpdateDatasetCustomName(invalidName);
+
+        expect(datasetService.updateDatasetName).not.toHaveBeenCalled();
+        expect(notificationService.error).toHaveBeenCalledExactlyOnceWith(
+          "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed"
+        );
+        expect(component.entry.dataset.name).toBe(originalName);
+        expect(component.editingName).toBe(true);
+      });
+    });
+
+    it("surfaces the backend error message when the rename is rejected", () => {
+      const originalName = component.entry.dataset.name;
+      component.editingName = true;
+      datasetService.updateDatasetName.mockReturnValue(
+        throwError(() => ({ error: { message: "Dataset with the same name already exists" } }))
+      );
+
+      component.confirmUpdateDatasetCustomName("renamed-dataset");
+
+      expect(notificationService.error).toHaveBeenCalledExactlyOnceWith("Dataset with the same name already exists");
+      expect(component.entry.dataset.name).toBe(originalName);
+      expect(component.editingName).toBe(false);
+    });
   });
 
   describe("confirmUpdateDatasetCustomDescription", () => {

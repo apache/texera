@@ -1,0 +1,67 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+\c texera_db
+
+SET search_path TO texera_db;
+
+BEGIN;
+
+-- Datasets are looked up by (owner, name) in the file service and the file
+-- resolver, so this pair must be unique. Before adding the constraint,
+-- deterministically rename any pre-existing duplicates (kept: the oldest did;
+-- renamed: name suffixed with "-<did>", truncated to fit VARCHAR(128)).
+DO $$
+DECLARE
+    remaining INT;
+    iterations INT := 0;
+BEGIN
+    LOOP
+        WITH dups AS (
+            SELECT did
+            FROM (
+                SELECT did,
+                       ROW_NUMBER() OVER (PARTITION BY owner_uid, name ORDER BY did) AS rn
+                FROM dataset
+            ) ranked
+            WHERE rn > 1
+        )
+        UPDATE dataset d
+        SET name = LEFT(d.name, 128 - LENGTH('-' || d.did::text)) || '-' || d.did::text
+        FROM dups
+        WHERE d.did = dups.did;
+
+        SELECT COUNT(*) INTO remaining
+        FROM (
+            SELECT 1 FROM dataset GROUP BY owner_uid, name HAVING COUNT(*) > 1
+        ) t;
+
+        EXIT WHEN remaining = 0;
+
+        iterations := iterations + 1;
+        IF iterations > 10 THEN
+            RAISE EXCEPTION 'Could not deduplicate dataset (owner_uid, name) pairs after 10 passes; resolve duplicates manually before re-running.';
+        END IF;
+    END LOOP;
+END $$;
+
+ALTER TABLE dataset
+    ADD CONSTRAINT dataset_owner_uid_name_key UNIQUE (owner_uid, name);
+
+COMMIT;
