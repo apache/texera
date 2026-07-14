@@ -76,7 +76,8 @@ object UnifiedResourceSchema {
       isDatasetPublic: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
       isDatasetDownloadable: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
       datasetUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum]),
-      datasetCoverImage: Field[String] = DSL.cast(null, classOf[String])
+      datasetCoverImage: Field[String] = DSL.cast(null, classOf[String]),
+      workflowCoverImage: Field[String] = DSL.cast(null, classOf[String])
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(
@@ -102,7 +103,8 @@ object UnifiedResourceSchema {
         isDatasetPublic -> isDatasetPublic.as("is_dataset_public"),
         isDatasetDownloadable -> isDatasetDownloadable.as("is_dataset_downloadable"),
         datasetUserAccess -> datasetUserAccess.as("user_dataset_access"),
-        datasetCoverImage -> datasetCoverImage.as("cover_image")
+        datasetCoverImage -> datasetCoverImage.as("cover_image"),
+        workflowCoverImage -> workflowCoverImage.as("workflow_cover_image")
       )
     )
   }

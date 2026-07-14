@@ -26,6 +26,7 @@ import {
   mockCommentBox,
   mockFalseResultSentimentLink,
   mockFalseSentimentScanLink,
+  mockMultiInputOutputPredicate,
   mockPoint,
   mockResultPredicate,
   mockScanPredicate,
@@ -36,10 +37,11 @@ import {
 } from "./mock-workflow-data";
 import { inject, TestBed } from "@angular/core/testing";
 
-import { WorkflowActionService } from "./workflow-action.service";
-import { OperatorPredicate } from "../../../types/workflow-common.interface";
+import { DEFAULT_WORKFLOW, DEFAULT_WORKFLOW_NAME, WorkflowActionService } from "./workflow-action.service";
+import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { ExecutionMode, Workflow, WorkflowSettings } from "../../../../common/type/workflow";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -276,5 +278,314 @@ describe("WorkflowActionService", () => {
     //
     // expect(sentimentOpPos).toEqual(mockPoint);
     // expect(resultOpPos).toEqual(mockPoint);
+  });
+
+  it("should reload a workflow, repopulating the graph and clearing the undo/redo stacks", () => {
+    const settings: WorkflowSettings = {
+      dataTransferBatchSize: 250,
+      executionMode: ExecutionMode.MATERIALIZED,
+    };
+    const workflow: Workflow = {
+      ...DEFAULT_WORKFLOW,
+      name: "Reloaded WF",
+      content: {
+        operators: [mockScanPredicate, mockResultPredicate],
+        operatorPositions: {
+          [mockScanPredicate.operatorID]: mockPoint,
+          [mockResultPredicate.operatorID]: mockPoint,
+        },
+        links: [mockScanResultLink],
+        commentBoxes: [{ ...mockCommentBox, commentBoxID: "commentBox-1" }],
+        settings,
+      },
+    };
+    const clearUndoSpy = vi.spyOn(undoRedo, "clearUndoStack");
+    const clearRedoSpy = vi.spyOn(undoRedo, "clearRedoStack");
+    const restoreSpy = vi.spyOn(service.getJointGraphWrapper(), "restoreDefaultZoomAndOffset");
+
+    service.reloadWorkflow(workflow);
+
+    expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
+    expect(texeraGraph.hasLinkWithID(mockScanResultLink.linkID)).toBeTruthy();
+    expect(texeraGraph.hasCommentBox("commentBox-1")).toBeTruthy();
+    expect(service.getWorkflowMetadata().name).toEqual("Reloaded WF");
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(250);
+    expect(clearUndoSpy).toHaveBeenCalled();
+    expect(clearRedoSpy).toHaveBeenCalled();
+    expect(restoreSpy).toHaveBeenCalled();
+  });
+
+  it("should throw when a reloaded operator is missing its position", () => {
+    const workflow: Workflow = {
+      ...DEFAULT_WORKFLOW,
+      content: {
+        operators: [mockScanPredicate],
+        operatorPositions: {},
+        links: [],
+        commentBoxes: [],
+        settings: { dataTransferBatchSize: 100, executionMode: ExecutionMode.PIPELINED },
+      },
+    };
+    expect(() => service.reloadWorkflow(workflow)).toThrowError(
+      new RegExp(`position error: ${mockScanPredicate.operatorID}`)
+    );
+  });
+
+  it("should empty the graph and skip viewport restore when reloading undefined", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    const restoreSpy = vi.spyOn(service.getJointGraphWrapper(), "restoreDefaultZoomAndOffset");
+
+    service.reloadWorkflow(undefined, false, false);
+
+    expect(texeraGraph.getAllOperators().length).toEqual(0);
+    expect(restoreSpy).not.toHaveBeenCalled();
+  });
+
+  it("should clear the workflow back to its defaults", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.setWorkflowName("Something");
+    service.setWorkflowDataTransferBatchSize(999);
+    service.setHighlightingEnabled(true);
+
+    service.clearWorkflow();
+
+    expect(service.getWorkflowMetadata()).toEqual(DEFAULT_WORKFLOW);
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(100);
+    expect(service.getWorkflowSettings().executionMode).toEqual(ExecutionMode.PIPELINED);
+    expect(texeraGraph.getAllOperators().length).toEqual(0);
+    expect(service.getHighlightingEnabled()).toBeFalsy();
+  });
+
+  it("should emit on workflowChanged when resetting as a new workflow", () => {
+    let changed = false;
+    service.workflowChanged().subscribe(() => (changed = true));
+
+    service.resetAsNewWorkflow();
+
+    expect(changed).toBeTruthy();
+  });
+
+  it("should only emit metadata changes when the reference changes", () => {
+    const current = service.getWorkflowMetadata();
+    let emitCount = 0;
+    service.workflowMetaDataChanged().subscribe(() => (emitCount += 1));
+
+    // identical reference -> no emission
+    service.setWorkflowMetadata(current);
+    expect(emitCount).toEqual(0);
+
+    // new metadata -> emission
+    service.setWorkflowMetadata({ ...DEFAULT_WORKFLOW, name: "renamed" });
+    expect(emitCount).toEqual(1);
+    expect(service.getWorkflowMetadata().name).toEqual("renamed");
+  });
+
+  it("should set the workflow name, defaulting blank names", () => {
+    service.setWorkflowName("   ");
+    expect(service.getWorkflowMetadata().name).toEqual(DEFAULT_WORKFLOW_NAME);
+
+    service.setWorkflowName("My Workflow");
+    expect(service.getWorkflowMetadata().name).toEqual("My Workflow");
+  });
+
+  it("should manage workflow settings and publish state", () => {
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(100);
+    expect(service.getWorkflowSettings().executionMode).toEqual(ExecutionMode.PIPELINED);
+
+    // non-positive batch sizes are ignored, positive ones are applied
+    service.setWorkflowDataTransferBatchSize(0);
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(100);
+    service.setWorkflowDataTransferBatchSize(400);
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(400);
+
+    service.updateExecutionMode(ExecutionMode.MATERIALIZED);
+    expect(service.getWorkflowSettings().executionMode).toEqual(ExecutionMode.MATERIALIZED);
+
+    service.setWorkflowIsPublished(1);
+    expect(service.getWorkflowMetadata().isPublished).toEqual(1);
+
+    const settings: WorkflowSettings = { dataTransferBatchSize: 42, executionMode: ExecutionMode.PIPELINED };
+    service.setWorkflowSettings(settings);
+    expect(service.getWorkflowSettings()).toEqual(settings);
+  });
+
+  it("should toggle the shared-editing connection through temp workflow", () => {
+    const wsProvider = texeraGraph.sharedModel.wsProvider;
+    // setTempWorkflow only disconnects when the provider is in the "should connect" state,
+    // so force it on to make the disconnect assertion deterministic.
+    (wsProvider as any).shouldConnect = true;
+    const disconnectSpy = vi.spyOn(wsProvider, "disconnect").mockImplementation(() => {});
+    const connectSpy = vi.spyOn(wsProvider, "connect").mockImplementation(() => {});
+    const tempWorkflow: Workflow = {
+      ...DEFAULT_WORKFLOW,
+      content: {
+        operators: [],
+        operatorPositions: {},
+        links: [],
+        commentBoxes: [],
+        settings: { dataTransferBatchSize: 100, executionMode: ExecutionMode.PIPELINED },
+      },
+    };
+
+    service.setTempWorkflow(tempWorkflow);
+    expect(disconnectSpy).toHaveBeenCalled();
+    expect(service.getTempWorkflow()).toBe(tempWorkflow);
+
+    service.resetTempWorkflow();
+    expect(connectSpy).toHaveBeenCalled();
+    expect(service.getTempWorkflow()).toBeUndefined();
+  });
+
+  it("should add a dynamic input port to both the texera and joint graphs", () => {
+    const dynamicOp: OperatorPredicate = {
+      ...mockMultiInputOutputPredicate,
+      dynamicInputPorts: true,
+      dynamicOutputPorts: true,
+    };
+    service.addOperator(dynamicOp, mockPoint);
+    const element = jointGraph.getCell(dynamicOp.operatorID) as joint.dia.Element;
+    const beforeInputs = texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length;
+    const beforePorts = element.getPorts().length;
+
+    service.addPort(dynamicOp.operatorID, true);
+
+    expect(texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length).toEqual(beforeInputs + 1);
+    expect(element.getPorts().length).toEqual(beforePorts + 1);
+  });
+
+  it("should honor disallowMultiInputs when adding an input port", () => {
+    const dynamicOp: OperatorPredicate = { ...mockMultiInputOutputPredicate, dynamicInputPorts: true };
+    service.addOperator(dynamicOp, mockPoint);
+
+    service.addPort(dynamicOp.operatorID, true, true);
+
+    const inputPorts = texeraGraph.getOperator(dynamicOp.operatorID).inputPorts;
+    expect(inputPorts[inputPorts.length - 1].disallowMultiInputs).toBe(true);
+  });
+
+  it("should remove the last dynamic port from both the texera and joint graphs", () => {
+    const dynamicOp: OperatorPredicate = { ...mockMultiInputOutputPredicate, dynamicInputPorts: true };
+    service.addOperator(dynamicOp, mockPoint);
+    const element = jointGraph.getCell(dynamicOp.operatorID) as joint.dia.Element;
+    // Add a dynamic input port first, then remove it — so this exercises the dynamic-port
+    // removal path (round-tripping back to the original counts) rather than just deleting a
+    // pre-existing port.
+    const baseInputs = texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length;
+    const basePorts = element.getPorts().length;
+    service.addPort(dynamicOp.operatorID, true);
+    expect(texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length).toEqual(baseInputs + 1);
+
+    service.removePort(dynamicOp.operatorID, true);
+
+    expect(texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length).toEqual(baseInputs);
+    expect(element.getPorts().length).toEqual(basePorts);
+  });
+
+  it("should throw when adding a port to an operator without dynamic ports", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    expect(() => service.addPort(mockScanPredicate.operatorID, true)).toThrowError(
+      new RegExp("does not have dynamic input ports")
+    );
+  });
+
+  it("should disable and enable operators, reflecting in the graph and change stream", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    let event: { newDisabled: readonly string[]; newEnabled: readonly string[] } | undefined;
+    texeraGraph.getDisabledOperatorsChangedStream().subscribe(e => (event = e));
+
+    service.disableOperators([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getDisabledOperators().has(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(event?.newDisabled).toContain(mockScanPredicate.operatorID);
+
+    service.enableOperators([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getDisabledOperators().has(mockScanPredicate.operatorID)).toBeFalsy();
+    expect(event?.newEnabled).toContain(mockScanPredicate.operatorID);
+  });
+
+  it("should mark and unmark operators for result reuse", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    let event: { newReuseCacheOps: readonly string[]; newUnreuseCacheOps: readonly string[] } | undefined;
+    texeraGraph.getReuseCacheOperatorsChangedStream().subscribe(e => (event = e));
+
+    service.markReuseResults([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getOperatorsMarkedForReuseResult().has(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(event?.newReuseCacheOps).toContain(mockScanPredicate.operatorID);
+
+    service.removeMarkReuseResults([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getOperatorsMarkedForReuseResult().has(mockScanPredicate.operatorID)).toBeFalsy();
+    expect(event?.newUnreuseCacheOps).toContain(mockScanPredicate.operatorID);
+  });
+
+  it("should set and unset operators for viewing results", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    let event: { newViewResultOps: readonly string[]; newUnviewResultOps: readonly string[] } | undefined;
+    texeraGraph.getViewResultOperatorsChangedStream().subscribe(e => (event = e));
+
+    service.setViewOperatorResults([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getOperatorsToViewResult().has(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(event?.newViewResultOps).toContain(mockScanPredicate.operatorID);
+
+    service.unsetViewOperatorResults([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getOperatorsToViewResult().has(mockScanPredicate.operatorID)).toBeFalsy();
+    expect(event?.newUnviewResultOps).toContain(mockScanPredicate.operatorID);
+  });
+
+  it("should highlight and unhighlight ports honoring multiselect mode", () => {
+    const jointGraphWrapper = service.getJointGraphWrapper();
+    const portA: LogicalPort = { operatorID: mockScanPredicate.operatorID, portID: "output-0" };
+    const portB: LogicalPort = { operatorID: mockSentimentPredicate.operatorID, portID: "input-0" };
+
+    // multiselect on -> both ports stay highlighted
+    service.highlightPorts(true, portA);
+    service.highlightPorts(true, portB);
+    expect(jointGraphWrapper.getCurrentHighlightedPortIDs().length).toEqual(2);
+
+    service.unhighlightPorts(portA, portB);
+    expect(jointGraphWrapper.getCurrentHighlightedPortIDs().length).toEqual(0);
+
+    // multiselect off -> highlighting a new port replaces the previous one
+    service.highlightPorts(false, portA);
+    service.highlightPorts(false, portB);
+    expect(jointGraphWrapper.getCurrentHighlightedPortIDs()).toEqual([portB]);
+  });
+
+  it("should highlight mixed operator and comment-box elements with multiselect", () => {
+    const jointGraphWrapper = service.getJointGraphWrapper();
+    service.addOperator(mockScanPredicate, mockPoint);
+    const commentBox = { ...mockCommentBox, commentBoxID: "commentBox-hl" };
+    service.addCommentBox(commentBox);
+
+    service.highlightElements(true, mockScanPredicate.operatorID, commentBox.commentBoxID);
+
+    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+    expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toContain(commentBox.commentBoxID);
+  });
+
+  it("should update an operator's version in the graph", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.setOperatorVersion(mockScanPredicate.operatorID, "scan-v2");
+    expect(texeraGraph.getOperator(mockScanPredicate.operatorID).operatorVersion).toEqual("scan-v2");
+  });
+
+  it("should set a port property on an existing port and throw on a missing one", () => {
+    service.addOperator(mockSentimentPredicate, mockPoint);
+    const port: LogicalPort = { operatorID: mockSentimentPredicate.operatorID, portID: "input-0" };
+    const portProperty = { partitionInfo: { type: "none" }, dependencies: [] };
+
+    service.setPortProperty(port, portProperty);
+    expect(texeraGraph.getPortDescription(port)?.partitionRequirement).toEqual({ type: "none" });
+
+    const missingPort: LogicalPort = { operatorID: mockSentimentPredicate.operatorID, portID: "input-99" };
+    expect(() => service.setPortProperty(missingPort, portProperty)).toThrowError(new RegExp("does not exist"));
+  });
+
+  it("should compute the top-left position across all operators", () => {
+    service.addOperator(mockScanPredicate, { x: 300, y: 400 });
+    service.addOperator(mockResultPredicate, { x: 100, y: 250 });
+
+    service.calculateTopLeftOperatorPosition();
+
+    expect(service.getCenterPoint()).toEqual({ x: 100, y: 250 });
   });
 });

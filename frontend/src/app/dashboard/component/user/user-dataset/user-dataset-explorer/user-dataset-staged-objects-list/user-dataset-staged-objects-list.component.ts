@@ -17,13 +17,14 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import { Component, EventEmitter, Input, OnInit, Output, ViewChild } from "@angular/core";
+import { auditTime } from "rxjs/operators";
 import { DatasetStagedObject } from "../../../../../../common/type/dataset-staged-object";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { formatTime } from "src/app/common/util/format.util";
-import { NgIf, NgFor } from "@angular/common";
+import { NgIf } from "@angular/common";
 import { NzListComponent, NzListItemComponent } from "ng-zorro-antd/list";
 import { NzTagComponent } from "ng-zorro-antd/tag";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
@@ -32,6 +33,7 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzEmptyComponent } from "ng-zorro-antd/empty";
+import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 
 @UntilDestroy()
 @Component({
@@ -41,8 +43,10 @@ import { NzEmptyComponent } from "ng-zorro-antd/empty";
   imports: [
     NgIf,
     NzListComponent,
-    NgFor,
     NzListItemComponent,
+    CdkVirtualScrollViewport,
+    CdkFixedSizeVirtualScroll,
+    CdkVirtualForOf,
     NzTagComponent,
     NzTooltipDirective,
     NzSpaceCompactItemDirective,
@@ -53,12 +57,18 @@ import { NzEmptyComponent } from "ng-zorro-antd/empty";
   ],
 })
 export class UserDatasetStagedObjectsListComponent implements OnInit {
+  // Coalesces change events so a bulk upload refetches the diff at most once
+  // per window, not once per finished file.
+  static readonly REFRESH_AUDIT_TIME_MS = 1000;
+
   @Input() did?: number; // Dataset ID
   @Input() set userMakeChangesEvent(event: EventEmitter<void>) {
     if (event) {
-      event.pipe(untilDestroyed(this)).subscribe(() => {
-        this.fetchDatasetStagedObjects();
-      });
+      event
+        .pipe(auditTime(UserDatasetStagedObjectsListComponent.REFRESH_AUDIT_TIME_MS), untilDestroyed(this))
+        .subscribe(() => {
+          this.fetchDatasetStagedObjects();
+        });
     }
   }
   @Input() uploadTimeMap?: Map<string, number>;
@@ -67,6 +77,22 @@ export class UserDatasetStagedObjectsListComponent implements OnInit {
 
   datasetStagedObjects: DatasetStagedObject[] = [];
   formatTime = formatTime;
+
+  // Row height must match .staged-object-row in the SCSS.
+  readonly STAGED_ROW_HEIGHT_PX = 40;
+  readonly STAGED_LIST_MAX_HEIGHT_PX = 200;
+
+  @ViewChild(CdkVirtualScrollViewport) private viewport?: CdkVirtualScrollViewport;
+
+  get stagedListHeightPx(): number {
+    return Math.min(this.datasetStagedObjects.length * this.STAGED_ROW_HEIGHT_PX, this.STAGED_LIST_MAX_HEIGHT_PX);
+  }
+
+  // The viewport measures height 0 when created inside a hidden ancestor
+  // (e.g. a collapsed panel); hosts call this once the list is visible.
+  remeasureViewport(): void {
+    setTimeout(() => this.viewport?.checkViewportSize());
+  }
 
   constructor(
     private datasetService: DatasetService,
@@ -112,5 +138,9 @@ export class UserDatasetStagedObjectsListComponent implements OnInit {
 
     const filename = filePath.split("/").pop() || filePath;
     return this.uploadTimeMap.get(filename) || null;
+  }
+
+  trackByStagedObject(_: number, obj: DatasetStagedObject): string {
+    return `${obj.diffType}:${obj.path}`;
   }
 }

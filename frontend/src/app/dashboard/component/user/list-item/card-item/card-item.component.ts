@@ -195,6 +195,7 @@ export class CardItemComponent implements OnChanges {
 
   initializeEntry() {
     this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
+    this.customImage = undefined;
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.workflow.isOwner;
@@ -205,14 +206,8 @@ export class CardItemComponent implements OnChanges {
           this.entryLink = [HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
         }
         this.size = this.entry.size;
-        this.workflowCoverService
-          .getCover(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe(image => {
-            this.customImage = image;
-            this.coverImageSrc = image ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
-            this.cdr.markForCheck();
-          });
+        this.coverImageSrc = this.entry.coverImageUrl ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
+        this.customImage = this.entry.coverImageUrl ?? undefined;
       }
       this.iconType = "project";
     } else if (this.entry.type === "project") {
