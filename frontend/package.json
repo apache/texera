@@ -76,7 +76,7 @@
     "y-websocket": "1.5.4",
     "yjs": "13.5.41",
     "zod": "3.25.76",
-    "zone.js": "0.15.1"
+    "zone.js": "0.16.2"
   },
   "resolutions": {
     "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@25.1.2",
