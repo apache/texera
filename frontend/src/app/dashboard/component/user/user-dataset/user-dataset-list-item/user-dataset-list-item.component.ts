@@ -123,6 +123,7 @@ export class UserDatasetListItemComponent {
     const nameError = validateDatasetName(name);
     if (nameError) {
       this.notificationService.error(nameError);
+      this.editingName = false;
       return;
     }
 

@@ -401,6 +401,8 @@ export class CardItemComponent implements OnChanges {
       const nameError = validateDatasetName(newName);
       if (nameError) {
         this.notificationService.error(nameError);
+        this.entry.name = this.originalName;
+        this.editingName = false;
         return;
       }
     }

@@ -206,7 +206,7 @@ describe("UserDatasetListItemComponent", () => {
           "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)"
         );
         expect(component.entry.dataset.name).toBe(originalName);
-        expect(component.editingName).toBe(true);
+        expect(component.editingName).toBe(false);
       });
     });
 
