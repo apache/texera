@@ -228,4 +228,23 @@ describe("ListItemComponent", () => {
 
     expect(datasetService.updateDatasetName).toHaveBeenCalledWith(5, "new-valid-name");
   });
+
+  it("should surface the error message and revert the name when a dataset rename fails", () => {
+    component.entry = {
+      id: 5,
+      name: "new-valid-name",
+      type: "dataset",
+    } as unknown as DashboardEntry;
+    component.originalName = "old-name";
+    component.editingName = true;
+    datasetService.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(errorSpy).toHaveBeenCalledWith("boom");
+    expect(component.entry.name).toBe("old-name");
+    expect(component.editingName).toBe(false);
+  });
 });

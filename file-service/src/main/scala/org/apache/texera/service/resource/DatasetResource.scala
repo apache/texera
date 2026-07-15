@@ -1467,7 +1467,7 @@ class DatasetResource extends LazyLogging {
     * violation into the same BadRequestException the pre-checks throw, so
     * requests losing a concurrent race get a 400 instead of a 500.
     */
-  private def failOnDuplicateDatasetName[T](op: => T): T = {
+  private[resource] def failOnDuplicateDatasetName[T](op: => T): T = {
     try op
     catch {
       case e: DataAccessException if e.sqlState() == "23505" =>

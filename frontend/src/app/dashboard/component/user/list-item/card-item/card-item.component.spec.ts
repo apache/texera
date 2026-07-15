@@ -152,6 +152,21 @@ describe("CardItemComponent", () => {
     expect(datasetService.updateDatasetName).toHaveBeenCalledWith(5, "new-valid-name");
   });
 
+  it("should surface the error message and revert the name when a dataset rename fails", () => {
+    component.entry = makeDatasetEntry({ id: 5, name: "new-valid-name" });
+    component.originalName = "old-name";
+    component.editingName = true;
+    datasetService.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(errorSpy).toHaveBeenCalledWith("boom");
+    expect(component.entry.name).toBe("old-name");
+    expect(component.editingName).toBe(false);
+  });
+
   it("should update workflow description successfully", () => {
     component.entry = makeWorkflowEntry({ id: 1, description: "Old Description" });
     workflowPersistService.updateWorkflowDescription.mockReturnValue(of({} as Response));

@@ -924,6 +924,52 @@ class DatasetResourceSpec
     }
   }
 
+  "failOnDuplicateDatasetName" should "translate a unique-constraint violation into BadRequestException" in {
+    val existing = new Dataset
+    existing.setName("race-existing")
+    existing.setRepositoryName("race-existing-repo")
+    existing.setDescription("existing dataset for constraint-translation test")
+    existing.setOwnerUid(ownerUser.getUid)
+    existing.setIsPublic(true)
+    existing.setIsDownloadable(true)
+    datasetDao.insert(existing)
+
+    val victim = new Dataset
+    victim.setName("race-victim")
+    victim.setRepositoryName("race-victim-repo")
+    victim.setDescription("dataset whose rename loses the race")
+    victim.setOwnerUid(ownerUser.getUid)
+    victim.setIsPublic(true)
+    victim.setIsDownloadable(true)
+    datasetDao.insert(victim)
+
+    // Simulate the write that loses the race: the constraint fires because the
+    // duplicate already exists, and the helper must map it to a 400.
+    victim.setName("race-existing")
+    assertThrows[BadRequestException] {
+      datasetResource.failOnDuplicateDatasetName {
+        datasetDao.update(victim)
+      }
+    }
+
+    datasetDao.fetchOneByDid(victim.getDid).getName shouldEqual "race-victim"
+  }
+
+  it should "rethrow DataAccessExceptions that are not unique violations" in {
+    assertThrows[org.jooq.exception.DataAccessException] {
+      datasetResource.failOnDuplicateDatasetName {
+        throw new org.jooq.exception.DataAccessException(
+          "lock timeout",
+          new java.sql.SQLException("lock timeout", "55P03")
+        )
+      }
+    }
+  }
+
+  it should "return the result of the operation when no exception is thrown" in {
+    datasetResource.failOnDuplicateDatasetName(42) shouldEqual 42
+  }
+
   // ===========================================================================
   // Multipart upload tests (merged in)
   // ===========================================================================
