@@ -230,10 +230,10 @@ Scala/Java jars:
   - com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.11.4.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-joda-2.9.10.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.21.0.jar
-  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-base-2.12.7.jar
-  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider-2.12.7.jar
+  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-base-2.18.6.jar
+  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider-2.18.6.jar
   - com.fasterxml.jackson.module.jackson-module-afterburner-2.9.10.jar
-  - com.fasterxml.jackson.module.jackson-module-jaxb-annotations-2.12.7.jar
+  - com.fasterxml.jackson.module.jackson-module-jaxb-annotations-2.18.6.jar
   - com.fasterxml.jackson.module.jackson-module-jsonSchema-2.18.8.jar
   - com.fasterxml.jackson.module.jackson-module-no-ctor-deser-2.18.8.jar
   - com.fasterxml.jackson.module.jackson-module-parameter-names-2.9.10.jar
@@ -260,8 +260,8 @@ Scala/Java jars:
   - com.google.http-client.google-http-client-1.42.3.jar
   - com.google.http-client.google-http-client-apache-v2-1.42.3.jar
   - com.google.http-client.google-http-client-gson-1.42.3.jar
-  - com.google.inject.extensions.guice-servlet-4.2.3.jar
-  - com.google.inject.guice-4.2.3.jar
+  - com.google.inject.extensions.guice-servlet-5.1.0.jar
+  - com.google.inject.guice-5.1.0.jar
   - com.google.j2objc.j2objc-annotations-3.1.jar
   - com.google.oauth-client.google-oauth-client-1.34.1.jar
   - com.google.oauth-client.google-oauth-client-java6-1.34.1.jar
@@ -363,7 +363,7 @@ Scala/Java jars:
   - io.opencensus.opencensus-api-0.31.1.jar
   - io.opencensus.opencensus-contrib-http-util-0.31.1.jar
   - io.perfmark.perfmark-api-0.27.0.jar
-  - io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar
+  - io.r2dbc.r2dbc-spi-1.0.0.RELEASE.jar
   - io.reactivex.rxjava3.rxjava-3.1.12.jar
   - javax.inject.javax.inject-1.jar
   - javax.validation.validation-api-2.0.1.Final.jar
@@ -450,30 +450,30 @@ Scala/Java jars:
   - org.apache.pekko.pekko-slf4j_2.13-1.6.0.jar
   - org.apache.pekko.pekko-stream_2.13-1.6.0.jar
   - org.apache.yetus.audience-annotations-0.12.0.jar
-  - org.apache.zookeeper.zookeeper-3.8.4.jar
-  - org.apache.zookeeper.zookeeper-jute-3.8.4.jar
+  - org.apache.zookeeper.zookeeper-3.8.6.jar
+  - org.apache.zookeeper.zookeeper-jute-3.8.6.jar
   - org.bitbucket.b_c.jose4j-0.9.6.jar
   - org.codehaus.jettison.jettison-1.5.4.jar
   - org.eclipse.jetty.jetty-annotations-9.4.18.v20190429.jar
-  - org.eclipse.jetty.jetty-client-9.4.57.v20241219.jar
+  - org.eclipse.jetty.jetty-client-9.4.58.v20250814.jar
   - org.eclipse.jetty.jetty-continuation-9.4.18.v20190429.jar
   - org.eclipse.jetty.jetty-http-9.4.20.v20190813.jar
-  - org.eclipse.jetty.jetty-io-9.4.57.v20241219.jar
+  - org.eclipse.jetty.jetty-io-9.4.58.v20250814.jar
   - org.eclipse.jetty.jetty-jndi-9.4.18.v20190429.jar
   - org.eclipse.jetty.jetty-plus-9.4.18.v20190429.jar
   - org.eclipse.jetty.jetty-security-9.4.20.v20190813.jar
   - org.eclipse.jetty.jetty-server-9.4.20.v20190813.jar
   - org.eclipse.jetty.jetty-servlet-9.4.20.v20190813.jar
   - org.eclipse.jetty.jetty-servlets-9.4.18.v20190429.jar
-  - org.eclipse.jetty.jetty-util-9.4.57.v20241219.jar
+  - org.eclipse.jetty.jetty-util-9.4.58.v20250814.jar
   - org.eclipse.jetty.jetty-webapp-9.4.18.v20190429.jar
   - org.eclipse.jetty.jetty-xml-9.4.18.v20190429.jar
   - org.eclipse.jetty.toolchain.setuid.jetty-setuid-java-1.0.3.jar
   - org.eclipse.jetty.websocket.javax-websocket-client-impl-9.4.18.v20190429.jar
   - org.eclipse.jetty.websocket.javax-websocket-server-impl-9.4.18.v20190429.jar
-  - org.eclipse.jetty.websocket.websocket-api-9.4.57.v20241219.jar
-  - org.eclipse.jetty.websocket.websocket-client-9.4.57.v20241219.jar
-  - org.eclipse.jetty.websocket.websocket-common-9.4.57.v20241219.jar
+  - org.eclipse.jetty.websocket.websocket-api-9.4.58.v20250814.jar
+  - org.eclipse.jetty.websocket.websocket-client-9.4.58.v20250814.jar
+  - org.eclipse.jetty.websocket.websocket-common-9.4.58.v20250814.jar
   - org.eclipse.jetty.websocket.websocket-server-9.4.18.v20190429.jar
   - org.eclipse.jetty.websocket.websocket-servlet-9.4.18.v20190429.jar
   - org.ehcache.sizeof-0.4.4.jar
@@ -489,8 +489,8 @@ Scala/Java jars:
   - org.jheaps.jheaps-0.11.jar
   - org.joda.joda-convert-2.2.2.jar
   - org.jooq.jooq-3.19.36.jar
-  - org.json4s.json4s-ast_2.13-4.0.1.jar
-  - org.json4s.json4s-jackson-core_2.13-4.0.1.jar
+  - org.json4s.json4s-ast_2.13-4.0.6.jar
+  - org.json4s.json4s-jackson-core_2.13-4.0.6.jar
   - org.lz4.lz4-java-1.8.0.jar
   - org.objenesis.objenesis-3.4.jar
   - org.openapitools.jackson-databind-nullable-0.2.6.jar
@@ -567,8 +567,8 @@ Scala/Java jars:
   - com.liveperson.dropwizard-websockets-1.3.14.jar
   - io.github.classgraph.classgraph-4.8.184.jar
   - net.sourceforge.argparse4j.argparse4j-0.8.1.jar
-  - org.bouncycastle.bcprov-jdk18on-1.82.jar
-  - org.checkerframework.checker-qual-3.52.0.jar
+  - org.bouncycastle.bcprov-jdk18on-1.84.jar
+  - org.checkerframework.checker-qual-3.55.1.jar
   - org.codehaus.mojo.animal-sniffer-annotations-1.26.jar
   - org.projectlombok.lombok-1.18.24.jar
   - org.reactivestreams.reactive-streams-1.0.4.jar
@@ -690,8 +690,8 @@ Dependencies under the Eclipse Distribution License, Version 1.0
 --------------------------------------------------------------------------------
 
 Scala/Java jars:
-  - jakarta.activation.jakarta.activation-api-1.2.1.jar
-  - jakarta.xml.bind.jakarta.xml.bind-api-3.0.0.jar
+  - jakarta.activation.jakarta.activation-api-1.2.2.jar
+  - jakarta.xml.bind.jakarta.xml.bind-api-2.3.3.jar
   - org.eclipse.jgit.org.eclipse.jgit-5.13.0.202109080827-r.jar
 
 --------------------------------------------------------------------------------
