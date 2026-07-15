@@ -120,7 +120,6 @@ class NotebookMigrationResourceSpec
     user.setName(name)
     user.setEmail(email)
     user.setRole(UserRoleEnum.REGULAR)
-    user.setPassword("password")
     userDao.insert(user)
     user.getUid
   }

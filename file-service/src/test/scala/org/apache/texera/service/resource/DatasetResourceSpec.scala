@@ -29,18 +29,8 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao,
-  UserDao
-}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion,
-  User
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao, UserDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
 import org.apache.texera.service.MockLakeFS
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.SQLDialect
@@ -62,6 +52,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
 import scala.util.Random
+import scala.util.chaining.scalaUtilChainingOps
 
 object StressMultipart extends Tag("org.apache.texera.stress.multipart")
 
@@ -135,31 +126,28 @@ class DatasetResourceSpec
   // Shared fixtures (DatasetResource basic tests)
   // ---------------------------------------------------------------------------
   private val ownerUser: User = {
-    val user = new User
-    user.setName("test_user")
-    user.setPassword("123")
-    user.setEmail("test_user@test.com")
-    user.setRole(UserRoleEnum.ADMIN)
-    user
+    new User().tap{ user =>
+      user.setName("test_user")
+      user.setEmail("test_user@test.com")
+      user.setRole(UserRoleEnum.ADMIN)
+    }
   }
 
   private val otherAdminUser: User = {
-    val user = new User
-    user.setName("test_user2")
-    user.setPassword("123")
-    user.setEmail("test_user2@test.com")
-    user.setRole(UserRoleEnum.ADMIN)
-    user
+    new User().tap{ user =>
+      user.setName("test_user2")
+      user.setEmail("test_user2@test.com")
+      user.setRole(UserRoleEnum.ADMIN)
+    }
   }
 
   // REGULAR user used specifically for multipart "no WRITE access" tests.
   private val multipartNoWriteUser: User = {
-    val user = new User
-    user.setName("multipart_user2")
-    user.setPassword("123")
-    user.setEmail("multipart_user2@test.com")
-    user.setRole(UserRoleEnum.REGULAR)
-    user
+    new User().tap{user =>
+      user.setName("multipart_user2")
+      user.setEmail("multipart_user2@test.com")
+      user.setRole(UserRoleEnum.REGULAR)
+    }
   }
 
   private val baseDataset: Dataset = {
