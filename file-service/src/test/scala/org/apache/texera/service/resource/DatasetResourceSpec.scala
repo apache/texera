@@ -966,6 +966,14 @@ class DatasetResourceSpec
     }
   }
 
+  it should "let exceptions other than DataAccessException propagate unchanged" in {
+    assertThrows[IllegalStateException] {
+      datasetResource.failOnDuplicateDatasetName {
+        throw new IllegalStateException("unrelated failure")
+      }
+    }
+  }
+
   it should "return the result of the operation when no exception is thrown" in {
     datasetResource.failOnDuplicateDatasetName(42) shouldEqual 42
   }
