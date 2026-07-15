@@ -811,7 +811,7 @@ class DatasetResourceSpec
     dataset.setIsDownloadable(true)
     datasetDao.insert(dataset)
 
-    Seq("", "a/b", "has space", "名前", "dot.dot") foreach { invalidName =>
+    Seq("", "a/b", "has space", "名前", "dot.dot", "a" * 129, null) foreach { invalidName =>
       withClue(s"renaming to '$invalidName': ") {
         assertThrows[BadRequestException] {
           datasetResource.updateDatasetName(
