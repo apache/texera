@@ -1396,7 +1396,8 @@ class DatasetResource extends LazyLogging {
 
         val code = conn.getResponseCode
         if (code < 200 || code >= 300) {
-          val body = Option(conn.getErrorStream).map(s => new String(s.readAllBytes())).getOrElse("")
+          val body =
+            Option(conn.getErrorStream).map(s => new String(s.readAllBytes())).getOrElse("")
           if (body.contains("storageQuotaExceeded")) {
             throw new ForbiddenException("Google Drive storage quota exceeded.")
           }
@@ -1428,9 +1429,10 @@ class DatasetResource extends LazyLogging {
     resolveDatasetAndPath(request.filePath, null, null, uid) match {
       case Left(errorResponse) => errorResponse
       case Right((repositoryName, commitHash, filePath)) =>
-        val presignedUrl = withLakeFSErrorHandling(s"generating presigned URL for file '$filePath'") {
-          LakeFSStorageClient.getFilePresignedUrl(repositoryName, commitHash, filePath)
-        }
+        val presignedUrl =
+          withLakeFSErrorHandling(s"generating presigned URL for file '$filePath'") {
+            LakeFSStorageClient.getFilePresignedUrl(repositoryName, commitHash, filePath)
+          }
 
         val minioConn = new URL(presignedUrl).openConnection().asInstanceOf[HttpURLConnection]
         try {
@@ -1441,7 +1443,8 @@ class DatasetResource extends LazyLogging {
           }
           val minioStream = minioConn.getInputStream
 
-          val driveConn = new URL(request.sessionUri).openConnection().asInstanceOf[HttpURLConnection]
+          val driveConn =
+            new URL(request.sessionUri).openConnection().asInstanceOf[HttpURLConnection]
           try {
             driveConn.setDoOutput(true)
             driveConn.setRequestMethod("PUT")
@@ -1461,7 +1464,9 @@ class DatasetResource extends LazyLogging {
 
             val code = driveConn.getResponseCode
             if (code < 200 || code >= 300) {
-              val body = Option(driveConn.getErrorStream).map(s => new String(s.readAllBytes())).getOrElse("")
+              val body = Option(driveConn.getErrorStream)
+                .map(s => new String(s.readAllBytes()))
+                .getOrElse("")
               if (body.contains("storageQuotaExceeded")) {
                 throw new ForbiddenException("Google Drive storage quota exceeded.")
               }
