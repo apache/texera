@@ -101,11 +101,6 @@ updates:
       python-patch:
         update-types:
           - "patch"
-    ignore:
-      # fs 2.4.16 imports pkg_resources at import time (#4199). Upstream's
-      # warning asks users to pin setuptools below 81, and 82+ removes it.
-      - dependency-name: "setuptools"
-        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
