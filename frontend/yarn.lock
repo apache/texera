@@ -614,19 +614,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@angular-devkit/schematics@npm:21.2.18":
-  version: 21.2.18
-  resolution: "@angular-devkit/schematics@npm:21.2.18"
-  dependencies:
-    "@angular-devkit/core": "npm:21.2.18"
-    jsonc-parser: "npm:3.3.1"
-    magic-string: "npm:0.30.21"
-    ora: "npm:9.3.0"
-    rxjs: "npm:7.8.2"
-  checksum: 10c0/ca1ca3c402ff6f19b8accdb6d05ab2c1a186dbf1108555ae136436084c65b1bc052760a4168d84507cf15c6f979795ec61baee5f8dfa0efd22adbbca8771e6a8
-  languageName: node
-  linkType: hard
-
 "@angular-devkit/schematics@npm:21.2.19":
   version: 21.2.19
   resolution: "@angular-devkit/schematics@npm:21.2.19"
@@ -5981,17 +5968,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@schematics/angular@npm:21.2.18":
-  version: 21.2.18
-  resolution: "@schematics/angular@npm:21.2.18"
-  dependencies:
-    "@angular-devkit/core": "npm:21.2.18"
-    "@angular-devkit/schematics": "npm:21.2.18"
-    jsonc-parser: "npm:3.3.1"
-  checksum: 10c0/445ae3519b6300d09c10cf1dc8451a08a0c378b019e05b3a9fbfa448e7a0cbd1796e170b7ae198ef80fc1e4cca6018c8557169354611ad6ab54563a77ed9444e
-  languageName: node
-  linkType: hard
-
 "@schematics/angular@npm:21.2.19":
   version: 21.2.19
   resolution: "@schematics/angular@npm:21.2.19"
@@ -11094,7 +11070,7 @@ __metadata:
     "@ngx-formly/core": "npm:7.1.0"
     "@ngx-formly/ng-zorro-antd": "npm:7.1.0"
     "@nx/angular": "npm:23.0.1"
-    "@schematics/angular": "npm:21.2.18"
+    "@schematics/angular": "npm:21.2.19"
     "@types/backbone": "npm:1.4.23"
     "@types/concaveman": "npm:1.1.6"
     "@types/d3-shape": "npm:2.1.2"
