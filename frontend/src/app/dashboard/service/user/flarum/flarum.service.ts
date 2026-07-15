@@ -32,11 +32,14 @@ export class FlarumService {
 
   register() {
     const user = this.userService.getCurrentUser();
+    // Best-effort forum credential: a stable per-user value shared by register() and auth().
+    // (The forum is disabled by default and unwired; its real hardening — the hardcoded admin
+    // API key below — is a separate concern.)
     return this.http.post(
       "forum/api/users",
       {
         data: {
-          attributes: { username: user!.email.split("@")[0] + user!.uid, email: user!.email, password: user!.googleId },
+          attributes: { username: user!.email.split("@")[0] + user!.uid, email: user!.email, password: String(user!.uid) },
         },
       },
       { headers: { Authorization: "Token hdebsyxiigyklxgsqivyswwiisohzlnezzzzzzzz;userId=1" } }
@@ -45,6 +48,6 @@ export class FlarumService {
 
   auth() {
     const user = this.userService.getCurrentUser();
-    return this.http.post("forum/api/token", { identification: user!.email, password: user!.googleId, remember: "1" });
+    return this.http.post("forum/api/token", { identification: user!.email, password: String(user!.uid), remember: "1" });
   }
 }

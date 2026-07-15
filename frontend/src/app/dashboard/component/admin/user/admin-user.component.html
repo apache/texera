@@ -193,7 +193,7 @@
     <tr *ngFor="let user of basicTable.data">
       <td>
         <texera-user-avatar
-          [googleAvatar]="user.googleAvatar"
+          [googleAvatar]="user.avatar"
           [userName]="user.name"
           class="user-avatar"
           [ngClass]="{ active: isUserActive(user) }">

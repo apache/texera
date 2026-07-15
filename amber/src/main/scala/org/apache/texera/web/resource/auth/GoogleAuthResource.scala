@@ -35,6 +35,7 @@ import java.time.OffsetDateTime
 import java.util.Collections
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
+import scala.util.chaining.scalaUtilChainingOps
 
 @Path("/auth/google")
 class GoogleAuthResource {
@@ -84,35 +85,34 @@ class GoogleAuthResource {
         ) match {
           case Some(record) =>
             val uid = record.get(USER.UID)
-            val user = txUserDao.fetchOneByUid(uid)
-            // name/email/avatar are profile fields on "user"; refresh from Google if changed
-            if (
-              user.getName != googleName || user.getEmail != googleEmail || user.getAvatar != googleAvatar
-            ) {
-              user.setName(googleName)
-              user.setEmail(googleEmail)
-              user.setAvatar(googleAvatar)
-              txUserDao.update(user)
-            }
-            user
-
-          case None =>
-            val user = Option(txUserDao.fetchOneByEmail(googleEmail)) match {
-              case Some(user) =>
-                if (user.getName != googleName || user.getAvatar != googleAvatar) {
-                  user.setName(googleName)
-                  user.setAvatar(googleAvatar)
-                  txUserDao.update(user)
-                }
-                user
-              case None =>
-                val user = new User
+            txUserDao.fetchOneByUid(uid).tap { user =>
+              // name/email/avatar are profile fields on "user"; refresh from Google if changed
+              if (user.getName != googleName || user.getEmail != googleEmail || user.getAvatar != googleAvatar)
+              {
                 user.setName(googleName)
                 user.setEmail(googleEmail)
                 user.setAvatar(googleAvatar)
-                user.setRole(UserRoleEnum.INACTIVE)
-                txUserDao.insert(user)
-                user
+                txUserDao.update(user)
+              }
+            }
+          case None =>
+            val user = Option(txUserDao.fetchOneByEmail(googleEmail)) match {
+              case Some(user) =>
+                user.tap{ user =>
+                  if (user.getName != googleName || user.getAvatar != googleAvatar) {
+                    user.setName(googleName)
+                    user.setAvatar(googleAvatar)
+                    txUserDao.update(user)
+                  }
+                }
+              case None =>
+                (new User).tap { user =>
+                  user.setName(googleName)
+                  user.setEmail(googleEmail)
+                  user.setAvatar(googleAvatar)
+                  user.setRole(UserRoleEnum.INACTIVE)
+                  txUserDao.insert(user)
+                }
             }
 
             // an email-matched user may already have a GOOGLE provider row, so

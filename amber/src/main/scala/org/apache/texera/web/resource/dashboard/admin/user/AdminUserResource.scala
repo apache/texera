@@ -42,7 +42,7 @@ case class UserInfo(
     email: String,
     googleId: String,
     role: UserRoleEnum,
-    googleAvatar: String,
+    avatar: String,
     comment: String,
     lastLogin: java.time.OffsetDateTime, // will be null if never logged in
     accountCreation: java.time.OffsetDateTime,

@@ -33,7 +33,6 @@ export const MOCK_USER = {
   uid: MOCK_USER_ID,
   name: MOCK_USER_NAME,
   email: MOCK_USER_EMAIL,
-  googleId: undefined,
   role: Role.REGULAR,
   comment: MOCK_USER_COMMENT,
   joiningReason: MOCK_USER_JOININGREASON,

@@ -57,6 +57,7 @@ object JwtAuth {
     claims.setClaim("userId", user.getUid)
     claims.setClaim("email", user.getEmail)
     claims.setClaim("role", user.getRole)
+    claims.setClaim("avatar", user.getAvatar)
     claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
     claims
   }
