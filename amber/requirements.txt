@@ -15,8 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Not imported directly: `fs` needs pkg_resources at import time (#4199).
-setuptools==83.0.0
+# Not imported directly: `fs` imports pkg_resources at import time (#4199).
+# Setuptools 82+ removed pkg_resources; upstream's warning asks users to pin <81.
+setuptools==80.10.2
 numpy==2.1.0
 pandas==2.2.3
 loguru==0.7.3
