@@ -58,7 +58,6 @@ import org.apache.texera.amber.operator.sort.{
 }
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
-import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
 import org.apache.texera.amber.operator.visualization.bulletChart.{
   BulletChartOpDesc,
   BulletChartStepDefinition
@@ -195,7 +194,6 @@ object CuratedHandlers {
     AggregateTransformHandler,
     DictionaryMatcherTransformHandler,
     ProjectionTransformHandler,
-    BarChartVisualizationHandler,
     BulletChartVisualizationHandler,
     ImageVisualizerVisualizationHandler,
     ScatterMatrixVisualizationHandler,
@@ -617,45 +615,6 @@ object BulletChartVisualizationHandler extends TransformHandler {
     desc.deltaReference = "85"
     desc.thresholdValue = "90"
     desc.steps = steps
-
-    (desc, Map(PortIdentity(0) -> inputPath))
-  }
-}
-
-/** BarChart visualization fixture. Covers categorical x values, numeric y
-  * values, and optional color grouping. */
-object BarChartVisualizationHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[BarChartOpDesc]
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val schema = new Schema(
-      new Attribute("title", AttributeType.STRING),
-      new Attribute("runtime_min", AttributeType.INTEGER),
-      new Attribute("genre", AttributeType.STRING)
-    )
-
-    def tup(title: String, runtime: Int, genre: String): Tuple = {
-      val builder = Tuple.builder(schema)
-      builder.add(schema.getAttribute("title"), title)
-      builder.add(schema.getAttribute("runtime_min"), Int.box(runtime))
-      builder.add(schema.getAttribute("genre"), genre)
-      builder.build()
-    }
-
-    val rows = Seq(
-      tup("Silent Harbor", 85, "Horror"),
-      tup("Neon Skies", 84, "Sci-Fi"),
-      tup("The Last Signal", 178, "Drama"),
-      tup("Paper Moons", 99, "Action")
-    )
-    val inputPath = testRoot.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(inputPath, rows.iterator, schema)
-
-    val desc = new BarChartOpDesc()
-    desc.value = "runtime_min"
-    desc.fields = "title"
-    desc.categoryColumn = "genre"
-    desc.horizontalOrientation = false
 
     (desc, Map(PortIdentity(0) -> inputPath))
   }

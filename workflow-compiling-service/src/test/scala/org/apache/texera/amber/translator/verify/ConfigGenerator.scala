@@ -270,22 +270,32 @@ object ConfigGenerator {
   private case class Fail(reason: String) extends Decision
 
   /** Decide whether/how to fill one field, applying required-vs-optional policy:
-    * required (or autofill) fields that can't be filled fail the whole operator;
-    * optional scalars without a meaningful value are skipped (left at default). */
+    * required (or required autofill) fields that can't be filled fail the whole
+    * operator; optional fields without a meaningful value are skipped (left at the
+    * operator's default). */
   private def decide(f: Field, schemas: Map[Int, Schema], used: mutable.Set[(Int, String)], rowCount: Int): Decision = {
     val jp = Option(f.getAnnotation(classOf[JsonProperty]))
     val jsonName = jp.map(_.value).filter(_.nonEmpty).getOrElse(f.getName)
     val required = jp.exists(_.required)
     val autofill = hasAutofill(f)
     val isBoolean = f.getType == classOf[Boolean] || f.getType == classOf[java.lang.Boolean]
-    val meaningful = required || autofill || f.getType.isEnum || isBoolean || isList(f.getType) ||
-      isOption(f.getType) || isNestedObject(f.getType) || jp.map(_.defaultValue).exists(_.nonEmpty)
 
-    valueFor(f, schemas, used, rowCount) match {
-      case Right(v) if meaningful => Fill(jsonName, v)
-      case Right(_)               => Skip // optional plain scalar w/o default — leave operator default
-      case Left(reason) if required || autofill => Fail(reason)
-      case Left(_)                              => Skip
+    // An OPTIONAL column-name field (`@AutofillAttributeName*` with required=false)
+    // is left at its operator default rather than force-filled. These are the
+    // "No Selection" grouping/pattern knobs (e.g. BarChart's categoryColumn /
+    // pattern); forcing a real column into one produces a degenerate config (one
+    // trace per row) that the native and generated paths disagree on.
+    if (autofill && !required) Skip
+    else {
+      val meaningful = required || autofill || f.getType.isEnum || isBoolean || isList(f.getType) ||
+        isOption(f.getType) || isNestedObject(f.getType) || jp.map(_.defaultValue).exists(_.nonEmpty)
+
+      valueFor(f, schemas, used, rowCount) match {
+        case Right(v) if meaningful => Fill(jsonName, v)
+        case Right(_)               => Skip // optional plain scalar w/o default — leave operator default
+        case Left(reason) if required || autofill => Fail(reason)
+        case Left(_)                              => Skip
+      }
     }
   }
 
