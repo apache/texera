@@ -277,12 +277,12 @@ describe("isDashboardWorkflowComputingUnit", () => {
 // this mutual exclusivity: its constructor dispatches through an ordered if/else chain,
 // so a fixture matching a predicate other than its own would be classified incorrectly.
 describe("type predicate cross-classification", () => {
-  const fixtures: ReadonlyArray<[string, unknown]> = [
-    ["DashboardWorkflow fixture", workflowFixture],
-    ["DashboardProject fixture", projectFixture],
-    ["DashboardFile fixture", fileFixture],
-    ["DashboardDataset fixture", datasetFixture],
-    ["DashboardWorkflowComputingUnit fixture", computingUnitFixture],
+  const fixtures: ReadonlyArray<[string, unknown, string]> = [
+    ["DashboardWorkflow fixture", workflowFixture, "isDashboardWorkflow"],
+    ["DashboardProject fixture", projectFixture, "isDashboardProject"],
+    ["DashboardFile fixture", fileFixture, "isDashboardFile"],
+    ["DashboardDataset fixture", datasetFixture, "isDashboardDataset"],
+    ["DashboardWorkflowComputingUnit fixture", computingUnitFixture, "isDashboardWorkflowComputingUnit"],
   ];
 
   const predicates: ReadonlyArray<[string, (value: unknown) => boolean]> = [
@@ -293,9 +293,9 @@ describe("type predicate cross-classification", () => {
     ["isDashboardWorkflowComputingUnit", isDashboardWorkflowComputingUnit],
   ];
 
-  fixtures.forEach(([fixtureName, fixture], fixtureIndex) => {
-    predicates.forEach(([predicateName, predicate], predicateIndex) => {
-      const expected = fixtureIndex === predicateIndex;
+  fixtures.forEach(([fixtureName, fixture, expectedPredicate]) => {
+    predicates.forEach(([predicateName, predicate]) => {
+      const expected = predicateName === expectedPredicate;
       it(`${predicateName} should return ${expected} for the ${fixtureName}`, () => {
         // The it() title identifies the failing fixture/predicate pair.
         expect(predicate(fixture)).toBe(expected);
