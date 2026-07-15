@@ -189,7 +189,7 @@ describe("UserDatasetListItemComponent", () => {
 
       component.confirmUpdateDatasetCustomName("renamed-dataset");
 
-      expect(notificationService.error).toHaveBeenCalledExactlyOnceWith("Update dataset name failed");
+      expect(notificationService.error).toHaveBeenCalledExactlyOnceWith("boom");
       expect(component.entry.dataset.name).toBe(originalName);
       expect(component.editingName).toBe(false);
     });
