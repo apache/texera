@@ -46,6 +46,7 @@ class MockAgentService {
   public stepsSubject = new BehaviorSubject<ReActStep[]>([]);
   public headIdSubject = new BehaviorSubject<string | null>(null);
   public workflowSubject = new BehaviorSubject<Workflow | null>(null);
+  public canRedoSubject = new BehaviorSubject<boolean>(false);
   public scrollToStepSubject = new Subject<{ agentId: string; messageId: string; stepId: number }>();
   public scrollToStep$ = this.scrollToStepSubject.asObservable();
 
@@ -55,10 +56,13 @@ class MockAgentService {
   public getReActStepsObservable = vi.fn((): Observable<ReActStep[]> => this.stepsSubject.asObservable());
   public getHeadIdObservable = vi.fn((): Observable<string | null> => this.headIdSubject.asObservable());
   public getWorkflowObservable = vi.fn((): Observable<Workflow | null> => this.workflowSubject.asObservable());
+  public getCanRedoObservable = vi.fn((): Observable<boolean> => this.canRedoSubject.asObservable());
   public setHoveredMessage = vi.fn();
   public sendMessage = vi.fn();
   public stopGeneration = vi.fn();
   public clearMessages = vi.fn();
+  public revertTurn = vi.fn();
+  public redo = vi.fn();
   public getReActSteps = vi.fn((): Observable<ReActStep[]> => of([]));
   public getSystemInfo = vi.fn(
     (): Observable<{
@@ -850,6 +854,75 @@ describe("AgentChatComponent", () => {
       expect(agentService.clearMessages).toHaveBeenCalledWith(AGENT_ID);
     });
 
+    describe("revert and redo controls", () => {
+      // nz-popconfirm renders its confirmation buttons in the CDK overlay,
+      // which is attached to ApplicationRef rather than this fixture.
+      const flushOverlay = (): void => {
+        fixture.detectChanges();
+        TestBed.inject(ApplicationRef).tick();
+      };
+
+      const seedTurn = async (): Promise<void> => {
+        agentService.stepsSubject.next([
+          makeStep({ messageId: "m1", stepId: 0, role: "user", content: "add an operator" }),
+          makeStep({ messageId: "m1", stepId: 1, role: "agent", content: "done", isBegin: true }),
+        ]);
+        fixture.detectChanges();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        fixture.detectChanges();
+      };
+
+      it("reverts a user turn after confirming the popconfirm", async () => {
+        createComponent();
+        await seedTurn();
+
+        // Only the user turn gets a revert control.
+        const revertButtons = fixture.nativeElement.querySelectorAll(".revert-button");
+        expect(revertButtons.length).toBe(1);
+
+        (revertButtons[0] as HTMLButtonElement).click();
+        flushOverlay();
+        expect(document.body.textContent).toContain("Revert the workflow to before this turn?");
+        expect(agentService.revertTurn).not.toHaveBeenCalled();
+
+        const confirmButton = Array.from(
+          document.querySelectorAll<HTMLButtonElement>(".ant-popover-buttons button")
+        ).at(-1);
+        expect(confirmButton, "expected a popconfirm confirm button").toBeTruthy();
+        confirmButton!.click();
+        flushOverlay();
+
+        expect(agentService.revertTurn).toHaveBeenCalledWith(AGENT_ID, "m1");
+      });
+
+      it("hides the revert button while the agent is busy", async () => {
+        createComponent();
+        await seedTurn();
+        expect(fixture.nativeElement.querySelector(".revert-button")).toBeTruthy();
+
+        agentService.stateSubject.next(AgentState.GENERATING);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector(".revert-button")).toBeNull();
+      });
+
+      it("shows the redo button only when a redo is available, and clicking delegates to the service", () => {
+        createComponent();
+        expect(fixture.nativeElement.querySelector(".chat-toolbar .anticon-redo")).toBeNull();
+
+        agentService.canRedoSubject.next(true);
+        fixture.detectChanges();
+        const redoIcon = fixture.nativeElement.querySelector(".chat-toolbar .anticon-redo");
+        expect(redoIcon).toBeTruthy();
+
+        (redoIcon.closest("button") as HTMLButtonElement).click();
+        expect(agentService.redo).toHaveBeenCalledWith(AGENT_ID);
+
+        agentService.canRedoSubject.next(false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector(".chat-toolbar .anticon-redo")).toBeNull();
+      });
+    });
+
     describe("system-info modal", () => {
       // The modal body renders inside the CDK overlay, which is attached to
       // ApplicationRef rather than to this fixture — tick() re-renders it.
@@ -941,5 +1014,77 @@ describe("AgentChatComponent", () => {
         expect(document.body.textContent).toContain('No operators match "nomatch-xyz"');
       });
     });
+  });
+});
+
+describe("AgentChatComponent revert controls", () => {
+  let component: AgentChatComponent;
+  const revertTurn = vi.fn();
+  const redo = vi.fn();
+
+  beforeEach(async () => {
+    revertTurn.mockReset();
+    redo.mockReset();
+    // compileComponents validates the standalone component's template (including the
+    // new revert button + nz-popconfirm wiring). The component itself is then
+    // instantiated directly so the revert-helper logic can be exercised without
+    // standing up the full render-time DI graph (NzModalService, etc.).
+    await TestBed.configureTestingModule({
+      imports: [AgentChatComponent],
+      providers: [
+        { provide: AgentService, useValue: { revertTurn, redo } },
+        { provide: WorkflowActionService, useValue: {} },
+        { provide: NotificationService, useValue: { error: () => {}, success: () => {}, warning: () => {} } },
+        { provide: WorkflowPersistService, useValue: {} },
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    component = new AgentChatComponent(
+      { revertTurn, redo } as unknown as AgentService,
+      {} as WorkflowActionService,
+      {} as NotificationService,
+      { detectChanges: () => {} } as any,
+      {} as WorkflowPersistService
+    );
+    component.agentInfo = { id: "agent-1", name: "Bob", modelType: "gpt-5-mini" } as any;
+  });
+
+  it("disallows reverting while generating or stopping, allows it otherwise", () => {
+    component.agentState = AgentState.GENERATING;
+    expect(component.canRevert()).toBe(false);
+
+    component.agentState = AgentState.STOPPING;
+    expect(component.canRevert()).toBe(false);
+
+    component.agentState = AgentState.AVAILABLE;
+    expect(component.canRevert()).toBe(true);
+  });
+
+  it("delegates revertTurn to the agent service with the agent id and turn", () => {
+    component.revertTurn("msg-7");
+    expect(revertTurn).toHaveBeenCalledWith("agent-1", "msg-7");
+  });
+
+  it("allows redo only when redo is available and not generating", () => {
+    component.canRedoValue = true;
+    component.agentState = AgentState.AVAILABLE;
+    expect(component.canRedo()).toBe(true);
+
+    component.agentState = AgentState.GENERATING;
+    expect(component.canRedo()).toBe(false);
+
+    component.agentState = AgentState.STOPPING;
+    component.canRedoValue = true;
+    expect(component.canRedo()).toBe(false);
+
+    component.agentState = AgentState.AVAILABLE;
+    component.canRedoValue = false;
+    expect(component.canRedo()).toBe(false);
+  });
+
+  it("delegates redo to the agent service", () => {
+    component.redo();
+    expect(redo).toHaveBeenCalledWith("agent-1");
   });
 });

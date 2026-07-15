@@ -59,6 +59,7 @@ import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NzInputNumberComponent } from "ng-zorro-antd/input-number";
 import { NzTagComponent } from "ng-zorro-antd/tag";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 
 @UntilDestroy()
 @Component({
@@ -89,6 +90,7 @@ import { NzSwitchComponent } from "ng-zorro-antd/switch";
     NzInputGroupComponent,
     NzInputGroupWhitSuffixOrPrefixDirective,
     NzSwitchComponent,
+    NzPopconfirmDirective,
   ],
 })
 export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, OnChanges {
@@ -113,6 +115,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
 
   // Current HEAD step ID in the version tree
   public currentHeadId: string | null = null;
+
+  public canRedoValue = false;
 
   // System info modal state
   public settingsMaxCharLimit = 20000; // Default max characters for operator results
@@ -205,6 +209,14 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .subscribe(headId => {
         this.currentHeadId = headId;
         this.updateVisibleSteps();
+        this.cdr.detectChanges();
+      });
+
+    this.agentService
+      .getCanRedoObservable(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(canRedo => {
+        this.canRedoValue = canRedo;
         this.cdr.detectChanges();
       });
 
@@ -484,6 +496,31 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
 
   public stopGeneration(): void {
     this.agentService.stopGeneration(this.agentInfo.id);
+  }
+
+  /**
+   * Whether a turn can be reverted right now. Reverting mid-generation would race
+   * the agent's own HEAD/workflow mutations, so it is disabled while generating.
+   */
+  public canRevert(): boolean {
+    return this.agentState !== AgentState.GENERATING && this.agentState !== AgentState.STOPPING;
+  }
+
+  /**
+   * Revert the workflow to the state before the given turn. The agent-service
+   * rewinds HEAD and pushes a head-change event, which reloads the canvas and
+   * collapses the chat history to before this turn.
+   */
+  public revertTurn(messageId: string): void {
+    this.agentService.revertTurn(this.agentInfo.id, messageId);
+  }
+
+  public canRedo(): boolean {
+    return this.canRedoValue && this.agentState !== AgentState.GENERATING && this.agentState !== AgentState.STOPPING;
+  }
+
+  public redo(): void {
+    this.agentService.redo(this.agentInfo.id);
   }
 
   public clearMessages(): void {

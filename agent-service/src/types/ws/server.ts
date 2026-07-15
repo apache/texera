@@ -34,7 +34,12 @@ export class WsServerSnapshotEvent {
   constructor(
     readonly state: AgentState,
     readonly steps: ReActStep[],
-    readonly headId: string
+    readonly headId: string,
+    // Deliberately no workflowContent: the agent's in-memory copy can lag the
+    // backend (it never sees manual canvas edits), so pushing it on connect
+    // would overwrite the user's canvas with stale state. Canvas sync stays
+    // owned by backend polling; only live revert/redo events carry content.
+    readonly canRedo: boolean = false
   ) {}
 }
 
@@ -59,5 +64,20 @@ export class WsServerErrorEvent {
   constructor(readonly error: string) {}
 }
 
+/**
+ * HEAD moved without a new step being produced — emitted after a revert. Carries
+ * the new HEAD id and the workflow content at that point, so clients can recompute
+ * the visible step path and reload the canvas.
+ */
+export class WsServerHeadChangeEvent {
+  readonly type = "WsServerHeadChangeEvent";
+  constructor(
+    readonly headId: string,
+    readonly workflowContent: any,
+    readonly canRedo: boolean = false
+  ) {}
+}
+
 /** Discriminated union of every server -> client frame. */
-export type WsServerEvent = WsServerSnapshotEvent | WsServerStepEvent | WsServerStatusEvent | WsServerErrorEvent;
+export type WsServerEvent =
+  WsServerSnapshotEvent | WsServerStepEvent | WsServerStatusEvent | WsServerErrorEvent | WsServerHeadChangeEvent;

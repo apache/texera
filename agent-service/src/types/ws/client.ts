@@ -36,5 +36,23 @@ export class WsClientStopCommand {
   readonly type = "WsClientStopCommand";
 }
 
+/**
+ * Revert the workflow to the state BEFORE the given turn and rewind the agent's
+ * HEAD to that turn's parent step, so a subsequent prompt continues from the
+ * reverted state. `messageId` identifies the turn (the user-message group).
+ */
+export class WsClientRevertCommand {
+  readonly type = "WsClientRevertCommand";
+  constructor(readonly messageId: string) {}
+}
+
+/**
+ * Redo the most recent revert: move HEAD forward to the step it pointed at before
+ * that revert. Repeatable while the redo stack has entries. Carries no payload.
+ */
+export class WsClientRedoCommand {
+  readonly type = "WsClientRedoCommand";
+}
+
 /** Discriminated union of every client -> server frame. */
-export type WsClientCommand = WsClientPromptCommand | WsClientStopCommand;
+export type WsClientCommand = WsClientPromptCommand | WsClientStopCommand | WsClientRevertCommand | WsClientRedoCommand;

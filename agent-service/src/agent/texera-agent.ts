@@ -91,6 +91,8 @@ export class TexeraAgent {
   private workflowState: WorkflowState;
   private metadataStore: WorkflowSystemMetadata;
   private head: string = INITIAL_STEP_ID;
+  // Pre-revert HEADs, pushed on revert and cleared on a new prompt.
+  private redoStack: string[] = [];
   private stepsById: Map<string, ReActStep> = new Map();
   private stepCounter = 0;
   private workflowResultState: WorkflowResultState;
@@ -122,6 +124,12 @@ export class TexeraAgent {
   private abortController: AbortController | null = null;
 
   private workflowChangeSubscription: Subscription | null = null;
+
+  // Serializes history mutations (revert/redo, prompt startup) together with
+  // their backend persistence. Without it, a second WS frame arriving while a
+  // revert awaits persistence would pass the server's busy-guard and interleave
+  // HEAD moves, redo-stack edits, and backend writes out of order.
+  private historyOp: Promise<void> = Promise.resolve();
 
   private log: Logger;
 
@@ -449,20 +457,9 @@ export class TexeraAgent {
 
     if (this.delegateConfig?.workflowId && this.delegateConfig.userToken) {
       const persistSubscription = workflowChanged$.pipe(debounceTime(PERSIST_DEBOUNCE_MS)).subscribe(async () => {
-        if (!this.delegateConfig?.workflowId || !this.delegateConfig.userToken) {
-          return;
-        }
-
         try {
-          const { persistWorkflow } = await import("../api/workflow-api");
-          const workflowContent = this.workflowState.getWorkflowContent();
-          await persistWorkflow(
-            this.delegateConfig.userToken,
-            this.delegateConfig.workflowId,
-            this.delegateConfig.workflowName || "Agent Workflow",
-            workflowContent
-          );
-          this.log.debug({ workflowId: this.delegateConfig.workflowId }, "auto-persisted workflow");
+          await this.persistWorkflowToBackend();
+          this.log.debug({ workflowId: this.delegateConfig?.workflowId }, "auto-persisted workflow");
         } catch (error) {
           this.log.error({ err: error }, "failed to auto-persist workflow");
         }
@@ -475,15 +472,43 @@ export class TexeraAgent {
     this.workflowState.addSubscription(subscription);
   }
 
+  /** Run fn after all queued history operations; queue everything behind it. */
+  private runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.historyOp.then(fn);
+    this.historyOp = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  }
+
+  private async persistWorkflowToBackend(): Promise<void> {
+    if (!this.delegateConfig?.workflowId || !this.delegateConfig.userToken) {
+      return;
+    }
+    const { persistWorkflow } = await import("../api/workflow-api");
+    await persistWorkflow(
+      this.delegateConfig.userToken,
+      this.delegateConfig.workflowId,
+      this.delegateConfig.workflowName || "Agent Workflow",
+      this.workflowState.getWorkflowContent()
+    );
+  }
+
   async sendMessage(userMessage: string, messageSource?: "chat" | "feedback"): Promise<AgentMessageResult> {
     const messageId = `msg-${this.agentId}-${++this.messageCounter}-${Date.now()}`;
     let stepIndex = 0;
 
-    await this.refreshWorkflowFromBackend();
-
-    this.abortController = new AbortController();
-
-    this.state = AgentStateEnum.GENERATING;
+    // The startup section runs under the history lock: it clears the redo
+    // stack and awaits a backend fetch before the busy state is visible, so an
+    // unserialized revert/redo could interleave into that window. Once the
+    // state is GENERATING the lock is released and revert/redo reject on it.
+    await this.runExclusive(async () => {
+      this.redoStack = []; // a new prompt invalidates redo
+      await this.refreshWorkflowFromBackend();
+      this.abortController = new AbortController();
+      this.state = AgentStateEnum.GENERATING;
+    });
 
     this.currentMessageId = messageId;
 
@@ -662,6 +687,8 @@ export class TexeraAgent {
       if (isAborted) {
         stepIndex++;
         const stoppedStepId = this.generateStepId();
+        // Snapshot so revert/redo work when a turn ends on this step.
+        const stoppedContent = this.workflowState.getWorkflowContent();
         const stoppedStep: ReActStep = {
           id: stoppedStepId,
           parentId: this.head,
@@ -672,6 +699,8 @@ export class TexeraAgent {
           content: "Generation stopped by user.",
           isBegin: false,
           isEnd: true,
+          beforeWorkflowContent: stoppedContent,
+          afterWorkflowContent: stoppedContent,
         };
         this.addStep(stoppedStep);
         this.head = stoppedStepId;
@@ -686,6 +715,8 @@ export class TexeraAgent {
 
       stepIndex++;
       const errorStepId = this.generateStepId();
+      // Snapshot so revert/redo work when a turn ends on an error step.
+      const errorContent = this.workflowState.getWorkflowContent();
       const errorStep: ReActStep = {
         id: errorStepId,
         parentId: this.head,
@@ -696,6 +727,8 @@ export class TexeraAgent {
         content: `Error: ${error.message || String(error)}`,
         isBegin: false,
         isEnd: true,
+        beforeWorkflowContent: errorContent,
+        afterWorkflowContent: errorContent,
       };
       this.addStep(errorStep);
       this.head = errorStepId;
@@ -730,10 +763,146 @@ export class TexeraAgent {
     }
   }
 
+  /**
+   * Revert the conversation to the state immediately BEFORE the given turn.
+   * Moves HEAD to that turn's parent step and restores the workflow to the
+   * turn's pre-edit snapshot. The reverted turn (and any later turns on this
+   * branch) drop out of the visible path but remain in the tree, so a later
+   * prompt simply branches from the new HEAD.
+   *
+   * @returns the new HEAD id and the restored workflow content
+   * @throws if the messageId is not a known turn, or the turn is not on the
+   *   path from root to the current HEAD (already reverted, or left on an
+   *   abandoned branch by a stale client)
+   */
+  revertToTurnStart(messageId: string): Promise<{ headId: string; workflowContent: any }> {
+    return this.runExclusive(async () => {
+      // Re-checked under the lock: the server's busy-guard ran when the frame
+      // arrived, but a prompt queued ahead of us may have started since.
+      this.assertNotBusy("revert");
+      const steps = this.reActStepsByMessageId.get(messageId);
+      if (!steps || steps.length === 0) {
+        throw new Error(`Unknown turn: ${messageId}`);
+      }
+      // steps[0] is the user step: its parentId is the prior HEAD.
+      const userStep = steps[0];
+      if (!this.isOnHeadPath(userStep.id)) {
+        throw new Error("Turn is not on the current conversation path");
+      }
+      const newHead = userStep.parentId ?? INITIAL_STEP_ID;
+      const workflowContent = userStep.beforeWorkflowContent;
+
+      const priorHead = this.head;
+      const priorMessageId = this.currentMessageId;
+      this.redoStack.push(this.head);
+      this.head = newHead;
+      this.currentMessageId = undefined;
+      if (workflowContent !== undefined) {
+        const priorWorkflowContent = this.workflowState.getWorkflowContent();
+        this.workflowState.setWorkflowContent(workflowContent);
+        try {
+          await this.persistRestoredWorkflow();
+        } catch (error) {
+          // Roll back rather than report success: with the backend still on the
+          // pre-revert workflow, the next prompt's backend refresh would
+          // silently undo the revert.
+          this.redoStack.pop();
+          this.head = priorHead;
+          this.currentMessageId = priorMessageId;
+          this.workflowState.setWorkflowContent(priorWorkflowContent);
+          throw error;
+        }
+      }
+      this.log.info({ messageId, newHead }, "reverted to turn start");
+      return { headId: newHead, workflowContent };
+    });
+  }
+
+  /** @throws when a run is in flight — history must not move under it. */
+  private assertNotBusy(action: string): void {
+    if (this.state === AgentStateEnum.GENERATING || this.state === AgentStateEnum.STOPPING) {
+      throw new Error(`Cannot ${action} while the agent is busy`);
+    }
+  }
+
+  /** Whether the given step id lies on the path from root to the current HEAD. */
+  private isOnHeadPath(stepId: string): boolean {
+    for (let cursor: string | undefined = this.head; cursor !== undefined;) {
+      if (cursor === stepId) {
+        return true;
+      }
+      cursor = this.stepsById.get(cursor)?.parentId;
+    }
+    return false;
+  }
+
+  /**
+   * setWorkflowContent emits no workflow-changed events, so the auto-persist
+   * subscription never fires for a revert/redo restore. Persist directly —
+   * otherwise the next refreshWorkflowFromBackend (HEAD back at the initial
+   * sentinel) would re-fetch the pre-revert content and silently undo the
+   * revert. Failures propagate so the caller can roll back the history move.
+   */
+  private async persistRestoredWorkflow(): Promise<void> {
+    try {
+      await this.persistWorkflowToBackend();
+    } catch (error) {
+      this.log.warn({ err: error }, "failed to persist restored workflow");
+      throw new Error("Failed to save the restored workflow; the operation was rolled back");
+    }
+  }
+
+  /** Whether a previously reverted turn can be redone. */
+  canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
+  /**
+   * Redo the most recent revert: move HEAD forward to the step it pointed at
+   * before that revert, restoring that step's resulting workflow.
+   *
+   * @returns the new HEAD id and the restored workflow content
+   * @throws if there is nothing to redo
+   */
+  redo(): Promise<{ headId: string; workflowContent: any }> {
+    return this.runExclusive(async () => {
+      this.assertNotBusy("redo");
+      const target = this.redoStack.pop();
+      if (target === undefined) {
+        throw new Error("Nothing to redo");
+      }
+      const priorHead = this.head;
+      this.head = target;
+      // Fall back to the nearest ancestor snapshot if this step has none.
+      let workflowContent: any;
+      let cursor: string | undefined = target;
+      while (workflowContent === undefined && cursor) {
+        const step = this.stepsById.get(cursor);
+        workflowContent = step?.afterWorkflowContent;
+        cursor = step?.parentId;
+      }
+      if (workflowContent !== undefined) {
+        const priorWorkflowContent = this.workflowState.getWorkflowContent();
+        this.workflowState.setWorkflowContent(workflowContent);
+        try {
+          await this.persistRestoredWorkflow();
+        } catch (error) {
+          this.head = priorHead;
+          this.redoStack.push(target);
+          this.workflowState.setWorkflowContent(priorWorkflowContent);
+          throw error;
+        }
+      }
+      this.log.info({ target }, "redid revert");
+      return { headId: target, workflowContent };
+    });
+  }
+
   clearHistory(): void {
     this.reActStepsByMessageId.clear();
     this.stepsById.clear();
     this.currentMessageId = undefined;
+    this.redoStack = [];
     this.head = INITIAL_STEP_ID;
     const initialStep: ReActStep = {
       id: INITIAL_STEP_ID,

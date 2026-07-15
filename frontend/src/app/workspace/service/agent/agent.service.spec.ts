@@ -738,15 +738,19 @@ describe("AgentService", () => {
   });
 
   describe("clearMessages", () => {
-    it("resets the step stream on success", () => {
+    it("resets the step stream and stale redo state on success", () => {
       seedAgent("agent-1");
       const tracking = (service as any).agentStateTracking.get("agent-1");
       tracking.reActStepsSubject.next([{ messageId: "m1" } as unknown as ReActStep]);
+      tracking.canRedoSubject.next(true);
 
       service.clearMessages("agent-1");
       httpMock.expectOne(r => r.method === "POST" && r.url === "/api/agents/agent-1/clear").flush({});
 
       expect(tracking.reActStepsSubject.getValue()).toEqual([]);
+      // The server's clearHistory() empties its redo stack without broadcasting,
+      // so a lingering Redo button would error with "Nothing to redo".
+      expect(tracking.canRedoSubject.getValue()).toBe(false);
     });
 
     it("keeps the steps when the clear request fails", () => {
@@ -963,6 +967,128 @@ describe("AgentService", () => {
       service.requestScrollToStep("agent-1", "m1", 4);
 
       expect(target).toEqual({ agentId: "agent-1", messageId: "m1", stepId: 4 });
+    });
+  });
+
+  describe("revertTurn", () => {
+    it("sends a revert command for the given turn over the websocket", () => {
+      const send = vi.fn();
+      (service as any).agentStateTracking.set("agent-1", {
+        websocket: { readyState: WebSocket.OPEN, send },
+      });
+
+      service.revertTurn("agent-1", "msg-7");
+
+      expect(send).toHaveBeenCalledWith(JSON.stringify({ type: "WsClientRevertCommand", messageId: "msg-7" }));
+    });
+
+    it("does not send when no websocket is open", () => {
+      const send = vi.fn();
+      (service as any).agentStateTracking.set("agent-1", {
+        websocket: { readyState: WebSocket.CLOSED, send },
+      });
+
+      service.revertTurn("agent-1", "msg-7");
+
+      expect(send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("redo", () => {
+    it("sends a redo command over the websocket", () => {
+      const send = vi.fn();
+      (service as any).agentStateTracking.set("agent-1", {
+        websocket: { readyState: WebSocket.OPEN, send },
+      });
+
+      service.redo("agent-1");
+
+      expect(send).toHaveBeenCalledWith(JSON.stringify({ type: "WsClientRedoCommand" }));
+    });
+  });
+
+  describe("sendMessage clears redo", () => {
+    it("resets canRedo when a new prompt is sent (mirrors the backend clearing its stack)", () => {
+      const send = vi.fn();
+      const tracking = (service as any).getOrCreateStateTracking("agent-1");
+      tracking.websocket = { readyState: WebSocket.OPEN, send };
+      tracking.canRedoSubject.next(true);
+      (service as any).agents.set("agent-1", { id: "agent-1", name: "Bob" });
+
+      service.sendMessage("agent-1", "hello");
+
+      expect(send).toHaveBeenCalled();
+      expect(tracking.canRedoSubject.getValue()).toBe(false);
+    });
+  });
+
+  describe("WsServerHeadChangeEvent handling", () => {
+    it("advances the head pointer and reloads the workflow on a revert", () => {
+      const tracking = (service as any).getOrCreateStateTracking("agent-1");
+      const oldContent = { operators: [{ operatorID: "op1" }], operatorPositions: {}, links: [] };
+      tracking.workflowSubject.next({ wid: 7, name: "my workflow", content: oldContent } as unknown as Workflow);
+      const content = { operators: [], operatorPositions: {}, links: [], commentBoxes: [], settings: {} };
+
+      (service as any).handleWebSocketMessage("agent-1", tracking, {
+        type: "WsServerHeadChangeEvent",
+        headId: "step-initial",
+        workflowContent: content,
+      });
+
+      expect(tracking.headIdSubject.getValue()).toEqual("step-initial");
+      const workflow = tracking.workflowSubject.getValue();
+      expect(workflow?.content).toEqual(content);
+      // The tracked workflow's identity must survive the content swap.
+      expect(workflow?.wid).toBe(7);
+      expect(workflow?.name).toBe("my workflow");
+      expect(tracking.wsWorkflowActive).toBe(true);
+    });
+
+    it("does not fabricate a metadata-less workflow when none is tracked yet", () => {
+      const tracking = (service as any).getOrCreateStateTracking("agent-1");
+      expect(tracking.workflowSubject.getValue()).toBeNull();
+
+      (service as any).handleWebSocketMessage("agent-1", tracking, {
+        type: "WsServerHeadChangeEvent",
+        headId: "step-initial",
+        workflowContent: { operators: [], operatorPositions: {}, links: [], commentBoxes: [], settings: {} },
+      });
+
+      // Applying content with no wid/name would let auto-persist create a
+      // duplicate workflow; the head pointer still advances.
+      expect(tracking.workflowSubject.getValue()).toBeNull();
+      expect(tracking.headIdSubject.getValue()).toEqual("step-initial");
+    });
+
+    it("applies workflowContent and canRedo from a snapshot when present", () => {
+      const tracking = (service as any).getOrCreateStateTracking("agent-1");
+      const content = { operators: [], operatorPositions: {}, links: [], commentBoxes: [], settings: {} };
+
+      (service as any).handleWebSocketMessage("agent-1", tracking, {
+        type: "WsServerSnapshotEvent",
+        state: "AVAILABLE",
+        steps: [],
+        headId: "step-initial",
+        workflowContent: content,
+        canRedo: true,
+      });
+
+      expect(tracking.headIdSubject.getValue()).toBe("step-initial");
+      expect(tracking.workflowSubject.getValue()?.content).toEqual(content);
+      expect(tracking.canRedoSubject.getValue()).toBe(true);
+    });
+
+    it("updates canRedo from the head-change event", () => {
+      const tracking = (service as any).getOrCreateStateTracking("agent-1");
+
+      (service as any).handleWebSocketMessage("agent-1", tracking, {
+        type: "WsServerHeadChangeEvent",
+        headId: "step-initial",
+        workflowContent: { operators: [], operatorPositions: {}, links: [], commentBoxes: [], settings: {} },
+        canRedo: true,
+      });
+
+      expect(tracking.canRedoSubject.getValue()).toBe(true);
     });
   });
 });

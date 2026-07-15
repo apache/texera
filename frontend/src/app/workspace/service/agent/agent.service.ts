@@ -172,6 +172,8 @@ interface AgentStateTracking {
   }>;
   /** Current HEAD step ID in the version tree */
   headIdSubject: BehaviorSubject<string | null>;
+  /** Whether a reverted turn can be redone (server-tracked redo stack) */
+  canRedoSubject: BehaviorSubject<boolean>;
   workflowSubject: BehaviorSubject<Workflow | null>;
   workflowId?: number;
   stopPolling$: Subject<void>;
@@ -364,6 +366,7 @@ export class AgentService {
           modifiedOperatorIds: string[];
         }>({ viewedOperatorIds: [], addedOperatorIds: [], modifiedOperatorIds: [] }),
         headIdSubject: new BehaviorSubject<string | null>(null),
+        canRedoSubject: new BehaviorSubject<boolean>(false),
         workflowSubject: new BehaviorSubject<Workflow | null>(null),
         workflowId,
         stopPolling$: new Subject<void>(),
@@ -462,6 +465,7 @@ export class AgentService {
         if (message.headId !== undefined) {
           tracking.headIdSubject.next(message.headId);
         }
+        tracking.canRedoSubject.next(message.canRedo === true);
         // Handle initial workflow content from agent service (ground truth)
         if (message.workflowContent) {
           tracking.wsWorkflowActive = true;
@@ -532,6 +536,24 @@ export class AgentService {
           this.notificationService.warning("Agent was removed (backend may have restarted)");
         } else {
           this.notificationService.error(message.error || "Agent error occurred");
+        }
+        break;
+
+      case "WsServerHeadChangeEvent":
+        // Revert/redo: advancing head recomputes visible steps; the workflow reloads the canvas.
+        if (message.headId !== undefined) {
+          tracking.headIdSubject.next(message.headId);
+        }
+        tracking.canRedoSubject.next(message.canRedo === true);
+        if (message.workflowContent !== undefined) {
+          const existingWorkflow = tracking.workflowSubject.getValue();
+          // Without a tracked workflow there is no wid/name to merge with; applying
+          // the content would fabricate a metadata-less workflow that auto-persist
+          // could save as a new duplicate. Skip and let backend polling catch up.
+          if (existingWorkflow) {
+            tracking.wsWorkflowActive = true;
+            tracking.workflowSubject.next({ ...existingWorkflow, content: message.workflowContent });
+          }
         }
         break;
 
@@ -877,6 +899,8 @@ export class AgentService {
 
     try {
       tracking.websocket.send(JSON.stringify(wsMessage));
+      // Only mirror the backend's redo-stack clear once the prompt actually went out.
+      tracking.canRedoSubject.next(false);
     } catch (error) {
       console.error("Failed to send message to agent:", error);
       this.notificationService.error("Failed to send message");
@@ -912,12 +936,56 @@ export class AgentService {
         const tracking = this.agentStateTracking.get(agentId);
         if (tracking) {
           tracking.reActStepsSubject.next([]);
+          // The server's clearHistory() empties its redo stack without broadcasting.
+          tracking.canRedoSubject.next(false);
         }
       },
       error: (error: unknown) => {
         console.error(`Error clearing messages for agent ${agentId}:`, error);
       },
     });
+  }
+
+  /**
+   * Revert the workflow to the state before the given turn. The agent-service
+   * rewinds its HEAD and replies with a WsServerHeadChangeEvent, which updates
+   * the head pointer (recomputing the visible steps) and reloads the canvas.
+   */
+  public revertTurn(agentId: string, messageId: string): void {
+    const tracking = this.agentStateTracking.get(agentId);
+    if (!tracking || !tracking.websocket || tracking.websocket.readyState !== WebSocket.OPEN) {
+      this.notificationService.error("WebSocket connection not available");
+      return;
+    }
+    try {
+      tracking.websocket.send(JSON.stringify({ type: "WsClientRevertCommand", messageId }));
+    } catch (error) {
+      console.error("Failed to send revert command:", error);
+      this.notificationService.error("Failed to revert");
+    }
+  }
+
+  /**
+   * Redo the most recent revert. The agent-service moves HEAD forward and replies
+   * with a WsServerHeadChangeEvent, which reloads the canvas and updates canRedo.
+   */
+  public redo(agentId: string): void {
+    const tracking = this.agentStateTracking.get(agentId);
+    if (!tracking || !tracking.websocket || tracking.websocket.readyState !== WebSocket.OPEN) {
+      this.notificationService.error("WebSocket connection not available");
+      return;
+    }
+    try {
+      tracking.websocket.send(JSON.stringify({ type: "WsClientRedoCommand" }));
+    } catch (error) {
+      console.error("Failed to send redo command:", error);
+      this.notificationService.error("Failed to redo");
+    }
+  }
+
+  /** Observable of whether a reverted turn can currently be redone. */
+  public getCanRedoObservable(agentId: string): Observable<boolean> {
+    return this.getOrCreateStateTracking(agentId).canRedoSubject.asObservable();
   }
 
   /**

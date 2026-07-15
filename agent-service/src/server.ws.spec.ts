@@ -159,8 +159,26 @@ describe(`WS ${API}/agents/:id/react`, () => {
     expect(snapshot.state).toBe("AVAILABLE");
     expect(Array.isArray(snapshot.steps)).toBe(true);
     expect(typeof snapshot.headId).toBe("string");
+    // The snapshot must NOT carry the agent's workflow copy: it can lag the
+    // backend (manual canvas edits never reach it), so pushing it on connect
+    // would overwrite the user's canvas. Backend polling owns canvas sync.
+    expect("workflowContent" in snapshot).toBe(false);
     // Results are pulled on demand, never pushed on the snapshot.
     expect("operatorResults" in snapshot).toBe(false);
+  });
+
+  test("a client connecting after a revert gets the moved HEAD + canRedo in its snapshot", async () => {
+    const id = await createAgent();
+    const { agent } = seedRevertableTurn(id);
+    await agent.revertToTurnStart("turn-1"); // HEAD -> initial, redo available
+
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    const snapshot = await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    expect(snapshot.headId).toBe("step-initial");
+    expect(snapshot.canRedo).toBe(true);
+    expect("workflowContent" in snapshot).toBe(false);
   });
 
   test("errors and closes when connecting to an unknown agent", async () => {
@@ -326,5 +344,232 @@ describe(`WS ${API}/agents/:id/react`, () => {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     expect(ws.readyState).toBe(WebSocket.CLOSED);
+  });
+
+  // --- Revert (WsClientRevertCommand) ---------------------------------------
+
+  const EMPTY_CONTENT = { operators: [], operatorPositions: {}, links: [], commentBoxes: [], settings: {} };
+  const ONE_OP_CONTENT = {
+    operators: [{ operatorID: "op1" }],
+    operatorPositions: {},
+    links: [],
+    commentBoxes: [],
+    settings: {},
+  };
+
+  // Seed a single completed turn ("turn-1") whose pre-edit workflow was empty and
+  // whose post-edit workflow has one operator; leave HEAD at the turn's last step.
+  function seedRevertableTurn(id: string) {
+    const agent = _getAgentForTests(id)! as any;
+    const priorHead = agent.getHead(); // INITIAL_STEP_ID on a fresh agent
+    const userStep = {
+      id: "u1",
+      parentId: priorHead,
+      messageId: "turn-1",
+      stepId: 0,
+      timestamp: Date.now(),
+      role: "user",
+      content: "add an operator",
+      isBegin: true,
+      isEnd: true,
+      beforeWorkflowContent: EMPTY_CONTENT,
+      afterWorkflowContent: EMPTY_CONTENT,
+    };
+    const agentStep = {
+      id: "a1",
+      parentId: "u1",
+      messageId: "turn-1",
+      stepId: 1,
+      timestamp: Date.now(),
+      role: "agent",
+      content: "done",
+      isBegin: true,
+      isEnd: true,
+      afterWorkflowContent: ONE_OP_CONTENT,
+    };
+    agent.reActStepsByMessageId.set("turn-1", [userStep, agentStep]);
+    agent.stepsById.set("u1", userStep);
+    agent.stepsById.set("a1", agentStep);
+    agent.head = "a1";
+    agent.getWorkflowState().setWorkflowContent(ONE_OP_CONTENT);
+    return { agent, priorHead };
+  }
+
+  test("a revert command rewinds HEAD and broadcasts a head-change frame", async () => {
+    const id = await createAgent();
+    const { agent, priorHead } = seedRevertableTurn(id);
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientRevertCommand", messageId: "turn-1" }));
+
+    const head = await messages.waitFor(m => m.type === "WsServerHeadChangeEvent");
+    expect(head.headId).toBe(priorHead);
+    expect(head.workflowContent.operators).toHaveLength(0);
+    // The agent truly rewound: HEAD moved and its working workflow is the pre-turn state.
+    expect(agent.getHead()).toBe(priorHead);
+    expect(agent.getWorkflowState().getWorkflowContent().operators).toHaveLength(0);
+  });
+
+  test("a revert command without a messageId yields an error frame", async () => {
+    const id = await createAgent();
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientRevertCommand" }));
+
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("messageId is required to revert");
+  });
+
+  test("a revert command for an unknown turn yields an error frame", async () => {
+    const id = await createAgent();
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientRevertCommand", messageId: "no-such-turn" }));
+
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Unknown turn: no-such-turn");
+  });
+
+  test("a revert command while generating is rejected", async () => {
+    const id = await createAgent();
+    seedRevertableTurn(id);
+    const agent = _getAgentForTests(id)! as any;
+    agent.state = "GENERATING";
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientRevertCommand", messageId: "turn-1" }));
+
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Cannot revert while the agent is busy");
+    // HEAD must not have moved.
+    expect(agent.getHead()).toBe("a1");
+  });
+
+  test("a revert command for a turn no longer on the HEAD path yields an error frame", async () => {
+    const id = await createAgent();
+    const { agent } = seedRevertableTurn(id);
+    await agent.revertToTurnStart("turn-1"); // turn-1 drops off the visible path
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    // A duplicate/stale revert (e.g. from a second client) must not execute.
+    ws.send(JSON.stringify({ type: "WsClientRevertCommand", messageId: "turn-1" }));
+
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Turn is not on the current conversation path");
+    expect(agent.getHead()).toBe("step-initial");
+  });
+
+  test("revert and redo are rejected while STOPPING (aborted run still unwinding)", async () => {
+    const id = await createAgent();
+    const { agent } = seedRevertableTurn(id);
+    await agent.revertToTurnStart("turn-1"); // make redo available
+    (agent as any).state = "STOPPING";
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientRevertCommand", messageId: "turn-1" }));
+    const rerr = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(rerr.error).toBe("Cannot revert while the agent is busy");
+
+    ws.send(JSON.stringify({ type: "WsClientRedoCommand" }));
+    const derr = await messages.waitFor(m => m.type === "WsServerErrorEvent" && m.error.includes("redo"));
+    expect(derr.error).toBe("Cannot redo while the agent is busy");
+  });
+
+  // --- Redo (WsClientRedoCommand) -------------------------------------------
+
+  test("revert then redo returns HEAD and workflow to the post-turn state", async () => {
+    const id = await createAgent();
+    const { agent } = seedRevertableTurn(id);
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    // Revert: HEAD -> parent, canRedo becomes true.
+    ws.send(JSON.stringify({ type: "WsClientRevertCommand", messageId: "turn-1" }));
+    const reverted = await messages.waitFor(m => m.type === "WsServerHeadChangeEvent" && m.headId === "step-initial");
+    expect(reverted.canRedo).toBe(true);
+
+    // Redo: HEAD -> back to the turn's leaf, workflow restored.
+    ws.send(JSON.stringify({ type: "WsClientRedoCommand" }));
+    const redone = await messages.waitFor(m => m.type === "WsServerHeadChangeEvent" && m.headId === "a1");
+    expect(redone.workflowContent.operators).toHaveLength(1);
+    expect(redone.canRedo).toBe(false);
+    expect(agent.getHead()).toBe("a1");
+    expect(agent.getWorkflowState().getWorkflowContent().operators).toHaveLength(1);
+  });
+
+  test("redo restores the canvas even when the leaf step has no snapshot (error/stopped turn)", async () => {
+    const id = await createAgent();
+    const { agent } = seedRevertableTurn(id);
+    // Simulate a turn that ended on an error/stopped step: a leaf with no
+    // afterWorkflowContent, whose parent (a1) holds the real snapshot.
+    const errorLeaf = {
+      id: "err1",
+      parentId: "a1",
+      messageId: "turn-1",
+      stepId: 2,
+      timestamp: Date.now(),
+      role: "agent",
+      content: "Error: rate limit",
+      isBegin: false,
+      isEnd: true,
+    };
+    (agent as any).reActStepsByMessageId.get("turn-1").push(errorLeaf);
+    (agent as any).stepsById.set("err1", errorLeaf);
+    (agent as any).head = "err1";
+
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientRevertCommand", messageId: "turn-1" }));
+    await messages.waitFor(m => m.type === "WsServerHeadChangeEvent" && m.headId === "step-initial");
+
+    ws.send(JSON.stringify({ type: "WsClientRedoCommand" }));
+    const redone = await messages.waitFor(m => m.type === "WsServerHeadChangeEvent" && m.headId === "err1");
+    // The leaf carries no snapshot, but redo walks up to a1's snapshot.
+    expect(redone.workflowContent?.operators).toHaveLength(1);
+    expect(agent.getWorkflowState().getWorkflowContent().operators).toHaveLength(1);
+  });
+
+  test("a redo with nothing to redo yields an error frame", async () => {
+    const id = await createAgent();
+    seedRevertableTurn(id);
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientRedoCommand" }));
+
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Nothing to redo");
+  });
+
+  test("a redo while generating is rejected", async () => {
+    const id = await createAgent();
+    const { agent } = seedRevertableTurn(id);
+    // Make redo available, then flip to GENERATING.
+    await agent.revertToTurnStart("turn-1");
+    agent.state = "GENERATING";
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientRedoCommand" }));
+
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Cannot redo while the agent is busy");
   });
 });

@@ -41,7 +41,13 @@ import type {
 } from "./types/agent";
 import { AgentState, OperatorResultSerializationMode } from "./types/agent";
 import type { WsClientCommand, WsServerEvent } from "./types/ws";
-import { WsServerSnapshotEvent, WsServerStepEvent, WsServerStatusEvent, WsServerErrorEvent } from "./types/ws";
+import {
+  WsServerSnapshotEvent,
+  WsServerStepEvent,
+  WsServerStatusEvent,
+  WsServerErrorEvent,
+  WsServerHeadChangeEvent,
+} from "./types/ws";
 import type { OperatorResultSummary } from "./types/execution";
 
 const agentStore = new Map<string, TexeraAgent>();
@@ -458,7 +464,10 @@ export function buildApp() {
 
         agent.addClient(ws);
 
-        sendEventToClient(ws, new WsServerSnapshotEvent(agent.getState(), agent.getAllSteps(), agent.getHead()));
+        sendEventToClient(
+          ws,
+          new WsServerSnapshotEvent(agent.getState(), agent.getAllSteps(), agent.getHead(), agent.canRedo())
+        );
       },
 
       async message(ws, messageData) {
@@ -519,6 +528,42 @@ export function buildApp() {
               // This status frame is the run-end signal (it also unsticks the client
               // from GENERATING after errors).
               broadcastToAgentClients(agentId, new WsServerStatusEvent(agent.getState()));
+            }
+            return;
+          }
+
+          case "WsClientRevertCommand": {
+            if (!msg.messageId || typeof msg.messageId !== "string") {
+              sendEventToClient(ws, new WsServerErrorEvent("messageId is required to revert"));
+              return;
+            }
+            // Don't rewind while a run is in flight or unwinding — it would race
+            // the loop's own HEAD/workflow mutations (incl. the aborted stopped step).
+            if (agent.getState() === AgentState.GENERATING || agent.getState() === AgentState.STOPPING) {
+              sendEventToClient(ws, new WsServerErrorEvent("Cannot revert while the agent is busy"));
+              return;
+            }
+            try {
+              const { headId, workflowContent } = await agent.revertToTurnStart(msg.messageId);
+              broadcastToAgentClients(agentId, new WsServerHeadChangeEvent(headId, workflowContent, agent.canRedo()));
+              wsLog.info({ agentId, messageId: msg.messageId, headId }, "reverted turn");
+            } catch (error: any) {
+              sendEventToClient(ws, new WsServerErrorEvent(error.message));
+            }
+            return;
+          }
+
+          case "WsClientRedoCommand": {
+            if (agent.getState() === AgentState.GENERATING || agent.getState() === AgentState.STOPPING) {
+              sendEventToClient(ws, new WsServerErrorEvent("Cannot redo while the agent is busy"));
+              return;
+            }
+            try {
+              const { headId, workflowContent } = await agent.redo();
+              broadcastToAgentClients(agentId, new WsServerHeadChangeEvent(headId, workflowContent, agent.canRedo()));
+              wsLog.info({ agentId, headId }, "redid revert");
+            } catch (error: any) {
+              sendEventToClient(ws, new WsServerErrorEvent(error.message));
             }
             return;
           }
@@ -588,8 +633,10 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
     }
     console.log("         Send: { type: 'WsClientPromptCommand', content: '...' }");
     console.log("         Send: { type: 'WsClientStopCommand' }");
+    console.log("         Send: { type: 'WsClientRevertCommand', messageId: '...' }");
+    console.log("         Send: { type: 'WsClientRedoCommand' }");
     console.log(
-      "         Recv: { type: 'WsServerSnapshotEvent' | 'WsServerStepEvent' | 'WsServerStatusEvent' | 'WsServerErrorEvent', ... }"
+      "         Recv: { type: 'WsServerSnapshotEvent' | 'WsServerStepEvent' | 'WsServerStatusEvent' | 'WsServerErrorEvent' | 'WsServerHeadChangeEvent', ... }"
     );
   }
 

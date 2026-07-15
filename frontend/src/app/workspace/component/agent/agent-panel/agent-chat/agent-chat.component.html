@@ -48,6 +48,24 @@
         </button>
       </div>
 
+      <!-- Redo the last revert -->
+      <div
+        class="toolbar-item"
+        *ngIf="canRedo()">
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="redo()"
+          nz-tooltip
+          nzTooltipTitle="Redo the last revert">
+          <i
+            nz-icon
+            nzType="redo"
+            nzTheme="outline"></i>
+        </button>
+      </div>
+
       <!-- Export ReAct steps button -->
       <div class="toolbar-item">
         <button
@@ -105,6 +123,24 @@
               [nzType]="response.role === 'user' ? 'user' : 'robot'"
               nzTheme="outline"></i>
             <span class="message-role">{{ response.role === 'user' ? 'You' : agentInfo.name }}</span>
+            <!-- Revert: rewind the workflow + agent to before this turn -->
+            <button
+              *ngIf="response.role === 'user' && response.messageId !== 'initial' && canRevert()"
+              nz-button
+              nzType="text"
+              nzSize="small"
+              class="revert-button"
+              style="margin-left: auto"
+              nz-popconfirm
+              nzPopconfirmTitle="Revert the workflow to before this turn? This turn and any later turns leave the chat; Redo restores them until you send a new message."
+              (nzOnConfirm)="revertTurn(response.messageId)"
+              nz-tooltip
+              nzTooltipTitle="Revert to before this turn">
+              <i
+                nz-icon
+                nzType="undo"
+                nzTheme="outline"></i>
+            </button>
           </div>
 
           <!-- Message content with hover button -->
