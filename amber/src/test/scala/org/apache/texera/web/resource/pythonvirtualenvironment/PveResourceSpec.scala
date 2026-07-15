@@ -60,7 +60,7 @@ class PveResourceSpec
   // What the mocked `pip freeze` reports as the resolved system set. pyarrow is
   // always a hard dependency in amber/requirements.txt, so it stands in for "a
   // system package the user may neither install nor delete".
-  private val systemFreeze = Seq("pyarrow==23.0.1")
+  private val systemFreeze = Seq("pyarrow==25.0.0")
 
   private val realRunner = PveManager.runProcess
 
@@ -257,16 +257,16 @@ class PveResourceSpec
     PveManager.createNewPve(testCuid, queue, testPveName)
     queue.clear()
 
-    PveManager.installUserPackages(List("pyarrow==23.0.1"), testCuid, queue, testPveName)
+    PveManager.installUserPackages(List("pyarrow==25.0.0"), testCuid, queue, testPveName)
 
     val logs = queueText()
-    logs should include("[PVE][ERR] pyarrow==23.0.1 is a system package")
+    logs should include("[PVE][ERR] pyarrow==25.0.0 is a system package")
 
     PveManager
       .getEnvironments(testCuid)
       .find(_.pveName == testPveName)
       .get
-      .userPackages should not contain "pyarrow==23.0.1"
+      .userPackages should not contain "pyarrow==25.0.0"
   }
 
   it should "report an error when a user package install fails" in {
