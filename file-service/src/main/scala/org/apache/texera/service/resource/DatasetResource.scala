@@ -60,7 +60,7 @@ import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{inline => inl}
 import org.jooq.{DSLContext, EnumType, Record2, Result}
 
-import java.io.{InputStream, OutputStream}
+import java.io.{ByteArrayOutputStream, InputStream, OutputStream}
 import java.net.{HttpURLConnection, URI, URL, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
@@ -212,6 +212,13 @@ object DatasetResource {
   )
 
   case class CoverImageRequest(coverImage: String)
+
+  case class DriveExportRequest(sessionUri: String)
+
+  case class DriveFileExportRequest(filePath: String, sessionUri: String)
+
+  val DRIVE_EXPORT_MAX_DATASET_BYTES: Long = 500L * 1024 * 1024
+  val DRIVE_EXPORT_MAX_FILE_BYTES: Long = 5L * 1024L * 1024L * 1024L * 1024L
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
@@ -1295,6 +1302,182 @@ class DatasetResource extends LazyLogging {
         .ok(streamingOutput, "application/zip")
         .header("Content-Disposition", zipFilename)
         .build()
+    }
+  }
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/drive-export")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def exportDatasetToDrive(
+      @PathParam("did") did: Integer,
+      @QueryParam("dvid") dvid: Integer,
+      @QueryParam("latest") latest: java.lang.Boolean,
+      request: DriveExportRequest,
+      @Auth user: SessionUser
+  ): Response = {
+    if (!request.sessionUri.startsWith("https://www.googleapis.com/upload/drive/")) {
+      throw new BadRequestException("Invalid session URI")
+    }
+    withTransaction(context) { ctx =>
+      if ((dvid != null && latest != null) || (dvid == null && latest == null)) {
+        throw new BadRequestException("Specify exactly one: dvid=<ID> OR latest=true")
+      }
+
+      val uid = user.getUid
+      if (!userHasReadAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val dataset = getDatasetByID(ctx, did)
+      if (!userOwnDataset(ctx, did, uid) && !dataset.getIsDownloadable) {
+        throw new ForbiddenException("Dataset download is not allowed")
+      }
+
+      val datasetVersion = if (dvid != null) {
+        getDatasetVersionByID(ctx, dvid)
+      } else {
+        getLatestDatasetVersion(ctx, did).getOrElse(
+          throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
+        )
+      }
+
+      val repositoryName = dataset.getRepositoryName
+      val versionHash = datasetVersion.getVersionHash
+      val objects = withLakeFSErrorHandling(
+        s"listing files of version '$versionHash' of dataset '${dataset.getName}'"
+      ) {
+        LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, versionHash)
+      }
+
+      if (objects.isEmpty) {
+        throw new NotFoundException(s"No objects found in version $versionHash")
+      }
+
+      val totalBytes = objects.map(_.getSizeBytes.longValue()).sum
+      // TODO: remove this limit once chunked resumable upload to Drive is implemented
+      if (totalBytes > DRIVE_EXPORT_MAX_DATASET_BYTES) {
+        throw new BadRequestException("Dataset version exceeds the 500 MB export limit.")
+      }
+      if (totalBytes > DRIVE_EXPORT_MAX_FILE_BYTES) {
+        throw new ForbiddenException("Dataset version exceeds the 5 TB Google Drive export limit.")
+      }
+
+      // Build the zip in memory
+      val baos = new ByteArrayOutputStream()
+      val zipOut = new java.util.zip.ZipOutputStream(baos)
+      try {
+        objects.foreach { obj =>
+          val filePath = obj.getPath
+          val file = withLakeFSErrorHandling(s"downloading file '$filePath' for Drive export") {
+            LakeFSStorageClient.getFileFromRepo(repositoryName, versionHash, filePath)
+          }
+          zipOut.putNextEntry(new java.util.zip.ZipEntry(filePath))
+          Files.copy(Paths.get(file.toURI), zipOut)
+          zipOut.closeEntry()
+        }
+      } finally {
+        zipOut.close()
+      }
+
+      val zipBytes = baos.toByteArray
+      val sessionUri = request.sessionUri
+
+      // PUT the zip to the Google Drive session URI
+      val conn = new URL(sessionUri).openConnection().asInstanceOf[HttpURLConnection]
+      try {
+        conn.setDoOutput(true)
+        conn.setRequestMethod("PUT")
+        conn.setRequestProperty("Content-Type", "application/zip")
+        conn.setFixedLengthStreamingMode(zipBytes.length)
+        val out = conn.getOutputStream
+        out.write(zipBytes)
+        out.close()
+
+        val code = conn.getResponseCode
+        if (code < 200 || code >= 300) {
+          val body = Option(conn.getErrorStream).map(s => new String(s.readAllBytes())).getOrElse("")
+          if (body.contains("storageQuotaExceeded")) {
+            throw new ForbiddenException("Google Drive storage quota exceeded.")
+          }
+          throw new WebApplicationException(
+            s"Google Drive upload failed with HTTP $code",
+            Response.Status.BAD_GATEWAY
+          )
+        }
+      } finally {
+        conn.disconnect()
+      }
+
+      Response.ok(Map("message" -> "Dataset exported to Google Drive")).build()
+    }
+  }
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/drive-export/file")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def exportFileToDrive(
+      request: DriveFileExportRequest,
+      @Auth user: SessionUser
+  ): Response = {
+    if (!request.sessionUri.startsWith("https://www.googleapis.com/upload/drive/")) {
+      throw new BadRequestException("Invalid session URI")
+    }
+    val uid = user.getUid
+    resolveDatasetAndPath(request.filePath, null, null, uid) match {
+      case Left(errorResponse) => errorResponse
+      case Right((repositoryName, commitHash, filePath)) =>
+        val presignedUrl = withLakeFSErrorHandling(s"generating presigned URL for file '$filePath'") {
+          LakeFSStorageClient.getFilePresignedUrl(repositoryName, commitHash, filePath)
+        }
+
+        val minioConn = new URL(presignedUrl).openConnection().asInstanceOf[HttpURLConnection]
+        try {
+          minioConn.setRequestMethod("GET")
+          val contentLength = minioConn.getContentLengthLong
+          if (contentLength > DRIVE_EXPORT_MAX_FILE_BYTES) {
+            throw new ForbiddenException("File exceeds the 5 TB Google Drive export limit.")
+          }
+          val minioStream = minioConn.getInputStream
+
+          val driveConn = new URL(request.sessionUri).openConnection().asInstanceOf[HttpURLConnection]
+          try {
+            driveConn.setDoOutput(true)
+            driveConn.setRequestMethod("PUT")
+            driveConn.setRequestProperty("Content-Type", "application/octet-stream")
+            if (contentLength > 0) {
+              driveConn.setFixedLengthStreamingMode(contentLength)
+              val out = driveConn.getOutputStream
+              minioStream.transferTo(out)
+              out.close()
+            } else {
+              val bytes = minioStream.readAllBytes()
+              driveConn.setFixedLengthStreamingMode(bytes.length.toLong)
+              val out = driveConn.getOutputStream
+              out.write(bytes)
+              out.close()
+            }
+
+            val code = driveConn.getResponseCode
+            if (code < 200 || code >= 300) {
+              val body = Option(driveConn.getErrorStream).map(s => new String(s.readAllBytes())).getOrElse("")
+              if (body.contains("storageQuotaExceeded")) {
+                throw new ForbiddenException("Google Drive storage quota exceeded.")
+              }
+              throw new WebApplicationException(
+                s"Google Drive upload failed with HTTP $code",
+                Response.Status.BAD_GATEWAY
+              )
+            }
+          } finally {
+            driveConn.disconnect()
+          }
+        } finally {
+          minioConn.disconnect()
+        }
+
+        Response.ok(Map("message" -> "File exported to Google Drive")).build()
     }
   }
 

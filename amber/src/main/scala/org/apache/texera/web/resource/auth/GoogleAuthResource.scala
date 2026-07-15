@@ -48,10 +48,16 @@ object GoogleAuthResource {
 @Path("/auth/google")
 class GoogleAuthResource {
   final private lazy val clientId = UserSystemConfig.googleClientId
+  final private lazy val driveApiKey = UserSystemConfig.googleApiKey
 
   @GET
   @Path("/clientid")
   def getClientId: String = clientId
+
+  @GET
+  @Path("/drive/apikey")
+  @Produces(Array(MediaType.TEXT_PLAIN))
+  def getDriveApiKey: String = driveApiKey
 
   @POST
   @Consumes(Array(MediaType.TEXT_PLAIN))

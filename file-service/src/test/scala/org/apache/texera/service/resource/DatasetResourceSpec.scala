@@ -2753,6 +2753,95 @@ class DatasetResourceSpec
   }
 
   // ===========================================================================
+  // exportDatasetToDrive tests
+  // ===========================================================================
+
+  "exportDatasetToDrive" should "reject a session URI that does not start with the googleapis upload prefix" in {
+    val request = DatasetResource.DriveExportRequest("http://test.com/upload")
+    intercept[BadRequestException] {
+      datasetResource.exportDatasetToDrive(baseDataset.getDid, null, null, request, sessionUser)
+    }
+  }
+
+  it should "reject when both dvid and latest are specified" in {
+    val request = DatasetResource.DriveExportRequest("https://www.googleapis.com/upload/drive/test")
+    intercept[BadRequestException] {
+      datasetResource.exportDatasetToDrive(
+        baseDataset.getDid,
+        1,
+        true: java.lang.Boolean,
+        request,
+        sessionUser
+      )
+    }
+  }
+
+  it should "reject when neither dvid nor latest is specified" in {
+    val request = DatasetResource.DriveExportRequest("https://www.googleapis.com/upload/drive/test")
+    intercept[BadRequestException] {
+      datasetResource.exportDatasetToDrive(baseDataset.getDid, null, null, request, sessionUser)
+    }
+  }
+
+  it should "reject when the user has no read access to the dataset" in {
+    val privateDataset = new Dataset
+    privateDataset.setName(s"private-ds-${System.nanoTime()}")
+    privateDataset.setRepositoryName(s"private-repo-${System.nanoTime()}")
+    privateDataset.setIsPublic(false)
+    privateDataset.setIsDownloadable(true)
+    privateDataset.setDescription("private dataset")
+    privateDataset.setOwnerUid(ownerUser.getUid)
+    datasetDao.insert(privateDataset)
+
+    val request = DatasetResource.DriveExportRequest("https://www.googleapis.com/upload/drive/test")
+    intercept[ForbiddenException] {
+      datasetResource.exportDatasetToDrive(
+        privateDataset.getDid,
+        null,
+        true: java.lang.Boolean,
+        request,
+        sessionUser2
+      )
+    }
+  }
+
+  it should "reject when the dataset is not downloadable and the user is not the owner" in {
+    val nonDownloadableDataset = new Dataset
+    nonDownloadableDataset.setName(s"non-dl-ds-${System.nanoTime()}")
+    nonDownloadableDataset.setRepositoryName(s"non-dl-repo-${System.nanoTime()}")
+    nonDownloadableDataset.setIsPublic(true)
+    nonDownloadableDataset.setIsDownloadable(false)
+    nonDownloadableDataset.setDescription("not downloadable")
+    nonDownloadableDataset.setOwnerUid(ownerUser.getUid)
+    datasetDao.insert(nonDownloadableDataset)
+
+    val request = DatasetResource.DriveExportRequest("https://www.googleapis.com/upload/drive/test")
+    intercept[ForbiddenException] {
+      datasetResource.exportDatasetToDrive(
+        nonDownloadableDataset.getDid,
+        null,
+        true: java.lang.Boolean,
+        request,
+        sessionUser2
+      )
+    }
+  }
+
+  // ===========================================================================
+  // exportFileToDrive tests
+  // ===========================================================================
+
+  "exportFileToDrive" should "reject a session URI that does not start with the googleapis upload prefix" in {
+    val request = DatasetResource.DriveFileExportRequest(
+      filePath = s"${ownerUser.getEmail}/${baseDataset.getName}/somefile.txt",
+      sessionUri = "http://test.com/upload"
+    )
+    intercept[BadRequestException] {
+      datasetResource.exportFileToDrive(request, sessionUser)
+    }
+  }
+
+  // ===========================================================================
   // Pagination test – verify that listing APIs return more than the default (100 items)
   // ===========================================================================
 
