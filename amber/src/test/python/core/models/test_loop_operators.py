@@ -37,6 +37,10 @@ Coverage:
     State to_tuple/from_tuple round-trip (TestLoopRunsToCompletion).
   - The exact generated-code shape -- base64 + decode_python_template + exec,
     with quote/newline-bearing expressions (TestGeneratedCodeShape).
+  - Loop expressions that use generator expressions / comprehensions / lambdas
+    over loop variables resolve (eval/exec namespace passed as globals), and
+    exec's injected `__builtins__` never leaks into the persisted state
+    (TestLoopExpressionScoping).
 
 loop_counter and the LoopStart jump metadata (LoopStartId) are owned by the
 worker runtime, not these operators -- they ride the StateFrame envelope as
@@ -81,8 +85,7 @@ class _StubLoopStart(LoopStartOperator):
         self._output_expr = output_expr
 
     def open(self) -> None:
-        self.state = {}
-        exec(self._initialization, {}, self.state)
+        self.run_initialization(self._initialization)
 
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         yield self.eval_output(self._output_expr, table)
@@ -430,6 +433,80 @@ class TestReservedNameCollision:
             op.process_state(incoming, port=0)
 
 
+class TestLoopExpressionScoping:
+    """User loop expressions may use generator expressions, comprehensions, or
+    lambdas that reference loop variables. The eval/exec namespace is passed as
+    globals (not a locals-only mapping) so those nested scopes resolve the
+    loop variables -- a genexp / lambda body looks free names up in globals, so
+    a locals-only namespace raises ``NameError`` on a perfectly valid
+    expression. Regression guard for that scoping bug."""
+
+    def test_eval_output_resolves_genexp_over_loop_vars(self):
+        # `output` is a generator expression whose BODY references the loop
+        # variable `bump` (a free variable inside the genexp scope, unlike the
+        # leftmost iterable which resolves in the enclosing scope); it must
+        # resolve rather than NameError.
+        op = _StubLoopStart(initialization="bump = 10")
+        op.open()
+        result = op.eval_output(
+            "sum(x + bump for x in [1, 2, 3])", Table([Tuple({"v": 1})])
+        )
+        assert result == 36
+
+    def test_run_update_resolves_genexp_over_loop_vars(self):
+        # `update` assigns from a genexp whose body references the loop
+        # variable `base`.
+        op = _StubLoopEnd(update="total = sum(v + base for v in [1, 2, 3])")
+        incoming = State({"base": 10, "table": _ipc_one_row()})
+        op.process_state(incoming, port=0)
+        assert op.state["total"] == 36
+
+    def test_run_update_resolves_lambda_capturing_loop_vars(self):
+        # A lambda in `update` closes over the loop variable `offset`.
+        op = _StubLoopEnd(update="ranked = sorted([3, 1, 2], key=lambda e: e - offset)")
+        incoming = State({"offset": 0, "table": _ipc_one_row()})
+        op.process_state(incoming, port=0)
+        assert op.state["ranked"] == [1, 2, 3]
+
+    def test_eval_condition_resolves_genexp_over_loop_vars(self):
+        # `condition` is a genexp (`all(...)`) whose body references the loop
+        # variable `floor`.
+        op = _StubLoopEnd(
+            update="i += 1", condition_expr="all(x > floor for x in [1, 2, 3])"
+        )
+        incoming = State({"i": 0, "floor": 0, "table": _ipc_one_row()})
+        op.process_state(incoming, port=0)
+        assert op.condition() is True
+
+    def test_run_initialization_resolves_genexp_over_init_vars(self):
+        # A genexp in `initialization` whose body references a variable defined
+        # earlier in the same init block must resolve.
+        op = _StubLoopStart(
+            initialization="floor = 0\nok = all(v > floor for v in [1, 2, 3])"
+        )
+        op.open()
+        assert op.state["ok"] is True
+        assert op.state["floor"] == 0
+
+    def test_initialized_state_has_no_builtins_leak(self):
+        # exec with a globals namespace injects ``__builtins__``; it must not
+        # leak into the persisted loop state (it is not JSON-serializable and
+        # would break State materialization on the back-edge).
+        op = _StubLoopStart(initialization="i = 0")
+        op.open()
+        assert "__builtins__" not in op.state
+        list(op.process_tuple(Tuple({"v": 1}), port=0))
+        produced = op.produce_state_on_finish(port=0)
+        produced.to_tuple(0)  # must not raise
+
+    def test_updated_state_has_no_builtins_leak(self):
+        op = _StubLoopEnd(update="i += 1")
+        incoming = State({"i": 0, "table": _ipc_one_row()})
+        op.process_state(incoming, port=0)
+        assert "__builtins__" not in op.state
+        op.state.to_tuple(0)  # must not raise
+
+
 # The stub subclasses above skip the base64 + `decode_python_template` layer
 # that the real generated operators go through. These templates mirror
 # LoopStart/LoopEndOpDesc.generatePythonCode exactly (user expressions arrive
@@ -440,8 +517,7 @@ _LOOP_START_TEMPLATE = """from pytexera import *
 class ProcessLoopStartOperator(LoopStartOperator):
     @overrides
     def open(self):
-        self.state = {}
-        exec(self.decode_python_template('__INIT__'), {}, self.state)
+        self.run_initialization(self.decode_python_template('__INIT__'))
 
     @overrides
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:

@@ -271,12 +271,27 @@ class MainLoop(StoppableQueueBlockingRunnable):
         loop_counter: int,
         loop_start_id: str = "",
     ) -> None:
-        self._emit_batches(
-            self.context.output_manager.emit_state(state, loop_counter, loop_start_id)
-        )
-        self.context.output_manager.save_state_to_storage_if_needed(
-            state, loop_counter, loop_start_id
-        )
+        # State serialization (state.to_tuple -> to_json) and the storage write
+        # run here on the main loop thread, outside DataProcessor's guarded
+        # executor session. A non-serializable loop variable (e.g. a numpy
+        # array) would otherwise raise a TypeError that propagates through
+        # run()'s @logger.catch(reraise=True), killing the thread and hanging
+        # the workflow with no operator-facing error. Report it like a UDF error
+        # (exception manager + ERROR console message + EXCEPTION_PAUSE) instead;
+        # callers on the end-channel path check has_exception and hold the
+        # region so the reported error is not a silent, false success.
+        try:
+            self._emit_batches(
+                self.context.output_manager.emit_state(
+                    state, loop_counter, loop_start_id
+                )
+            )
+            self.context.output_manager.save_state_to_storage_if_needed(
+                state, loop_counter, loop_start_id
+            )
+        except Exception as err:
+            self.context.report_exception(err)
+            self._check_exception()
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
         """
@@ -379,6 +394,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _process_end_channel(self) -> None:
         self.process_input_state()
+        if self.context.exception_manager.has_exception():
+            # A state-emission error was reported on the main loop thread (see
+            # _emit_and_save_state). Hold the region: skip port_completed and
+            # complete() so the coordinator does not mark the region complete
+            # (region completion is port-based) with partial, single-iteration
+            # results. The reported error surfaces instead of a false success.
+            return
         self.process_input_tuple()
 
         input_port_id = self.context.input_manager.get_port_id(

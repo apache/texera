@@ -50,8 +50,7 @@ class LoopStartOpDesc extends LoopOpDesc {
        |class ProcessLoopStartOperator(LoopStartOperator):
        |    @overrides
        |    def open(self):
-       |        self.state = {}
-       |        exec($initialization, {}, self.state)
+       |        self.run_initialization($initialization)
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:

@@ -1853,6 +1853,95 @@ class TestMainLoop:
         assert len(error_msgs) == 1
         assert "iceberg commit failed" in error_msgs[0].title
 
+    @pytest.mark.timeout(2)
+    def test_emit_and_save_state_reports_error_instead_of_killing_thread(
+        self, main_loop, monkeypatch
+    ):
+        # State serialization (state.to_tuple -> to_json) runs on the main loop
+        # thread inside _emit_and_save_state, outside DataProcessor's guarded
+        # executor session. A non-JSON-serializable loop variable (e.g. a numpy
+        # array) makes save_state_to_storage_if_needed raise; without a guard it
+        # propagates through run()'s @logger.catch(reraise=True) and kills the
+        # thread, hanging the workflow with no operator-facing error. It must be
+        # reported like a UDF error (exception manager + ERROR console message +
+        # EXCEPTION_PAUSE) instead.
+        console_msgs = []
+        pauses = []
+        monkeypatch.setattr(
+            main_loop, "_send_console_message", lambda msg: console_msgs.append(msg)
+        )
+        monkeypatch.setattr(
+            main_loop.context.pause_manager,
+            "pause",
+            lambda pause_type, change_state=True: pauses.append(pause_type),
+        )
+        monkeypatch.setattr(
+            main_loop.context.output_manager, "emit_state", lambda *a, **k: []
+        )
+
+        def _boom(*args, **kwargs):
+            raise TypeError("State value of type ndarray is not JSON serializable")
+
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "save_state_to_storage_if_needed",
+            _boom,
+        )
+
+        # Must not raise: the serialization error is reported, not propagated.
+        main_loop._emit_and_save_state(State({"weights": 1}), 0, "")
+
+        assert main_loop.context.exception_manager.has_exception()
+        assert pauses == [PauseType.EXCEPTION_PAUSE]
+        error_msgs = [m for m in console_msgs if m.msg_type == ConsoleMessageType.ERROR]
+        assert len(error_msgs) == 1
+        assert "not JSON serializable" in error_msgs[0].title
+
+    @pytest.mark.timeout(2)
+    def test_end_channel_holds_region_when_state_emit_fails(
+        self, main_loop, monkeypatch
+    ):
+        # When a state-emission error is reported during _process_end_channel,
+        # the worker must NOT go on to send port_completed / complete(): those
+        # RPCs would let the coordinator mark the region complete despite the
+        # reported error (port-based region completion). The guard holds the
+        # region so the reported error is not a false success.
+        completed = []
+        port_completed_calls = []
+
+        def _boom_process_input_state(*args, **kwargs):
+            # Simulate a reported state-emit failure on the main loop thread.
+            try:
+                raise TypeError("not JSON serializable")
+            except TypeError as err:
+                main_loop.context.report_exception(err)
+                main_loop._check_exception()
+
+        monkeypatch.setattr(main_loop, "process_input_state", _boom_process_input_state)
+        monkeypatch.setattr(main_loop, "process_input_tuple", lambda: None)
+        monkeypatch.setattr(main_loop, "complete", lambda: completed.append(True))
+
+        class _Coordinator:
+            def port_completed(self, request):
+                port_completed_calls.append(request)
+
+        monkeypatch.setattr(
+            main_loop._async_rpc_client, "coordinator_stub", lambda: _Coordinator()
+        )
+        monkeypatch.setattr(
+            main_loop.context.pause_manager,
+            "pause",
+            lambda pause_type, change_state=True: None,
+        )
+        monkeypatch.setattr(main_loop, "_send_console_message", lambda msg: None)
+
+        main_loop._process_end_channel()
+
+        assert port_completed_calls == [], (
+            "must not complete ports after a reported error"
+        )
+        assert completed == [], "must not complete the worker after a reported error"
+
     # -- Loop counter is runtime-owned (relocated from test_loop_operators) ---
     #
     # loop_counter is not part of State; it rides on the StateFrame envelope and

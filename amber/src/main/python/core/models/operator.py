@@ -337,9 +337,16 @@ def _eval_loop_expr(expr: str, state: State, table: Optional[Table]):
     so the seeded ``table`` neither leaks into nor is clobbered out of the
     persistent loop ``state``. Shared by LoopStart's ``output`` expression and
     LoopEnd's ``condition``.
+
+    The namespace is passed as ``eval`` globals (not a locals-only mapping):
+    a generator expression / comprehension / lambda in the user's expression
+    resolves its free variables against globals, so a locals-only namespace
+    would raise ``NameError`` on otherwise-valid expressions like
+    ``all(x > threshold for x in items)``. The namespace is discarded, so the
+    ``__builtins__`` that ``eval`` injects into it does not matter here.
     """
     namespace = {**state, _TABLE_KEY: table}
-    return eval(expr, {}, namespace)
+    return eval(expr, namespace)
 
 
 class LoopStartOperator(TableOperator):
@@ -373,6 +380,23 @@ class LoopStartOperator(TableOperator):
         # counter and never mutates the State it is handed.
         self.state.update(state)
         return None
+
+    @overrides.final
+    def run_initialization(self, initialization_code: str) -> None:
+        # Run the user's `initialization` to seed the loop variables, then keep
+        # them as self.state. The namespace is passed as exec globals (not a
+        # locals-only mapping) so a comprehension / generator expression /
+        # lambda in the init resolves its free variables -- a locals-only
+        # namespace raises NameError on otherwise-valid init code. exec injects
+        # `__builtins__` into that globals dict, so drop it before it reaches
+        # the persisted state (it is not JSON-serializable and would break the
+        # State materialization on the back-edge). A user variable named
+        # `table` is left in place so produce_state_on_finish flags the
+        # collision rather than silently dropping it.
+        namespace: dict = {}
+        exec(initialization_code, namespace)
+        namespace.pop("__builtins__", None)
+        self.state = State(namespace)
 
     @overrides.final
     def eval_output(self, output_expr: str, table: Table) -> TableLike:
@@ -444,7 +468,13 @@ class LoopEndOperator(TableOperator):
         # condition() can read it after the update.
         input_table = table_from_ipc_bytes(state[_TABLE_KEY])
         namespace = {**state, _TABLE_KEY: input_table}
-        exec(update_code, {}, namespace)
+        # Pass the namespace as exec globals (not a locals-only mapping) so a
+        # comprehension / generator expression / lambda in the user's `update`
+        # resolves its free variables -- a locals-only namespace raises
+        # NameError on otherwise-valid update code. exec injects `__builtins__`
+        # into that globals dict; drop it so it does not leak into self.state.
+        exec(update_code, namespace)
+        namespace.pop("__builtins__", None)
         # `table` is runtime-owned; a user `update` that rebinds (or deletes)
         # it (a loop variable named `table`) would be silently dropped by the
         # strip below, so flag the collision instead.
