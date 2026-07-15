@@ -1470,8 +1470,11 @@ class DatasetResource extends LazyLogging {
   private[resource] def failOnDuplicateDatasetName[T](op: => T): T = {
     try op
     catch {
-      case e: DataAccessException if e.sqlState() == "23505" =>
-        throw new BadRequestException("Dataset with the same name already exists")
+      case e: DataAccessException =>
+        if (e.sqlState() == "23505") {
+          throw new BadRequestException("Dataset with the same name already exists")
+        }
+        throw e
     }
   }
 

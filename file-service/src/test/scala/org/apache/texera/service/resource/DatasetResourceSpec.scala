@@ -966,6 +966,17 @@ class DatasetResourceSpec
     }
   }
 
+  it should "rethrow DataAccessExceptions whose cause carries no SQL state" in {
+    assertThrows[org.jooq.exception.DataAccessException] {
+      datasetResource.failOnDuplicateDatasetName {
+        throw new org.jooq.exception.DataAccessException(
+          "no sql state",
+          new java.sql.SQLException("constructed without a SQL state")
+        )
+      }
+    }
+  }
+
   it should "let exceptions other than DataAccessException propagate unchanged" in {
     assertThrows[IllegalStateException] {
       datasetResource.failOnDuplicateDatasetName {
