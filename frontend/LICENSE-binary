@@ -332,7 +332,7 @@ Angular / npm packages:
   - y-quill@0.1.5
   - y-websocket@1.5.4
   - yjs@13.5.41
-  - zone.js@0.15.1
+  - zone.js@0.16.2
 
 --------------------------------------------------------------------------------
 Dependencies under the BSD 3-Clause License
