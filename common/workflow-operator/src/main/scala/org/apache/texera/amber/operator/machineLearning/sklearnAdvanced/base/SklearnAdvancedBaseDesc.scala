@@ -94,6 +94,35 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
 
   }
 
+  /** Standalone-safe parameter strings: the parameter-table column name is
+    * emitted as a quoted Python string literal (`table["col"]`). The shared
+    * [[getParameter]]/[[getLoopTimes]] rely on EncodableString auto-encoding for
+    * the native path; the standalone `.plain` path would otherwise drop the
+    * quotes (`table[col]`) and raise NameError. Returns (model-args, para_str). */
+  private def getParameterStandalone(paraList: List[HyperParameters[T]]): (String, String) = {
+    val workflowParam = new StringBuilder
+    val portParam = new StringBuilder
+    val paramString = new StringBuilder
+    for (ele <- paraList) {
+      val name = ele.parameter.getName
+      val typ = ele.parameter.getType
+      workflowParam.append(s"$name = {},")
+      if (ele.parametersSource) {
+        portParam.append(s"""$typ(table["${ele.attribute}"].values[i]),""")
+        paramString.append(s"""$name = $typ(table["${ele.attribute}"].values[i]),""")
+      } else {
+        portParam.append(s"$typ (${ele.value}),")
+        paramString.append(s"$name = $typ (${ele.value}),")
+      }
+    }
+    (paramString.toString, s""""$workflowParam".format($portParam)""")
+  }
+
+  private def getLoopTimesStandalone(paraList: List[HyperParameters[T]]): String =
+    paraList
+      .collectFirst { case ele if ele.parametersSource => s"""table["${ele.attribute}"].values.shape[0]""" }
+      .getOrElse("1")
+
   override def generatePythonCode(): String = {
     val listFeatures = selectedFeatures.map(feature => pyb"""$feature""").mkString(",")
     val trainingName = getImportStatements.split(" ").last
@@ -178,10 +207,8 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
   override def generateStandaloneCode(): String = {
     val listFeatures = selectedFeatures.map(feature => s""""$feature"""").mkString(",")
     val trainingName = getImportStatements.split(" ").last
-    val stringList = getParameter(paraList)
-    val trainingParamPlain = stringList(1).plain
-    val paramStringPlain = stringList(0).plain
-    val loopTimesPlain = getLoopTimes(paraList).plain
+    val (trainingParamPlain, paramStringPlain) = getParameterStandalone(paraList)
+    val loopTimesPlain = getLoopTimesStandalone(paraList)
 
     s"""import pandas as pd
        |${getImportStatements}

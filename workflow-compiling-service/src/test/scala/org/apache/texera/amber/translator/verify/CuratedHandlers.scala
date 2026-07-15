@@ -73,6 +73,7 @@ import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.{HyperParameters, ParamClass}
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import org.apache.texera.amber.operator.huggingFace.HuggingFaceSpamSMSDetectionOpDesc
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -254,6 +255,38 @@ object CuratedHandlers {
     TupleIO.writeTuples(train, SklearnFixture.rows.iterator, SklearnFixture.schema)
     TupleIO.writeTuples(test, SklearnFixture.rows.iterator, SklearnFixture.schema)
     (train, test)
+  }
+
+  /** One real hyperparameter for an advanced sklearn trainer, so the parameter-
+    * handling logic is actually exercised (vs. an empty sweep). Resolves the
+    * operator's parameter enum (its `SklearnMLOperatorDescriptor[T]` type
+    * argument), picks the first numeric hyperparameter, and gives it a fixed
+    * value — e.g. KNN `n_neighbors = 3`, SVC/SVR `C = 1.0`. */
+  def sampleHyperParameter(opClass: Class[_ <: LogicalOp]): HyperParameters[ParamClass] = {
+    val consts = resolveParamEnum(opClass).getEnumConstants.map(_.asInstanceOf[ParamClass])
+    val chosen = consts.find(c => Set("int", "float", "double").contains(c.getType)).getOrElse(consts.head)
+    val hp = new HyperParameters[ParamClass]()
+    hp.parameter = chosen
+    hp.parametersSource = false
+    hp.value = if (chosen.getType == "int") "3" else "1.0"
+    hp.attribute = "param_val" // column read when the sweep flips parametersSource=true
+    hp
+  }
+
+  /** The concrete enum bound to `T` in an operator's
+    * `SklearnMLOperatorDescriptor[T]` supertype (e.g. `SklearnAdvancedKNNParameters`). */
+  private def resolveParamEnum(opClass: Class[_]): Class[_] = {
+    var t: java.lang.reflect.Type = opClass.getGenericSuperclass
+    while (t != null) t match {
+      case pt: java.lang.reflect.ParameterizedType =>
+        val raw = pt.getRawType.asInstanceOf[Class[_]]
+        if (raw == classOf[SklearnMLOperatorDescriptor[_]])
+          return pt.getActualTypeArguments()(0).asInstanceOf[Class[_]]
+        t = raw.getGenericSuperclass
+      case c: Class[_] => t = c.getGenericSuperclass
+      case _           => t = null
+    }
+    throw new IllegalStateException(s"cannot resolve param enum for ${opClass.getName}")
   }
 }
 
@@ -852,17 +885,33 @@ object SklearnLinearRegressionTransformHandler extends TransformHandler {
 }
 
 /** Advanced (hyperparameter-sweep) trainers: train on port 0, parameter table
-  * on port 1. With an empty paraList the estimator uses default hyperparameters
-  * (one model, no sweep). The model lands in a BINARY column compared by
-  * prediction behavior; Parameters is an empty string on both paths. */
+  * on port 1. We set one real hyperparameter (the family's first numeric one —
+  * KNN `n_neighbors = 3`, SVC/SVR `C = 1.0`) so the parameter-handling logic
+  * (`getParameter` and the param string both code paths build) is actually
+  * exercised, not skipped with an empty paraList. The model lands in a BINARY
+  * column compared by prediction behavior. */
 abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   protected def newDesc(): SklearnMLOperatorDescriptor[_]
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val (train, param) = CuratedHandlers.writeClassification2Input(testRoot)
+    val train = testRoot.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(train, SklearnFixture.rows.iterator, SklearnFixture.schema)
+
     val desc = newDesc()
     desc.groundTruthAttribute = "y"
     desc.selectedFeatures = List("x1", "x2")
+    val hp = CuratedHandlers.sampleHyperParameter(opDescClass)
+    desc.asInstanceOf[SklearnMLOperatorDescriptor[ParamClass]].paraList = List(hp)
+
+    // Port 1 is the "parameter" table. It holds one valid value for the chosen
+    // hyperparameter so BOTH branches run: parametersSource=false uses hp.value,
+    // and the swept parametersSource=true reads this `param_val` column.
+    val isInt = hp.parameter.getType == "int"
+    val param = CuratedHandlers.writeFixture(
+      testRoot.resolve("input_port_1.jsonl"),
+      Seq(("param_val", if (isInt) AttributeType.INTEGER else AttributeType.DOUBLE)),
+      Seq(Seq(if (isInt) 3 else 1.0))
+    )
     (desc, Map(PortIdentity(0) -> train, PortIdentity(1) -> param))
   }
 }
