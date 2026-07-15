@@ -40,6 +40,16 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
 
     override def getHeaderString(name: String): String =
       if (name == HttpHeaders.AUTHORIZATION) authHeader else null
+    override def containsHeaderString(
+        name: String,
+        value: String,
+        valuePredicate: java.util.function.Predicate[String]
+    ): Boolean = {
+      val headerValue = getHeaderString(name)
+      headerValue == value || (headerValue != null && Option(valuePredicate).exists(
+        _.test(headerValue)
+      ))
+    }
     override def setSecurityContext(context: SecurityContext): Unit = securityContext.set(context)
     override def getSecurityContext: SecurityContext = securityContext.get()
 

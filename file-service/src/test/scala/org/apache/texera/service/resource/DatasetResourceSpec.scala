@@ -865,6 +865,14 @@ class DatasetResourceSpec
       override def getRequestHeaders = headers
       override def getRequestHeader(name: String) =
         Option(headers.get(name)).getOrElse(Collections.emptyList[String]())
+      override def containsHeaderString(
+          name: String,
+          value: String,
+          valuePredicate: java.util.function.Predicate[String]
+      ): Boolean =
+        getRequestHeader(name).asScala.exists(headerValue =>
+          headerValue == value || Option(valuePredicate).exists(_.test(headerValue))
+        )
 
       override def getAcceptableMediaTypes = Collections.emptyList[MediaType]()
       override def getAcceptableLanguages = Collections.emptyList[Locale]()
@@ -881,6 +889,12 @@ class DatasetResourceSpec
       override def getHeaderString(name: String): String = null
       override def getRequestHeaders = headers
       override def getRequestHeader(name: String) = Collections.emptyList[String]()
+      override def containsHeaderString(
+          name: String,
+          value: String,
+          valuePredicate: java.util.function.Predicate[String]
+      ): Boolean =
+        false
       override def getAcceptableMediaTypes = Collections.emptyList[MediaType]()
       override def getAcceptableLanguages = Collections.emptyList[Locale]()
       override def getMediaType: MediaType = null
@@ -897,6 +911,14 @@ class DatasetResourceSpec
 
       override def getHeaderString(name: String): String =
         if (HttpHeaders.CONTENT_LENGTH.equalsIgnoreCase(name)) raw else null
+      override def containsHeaderString(
+          name: String,
+          value: String,
+          valuePredicate: java.util.function.Predicate[String]
+      ): Boolean =
+        getRequestHeader(name).asScala.exists(headerValue =>
+          headerValue == value || Option(valuePredicate).exists(_.test(headerValue))
+        )
       override def getRequestHeaders: MultivaluedMap[String, String] = {
         val map = new MultivaluedHashMap[String, String]()
         map.putSingle(HttpHeaders.CONTENT_LENGTH, raw)

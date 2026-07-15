@@ -547,7 +547,7 @@ Scala/Java jars:
   - jakarta.annotation.jakarta.annotation-api-2.1.1.jar
   - jakarta.el.jakarta.el-api-4.0.0.jar
   - jakarta.servlet.jakarta.servlet-api-5.0.0.jar
-  - jakarta.ws.rs.jakarta.ws.rs-api-3.0.0.jar
+  - jakarta.ws.rs.jakarta.ws.rs-api-4.0.0.jar
   - javax.ws.rs.javax.ws.rs-api-2.1.1.jar
   - org.glassfish.hk2.external.aopalliance-repackaged-3.0.6.jar
   - org.glassfish.hk2.hk2-api-3.0.6.jar
