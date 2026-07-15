@@ -117,7 +117,7 @@
     "@vitest/coverage-v8": "4.1.10",
     "buffer": "5.7.1",
     "build-number-generator": "3.1.0",
-    "concurrently": "7.4.0",
+    "concurrently": "10.0.3",
     "eslint": "8.57.0",
     "eslint-plugin-rxjs": "5.0.3",
     "eslint-plugin-rxjs-angular": "2.0.1",
