@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { DashboardWorkflowComputingUnit } from "../type/workflow-computing-unit";
+import type { DashboardWorkflowComputingUnit } from "../type/workflow-computing-unit";
 import {
   parseResourceUnit,
   parseResourceNumber,
