@@ -1004,6 +1004,7 @@ jobs:
           cd amber && pytest -m "not integration" --cov=src/main/python --cov-report=xml --junit-xml=junit.xml -sv
       - name: Upload pyamber coverage to Codecov
         if: matrix.python-version == '3.12' && always()
+        continue-on-error: true
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -1016,6 +1017,7 @@ jobs:
         # rather than `always()` so we still upload on test failure (the
         # whole point of Test Analytics) but skip cancelled runs.
         if: matrix.python-version == '3.12' && !cancelled()
+        continue-on-error: true
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
