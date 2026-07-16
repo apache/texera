@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.deploysemantics.layer
 
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.engine.architecture.controller.execution.WorkerPortExecution
+import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkerPortExecution
 import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
 import org.apache.texera.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 

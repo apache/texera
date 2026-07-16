@@ -36,7 +36,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 import org.apache.texera.amber.core.workflow.WorkflowContext
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED
@@ -212,7 +212,7 @@ class WorkflowService(
       )
 
       val workflowContext: WorkflowContext = createWorkflowContext()
-      var controllerConf = ControllerConfig.default
+      var coordinatorConf = CoordinatorConfig.default
 
       // clean up results from previous run
       val previousExecutionId =
@@ -240,7 +240,7 @@ class WorkflowService(
         ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
           execution => execution.setLogLocation(writeLocation.toString)
         }
-        controllerConf = controllerConf.copy(faultToleranceConfOpt =
+        coordinatorConf = coordinatorConf.copy(faultToleranceConfOpt =
           Some(FaultToleranceConfig(writeTo = writeLocation))
         )
       }
@@ -250,7 +250,7 @@ class WorkflowService(
           .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
           .foreach { execution =>
             val readLocation = new URI(execution.getLogLocation)
-            controllerConf = controllerConf.copy(stateRestoreConfOpt =
+            coordinatorConf = coordinatorConf.copy(stateRestoreConfOpt =
               Some(
                 StateRestoreConfig(
                   readFrom = readLocation,
@@ -305,7 +305,7 @@ class WorkflowService(
       // WorkflowErrorEvent that `connectToExecution` forwards.
       try {
         val execution = new WorkflowExecutionService(
-          controllerConf,
+          coordinatorConf,
           workflowContext,
           resultService,
           req,

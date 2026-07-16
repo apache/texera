@@ -124,20 +124,9 @@ spec:
         - path:
             type: PathPrefix
             value: /api/executions/result/export
-      backendRefs:
-        - group: gateway.envoyproxy.io
-          kind: Backend
-          name: texera-dynamic-backend
-    - matches:
         - path:
             type: PathPrefix
-            value: /pve
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: /api/pve
+            value: /api/pve
       backendRefs:
         - group: gateway.envoyproxy.io
           kind: Backend

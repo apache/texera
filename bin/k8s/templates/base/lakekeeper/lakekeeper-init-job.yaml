@@ -16,6 +16,9 @@
 # under the License.
 
 {{- if .Values.lakekeeperInit.enabled }}
+{{- if not (has .Values.lakekeeperInit.warehouse.flavor (list "s3-compat" "aws")) }}
+{{- fail (printf "lakekeeperInit.warehouse.flavor must be \"s3-compat\" or \"aws\", got %q" .Values.lakekeeperInit.warehouse.flavor) }}
+{{- end }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -33,17 +36,17 @@ spec:
           image: alpine:3.19
           env:
             - name: STORAGE_S3_ENDPOINT
-              value: http://{{ .Release.Name }}-minio:9000
+              value: {{ include "texera.s3.endpoint" . }}
             - name: STORAGE_S3_AUTH_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-minio
-                  key: root-user
+                  name: {{ include "texera.s3.secretName" . }}
+                  key: {{ include "texera.s3.accessKeyIdKey" . }}
             - name: STORAGE_S3_AUTH_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-minio
-                  key: root-password
+                  name: {{ include "texera.s3.secretName" . }}
+                  key: {{ include "texera.s3.secretAccessKeyKey" . }}
             - name: STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET
               value: {{ .Values.lakekeeperInit.warehouse.s3Bucket | quote }}
             - name: STORAGE_ICEBERG_CATALOG_REST_REGION
@@ -62,9 +65,7 @@ spec:
             - |
               set -e
 
-              apk add --no-cache curl ca-certificates wget
-              wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
-              chmod +x /usr/local/bin/mc
+              apk add --no-cache curl ca-certificates
 
               check_status() {
                 if [ "$1" -ge 200 ] && [ "$1" -lt 300 ]; then
@@ -85,14 +86,17 @@ spec:
                 sleep 3
               done
 
-              echo "Step 1: Initializing MinIO bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}'..."
-              mc alias set minio "${STORAGE_S3_ENDPOINT}" "${STORAGE_S3_AUTH_USERNAME}" "${STORAGE_S3_AUTH_PASSWORD}" || true
-              if mc ls minio/${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET} > /dev/null 2>&1; then
-                echo "MinIO bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}' already exists."
-              else
-                mc mb minio/${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}
-                echo "MinIO bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}' created successfully."
-              fi
+{{- if .Values.lakekeeperInit.createBucket }}
+              echo "Step 1: Initializing object-store bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}'..."
+              apk add --no-cache wget
+              wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
+              chmod +x /usr/local/bin/mc
+              mc alias set minio "${STORAGE_S3_ENDPOINT}" "${STORAGE_S3_AUTH_USERNAME}" "${STORAGE_S3_AUTH_PASSWORD}"
+              mc mb --ignore-existing minio/${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}
+              echo "Bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}' is ready."
+{{- else }}
+              echo "Step 1: skipping bucket creation (createBucket=false; using pre-existing external S3 bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}')."
+{{- end }}
 
               echo "Step 2: Initializing default project..."
               PROJECT_PAYLOAD="{\"project-id\":\"${LAKEKEEPER_PROJECT_ID}\",\"project-name\":\"${LAKEKEEPER_PROJECT_NAME}\"}"
@@ -112,9 +116,14 @@ spec:
                   "type": "s3",
                   "bucket": "${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}",
                   "region": "${STORAGE_ICEBERG_CATALOG_REST_REGION}",
+{{- if .Values.lakekeeperInit.warehouse.keyPrefix }}
+                  "key-prefix": {{ .Values.lakekeeperInit.warehouse.keyPrefix | quote }},
+{{- end }}
+{{- if eq .Values.lakekeeperInit.warehouse.flavor "s3-compat" }}
                   "endpoint": "${STORAGE_S3_ENDPOINT}",
-                  "flavor": "s3-compat",
                   "path-style-access": true,
+{{- end }}
+                  "flavor": {{ .Values.lakekeeperInit.warehouse.flavor | quote }},
                   "sts-enabled": false
                 },
                 "storage-credential": {
