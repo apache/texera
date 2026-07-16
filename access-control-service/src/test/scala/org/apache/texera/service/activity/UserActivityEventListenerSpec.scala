@@ -37,7 +37,7 @@ class UserActivityEventListenerSpec extends AnyFlatSpec with Matchers {
 
   private def sessionUser(uid: Integer): SessionUser = {
     new SessionUser({
-      new User().tap{ u =>
+      new User().tap { u =>
         u.setUid(uid)
         u.setName("u")
         u.setRole(UserRoleEnum.REGULAR)

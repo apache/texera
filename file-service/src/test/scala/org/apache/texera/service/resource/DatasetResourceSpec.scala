@@ -29,8 +29,18 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
-import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetUserAccessDao,
+  DatasetVersionDao,
+  UserDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetUserAccess,
+  DatasetVersion,
+  User
+}
 import org.apache.texera.service.MockLakeFS
 import org.apache.texera.service.util.S3StorageClient
 import org.jooq.SQLDialect
@@ -126,7 +136,7 @@ class DatasetResourceSpec
   // Shared fixtures (DatasetResource basic tests)
   // ---------------------------------------------------------------------------
   private val ownerUser: User = {
-    new User().tap{ user =>
+    new User().tap { user =>
       user.setName("test_user")
       user.setEmail("test_user@test.com")
       user.setRole(UserRoleEnum.ADMIN)
@@ -134,7 +144,7 @@ class DatasetResourceSpec
   }
 
   private val otherAdminUser: User = {
-    new User().tap{ user =>
+    new User().tap { user =>
       user.setName("test_user2")
       user.setEmail("test_user2@test.com")
       user.setRole(UserRoleEnum.ADMIN)
@@ -143,7 +153,7 @@ class DatasetResourceSpec
 
   // REGULAR user used specifically for multipart "no WRITE access" tests.
   private val multipartNoWriteUser: User = {
-    new User().tap{user =>
+    new User().tap { user =>
       user.setName("multipart_user2")
       user.setEmail("multipart_user2@test.com")
       user.setRole(UserRoleEnum.REGULAR)

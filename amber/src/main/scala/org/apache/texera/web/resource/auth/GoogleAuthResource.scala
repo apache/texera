@@ -87,8 +87,9 @@ class GoogleAuthResource {
             val uid = record.get(USER.UID)
             txUserDao.fetchOneByUid(uid).tap { user =>
               // name/email/avatar are profile fields on "user"; refresh from Google if changed
-              if (user.getName != googleName || user.getEmail != googleEmail || user.getAvatar != googleAvatar)
-              {
+              if (
+                user.getName != googleName || user.getEmail != googleEmail || user.getAvatar != googleAvatar
+              ) {
                 user.setName(googleName)
                 user.setEmail(googleEmail)
                 user.setAvatar(googleAvatar)
@@ -98,7 +99,7 @@ class GoogleAuthResource {
           case None =>
             val user = Option(txUserDao.fetchOneByEmail(googleEmail)) match {
               case Some(user) =>
-                user.tap{ user =>
+                user.tap { user =>
                   if (user.getName != googleName || user.getAvatar != googleAvatar) {
                     user.setName(googleName)
                     user.setAvatar(googleAvatar)
@@ -131,12 +132,14 @@ class GoogleAuthResource {
                 .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.GOOGLE))
                 .execute()
             } else {
-              val auth = new AuthProvider
-              auth.setUid(user.getUid)
-              auth.setProviderType(ProviderTypeEnum.GOOGLE)
-              auth.setProviderId(googleId)
-              auth.setCreatedAt(OffsetDateTime.now())
-              txAuthDao.insert(auth)
+              txAuthDao.insert(
+                (new AuthProvider).tap { auth =>
+                  auth.setUid(user.getUid)
+                  auth.setProviderType(ProviderTypeEnum.GOOGLE)
+                  auth.setProviderId(googleId)
+                  auth.setCreatedAt(OffsetDateTime.now())
+                }
+              )
             }
             user
         }

@@ -31,6 +31,7 @@ import java.nio.charset.Charset
 import javax.websocket.HandshakeResponse
 import javax.websocket.server.{HandshakeRequest, ServerEndpointConfig}
 import scala.jdk.CollectionConverters.{ListHasAsScala, _}
+import scala.util.chaining.scalaUtilChainingOps
 
 /**
   * This configurator extracts user identity from the HTTP handshake request
@@ -64,16 +65,12 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
           s"User ID: $userId, User Name: $userName, User Email: $userEmail with CU Access: $cuAccess"
         )
 
-        config.getUserProperties.put(
-          classOf[User].getName,
-          {
-            val user = new User()
-            user.setUid(userId)
-            user.setName(userName)
-            user.setEmail(userEmail)
-            user
-          }
-        )
+        val user = new User().tap { u =>
+          u.setUid(userId)
+          u.setName(userName)
+          u.setEmail(userEmail)
+        }
+        config.getUserProperties.put(classOf[User].getName, user)
         logger.debug(s"User created from headers: ID=$userId, Name=$userName")
       } else {
         // SINGLE NODE MODE: Construct the User object from JWT in query parameters.
@@ -89,16 +86,12 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
           .get("access-token")
           .map(token => {
             val claims = jwtConsumer.process(token).getJwtClaims
-            config.getUserProperties.put(
-              classOf[User].getName,
-              {
-                val user = new User()
-                user.setUid(claims.getClaimValue("userId").asInstanceOf[Long].toInt)
-                user.setName(claims.getSubject)
-                user.setEmail(String.valueOf(claims.getClaimValue("email").asInstanceOf[String]))
-                user
-              }
-            )
+            val user = new User().tap { u =>
+              u.setUid(claims.getClaimValue("userId").asInstanceOf[Long].toInt)
+              u.setName(claims.getSubject)
+              u.setEmail(String.valueOf(claims.getClaimValue("email").asInstanceOf[String]))
+            }
+            config.getUserProperties.put(classOf[User].getName, user)
           })
       }
     } catch {
