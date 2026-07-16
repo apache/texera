@@ -21,6 +21,7 @@ package org.apache.texera.service
 
 import org.apache.texera.auth.RoleAnnotationEnforcer
 import org.apache.texera.service.resource.{
+  AdminComputingUnitResource,
   ComputingUnitAccessResource,
   ComputingUnitManagingResource,
   HealthCheckResource
@@ -36,6 +37,7 @@ class ComputingUnitManagingServiceRunSpec extends AnyFlatSpec with Matchers {
       Seq(
         classOf[ComputingUnitManagingResource],
         classOf[ComputingUnitAccessResource],
+        classOf[AdminComputingUnitResource],
         classOf[HealthCheckResource]
       )
     ) shouldBe empty
