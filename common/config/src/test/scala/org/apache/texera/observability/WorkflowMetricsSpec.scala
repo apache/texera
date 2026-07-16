@@ -28,7 +28,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.jdk.CollectionConverters._
 
-class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
+class WorkflowMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
 
   private var reader: InMemoryMetricReader = _
   private var provider: SdkMeterProvider = _
@@ -36,12 +36,12 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
   override def beforeEach(): Unit = {
     reader = InMemoryMetricReader.create()
     provider = SdkMeterProvider.builder().registerMetricReader(reader).build()
-    TexeraMetrics.resetForTest()
-    TexeraMetrics.bindForTest(provider.get("org.apache.texera"))
+    WorkflowMetrics.resetForTest()
+    WorkflowMetrics.bindForTest(provider.get("org.apache.texera"))
   }
 
   override def afterEach(): Unit = {
-    TexeraMetrics.resetForTest()
+    WorkflowMetrics.resetForTest()
     provider.close()
   }
 
@@ -51,8 +51,8 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
 
   // ----- positive: lifecycle emissions ----------------------------------
 
-  "TexeraMetrics" should "increment workflow.starts on recordStart" in {
-    TexeraMetrics.recordStart(TexeraMetrics.WorkflowKind.Interactive)
+  "WorkflowMetrics" should "increment workflow.starts on recordStart" in {
+    WorkflowMetrics.recordStart(WorkflowMetrics.WorkflowKind.Interactive)
 
     val metrics = collectAll()
     metrics.keySet should contain("texera.workflow.starts")
@@ -69,9 +69,9 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
     // confirm the gauge reports exactly what the supplier returns — regardless
     // of how many starts/completions were recorded.
     @volatile var live = 3L
-    TexeraMetrics.setActiveExecutionsSupplier(() => live)
-    TexeraMetrics.recordStart(TexeraMetrics.WorkflowKind.Interactive)
-    TexeraMetrics.recordStart(TexeraMetrics.WorkflowKind.Interactive)
+    WorkflowMetrics.setActiveExecutionsSupplier(() => live)
+    WorkflowMetrics.recordStart(WorkflowMetrics.WorkflowKind.Interactive)
+    WorkflowMetrics.recordStart(WorkflowMetrics.WorkflowKind.Interactive)
 
     val first = collectAll()("texera.workflow.active").getLongGaugeData.getPoints.asScala.head
     first.getValue shouldBe 3L
@@ -84,8 +84,8 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
   }
 
   it should "record a completion and duration sample on recordCompletion" in {
-    TexeraMetrics.recordStart(TexeraMetrics.WorkflowKind.Interactive)
-    TexeraMetrics.recordCompletion(TexeraMetrics.WorkflowKind.Interactive, durationSec = 2.5)
+    WorkflowMetrics.recordStart(WorkflowMetrics.WorkflowKind.Interactive)
+    WorkflowMetrics.recordCompletion(WorkflowMetrics.WorkflowKind.Interactive, durationSec = 2.5)
 
     val metrics = collectAll()
     metrics.keySet should contain allOf (
@@ -103,8 +103,8 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
   }
 
   it should "record a failure as a non-success completion (so failure-rate queries work)" in {
-    TexeraMetrics.recordStart(TexeraMetrics.WorkflowKind.Scheduled)
-    TexeraMetrics.recordFailure(TexeraMetrics.WorkflowKind.Scheduled, durationSec = 12.0)
+    WorkflowMetrics.recordStart(WorkflowMetrics.WorkflowKind.Scheduled)
+    WorkflowMetrics.recordFailure(WorkflowMetrics.WorkflowKind.Scheduled, durationSec = 12.0)
 
     val metrics = collectAll()
     // A failure shares the completions counter with successes — the
@@ -124,8 +124,8 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
   }
 
   it should "record a cancellation that is not a completion" in {
-    TexeraMetrics.recordStart(TexeraMetrics.WorkflowKind.Interactive)
-    TexeraMetrics.recordCancellation(TexeraMetrics.WorkflowKind.Interactive)
+    WorkflowMetrics.recordStart(WorkflowMetrics.WorkflowKind.Interactive)
+    WorkflowMetrics.recordCancellation(WorkflowMetrics.WorkflowKind.Interactive)
 
     val metrics = collectAll()
     metrics(
@@ -140,8 +140,8 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
   // ----- security: cardinality safety -----------------------------------
 
   it should "only emit the texera.outcome and texera.workflow.kind labels" in {
-    TexeraMetrics.recordStart(TexeraMetrics.WorkflowKind.Interactive)
-    TexeraMetrics.recordCompletion(TexeraMetrics.WorkflowKind.Interactive, durationSec = 1.0)
+    WorkflowMetrics.recordStart(WorkflowMetrics.WorkflowKind.Interactive)
+    WorkflowMetrics.recordCompletion(WorkflowMetrics.WorkflowKind.Interactive, durationSec = 1.0)
 
     val attrKeys = collectAll().values.flatMap { md =>
       val pointSet = md.getType.name() match {
@@ -166,7 +166,7 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
     // untyped public method like recordStart(attrs: Attributes),
     // this assertion still passes but the design intent is broken.
     // Make the intent explicit:
-    val methodNames = classOf[TexeraMetrics.type].getDeclaredMethods
+    val methodNames = classOf[WorkflowMetrics.type].getDeclaredMethods
       .map(_.getName)
       .toSet
     methodNames should contain allOf ("recordStart", "recordCompletion", "recordFailure")
@@ -176,10 +176,10 @@ class TexeraMetricsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEac
   // ----- histogram buckets are constants --------------------------------
 
   it should "use the hard-coded explicit bucket boundaries for duration" in {
-    TexeraMetrics.recordStart(TexeraMetrics.WorkflowKind.Interactive)
+    WorkflowMetrics.recordStart(WorkflowMetrics.WorkflowKind.Interactive)
     // Hit a few bucket bounds.
     Seq(0.05, 0.6, 7.0, 65.0, 400.0).foreach { d =>
-      TexeraMetrics.recordCompletion(TexeraMetrics.WorkflowKind.Interactive, durationSec = d)
+      WorkflowMetrics.recordCompletion(WorkflowMetrics.WorkflowKind.Interactive, durationSec = d)
     }
 
     val histogram = collectAll()("texera.workflow.duration").getHistogramData

@@ -20,32 +20,20 @@
 package org.apache.texera.observability
 
 import io.opentelemetry.api.common.AttributeKey
-import io.opentelemetry.api.trace.{Span, SpanBuilder}
 
 /**
-  * Thin helper for setting span attributes safely.
+  * Standard Texera span-attribute keys plus a free-text sanitizer.
   *
-  * Three rules:
-  *  1. Typed setters only — no public escape hatch for arbitrary
-  *     untyped strings to land on a span as untrusted free text.
-  *  2. Free-text values are CRLF-stripped + capped at
-  *     [[FreeTextMaxLen]] to prevent log/span forging via embedded
-  *     newlines.
-  *  3. Operator IDs and workflow/execution IDs must match a strict
-  *     character set — otherwise dropped silently (the operator
-  *     identifier should be a stable internal value, not user free
-  *     text).
+  * These are the shared label keys so every callsite tags spans with the
+  * same names. Set them with the standard OTel API at the callsite, e.g.
+  * ``spanBuilder.setAttribute(SpanAttrs.WorkflowId, id)`` or
+  * ``span.setAttribute(SpanAttrs.WorkflowId, id)``. Run any free-text value
+  * through [[sanitizeFreeText]] first to strip CRLF and cap its length.
   */
 object SpanAttrs {
 
   /** Maximum length for free-text span attribute values. */
   val FreeTextMaxLen: Int = 256
-
-  /** Validates the shape we accept for operator IDs: alnum + `_.-`,
-    *  1–64 chars. Anything else is dropped (not coerced — we'd rather
-    *  miss a label than leak an unbounded string into a span).
-    */
-  private val OperatorIdPattern = "^[A-Za-z0-9_.\\-]{1,64}$".r.pattern
 
   // ---- Standard Texera correlation labels ------------------------------
 
@@ -56,52 +44,6 @@ object SpanAttrs {
   val OperatorId: AttributeKey[String] = AttributeKey.stringKey("texera.operator.id")
   val OperatorName: AttributeKey[String] = AttributeKey.stringKey("texera.operator.name")
   val Outcome: AttributeKey[String] = AttributeKey.stringKey("texera.outcome")
-
-  // ---- Typed setters for SpanBuilder (used at span-start time) ---------
-
-  def withWorkflowId(b: SpanBuilder, id: Long): SpanBuilder =
-    b.setAttribute(WorkflowId, java.lang.Long.valueOf(id))
-
-  def withExecutionId(b: SpanBuilder, id: Long): SpanBuilder =
-    b.setAttribute(ExecutionId, java.lang.Long.valueOf(id))
-
-  def withProjectId(b: SpanBuilder, id: Long): SpanBuilder =
-    b.setAttribute(ProjectId, java.lang.Long.valueOf(id))
-
-  def withUserId(b: SpanBuilder, id: Long): SpanBuilder =
-    b.setAttribute(UserId, java.lang.Long.valueOf(id))
-
-  /** Sets the operator id only if it passes the strict character
-    *  check; otherwise the attribute is omitted. Returns the same
-    *  builder either way for fluent chaining.
-    */
-  def withOperatorId(b: SpanBuilder, id: String): SpanBuilder = {
-    if (id != null && OperatorIdPattern.matcher(id).matches()) {
-      b.setAttribute(OperatorId, id)
-    }
-    b
-  }
-
-  /** Sets a free-text label after stripping CRLF and capping length. */
-  def withOperatorName(b: SpanBuilder, name: String): SpanBuilder = {
-    val safe = sanitizeFreeText(name)
-    if (safe != null) b.setAttribute(OperatorName, safe) else b
-  }
-
-  // ---- Typed setters for Span (used after a span is active) ------------
-
-  def setWorkflowId(s: Span, id: Long): Span =
-    s.setAttribute(WorkflowId, java.lang.Long.valueOf(id))
-  def setExecutionId(s: Span, id: Long): Span =
-    s.setAttribute(ExecutionId, java.lang.Long.valueOf(id))
-  def setOperatorId(s: Span, id: String): Span = {
-    if (id != null && OperatorIdPattern.matcher(id).matches()) s.setAttribute(OperatorId, id)
-    else s
-  }
-  def setOutcome(s: Span, outcome: String): Span = {
-    val safe = sanitizeFreeText(outcome)
-    if (safe != null) s.setAttribute(Outcome, safe) else s
-  }
 
   // ---- Pure helpers (exposed for testing) ------------------------------
 

@@ -31,14 +31,14 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAg
   RESUMING,
   RUNNING
 }
-import org.apache.texera.observability.TexeraMetrics
-import org.apache.texera.observability.TexeraMetrics.WorkflowKind
+import org.apache.texera.observability.WorkflowMetrics
+import org.apache.texera.observability.WorkflowMetrics.WorkflowKind
 import org.apache.texera.web.service.WorkflowService
 
 import java.util.concurrent.ConcurrentHashMap
 
 /**
-  * Drives [[TexeraMetrics]] from amber's execution lifecycle. The metric
+  * Drives [[WorkflowMetrics]] from amber's execution lifecycle. The metric
   * instruments live in common/config; this object is the single place
   * that records them, so the lifecycle code only needs one-line calls.
   *
@@ -61,7 +61,7 @@ object WorkflowMetricsRecorder extends LazyLogging {
     *  every metric collection, so it must never throw.
     */
   def init(): Unit = {
-    TexeraMetrics.setActiveExecutionsSupplier(() =>
+    WorkflowMetrics.setActiveExecutionsSupplier(() =>
       try {
         WorkflowService.getAllWorkflowServices.iterator
           .flatMap(s => Option(s.executionService.getValue))
@@ -72,7 +72,7 @@ object WorkflowMetricsRecorder extends LazyLogging {
         case _: Throwable => 0L
       }
     )
-    TexeraMetrics.ensureBound()
+    WorkflowMetrics.ensureBound()
   }
 
   /** Record that a run started. */
@@ -81,7 +81,7 @@ object WorkflowMetricsRecorder extends LazyLogging {
       kind: WorkflowKind = WorkflowKind.Interactive
   ): Unit = {
     inFlight.put(executionId, (System.currentTimeMillis(), kind))
-    TexeraMetrics.recordStart(kind)
+    WorkflowMetrics.recordStart(kind)
   }
 
   /** Record terminal counters + duration exactly once, on the first
@@ -98,9 +98,9 @@ object WorkflowMetricsRecorder extends LazyLogging {
     val kind = entry.map(_._2).getOrElse(WorkflowKind.Interactive)
     val durationSec = entry.map(e => (System.currentTimeMillis() - e._1) / 1000.0).getOrElse(0.0)
     newState match {
-      case COMPLETED => TexeraMetrics.recordCompletion(kind, durationSec)
-      case FAILED    => TexeraMetrics.recordFailure(kind, durationSec)
-      case KILLED    => TexeraMetrics.recordCancellation(kind)
+      case COMPLETED => WorkflowMetrics.recordCompletion(kind, durationSec)
+      case FAILED    => WorkflowMetrics.recordFailure(kind, durationSec)
+      case KILLED    => WorkflowMetrics.recordCancellation(kind)
       case _         => ()
     }
   }

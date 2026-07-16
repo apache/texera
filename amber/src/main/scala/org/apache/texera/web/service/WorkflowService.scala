@@ -21,7 +21,7 @@ package org.apache.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import io.opentelemetry.api.trace.Span
+import io.opentelemetry.api.trace.StatusCode
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import org.apache.texera.common.config.ApplicationConfig
@@ -180,148 +180,157 @@ class WorkflowService(
     new WorkflowContext(workflowId = workflowId, cuid = Some(computingUnitId))
   }
 
+  /** Sets up and launches a workflow execution inside a run-level span so
+    * setup-path logs carry its trace id. The span covers the synchronous
+    * setup and the handoff to async execution via `executeWorkflow()`; it
+    * does not span the full async run. The real execution failure is
+    * recorded onto the current span from `errorHandler`.
+    */
   def initExecutionService(
       req: WorkflowExecuteRequest,
       userOpt: Option[User],
       sessionUri: URI
   ): Unit = {
-    TexeraTracer.withSpan(
-      "workflow.execute",
-      _.setAttribute("texera.workflow.id", workflowId.id.toString)
-    ) { span =>
-      initExecutionServiceSpanned(req, userOpt, sessionUri, span)
-    }
-  }
+    val span = TexeraTracer.tracer
+      .spanBuilder("WorkflowService.initExecutionService")
+      .setAttribute("texera.workflow.id", workflowId.id.toString)
+      .startSpan()
+    val scope = span.makeCurrent()
+    try {
 
-  /** Body of [[initExecutionService]], run inside the run-level span so
-    * logs on the setup path carry its trace id. The span covers the
-    * synchronous setup and the handoff to async execution via
-    * `executeWorkflow()`; it does not span the full async run.
-    */
-  private def initExecutionServiceSpanned(
-      req: WorkflowExecuteRequest,
-      userOpt: Option[User],
-      sessionUri: URI,
-      span: Span
-  ): Unit = {
-
-    if (executionService.hasValue) {
-      executionService.getValue.unsubscribeAll()
-    }
-
-    val (uidOpt, userEmailOpt) = userOpt.map(user => (user.getUid, user.getEmail)).unzip
-
-    // uid is NOT NULL in the DB; fail early here rather than letting the insert fail downstream.
-    val uid = uidOpt.getOrElse(
-      throw new IllegalArgumentException(
-        "Cannot start execution: a user id (uid) is required but none was provided."
-      )
-    )
-
-    val workflowContext: WorkflowContext = createWorkflowContext()
-    var controllerConf = ControllerConfig.default
-
-    // clean up results from previous run
-    val previousExecutionId =
-      WorkflowExecutionService.getLatestExecutionId(workflowId, req.computingUnitId)
-    previousExecutionId.foreach(eid => {
-      clearExecutionResources(eid)
-    }) // TODO: change this behavior after enabling cache.
-
-    workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
-      workflowContext.workflowId,
-      uid,
-      req.executionName,
-      convertToJson(req.engineVersion),
-      req.computingUnitId
-    )
-    span.setAttribute("texera.execution.id", workflowContext.executionId.id.toString)
-    // A run has started: record the start counter and stamp its start time.
-    org.apache.texera.web.observability.WorkflowMetricsRecorder.onStart(workflowContext.executionId)
-
-    if (ApplicationConfig.faultToleranceLogRootFolder.isDefined) {
-      val writeLocation = ApplicationConfig.faultToleranceLogRootFolder.get.resolve(
-        s"${workflowContext.workflowId}/${workflowContext.executionId}/"
-      )
-      ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
-        execution => execution.setLogLocation(writeLocation.toString)
+      if (executionService.hasValue) {
+        executionService.getValue.unsubscribeAll()
       }
-      controllerConf = controllerConf.copy(faultToleranceConfOpt =
-        Some(FaultToleranceConfig(writeTo = writeLocation))
+
+      val (uidOpt, userEmailOpt) = userOpt.map(user => (user.getUid, user.getEmail)).unzip
+
+      // uid is NOT NULL in the DB; fail early here rather than letting the insert fail downstream.
+      val uid = uidOpt.getOrElse(
+        throw new IllegalArgumentException(
+          "Cannot start execution: a user id (uid) is required but none was provided."
+        )
       )
-    }
-    if (req.replayFromExecution.isDefined) {
-      val replayInfo = req.replayFromExecution.get
-      ExecutionsMetadataPersistService
-        .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
-        .foreach { execution =>
-          val readLocation = new URI(execution.getLogLocation)
-          controllerConf = controllerConf.copy(stateRestoreConfOpt =
-            Some(
-              StateRestoreConfig(
-                readFrom = readLocation,
-                replayDestination = EmbeddedControlMessageIdentity(replayInfo.interaction)
+
+      val workflowContext: WorkflowContext = createWorkflowContext()
+      var controllerConf = ControllerConfig.default
+
+      // clean up results from previous run
+      val previousExecutionId =
+        WorkflowExecutionService.getLatestExecutionId(workflowId, req.computingUnitId)
+      previousExecutionId.foreach(eid => {
+        clearExecutionResources(eid)
+      }) // TODO: change this behavior after enabling cache.
+
+      workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
+        workflowContext.workflowId,
+        uid,
+        req.executionName,
+        convertToJson(req.engineVersion),
+        req.computingUnitId
+      )
+      span.setAttribute("texera.execution.id", workflowContext.executionId.id.toString)
+      // A run has started: record the start counter and stamp its start time.
+      org.apache.texera.web.observability.WorkflowMetricsRecorder
+        .onStart(workflowContext.executionId)
+
+      if (ApplicationConfig.faultToleranceLogRootFolder.isDefined) {
+        val writeLocation = ApplicationConfig.faultToleranceLogRootFolder.get.resolve(
+          s"${workflowContext.workflowId}/${workflowContext.executionId}/"
+        )
+        ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
+          execution => execution.setLogLocation(writeLocation.toString)
+        }
+        controllerConf = controllerConf.copy(faultToleranceConfOpt =
+          Some(FaultToleranceConfig(writeTo = writeLocation))
+        )
+      }
+      if (req.replayFromExecution.isDefined) {
+        val replayInfo = req.replayFromExecution.get
+        ExecutionsMetadataPersistService
+          .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
+          .foreach { execution =>
+            val readLocation = new URI(execution.getLogLocation)
+            controllerConf = controllerConf.copy(stateRestoreConfOpt =
+              Some(
+                StateRestoreConfig(
+                  readFrom = readLocation,
+                  replayDestination = EmbeddedControlMessageIdentity(replayInfo.interaction)
+                )
               )
             )
-          )
-        }
-    }
+          }
+      }
 
-    val executionStateStore = new ExecutionStateStore()
-    // assign execution id to find the execution from DB in case the constructor fails.
-    executionStateStore.metadataStore.updateState(state =>
-      state.withExecutionId(workflowContext.executionId)
-    )
-    val errorHandler: Throwable => Unit = { t =>
-      {
-        val fromActorOpt = t match {
-          case ex: WorkflowRuntimeException =>
-            ex.relatedWorkerId
-          case other =>
-            None
-        }
-        val (operatorId, workerId) = getOperatorFromActorIdOpt(fromActorOpt)
-        logger.error("error during execution", t)
-        executionStateStore.statsStore.updateState(stats =>
-          stats.withEndTimeStamp(System.currentTimeMillis())
-        )
-        executionStateStore.metadataStore.updateState { metadataStore =>
-          updateWorkflowState(FAILED, metadataStore).addFatalErrors(
-            WorkflowFatalError(
-              EXECUTION_FAILURE,
-              Timestamp(Instant.now),
-              t.toString,
-              getStackTraceWithAllCauses(t),
-              operatorId,
-              workerId
-            )
+      val executionStateStore = new ExecutionStateStore()
+      // assign execution id to find the execution from DB in case the constructor fails.
+      executionStateStore.metadataStore.updateState(state =>
+        state.withExecutionId(workflowContext.executionId)
+      )
+      val errorHandler: Throwable => Unit = { t =>
+        {
+          val fromActorOpt = t match {
+            case ex: WorkflowRuntimeException =>
+              ex.relatedWorkerId
+            case other =>
+              None
+          }
+          val (operatorId, workerId) = getOperatorFromActorIdOpt(fromActorOpt)
+          logger.error("error during execution", t)
+          // Record the real execution failure on the run-level span. Handled
+          // here rather than in initExecutionService's catch because this is
+          // where the failure is actually caught (it does not propagate up).
+          span.recordException(t)
+          span.setStatus(StatusCode.ERROR)
+          executionStateStore.statsStore.updateState(stats =>
+            stats.withEndTimeStamp(System.currentTimeMillis())
           )
+          executionStateStore.metadataStore.updateState { metadataStore =>
+            updateWorkflowState(FAILED, metadataStore).addFatalErrors(
+              WorkflowFatalError(
+                EXECUTION_FAILURE,
+                Timestamp(Instant.now),
+                t.toString,
+                getStackTraceWithAllCauses(t),
+                operatorId,
+                workerId
+              )
+            )
+          }
         }
       }
-    }
-    // WorkflowExecutionService construction does no external work and cannot
-    // throw; it registers its error/state diff handler up front. Once published
-    // via `executionService.onNext`, any failure in `executeWorkflow()` is
-    // recorded by `errorHandler` into the metadata store, whose handler emits a
-    // WorkflowErrorEvent that `connectToExecution` forwards.
-    try {
-      val execution = new WorkflowExecutionService(
-        controllerConf,
-        workflowContext,
-        resultService,
-        req,
-        executionStateStore,
-        errorHandler,
-        userEmailOpt,
-        sessionUri
-      )
-      lifeCycleManager.registerCleanUpOnStateChange(executionStateStore)
-      executionService.onNext(execution)
-      execution.executeWorkflow()
-    } catch {
-      case e: Throwable => errorHandler(e)
-    }
+      // WorkflowExecutionService construction does no external work and cannot
+      // throw; it registers its error/state diff handler up front. Once published
+      // via `executionService.onNext`, any failure in `executeWorkflow()` is
+      // recorded by `errorHandler` into the metadata store, whose handler emits a
+      // WorkflowErrorEvent that `connectToExecution` forwards.
+      try {
+        val execution = new WorkflowExecutionService(
+          controllerConf,
+          workflowContext,
+          resultService,
+          req,
+          executionStateStore,
+          errorHandler,
+          userEmailOpt,
+          sessionUri
+        )
+        lifeCycleManager.registerCleanUpOnStateChange(executionStateStore)
+        executionService.onNext(execution)
+        execution.executeWorkflow()
+      } catch {
+        case e: Throwable => errorHandler(e)
+      }
 
+    } catch {
+      case t: Throwable =>
+        // Synchronous setup failure (before the run's own errorHandler is wired).
+        span.recordException(t)
+        span.setStatus(StatusCode.ERROR)
+        throw t
+    } finally {
+      scope.close()
+      span.end()
+    }
   }
 
   def convertToJson(frontendVersion: String): String = {

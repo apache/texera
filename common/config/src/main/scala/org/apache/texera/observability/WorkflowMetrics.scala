@@ -25,21 +25,37 @@ import io.opentelemetry.api.common.{AttributeKey, Attributes}
 import io.opentelemetry.api.metrics.Meter
 
 /**
-  * Strongly-typed façade for Texera-emitted metrics.
+  * Strongly-typed facade for the workflow-execution metrics cluster.
   *
-  * Cardinality safety is enforced by the API surface, not by
+  * This facade pattern is deliberate here because these instruments are a
+  * small, fixed, correlated set with strict cardinality rules, and it is
+  * worth centralizing that control in one place. It is NOT the default
+  * pattern for metrics in general: most call sites should just call the OTel
+  * meter API directly next to the business logic, e.g.
+  *
+  * {{{
+  *   private val meter = GlobalOpenTelemetry.getMeter("org.apache.texera")
+  *   private val requests = meter.counterBuilder("myfeature.requests").build()
+  *   // in the handler:
+  *   requests.add(1, Attributes.of(AttributeKey.stringKey("route"), route))
+  * }}}
+  *
+  * Only reach for a facade like this one when the metrics are complex or
+  * need centralized, standardized control. Do not copy it by default.
+  *
+  * Cardinality safety here is enforced by the API surface, not by
   * documentation: there is no public method that accepts an arbitrary
   * string as a label key or value. The only labels that ever land on
   * an instrument are the two enums [[Outcome]] and [[WorkflowKind]],
   * each restricted to a fixed set. ``workflow.id`` / ``execution.id``
-  * are deliberately NOT metric labels — per-execution detail belongs
+  * are deliberately NOT metric labels: per-execution detail belongs
   * in traces and logs, joined on ``trace_id`` at query time.
   *
   * Histogram bucket bounds are hard-coded constants so they can't be
   * coerced by request input. The OTel SDK applies its own default
   * attribute-value-length cap to anything that does slip through.
   */
-object TexeraMetrics extends LazyLogging {
+object WorkflowMetrics extends LazyLogging {
 
   /** Outcome enum, the only mutable label on lifecycle counters. */
   sealed abstract class Outcome(val name: String)
