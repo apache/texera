@@ -18,7 +18,8 @@
  */
 
 import { Component, EventEmitter, OnInit, Output, ViewChild } from "@angular/core";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
+import { USER_DATASET } from "../../../../../app-routing.constant";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandleComponent } from "ng-zorro-antd/resizable";
@@ -51,7 +52,7 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { FormsModule } from "@angular/forms";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
@@ -68,6 +69,7 @@ import { NzProgressComponent } from "ng-zorro-antd/progress";
 import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 
 export const THROTTLE_TIME_MS = 1000;
 export const ABORT_RETRY_MAX_ATTEMPTS = 10;
@@ -88,7 +90,7 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzIconDirective,
     NzSpaceCompactItemDirective,
     NzButtonComponent,
-    NzPopoverDirective,
+    NzPopconfirmDirective,
     NzSwitchComponent,
     FormsModule,
     MarkdownDescriptionComponent,
@@ -114,11 +116,14 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     CdkVirtualScrollViewport,
     CdkFixedSizeVirtualScroll,
     CdkVirtualForOf,
+    NzTabsComponent,
+    NzTabComponent,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
   public did: number | undefined;
   public datasetName: string = "";
+  public editedDatasetName: string = "";
   public datasetDescription: string = "";
   public datasetCreationTime: string = "";
   public datasetCreationTimeTooltip: string = "";
@@ -194,6 +199,7 @@ export class DatasetDetailComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private modalService: NzModalService,
     private datasetService: DatasetService,
     private notificationService: NotificationService,
@@ -359,6 +365,7 @@ export class DatasetDetailComponent implements OnInit {
         .subscribe(dashboardDataset => {
           const dataset = dashboardDataset.dataset;
           this.datasetName = dataset.name;
+          this.editedDatasetName = dataset.name;
           this.datasetDescription = dataset.description;
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
           this.datasetIsPublic = dataset.isPublic;
@@ -904,6 +911,50 @@ export class DatasetDetailComponent implements OnInit {
         error: () => {
           this.datasetDescription = previousDescription;
           this.notificationService.error("Failed to update dataset description");
+        },
+      });
+  }
+
+  onSaveDatasetName(): void {
+    if (!this.did) {
+      return;
+    }
+    // Sanitize using the same rules as dataset creation: trim leading whitespace,
+    // collapse runs of non-alphanumeric characters to a single "-", then lowercase.
+    const sanitizedName = this.editedDatasetName
+      .trimStart()
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .toLowerCase();
+
+    this.datasetService
+      .updateDatasetName(this.did, sanitizedName)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.datasetName = sanitizedName;
+          this.editedDatasetName = sanitizedName;
+          this.notificationService.success(`Dataset name updated to '${sanitizedName}'`);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error("Failed to update dataset name");
+        },
+      });
+  }
+
+  onDeleteDataset(): void {
+    if (!this.did) {
+      return;
+    }
+    this.datasetService
+      .deleteDatasets(this.did)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success(`Dataset ${this.datasetName} was deleted`);
+          this.router.navigate([USER_DATASET]);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error("Failed to delete the dataset");
         },
       });
   }
