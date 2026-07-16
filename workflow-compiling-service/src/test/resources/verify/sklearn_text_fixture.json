@@ -1,0 +1,37 @@
+[ {
+  "note" : "great excellent good",
+  "y" : 1
+}, {
+  "note" : "wonderful amazing great",
+  "y" : 1
+}, {
+  "note" : "good great nice",
+  "y" : 1
+}, {
+  "note" : "excellent superb good",
+  "y" : 1
+}, {
+  "note" : "amazing great wonderful",
+  "y" : 1
+}, {
+  "note" : "nice good excellent",
+  "y" : 1
+}, {
+  "note" : "bad terrible awful",
+  "y" : 0
+}, {
+  "note" : "horrible bad worst",
+  "y" : 0
+}, {
+  "note" : "awful bad poor",
+  "y" : 0
+}, {
+  "note" : "terrible worst bad",
+  "y" : 0
+}, {
+  "note" : "poor bad horrible",
+  "y" : 0
+}, {
+  "note" : "worst awful terrible",
+  "y" : 0
+} ]

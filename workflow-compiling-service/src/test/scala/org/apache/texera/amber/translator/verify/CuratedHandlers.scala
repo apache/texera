@@ -359,26 +359,45 @@ object SklearnFixture {
   * (LogisticRegressionCV, probability calibration) have enough members. `note`
   * is column 0 so the model probe — which feeds a text pipeline the probe's
   * first column as a Series — picks it up as the vectorized feature.
+  *
+  * Source of truth: src/test/resources/verify/sklearn_text_fixture.json (mirrors
+  * [[SklearnFixture]]); `schema` below stays authoritative for column types.
   */
 object SklearnTextFixture {
-  private val columns = Seq(("note", AttributeType.STRING), ("y", AttributeType.INTEGER))
-  private val rows: Seq[Seq[Any]] = Seq(
-    Seq("great excellent good", 1),
-    Seq("wonderful amazing great", 1),
-    Seq("good great nice", 1),
-    Seq("excellent superb good", 1),
-    Seq("amazing great wonderful", 1),
-    Seq("nice good excellent", 1),
-    Seq("bad terrible awful", 0),
-    Seq("horrible bad worst", 0),
-    Seq("awful bad poor", 0),
-    Seq("terrible worst bad", 0),
-    Seq("poor bad horrible", 0),
-    Seq("worst awful terrible", 0)
+
+  val schema: Schema = new Schema(
+    new Attribute("note", AttributeType.STRING),
+    new Attribute("y", AttributeType.INTEGER)
   )
 
+  private val fixtureResource = "/verify/sklearn_text_fixture.json"
+
+  val rows: Vector[Tuple] = {
+    val stream = Option(getClass.getResourceAsStream(fixtureResource))
+      .getOrElse(sys.error(s"sklearn text fixture not found on classpath: $fixtureResource"))
+    val root =
+      try new ObjectMapper().readTree(stream)
+      finally stream.close()
+    root.elements().asScala.map { node =>
+      val b = Tuple.builder(schema)
+      schema.getAttributes.foreach { attr =>
+        val cell = node.get(attr.getName)
+        require(cell != null, s"sklearn text fixture row missing column '${attr.getName}'")
+        val value: AnyRef = attr.getType match {
+          case AttributeType.INTEGER => Int.box(cell.asInt())
+          case _                     => cell.asText()
+        }
+        b.add(attr, value)
+      }
+      b.build()
+    }.toVector
+  }
+
   /** Write the text table to `path` (columns in order: note, y). */
-  def write(path: Path): Path = CuratedHandlers.writeFixture(path, columns, rows)
+  def write(path: Path): Path = {
+    TupleIO.writeTuples(path, rows.iterator, schema)
+    path
+  }
 }
 
 /**
