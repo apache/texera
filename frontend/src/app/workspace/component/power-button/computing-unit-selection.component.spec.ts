@@ -31,6 +31,8 @@ import { ComputingUnitStatusService } from "../../../common/service/computing-un
 import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { UserService } from "../../../common/service/user/user.service";
+import { StubUserService } from "../../../common/service/user/stub-user.service";
 import { UserPveRecord } from "../../service/virtual-environment/virtual-environment.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { Subject, of, throwError } from "rxjs";
@@ -39,8 +41,68 @@ import {
   PvePackageResponse,
   WorkflowPveService,
 } from "../../service/virtual-environment/virtual-environment.service";
-import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
+import {
+  DashboardWorkflowComputingUnit,
+  WorkflowComputingUnitType,
+} from "../../../common/type/workflow-computing-unit";
 import { ComputingUnitCreateModalComponent } from "../../../common/component/computing-unit-create-modal/computing-unit-create-modal.component";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
+import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
+import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
+import { WorkflowMetadata } from "../../../dashboard/type/workflow-metadata.interface";
+import { ExecutionState } from "../../types/execute-workflow.interface";
+import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
+
+/**
+ * Builds a fully-populated DashboardWorkflowComputingUnit for driving the
+ * status/selection code paths. `status` is widened to string so tests can pin
+ * runtime-only states (e.g. "Terminating", "Failed") the template branches on.
+ */
+function makeComputingUnit(
+  overrides: Partial<{
+    cuid: number;
+    name: string;
+    uri: string;
+    type: WorkflowComputingUnitType;
+    status: string;
+    isOwner: boolean;
+  }> = {}
+): DashboardWorkflowComputingUnit {
+  const {
+    cuid = 1,
+    name = "unit",
+    uri = `uri-${cuid}`,
+    type = "kubernetes",
+    status = "Running",
+    isOwner = true,
+  } = overrides;
+  return {
+    computingUnit: {
+      cuid,
+      uid: 1,
+      name,
+      creationTime: 0,
+      terminateTime: undefined,
+      type,
+      uri,
+      resource: {
+        cpuLimit: "1",
+        memoryLimit: "1Gi",
+        gpuLimit: "0",
+        jvmMemorySize: "1Gi",
+        shmSize: "64Mi",
+        nodeAddresses: [],
+      },
+    },
+    status: status as DashboardWorkflowComputingUnit["status"],
+    metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
+    isOwner,
+    accessPrivilege: "WRITE",
+    ownerGoogleAvatar: "",
+    ownerName: "owner",
+  };
+}
 
 describe("PowerButtonComponent", () => {
   let component: ComputingUnitSelectionComponent;
@@ -77,10 +139,12 @@ describe("PowerButtonComponent", () => {
         NzIconModule,
         NzDropDownModule,
         NzModalModule, // Add NzModalModule for the NzModalService
+        NoopAnimationsModule, // disable animations so overlay/modal content renders synchronously
       ],
       providers: [
         { provide: ActivatedRoute, useValue: activatedRouteMock },
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+        { provide: UserService, useClass: StubUserService },
         NzModalService, // Add NzModalService provider
         ...commonTestProviders,
       ],
@@ -714,6 +778,489 @@ describe("PowerButtonComponent", () => {
 
     it("enables when a valid name is padded with whitespace", () => {
       expect(component.isCreateDisabled(pveWithName("  env1  "))).toBe(false);
+    });
+  });
+
+  describe("selected computing unit stream (ngOnInit)", () => {
+    // Boots a fresh component whose selected-unit stream is a Subject we drive.
+    // Must run before the fresh fixture's first detectChanges so ngOnInit
+    // subscribes to our subject rather than the mock's default of(null).
+    function bootWithSelectedStream(): { selected$: Subject<DashboardWorkflowComputingUnit | null> } {
+      const statusService = TestBed.inject(ComputingUnitStatusService);
+      const selected$ = new Subject<DashboardWorkflowComputingUnit | null>();
+      vi.spyOn(statusService, "getSelectedComputingUnit").mockReturnValue(selected$.asObservable());
+      const freshFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      freshFixture.detectChanges();
+      return { selected$ };
+    }
+
+    it("disables workflow modification and notifies when there are ongoing executions", () => {
+      const actionService = TestBed.inject(WorkflowActionService);
+      vi.spyOn(actionService, "getWorkflowMetadata").mockReturnValue({ ...DEFAULT_WORKFLOW, wid: 42 });
+      const disableSpy = vi.spyOn(actionService, "disableWorkflowModification").mockImplementation(() => {});
+      const enableSpy = vi.spyOn(actionService, "enableWorkflowModification").mockImplementation(() => {});
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      const retrieveSpy = vi
+        .spyOn(execService, "retrieveWorkflowExecutions")
+        .mockReturnValue(of([{ eId: 1 }] as unknown as WorkflowExecutionsEntry[]));
+      const infoSpy = vi.spyOn(TestBed.inject(NotificationService), "info").mockImplementation(() => {});
+
+      const { selected$ } = bootWithSelectedStream();
+      selected$.next(makeComputingUnit({ cuid: 7 }));
+
+      expect(retrieveSpy).toHaveBeenCalledWith(42, [ExecutionState.Running, ExecutionState.Initializing]);
+      expect(infoSpy).toHaveBeenCalled();
+      expect(disableSpy).toHaveBeenCalledTimes(1);
+      expect(enableSpy).not.toHaveBeenCalled();
+    });
+
+    it("enables workflow modification when there are no ongoing executions", () => {
+      const actionService = TestBed.inject(WorkflowActionService);
+      vi.spyOn(actionService, "getWorkflowMetadata").mockReturnValue({ ...DEFAULT_WORKFLOW, wid: 42 });
+      const disableSpy = vi.spyOn(actionService, "disableWorkflowModification").mockImplementation(() => {});
+      const enableSpy = vi.spyOn(actionService, "enableWorkflowModification").mockImplementation(() => {});
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveWorkflowExecutions").mockReturnValue(of([] as WorkflowExecutionsEntry[]));
+      const infoSpy = vi.spyOn(TestBed.inject(NotificationService), "info").mockImplementation(() => {});
+
+      const { selected$ } = bootWithSelectedStream();
+      selected$.next(makeComputingUnit({ cuid: 7 }));
+
+      expect(enableSpy).toHaveBeenCalledTimes(1);
+      expect(disableSpy).not.toHaveBeenCalled();
+      expect(infoSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not re-check executions when the same cuid re-emits (lastSelectedCuid guard)", () => {
+      const actionService = TestBed.inject(WorkflowActionService);
+      vi.spyOn(actionService, "getWorkflowMetadata").mockReturnValue({ ...DEFAULT_WORKFLOW, wid: 42 });
+      vi.spyOn(actionService, "enableWorkflowModification").mockImplementation(() => {});
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      const retrieveSpy = vi
+        .spyOn(execService, "retrieveWorkflowExecutions")
+        .mockReturnValue(of([] as WorkflowExecutionsEntry[]));
+
+      const { selected$ } = bootWithSelectedStream();
+      selected$.next(makeComputingUnit({ cuid: 9 }));
+      selected$.next(makeComputingUnit({ cuid: 9 }));
+
+      expect(retrieveSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("registerWorkflowMetadataSubscription (ngOnInit)", () => {
+    // Boots a fresh component with a controlled metadata-change stream and a
+    // mutable metadata object so we can flip the wid and re-emit at will.
+    function bootWithMetaStream(): {
+      comp: ComputingUnitSelectionComponent;
+      emit: (wid: number | undefined) => void;
+    } {
+      const actionService = TestBed.inject(WorkflowActionService);
+      const meta$ = new Subject<WorkflowMetadata>();
+      vi.spyOn(actionService, "workflowMetaDataChanged").mockReturnValue(meta$.asObservable());
+      let currentMeta: WorkflowMetadata = { ...DEFAULT_WORKFLOW };
+      vi.spyOn(actionService, "getWorkflowMetadata").mockImplementation(() => currentMeta);
+      const freshFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      freshFixture.detectChanges();
+      const emit = (wid: number | undefined) => {
+        currentMeta = { ...DEFAULT_WORKFLOW, wid };
+        meta$.next(currentMeta);
+      };
+      return { comp: freshFixture.componentInstance, emit };
+    }
+
+    it("selects the computing unit from the latest execution when the workflow id changes", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(comp.workflowId).toBe(100);
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
+    });
+
+    it("falls back to the first Running unit when retrieving the latest execution fails", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        throwError(() => new Error("no execution"))
+      );
+      const { comp, emit } = bootWithMetaStream();
+      comp.allComputingUnits = [
+        makeComputingUnit({ cuid: 1, status: "Pending" }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ];
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+    });
+
+    it("does not fetch again when the workflow id is unchanged", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      const latestSpy = vi
+        .spyOn(execService, "retrieveLatestWorkflowExecution")
+        .mockReturnValue(of({ cuId: 1 } as unknown as WorkflowExecutionsEntry));
+      const { emit } = bootWithMetaStream();
+
+      emit(100);
+      latestSpy.mockClear();
+      emit(100);
+
+      expect(latestSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("selectComputingUnit guards", () => {
+    it("does nothing when the cuid is undefined", () => {
+      const selectSpy = vi.spyOn(TestBed.inject(ComputingUnitStatusService), "selectComputingUnit");
+      component.selectComputingUnit(5, undefined);
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the wid is the default (unsaved) workflow id", () => {
+      const selectSpy = vi.spyOn(TestBed.inject(ComputingUnitStatusService), "selectComputingUnit");
+      component.selectComputingUnit(DEFAULT_WORKFLOW.wid, 3);
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("selects for a valid wid/cuid pair", () => {
+      const selectSpy = vi.spyOn(TestBed.inject(ComputingUnitStatusService), "selectComputingUnit");
+      component.selectComputingUnit(5, 3);
+      expect(selectSpy).toHaveBeenCalledWith(5, 3);
+    });
+  });
+
+  describe("status helpers", () => {
+    it("getButtonText returns 'Connect' with no selection and the unit name otherwise", () => {
+      component.selectedComputingUnit = null;
+      expect(component.getButtonText()).toBe("Connect");
+      component.selectedComputingUnit = makeComputingUnit({ name: "My Unit" });
+      expect(component.getButtonText()).toBe("My Unit");
+    });
+
+    it("computeStatus maps selection + status onto badge states", () => {
+      component.selectedComputingUnit = null;
+      expect(component.computeStatus()).toBe("processing");
+      component.selectedComputingUnit = makeComputingUnit({ status: "Running" });
+      expect(component.computeStatus()).toBe("success");
+      component.selectedComputingUnit = makeComputingUnit({ status: "Pending" });
+      expect(component.computeStatus()).toBe("warning");
+      component.selectedComputingUnit = makeComputingUnit({ status: "Terminating" });
+      expect(component.computeStatus()).toBe("warning");
+      component.selectedComputingUnit = makeComputingUnit({ status: "Failed" });
+      expect(component.computeStatus()).toBe("error");
+    });
+
+    it("cannotSelectUnit only allows Running units", () => {
+      expect(component.cannotSelectUnit(makeComputingUnit({ status: "Running" }))).toBe(false);
+      expect(component.cannotSelectUnit(makeComputingUnit({ status: "Pending" }))).toBe(true);
+    });
+
+    it("isSelectedUnit matches on the computing unit uri", () => {
+      component.selectedComputingUnit = makeComputingUnit({ cuid: 1, uri: "uri-1" });
+      expect(component.isSelectedUnit(makeComputingUnit({ cuid: 1, uri: "uri-1" }))).toBe(true);
+      expect(component.isSelectedUnit(makeComputingUnit({ cuid: 2, uri: "uri-2" }))).toBe(false);
+    });
+
+    it("isComputingUnitRunning reflects the selected unit status", () => {
+      component.selectedComputingUnit = null;
+      expect(component.isComputingUnitRunning()).toBe(false);
+      component.selectedComputingUnit = makeComputingUnit({ status: "Running" });
+      expect(component.isComputingUnitRunning()).toBe(true);
+      component.selectedComputingUnit = makeComputingUnit({ status: "Pending" });
+      expect(component.isComputingUnitRunning()).toBe(false);
+    });
+  });
+
+  describe("terminateComputingUnit", () => {
+    it("errors and does nothing when the cuid is not a known unit", () => {
+      component.allComputingUnits = [];
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      const confirmSpy = vi
+        .spyOn(TestBed.inject(ComputingUnitActionsService), "confirmAndTerminate")
+        .mockImplementation(() => {});
+
+      component.terminateComputingUnit(999);
+
+      expect(errorSpy).toHaveBeenCalledWith("Invalid computing unit.");
+      expect(confirmSpy).not.toHaveBeenCalled();
+    });
+
+    it("delegates to confirmAndTerminate for a known non-local unit without deleting environments", () => {
+      const unit = makeComputingUnit({ cuid: 5, type: "kubernetes" });
+      component.allComputingUnits = [unit];
+      component.selectedComputingUnit = makeComputingUnit({ cuid: 5, type: "kubernetes" });
+      const confirmSpy = vi
+        .spyOn(TestBed.inject(ComputingUnitActionsService), "confirmAndTerminate")
+        .mockImplementation(() => {});
+      const deleteEnvSpy = vi.spyOn(TestBed.inject(WorkflowPveService), "deleteEnvironments");
+
+      component.terminateComputingUnit(5);
+
+      expect(confirmSpy).toHaveBeenCalledWith(5, unit);
+      expect(deleteEnvSpy).not.toHaveBeenCalled();
+    });
+
+    it("also deletes PVE environments for a local selected unit, swallowing errors", () => {
+      const unit = makeComputingUnit({ cuid: 5, type: "local" });
+      component.allComputingUnits = [unit];
+      component.selectedComputingUnit = makeComputingUnit({ cuid: 5, type: "local" });
+      vi.spyOn(TestBed.inject(ComputingUnitActionsService), "confirmAndTerminate").mockImplementation(() => {});
+      const deleteEnvSpy = vi
+        .spyOn(TestBed.inject(WorkflowPveService), "deleteEnvironments")
+        .mockReturnValue(throwError(() => new Error("boom")));
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      component.terminateComputingUnit(5);
+
+      expect(deleteEnvSpy).toHaveBeenCalledWith(5);
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("startEditingUnitName", () => {
+    it("blocks non-owners and leaves the editing state untouched", () => {
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      component.editingNameOfUnit = null;
+
+      component.startEditingUnitName(makeComputingUnit({ cuid: 3, isOwner: false }));
+
+      expect(errorSpy).toHaveBeenCalledWith("Only owners can rename computing units");
+      expect(component.editingNameOfUnit).toBeNull();
+    });
+
+    it("enters the edit state for an owned unit", () => {
+      vi.useFakeTimers();
+      try {
+        component.startEditingUnitName(makeComputingUnit({ cuid: 3, name: "Env", isOwner: true }));
+        expect(component.editingNameOfUnit).toBe(3);
+        expect(component.editingUnitName).toBe("Env");
+        // Flush the deferred focus() setTimeout; the input is not in the main DOM
+        // tree here, so the guarded focus call is a no-op.
+        vi.runAllTimers();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe("confirmUpdateUnitName", () => {
+    it("rejects an invalid (empty) name and cancels editing", () => {
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      const renameSpy = vi.spyOn(TestBed.inject(WorkflowComputingUnitManagingService), "renameComputingUnit");
+      component.editingNameOfUnit = 3;
+      component.editingUnitName = "old";
+
+      component.confirmUpdateUnitName(3, "   ");
+
+      expect(errorSpy).toHaveBeenCalled();
+      expect(renameSpy).not.toHaveBeenCalled();
+      expect(component.editingNameOfUnit).toBeNull();
+      expect(component.editingUnitName).toBe("");
+    });
+
+    it("renames, patches local + selected caches, refreshes the list and clears edit state on success", () => {
+      const listUnit = makeComputingUnit({ cuid: 3, name: "old" });
+      component.allComputingUnits = [listUnit];
+      component.selectedComputingUnit = makeComputingUnit({ cuid: 3, name: "old" });
+      const renameSpy = vi
+        .spyOn(TestBed.inject(WorkflowComputingUnitManagingService), "renameComputingUnit")
+        .mockReturnValue(of({} as Response));
+      const refreshSpy = vi.spyOn(TestBed.inject(ComputingUnitStatusService), "refreshComputingUnitList");
+      vi.spyOn(TestBed.inject(NotificationService), "success").mockImplementation(() => {});
+      component.editingNameOfUnit = 3;
+
+      component.confirmUpdateUnitName(3, "  NewName  ");
+
+      expect(renameSpy).toHaveBeenCalledWith(3, "NewName");
+      expect(component.allComputingUnits[0].computingUnit.name).toBe("NewName");
+      expect(component.selectedComputingUnit!.computingUnit.name).toBe("NewName");
+      expect(refreshSpy).toHaveBeenCalled();
+      expect(component.editingNameOfUnit).toBeNull();
+      expect(component.editingUnitName).toBe("");
+    });
+
+    it("shows a failure toast and still clears the edit state when rename errors", () => {
+      component.allComputingUnits = [makeComputingUnit({ cuid: 3, name: "old" })];
+      vi.spyOn(TestBed.inject(WorkflowComputingUnitManagingService), "renameComputingUnit").mockReturnValue(
+        throwError(() => new Error("nope"))
+      );
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      component.editingNameOfUnit = 3;
+      component.editingUnitName = "old";
+
+      component.confirmUpdateUnitName(3, "NewName");
+
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to rename"));
+      expect(component.editingNameOfUnit).toBeNull();
+      expect(component.editingUnitName).toBe("");
+    });
+  });
+
+  describe("onDropdownVisibilityChange", () => {
+    it("refreshes the computing unit list when the dropdown opens", () => {
+      const refreshSpy = vi.spyOn(TestBed.inject(ComputingUnitStatusService), "refreshComputingUnitList");
+      component.onDropdownVisibilityChange(true);
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("does nothing when the dropdown closes", () => {
+      const refreshSpy = vi.spyOn(TestBed.inject(ComputingUnitStatusService), "refreshComputingUnitList");
+      component.onDropdownVisibilityChange(false);
+      expect(refreshSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("PVE modal open/close", () => {
+    it("showPVEmodalVisible opens the modal and refreshes packages + saved environments", () => {
+      component.selectedComputingUnit = makeComputingUnit({ cuid: 12 });
+      const getPvesSpy = vi.spyOn(component, "getPVEs").mockImplementation(() => {});
+      const refreshDbSpy = vi.spyOn(component as any, "refreshAvailableDbPves").mockImplementation(() => {});
+
+      component.showPVEmodalVisible();
+
+      expect(component.pveModalVisible).toBe(true);
+      expect(getPvesSpy).toHaveBeenCalledTimes(1);
+      expect(refreshDbSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("closePveModal tears down sockets, clears draft state and hides the modal", () => {
+      const closeMock = vi.fn();
+      component.pves = [{ name: "a", socket: { close: closeMock } as any, isInstalling: true } as any];
+      component.availableDbPves = [{ veid: 1, name: "x", packages: {} }];
+      component.pveModalVisible = true;
+
+      component.closePveModal();
+
+      expect(closeMock).toHaveBeenCalled();
+      expect(component.pves[0].socket).toBeUndefined();
+      expect(component.pves[0].isInstalling).toBe(false);
+      expect(component.availableDbPves).toEqual([]);
+      expect(component.pveModalVisible).toBe(false);
+    });
+  });
+
+  describe("package row editing", () => {
+    it("addPackage appends an empty new-package row to the indexed environment", () => {
+      component.pves = [{ name: "env", newPackages: [] } as any];
+      component.addPackage(0);
+      expect(component.pves[0].newPackages).toEqual([
+        { name: "", version: "", versionOp: undefined, deleteToggle: false },
+      ]);
+    });
+
+    it("togglePackageDelete moves a package into deletingPackages and back out", () => {
+      component.pves = [{ name: "env", deletingPackages: [] } as any];
+      const pkg = { name: "numpy", version: "1.26.0", deleteToggle: false } as any;
+
+      component.togglePackageDelete(0, pkg);
+      expect(pkg.deleteToggle).toBe(true);
+      expect(component.pves[0].deletingPackages).toEqual([{ name: "numpy", version: "1.26.0" }]);
+
+      component.togglePackageDelete(0, pkg);
+      expect(pkg.deleteToggle).toBe(false);
+      expect(component.pves[0].deletingPackages).toEqual([]);
+    });
+  });
+
+  describe("parsePackageRows / updatePrettyPipOutput", () => {
+    it("parsePackageRows splits '=='-pinned entries and trims name + version", () => {
+      const rows = (component as any).parsePackageRows(["numpy==1.26.0", "  scipy == 1.11.0 ", "flask"]);
+      expect(rows).toEqual([
+        { name: "numpy", versionOp: "==", version: "1.26.0" },
+        { name: "scipy", versionOp: "==", version: "1.11.0" },
+        { name: "flask", versionOp: "==", version: "" },
+      ]);
+    });
+
+    it("updatePrettyPipOutput escapes html, styles success lines and converts newlines to <br/>", () => {
+      component.pves = [
+        { name: "env", pipOutput: "[pip] Successfully installed numpy\n<script>&\n", prettyPipOutput: "" } as any,
+      ];
+
+      component.updatePrettyPipOutput(0);
+
+      const out = component.pves[0].prettyPipOutput;
+      expect(out).toContain('<span class="pip-exit ok"><strong>[pip] Successfully installed numpy</strong></span>');
+      expect(out).toContain("&lt;script&gt;");
+      expect(out).toContain("&amp;");
+      expect(out).toContain("<br/>");
+    });
+  });
+
+  describe("template rendering (overlays)", () => {
+    afterEach(() => {
+      // Clear the overlay contents rather than removing the container element itself:
+      // CDK's OverlayContainer caches that element, so removing it would make later
+      // overlays render into a detached node.
+      document.querySelectorAll(".cdk-overlay-container").forEach(el => (el.innerHTML = ""));
+    });
+
+    it("renders the PVE modal body: system section, saved environments and env cards", () => {
+      component.selectedComputingUnit = makeComputingUnit({ cuid: 12 });
+      component.systemPackagesLoading = false;
+      component.systemPackages = [{ name: "numpy", version: "1.26.0" }];
+      component.availableDbPves = [{ veid: 1, name: "scanpyenv", packages: {} }];
+      component.pves = [
+        {
+          name: "envA",
+          isLocked: true,
+          userPackages: [{ name: "numpy", versionOp: "==", version: "1.26.0" }],
+          newPackages: [{ name: "pandas", versionOp: "==", version: "2.0.0" }],
+          deletingPackages: [],
+          pipOutput: "",
+          prettyPipOutput: "log line",
+          expanded: true,
+          isInstalling: false,
+        } as any,
+      ];
+      component.pveModalVisible = true;
+      fixture.detectChanges();
+
+      expect(document.querySelector(".system-section")).toBeTruthy();
+      expect(document.querySelector(".saved-pves-section")).toBeTruthy();
+      expect(document.querySelector(".saved-pve-row")).toBeTruthy();
+      expect(document.querySelector(".saved-pve-name")?.textContent).toContain("scanpyenv");
+      expect(document.querySelector(".ve-form")).toBeTruthy();
+      expect(document.querySelector(".pip-panel")).toBeTruthy();
+      expect(document.querySelectorAll(".package-row").length).toBeGreaterThan(0);
+    });
+
+    // The dropdown-menu rows live inside <nz-dropdown-menu>'s deferred
+    // <ng-template>, which ng-zorro only stamps into a CDK overlay on open —
+    // that overlay does not attach under jsdom, so the rows are not queryable
+    // in the document. Coverage of the menu template still comes from the
+    // detectChanges below: Angular instantiates projected content eagerly, so
+    // the *ngFor rows and their per-unit bindings run even while parked. The
+    // assertions here target the trigger button, which renders in the main DOM.
+    it("renders the trigger button with the selected unit's name and a status badge", () => {
+      component.allComputingUnits = [
+        makeComputingUnit({ cuid: 1, name: "Running Unit", status: "Running", isOwner: true }),
+        makeComputingUnit({ cuid: 2, name: "Pending Unit", status: "Pending", isOwner: true }),
+      ];
+      component.selectedComputingUnit = component.allComputingUnits[0];
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      expect(host.querySelector(".unit-name-text")?.textContent).toContain("Running Unit");
+      expect(host.querySelector("nz-badge")).toBeTruthy();
+      expect(host.querySelector(".connect-text")).toBeNull();
+    });
+
+    it("renders the 'Connect' label on the trigger when no unit is selected", () => {
+      component.selectedComputingUnit = null;
+      component.allComputingUnits = [];
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      expect(host.querySelector(".connect-text")?.textContent).toContain("Connect");
+      expect(host.querySelector(".unit-name-text")).toBeNull();
     });
   });
 });

@@ -64,17 +64,22 @@ object WorkflowCompiler {
       errorList: List[(OperatorIdentity, Throwable)]
   ): Map[OperatorIdentity, WorkflowFatalError] = {
     val opIdToError = mutable.Map[OperatorIdentity, WorkflowFatalError]()
-    errorList.map {
+    errorList.foreach {
       case (opId, err) =>
         // map each error to WorkflowFatalError, and report them in the log
         logger.error(s"Error occurred in logical plan compilation for opId: $opId", err)
-        opIdToError += (opId -> WorkflowFatalError(
-          COMPILATION_ERROR,
-          Timestamp(Instant.now),
-          err.toString,
-          getStackTraceWithAllCauses(err),
-          opId.id
-        ))
+        // keep only the first error per operator: it is the root cause (e.g. a file
+        // resolution failure), while later stages re-fail on the same operator with
+        // less specific messages (e.g. schema propagation seeing an unresolved file)
+        if (!opIdToError.contains(opId)) {
+          opIdToError += (opId -> WorkflowFatalError(
+            COMPILATION_ERROR,
+            Timestamp(Instant.now),
+            err.toString,
+            getStackTraceWithAllCauses(err),
+            opId.id
+          ))
+        }
     }
     opIdToError.toMap
   }

@@ -110,3 +110,12 @@ INTEGRAL_TYPE_RANGES = {
     AttributeType.INT: (-(2**31), 2**31 - 1),
     AttributeType.LONG: (-(2**53) + 1, 2**53 - 1),
 }
+
+# numpy integer scalars are exact (unlike integral floats, which lose
+# integer precision above 2**53), so they are bounded only by the target
+# Arrow integer width, not the float64 exact-integer window used by
+# INTEGRAL_TYPE_RANGES: INT -> int32, LONG -> int64.
+NUMPY_INTEGRAL_RANGES = {
+    AttributeType.INT: (-(2**31), 2**31 - 1),
+    AttributeType.LONG: (-(2**63), 2**63 - 1),
+}

@@ -89,10 +89,11 @@ class SQLSourceOpDescSpec extends AnyFlatSpec with Matchers with MockFactory {
     configure(new TestSQLSourceOpDesc(conn)).sourceSchema().getAttribute("c").getType
   }
 
-  "SQLSourceOpDesc.sourceSchema" should "return null until every connection field is set" in {
+  "SQLSourceOpDesc.sourceSchema" should "prompt for the missing connection field" in {
     val desc = configure(new TestSQLSourceOpDesc(mock[Connection]))
     desc.table = null
-    assert(desc.sourceSchema() == null)
+    val ex = intercept[IllegalArgumentException](desc.sourceSchema())
+    ex.getMessage should include("table")
   }
 
   it should "map each JDBC data type to its Texera attribute type" in {

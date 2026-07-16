@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from "@angular/core";
 import { NgFor, NgIf, TitleCasePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -38,13 +38,16 @@ import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../..
 import { extractErrorMessage } from "../../util/error";
 import {
   buildLocalComputingUnitUri,
-  findNearestValidStep,
   getJvmMemorySliderConfig,
   isComputingUnitShmTooLarge,
   parseResourceNumber,
   parseResourceUnit,
   unitTypeMessageTemplate,
 } from "../../util/computing-unit.util";
+
+// Defaults for the advanced-settings values, restored every time the modal opens.
+const DEFAULT_SHM_SIZE_VALUE = 64;
+const DEFAULT_SHM_SIZE_UNIT: "Mi" | "Gi" = "Mi";
 
 /**
  * The "create computing unit" modal shared by the workspace power button and
@@ -79,10 +82,14 @@ import {
     TitleCasePipe,
   ],
 })
-export class ComputingUnitCreateModalComponent implements OnInit {
+export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
   @Input() visible = false;
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() unitCreated = new EventEmitter<DashboardWorkflowComputingUnit>();
+
+  // Advanced settings disclosure — collapsed by default, houses the
+  // shared-memory and JVM-heap knobs most users never touch.
+  showAdvancedSettings = false;
 
   newComputingUnitName: string = "";
   selectedMemory: string = "";
@@ -91,8 +98,8 @@ export class ComputingUnitCreateModalComponent implements OnInit {
   selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
   selectedComputingUnitType?: WorkflowComputingUnitType; // Selected computing unit type
   selectedShmSize: string = "64Mi"; // Shared memory size
-  shmSizeValue: number = 64; // default to 64
-  shmSizeUnit: "Mi" | "Gi" = "Mi"; // default unit
+  shmSizeValue: number = DEFAULT_SHM_SIZE_VALUE;
+  shmSizeUnit: "Mi" | "Gi" = DEFAULT_SHM_SIZE_UNIT;
   availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
   localComputingUnitUri: string = ""; // URI for local computing unit
 
@@ -102,6 +109,10 @@ export class ComputingUnitCreateModalComponent implements OnInit {
   jvmMemoryMax: number = 1;
   jvmMemorySteps: number[] = [1]; // Available steps in binary progression (1,2,4,8...)
   showJvmMemorySlider: boolean = false; // Whether to show the slider
+
+  jvmMemoryTipFormatter = (index: number): string => {
+    return this.jvmMemorySteps && this.jvmMemorySteps[index] !== undefined ? `${this.jvmMemorySteps[index]}G` : "";
+  };
 
   // cpu&memory limit options from backend
   cpuOptions: string[] = [];
@@ -155,6 +166,48 @@ export class ComputingUnitCreateModalComponent implements OnInit {
         error: (err: unknown) =>
           this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
       });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes["visible"]?.currentValue === true) {
+      this.resetAdvancedSettings();
+    }
+  }
+
+  // Runs every time the modal opens: re-collapse the advanced panel so it
+  // always starts on the simple path (name / RAM / CPU), and restore the
+  // advanced values so a setting from a previous open can't ride along
+  // hidden behind the collapsed panel.
+  private resetAdvancedSettings(): void {
+    this.showAdvancedSettings = false;
+    this.shmSizeValue = DEFAULT_SHM_SIZE_VALUE;
+    this.shmSizeUnit = DEFAULT_SHM_SIZE_UNIT;
+    this.resetJvmMemorySlider();
+  }
+
+  toggleAdvancedSettings(): void {
+    this.showAdvancedSettings = !this.showAdvancedSettings;
+  }
+
+  // Surfaces panel warnings on the collapsed header so an invalid or risky
+  // value tucked inside the panel can't be submitted unseen. The invalid shm
+  // value outranks the advisory max-JVM note when both apply. The shm check
+  // is skipped until the memory options have loaded (selectedMemory is empty).
+  collapsedWarningText(): string | null {
+    if (this.showAdvancedSettings) {
+      return null;
+    }
+    if (this.selectedMemory !== "" && this.isShmTooLarge()) {
+      return "Shared memory exceeds total";
+    }
+    if (this.isMaxJvmMemorySelected()) {
+      return "JVM memory at maximum";
+    }
+    return null;
+  }
+
+  hasCollapsedWarning(): boolean {
+    return this.collapsedWarningText() !== null;
   }
 
   // Determines if the GPU selection dropdown should be shown
@@ -229,18 +282,24 @@ export class ComputingUnitCreateModalComponent implements OnInit {
     this.resetJvmMemorySlider();
   }
 
-  onJvmMemorySliderChange(value: number): void {
+  onJvmMemorySliderChange(index: number): void {
     // Ensure the value is one of the valid steps
-    const validStep = findNearestValidStep(value, this.jvmMemorySteps);
-    this.jvmMemorySliderValue = validStep;
-    this.selectedJvmMemorySize = `${validStep}G`;
+    const validStep = this.jvmMemorySteps[index];
+    if (validStep !== undefined) {
+      this.jvmMemorySliderValue = index;
+      this.selectedJvmMemorySize = `${validStep}G`;
+    }
   }
 
   // Check if the maximum JVM memory value is selected
   isMaxJvmMemorySelected(): boolean {
     // Only show warning for larger memory sizes (>=4GB) where the slider is shown
     // AND when the maximum value is selected
-    return this.showJvmMemorySlider && this.jvmMemorySliderValue === this.jvmMemoryMax && this.jvmMemoryMax >= 4;
+    return (
+      this.showJvmMemorySlider &&
+      this.jvmMemorySliderValue === this.jvmMemoryMax &&
+      this.jvmMemorySteps[this.jvmMemoryMax] >= 4
+    );
   }
 
   // Completely reset the JVM memory slider based on the selected CU memory
@@ -258,7 +317,7 @@ export class ComputingUnitCreateModalComponent implements OnInit {
   // Listen for memory selection changes
   onMemorySelectionChange(): void {
     // Store current JVM memory value for potential reuse
-    const previousJvmMemory = this.jvmMemorySliderValue;
+    const previousJvmMemoryValue = this.jvmMemorySteps[this.jvmMemorySliderValue];
 
     // Reset slider configuration based on the new memory selection
     this.resetJvmMemorySlider();
@@ -270,14 +329,10 @@ export class ComputingUnitCreateModalComponent implements OnInit {
     let cuMemoryInGb = memoryUnit === "Gi" ? memoryValue : memoryUnit === "Mi" ? Math.floor(memoryValue / 1024) : 1;
 
     // Only try to preserve previous value for larger memory sizes where slider is shown
-    if (
-      cuMemoryInGb > 3 &&
-      previousJvmMemory >= 2 &&
-      previousJvmMemory <= this.jvmMemoryMax &&
-      this.jvmMemorySteps.includes(previousJvmMemory)
-    ) {
-      this.jvmMemorySliderValue = previousJvmMemory;
-      this.selectedJvmMemorySize = `${previousJvmMemory}G`;
+    if (cuMemoryInGb > 3 && previousJvmMemoryValue >= 2 && this.jvmMemorySteps.includes(previousJvmMemoryValue)) {
+      const index = this.jvmMemorySteps.indexOf(previousJvmMemoryValue);
+      this.jvmMemorySliderValue = index;
+      this.selectedJvmMemorySize = `${previousJvmMemoryValue}G`;
     }
   }
 
