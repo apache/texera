@@ -37,6 +37,8 @@ import org.apache.texera.amber.operator.randomksampling.RandomKSamplingOpDesc
 import org.apache.texera.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
+import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.texera.amber.operator.typecasting.TypeCastingOpDesc
@@ -131,6 +133,19 @@ object TransformVerificationRunner {
   val enumSweepExemptOps: Set[Class[_]] = Set(
     classOf[TypeCastingOpDesc]
   )
+
+  /** Whether the enum sweep is suppressed for `opClass`. True for
+    * [[enumSweepExemptOps]] and for the whole sklearn classifier/training
+    * families: their only sweepable enums are the `countVectorizer` /
+    * `tfidfTransformer` booleans, which flip the feature source between the
+    * numeric default and a text column — structurally incompatible with one
+    * fixture. That branch is covered by a dedicated `extraScenarios` text
+    * fixture instead, so the sweep would only regenerate invalid numeric+text
+    * combinations. */
+  private def enumSweepExempt(opClass: Class[_ <: LogicalOp]): Boolean =
+    enumSweepExemptOps.contains(opClass) ||
+      classOf[SklearnClassifierOpDesc].isAssignableFrom(opClass) ||
+      classOf[SklearnTrainingOpDesc].isAssignableFrom(opClass)
 
   /** Visualization operators with deterministic Plotly JSON validation. */
   val visualizationJsonOps: Set[Class[_]] = Set(
@@ -307,11 +322,13 @@ object TransformVerificationRunner {
   def run(opClass: Class[_ <: LogicalOp]): Unit = {
     val testRoot = Files.createTempDirectory(s"verify-${opClass.getSimpleName}-")
 
-    // Resolve the fixture. Curated ops yield a single hand-written config; auto
-    // ops yield the base config PLUS one variant per enum value, so each enum
-    // branch (e.g. a line chart's mode = line / dots / line+dots) is exercised,
-    // not just the default. All variants share the same input files.
-    val (variants, inputs): (Seq[(String, LogicalOp)], Map[PortIdentity, Path]) =
+    // Resolve the run list: each entry is (label, configured op, its inputs).
+    // Curated ops yield a single hand-written config (plus any extraScenarios);
+    // auto ops yield the base config PLUS one variant per enum value, so each
+    // enum branch (e.g. a line chart's mode = line / dots / line+dots) is
+    // exercised, not just the default. Variants of one fixture share input files;
+    // extraScenarios carry their own (structurally different) inputs.
+    val runs: Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
       (if (forceAuto) None else CuratedHandlers.byClass.get(opClass)) match {
         case Some(handler) =>
           val (op, in) = handler.fixture(testRoot)
@@ -319,10 +336,10 @@ object TransformVerificationRunner {
           // fall back to the single curated config if it can't be swept or the
           // op is enum-sweep-exempt (its enum values are cross-constrained with a
           // sibling field, so a blind sweep produces invalid configs).
-          val vs =
-            if (enumSweepExemptOps.contains(opClass)) Seq("default" -> op)
+          val primary =
+            if (enumSweepExempt(opClass)) Seq("default" -> op)
             else ConfigGenerator.variantsOf(op).fold(_ => Seq("default" -> op), identity)
-          (vs, in)
+          primary.map { case (label, o) => (label, o, in) } ++ handler.extraScenarios(testRoot)
         case None =>
           val vs = ConfigGenerator
             .generateVariants(opClass, CanonicalFixture.schemasByPort, CanonicalFixture.port0Rows.size)
@@ -331,13 +348,14 @@ object TransformVerificationRunner {
               identity
             )
           val inputPortCount = vs.head._2.operatorInfo.inputPorts.size
-          (vs, CanonicalFixture.writeInputs(testRoot, inputPortCount))
+          val in = CanonicalFixture.writeInputs(testRoot, inputPortCount)
+          vs.map { case (label, o) => (label, o, in) }
       }
 
-    variants.foreach {
-      case (label, opDesc) =>
+    runs.foreach {
+      case (label, opDesc, inputs) =>
         val workDir =
-          if (variants.size == 1) testRoot
+          if (runs.size == 1) testRoot
           else testRoot.resolve(label.replaceAll("[^A-Za-z0-9]+", "_"))
         Files.createDirectories(workDir)
         try runVariant(opClass, opDesc, inputs, workDir)

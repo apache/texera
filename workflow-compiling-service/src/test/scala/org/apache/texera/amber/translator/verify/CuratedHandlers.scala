@@ -58,7 +58,9 @@ import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.Scatter
 import org.apache.texera.amber.operator.machineLearning.Scorer.classificationMetricsFnc
 import org.apache.texera.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
+import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingGaussianNaiveBayesOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnGaussianNaiveBayesOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.{HyperParameters, ParamClass}
@@ -254,6 +256,22 @@ object CuratedHandlers {
     TupleIO.writeTuples(test, SklearnFixture.rows.iterator, SklearnFixture.schema)
     (train, test)
   }
+
+  /** Estimators whose `fit` rejects the sparse matrix `CountVectorizer` emits
+    * (dense-only), so the `countVectorizer=true` text scenario doesn't apply.
+    * `GaussianNB` validates X without `accept_sparse` and raises "Sparse data
+    * was passed for X, but dense data is required"; text classification uses the
+    * Multinomial/Bernoulli/Complement NB variants instead. `countVectorizer=true`
+    * on these is an invalid production config, not a translation gap, so the
+    * scenario is skipped rather than flagged. */
+  private val denseOnlyForCountVectorizer: Set[Class[_ <: LogicalOp]] =
+    Set(
+      classOf[SklearnGaussianNaiveBayesOpDesc],
+      classOf[SklearnTrainingGaussianNaiveBayesOpDesc]
+    )
+
+  def supportsCountVectorizer(opClass: Class[_ <: LogicalOp]): Boolean =
+    !denseOnlyForCountVectorizer.contains(opClass)
 
   /** One real hyperparameter for an advanced sklearn trainer, so the parameter-
     * handling logic is actually exercised (vs. an empty sweep). Resolves the
@@ -829,6 +847,7 @@ abstract class SklearnTrainingTransformHandler extends TransformHandler {
   override def extraScenarios(
       testRoot: Path
   ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
+    if (!CuratedHandlers.supportsCountVectorizer(opDescClass)) return Seq.empty
     val dir = testRoot.resolve("cv_text")
     Files.createDirectories(dir)
     val input = SklearnTextFixture.write(dir.resolve("input_port_0.jsonl"))
@@ -866,6 +885,7 @@ abstract class SklearnClassifierTransformHandler extends TransformHandler {
   override def extraScenarios(
       testRoot: Path
   ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
+    if (!CuratedHandlers.supportsCountVectorizer(opDescClass)) return Seq.empty
     val dir = testRoot.resolve("cv_text")
     Files.createDirectories(dir)
     val train = SklearnTextFixture.write(dir.resolve("input_port_0.jsonl"))

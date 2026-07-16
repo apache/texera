@@ -60,12 +60,17 @@ def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None
             m_actual = pickle.loads(base64.b64decode(actual[col].iloc[i]))
             m_expected = pickle.loads(base64.b64decode(expected[col].iloc[i]))
 
-            # Each model selects the feature columns it was trained on; this
-            # naturally drops the training target the probe may still carry.
+            # A model with feature_names_in_ selects its (numeric) feature
+            # columns from the probe, naturally dropping the training target the
+            # probe may still carry. A model WITHOUT it was fitted on a 1-D input
+            # rather than a named frame — i.e. a text pipeline (e.g.
+            # CountVectorizer) trained on a single text Series — so feed the
+            # probe's first column as a Series, not the whole frame (predicting
+            # on a DataFrame would make CountVectorizer iterate column labels).
             names = getattr(m_actual, "feature_names_in_", None)
-            x_a = probe[list(names)] if names is not None else probe
+            x_a = probe[list(names)] if names is not None else probe.iloc[:, 0]
             names_e = getattr(m_expected, "feature_names_in_", None)
-            x_e = probe[list(names_e)] if names_e is not None else probe
+            x_e = probe[list(names_e)] if names_e is not None else probe.iloc[:, 0]
 
             pred_a = np.asarray(m_actual.predict(x_a))
             pred_e = np.asarray(m_expected.predict(x_e))
