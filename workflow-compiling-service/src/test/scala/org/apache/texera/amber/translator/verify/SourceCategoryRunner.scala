@@ -103,8 +103,9 @@ object SourceCategoryRunner {
       ("input-driven source: filenames arrive on an input port at runtime, but this runner " +
         "feeds sources no inputs — Path B's generated code references an undefined in1df"),
     classOf[URLFetcherOpDesc] ->
-      ("generated code needs urllib.request, which the translator's shared imports lack " +
-        "(NameError in Path B); verifying would also depend on a live network fetch")
+      ("live-network source: the operator fetches a real URL over the network, so its " +
+        "output is non-deterministic and depends on external connectivity — it cannot be " +
+        "verified against a fixed fixture in isolation")
   )
 
   /** The format tag a source declares, or `None` if it isn't an instantiable

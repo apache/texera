@@ -88,17 +88,16 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor with StandaloneCodeGener
       outputPorts = List(OutputPort())
     )
 
-  // NOTE: the generated script uses `urllib.request.urlopen(...)`, but the
-  // translator's shared imports don't include `urllib.request`. Per the rule
-  // set 2026-05-26, we do not modify the translator on per-operator branches.
-  // Users must prepend `import urllib.request` to the generated script before
-  // running it. The manual test plan flags this. The import-management
-  // strategy will be handled on the integration branch.
+  // The generated snippet uses `urllib.request`, which the translator's shared
+  // imports don't include. Following the per-operator convention (e.g. Split
+  // emits `import numpy as np`), the code block prepends its own import so the
+  // generated script is self-contained.
   override def generateStandaloneCode(): String = {
     val urlLiteral = objectMapper.writeValueAsString(url)
     val isUtf8 = decodingMethod == DecodingMethod.UTF_8
     val valueExpr = if (isUtf8) """_content.decode("utf-8")""" else "_content"
     val buf = scala.collection.mutable.ArrayBuffer[String]()
+    buf += "import urllib.request"
     buf += s"_url = $urlLiteral"
     buf += "try:"
     buf += "    with urllib.request.urlopen(_url) as _resp:"
