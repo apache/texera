@@ -35,7 +35,6 @@ DO $$
 DECLARE
     rec RECORD;
     renamed INT := 0;
-    remaining INT;
     iterations INT := 0;
 BEGIN
     LOOP
@@ -43,15 +42,11 @@ BEGIN
             UPDATE dataset d
             SET name = LEFT(d.name, 128 - LENGTH('-' || d.did::text)) || '-' || d.did::text
             FROM (
-                SELECT did, name AS old_name
-                FROM (
-                    SELECT did, name,
-                           ROW_NUMBER() OVER (PARTITION BY owner_uid, name ORDER BY did) AS rn
-                    FROM dataset
-                ) ranked
-                WHERE rn > 1
+                SELECT did, name AS old_name,
+                       ROW_NUMBER() OVER (PARTITION BY owner_uid, name ORDER BY did) AS rn
+                FROM dataset
             ) dups
-            WHERE d.did = dups.did
+            WHERE d.did = dups.did AND dups.rn > 1
             RETURNING d.did, d.owner_uid, dups.old_name, d.name AS new_name
         LOOP
             renamed := renamed + 1;
@@ -59,12 +54,9 @@ BEGIN
                 rec.did, rec.owner_uid, rec.old_name, rec.new_name;
         END LOOP;
 
-        SELECT COUNT(*) INTO remaining
-        FROM (
+        EXIT WHEN NOT EXISTS (
             SELECT 1 FROM dataset GROUP BY owner_uid, name HAVING COUNT(*) > 1
-        ) t;
-
-        EXIT WHEN remaining = 0;
+        );
 
         iterations := iterations + 1;
         IF iterations > 10 THEN
