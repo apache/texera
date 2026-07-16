@@ -138,6 +138,8 @@ object WorkflowResource {
 
   case class DriveExportRequest(sessionUri: String)
 
+  val DRIVE_EXPORT_MAX_BYTES: Int = 500 * 1024 * 1024
+
   private def updateWorkflowField(
       workflow: Workflow,
       sessionUser: SessionUser,
@@ -799,6 +801,8 @@ class WorkflowResource extends LazyLogging {
     if (!WorkflowAccessResource.hasReadAccess(wid, sessionUser.getUid))
       throw new ForbiddenException("No sufficient access privilege.")
     val content = workflowDao.fetchOneByWid(wid).getContent.getBytes("UTF-8")
+    if (content.length > WorkflowResource.DRIVE_EXPORT_MAX_BYTES)
+      throw new BadRequestException("Workflow content exceeds the 500 MB export limit.")
     val conn = new URL(request.sessionUri).openConnection().asInstanceOf[HttpURLConnection]
     try {
       conn.setDoOutput(true)
