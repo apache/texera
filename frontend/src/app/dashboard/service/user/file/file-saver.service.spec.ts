@@ -18,16 +18,18 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import * as FileSaver from "file-saver";
+import { saveAs } from "file-saver";
 import { FileSaverService } from "./file-saver.service";
 
+// Replace the file-saver module wholesale (same precedent as menu.component.spec.ts);
+// the service is a thin passthrough, so we assert it forwards to saveAs unchanged.
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
 
 describe("FileSaverService", () => {
   let service: FileSaverService;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.mocked(saveAs).mockClear();
     TestBed.configureTestingModule({ providers: [FileSaverService] });
     service = TestBed.inject(FileSaverService);
   });
@@ -36,20 +38,20 @@ describe("FileSaverService", () => {
     expect(service).toBeTruthy();
   });
 
-  it("delegates a Blob payload to FileSaver.saveAs with filename and options", () => {
+  it("delegates a Blob payload to saveAs with filename and options", () => {
     const blob = new Blob(["hello"], { type: "text/plain" });
-    const options: FileSaver.FileSaverOptions = { autoBom: true };
+    const options = { autoBom: true };
 
     service.saveAs(blob, "greeting.txt", options);
 
-    expect(FileSaver.saveAs).toHaveBeenCalledTimes(1);
-    expect(FileSaver.saveAs).toHaveBeenCalledWith(blob, "greeting.txt", options);
+    expect(saveAs).toHaveBeenCalledTimes(1);
+    expect(saveAs).toHaveBeenCalledWith(blob, "greeting.txt", options);
   });
 
   it("forwards a string payload (e.g. a URL) unchanged", () => {
     service.saveAs("https://example.com/file.csv", "file.csv");
 
-    expect(FileSaver.saveAs).toHaveBeenCalledWith("https://example.com/file.csv", "file.csv", undefined);
+    expect(saveAs).toHaveBeenCalledWith("https://example.com/file.csv", "file.csv", undefined);
   });
 
   it("passes undefined through when filename and options are omitted", () => {
@@ -57,6 +59,6 @@ describe("FileSaverService", () => {
 
     service.saveAs(blob);
 
-    expect(FileSaver.saveAs).toHaveBeenCalledWith(blob, undefined, undefined);
+    expect(saveAs).toHaveBeenCalledWith(blob, undefined, undefined);
   });
 });
