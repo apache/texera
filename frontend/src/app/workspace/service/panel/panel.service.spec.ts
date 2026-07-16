@@ -60,6 +60,11 @@ describe("PanelService", () => {
 
     expect(onReset).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
+
+    service.closePanels();
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onReset).toHaveBeenCalledTimes(1);
   });
 
   it("delivers each emission to every current subscriber", () => {
@@ -75,12 +80,16 @@ describe("PanelService", () => {
     expect(second).toHaveBeenCalledTimes(2);
   });
 
-  it("does not replay past emissions to a late subscriber (Subject semantics)", () => {
+  it("does not replay past emissions to a late subscriber but still forwards future ones (Subject semantics)", () => {
     service.resetPanels();
 
     const late = vi.fn();
     service.resetPanelStream.subscribe(late);
 
     expect(late).not.toHaveBeenCalled();
+
+    service.resetPanels();
+
+    expect(late).toHaveBeenCalledTimes(1);
   });
 });
