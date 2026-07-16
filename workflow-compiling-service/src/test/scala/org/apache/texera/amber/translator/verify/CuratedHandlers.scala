@@ -52,6 +52,7 @@ import org.apache.texera.amber.operator.visualization.filledAreaPlot.FilledAreaP
 import org.apache.texera.amber.operator.visualization.ganttChart.GanttChartOpDesc
 import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 import org.apache.texera.amber.operator.machineLearning.Scorer.classificationMetricsFnc
+import org.apache.texera.amber.operator.machineLearning.Scorer.regressionMetricsFnc
 import org.apache.texera.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingGaussianNaiveBayesOpDesc
@@ -995,6 +996,11 @@ object MachineLearningScorerTransformHandler extends TransformHandler {
     desc.actualValueColumn = "y"
     desc.predictValueColumn = "pred"
     desc.classificationMetrics = List(classificationMetricsFnc.accuracy)
+    // Populate regressionMetrics too so the enum sweep's isRegression=true variant
+    // has a real metric. Left empty, getSelectedMetrics() renders [''] (mkString
+    // on an empty list), and regression_metrics does metrics_func[''] → KeyError.
+    // The metrics func runs on the same y/pred integers on both paths → parity.
+    desc.regressionMetrics = List(regressionMetricsFnc.mse)
 
     (desc, Map(PortIdentity(0) -> inputPath))
   }
