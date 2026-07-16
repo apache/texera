@@ -164,7 +164,10 @@ class ComputingUnitAccessResource {
       access.setCuid(cuid)
       access.setUid(granteeId)
       access.setPrivilege(privilege)
-      computingUnitUserAccessDao.insert(access)
+      // merge (upsert) rather than insert: re-granting an existing grantee updates
+      // their privilege in place instead of hitting a duplicate-primary-key error
+      // (the (cuid, uid) PK). Mirrors DatasetAccessResource/WorkflowAccessResource.
+      computingUnitUserAccessDao.merge(access)
     }
   }
 

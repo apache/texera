@@ -151,6 +151,16 @@ class ComputingUnitAccessResourceSpec
     accessEmails(cuid) shouldBe empty
   }
 
+  it should "update the privilege in place when re-granting with a different privilege" in {
+    accessResource.grantAccess(ownerSession, cuid, granteeUser.getEmail, PrivilegeEnum.READ)
+    accessResource.grantAccess(ownerSession, cuid, granteeUser.getEmail, PrivilegeEnum.WRITE)
+
+    val entries = accessResource.getComputingUnitAccessList(ownerSession, cuid)
+    entries should have size 1
+    entries.head.email shouldEqual granteeUser.getEmail
+    entries.head.privilege shouldEqual PrivilegeEnum.WRITE
+  }
+
   it should "reject a caller without write access" in {
     val ex = intercept[IllegalArgumentException] {
       accessResource.grantAccess(strangerSession, cuid, granteeUser.getEmail, PrivilegeEnum.READ)
