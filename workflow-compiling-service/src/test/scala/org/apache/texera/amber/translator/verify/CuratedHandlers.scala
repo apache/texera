@@ -27,10 +27,6 @@ import org.apache.texera.amber.core.tuple.{
 }
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.dictionary.{
-  DictionaryMatcherOpDesc,
-  MatchingType
-}
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
@@ -193,7 +189,6 @@ object CuratedHandlers {
     SpecializedFilterTransformHandler,
     HashJoinTransformHandler,
     TypeCastingTransformHandler,
-    DictionaryMatcherTransformHandler,
     ProjectionTransformHandler,
     BulletChartVisualizationHandler,
     ImageVisualizerVisualizationHandler,
@@ -503,23 +498,6 @@ object HashJoinTransformHandler extends TransformHandler {
     desc.joinType = JoinType.INNER
 
     (desc, Map(PortIdentity(0) -> buildPath, PortIdentity(1) -> probePath))
-  }
-}
-
-/** DictionaryMatcher: auto-config autofills the canonical fixture's first
-  *  column (`id`, INTEGER) into `attribute`, but DictionaryMatcherOpExec
-  *  casts that field to String (ClassCastException). Point it at `name` with
-  *  a dictionary matching a strict subset of rows. Map op — both paths keep
-  *  input row order, so strict positional comparison holds. */
-object DictionaryMatcherTransformHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[DictionaryMatcherOpDesc]
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val desc = new DictionaryMatcherOpDesc()
-    desc.dictionary = "alice,bob,zelda" // alice/bob recur in the fixture; zelda never matches
-    desc.attribute = "name"
-    desc.resultAttribute = "matched"
-    desc.matchingType = MatchingType.SCANBASED
-    (desc, CanonicalFixture.writeInputs(testRoot, 1))
   }
 }
 
