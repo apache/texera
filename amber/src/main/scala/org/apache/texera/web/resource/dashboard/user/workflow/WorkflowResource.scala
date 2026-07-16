@@ -44,6 +44,7 @@ import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
 import org.jooq.{Condition, DSLContext, Record9, Result, SelectOnConditionStep}
 
+import java.net.{HttpURLConnection, URL}
 import java.sql.Timestamp
 import java.util
 import java.util.UUID
@@ -134,6 +135,8 @@ object WorkflowResource {
   )
 
   case class WorkflowIDs(wids: List[Integer], pid: Option[Integer])
+
+  case class DriveExportRequest(sessionUri: String)
 
   private def updateWorkflowField(
       workflow: Workflow,
@@ -780,6 +783,39 @@ class WorkflowResource extends LazyLogging {
       .from(WORKFLOW)
       .where(WORKFLOW.WID.eq(wid))
       .fetchOneInto(classOf[String])
+  }
+
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{wid}/export/drive")
+  def exportWorkflowToDrive(
+      @PathParam("wid") wid: Integer,
+      request: WorkflowResource.DriveExportRequest,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    if (!request.sessionUri.startsWith("https://www.googleapis.com/upload/drive/"))
+      throw new BadRequestException("Invalid session URI")
+    if (!WorkflowAccessResource.hasReadAccess(wid, sessionUser.getUid))
+      throw new ForbiddenException("No sufficient access privilege.")
+    val content = workflowDao.fetchOneByWid(wid).getContent.getBytes("UTF-8")
+    val conn = new URL(request.sessionUri).openConnection().asInstanceOf[HttpURLConnection]
+    try {
+      conn.setDoOutput(true)
+      conn.setRequestMethod("PUT")
+      conn.setRequestProperty("Content-Type", "application/json")
+      conn.setRequestProperty("Content-Length", content.length.toString)
+      conn.getOutputStream.write(content)
+      val code = conn.getResponseCode
+      if (code < 200 || code >= 300) {
+        val body = Option(conn.getErrorStream).map(s => new String(s.readAllBytes())).getOrElse("")
+        if (body.contains("storageQuotaExceeded"))
+          throw new ForbiddenException("Google Drive storage quota exceeded.")
+        throw new InternalServerErrorException(s"Google Drive upload failed: $body")
+      }
+    } finally {
+      conn.disconnect()
+    }
   }
 
   //TODO Get size from database
