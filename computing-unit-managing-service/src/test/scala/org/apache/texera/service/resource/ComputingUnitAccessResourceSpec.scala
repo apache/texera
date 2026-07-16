@@ -19,6 +19,7 @@
 
 package org.apache.texera.service.resource
 
+import jakarta.ws.rs.{BadRequestException, ForbiddenException}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.ComputingUnitConfig
 import org.apache.texera.dao.MockTexeraDB
@@ -143,10 +144,11 @@ class ComputingUnitAccessResourceSpec
     entries.head.privilege shouldEqual PrivilegeEnum.READ
   }
 
-  it should "reject an unknown email with a clear error instead of crashing" in {
-    val ex = intercept[IllegalArgumentException] {
+  it should "reject an unknown email with a 400 instead of crashing" in {
+    val ex = intercept[BadRequestException] {
       accessResource.grantAccess(ownerSession, cuid, nonExistentEmail, PrivilegeEnum.READ)
     }
+    ex.getResponse.getStatus shouldEqual 400
     ex.getMessage should include("User with the given email does not exist")
     accessEmails(cuid) shouldBe empty
   }
@@ -161,10 +163,11 @@ class ComputingUnitAccessResourceSpec
     entries.head.privilege shouldEqual PrivilegeEnum.WRITE
   }
 
-  it should "reject a caller without write access" in {
-    val ex = intercept[IllegalArgumentException] {
+  it should "reject a caller without write access with a 403" in {
+    val ex = intercept[ForbiddenException] {
       accessResource.grantAccess(strangerSession, cuid, granteeUser.getEmail, PrivilegeEnum.READ)
     }
+    ex.getResponse.getStatus shouldEqual 403
     ex.getMessage should include("does not have permission to grant access")
   }
 
@@ -181,19 +184,21 @@ class ComputingUnitAccessResourceSpec
     accessEmails(cuid) shouldBe empty
   }
 
-  it should "reject an unknown email with a clear error instead of crashing" in {
-    val ex = intercept[IllegalArgumentException] {
+  it should "reject an unknown email with a 400 instead of crashing" in {
+    val ex = intercept[BadRequestException] {
       accessResource.revokeAccess(ownerSession, cuid, nonExistentEmail)
     }
+    ex.getResponse.getStatus shouldEqual 400
     ex.getMessage should include("User with the given email does not exist")
   }
 
-  it should "reject a caller without write access" in {
+  it should "reject a caller without write access with a 403" in {
     accessResource.grantAccess(ownerSession, cuid, granteeUser.getEmail, PrivilegeEnum.READ)
 
-    val ex = intercept[IllegalArgumentException] {
+    val ex = intercept[ForbiddenException] {
       accessResource.revokeAccess(strangerSession, cuid, granteeUser.getEmail)
     }
+    ex.getResponse.getStatus shouldEqual 403
     ex.getMessage should include("does not have permission to revoke access")
   }
 }

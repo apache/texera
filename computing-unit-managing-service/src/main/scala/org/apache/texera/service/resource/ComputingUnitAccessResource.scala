@@ -113,6 +113,19 @@ class ComputingUnitAccessResource {
   }
   final private val userDao = new UserDao(context.configuration())
 
+  /**
+    * Resolves an email to its user id, throwing a JAX-RS BadRequestException (400) when no
+    * account matches — the service registers no ExceptionMapper for IllegalArgumentException,
+    * so that would otherwise surface as an opaque HTTP 500. Shared by grant/revoke.
+    */
+  private def resolveUidByEmail(email: String): Integer = {
+    val user = userDao.fetchOneByEmail(email)
+    if (user == null) {
+      throw new BadRequestException("User with the given email does not exist")
+    }
+    user.getUid
+  }
+
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/computing-unit/list/{cuid}")
@@ -148,15 +161,10 @@ class ComputingUnitAccessResource {
   ): Unit = {
     ensureSharingIsEnabled()
     if (!hasWriteAccess(cuid, user.getUid)) {
-      throw new IllegalArgumentException("User does not have permission to grant access")
+      throw new ForbiddenException("User does not have permission to grant access")
     }
 
-    // TODO: add try except and check how to display error message in the frontend
-    val grantee = userDao.fetchOneByEmail(email)
-    if (grantee == null) {
-      throw new IllegalArgumentException("User with the given email does not exist")
-    }
-    val granteeId = grantee.getUid
+    val granteeId = resolveUidByEmail(email)
 
     withTransaction(context) { ctx =>
       val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
@@ -180,14 +188,10 @@ class ComputingUnitAccessResource {
   ): Unit = {
     ensureSharingIsEnabled()
     if (!hasWriteAccess(cuid, user.getUid)) {
-      throw new IllegalArgumentException("User does not have permission to revoke access")
+      throw new ForbiddenException("User does not have permission to revoke access")
     }
 
-    val grantee = userDao.fetchOneByEmail(email)
-    if (grantee == null) {
-      throw new IllegalArgumentException("User with the given email does not exist")
-    }
-    val granteeId = grantee.getUid
+    val granteeId = resolveUidByEmail(email)
 
     withTransaction(context) { ctx =>
       ctx
