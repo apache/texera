@@ -71,6 +71,17 @@ describe("FlarumService", () => {
       expect(req.request.body.data.attributes.username).toEqual("weird7");
       req.flush({});
     });
+
+    it("propagates HTTP errors to the subscriber", () => {
+      const onError = vi.fn();
+      service.register().subscribe({ error: onError });
+
+      const req = httpMock.expectOne("forum/api/users");
+      req.flush("boom", { status: 500, statusText: "Server Error" });
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError.mock.calls[0][0].status).toEqual(500);
+    });
   });
 
   describe("auth", () => {
@@ -86,10 +97,22 @@ describe("FlarumService", () => {
       });
       req.flush({});
     });
+
+    it("propagates HTTP errors to the subscriber", () => {
+      const onError = vi.fn();
+      service.auth().subscribe({ error: onError });
+
+      const req = httpMock.expectOne("forum/api/token");
+      req.flush("boom", { status: 500, statusText: "Server Error" });
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError.mock.calls[0][0].status).toEqual(500);
+    });
   });
 
   it("throws when no user is logged in", () => {
     getCurrentUser.mockReturnValue(undefined);
     expect(() => service.register()).toThrow();
+    expect(() => service.auth()).toThrow();
   });
 });
