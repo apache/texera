@@ -27,6 +27,8 @@ import {
   USER_QUOTA_SIZE,
   USER_DELETE_EXECUTION_COLLECTION,
 } from "./user-quota.service";
+import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
+import { ExecutionQuota } from "../../../../common/type/user";
 
 describe("UserQuotaService", () => {
   let service: UserQuotaService;
@@ -50,8 +52,8 @@ describe("UserQuotaService", () => {
   });
 
   it("getCreatedDatasets() GETs the created-datasets endpoint", () => {
-    const datasets = [{ datasetId: 1 } as any];
-    let result: readonly any[] | undefined;
+    const datasets: ReadonlyArray<DatasetQuota> = [{ did: 1, name: "dataset-a", creationTime: 1700000000000, size: 2048 }];
+    let result: ReadonlyArray<DatasetQuota> | undefined;
 
     service.getCreatedDatasets(1).subscribe(r => (result = r));
 
@@ -63,11 +65,16 @@ describe("UserQuotaService", () => {
   });
 
   it("getCreatedWorkflows() GETs the created-workflows endpoint", () => {
-    service.getCreatedWorkflows(1).subscribe();
+    const workflows = [{ wid: 1 } as any];
+    let result: readonly any[] | undefined;
+
+    service.getCreatedWorkflows(1).subscribe(r => (result = r));
 
     const req = httpMock.expectOne(USER_CREATED_WORKFLOWS);
     expect(req.request.method).toEqual("GET");
-    req.flush([]);
+    req.flush(workflows);
+
+    expect(result).toEqual(workflows);
   });
 
   it("getAccessWorkflows() GETs the access-workflows endpoint", () => {
@@ -82,11 +89,18 @@ describe("UserQuotaService", () => {
   });
 
   it("getExecutionQuota() GETs the quota-size endpoint", () => {
-    service.getExecutionQuota(1).subscribe();
+    const quota: ReadonlyArray<ExecutionQuota> = [
+      { eid: 1, workflowId: 2, workflowName: "wf", resultBytes: 10, runTimeStatsBytes: 20, logBytes: 30 },
+    ];
+    let result: ReadonlyArray<ExecutionQuota> | undefined;
+
+    service.getExecutionQuota(1).subscribe(r => (result = r));
 
     const req = httpMock.expectOne(USER_QUOTA_SIZE);
     expect(req.request.method).toEqual("GET");
-    req.flush([]);
+    req.flush(quota);
+
+    expect(result).toEqual(quota);
   });
 
   it("deleteExecutionCollection() DELETEs the per-execution endpoint", () => {
