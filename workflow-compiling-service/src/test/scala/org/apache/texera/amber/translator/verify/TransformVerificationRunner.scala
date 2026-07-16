@@ -39,6 +39,7 @@ import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
+import org.apache.texera.amber.operator.typecasting.TypeCastingOpDesc
 import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.visualization.DotPlot.DotPlotOpDesc
@@ -118,6 +119,17 @@ object TransformVerificationRunner {
     classOf[CartesianProductOpDesc],    // JVM emits per arriving right tuple × stored left (right-major) vs pandas cross-merge left-major
     classOf[IntervalJoinOpDesc],        // streaming emit per arriving tuple against opposite-side buffer (port-interleaving order) vs pandas batch left-major
     classOf[AggregateOpDesc]            // hash-partitioned group emit order vs groupby(sort=False) first-occurrence order
+  )
+
+  /** Curated ops whose enum sweep must be suppressed: an enum value is only
+    * valid in combination with a sibling field, so flipping it in isolation
+    * yields an invalid config. TypeCasting's `resultType` is legal only for
+    * certain source column types (attributeTypeRules), and the native executor
+    * throws on an illegal cast (e.g. INTEGER → Timestamp); a blind sweep re-pairs
+    * each curated column with every target type. The curated fixture already
+    * covers each branch with a type-compatible column, so no sweep is needed. */
+  val enumSweepExemptOps: Set[Class[_]] = Set(
+    classOf[TypeCastingOpDesc]
   )
 
   /** Visualization operators with deterministic Plotly JSON validation. */
@@ -304,8 +316,12 @@ object TransformVerificationRunner {
         case Some(handler) =>
           val (op, in) = handler.fixture(testRoot)
           // Sweep the curated op's enums too (e.g. Aggregate's sum/min/max/…);
-          // fall back to the single curated config if it can't be swept.
-          val vs = ConfigGenerator.variantsOf(op).fold(_ => Seq("default" -> op), identity)
+          // fall back to the single curated config if it can't be swept or the
+          // op is enum-sweep-exempt (its enum values are cross-constrained with a
+          // sibling field, so a blind sweep produces invalid configs).
+          val vs =
+            if (enumSweepExemptOps.contains(opClass)) Seq("default" -> op)
+            else ConfigGenerator.variantsOf(op).fold(_ => Seq("default" -> op), identity)
           (vs, in)
         case None =>
           val vs = ConfigGenerator

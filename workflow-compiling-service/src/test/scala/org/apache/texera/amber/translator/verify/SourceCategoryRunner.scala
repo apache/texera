@@ -51,9 +51,9 @@ import scala.util.{Try, Using}
   *     points at it. A newly added file-scan source in a known format
   *     (CSV/JSONL/Arrow/…) is verified the moment it is registered in
   *     [[LogicalOp]]'s `@JsonSubTypes`, no edit here.
-  *   - Special tier: sources that can't take the shared table (text-family
+  *   - Curated tier: sources that can't take the shared table (text-family
   *     single-`line` output, or inline-config data) keep a hand-written
-  *     [[SourceHandler]] in [[specialHandlersByClass]].
+  *     [[SourceHandler]] in [[curatedHandlersByClass]].
   *   - Otherwise the test is flagged (a [[knownIssues]] reason, an unsupported
   *     declared format, or no match) — never silently skipped.
   *
@@ -64,12 +64,13 @@ import scala.util.{Try, Using}
 object SourceCategoryRunner {
 
   /**
-    * Sources that keep a hand-written handler because they can't go through the
-    * shared-fixture + encoder path: their output isn't the shared 3-column
-    * table (text-family, single `line` column) or their data is inline config
-    * rather than a file.
+    * The curated tier: sources that keep a hand-written handler because they
+    * can't go through the shared-fixture + encoder (auto) path — their output
+    * isn't the shared 3-column table (text-family, single `line` column) or
+    * their data is inline config rather than a file. Mirrors the transform
+    * side's [[CuratedHandlers]] (hand-written vs auto-generated fixture).
     */
-  private val specialHandlersByClass: Map[Class[_ <: LogicalOp], SourceHandler] =
+  private val curatedHandlersByClass: Map[Class[_ <: LogicalOp], SourceHandler] =
     Seq[SourceHandler](TextInputHandler, FileScanSourceHandler)
       .map(h => h.opDescClass -> h)
       .toMap
@@ -114,8 +115,17 @@ object SourceCategoryRunner {
     }.flatten
 
   def canRun(opDescClass: Class[_ <: LogicalOp]): Boolean =
-    specialHandlersByClass.contains(opDescClass) ||
+    curatedHandlersByClass.contains(opDescClass) ||
       declaredFileType(opDescClass).exists(encoderByFileType.contains)
+
+  /**
+    * Tier label for a runnable source, mirroring the transform side's
+    * auto/curated distinction: `"curated source"` when a hand-written
+    * [[SourceHandler]] serves it, else `"auto source"` (a declared-format scan
+    * source fixtured by an [[encoderByFileType]] encoder with zero per-op code).
+    */
+  def tier(opDescClass: Class[_ <: LogicalOp]): String =
+    if (curatedHandlersByClass.contains(opDescClass)) "curated source" else "auto source"
 
   /** Why a non-runnable source is flagged: a specific known issue, an
     * unsupported declared format, or no handler/format match at all. */
@@ -130,19 +140,19 @@ object SourceCategoryRunner {
     )
 
   /**
-    * Build the configured OpDesc: a hand-written special handler if one is
+    * Build the configured OpDesc: a hand-written curated handler if one is
     * registered, otherwise the auto path — instantiate the operator, encode the
     * shared fixture in the format it declares, and point `fileName` at the file.
     */
   private def makeOpDesc(opDescClass: Class[_ <: LogicalOp], testRoot: Path): LogicalOp =
-    specialHandlersByClass.get(opDescClass) match {
+    curatedHandlersByClass.get(opDescClass) match {
       case Some(handler) => handler.makeOpDesc(testRoot)
       case None =>
         val scan = opDescClass.getDeclaredConstructor().newInstance() match {
           case s: ScanSourceOpDesc => s
           case other =>
             throw new IllegalArgumentException(
-              s"${opDescClass.getSimpleName} has no special handler and is not a " +
+              s"${opDescClass.getSimpleName} has no curated handler and is not a " +
                 s"ScanSourceOpDesc (${other.getClass.getName})"
             )
         }

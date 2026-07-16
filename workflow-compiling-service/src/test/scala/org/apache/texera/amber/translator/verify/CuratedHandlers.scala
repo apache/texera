@@ -57,6 +57,7 @@ import org.apache.texera.amber.operator.sort.{
   SortPreference
 }
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
+import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
 import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
 import org.apache.texera.amber.operator.visualization.bulletChart.{
   BulletChartOpDesc,
@@ -192,6 +193,7 @@ object CuratedHandlers {
     SymmetricDifferenceTransformHandler,
     HashJoinTransformHandler,
     SortTransformHandler,
+    TypeCastingTransformHandler,
     AggregateTransformHandler,
     DictionaryMatcherTransformHandler,
     ProjectionTransformHandler,
@@ -618,6 +620,72 @@ object SortTransformHandler extends TransformHandler {
     builder.add(schema.getAttribute("id"), Int.box(id))
     builder.add(schema.getAttribute("name"), name)
     builder.build()
+  }
+}
+
+/**
+  * Handler for `TypeCastingOpDesc`. The auto tier points `attribute` at the
+  * canonical fixture's first column (`id`, INTEGER) and then sweeps `resultType`
+  * across ALL `AttributeType` values — but `TypeCastingUnit`'s attributeTypeRules
+  * only permit certain source types per target (e.g. `timestamp` accepts only
+  * string/long), and the native `TypeCastingOpExec` throws on an illegal cast
+  * (INTEGER → Timestamp). So the auto variant `resultType=timestamp` crashes
+  * Path A before any comparison.
+  *
+  * This fixture gives each cast a type-compatible source column and a value that
+  * round-trips identically on both paths (JVM `AttributeTypeUtils` vs the
+  * generated pandas), covering the value-comparable branches of
+  * `generateStandaloneCode`'s `resultType` match: STRING, INTEGER, LONG, DOUBLE,
+  * BOOLEAN. The op is listed in [[TransformVerificationRunner.enumSweepExemptOps]]
+  * so the blind one-enum-at-a-time sweep — which would re-pair each fixed column
+  * with every target type — is suppressed; the units below already exercise each
+  * branch. Map op: both paths keep input row order, so strict positional equality
+  * holds.
+  *
+  * TIMESTAMP is intentionally omitted: the two runtimes serialize a Timestamp
+  * differently to JSONL (native emits an ISO string `"2024-01-01 09:00:00.0"`,
+  * pandas emits epoch millis `1704099600000`), so the dataframe comparator flags
+  * a representation mismatch even though the instant is identical — a harness-wide
+  * timestamp-serialization gap, not a TypeCasting translation defect.
+  */
+object TypeCastingTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[TypeCastingOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    // One dedicated source column per target so the casts don't chain.
+    val columns = Seq(
+      ("str_to_int", AttributeType.STRING),  // numeric string  → INTEGER
+      ("int_to_dbl", AttributeType.INTEGER), // integer         → DOUBLE
+      ("int_to_str", AttributeType.INTEGER), // integer         → STRING
+      ("int_to_lng", AttributeType.INTEGER), // integer         → LONG
+      ("int_to_bool", AttributeType.INTEGER)  // 1/0            → BOOLEAN
+    )
+    val rows = Seq(
+      Seq[Any]("10", 1, 6, 11, 1),
+      Seq[Any]("20", 2, 7, 12, 0),
+      Seq[Any]("30", 3, 8, 13, 1),
+      Seq[Any]("40", 4, 9, 14, 0),
+      Seq[Any]("50", 5, 10, 15, 1)
+    )
+    val inputPath =
+      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
+
+    def unit(attr: String, t: AttributeType): TypeCastingUnit = {
+      val u = new TypeCastingUnit()
+      u.attribute = attr
+      u.resultType = t
+      u
+    }
+    val desc = new TypeCastingOpDesc()
+    desc.typeCastingUnits = List(
+      unit("str_to_int", AttributeType.INTEGER),
+      unit("int_to_dbl", AttributeType.DOUBLE),
+      unit("int_to_str", AttributeType.STRING),
+      unit("int_to_lng", AttributeType.LONG),
+      unit("int_to_bool", AttributeType.BOOLEAN)
+    )
+
+    (desc, Map(PortIdentity(0) -> inputPath))
   }
 }
 
