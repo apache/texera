@@ -107,7 +107,7 @@ class GoogleAuthResource {
                   }
                 }
               case None =>
-                (new User).tap { user =>
+                new User().tap { user =>
                   user.setName(googleName)
                   user.setEmail(googleEmail)
                   user.setAvatar(googleAvatar)
@@ -133,7 +133,7 @@ class GoogleAuthResource {
                 .execute()
             } else {
               txAuthDao.insert(
-                (new AuthProvider).tap { auth =>
+                new AuthProvider().tap { auth =>
                   auth.setUid(user.getUid)
                   auth.setProviderType(ProviderTypeEnum.GOOGLE)
                   auth.setProviderId(googleId)
