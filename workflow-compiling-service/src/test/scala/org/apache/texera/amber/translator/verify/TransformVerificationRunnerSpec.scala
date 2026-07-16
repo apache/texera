@@ -20,6 +20,23 @@
 package org.apache.texera.amber.translator.verify
 
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.difference.DifferenceOpDesc
+import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
+import org.apache.texera.amber.operator.regex.RegexOpDesc
+import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
+import org.apache.texera.amber.operator.substringSearch.SubstringSearchOpDesc
+import org.apache.texera.amber.operator.dictionary.DictionaryMatcherOpDesc
+import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
+import org.apache.texera.amber.operator.cartesianProduct.CartesianProductOpDesc
+import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
+import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
+import org.apache.texera.amber.operator.projection.ProjectionOpDesc
+import org.apache.texera.amber.operator.distinct.DistinctOpDesc
+import org.apache.texera.amber.operator.sleep.SleepOpDesc
+import org.apache.texera.amber.operator.sortPartitions.SortPartitionsOpDesc
+import org.apache.texera.amber.operator.sort.{SortOpDesc, StableMergeSortOpDesc}
+import org.apache.texera.amber.operator.typecasting.TypeCastingOpDesc
+import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
@@ -182,7 +199,7 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "route genuine one-off curated ops to the curated tier" in {
-    disposition(classOf[IntersectOpDesc]) shouldBe Runnable("curated")
+    disposition(classOf[HashJoinOpDesc[_]]) shouldBe Runnable("curated")
     disposition(classOf[MachineLearningScorerOpDesc]) shouldBe Runnable("curated")
   }
 
@@ -194,10 +211,91 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
     disposition(classOf[LimitOpDesc]) shouldBe Runnable("auto")
   }
 
-  // End-to-end smoke of the curated path: Intersect is fast, JVM-native, and
-  // exercises two input ports + the order-insensitive comparator branch.
-  "run" should "verify IntersectOpDesc end-to-end via the curated tier" in {
+  // End-to-end smoke of the auto path on a two-input op: Intersect is fast,
+  // JVM-native, and exercises two input ports + the order-insensitive
+  // comparator branch, all off the shared CanonicalFixture.
+  "run" should "verify IntersectOpDesc end-to-end via the auto tier" in {
     TransformVerificationRunner.run(classOf[IntersectOpDesc])
+  }
+
+  // Set ops on the two-input auto tier; both are order-insensitive
+  // (JVM hash-set emit order vs pandas), so the comparator lex-sorts both sides.
+  it should "verify DifferenceOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[DifferenceOpDesc])
+  }
+
+  it should "verify SymmetricDifferenceOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[SymmetricDifferenceOpDesc])
+  }
+
+  // Single-input text-match transforms; configs are fully derivable, so they
+  // run through the auto tier with its enum sweep.
+  it should "verify RegexOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[RegexOpDesc])
+  }
+
+  it should "verify KeywordSearchOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[KeywordSearchOpDesc])
+  }
+
+  it should "verify SubstringSearchOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[SubstringSearchOpDesc])
+  }
+
+  it should "verify DictionaryMatcherOpDesc end-to-end via the curated tier" in {
+    TransformVerificationRunner.run(classOf[DictionaryMatcherOpDesc])
+  }
+
+  // Aggregate + joins: order-insensitive (registered in orderInsensitiveOps),
+  // so the comparator lex-sorts both sides before asserting parity.
+  it should "verify AggregateOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[AggregateOpDesc])
+  }
+
+  it should "verify CartesianProductOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[CartesianProductOpDesc])
+  }
+
+  it should "verify HashJoinOpDesc end-to-end via the curated tier" in {
+    TransformVerificationRunner.run(classOf[HashJoinOpDesc[_]])
+  }
+
+  it should "verify IntervalJoinOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[IntervalJoinOpDesc])
+  }
+
+  // Single-input transforms whose configs are derivable (auto) or need a
+  // hand-written fixture (curated); each pins its dual-path parity.
+  it should "verify ProjectionOpDesc end-to-end via the curated tier" in {
+    TransformVerificationRunner.run(classOf[ProjectionOpDesc])
+  }
+
+  it should "verify DistinctOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[DistinctOpDesc])
+  }
+
+  it should "verify SleepOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[SleepOpDesc])
+  }
+
+  it should "verify SortPartitionsOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[SortPartitionsOpDesc])
+  }
+
+  it should "verify StableMergeSortOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[StableMergeSortOpDesc])
+  }
+
+  it should "verify SortOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[SortOpDesc])
+  }
+
+  it should "verify TypeCastingOpDesc end-to-end via the curated tier" in {
+    TransformVerificationRunner.run(classOf[TypeCastingOpDesc])
+  }
+
+  it should "verify UnnestStringOpDesc end-to-end via the auto tier" in {
+    TransformVerificationRunner.run(classOf[UnnestStringOpDesc])
   }
 
   // Curated Filter, but the enum sweep exercises every ComparisonType on each

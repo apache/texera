@@ -27,16 +27,10 @@ import org.apache.texera.amber.core.tuple.{
 }
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.aggregate.{
-  AggregateOpDesc,
-  AggregationFunction,
-  AggregationOperation
-}
 import org.apache.texera.amber.operator.dictionary.{
   DictionaryMatcherOpDesc,
   MatchingType
 }
-import org.apache.texera.amber.operator.difference.DifferenceOpDesc
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
@@ -46,17 +40,10 @@ import org.apache.texera.amber.operator.hashJoin.{
   HashJoinOpDesc,
   JoinType
 }
-import org.apache.texera.amber.operator.intersect.IntersectOpDesc
 import org.apache.texera.amber.operator.projection.{
   AttributeUnit,
   ProjectionOpDesc
 }
-import org.apache.texera.amber.operator.sort.{
-  SortCriteriaUnit,
-  SortOpDesc,
-  SortPreference
-}
-import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
 import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
 import org.apache.texera.amber.operator.visualization.bulletChart.{
@@ -78,7 +65,7 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.{Hy
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import org.apache.texera.amber.operator.huggingFace.HuggingFaceSpamSMSDetectionOpDesc
 import com.fasterxml.jackson.databind.ObjectMapper
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 import java.util
 import scala.jdk.CollectionConverters._
 
@@ -90,6 +77,20 @@ import scala.jdk.CollectionConverters._
 trait TransformHandler {
   def opDescClass: Class[_ <: LogicalOp]
   def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path])
+
+  /** Extra independent scenarios beyond [[fixture]], each a self-contained
+    * (label, configured op, its own inputs). The runner runs each as a PINNED
+    * config (no enum sweep), in its own work subdir. Default: none.
+    *
+    * Used where one operator needs structurally different inputs per config
+    * branch that a single swept fixture can't cover — e.g. the sklearn
+    * `countVectorizer=true` text path, whose feature column must be text and so
+    * is incompatible with the numeric default fixture (`X = table.drop(target)`
+    * would feed a string column to a numeric estimator). Each scenario must
+    * write its input files somewhere unique (e.g. a `testRoot` subdir) so it
+    * does not clobber the primary fixture's files. */
+  def extraScenarios(testRoot: Path): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
+    Seq.empty
 }
 
 /**
@@ -188,13 +189,8 @@ object CuratedHandlers {
 
   val all: Seq[TransformHandler] = Seq(
     SpecializedFilterTransformHandler,
-    IntersectTransformHandler,
-    DifferenceTransformHandler,
-    SymmetricDifferenceTransformHandler,
     HashJoinTransformHandler,
-    SortTransformHandler,
     TypeCastingTransformHandler,
-    AggregateTransformHandler,
     DictionaryMatcherTransformHandler,
     ProjectionTransformHandler,
     BulletChartVisualizationHandler,
@@ -338,6 +334,36 @@ object SklearnFixture {
 }
 
 /**
+  * Text dataset for the sklearn `countVectorizer=true` path. Two token-disjoint
+  * classes so `CountVectorizer` + any estimator separates them perfectly and
+  * both paths predict identically (deterministic parity). Mirrors
+  * [[SklearnFixture]]'s 6-rows-per-class size so cv=5 estimators
+  * (LogisticRegressionCV, probability calibration) have enough members. `note`
+  * is column 0 so the model probe — which feeds a text pipeline the probe's
+  * first column as a Series — picks it up as the vectorized feature.
+  */
+object SklearnTextFixture {
+  private val columns = Seq(("note", AttributeType.STRING), ("y", AttributeType.INTEGER))
+  private val rows: Seq[Seq[Any]] = Seq(
+    Seq("great excellent good", 1),
+    Seq("wonderful amazing great", 1),
+    Seq("good great nice", 1),
+    Seq("excellent superb good", 1),
+    Seq("amazing great wonderful", 1),
+    Seq("nice good excellent", 1),
+    Seq("bad terrible awful", 0),
+    Seq("horrible bad worst", 0),
+    Seq("awful bad poor", 0),
+    Seq("terrible worst bad", 0),
+    Seq("poor bad horrible", 0),
+    Seq("worst awful terrible", 0)
+  )
+
+  /** Write the text table to `path` (columns in order: note, y). */
+  def write(path: Path): Path = CuratedHandlers.writeFixture(path, columns, rows)
+}
+
+/**
   * Handler for `SpecializedFilterOpDesc`. Writes a 5-row table with an
   * integer and a string column, then filters on `age > 18 OR name == "eve"`.
   * Exercises numeric comparison, string equality (the JSON predicate `value`
@@ -383,70 +409,6 @@ object SpecializedFilterTransformHandler extends TransformHandler {
     builder.add(schema.getAttribute("name"), name)
     builder.build()
   }
-}
-
-/**
-  * Two-port (id INTEGER, name STRING) fixture shared by the set-op handlers.
-  * 25 left rows × 31 right rows with deliberate overlap — large enough to
-  * defeat the small-set / identity-hash bucket coincidences that a 3-row
-  * fixture lets through, while still small enough to compare in milliseconds.
-  */
-private object SetOpFixture {
-  val schema: Schema = new Schema(
-    new Attribute("id", AttributeType.INTEGER),
-    new Attribute("name", AttributeType.STRING)
-  )
-
-  private val names = Vector(
-    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j",
-    "k", "l", "m", "n", "o", "p", "q", "r", "s", "t"
-  )
-
-  private def tup(id: Int, name: String): Tuple = {
-    val b = Tuple.builder(schema)
-    b.add(schema.getAttribute("id"), Int.box(id))
-    b.add(schema.getAttribute("name"), name)
-    b.build()
-  }
-
-  def writeLeftRight(testRoot: Path): Map[PortIdentity, Path] = {
-    val leftPath = testRoot.resolve("input_port_0.jsonl")
-    val rightPath = testRoot.resolve("input_port_1.jsonl")
-    val left = (1 to 25).map(i => tup(i, names((i - 1) % names.size)))
-    val right = (10 to 40).map(i => tup(i, names((i - 1) % names.size)))
-    TupleIO.writeTuples(leftPath, left.iterator, schema)
-    TupleIO.writeTuples(rightPath, right.iterator, schema)
-    Map(PortIdentity(0) -> leftPath, PortIdentity(1) -> rightPath)
-  }
-}
-
-/** Intersect: JVM keeps two `mutable.HashSet[Tuple]` and emits the
-  *  intersection in bucket-iteration order. Row order isn't deterministic vs
-  *  the pandas `concat + duplicated(keep="first")` path — order policy lives
-  *  in [[TransformVerificationRunner.orderInsensitiveOps]]. */
-object IntersectTransformHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[IntersectOpDesc]
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) =
-    (new IntersectOpDesc(), SetOpFixture.writeLeftRight(testRoot))
-}
-
-/** Difference: `leftHashSet.diff(rightHashSet).iterator` — same hash-bucket
-  *  order divergence as Intersect. Order policy lives in
-  *  [[TransformVerificationRunner.orderInsensitiveOps]]. */
-object DifferenceTransformHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[DifferenceOpDesc]
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) =
-    (new DifferenceOpDesc(), SetOpFixture.writeLeftRight(testRoot))
-}
-
-/** SymmetricDifference: union of the two diffs, hash-set backed on both
-  *  sides. Most divergent of the set ops in practice — small fixtures can
-  *  accidentally pass, larger ones fail. Order policy lives in
-  *  [[TransformVerificationRunner.orderInsensitiveOps]]. */
-object SymmetricDifferenceTransformHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[SymmetricDifferenceOpDesc]
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) =
-    (new SymmetricDifferenceOpDesc(), SetOpFixture.writeLeftRight(testRoot))
 }
 
 /** HashJoin INNER on `id`. Build (port 0) and probe (port 1) intentionally
@@ -507,27 +469,6 @@ object HashJoinTransformHandler extends TransformHandler {
   }
 }
 
-/** Aggregate: the harness runs the JVM path (getPhysicalPlan) before
-  *  standalone codegen, and getPhysicalPlan mutates `aggregations` via
-  *  getFinal, setting attribute := resultAttribute — auto-config's free-form
-  *  resultAttribute "1" then leaks into the generated pandas as a column ref
-  *  (KeyError). Choosing resultAttribute == attribute makes the mutation a
-  *  no-op. Emit-order policy (hash-partition vs first-occurrence) lives in
-  *  [[TransformVerificationRunner.orderInsensitiveOps]]. */
-object AggregateTransformHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[AggregateOpDesc]
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val desc = new AggregateOpDesc()
-    val agg = new AggregationOperation()
-    agg.aggFunction = AggregationFunction.SUM
-    agg.attribute = "score"
-    agg.resultAttribute = "score" // must equal attribute; see scaladoc
-    desc.aggregations = List(agg)
-    desc.groupByKeys = List("name")
-    (desc, CanonicalFixture.writeInputs(testRoot, 1))
-  }
-}
-
 /** DictionaryMatcher: auto-config autofills the canonical fixture's first
   *  column (`id`, INTEGER) into `attribute`, but DictionaryMatcherOpExec
   *  casts that field to String (ClassCastException). Point it at `name` with
@@ -578,48 +519,6 @@ object HuggingFaceSpamSMSDetectionTransformHandler extends TransformHandler {
     desc.resultAttributeSpam = "is_spam"
     desc.resultAttributeProbability = "spam_score" // avoid colliding with fixture's `score`
     (desc, CanonicalFixture.writeInputs(testRoot, 1))
-  }
-}
-
-/**
-  * Handler for `SortOpDesc`. Writes a tiny 4-row table with one integer and
-  * one string column and sorts by the integer descending — touches both
-  * column types and exercises the comparator on a non-trivial reordering.
-  */
-object SortTransformHandler extends TransformHandler {
-
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[SortOpDesc]
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val schema = new Schema(
-      new Attribute("id", AttributeType.INTEGER),
-      new Attribute("name", AttributeType.STRING)
-    )
-
-    val rows: Seq[Tuple] = Seq(
-      tupleOf(schema, 3, "carol"),
-      tupleOf(schema, 1, "alice"),
-      tupleOf(schema, 4, "dave"),
-      tupleOf(schema, 2, "bob")
-    )
-
-    val inputPath = testRoot.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(inputPath, rows.iterator, schema)
-
-    val desc = new SortOpDesc()
-    val criterion = new SortCriteriaUnit()
-    criterion.attributeName = "id"
-    criterion.sortPreference = SortPreference.DESC
-    desc.attributes = List(criterion)
-
-    (desc, Map(PortIdentity(0) -> inputPath))
-  }
-
-  private def tupleOf(schema: Schema, id: Int, name: String): Tuple = {
-    val builder = Tuple.builder(schema)
-    builder.add(schema.getAttribute("id"), Int.box(id))
-    builder.add(schema.getAttribute("name"), name)
-    builder.build()
   }
 }
 
@@ -923,6 +822,25 @@ abstract class SklearnTrainingTransformHandler extends TransformHandler {
 
     (desc, Map(PortIdentity(0) -> inputPath))
   }
+
+  /** The `countVectorizer=true` branch: features come from a single text column
+    * (`X = X[text]`), incompatible with the numeric default, so it runs as its
+    * own scenario on the text fixture rather than as an enum-sweep variant. */
+  override def extraScenarios(
+      testRoot: Path
+  ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
+    val dir = testRoot.resolve("cv_text")
+    Files.createDirectories(dir)
+    val input = SklearnTextFixture.write(dir.resolve("input_port_0.jsonl"))
+
+    val desc = newDesc()
+    desc.target = "y"
+    desc.countVectorizer = true
+    desc.tfidfTransformer = false
+    desc.text = "note"
+
+    Seq(("countVectorizer_text", desc, Map(PortIdentity(0) -> input)))
+  }
 }
 
 /** Shared two-input fixture for the Sklearn classifier operators (training
@@ -939,6 +857,26 @@ abstract class SklearnClassifierTransformHandler extends TransformHandler {
     desc.target = "y"
     desc.countVectorizer = false
     (desc, Map(PortIdentity(0) -> train, PortIdentity(1) -> test))
+  }
+
+  /** The `countVectorizer=true` branch: train/test features come from a single
+    * text column (`X = X[text]`), incompatible with the numeric default, so it
+    * runs as its own scenario on the text fixture (both ports) rather than as an
+    * enum-sweep variant. */
+  override def extraScenarios(
+      testRoot: Path
+  ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
+    val dir = testRoot.resolve("cv_text")
+    Files.createDirectories(dir)
+    val train = SklearnTextFixture.write(dir.resolve("input_port_0.jsonl"))
+    val test = SklearnTextFixture.write(dir.resolve("input_port_1.jsonl"))
+
+    val desc = newDesc()
+    desc.target = "y"
+    desc.countVectorizer = true
+    desc.text = "note"
+
+    Seq(("countVectorizer_text", desc, Map(PortIdentity(0) -> train, PortIdentity(1) -> test)))
   }
 }
 
