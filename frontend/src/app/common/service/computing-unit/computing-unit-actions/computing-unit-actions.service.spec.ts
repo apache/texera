@@ -18,7 +18,7 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { of } from "rxjs";
+import { of, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ComputingUnitActionsService, StartComputingUnitRequest } from "./computing-unit-actions.service";
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
@@ -147,6 +147,15 @@ describe("ComputingUnitActionsService", () => {
       modalService.confirm.mock.calls[0][0].nzOnOk();
 
       expect(notificationService.error).toHaveBeenCalledWith("Failed to terminate computing unit");
+    });
+
+    it("notifies an error with the extracted message when the termination observable errors", () => {
+      statusService.terminateComputingUnit.mockReturnValue(throwError(() => new Error("kaboom")));
+      service.confirmAndTerminate(7, unit());
+
+      modalService.confirm.mock.calls[0][0].nzOnOk();
+
+      expect(notificationService.error).toHaveBeenCalledWith("Failed to terminate computing unit: kaboom");
     });
   });
 });
