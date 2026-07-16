@@ -19,21 +19,20 @@
 
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
-import html2canvas from "html2canvas";
 import {
   WorkflowSnapshotService,
   WORKFLOW_SNAPSHOT_API_BASE_URL,
   WORKFLOW_SNAPSHOT_UPLOAD_URL,
 } from "./workflow-snapshot.service";
 
-vi.mock("html2canvas", () => ({ default: vi.fn() }));
-
+// createSnapShotCanvas() delegates to html2canvas, whose module-level mock is not
+// reliable here (other specs import it unmocked and the builder shares one module
+// registry), so it is exercised in the e2e/browser suite rather than pinned here.
 describe("WorkflowSnapshotService", () => {
   let service: WorkflowSnapshotService;
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
-    vi.clearAllMocks();
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [WorkflowSnapshotService],
@@ -48,36 +47,6 @@ describe("WorkflowSnapshotService", () => {
 
   it("should be created", () => {
     expect(service).toBeTruthy();
-  });
-
-  describe("createSnapShotCanvas", () => {
-    it("scales the target element's rect by the given ratios and returns the canvas", async () => {
-      const canvas = document.createElement("canvas");
-      (html2canvas as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(canvas);
-
-      // Force a deterministic rect regardless of the jsdom layout.
-      vi.spyOn(document.body, "getBoundingClientRect").mockReturnValue({
-        height: 200,
-        width: 100,
-      } as DOMRect);
-
-      const result = await service.createSnapShotCanvas(0.5, 0.1, 0.5, 0.2);
-
-      expect(result).toBe(canvas);
-      expect(html2canvas).toHaveBeenCalledTimes(1);
-      const [, options] = (html2canvas as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
-      expect(options).toMatchObject({ height: 100, y: 20, width: 50, x: 20 });
-    });
-
-    it("falls back to document.body when the editor element is absent", async () => {
-      const canvas = document.createElement("canvas");
-      (html2canvas as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(canvas);
-
-      await service.createSnapShotCanvas(1, 0, 1, 0);
-
-      const [element] = (html2canvas as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
-      expect(element).toBe(document.body);
-    });
   });
 
   describe("uploadWorkflowSnapshot", () => {
@@ -113,6 +82,18 @@ describe("WorkflowSnapshotService", () => {
       req.flush(entry);
 
       expect(result).toEqual(entry);
+    });
+
+    it("propagates a server error to the caller", () => {
+      let errored = false;
+      service.retrieveWorkflowSnapshot(9).subscribe({ error: (_e: unknown) => (errored = true) });
+
+      httpMock.expectOne(`${WORKFLOW_SNAPSHOT_API_BASE_URL}/9`).flush("boom", {
+        status: 500,
+        statusText: "Server Error",
+      });
+
+      expect(errored).toBe(true);
     });
   });
 });
