@@ -33,6 +33,7 @@ import {
   USER_DELETE_EXECUTION_COLLECTION,
 } from "./admin-user.service";
 import { Role } from "../../../../common/type/user";
+import { Observable } from "rxjs";
 
 describe("AdminUserService", () => {
   let service: AdminUserService;
@@ -146,5 +147,33 @@ describe("AdminUserService", () => {
     const req = httpMock.expectOne(`${USER_DELETE_EXECUTION_COLLECTION}/77`);
     expect(req.request.method).toEqual("DELETE");
     req.flush(null);
+  });
+
+  describe("error propagation", () => {
+    const cases: { name: string; call: () => Observable<unknown>; url: string }[] = [
+      { name: "getUserList", call: () => service.getUserList(), url: USER_LIST_URL },
+      { name: "updateUser", call: () => service.updateUser(1, "Alice", "alice@x.com", Role.ADMIN, "vip"), url: USER_UPDATE_URL },
+      { name: "addUser", call: () => service.addUser(), url: `${USER_ADD_URL}/` },
+      { name: "getUploadedFiles", call: () => service.getUploadedFiles(9), url: USER_CREATED_FILES },
+      { name: "getCreatedDatasets", call: () => service.getCreatedDatasets(9), url: USER_CREATED_DATASETS },
+      { name: "getCreatedWorkflows", call: () => service.getCreatedWorkflows(3), url: USER_CREATED_WORKFLOWS },
+      { name: "getAccessFiles", call: () => service.getAccessFiles(3), url: USER_ACCESS_FILES },
+      { name: "getAccessWorkflows", call: () => service.getAccessWorkflows(3), url: USER_ACCESS_WORKFLOWS },
+      { name: "getExecutionQuota", call: () => service.getExecutionQuota(3), url: USER_QUOTA_SIZE },
+      { name: "deleteExecutionCollection", call: () => service.deleteExecutionCollection(7), url: `${USER_DELETE_EXECUTION_COLLECTION}/7` },
+    ];
+
+    cases.forEach(({ name, call, url }) => {
+      it(`${name}() propagates HTTP errors to the subscriber`, () => {
+        const onError = vi.fn();
+        call().subscribe({ error: onError });
+
+        const req = httpMock.expectOne(r => r.url === url);
+        req.flush("boom", { status: 500, statusText: "Server Error" });
+
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError.mock.calls[0][0].status).toEqual(500);
+      });
+    });
   });
 });
