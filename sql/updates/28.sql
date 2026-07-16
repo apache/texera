@@ -27,25 +27,37 @@ BEGIN;
 -- resolver, so this pair must be unique. Before adding the constraint,
 -- deterministically rename any pre-existing duplicates (kept: the oldest did;
 -- renamed: name suffixed with "-<did>", truncated to fit VARCHAR(128)).
+-- Each rename is reported via RAISE NOTICE: this is a user-visible data
+-- change, and workflows that reference a renamed dataset by path will resolve
+-- to the surviving dataset afterward, so operators should review the notices
+-- and notify the affected dataset owners.
 DO $$
 DECLARE
+    rec RECORD;
+    renamed INT := 0;
     remaining INT;
     iterations INT := 0;
 BEGIN
     LOOP
-        WITH dups AS (
-            SELECT did
+        FOR rec IN
+            UPDATE dataset d
+            SET name = LEFT(d.name, 128 - LENGTH('-' || d.did::text)) || '-' || d.did::text
             FROM (
-                SELECT did,
-                       ROW_NUMBER() OVER (PARTITION BY owner_uid, name ORDER BY did) AS rn
-                FROM dataset
-            ) ranked
-            WHERE rn > 1
-        )
-        UPDATE dataset d
-        SET name = LEFT(d.name, 128 - LENGTH('-' || d.did::text)) || '-' || d.did::text
-        FROM dups
-        WHERE d.did = dups.did;
+                SELECT did, name AS old_name
+                FROM (
+                    SELECT did, name,
+                           ROW_NUMBER() OVER (PARTITION BY owner_uid, name ORDER BY did) AS rn
+                    FROM dataset
+                ) ranked
+                WHERE rn > 1
+            ) dups
+            WHERE d.did = dups.did
+            RETURNING d.did, d.owner_uid, dups.old_name, d.name AS new_name
+        LOOP
+            renamed := renamed + 1;
+            RAISE NOTICE 'Renamed duplicate dataset did=% (owner_uid=%): "%" -> "%"',
+                rec.did, rec.owner_uid, rec.old_name, rec.new_name;
+        END LOOP;
 
         SELECT COUNT(*) INTO remaining
         FROM (
@@ -59,6 +71,10 @@ BEGIN
             RAISE EXCEPTION 'Could not deduplicate dataset (owner_uid, name) pairs after 10 passes; resolve duplicates manually before re-running.';
         END IF;
     END LOOP;
+
+    IF renamed > 0 THEN
+        RAISE NOTICE 'Renamed % duplicate dataset name(s) in total; workflows referencing the old names now resolve to the surviving datasets.', renamed;
+    END IF;
 END $$;
 
 ALTER TABLE dataset
