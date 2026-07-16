@@ -152,10 +152,11 @@ class ComputingUnitAccessResource {
     }
 
     // TODO: add try except and check how to display error message in the frontend
-    val granteeId = userDao.fetchOneByEmail(email).getUid
-    if (granteeId == null) {
+    val grantee = userDao.fetchOneByEmail(email)
+    if (grantee == null) {
       throw new IllegalArgumentException("User with the given email does not exist")
     }
+    val granteeId = grantee.getUid
 
     withTransaction(context) { ctx =>
       val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
@@ -179,10 +180,11 @@ class ComputingUnitAccessResource {
       throw new IllegalArgumentException("User does not have permission to revoke access")
     }
 
-    val granteeId = userDao.fetchOneByEmail(email).getUid
-    if (granteeId == null) {
+    val grantee = userDao.fetchOneByEmail(email)
+    if (grantee == null) {
       throw new IllegalArgumentException("User with the given email does not exist")
     }
+    val granteeId = grantee.getUid
 
     withTransaction(context) { ctx =>
       ctx
