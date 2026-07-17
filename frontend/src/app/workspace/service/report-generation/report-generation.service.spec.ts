@@ -114,7 +114,9 @@ describe("ReportGenerationService", () => {
       editor.id = "workflow-editor";
       document.body.appendChild(editor);
 
-      const fakeCanvas = { toDataURL: vi.fn().mockReturnValue("data:image/png;base64,AAA") } as unknown as HTMLCanvasElement;
+      const fakeCanvas = {
+        toDataURL: vi.fn().mockReturnValue("data:image/png;base64,AAA"),
+      } as unknown as HTMLCanvasElement;
       vi.mocked(html2canvas).mockResolvedValue(fakeCanvas);
 
       const result = await firstValueFrom(service.generateWorkflowSnapshot("wf"));
