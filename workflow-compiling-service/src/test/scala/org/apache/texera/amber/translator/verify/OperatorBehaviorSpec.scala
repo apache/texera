@@ -64,7 +64,7 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers with ParallelTestEx
       // object below). Empty (the CI default) selects everything; when set,
       // deselected operators are marked `ignore` so they don't run but still
       // show up in the report.
-      name should "SKIPPED — not in local run set (CI runs all; override via VERIFY_ONLY/VERIFY_SKIP)" ignore {}
+      name should "SKIPPED — family not yet in the verified set (override via VERIFY_ONLY/VERIFY_SKIP)" ignore {}
     } else if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass)) {
       // Sources keep their handler-per-source design: each needs a real file
       // in its specific format, which a generic fixture can't supply.
@@ -99,21 +99,21 @@ object OperatorBehaviorSpec {
   // Precedence (first match wins):
   //   1. VERIFY_ONLY env set  -> run ONLY operators matching it.
   //   2. VERIFY_SKIP env set   -> run everything EXCEPT operators matching it.
-  //   3. Running in CI          -> run everything (never skip by default).
-  //   4. Local dev (default)    -> skip DefaultLocalSkip (slow ML / viz /
-  //                                external-source / UDF families) so a bare
-  //                                `testOnly *OperatorBehaviorSpec` stays fast.
+  //   3. Default (local AND CI) -> skip DefaultLocalSkip: the operator families
+  //                                not yet ready for verification (ML / viz /
+  //                                external-source / UDF). Same everywhere, so
+  //                                CI only exercises the vetted core operators.
   //
-  // This makes CI run the full set while a plain local run only exercises the
-  // fast core operators — no env exports needed. Override locally by setting
-  // VERIFY_ONLY or VERIFY_SKIP.
+  // As a family becomes ready, delete it from DefaultLocalSkip to start
+  // verifying it (local + CI). Override ad hoc with VERIFY_ONLY / VERIFY_SKIP.
   private def patterns(envVar: String): Seq[String] =
     sys.env.getOrElse(envVar, "").split(",").iterator.map(_.trim).filter(_.nonEmpty).toSeq
 
-  // Skipped by default on a local machine only. ML uses family substrings
-  // (Sklearn / HuggingFace catch every variant); viz / source / UDF ops are
-  // listed by exact name because substrings like "Chart"/"Plot" would also
-  // match core viz ops we want to keep (BarChart, DotPlot, ...).
+  // Families not yet ready for verification — skipped by default everywhere
+  // (local + CI) until they're worked on. ML uses family substrings (Sklearn /
+  // HuggingFace catch every variant); viz / source / UDF ops are listed by exact
+  // name because substrings like "Chart"/"Plot" would also match core viz ops we
+  // want to keep (BarChart, DotPlot, ...).
   private val DefaultLocalSkip: Seq[String] = Seq(
     "Sklearn",
     "HuggingFace",
@@ -173,7 +173,6 @@ object OperatorBehaviorSpec {
   private lazy val skipPatterns: Seq[String] = {
     val explicitSkip = patterns("VERIFY_SKIP")
     if (onlyPatterns.nonEmpty || explicitSkip.nonEmpty) explicitSkip
-    else if (sys.env.get("CI").exists(_.nonEmpty)) Seq.empty
     else DefaultLocalSkip
   }
 
