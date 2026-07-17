@@ -24,11 +24,6 @@ ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 // Manage dependency conflicts by always using the latest revision
 ThisBuild / conflictManager := ConflictManager.latestRevision
 
-// This module is pure Java, so `doc` runs javadoc (not scaladoc). javadoc
-// rejects the javac-only lint flags inherited from ThisBuild
-// (-Xlint:deprecation -Werror), so scope them out of the doc task.
-Compile / doc / javacOptions := Seq.empty
-
 /////////////////////////////////////////////////////////////////////////////
 // Dependencies
 /////////////////////////////////////////////////////////////////////////////
