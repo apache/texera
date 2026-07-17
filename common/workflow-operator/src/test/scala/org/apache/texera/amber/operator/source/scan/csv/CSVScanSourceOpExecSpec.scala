@@ -21,16 +21,22 @@ package org.apache.texera.amber.operator.source.scan.csv
 
 import com.univocity.parsers.common.TextParsingException
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.io.StringReader
+import java.net.URI
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
 
 /**
   * Verifies the column-overflow translation in [[CSVScanSourceOpExec.parseNextRow]]
   * — the path that turns a deep Univocity stack trace into a single-sentence message
-  * the workflow user can act on.
+  * the workflow user can act on — and the instance-side open()/produceTuple()/close()
+  * scan loop driven over real temp CSV files.
   */
-class CSVScanSourceOpExecSpec extends AnyFlatSpec {
+class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
   private def parserWithMaxColumns(max: Int): CsvParser = {
     val settings = new CsvParserSettings()
@@ -106,5 +112,100 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec {
     assert(msg.contains("750"))
     assert(msg.toLowerCase.contains("max columns"))
     assert(msg.toLowerCase.contains("exceeded"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Instance-side scan loop: open() -> produceTuple() -> close() over temp CSVs.
+  // ---------------------------------------------------------------------------
+
+  private var tempFiles: List[Path] = Nil
+
+  override def afterAll(): Unit = {
+    tempFiles.foreach(Files.deleteIfExists)
+    super.afterAll()
+  }
+
+  /** Writes `content` to a fresh temp .csv and returns its path (tracked for cleanup). */
+  private def writeTempCsv(content: String): Path = {
+    val path = Files.createTempFile("csv-scan-exec-spec", ".csv")
+    Files.write(path, content.getBytes(StandardCharsets.UTF_8))
+    tempFiles = path :: tempFiles
+    path
+  }
+
+  /**
+    * Builds a CSVScanSourceOpExec over `path`. The descriptor MUST have a custom
+    * delimiter and a resolved file URI *before* the exec is constructed: the
+    * constructor eagerly computes the schema via desc.sourceSchema(), which needs
+    * both to return a non-null schema.
+    */
+  private def execOver(
+      path: Path,
+      hasHeader: Boolean,
+      offset: Option[Int] = None,
+      limit: Option[Int] = None
+  ): CSVScanSourceOpExec = {
+    val desc = new CSVScanSourceOpDesc()
+    desc.customDelimiter = Some(",")
+    desc.hasHeader = hasHeader
+    desc.offset = offset
+    desc.limit = limit
+    desc.setResolvedFileName(URI.create(path.toUri.toString))
+    new CSVScanSourceOpExec(objectMapper.writeValueAsString(desc))
+  }
+
+  "CSVScanSourceOpExec" should "scan a header CSV and emit one tuple per data row" in {
+    val exec = execOver(writeTempCsv("a,b\n1,x\n2,y\n"), hasHeader = true)
+    exec.open()
+    val tuples =
+      try exec.produceTuple().toList
+      finally exec.close()
+
+    assert(tuples.size == 2)
+    val schema = exec.desc.sourceSchema()
+    assert(schema.getAttributeNames.toSet == Set("a", "b"))
+  }
+
+  it should "honor offset and limit, emitting only the requested window" in {
+    // 5 data rows; drop the first (offset=1), then take 2 (limit=2) -> rows 2 and 3.
+    val exec =
+      execOver(
+        writeTempCsv("a,b\n1,x\n2,y\n3,z\n4,p\n5,q\n"),
+        hasHeader = true,
+        offset = Some(1),
+        limit = Some(2)
+      )
+    exec.open()
+    val tuples =
+      try exec.produceTuple().toList
+      finally exec.close()
+
+    assert(tuples.size == 2)
+    val firstCol = tuples.map(_.getFields(0).toString)
+    assert(firstCol == List("2", "3"))
+  }
+
+  it should "silently drop rows that cannot be parsed into the inferred schema" in {
+    // No header, so every line is data. The schema is inferred from the first
+    // `limit` rows only (INFER_READ_LIMIT is capped by limit); those are integers,
+    // so the column is inferred as INTEGER. `offset` then shifts the output window
+    // past that inference sample onto a row whose value ("oops") is not an integer,
+    // so parseFields throws and produceTuple filters that row out instead of failing.
+    val exec =
+      execOver(
+        writeTempCsv("1\n2\noops\n3\n4\n"),
+        hasHeader = false,
+        offset = Some(2),
+        limit = Some(2)
+      )
+    exec.open()
+    val tuples =
+      try exec.produceTuple().toList
+      finally exec.close()
+
+    // Output window is rows 3,4,5 ("oops","3","4"); the bad row is skipped, so we
+    // get the two good ones rather than an exception. Count is below the raw 5 rows.
+    assert(tuples.size == 2)
+    assert(tuples.map(_.getFields(0).toString) == List("3", "4"))
   }
 }

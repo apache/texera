@@ -54,8 +54,9 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.fileTypeName shouldBe Some("CSVOld")
   }
 
-  "CSVOldScanSourceOpDesc.sourceSchema" should "be null before a file is resolved" in {
-    (new CSVOldScanSourceOpDesc).sourceSchema() shouldBe null
+  "CSVOldScanSourceOpDesc.sourceSchema" should "prompt for a file before one is resolved" in {
+    val ex = intercept[IllegalArgumentException]((new CSVOldScanSourceOpDesc).sourceSchema())
+    ex.getMessage should include("No file selected")
   }
 
   "CSVOldScanSourceOpDesc.getPhysicalOp" should

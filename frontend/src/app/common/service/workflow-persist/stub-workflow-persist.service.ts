@@ -33,7 +33,7 @@ export class StubWorkflowPersistService {
 
   public retrieveWorkflow(wid: number): Observable<Workflow> {
     return new Observable(observer =>
-      observer.next(this.testWorkflows.find(w => w.workflow.workflow.wid == wid)?.workflow.workflow)
+      observer.next(this.testWorkflows.find(w => w.workflow.workflow.wid == wid)?.workflow.workflow as Workflow)
     );
   }
 

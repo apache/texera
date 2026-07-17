@@ -20,7 +20,10 @@
 <div class="search-container">
   <div class="search-section">
     <div class="filter">
-      <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
+      <texera-sort-button
+        [showEditTime]="searchType !== 'dataset'"
+        [showExecutionTime]="searchType !== 'dataset'"
+        (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
       <texera-filters #filters></texera-filters>
       <div
         *ngIf="searchType === 'dataset'"

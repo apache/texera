@@ -140,4 +140,32 @@ class UserActivityTrackerSpec extends AnyFlatSpec with Matchers {
     // Must not throw — the wrapper catches NonFatal from upsertFn.
     noException should be thrownBy tracker.markActive(42)
   }
+
+  it should "swallow exceptions thrown before the write is dispatched" in {
+    val recorder = new Recorder
+    // a clock that throws forces the failure in markActive before executor.execute
+    val tracker =
+      new UserActivityTracker(
+        Duration.ofMinutes(5),
+        recorder.upsert,
+        sameThread,
+        () => throw new RuntimeException("clock boom")
+      )
+
+    noException should be thrownBy tracker.markActive(7)
+    recorder.calls.size shouldBe 0 // the write was never dispatched
+  }
+
+  it should "swallow exceptions thrown by evictStale" in {
+    val recorder = new Recorder
+    val tracker =
+      new UserActivityTracker(
+        Duration.ofMinutes(5),
+        recorder.upsert,
+        sameThread,
+        () => throw new RuntimeException("clock boom")
+      )
+
+    noException should be thrownBy tracker.evictStale()
+  }
 }

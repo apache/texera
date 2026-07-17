@@ -33,6 +33,7 @@ import { UserDatasetVersionFiletreeComponent } from "../../../dashboard/componen
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { filterDatasetOption } from "./dataset-search.util";
 
 @UntilDestroy()
 @Component({
@@ -69,6 +70,10 @@ export class DatasetSelectionModalComponent implements OnInit {
     private modalRef: NzModalRef,
     private datasetService: DatasetService
   ) {}
+
+  // Search filter for the dataset dropdown: matches the typed text against both the
+  // dataset name and its numeric id (shown as `#<id>`). See filterDatasetOption.
+  datasetFilterOption = filterDatasetOption;
 
   ngOnInit() {
     this.datasetService

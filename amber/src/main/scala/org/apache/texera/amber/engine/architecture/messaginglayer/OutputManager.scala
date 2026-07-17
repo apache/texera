@@ -242,7 +242,7 @@ class OutputManager(
     // emit side: state is shared context, not per-key data, so every
     // downstream operator (and every worker reading the materialization)
     // needs the full set.
-    stateWriterThreads.values.foreach(_.queue.put(Left(state.toTuple)))
+    stateWriterThreads.values.foreach(_.queue.put(Left(state.toTuple())))
   }
 
   /**
@@ -251,7 +251,7 @@ class OutputManager(
     *
     * If the writer thread captured a failure (e.g., iceberg commit retries
     * exhausted), re-throw it here so the DP thread surfaces a FatalError
-    * to the controller via pekko's supervisor strategy. Otherwise the worker
+    * to the coordinator via pekko's supervisor strategy. Otherwise the worker
     * would announce port completion as if the result was durably written.
     */
   def closeOutputStorageWriterIfNeeded(outputPortId: PortIdentity): Unit = {
@@ -285,7 +285,7 @@ class OutputManager(
 
   /**
     * This method is only used for ensuring correct region execution. Some operators may have input port dependency
-    * relationships, for which we currently use a two-phase region execution scheme.  (See `RegionExecutionCoordinator`
+    * relationships, for which we currently use a two-phase region execution scheme.  (See `RegionExecutionManager`
     * for details.)
     * This logic will only be executed when the worker is part of an `executingDependeePort` region-execution phase.
     * We currently assume that in this phase the operator (worker) will not output any data, hence no output ports.
@@ -322,7 +322,7 @@ class OutputManager(
     writerThread.start()
 
     // The state document is provisioned alongside the result document
-    // by RegionExecutionCoordinator, so it is always present.
+    // by RegionExecutionManager, so it is always present.
     val stateWriter = DocumentFactory
       .openDocument(VFSURIFactory.stateURI(portBaseURI))
       ._1
