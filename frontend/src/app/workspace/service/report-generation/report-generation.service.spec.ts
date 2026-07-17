@@ -19,12 +19,17 @@
 
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
-import { of, throwError } from "rxjs";
+import { firstValueFrom, of, throwError } from "rxjs";
+import html2canvas from "html2canvas";
 import { ReportGenerationService } from "./report-generation.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { AiAnalystService } from "../ai-analyst/ai-analyst.service";
+
+// html2canvas is a default-imported module dependency; mock it so the snapshot
+// success path renders deterministically. (vi.mock is hoisted above imports.)
+vi.mock("html2canvas", () => ({ default: vi.fn() }));
 
 describe("ReportGenerationService", () => {
   let service: ReportGenerationService;
@@ -98,12 +103,25 @@ describe("ReportGenerationService", () => {
   });
 
   describe("generateWorkflowSnapshot", () => {
-    // The rendering path delegates to html2canvas (unmockable reliably under the
-    // shared module registry), so only the pre-render guard is pinned here.
     it("errors when the #workflow-editor element is absent", () => {
       let error: unknown;
       service.generateWorkflowSnapshot("wf").subscribe({ error: (e: unknown) => (error = e) });
       expect(error).toEqual("Workflow editor element not found");
+    });
+
+    it("emits a PNG data URL when the editor element is present", async () => {
+      const editor = document.createElement("div");
+      editor.id = "workflow-editor";
+      document.body.appendChild(editor);
+
+      const fakeCanvas = { toDataURL: vi.fn().mockReturnValue("data:image/png;base64,AAA") } as unknown as HTMLCanvasElement;
+      vi.mocked(html2canvas).mockResolvedValue(fakeCanvas);
+
+      const result = await firstValueFrom(service.generateWorkflowSnapshot("wf"));
+
+      expect(html2canvas).toHaveBeenCalledTimes(1);
+      expect(fakeCanvas.toDataURL).toHaveBeenCalledWith("image/png");
+      expect(result).toEqual("data:image/png;base64,AAA");
     });
   });
 
