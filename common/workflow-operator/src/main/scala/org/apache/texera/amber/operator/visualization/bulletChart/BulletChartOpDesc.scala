@@ -250,6 +250,11 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   override def generateStandaloneCode(): String = {
     assertRequiredFields()
 
+    // Step bounds are quoted strings, matching the platform path: there
+    // `${step.start}` is an EncodableString, which pyb renders as a runtime
+    // string (base64-decode expression), so `start`/`end` are strings on both
+    // paths and generate_valid_steps' `float(...)` / `if start and end` behave
+    // identically.
     val stepsLiteral =
       if (steps != null && !steps.isEmpty)
         steps.asScala
