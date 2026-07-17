@@ -52,7 +52,9 @@ describe("UserQuotaService", () => {
   });
 
   it("getCreatedDatasets() GETs the created-datasets endpoint", () => {
-    const datasets: ReadonlyArray<DatasetQuota> = [{ did: 1, name: "dataset-a", creationTime: 1700000000000, size: 2048 }];
+    const datasets: ReadonlyArray<DatasetQuota> = [
+      { did: 1, name: "dataset-a", creationTime: 1700000000000, size: 2048 },
+    ];
     let result: ReadonlyArray<DatasetQuota> | undefined;
 
     service.getCreatedDatasets(1).subscribe(r => (result = r));
