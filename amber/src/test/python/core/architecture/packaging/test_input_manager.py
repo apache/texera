@@ -218,14 +218,13 @@ class TestPortCompletion:
     def test_completing_one_channel_completes_the_whole_port(
         self, input_manager, schema
     ):
-        # Completion is tracked per port, not per channel: completing via one
-        # channel marks the port done even though a sibling channel on the
-        # same port never completed. InputManager does no per-channel
-        # counting itself -- this is safe in production because the only
-        # caller (end_channel_handler.py) is triggered by an EndChannel ECM
-        # sent with EmbeddedControlMessageType.PORT_ALIGNMENT (see
-        # start_worker_handler.py), so the handler fires only after all
-        # channels of the port have delivered the marker.
+        # Completing ONE channel marks the WHOLE port as completed, even if
+        # the port's other channels are still open. InputManager itself never
+        # counts channels; it relies on its only caller, end_channel_handler,
+        # which runs once per port: the EndChannel ECM uses PORT_ALIGNMENT,
+        # so the handler fires only after every channel of the port has
+        # delivered the marker. If that alignment ever changes, completing a
+        # port this early would silently drop the open channels' data.
         port_id = PortIdentity(id=0, internal=False)
         channel_a = _channel_id("upstream-a")
         channel_b = _channel_id("upstream-b")
