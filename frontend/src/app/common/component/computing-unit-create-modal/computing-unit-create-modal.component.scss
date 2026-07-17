@@ -23,11 +23,6 @@
   width: 100%;
 }
 
-.jvm-memory-slider {
-  width: 100%;
-  margin: 10px 0;
-}
-
 .memory-warning {
   margin-top: 10px;
   font-size: 0.9em;
@@ -84,5 +79,141 @@
     font-size: 12px;
     color: #faad14;
     white-space: nowrap;
+  }
+}
+
+// ── Advanced Settings progressive-disclosure panel ──────────────────────────
+// Collapsed by default; houses the shared-memory and JVM-heap knobs so the
+// common path (name / RAM / CPU) stays uncluttered.
+
+// The inner panel's padding, also reused for the slider's bottom margin.
+$advanced-panel-padding: 16px;
+
+.advanced-settings {
+  grid-column: span 2;
+  margin-top: 2px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 10px;
+}
+
+.advanced-settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #595959;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+
+  &:hover {
+    background-color: #f0f6ff;
+    color: #1890ff;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(24, 144, 255, 0.35);
+    outline-offset: 1px;
+  }
+}
+
+.advanced-settings-chevron {
+  font-size: 11px;
+  color: inherit;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+
+  .advanced-settings-toggle.expanded & {
+    transform: rotate(90deg);
+  }
+}
+
+.advanced-settings-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: inherit;
+}
+
+.advanced-settings-hint {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 400;
+  color: #bfbfbf;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+
+  .advanced-settings-toggle.expanded &,
+  .advanced-settings-toggle:hover & {
+    color: #69b1ff;
+  }
+}
+
+// Warning variant: promotes a hidden shared-memory error onto the collapsed
+// header. Stays amber even on hover, overriding the blue affordance above.
+.advanced-settings-hint--warning,
+.advanced-settings-toggle:hover .advanced-settings-hint--warning {
+  color: #faad14;
+  font-weight: 500;
+
+  i {
+    margin-right: 4px;
+  }
+}
+
+// Height animates via the 0fr→1fr grid-row trick so it eases open to the
+// content's natural height without a hard-coded max-height.
+.advanced-settings-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.expanded {
+    grid-template-rows: 1fr;
+  }
+}
+
+.advanced-settings-clip {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.advanced-settings-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 10px;
+  padding: $advanced-panel-padding;
+  border: 1px solid #eef0f2;
+  border-left: 2px solid #1890ff;
+  border-radius: 8px;
+  background: #fafbfc;
+  // Content drifts up + fades in slightly behind the height ease for depth.
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.26s ease 0.04s,
+    transform 0.26s ease 0.04s;
+
+  .advanced-settings-body.expanded & {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .jvm-memory-slider {
+    // align-self: stretch makes the horizontal margin the single source of
+    // truth for the inset. The bottom margin mirrors the panel padding so the
+    // slider's end labels (e.g. 2G / 16G) keep the same breathing room as
+    // every other edge of the box.
+    align-self: stretch;
+    margin: 6px 10px $advanced-panel-padding;
   }
 }

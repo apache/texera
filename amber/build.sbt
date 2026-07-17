@@ -158,16 +158,33 @@ val luceneDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Hadoop related
-val hadoopVersion = "3.4.3"
+val hadoopVersion = "3.5.0"
 val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
 // Hadoop 3.3.2+ ships jersey-json via the com.github.pjfanning fork; its Jersey 1.x
 // providers break Jersey 2 auto-discovery at startup, so exclude it as well.
 val excludeHadoopJerseyJsonFork = ExclusionRule(organization = "com.github.pjfanning", name = "jersey-json")
+// Hadoop 3.5.0 moved its web stack to Jersey 2.x (org.glassfish.jersey.{core,containers,
+// inject}) plus the glassfish JAXB runtime, istack-commons, and the Jakarta JSP API. This
+// service runs on Dropwizard 1.3.23 (see dropwizardVersion above), whose Jersey 2.25.1
+// provides the AbstractValueFactoryProvider that dropwizard-auth binds against; letting
+// Hadoop's newer Jersey 2.x win the sbt eviction drops that class and breaks auth wiring.
+// Texera uses hadoop only as a filesystem client, so exclude the whole servlet/JAX-RS/JAXB
+// web stack instead.
+val excludeHadoopJersey2Stack = Seq(
+  ExclusionRule(organization = "org.glassfish.jersey.core"),
+  ExclusionRule(organization = "org.glassfish.jersey.containers"),
+  ExclusionRule(organization = "org.glassfish.jersey.inject"),
+  ExclusionRule(organization = "org.glassfish.jaxb"),
+  ExclusionRule(organization = "com.sun.istack"),
+  ExclusionRule(organization = "jakarta.servlet.jsp")
+)
 val excludeHadoopSlf4j = ExclusionRule(organization = "org.slf4j")
 val excludeHadoopJetty = ExclusionRule(organization = "org.eclipse.jetty")
 val excludeHadoopJsp = ExclusionRule(organization = "javax.servlet.jsp")
 val hadoopDependencies = Seq(
-  "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll(excludeHadoopJersey, excludeHadoopJerseyJsonFork, excludeHadoopSlf4j, excludeHadoopJsp, excludeHadoopJetty)
+  "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll(
+    (Seq(excludeHadoopJersey, excludeHadoopJerseyJsonFork, excludeHadoopSlf4j, excludeHadoopJsp, excludeHadoopJetty) ++ excludeHadoopJersey2Stack): _*
+  )
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -224,7 +241,7 @@ genPythonProto := {
         "Install protoc and `pip install betterproto[compiler]` before launching a Python worker or running pytest."
     )
   } else {
-    val procLogger = scala.sys.process.ProcessLogger(line => log.info(line), line => log.error(line))
+    val procLogger = scala.sys.process.ProcessLogger(line => log.info(line), line => log.info(line))
     val exit = scala.sys.process.Process(Seq("bash", script.getAbsolutePath), repoRoot).!(procLogger)
     if (exit != 0) sys.error(s"python-proto-gen.sh failed with exit code $exit")
   }
@@ -255,7 +272,7 @@ libraryDependencies += "com.flipkart.zjsonpatch" % "zjsonpatch" % "0.4.16"
 libraryDependencies += "io.reactivex.rxjava3" % "rxjava" % "3.1.12"
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
-libraryDependencies += "org.postgresql" % "postgresql" % "42.7.12"
+libraryDependencies += "org.postgresql" % "postgresql" % "42.7.13"
 
 // https://mvnrepository.com/artifact/com.typesafe.scala-logging/scala-logging
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.6"
@@ -276,7 +293,7 @@ libraryDependencies += "com.konghq" % "unirest-java" % "3.14.5"
 libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
-libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
+libraryDependencies += "org.jooq" % "jooq" % "3.19.36"
 
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
@@ -326,7 +343,9 @@ libraryDependencies += "org.mindrot" % "jbcrypt" % "0.4"
 libraryDependencies += "com.github.sisyphsu" % "dateparser" % "1.0.11"
 
 // https://mvnrepository.com/artifact/org.apache.commons/commons-vfs2
-libraryDependencies += "org.apache.commons" % "commons-vfs2" % "2.9.0"
+// commons-vfs2 pulls hadoop-hdfs-client (HDFS provider), which drags in the Hadoop client
+// stack and, via 3.5.0, the Jersey 2.x/JAXB web stack; exclude it here too.
+libraryDependencies += "org.apache.commons" % "commons-vfs2" % "2.9.0" excludeAll(excludeHadoopJersey2Stack: _*)
 
 // https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core
 libraryDependencies += "org.apache.commons" % "commons-jcs3-core" % "3.2.1"

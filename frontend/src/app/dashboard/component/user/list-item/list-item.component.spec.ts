@@ -30,6 +30,8 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
+import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
@@ -42,14 +44,17 @@ describe("ListItemComponent", () => {
   let component: ListItemComponent;
   let fixture: ComponentFixture<ListItemComponent>;
   let workflowPersistService: Mocked<WorkflowPersistService>;
+  let datasetService: Mocked<DatasetService>;
 
   beforeEach(async () => {
     const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
+    const datasetServiceSpy = { updateDatasetName: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [ListItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
       providers: [
         { provide: WorkflowPersistService, useValue: workflowPersistServiceSpy },
+        { provide: DatasetService, useValue: datasetServiceSpy },
         { provide: UserService, useClass: StubUserService },
         NzModalService,
         ...commonTestProviders,
@@ -59,6 +64,7 @@ describe("ListItemComponent", () => {
     fixture = TestBed.createComponent(ListItemComponent);
     component = fixture.componentInstance;
     workflowPersistService = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
+    datasetService = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
     // initializeEntry() needs a fully-formed workflow entry to avoid throwing
     // when the template renders for the first time. Each test below overwrites
     // component.entry directly, which exercises confirm methods without going
@@ -188,5 +194,57 @@ describe("ListItemComponent", () => {
       component.initializeEntry();
       expect(component.entryLink).toEqual([HUB_DATASET_RESULT_DETAIL, "301"]);
     });
+  });
+
+  it("should reject an invalid dataset name, revert to original, and exit editing", () => {
+    component.entry = {
+      id: 5,
+      name: "has space",
+      type: "dataset",
+    } as unknown as DashboardEntry;
+    component.originalName = "original-name";
+    component.editingName = true;
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("has space");
+
+    expect(datasetService.updateDatasetName).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    expect(component.entry.name).toBe("original-name");
+    expect(component.editingName).toBe(false);
+  });
+
+  it("should call the dataset service for a valid dataset rename", () => {
+    component.entry = {
+      id: 5,
+      name: "new-valid-name",
+      type: "dataset",
+    } as unknown as DashboardEntry;
+    component.originalName = "old-name";
+    datasetService.updateDatasetName.mockReturnValue(of({} as any));
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(datasetService.updateDatasetName).toHaveBeenCalledWith(5, "new-valid-name");
+  });
+
+  it("should surface the error message and revert the name when a dataset rename fails", () => {
+    component.entry = {
+      id: 5,
+      name: "new-valid-name",
+      type: "dataset",
+    } as unknown as DashboardEntry;
+    component.originalName = "old-name";
+    component.editingName = true;
+    datasetService.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(errorSpy).toHaveBeenCalledWith("boom");
+    expect(component.entry.name).toBe("old-name");
+    expect(component.editingName).toBe(false);
   });
 });

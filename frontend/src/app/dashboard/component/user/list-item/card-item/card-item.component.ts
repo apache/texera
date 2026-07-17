@@ -52,8 +52,13 @@ import { ActionType, HubService } from "../../../../../hub/service/hub.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { formatRelativeTime, formatCount } from "src/app/common/util/format.util";
-import { DatasetService, DEFAULT_DATASET_NAME } from "../../../../service/user/dataset/dataset.service";
+import {
+  DatasetService,
+  DEFAULT_DATASET_NAME,
+  validateDatasetName,
+} from "../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { extractErrorMessage } from "../../../../../common/util/error";
 import { WorkflowCoverService } from "../../../../service/user/workflow-cover/workflow-cover.service";
 import {
   HUB_DATASET_RESULT_DETAIL,
@@ -195,6 +200,7 @@ export class CardItemComponent implements OnChanges {
 
   initializeEntry() {
     this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
+    this.customImage = undefined;
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.workflow.isOwner;
@@ -205,14 +211,8 @@ export class CardItemComponent implements OnChanges {
           this.entryLink = [HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
         }
         this.size = this.entry.size;
-        this.workflowCoverService
-          .getCover(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe(image => {
-            this.customImage = image;
-            this.coverImageSrc = image ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
-            this.cdr.markForCheck();
-          });
+        this.coverImageSrc = this.entry.coverImageUrl ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
+        this.customImage = this.entry.coverImageUrl ?? undefined;
       }
       this.iconType = "project";
     } else if (this.entry.type === "project") {
@@ -375,8 +375,8 @@ export class CardItemComponent implements OnChanges {
         next: () => {
           this.entry[propertyName] = newValue; // Dynamic property assignment
         },
-        error: () => {
-          this.notificationService.error("Update failed");
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
           (this.entry as any)[propertyName] = originalValue ?? ""; // Fallback to original value
           this.setEditingState(propertyName, false);
         },
@@ -400,6 +400,16 @@ export class CardItemComponent implements OnChanges {
       return;
     }
     const newName = this.entry.type === "workflow" ? name || DEFAULT_WORKFLOW_NAME : name || DEFAULT_DATASET_NAME;
+
+    if (this.entry.type === "dataset") {
+      const nameError = validateDatasetName(newName);
+      if (nameError) {
+        this.notificationService.error(nameError);
+        this.entry.name = this.originalName;
+        this.editingName = false;
+        return;
+      }
+    }
 
     if (this.entry.type === "workflow") {
       this.updateProperty(
