@@ -212,7 +212,7 @@ class ConfigResourceAuthSpec
   // callers — the values render on the logged-out shell (custom logo, Hub/About
   // sidebar entries) — while the bulk read, single-key read, and all mutation
   // are ADMIN-only. This spec pins the auth gates; the positive read/write
-  // bodies live in ConfigSettingsCrudSpec.
+  // bodies live in ConfigResourceCrudSpec.
   "GET /config/settings/public" should "return 200 without an Authorization header (anonymous branding read)" in {
     val response =
       resources.target("/config/settings/public").request(MediaType.APPLICATION_JSON).get()
