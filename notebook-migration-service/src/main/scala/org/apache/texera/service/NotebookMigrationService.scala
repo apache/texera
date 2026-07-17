@@ -30,6 +30,7 @@ import org.apache.texera.auth.{
   SessionUser,
   UnauthorizedExceptionMapper
 }
+import org.apache.texera.auth.RoleAnnotationEnforcer
 import org.apache.texera.dao.SqlServer
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
@@ -68,6 +69,11 @@ class NotebookMigrationService
     NotebookMigrationService.registerAuthFeatures(environment)
 
     environment.jersey.register(classOf[NotebookMigrationResource])
+
+    RoleAnnotationEnforcer.enforce(
+      environment.jersey.getResourceConfig,
+      "NotebookMigrationService"
+    )
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)

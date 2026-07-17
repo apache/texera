@@ -286,4 +286,55 @@ describe("DashboardComponent", () => {
     // 7 "Your Work" links (incl. Python Venvs) + 4 admin links + 1 about link + 1 feedback link = 13
     expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(13);
   });
+
+  describe("sidebar active-route highlighting (#3490)", () => {
+    const fullSidebarTabs = {
+      hub_enabled: false,
+      home_enabled: true,
+      workflow_enabled: true,
+      dataset_enabled: true,
+      your_work_enabled: true,
+      projects_enabled: true,
+      workflows_enabled: true,
+      datasets_enabled: true,
+      compute_enabled: true,
+      quota_enabled: true,
+      forum_enabled: true,
+      about_enabled: true,
+    };
+
+    // Find a rendered nz-menu-item <li> by its visible label; componentInstance is the
+    // NzMenuItemComponent, whose nzMatchRouter input decides whether it gets the
+    // .ant-menu-item-selected highlight on its active route.
+    const menuItemByLabel = (label: string) =>
+      fixture.debugElement
+        .queryAll(By.css("li[nz-menu-item]"))
+        .find(de => (de.nativeElement.textContent || "").trim() === label);
+
+    beforeEach(() => {
+      (userServiceMock.isLogin as Mock).mockReturnValue(true);
+      component.isLogin = true;
+      component.isAdmin = true;
+      component.sidebarTabs = fullSidebarTabs;
+      fixture.detectChanges();
+    });
+
+    it("enables nzMatchRouter on the About item so it highlights when active", () => {
+      const about = menuItemByLabel("About");
+      expect(about).toBeTruthy();
+      expect(about!.componentInstance.nzMatchRouter).toBe(true);
+    });
+
+    it("enables nzMatchRouter on the Feedback item so it highlights when active", () => {
+      const feedback = menuItemByLabel("Feedback");
+      expect(feedback).toBeTruthy();
+      expect(feedback!.componentInstance.nzMatchRouter).toBe(true);
+    });
+
+    it("(reference) Your Work items already enable nzMatchRouter", () => {
+      const quota = menuItemByLabel("Quota");
+      expect(quota).toBeTruthy();
+      expect(quota!.componentInstance.nzMatchRouter).toBe(true);
+    });
+  });
 });

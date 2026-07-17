@@ -143,17 +143,29 @@ nz-select {
   margin-top: 15%;
 }
 
-.upload-progress-wrapper,
-.upload-progress-wrapper-pending {
+.upload-progress-wrapper {
   max-height: 25vh;
   overflow-y: auto;
   padding-right: 4px;
 }
 
+// Rows must stay exactly PENDING_ROW_HEIGHT_PX tall for the fixed-size scroll
+// strategy. The gutter lives on the rows: padding on the viewport never
+// reaches its absolutely positioned content wrapper.
 .upload-progress-wrapper-pending {
-  display: flex;
-  flex-direction: column;
-  max-height: 15vh;
+  .pending-file-row {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 4px;
+
+    .pending-file-name {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
 }
 
 .version-creator {

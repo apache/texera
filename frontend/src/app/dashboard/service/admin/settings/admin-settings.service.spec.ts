@@ -83,6 +83,8 @@ describe("AdminSettingsService", () => {
     service.updateSetting("logo", "new.png").subscribe();
     const put = httpTestingController.expectOne("/api/config/settings/logo");
     expect(put.request.method).toEqual("PUT");
+    expect(put.request.body).toEqual({ value: "new.png" });
+    expect(put.request.withCredentials).toBe(true);
     put.flush(null);
 
     let logo: string | null | undefined;
@@ -98,6 +100,7 @@ describe("AdminSettingsService", () => {
     service.resetSetting("logo").subscribe();
     const post = httpTestingController.expectOne("/api/config/settings/reset/logo");
     expect(post.request.method).toEqual("POST");
+    expect(post.request.body).toEqual({});
     post.flush(null);
 
     service.getPublicSetting("logo").subscribe();

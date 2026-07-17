@@ -1343,7 +1343,7 @@ class LocalDevApp(App):
             "Commands:",
             "  r           refresh state now",
             "  u           build + start every service",
-            "  u <svc>     start one service (no rebuild)",
+            "  u <svc>     bring one service up (rebuilds only if its source changed)",
             "  u --branch=NAME      deploy that branch's worktree, then build+start",
             "  u --worktree=PATH    deploy that worktree, then build+start",
             "              (plain `u` deploys this checkout; works on `a`/`auto` too —",
@@ -1354,9 +1354,9 @@ class LocalDevApp(App):
             "  d <svc>     stop one service",
             "  b           force incremental sbt + node deps",
             "  a / auto    scan for dirty services and rebuild+bounce only those",
-            "  <svc>       rebuild that service and bounce it",
+            "  <svc>       same as `u <svc>` but forces the rebuild + bounce",
             "  l <svc>     tail that service's log (Ctrl-C returns)",
-            "  s <svc>     stop one service",
+            "  s <svc>     stop one service (alias for `d <svc>`)",
             "  clear       clear the log pane",
             "  log         toggle log pane visibility",
             "  banner      toggle banner (collapse the wordmark to save rows; Ctrl-B also works)",
@@ -1408,7 +1408,7 @@ class LocalDevApp(App):
                 if svc not in SERVICES_BY_NAME:
                     self._log_err(f"unknown service: {svc}")
                     return
-                argv = ["start", svc]
+                argv = ["up", svc]
             else:
                 argv = ["up"]
         elif verb in ("d", "down"):
@@ -1416,14 +1416,14 @@ class LocalDevApp(App):
                 if arg not in SERVICES_BY_NAME:
                     self._log_err(f"unknown service: {arg}")
                     return
-                argv = ["stop", arg]
+                argv = ["down", arg]
             else:
                 argv = ["down"]
         elif verb in ("s", "stop"):
             if not arg or arg not in SERVICES_BY_NAME:
                 self._log_err("usage: s <service>")
                 return
-            argv = ["stop", arg]
+            argv = ["down", arg]
         elif verb in ("b", "build"):
             # Force an incremental build; the shell handles the "is this
             # really needed" decision itself (it pre-bounces JVMs etc.).
@@ -1441,15 +1441,14 @@ class LocalDevApp(App):
         elif verb in SERVICES_BY_NAME:
             svc_obj = SERVICES_BY_NAME[verb]
             if svc_obj.type in WATCH_TYPES:
-                # ng serve / bun --watch rebuild on save automatically. The
-                # shell's cmd_update_one already refuses this, but we get a
-                # nicer message by intercepting here.
+                # ng serve / bun --watch rebuild on save automatically —
+                # forcing a rebuild is never what the user wants here.
                 self._log_msg(
                     f"{verb} runs in watch mode (↻) — source edits auto-reload. "
-                    f"If you really need to bounce it, run `s {verb}` then `u {verb}`."
+                    f"If you really need to bounce it, run `d {verb}` then `u {verb}`."
                 )
                 return
-            argv = [verb]
+            argv = ["up", verb, "--build"]
         else:
             self._log_err(f"unknown: {verb}   (type 'h' for help)")
             return
@@ -1458,7 +1457,9 @@ class LocalDevApp(App):
             return
         # A full `up`/`auto` re-decides (and re-persists) the deploy target —
         # including a plain `up`, which resets to this checkout — so re-point the
-        # banner afterward. `u <svc>` maps to `start` and leaves the target be.
+        # banner afterward. A single-service `up <svc>` / `down <svc>` follows
+        # the active target without re-deciding it; the resync is a harmless
+        # re-read in that case.
         resync = argv[0] in ("up", "auto")
         self._spawn_action(verb if not arg else f"{verb} {arg}", argv, resync=resync)
 

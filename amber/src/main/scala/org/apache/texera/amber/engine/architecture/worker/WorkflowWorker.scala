@@ -26,7 +26,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkAck
-import org.apache.texera.amber.engine.architecture.controller.ReplayStatusUpdate
+import org.apache.texera.amber.engine.architecture.coordinator.ReplayStatusUpdate
 import org.apache.texera.amber.engine.architecture.messaginglayer.WorkerTimerService
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ControlInvocation
 import org.apache.texera.amber.engine.architecture.scheduling.config.WorkerConfig
@@ -127,14 +127,9 @@ class WorkflowWorker(
       t.closure(this)
   }
 
-  def handleActorCommand: Receive = {
-    case c: ActorCommand =>
-      println(c)
-  }
-
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     super.preRestart(reason, message)
-    logger.error(s"Encountered fatal error, worker is shutting done.", reason)
+    logger.error(s"Encountered fatal error, worker is shutting down.", reason)
     postStop()
   }
 

@@ -498,4 +498,39 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
+  it should "join timestamps across every interval unit" in {
+    val base = Timestamp.valueOf("2020-01-01 00:00:00")
+    Seq(
+      TimeIntervalType.YEAR,
+      TimeIntervalType.MONTH,
+      TimeIntervalType.HOUR,
+      TimeIntervalType.MINUTE,
+      TimeIntervalType.SECOND
+    ).foreach { unit =>
+      val desc = new IntervalJoinOpDesc("point", "range", 3L, true, true, unit)
+      val exec = new IntervalJoinOpExec(objectMapper.writeValueAsString(desc))
+      exec.open()
+      try {
+        assert(exec.processTuple(timeStampTuple("range", 1, base), right).isEmpty)
+        val out = exec.processTuple(timeStampTuple("point", 1, base), left).toList
+        assert(out.size == 1, s"expected a match for unit $unit")
+        assert(out.head.getFields.length == 4)
+      } finally exec.close()
+    }
+  }
+
+  it should "reject a join key whose type does not support interval comparison" in {
+    val desc = new IntervalJoinOpDesc("point", "range", 3L, true, true, TimeIntervalType.DAY)
+    val exec = new IntervalJoinOpExec(objectMapper.writeValueAsString(desc))
+    exec.open()
+    assert(
+      exec.processTuple(newTuple[String]("range", 1, "a", AttributeType.STRING), right).isEmpty
+    )
+    val ex = intercept[org.apache.texera.amber.core.WorkflowRuntimeException] {
+      exec.processTuple(newTuple[String]("point", 1, "a", AttributeType.STRING), left).toList
+    }
+    assert(ex.getMessage == "The data type can not support comparison: string")
+    exec.close()
+  }
+
 }
