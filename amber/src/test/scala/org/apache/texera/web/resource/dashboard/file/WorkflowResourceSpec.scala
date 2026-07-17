@@ -27,9 +27,11 @@ import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Project, User, Workflow}
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import org.apache.texera.web.resource.dashboard.user.project.ProjectResource
+import jakarta.ws.rs.{BadRequestException, ForbiddenException}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
+  DriveExportRequest,
   WorkflowIDs
 }
 import org.apache.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
@@ -778,6 +780,22 @@ class WorkflowResourceSpec
     assert(resources.results(0).workflow.get.workflow.getName == "test_workflow3")
     assert(resources.results(1).workflow.get.workflow.getName == "test_workflow2")
     assert(resources.results(2).workflow.get.workflow.getName == "test_workflow1")
+  }
+
+  "exportWorkflowToDrive" should "reject a session URI that does not start with the googleapis upload prefix" in {
+    val saved = workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    val request = DriveExportRequest("http://test.com/upload")
+    assertThrows[BadRequestException] {
+      workflowResource.exportWorkflowToDrive(saved.getWid, request, sessionUser1)
+    }
+  }
+
+  it should "reject when the user has no read access to the workflow" in {
+    val saved = workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    val request = DriveExportRequest("https://www.googleapis.com/upload/drive/test")
+    assertThrows[ForbiddenException] {
+      workflowResource.exportWorkflowToDrive(saved.getWid, request, sessionUser2)
+    }
   }
 
 }
