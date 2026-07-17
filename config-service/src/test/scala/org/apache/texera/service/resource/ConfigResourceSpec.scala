@@ -34,6 +34,7 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.SITE_SETTINGS
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.tags.IntegrationTest
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -53,6 +54,7 @@ import org.scalatest.matchers.should.Matchers
 // Endpoint bodies: calls the resource methods directly for the positive
 // read/write paths — read-miss, insert, upsert-on-conflict, null-value 400,
 // public-whitelist filtering, reset-to-default.
+@IntegrationTest
 class ConfigResourceSpec
     extends AnyFlatSpec
     with Matchers
