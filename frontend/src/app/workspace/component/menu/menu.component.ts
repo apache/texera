@@ -657,26 +657,29 @@ export class MenuComponent implements OnInit, OnDestroy {
     );
 
     this.isTranslatingToPython = true;
-    this.workflowToPythonService.convertToPython(logicalPlan).subscribe({
-      next: response => {
-        this.isTranslatingToPython = false;
-        if (response.type === "success") {
-          this.pythonCodeForModal = response.pythonCode ?? "";
-          this.modalService.create({
-            nzTitle: "Workflow as Python Script",
-            nzContent: this.workflowPythonScriptModal ?? "",
-            nzFooter: null,
-            nzWidth: 800,
-          });
-        } else {
-          this.notificationService.error(response.errorMessage ?? "Failed to translate workflow to Python.");
-        }
-      },
-      error: () => {
-        this.isTranslatingToPython = false;
-        this.notificationService.error("Request failed while translating workflow to Python.");
-      },
-    });
+    this.workflowToPythonService
+      .convertToPython(logicalPlan)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: response => {
+          this.isTranslatingToPython = false;
+          if (response.type === "success") {
+            this.pythonCodeForModal = response.pythonCode ?? "";
+            this.modalService.create({
+              nzTitle: "Workflow as Python Script",
+              nzContent: this.workflowPythonScriptModal ?? "",
+              nzFooter: null,
+              nzWidth: 800,
+            });
+          } else {
+            this.notificationService.error(response.errorMessage ?? "Failed to translate workflow to Python.");
+          }
+        },
+        error: () => {
+          this.isTranslatingToPython = false;
+          this.notificationService.error("Request failed while translating workflow to Python.");
+        },
+      });
   }
 
   public async copyPythonCodeToClipboard(): Promise<void> {
