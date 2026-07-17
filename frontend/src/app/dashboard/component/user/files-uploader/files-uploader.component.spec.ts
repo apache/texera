@@ -90,6 +90,19 @@ describe("FilesUploaderComponent", () => {
     component.did = 7;
   });
 
+  it("keeps the default upload size limit when the public setting is missing, and parses it when present", () => {
+    const build = (value: string | null) =>
+      new FilesUploaderComponent(
+        { error: vi.fn() } as unknown as NotificationService,
+        { getPublicSetting: vi.fn().mockReturnValue(of(value)) } as unknown as AdminSettingsService,
+        datasetService as unknown as DatasetService,
+        { create: vi.fn() } as unknown as NzModalService
+      );
+
+    expect(build(null).singleFileUploadMaxSizeMiB).toBe(20);
+    expect(build("128").singleFileUploadMaxSizeMiB).toBe(128);
+  });
+
   it("asks to resume failed multipart files and skip completed matching files in one retry batch", async () => {
     const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
 

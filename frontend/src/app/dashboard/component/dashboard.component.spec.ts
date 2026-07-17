@@ -337,4 +337,58 @@ describe("DashboardComponent", () => {
       expect(quota!.componentInstance.nzMatchRouter).toBe(true);
     });
   });
+
+  describe("public settings consumption", () => {
+    it("applies logo, mini logo, and favicon from the public settings", () => {
+      const favicon = document.createElement("link");
+      favicon.setAttribute("rel", "icon");
+      document.head.appendChild(favicon);
+      const values: Record<string, string> = {
+        logo: "custom-logo.png",
+        mini_logo: "custom-mini.png",
+        favicon: "custom-fav.ico",
+      };
+      (adminSettingsServiceMock.getPublicSetting as Mock).mockImplementation((key: string) => of(values[key] ?? null));
+
+      component.loadLogos();
+
+      expect(component.logo).toBe("custom-logo.png");
+      expect(component.miniLogo).toBe("custom-mini.png");
+      expect(favicon.href).toContain("custom-fav.ico");
+      favicon.remove();
+    });
+
+    it("keeps the default branding when the settings are missing or the fetch fails", () => {
+      component.logo = "";
+      component.miniLogo = "";
+      (adminSettingsServiceMock.getPublicSetting as Mock).mockReturnValue(of(null));
+      component.loadLogos();
+      expect(component.logo).toBe("");
+      expect(component.miniLogo).toBe("");
+
+      (adminSettingsServiceMock.getPublicSetting as Mock).mockReturnValue(throwError(() => new Error("401")));
+      expect(() => component.loadLogos()).not.toThrow();
+      expect(component.logo).toBe("");
+    });
+
+    it("toggles sidebar tabs from the public settings and treats missing keys as disabled", () => {
+      (adminSettingsServiceMock.getPublicSetting as Mock).mockImplementation((key: string) =>
+        of(key === "hub_enabled" ? "true" : key === "about_enabled" ? "false" : null)
+      );
+
+      component.loadTabs();
+
+      expect(component.sidebarTabs.hub_enabled).toBe(true);
+      expect(component.sidebarTabs.about_enabled).toBe(false);
+      expect(component.sidebarTabs.forum_enabled).toBe(false);
+    });
+
+    it("leaves tabs unchanged when the settings fetch fails", () => {
+      component.sidebarTabs.hub_enabled = true;
+      (adminSettingsServiceMock.getPublicSetting as Mock).mockReturnValue(throwError(() => new Error("500")));
+
+      expect(() => component.loadTabs()).not.toThrow();
+      expect(component.sidebarTabs.hub_enabled).toBe(true);
+    });
+  });
 });

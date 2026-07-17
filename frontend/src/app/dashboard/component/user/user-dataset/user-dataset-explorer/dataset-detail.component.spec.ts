@@ -480,6 +480,18 @@ describe("DatasetDetailComponent behavior", () => {
       expect(adminSettingsServiceStub.getPublicSetting).toHaveBeenCalled();
     });
 
+    it("keeps the default upload settings when the public settings are missing", () => {
+      adminSettingsServiceStub.getPublicSetting.mockReturnValue(of(null));
+
+      createComponent({ did: 5 });
+      login();
+      fixture.detectChanges();
+
+      expect(component.chunkSizeMiB).toBe(50);
+      expect(component.maxConcurrentChunks).toBe(10);
+      expect(component.maxConcurrentFiles).toBe(3);
+    });
+
     it("makes no hub calls when the route carries no did", () => {
       createComponent({});
       component.ngOnInit();
