@@ -836,10 +836,30 @@ jobs:
         # OperatorBehaviorSpec forks Python subprocesses that import pandas /
         # pyarrow / plotly and pytexera (the harness adds amber/src/main/python
         # to PYTHONPATH). Install amber's runtime deps, same as amber-integration.
+        # dev-requirements.txt provides the betterproto plugin used by
+        # bin/python-proto-gen.sh in the proto-generation step below.
         run: |
           python -m pip install uv
           if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
           if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
+          if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt; fi
+      - name: Install protoc
+        # Path A forks py_op_driver, which imports pyamber and hence the
+        # generated betterproto bindings in amber/src/main/python/proto (gitignored,
+        # not checked in). Pin protoc to bin/protoc-version.txt via the upstream
+        # release zip. Linux-only: this job runs on ubuntu-22.04. Mirrors the
+        # amber-integration / pyamber jobs.
+        run: |
+          PROTOC_VERSION=$(cat bin/protoc-version.txt)
+          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          sudo unzip -o /tmp/protoc.zip -d /usr/local
+          sudo chmod +x /usr/local/bin/protoc
+          sudo chmod -R a+rX /usr/local/include
+      - name: Generate Python proto bindings
+        # Regenerate amber/src/main/python/proto so the forked py_op_driver can
+        # import pyamber; without this Path A fails with ImportError on proto
+        # symbols (e.g. ChannelIdentity).
+        run: bash bin/python-proto-gen.sh
       - name: Setup sbt launcher
         uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
       - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
