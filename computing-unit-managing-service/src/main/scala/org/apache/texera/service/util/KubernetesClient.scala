@@ -20,7 +20,7 @@
 package org.apache.texera.service.util
 
 import io.fabric8.kubernetes.api.model._
-import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList
+import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetrics
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
 import org.apache.texera.common.config.KubernetesConfig
 
@@ -48,19 +48,64 @@ object KubernetesClient {
     Option(client.pods().inNamespace(namespace).withName(podName).get())
   }
 
+  /**
+    * Fetch the phase of every pod in the namespace in a single list call, keyed by pod name.
+    * Intended for bulk listings (e.g. the admin view) so that N units do not trigger N separate
+    * `getPodByName` round trips. Left unfiltered (rather than label-scoped) to match the
+    * name-based existence semantics of `getPodByName`/`podExists`: a caller checks
+    * `contains(generatePodName(cuid))` to decide whether a unit's pod still exists, and the
+    * `computing-unit-<cuid>` names never collide with unrelated pods.
+    *
+    * A pod that exists but has no status yet maps to a `null` phase; callers can still rely
+    * on `contains(podName)` to decide whether the pod exists at all.
+    */
+  def getAllPodPhases: Map[String, String] = {
+    client
+      .pods()
+      .inNamespace(namespace)
+      .list()
+      .getItems
+      .asScala
+      .map(pod => pod.getMetadata.getName -> Option(pod.getStatus).map(_.getPhase).orNull)
+      .toMap
+  }
+
+  // Flatten a pod's per-container resource usage into a single metric -> value map.
+  private def containerUsage(podMetrics: PodMetrics): Map[String, String] =
+    podMetrics.getContainers.asScala.flatMap { container =>
+      container.getUsage.asScala.map {
+        case (metric, value) => metric -> value.toString
+      }
+    }.toMap
+
+  /**
+    * Fetch CPU/memory usage for every pod in the namespace in a single `top` call, keyed by
+    * pod name. Intended for bulk listings so that N units do not each re-fetch the whole
+    * namespace metrics list (which `getPodMetrics` does per call).
+    */
+  def getAllPodMetrics: Map[String, Map[String, String]] = {
+    client
+      .top()
+      .pods()
+      .metrics(namespace)
+      .getItems
+      .asScala
+      .map(podMetrics => podMetrics.getMetadata.getName -> containerUsage(podMetrics))
+      .toMap
+  }
+
   def getPodMetrics(cuid: Int): Map[String, String] = {
-    val podMetricsList: PodMetricsList = client.top().pods().metrics(namespace)
     val targetPodName = generatePodName(cuid)
 
-    podMetricsList.getItems.asScala
+    client
+      .top()
+      .pods()
+      .metrics(namespace)
+      .getItems
+      .asScala
       .collectFirst {
         case podMetrics if podMetrics.getMetadata.getName == targetPodName =>
-          podMetrics.getContainers.asScala.flatMap { container =>
-            container.getUsage.asScala.map {
-              case (metric, value) =>
-                metric -> value.toString
-            }
-          }.toMap
+          containerUsage(podMetrics)
       }
       .getOrElse(Map.empty[String, String])
   }

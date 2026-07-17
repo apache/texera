@@ -25,12 +25,12 @@ import jakarta.ws.rs.{GET, Path, Produces}
 import jakarta.ws.rs.core.MediaType
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.SqlServer.withTransaction
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_COMPUTING_UNIT
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import org.apache.texera.service.resource.ComputingUnitManagingResource.DashboardWorkflowComputingUnit
-import org.apache.texera.service.util.ComputingUnitHelpers
+import org.apache.texera.service.util.{ComputingUnitHelpers, KubernetesClient}
 import org.jooq.DSLContext
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -42,36 +42,35 @@ object AdminComputingUnitResource {
       .createDSLContext()
 
   /**
-    * Assemble the dashboard rows for the admin view from the raw computing units and their
-    * owners' display info. Terminated units (non-null `terminate_time`) are excluded, and the
-    * remaining units keep the same [[DashboardWorkflowComputingUnit]] shape produced by the
-    * per-user listing endpoint.
+    * Assemble the admin dashboard rows for a set of active computing units. The `units` are
+    * expected to already be the active (non-terminated, pod-still-present) set; this is a pure
+    * mapping and does no filtering of its own. Every row is marked with WRITE access — admins
+    * have full control over every unit they can see — and `isOwner` reflects the requesting
+    * admin. Kubernetes status/metrics are resolved from the pre-fetched maps (no per-unit call).
     *
-    * @param units     all computing units to consider (across every owner)
-    * @param ownerInfo map of owner uid -> (googleAvatar, userName)
-    * @param callerUid the uid of the requesting admin, used to populate `isOwner`
+    * @param units      active computing units to render (across every owner)
+    * @param ownerInfo  map of owner uid -> (googleAvatar, userName)
+    * @param callerUid  the uid of the requesting admin, used to populate `isOwner`
+    * @param podPhases  map of pod name -> phase (see [[KubernetesClient.getAllPodPhases]])
+    * @param podMetrics map of pod name -> (metric -> value) (see KubernetesClient.getAllPodMetrics)
     */
   def buildDashboardUnits(
       units: List[WorkflowComputingUnit],
       ownerInfo: Map[Integer, (String, String)],
-      callerUid: Integer
-  ): List[DashboardWorkflowComputingUnit] = {
-    units
-      .filter(_.getTerminateTime == null)
-      .map { unit =>
-        val (avatar, name) = ownerInfo.getOrElse(unit.getUid, (null, null))
-        DashboardWorkflowComputingUnit(
-          computingUnit = unit,
-          status = ComputingUnitHelpers.getComputingUnitStatus(unit).toString,
-          metrics = ComputingUnitHelpers.getComputingUnitMetrics(unit),
-          isOwner = unit.getUid.equals(callerUid),
-          // Admins have full control over every computing unit they can see.
-          accessPrivilege = PrivilegeEnum.WRITE,
-          ownerGoogleAvatar = avatar,
-          ownerName = name
-        )
-      }
-  }
+      callerUid: Integer,
+      podPhases: Map[String, String],
+      podMetrics: Map[String, Map[String, String]]
+  ): List[DashboardWorkflowComputingUnit] =
+    units.map { unit =>
+      ComputingUnitHelpers.buildDashboardUnit(
+        unit,
+        isOwner = unit.getUid.equals(callerUid),
+        accessPrivilege = PrivilegeEnum.WRITE,
+        ownerInfo = ownerInfo,
+        podPhases = podPhases,
+        podMetrics = podMetrics
+      )
+    }
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -84,7 +83,16 @@ class AdminComputingUnitResource {
   /**
     * List every non-terminated computing unit across all users. ADMIN-only.
     *
-    * @return the computing units (owned by any user) that have not been terminated.
+    * Mirrors the reconciliation done by the per-user listing endpoint: a Kubernetes unit whose
+    * pod has vanished (manually deleted or TTL GC-ed by the cluster) is eagerly marked
+    * terminated in the database and excluded from the response, so ghost units do not
+    * accumulate in the admin view.
+    *
+    * Kubernetes status/metrics are resolved from a single namespace-wide `list`/`top` call each,
+    * so the number of cluster round trips is constant rather than proportional to the number of
+    * units.
+    *
+    * @return the computing units (owned by any user) that are active and whose pods still exist.
     */
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -92,28 +100,40 @@ class AdminComputingUnitResource {
   def listAllComputingUnits(
       @Auth user: SessionUser
   ): List[DashboardWorkflowComputingUnit] = {
-    withTransaction(context) { ctx =>
-      val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
-      val userDao = new UserDao(ctx.configuration())
+    val ctx = context
 
-      val activeUnits =
-        computingUnitDao.findAll().asScala.toList.filter(_.getTerminateTime == null)
+    def isKubernetes(unit: WorkflowComputingUnit): Boolean =
+      unit.getType == WorkflowComputingUnitTypeEnum.kubernetes
 
-      val ownerUids: List[Integer] = activeUnits.map(_.getUid).distinct
-      val ownerInfo: Map[Integer, (String, String)] =
-        if (ownerUids.isEmpty) Map.empty
-        else
-          userDao
-            .fetchByUid(ownerUids: _*)
-            .asScala
-            .map { u =>
-              val avatar = Option(u.getGoogleAvatar).filter(_.nonEmpty).orNull
-              val name = Option(u.getName).filter(_.nonEmpty).orNull
-              u.getUid -> (avatar, name)
-            }
-            .toMap
+    // Filter to active units in SQL so historically-terminated rows are never loaded.
+    val activeUnits: List[WorkflowComputingUnit] =
+      ctx
+        .selectFrom(WORKFLOW_COMPUTING_UNIT)
+        .where(WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME.isNull)
+        .fetchInto(classOf[WorkflowComputingUnit])
+        .asScala
+        .toList
 
-      buildDashboardUnits(activeUnits, ownerInfo, user.getUid)
-    }
+    // Pod phases (one namespace-wide `list`) are needed to decide which units are still alive;
+    // only fetch them when there is a Kubernetes unit to resolve.
+    val podPhases: Map[String, String] =
+      if (activeUnits.exists(isKubernetes)) KubernetesClient.getAllPodPhases else Map.empty
+
+    // A Kubernetes unit whose pod is gone is stamped terminated and dropped from the response.
+    val liveUnits = ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
+      new WorkflowComputingUnitDao(ctx.configuration()),
+      activeUnits,
+      podPhases
+    )
+
+    // Metrics (one namespace-wide `top`) are only rendered for surviving units, so defer this
+    // call until after reconciliation and skip it when no live Kubernetes unit remains.
+    val podMetrics: Map[String, Map[String, String]] =
+      if (liveUnits.exists(isKubernetes)) KubernetesClient.getAllPodMetrics else Map.empty
+
+    val userDao = new UserDao(ctx.configuration())
+    val ownerInfo = ComputingUnitHelpers.resolveOwnerInfo(userDao, liveUnits.map(_.getUid).distinct)
+
+    buildDashboardUnits(liveUnits, ownerInfo, user.getUid, podPhases, podMetrics)
   }
 }
