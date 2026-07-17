@@ -95,43 +95,44 @@ class TestInternalQueue:
         assert queue.size() == 0
         assert len(queue) == 0
 
-@pytest.mark.timeout(2)
-def test_it_accepts_all_recognized_element_types(
-    self, queue, control_channel, data_channel
-):
-    data = self.data_element(data_channel)
-    dcm = self.dcm_element(control_channel)
-    ecm = self.ecm_element(data_channel)
-    # NOTE: LinkedBlockingMultiQueue priority-group ordering is currently
-    # dependent on sub-queue registration order; register control before data
-    # to preserve control-priority semantics.
-    queue.put(dcm)
-    queue.put(data)
-    queue.put(ecm)
-    assert queue.size() == 3
-    # the control-channel element goes first, data-channel FIFO after
-    assert queue.get() is dcm
-    assert queue.get() is data
-    assert queue.get() is ecm
-    assert queue.is_empty()
+    @pytest.mark.timeout(2)
+    def test_it_accepts_all_recognized_element_types(
+        self, queue, control_channel, data_channel
+    ):
+        data = self.data_element(data_channel)
+        dcm = self.dcm_element(control_channel)
+        ecm = self.ecm_element(data_channel)
+        # NOTE: LinkedBlockingMultiQueue priority-group ordering is currently
+        # dependent on sub-queue registration order; register control before data
+        # to preserve control-priority semantics.
+        queue.put(dcm)
+        queue.put(data)
+        queue.put(ecm)
+        assert queue.size() == 3
+        # the control-channel element goes first, data-channel FIFO after
+        assert queue.get() is dcm
+        assert queue.get() is data
+        assert queue.get() is ecm
+        assert queue.is_empty()
 
-@pytest.mark.timeout(2)
-@pytest.mark.xfail(
-    reason=(
-        "LinkedBlockingMultiQueue.add_sub_queue does not currently insert new "
-        "priority groups ahead of lower-priority ones, so registering data before "
-        "control can break control-priority ordering."
+    @pytest.mark.timeout(2)
+    @pytest.mark.xfail(
+        reason=(
+            "LinkedBlockingMultiQueue.add_sub_queue does not currently insert new "
+            "priority groups ahead of lower-priority ones, so registering data before "
+            "control can break control-priority ordering."
+        )
     )
-)
-def test_control_elements_dequeue_before_data_even_if_data_channel_registered_first(
-    self, queue, control_channel, data_channel
-):
-    data = self.data_element(data_channel)
-    dcm = self.dcm_element(control_channel)
-    queue.put(data)  # registers the data channel first
-    queue.put(dcm)  # registers the control channel later
-    assert queue.get() is dcm
-    assert queue.get() is data
+    def test_control_elements_dequeue_before_data_even_if_data_channel_registered_first(
+        self, queue, control_channel, data_channel
+    ):
+        data = self.data_element(data_channel)
+        dcm = self.dcm_element(control_channel)
+        queue.put(data)  # registers the data channel first
+        queue.put(dcm)  # registers the control channel later
+        assert queue.get() is dcm
+        assert queue.get() is data
+
     @pytest.mark.timeout(2)
     def test_control_elements_dequeue_before_data_elements(
         self, queue, control_channel, data_channel
