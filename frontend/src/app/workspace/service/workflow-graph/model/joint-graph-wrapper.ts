@@ -307,7 +307,7 @@ export class JointGraphWrapper {
         const oldPosition = this.elementPositions.get(elementID);
         const newPosition = { x: e[1].x, y: e[1].y };
         if (!oldPosition) {
-          throw new Error(`internal error: cannot find element position for ${elementID}`);
+          return undefined;
         }
         if (
           !oldPosition.lastPos ||
@@ -325,7 +325,11 @@ export class JointGraphWrapper {
           oldPosition: oldPosition.lastPos,
           newPosition: newPosition,
         };
-      })
+      }),
+      filter(
+        (event): event is { elementID: string; oldPosition: Point; newPosition: Point } =>
+          event !== undefined
+      )
     );
   }
 

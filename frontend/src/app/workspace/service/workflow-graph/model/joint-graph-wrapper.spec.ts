@@ -818,4 +818,45 @@ describe("JointGraphWrapperService", () => {
       expect(emitted).toEqual([false, true, false]);
     });
   });
+
+  it(
+    "should ignore position change events when old position is missing and continue emitting future events",
+    marbles(m => {
+      const operator = jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint);
+      jointGraph.addCell(operator);
+
+      const events: any[] = [];
+      const subscription = jointGraphWrapper
+        .getElementPositionChangeEvent()
+        .subscribe(event => events.push(event));
+
+      // remove operator position from the internal map to force bug condition
+      (jointGraphWrapper as any).elementPositions.delete(mockScanPredicate.operatorID);
+
+      // trigger position change with missing oldPosition
+      operator.position(100, 100);
+
+      // restore position tracking
+      (jointGraphWrapper as any).elementPositions.set(
+        mockScanPredicate.operatorID,
+        {
+          currPos: { x: 100, y: 100 },
+          lastPos: undefined,
+        }
+      );
+
+      // trigger another valid position change
+      operator.position(200, 200);
+
+      // the first event should be skipped,but the second event should still emit
+      expect(events.length).toBe(1);
+      expect(events[0].elementID).toBe(mockScanPredicate.operatorID);
+      expect(events[0].newPosition).toEqual({
+        x: 200,
+        y: 200,
+      });
+
+      subscription.unsubscribe();
+    })
+  );
 });
