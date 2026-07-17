@@ -20,11 +20,15 @@
 package org.apache.texera.amber.translator.verify
 
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.texera.amber.translator.verify.tags.IntegrationTest
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.{Files, Path}
 
+// Tagged @IntegrationTest: Comparator.assertEqual shells out to compare.py, so
+// this spec needs Python and must run in the Python-provisioned integration job.
+@IntegrationTest
 class ComparatorSpec extends AnyFlatSpec with Matchers {
 
   private val schema: Schema = Schema()
