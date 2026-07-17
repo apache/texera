@@ -122,7 +122,10 @@ class WorkflowExecutionService(
       )
     } catch {
       case err: Throwable =>
+        // stop here: `workflow` is still null, so falling through would NPE
+        // below and mask the reported compilation error
         errorHandler(err)
+        return
     }
 
     client = ComputingUnitMaster.createAmberRuntime(

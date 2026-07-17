@@ -40,3 +40,15 @@ Compile / scalacOptions ++= Seq(
 libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.15" % Test
 )
+
+// Arrow 19's transitive deps (via WorkflowOperator -> WorkflowCore) pull
+// jackson-databind past the 2.18 line that jackson-module-scala is pinned to;
+// force the Jackson core family back so the Scala module can initialize in
+// tests (else Test aborts with "Scala module 2.18.x requires Jackson Databind
+// version >= 2.18.0 and < 2.19.0"). Mirrors common/workflow-core/build.sbt.
+val jacksonVersion = "2.18.8"
+dependencyOverrides ++= Seq(
+  "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion
+)

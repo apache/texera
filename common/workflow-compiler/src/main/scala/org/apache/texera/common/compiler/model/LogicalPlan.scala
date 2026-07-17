@@ -22,7 +22,6 @@ package org.apache.texera.common.compiler.model
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
-import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
@@ -84,27 +83,6 @@ case class LogicalPlan(
     operatorMap.keys
       .filter(op => jgraphtDag.outDegreeOf(op) == 0)
       .toList
-
-  def addOperator(op: LogicalOp): LogicalPlan = {
-    // TODO: fix schema for the new operator
-    this.copy(operators :+ op, links)
-  }
-
-  def addLink(
-      fromOpId: OperatorIdentity,
-      fromPortId: PortIdentity,
-      toOpId: OperatorIdentity,
-      toPortId: PortIdentity
-  ): LogicalPlan = {
-    val newLink = LogicalLink(
-      fromOpId,
-      fromPortId,
-      toOpId,
-      toPortId
-    )
-    val newLinks = links :+ newLink
-    this.copy(operators, newLinks)
-  }
 
   def getUpstreamLinks(opId: OperatorIdentity): List[LogicalLink] = {
     links.filter(l => l.toOpId == opId)

@@ -24,7 +24,10 @@ package org.apache.texera.common.compiler
   *
   *   - [[CompilationErrorHandling.Lenient]] collects every error and returns them in the result,
   *     with `physicalPlan = None` when any error occurred. Used for editing-time validation.
-  *   - [[CompilationErrorHandling.Strict]] throws on the first error. Used before execution.
+  *   - [[CompilationErrorHandling.Strict]] throws on the first error during file resolution and
+  *     logical-to-physical expansion. Schema-propagation failures are the exception: they are not
+  *     thrown and surface as `None` schemas in the result (legacy execution-path behavior; a
+  *     follow-up tracks failing fast there too). Used before execution.
   */
 sealed trait CompilationErrorHandling
 

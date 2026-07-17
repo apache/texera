@@ -130,6 +130,17 @@ case class WorkflowCompilationResult(
     outputPortsNeedingStorage: Set[GlobalPortIdentity]
 )
 
+/**
+  * The single workflow compiler shared in-process by both compilation call sites:
+  * workflow-compiling-service (editing path, [[CompilationErrorHandling.Lenient]] — accumulate
+  * per-operator errors so the UI can render them, `physicalPlan = None` when any exist) and
+  * amber (execution path, [[CompilationErrorHandling.Strict]] — fail fast before a run).
+  *
+  * This module depends only on WorkflowOperator, so neither service leaks its HTTP stack into
+  * the other; the engine `Workflow` wrapper stays in amber as a thin adapter over
+  * [[WorkflowCompilationResult]]. `outputPortsNeedingStorage` is always computed — the
+  * editing-path caller simply ignores it — keeping both paths on one code path.
+  */
 class WorkflowCompiler(
     context: WorkflowContext
 ) extends LazyLogging {
@@ -152,6 +163,7 @@ class WorkflowCompiler(
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
       Try {
         val logicalOp = logicalPlan.getOperator(logicalOpId)
+        val upstreamLinks = logicalPlan.getUpstreamLinks(logicalOp.operatorIdentifier)
 
         val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
         subPlan
@@ -159,8 +171,7 @@ class WorkflowCompiler(
           .map(subPlan.getOperator)
           .foreach({ physicalOp =>
             {
-              val externalLinks = logicalPlan
-                .getUpstreamLinks(logicalOp.operatorIdentifier)
+              val externalLinks = upstreamLinks
                 .filter(link => physicalOp.inputPorts.contains(link.toPortId))
                 .flatMap { link =>
                   physicalPlan
@@ -260,8 +271,10 @@ class WorkflowCompiler(
 
     // 4. collect the output schema for each logical op
     // even if error is encountered when logical => physical, we still want to get the input schemas
-    // for the rest of the no-error operators. In Strict mode there is no buffer (errors already thrown),
-    // so schema errors go to a throwaway buffer and do not affect the result.
+    // for the rest of the no-error operators. NOTE: in Strict mode there is no shared buffer, so
+    // schema-propagation failures are NOT thrown — they surface as `None` schemas and the plan is
+    // still returned. This matches the legacy execution path; making Strict fail fast here too is
+    // tracked as a follow-up.
     val schemaErrorList = errorList.getOrElse(new ArrayBuffer[(OperatorIdentity, Throwable)]())
     val opIdToOutputSchema = collectOutputSchemaFromPhysicalPlan(physicalPlan, schemaErrorList)
 

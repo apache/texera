@@ -480,4 +480,65 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     }
     assert(ex.getMessage.contains("No file selected"))
   }
+
+  it should "return a defined physicalPlan for a well-formed plan" in {
+    // The execution path calls `physicalPlan.get` on the result, so a strict
+    // success must always carry a plan.
+    val csv = csvOp(realCsvPath)
+    val proj = projectOp(List("Region", "Total Profit"))
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(csv, proj),
+        List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            proj.operatorIdentifier,
+            PortIdentity(0)
+          )
+        )
+      ),
+      CompilationErrorHandling.Strict
+    )
+
+    assert(result.physicalPlan.isDefined, "strict success must yield a physical plan")
+    assert(result.operatorIdToError.isEmpty)
+    assert(result.outputPortsNeedingStorage.nonEmpty, "terminal ports still collected in strict")
+  }
+
+  it should "currently not throw on schema-propagation errors (legacy behavior)" in {
+    // A projection on a missing column fails schema *propagation*, not plan
+    // expansion: `propagateSchema` stores a Left on the output port instead of
+    // throwing. Strict has no error buffer, so the failure is dropped — the
+    // plan stays defined and the port's schema is None. The lenient
+    // counterpart above turns the same failure into a per-operator error.
+    // This pins the legacy execution-path behavior; a follow-up tracks making
+    // strict fail fast here too, at which point this test should flip.
+    val csv = csvOp(realCsvPath)
+    val badProjection = projectOp(List("DoesNotExist"))
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(csv, badProjection),
+        List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            badProjection.operatorIdentifier,
+            PortIdentity(0)
+          )
+        )
+      ),
+      CompilationErrorHandling.Strict
+    )
+
+    assert(result.physicalPlan.isDefined, "schema errors do not clear the plan in strict mode")
+    assert(result.operatorIdToError.isEmpty, "schema errors are dropped, not reported, in strict")
+    val projSchemas = result.operatorIdToOutputSchemas(badProjection.operatorIdentifier)
+    assert(
+      projSchemas.values.exists(_.isEmpty),
+      "the failed port surfaces as a None schema rather than an error"
+    )
+  }
 }
