@@ -197,6 +197,11 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGen
 
   override def generateStandaloneCode(): String = {
     val showLegendsOption = if (showLegends) "showlegend=True" else "showlegend=False"
+    // Python list literal of dot column names, matching addPlotlyDots().
+    val dotColumnNames =
+      if (dots != null && dots.size() != 0)
+        dots.asScala.map(dot => s""""${dot.dotValue}"""").mkString(", ")
+      else ""
     s"""import plotly.graph_objects as go
        |
        |def render_error(error_msg):
@@ -228,6 +233,16 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGen
        |                      yaxis=dict(categoryorder='array', categoryarray=entityNames),
        |                      $showLegendsOption,
        |                      margin=dict(l=0, r=0, b=60, t=0))
+       |    dotColumnNames = [$dotColumnNames]
+       |    for dotColumn in dotColumnNames:
+       |        for entity in entityNames:
+       |            entity_dot_data = filtered_table[filtered_table["$comparedColumnName"] == entity]
+       |            x_values = entity_dot_data[dotColumn].values
+       |            y_values = [entity] * len(x_values)
+       |            fig.add_trace(go.Scatter(x=x_values, y=y_values,
+       |                                     mode='markers',
+       |                                     name=entity + ' ' + dotColumn,
+       |                                     marker=dict(color='black', size=5)))
        |    fig.write_json("output.json")
        |    fig.write_html("output.html")
        |    print("Dumbbell plot saved to output.html")""".stripMargin
