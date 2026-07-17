@@ -72,7 +72,7 @@ describe("FilesUploaderComponent", () => {
       }),
     } as unknown as NzModalService;
     const adminSettingsService = {
-      getSetting: vi.fn().mockReturnValue(of("20")),
+      getPublicSetting: vi.fn().mockReturnValue(of("20")),
     } as unknown as AdminSettingsService;
     datasetService = {
       listMultipartUploads: vi.fn().mockReturnValue(of(["failed.csv"])),
