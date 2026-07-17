@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784208084947,
+  "lastUpdate": 1784294035553,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -4817,6 +4817,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 561.0234301916707,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "ali risheh",
+            "username": "aicam",
+            "email": "ali.risheh876@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "ee062a20d3777d1409508766dba18187e3719035",
+          "message": "refactor(k8s): consolidate gateway resources under the gateway folder (#6472)\n\n### What changes were proposed in this PR?\n\nA small, behavior-preserving refactor of the Helm chart layout under\n`bin/k8s`.\n\nThe agent-service **`BackendTrafficPolicy`** is a gateway-layer [Envoy\nGateway](https://gateway.envoyproxy.io/) resource — it configures\nconsistent-hash load balancing on the gateway for the agent-service\n`HTTPRoute` (so all requests for a given workflow pin to the same\nreplica). Despite being a gateway concern, it was living under\n`templates/base/agent-service/` next to the app-tier\n`Deployment`/`Service`/`Secret`.\n\nIt is the same class of resource as the `SecurityPolicy`\n(`gateway-security-policy.yaml`) that already lives in\n`templates/base/gateway/`, so this PR moves it there and renames it to\nthe folder's `gateway-*` convention:\n\n```\ntemplates/base/agent-service/agent-service-backend-traffic-policy.yaml\n  -> templates/base/gateway/gateway-agent-traffic-policy.yaml\n```\n\nAfter this move, **every** gateway-related resource (`GatewayClass`,\n`Gateway`, `HTTPRoute`, `Backend`, `SecurityPolicy`,\n`BackendTrafficPolicy`) lives under `templates/base/gateway/`, and no\ngateway resource remains scattered in a service folder (verified by\ngrepping all templates for the `gateway.envoyproxy.io` /\n`gateway.networking.k8s.io` API groups — this was the only stray one).\n\nThis is purely organizational: no values, resource names, gating\nconditions, or rendered output change. It continues the\n`base`/`aws`/`on-prem` template reorganization from #5757.\n\n### Any related issues, documentation, discussions?\n\nPart of the deployment-unification effort tracked in #5891 (housekeeping\nfollow-up to the template reorg in #5757). No functional dependency on\nthe object-storage work (#5932, #6295).\n\n### How was this PR tested?\n\nVerified the move is byte-for-byte behavior-preserving by diffing the\nrendered manifests before and after:\n\n```bash\ncd bin/k8s\nhelm dependency build   # fetch subcharts\n\n# render with the file in its OLD location\nhelm template test . > /tmp/before.txt\n\n# render with the file in its NEW location (this PR)\nhelm template test . > /tmp/after.txt\n\ndiff /tmp/before.txt /tmp/after.txt\n```\n\nThe only differences are:\n1. The `# Source:` provenance comment path (`.../agent-service/...` →\n`.../gateway/...`) — expected, cosmetic.\n2. The auto-generated `encryptionKey` value — Helm regenerates this\nrandom secret on every invocation; unrelated to this change.\n\nThe `BackendTrafficPolicy` resource itself (name\n`<release>-agent-service-traffic-policy`, its `targetRefs`, and the\n`X-Agent-Workflow-Id` consistent-hash config) renders identically. `helm\ntemplate` succeeds for the default value set.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 4.8)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-17T07:19:16Z",
+          "url": "https://github.com/apache/texera/commit/ee062a20d3777d1409508766dba18187e3719035"
+        },
+        "date": 1784294034969,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 674.0414585160362,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1326.6693733936845,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1454.1387410028462,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 912.9746872258164,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1377.928282475175,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1435.6032287004107,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 927.9372513983608,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1387.4143369346925,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1450.666396897494,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 724.7608461247894,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1059.6568677327264,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1098.1932681871137,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 782.8374077273951,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1061.3045532208878,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1104.2269186560768,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 809.7711554728673,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1045.1387107096134,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1087.538775376799,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 494.782426662831,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 541.983405319856,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 579.869803902717,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 490.32541305577894,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 576.9493558511704,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 583.4427351099104,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 478.17517733016473,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 556.0646996857905,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 553.8032469280978,
             "unit": "tuples/sec"
           }
         ]
