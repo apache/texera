@@ -62,7 +62,7 @@ services:
   postgres:
     image: groonga/pgroonga:4.0.1-debian-15
     container_name: texera-postgres
-    restart: always
+    restart: unless-stopped
     env_file:
       - .env
     healthcheck:
@@ -79,7 +79,7 @@ services:
   lakefs:
     image: treeverse/lakefs:1.51
     container_name: texera-lakefs
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -122,7 +122,7 @@ services:
   lakekeeper:
     image: vakamo/lakekeeper:v0.11.0
     container_name: texera-lakekeeper
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -219,7 +219,50 @@ services:
         fi
 
         if jq -e --arg name "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME" '.warehouses[]? | select(.name == $$name)' /tmp/warehouses.txt >/dev/null; then
-          echo "Lakekeeper Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' already exists. Skipping creation."
+          # The warehouse persists its S3 endpoint in Lakekeeper's own DB. The
+          # local-dev launcher sets STORAGE_S3_ENDPOINT to the host LAN IP so
+          # both this container and the host JVMs (Iceberg remote-signing) reach
+          # the same MinIO — but that IP changes across networks / DHCP leases.
+          # This init is idempotent and would otherwise just skip, leaving a
+          # stale endpoint that breaks workflow execution with an opaque Iceberg
+          # RESTException. Refresh the stored endpoint on every run (#6195).
+          echo "Lakekeeper Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' already exists. Refreshing its storage endpoint to '$$STORAGE_S3_ENDPOINT'..."
+          WAREHOUSE_ID=$$(jq -r --arg name "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME" '.warehouses[]? | select(.name == $$name) | .id' /tmp/warehouses.txt)
+          UPDATE_PAYLOAD=$$(cat <<EOF
+        {
+          "storage-profile": {
+            "type": "s3",
+            "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
+            "region": "$$STORAGE_S3_REGION",
+            "endpoint": "$$STORAGE_S3_ENDPOINT",
+            "flavor": "s3-compat",
+            "path-style-access": true,
+            "sts-enabled": false
+          },
+          "storage-credential": {
+            "type": "s3",
+            "credential-type": "access-key",
+            "aws-access-key-id": "$$STORAGE_S3_AUTH_USERNAME",
+            "aws-secret-access-key": "$$STORAGE_S3_AUTH_PASSWORD"
+          }
+        }
+        EOF
+          )
+
+          UPDATE_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+              -X POST \
+              -H "Content-Type: application/json" \
+              -d "$$UPDATE_PAYLOAD" \
+              "$$LAKEKEEPER_BASE_URI/management/v1/warehouse/$$WAREHOUSE_ID/storage" || echo "000")
+
+          if [ "$$UPDATE_CODE" -lt 200 ] || [ "$$UPDATE_CODE" -ge 300 ]; then
+            echo "Failed to refresh Lakekeeper Warehouse storage. HTTP Code: $$UPDATE_CODE"
+            echo "ERROR RESPONSE:"
+            if [ -f /tmp/response.txt ]; then cat /tmp/response.txt; fi
+            echo ""
+            exit 1
+          fi
+          echo "Refreshed Lakekeeper Warehouse storage endpoint successfully (HTTP $$UPDATE_CODE)."
         else
           echo "Warehouse not found. Creating '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME'..."
           CREATE_PAYLOAD=$$(cat <<EOF
@@ -269,7 +312,7 @@ services:
   file-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-file-service:${IMAGE_TAG:-latest}
     container_name: file-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       minio:
         condition: service_started
@@ -287,7 +330,7 @@ services:
   config-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-config-service:${IMAGE_TAG:-latest}
     container_name: config-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -303,7 +346,7 @@ services:
   access-control-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-access-control-service:${IMAGE_TAG:-latest}
     container_name: access-control-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -319,7 +362,7 @@ services:
   workflow-computing-unit-managing-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-computing-unit-managing-service:${IMAGE_TAG:-latest}
     container_name: workflow-computing-unit-managing-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -335,7 +378,7 @@ services:
   workflow-compiling-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-compiling-service:${IMAGE_TAG:-latest}
     container_name: workflow-compiling-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       file-service:
         condition: service_started
@@ -351,7 +394,7 @@ services:
   workflow-runtime-coordinator-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-execution-coordinator:${IMAGE_TAG:-latest}
     container_name: workflow-runtime-coordinator-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       workflow-compiling-service:
         condition: service_started
@@ -368,7 +411,7 @@ services:
   dashboard-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-dashboard-service:${IMAGE_TAG:-latest}
     container_name: dashboard-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       workflow-runtime-coordinator-service:
         condition: service_started
@@ -390,7 +433,7 @@ services:
   litellm:
     image: ghcr.io/berriai/litellm:v1.83.10-stable
     container_name: litellm
-    restart: always
+    restart: unless-stopped
     # Keys read from shell first, falling back to .env.
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -411,7 +454,7 @@ services:
   agent-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-agent-service:${IMAGE_TAG:-latest}
     container_name: agent-service
-    restart: always
+    restart: unless-stopped
     depends_on:
       dashboard-service:
         condition: service_healthy

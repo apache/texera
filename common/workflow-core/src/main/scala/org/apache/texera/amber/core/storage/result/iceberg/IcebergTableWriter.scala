@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.core.storage.result.iceberg
 
-import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
@@ -28,6 +28,7 @@ import org.apache.iceberg.data.parquet.GenericParquetWriter
 import org.apache.iceberg.io.{DataWriter, OutputFile}
 import org.apache.iceberg.parquet.Parquet
 import org.apache.iceberg.{Schema, Table}
+import org.apache.parquet.schema.MessageType
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -115,7 +116,9 @@ private[storage] class IcebergTableWriter[T](
       val dataWriter: DataWriter[Record] = Parquet
         .writeData(outputFile)
         .forTable(table)
-        .createWriterFunc(GenericParquetWriter.buildWriter)
+        .createWriterFunc((schema: Schema, messageType: MessageType) =>
+          GenericParquetWriter.create(schema, messageType)
+        )
         .overwrite()
         .build()
       // Write each buffered item to the data file

@@ -24,16 +24,18 @@ import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowEditorComponent } from "./workflow-editor.component";
-import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
+import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
-import { JointUIService } from "../../service/joint-ui/joint-ui.service";
-import { NzModalModule, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
+import { JointUIService, operatorAgentActionProgressClass } from "../../service/joint-ui/joint-ui.service";
+import { AgentService, OperatorResultSummary } from "../../service/agent/agent.service";
+import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as joint from "jointjs";
 import { marbles } from "rxjs-marbles";
 import {
   mockCommentBox,
+  mockMultiInputOutputPredicate,
   mockPoint,
   mockResultPredicate,
   mockScanPredicate,
@@ -42,26 +44,20 @@ import {
   mockSentimentPredicate,
 } from "../../service/workflow-graph/model/mock-workflow-data";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
+import { OperatorState } from "../../types/execute-workflow.interface";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
-import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { tap } from "rxjs/operators";
-import { UserService } from "src/app/common/service/user/user.service";
-import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { ActivatedRoute, Router } from "@angular/router";
 import { RouterTestingModule } from "@angular/router/testing";
-import { createYTypeFromObject } from "../../types/shared-editing.interface";
-import * as jQuery from "jquery";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
-
-const createJQueryEvent = (event: string, properties?: object): JQuery.Event =>
-  (jQuery as unknown as JQueryStatic).Event(event, properties);
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -115,6 +111,64 @@ describe("WorkflowEditorComponent", () => {
 
     it("should create", () => {
       expect(component).toBeTruthy();
+    });
+
+    it("should hide operator status on the canvas by default", () => {
+      // keeps the Status toggle off until the user enables it
+      const editor = (component as any).editor as HTMLElement;
+      expect(editor.classList.contains("hide-operator-status")).toBe(true);
+    });
+
+    // Drives the region-update stream the editor subscribes to in handleRegionEvents, creating
+    // region-<id> elements around the given operator, and returns the operator id used.
+    function emitRegionUpdate(regionId: number): string {
+      const operatorID = `region_op_${regionId}`;
+      const operator = new joint.shapes.basic.Rect({ position: { x: 0, y: 0 }, size: { width: 80, height: 40 } });
+      operator.set("id", operatorID);
+      jointGraph.addCell(operator);
+      const executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
+      (executeWorkflowService as any).regionUpdateStream.next({ regions: [[regionId, [operatorID]]] });
+      return operatorID;
+    }
+
+    it("should create region elements hidden so the Regions toggle starts off on canvas and mini-map", () => {
+      emitRegionUpdate(1);
+
+      const region = jointGraph.getCell("region-1");
+      expect(region).toBeTruthy();
+      // region visibility is a shared-model attribute, so hidden-by-default applies to both surfaces
+      expect(region.attr("body/visibility")).toBe("hidden");
+    });
+
+    it("should show regions created during execution when the toggle is already on", () => {
+      // user enables Regions, then execution emits region updates
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setRegionsDisplayed(true);
+      emitRegionUpdate(1);
+
+      expect(jointGraph.getCell("region-1").attr("body/visibility")).toBe("visible");
+    });
+
+    it("should keep regions visible when they are recreated on a later execution update", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setRegionsDisplayed(true);
+      emitRegionUpdate(1);
+      // a subsequent update removes and recreates the region elements
+      emitRegionUpdate(2);
+
+      expect(jointGraph.getCell("region-2").attr("body/visibility")).toBe("visible");
+    });
+
+    it("should toggle visibility of existing regions when the displayed flag changes", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      emitRegionUpdate(1);
+      expect(jointGraph.getCell("region-1").attr("body/visibility")).toBe("hidden");
+
+      wrapper.setRegionsDisplayed(true);
+      expect(jointGraph.getCell("region-1").attr("body/visibility")).toBe("visible");
+
+      wrapper.setRegionsDisplayed(false);
+      expect(jointGraph.getCell("region-1").attr("body/visibility")).toBe("hidden");
     });
 
     it("should create element in the UI after adding operator in the model", () => {
@@ -176,44 +230,13 @@ describe("WorkflowEditorComponent", () => {
     let validationWorkflowService: ValidationWorkflowService;
     let dragDropService: DragDropService;
     let jointUIService: JointUIService;
-    let nzModalService: NzModalService;
     let undoRedoService: UndoRedoService;
     let workflowVersionService: WorkflowVersionService;
 
     beforeEach(async () => {
       await TestBed.configureTestingModule({
-        imports: [
-          RouterTestingModule,
-          HttpClientTestingModule,
-          NzModalModule,
-          NzDropDownModule,
-          NoopAnimationsModule,
-          WorkflowEditorComponent,
-          NzModalCommentBoxComponent,
-        ],
-        providers: [
-          JointUIService,
-          WorkflowUtilService,
-          WorkflowActionService,
-          UndoRedoService,
-          ValidationWorkflowService,
-          DragDropService,
-          NzModalService,
-          NzContextMenuService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          {
-            provide: UserService,
-            useClass: StubUserService,
-          },
-          WorkflowStatusService,
-          ExecuteWorkflowService,
-          UndoRedoService,
-          WorkflowVersionService,
-          ...commonTestProviders,
-        ],
+        imports: workflowEditorTestImports,
+        providers: workflowEditorTestProviders,
       }).compileComponents();
     });
 
@@ -226,104 +249,9 @@ describe("WorkflowEditorComponent", () => {
       dragDropService = TestBed.inject(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model
       jointUIService = TestBed.inject(JointUIService);
-      nzModalService = TestBed.inject(NzModalService);
       undoRedoService = TestBed.inject(UndoRedoService);
       workflowVersionService = TestBed.inject(WorkflowVersionService);
       fixture.detectChanges();
-    });
-
-    it("should try to highlight the operator when user mouse clicks on an operator", () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-      // install a spy on the highlight operator function and pass the call through
-      vi.spyOn(jointGraphWrapper, "highlightOperators");
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
-
-      // unhighlight the operator in case it's automatically highlighted
-      jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
-
-      // find the joint Cell View object of the operator element
-      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
-      jointCellView.$el.trigger("mousedown");
-
-      fixture.detectChanges();
-
-      // assert the function is called once
-      // expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
-      // assert the highlighted operator is correct
-      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
-    });
-
-    it("should highlight the commentBox when user clicks on a commentBox", () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-      vi.spyOn(jointGraphWrapper, "highlightCommentBoxes");
-      workflowActionService.addCommentBox(mockCommentBox);
-      jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
-      const jointCellView = component.paper.findViewByModel(mockCommentBox.commentBoxID);
-      jointCellView.$el.trigger("mousedown");
-      fixture.detectChanges();
-      expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([mockCommentBox.commentBoxID]);
-    });
-
-    it("should open commentBox as NzModal when user double clicks on a commentBox", () => {
-      const modalRef: NzModalRef = nzModalService.create({
-        nzTitle: "CommentBox",
-        nzContent: NzModalCommentBoxComponent,
-        nzData: { commentBox: createYTypeFromObject(mockCommentBox) },
-        nzAutofocus: null,
-        nzFooter: [
-          {
-            label: "OK",
-            onClick: () => {
-              modalRef.destroy();
-            },
-            type: "primary",
-          },
-        ],
-      });
-      vi.spyOn(nzModalService, "create").mockReturnValue(modalRef);
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-      workflowActionService.addCommentBox(mockCommentBox);
-      jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
-      const jointCellView = component.paper.findViewByModel(mockCommentBox.commentBoxID);
-      jointCellView.$el.trigger("dblclick");
-      expect(nzModalService.create).toHaveBeenCalled();
-      fixture.detectChanges();
-      modalRef.destroy();
-    });
-
-    it("should unhighlight all highlighted operators when user mouse clicks on the blank space", () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-
-      // add and highlight two operators
-      workflowActionService.addOperatorsAndLinks(
-        [
-          { op: mockScanPredicate, pos: mockPoint },
-          { op: mockResultPredicate, pos: mockPoint },
-        ],
-        []
-      );
-      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID, mockResultPredicate.operatorID);
-
-      // assert that both operators are highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
-      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
-
-      // find a blank area on the JointJS paper
-      const blankPoint = { x: mockPoint.x + 100, y: mockPoint.y + 100 };
-      expect(component.paper.findViewsFromPoint(blankPoint)).toEqual([]);
-
-      // trigger a click on the blank area using JointJS paper's jQuery element
-      const point = component.paper.localToClientPoint(blankPoint);
-      const event = createJQueryEvent("mousedown", {
-        clientX: point.x,
-        clientY: point.y,
-      });
-      component.paper.$el.trigger(event);
-
-      fixture.detectChanges();
-
-      // assert that all operators are unhighlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
     });
 
     it("should react to operator highlight event and change the appearance of the operator to be highlighted", () => {
@@ -365,6 +293,34 @@ describe("WorkflowEditorComponent", () => {
       // the highlighter element should not exist
       const jointHighlighterElementAfterUnhighlight = jointCellView.$el.children(".joint-highlight-stroke");
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
+    });
+
+    it("pulls the active agent's operator results when an operator's chat popover opens", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      const agentService = TestBed.inject(AgentService);
+      vi.spyOn(agentService, "getActivelyConnectedAgentIds").mockReturnValue(["agent-1"]);
+      const fetchSpy = vi.spyOn(agentService, "fetchOperatorResults").mockImplementation(() => {});
+
+      // The operator's chat button fires `element:chat` (cell view, DOM event, x, y);
+      // opening the popover should pull the active agent's results on demand.
+      (component.paper as any).trigger("element:chat", jointCellView, new Event("click"), 0, 0);
+
+      expect(fetchSpy).toHaveBeenCalledWith("agent-1");
+    });
+
+    it("does not pull operator results when no agent is connected", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      const agentService = TestBed.inject(AgentService);
+      vi.spyOn(agentService, "getActivelyConnectedAgentIds").mockReturnValue([]);
+      const fetchSpy = vi.spyOn(agentService, "fetchOperatorResults").mockImplementation(() => {});
+
+      (component.paper as any).trigger("element:chat", jointCellView, new Event("click"), 0, 0);
+
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it("should react to operator validation and change the color of operator box if the operator is valid ", () => {
@@ -844,53 +800,6 @@ describe("WorkflowEditorComponent", () => {
     //   }
     // });
 
-    it("should highlight multiple operators when user clicks on them with shift key pressed", () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      workflowActionService.addOperator(mockResultPredicate, mockPoint);
-      jointGraphWrapper.highlightOperators(mockResultPredicate.operatorID);
-
-      // assert that only the last operator is highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
-      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).not.toContain(mockScanPredicate.operatorID);
-
-      // find the joint Cell View object of the first operator element
-      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
-
-      // trigger a shift click on the cell view using its jQuery element
-      const event = createJQueryEvent("mousedown", { shiftKey: true });
-      jointCellView.$el.trigger(event);
-
-      fixture.detectChanges();
-
-      // assert that both operators are highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
-      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
-    });
-
-    it("should unhighlight the highlighted operator when user clicks on it with shift key pressed", () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
-
-      // assert that the operator is highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
-
-      // find the joint Cell View object of the operator element
-      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
-
-      // trigger a shift click on the cell view using its jQuery element
-      const event = createJQueryEvent("mousedown", { shiftKey: true });
-      jointCellView.$el.trigger(event);
-
-      fixture.detectChanges();
-
-      // assert that the operator is unhighlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).not.toContain(mockScanPredicate.operatorID);
-    });
-
     it("should highlight all operators when user presses command + A", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
@@ -961,6 +870,384 @@ describe("WorkflowEditorComponent", () => {
       document.dispatchEvent(controlShitZEvent);
       fixture.detectChanges();
       expect(redoSpy).toHaveBeenCalledTimes(4);
+    });
+
+    /**
+     * Regression coverage for the bug where the operator border resets to the
+     * default (gray) when the user navigates away from and back to a workflow
+     * that has already finished executing. Both the operator-add stream and
+     * the validation stream route their final border decision through
+     * applyOperatorBorder, which encodes the priority: invalid > cached
+     * execution state > default valid. These tests assert the operator's
+     * actual final rect.body/stroke on the paper, so they pin down the visible
+     * outcome rather than the internal helper calls.
+     */
+    describe("operator border restoration after navigation", () => {
+      let workflowStatusService: WorkflowStatusService;
+      const cachedCompleted = {
+        [mockScanPredicate.operatorID]: {
+          operatorState: OperatorState.Completed,
+          aggregatedInputRowCount: 0,
+          inputPortMetrics: {},
+          aggregatedOutputRowCount: 0,
+          outputPortMetrics: {},
+        },
+      };
+      const getStroke = (operatorID: string): string =>
+        component.paper.getModelById(operatorID).attr("rect.body/stroke") as string;
+
+      beforeEach(() => {
+        workflowStatusService = TestBed.inject(WorkflowStatusService);
+      });
+
+      it("paints the execution-state stroke (green) for a valid operator with a cached Completed status", () => {
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue(cachedCompleted);
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        expect(getStroke(mockScanPredicate.operatorID)).toBe("green");
+      });
+
+      it("falls back to the default valid stroke (#CFCFCF) when no cached status exists", () => {
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        expect(getStroke(mockScanPredicate.operatorID)).toBe("#CFCFCF");
+      });
+
+      it("paints the invalid stroke (red) for an invalid operator with no cached status", () => {
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: false, messages: {} });
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
+      });
+
+      it("prioritizes invalid (red) over cached Completed status", () => {
+        // Regression case: operator is both invalid AND has a cached Completed
+        // status. applyOperatorBorder must pick red regardless of the order in
+        // which the operator-add and validation streams fire.
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue(cachedCompleted);
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: false, messages: {} });
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
+      });
+
+      it("relies solely on the passed-in Validation (never recomputes inside the helper)", () => {
+        // Let the validation chain settle from the operator-add so the spy
+        // below is created after those calls and starts with a clean slate.
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        const validateSpy = vi.spyOn(validationWorkflowService, "validateOperator");
+
+        // The helper takes the Validation as a required argument and must use it
+        // directly — it has no fallback path that calls validateOperator itself.
+        (component as any).applyOperatorBorder(mockScanPredicate.operatorID, { isValid: true });
+
+        expect(validateSpy).not.toHaveBeenCalled();
+      });
+
+      it("honors the passed-in Validation result (paints red when it is invalid)", () => {
+        // Proves the passed-in value actually drives the border: an invalid
+        // result must paint red.
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        (component as any).applyOperatorBorder(mockScanPredicate.operatorID, { isValid: false, messages: {} });
+
+        expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
+      });
+
+      it("always supplies a Validation to applyOperatorBorder when an operator is added", () => {
+        // Both subscribers (operator-add and the validation stream) call
+        // applyOperatorBorder on add with identical args, so this asserts the
+        // required-parameter contract holds through the add flow — every call
+        // carries a Validation, never undefined — rather than isolating the
+        // operator-add caller specifically.
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
+        const applyBorderSpy = vi.spyOn(component as any, "applyOperatorBorder");
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        expect(applyBorderSpy).toHaveBeenCalledWith(mockScanPredicate.operatorID, { isValid: true });
+      });
+    });
+
+    /**
+     * Covers the JointJS paper event handlers wired in ngAfterViewInit. Each test
+     * drives the real paper by triggering the callback event the handler subscribes
+     * to (element:delete, element:*-port, element:magnet:pointerclick, cell:pointerdown,
+     * cell:pointerdblclick, link:mouseenter/leave, center-event) and asserts the
+     * resulting graph / router / paper state. Mouse-wheel pan/zoom and clipboard
+     * copy/cut/paste are intentionally excluded — those need real-browser DOM.
+     */
+    describe("joint paper event handlers", () => {
+      // A predicate whose type exists in the stub metadata but with dynamic ports
+      // enabled, so the add/remove-port handlers' addPort calls are accepted.
+      const dynamicPortPredicate: OperatorPredicate = {
+        ...mockMultiInputOutputPredicate,
+        operatorID: "dynamic-port-op",
+        inputPorts: [{ portID: "input-0" }],
+        outputPorts: [{ portID: "output-0" }],
+        dynamicInputPorts: true,
+        dynamicOutputPorts: true,
+      };
+
+      it("deletes the operator when its element:delete button fires", () => {
+        const texeraGraph = workflowActionService.getTexeraGraph();
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+        // The `.delete-button` fires `element:delete` (cell view, DOM event, x, y);
+        // fromJointPaperEvent only emits the arg array when several args are passed.
+        (component.paper as any).trigger("element:delete", view, new Event("click"), 0, 0);
+
+        expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBe(false);
+      });
+
+      it("adds then removes an input port on the matching element port events", () => {
+        const texeraGraph = workflowActionService.getTexeraGraph();
+        const opID = dynamicPortPredicate.operatorID;
+        workflowActionService.addOperator(dynamicPortPredicate, mockPoint);
+        const view = component.paper.findViewByModel(opID);
+        expect(texeraGraph.getOperator(opID).inputPorts.length).toEqual(1);
+
+        // The port buttons fire `element:*-port` (cell view, DOM event, x, y);
+        // fromJointPaperEvent only emits the arg array when several args are passed.
+        (component.paper as any).trigger("element:add-input-port", view, new Event("click"), 0, 0);
+        expect(texeraGraph.getOperator(opID).inputPorts.length).toEqual(2);
+
+        (component.paper as any).trigger("element:remove-input-port", view, new Event("click"), 0, 0);
+        expect(texeraGraph.getOperator(opID).inputPorts.length).toEqual(1);
+      });
+
+      it("adds then removes an output port on the matching element port events", () => {
+        const texeraGraph = workflowActionService.getTexeraGraph();
+        const opID = dynamicPortPredicate.operatorID;
+        workflowActionService.addOperator(dynamicPortPredicate, mockPoint);
+        const view = component.paper.findViewByModel(opID);
+        expect(texeraGraph.getOperator(opID).outputPorts.length).toEqual(1);
+
+        // The port buttons fire `element:*-port` (cell view, DOM event, x, y);
+        // fromJointPaperEvent only emits the arg array when several args are passed.
+        (component.paper as any).trigger("element:add-output-port", view, new Event("click"), 0, 0);
+        expect(texeraGraph.getOperator(opID).outputPorts.length).toEqual(2);
+
+        (component.paper as any).trigger("element:remove-output-port", view, new Event("click"), 0, 0);
+        expect(texeraGraph.getOperator(opID).outputPorts.length).toEqual(1);
+      });
+
+      it("highlights the clicked port when a port magnet is clicked", () => {
+        const wrapper = workflowActionService.getJointGraphWrapper();
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+        const magnet = { getAttribute: (name: string) => (name === "port" ? "output-0" : null) };
+
+        (component.paper as any).trigger("element:magnet:pointerclick", view, { shiftKey: false }, magnet);
+
+        expect(wrapper.getCurrentHighlightedPortIDs()).toContainEqual({
+          operatorID: mockScanPredicate.operatorID,
+          portID: "output-0",
+        });
+      });
+
+      it("supports shift-click multiselect, toggle-off, and blank-area unhighlight", () => {
+        const wrapper = workflowActionService.getJointGraphWrapper();
+        workflowActionService.addOperatorsAndLinks(
+          [
+            { op: mockScanPredicate, pos: mockPoint },
+            { op: mockResultPredicate, pos: mockPoint },
+          ],
+          []
+        );
+        wrapper.unhighlightOperators(...wrapper.getCurrentHighlightedOperatorIDs());
+        const viewA = component.paper.findViewByModel(mockScanPredicate.operatorID);
+        const viewB = component.paper.findViewByModel(mockResultPredicate.operatorID);
+
+        // plain click highlights only operator A
+        (component.paper as any).trigger("cell:pointerdown", viewA, { shiftKey: false });
+        expect(wrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
+
+        // shift-click adds operator B to the selection
+        (component.paper as any).trigger("cell:pointerdown", viewB, { shiftKey: true });
+        expect([...wrapper.getCurrentHighlightedOperatorIDs()].sort()).toEqual(
+          [mockScanPredicate.operatorID, mockResultPredicate.operatorID].sort()
+        );
+
+        // shift-clicking an already-highlighted operator toggles it off
+        (component.paper as any).trigger("cell:pointerdown", viewB, { shiftKey: true });
+        expect(wrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
+
+        // clicking the blank canvas unhighlights everything
+        (component.paper as any).trigger("blank:pointerdown");
+        expect(wrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
+        // blank:pointerdown starts the paper-pan gesture, which listens on document.mousemove
+        // until a mouseup; fire mouseup so that listener does not leak into later tests.
+        document.dispatchEvent(new MouseEvent("mouseup"));
+      });
+
+      it("opens the comment box modal on a comment box double-click", () => {
+        const nzModalService = TestBed.inject(NzModalService);
+        const createSpy = vi.spyOn(nzModalService, "create").mockReturnValue({ afterClose: of(undefined) } as any);
+        workflowActionService.addCommentBox(mockCommentBox);
+        const view = component.paper.findViewByModel(mockCommentBox.commentBoxID);
+
+        (component.paper as any).trigger("cell:pointerdblclick", view, { shiftKey: false });
+
+        expect(createSpy).toHaveBeenCalledTimes(1);
+        expect(createSpy.mock.calls[0][0]).toEqual(expect.objectContaining({ nzTitle: "Comments" }));
+      });
+
+      it("opens the comment box modal when the URL fragment matches an added comment box", () => {
+        const nzModalService = TestBed.inject(NzModalService);
+        const createSpy = vi.spyOn(nzModalService, "create").mockReturnValue({ afterClose: of(undefined) } as any);
+        const route = TestBed.inject(ActivatedRoute);
+        (route.snapshot as any).fragment = mockCommentBox.commentBoxID;
+
+        workflowActionService.addCommentBox(mockCommentBox);
+
+        expect(createSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it("attaches link tools when the cursor enters a link", () => {
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        workflowActionService.addOperator(mockResultPredicate, mockPoint);
+        workflowActionService.addLink(mockScanResultLink);
+        const linkView = component.paper.findViewByModel(mockScanResultLink.linkID);
+
+        // `link:mouseenter` fires (link view, DOM event, x, y); fromJointPaperEvent
+        // only emits the arg array when several args are passed.
+        (component.paper as any).trigger("link:mouseenter", linkView, new Event("mouseenter"), 0, 0);
+
+        expect((linkView as any).hasTools()).toBe(true);
+      });
+
+      it("hides link tools when the cursor leaves a link", () => {
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        workflowActionService.addOperator(mockResultPredicate, mockPoint);
+        workflowActionService.addLink(mockScanResultLink);
+        const linkView = component.paper.findViewByModel(mockScanResultLink.linkID);
+        // Enter first so tools are actually attached, then leave. Both events fire with the
+        // full (link view, DOM event, x, y) payload, since fromJointPaperEvent only emits the
+        // arg array when several args are passed.
+        (component.paper as any).trigger("link:mouseenter", linkView, new Event("mouseenter"), 0, 0);
+        expect((linkView as any).hasTools()).toBe(true);
+
+        // On leave the handler hides (does not remove) the tools and marks the remove button
+        // hidden; spy so the assertion reflects the handler running, not the default markup.
+        const hideToolsSpy = vi.spyOn(linkView as any, "hideTools");
+        (component.paper as any).trigger("link:mouseleave", linkView, new Event("mouseleave"), 0, 0);
+
+        expect(hideToolsSpy).toHaveBeenCalled();
+        expect(linkView.model.attr(".tool-remove/display")).toEqual("none");
+      });
+
+      it("writes the highlighted operator to the URL fragment and clears it on unhighlight", () => {
+        const router = TestBed.inject(Router);
+        const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        const wrapper = workflowActionService.getJointGraphWrapper();
+        wrapper.unhighlightOperators(...wrapper.getCurrentHighlightedOperatorIDs());
+
+        // highlighting exactly one element sets the fragment to that element's ID
+        navigateSpy.mockClear();
+        wrapper.highlightOperators(mockScanPredicate.operatorID);
+        expect(navigateSpy).toHaveBeenLastCalledWith(
+          [],
+          expect.objectContaining({ fragment: mockScanPredicate.operatorID })
+        );
+
+        // dropping back to zero highlighted elements clears the fragment
+        navigateSpy.mockClear();
+        wrapper.unhighlightOperators(mockScanPredicate.operatorID);
+        expect(navigateSpy).toHaveBeenLastCalledWith([], expect.objectContaining({ fragment: undefined }));
+      });
+
+      it("translates the paper toward the computed center on a center event", () => {
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        const translateSpy = vi.spyOn(component.paper, "translate");
+
+        (workflowActionService.getTexeraGraph() as any).triggerCenterEvent();
+
+        const center = workflowActionService.getCenterPoint();
+        const editor = (component as any).editor as HTMLElement;
+        const offsetX = editor.offsetWidth * 0.15;
+        const offsetY = editor.offsetHeight * 0.15;
+        expect(translateSpy).toHaveBeenCalledWith(-(center.x - offsetX), -(center.y - offsetY));
+      });
+
+      it("exposes seeded agent operator result summaries and falls back to undefined", () => {
+        const agentService = TestBed.inject(AgentService);
+        const summaries = new Map<string, OperatorResultSummary>();
+        summaries.set("op-a", {
+          state: "Completed",
+          inputTuples: 1,
+          outputTuples: 2,
+          sampleRecords: [{ colA: "x" }],
+          resultStatistics: { rowCount: "2" },
+        });
+        (agentService as any).operatorResultSummariesSubject.next(summaries);
+
+        expect(component.getOperatorSampleRecords("op-a")).toEqual([{ colA: "x" }]);
+        expect(component.getOperatorResultStatistics("op-a")).toEqual({ rowCount: "2" });
+        expect(component.getOperatorSampleRecords("missing")).toBeUndefined();
+        expect(component.getOperatorResultStatistics("missing")).toBeUndefined();
+      });
+
+      it("detects visualization operators from the __is_visualization__ marker", () => {
+        const agentService = TestBed.inject(AgentService);
+        const summaries = new Map<string, OperatorResultSummary>();
+        summaries.set("viz-op", {
+          state: "Completed",
+          inputTuples: 0,
+          outputTuples: 1,
+          sampleRecords: [{ __is_visualization__: true }],
+        });
+        summaries.set("plain-op", {
+          state: "Completed",
+          inputTuples: 0,
+          outputTuples: 1,
+          sampleRecords: [{ colA: "x" }],
+        });
+        (agentService as any).operatorResultSummariesSubject.next(summaries);
+
+        expect(component.isOperatorVisualization("viz-op")).toBe(true);
+        expect(component.isOperatorVisualization("plain-op")).toBe(false);
+        expect(component.isOperatorVisualization("missing")).toBe(false);
+      });
+
+      it("closes the chat popover", () => {
+        component.chatPopoverOperator = { operatorId: "x", displayName: "X", position: { x: 1, y: 2 } };
+
+        component.closeChatPopover();
+
+        expect(component.chatPopoverOperator).toBeNull();
+      });
+
+      it("clears agent action labels from every operator", () => {
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        const element = component.paper.getModelById(mockScanPredicate.operatorID);
+        jointUIService.showAgentActionLabel(component.paper, mockScanPredicate.operatorID, "viewed", "TestAgent");
+        expect(element.attr(`.${operatorAgentActionProgressClass}/visibility`)).toEqual("visible");
+
+        (component as any).clearAllAgentActionLabels();
+
+        expect(element.attr(`.${operatorAgentActionProgressClass}/visibility`)).toEqual("hidden");
+      });
     });
   });
 });

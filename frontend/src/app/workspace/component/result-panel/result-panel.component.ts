@@ -58,7 +58,6 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
-import { FormlyRepeatDndComponent } from "../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 export const DEFAULT_WIDTH = 800;
 export const DEFAULT_HEIGHT = 500;
@@ -90,7 +89,6 @@ export const DEFAULT_HEIGHT = 500;
     NgFor,
     NgComponentOutlet,
     NzResizeHandlesComponent,
-    FormlyRepeatDndComponent,
     KeyValuePipe,
   ],
 })
@@ -136,6 +134,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.updateReturnPosition(DEFAULT_HEIGHT, this.height);
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
+    this.registerResultClearedHandler();
     this.handleResultPanelForVersionPreview();
     this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
     this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
@@ -215,6 +214,22 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
             }
           }
         }
+      });
+  }
+
+  /**
+   * Wipe the panel when results are dropped (e.g. switching computing units): a
+   * still-highlighted operator isn't re-rendered, so its stale frames would linger.
+   */
+  registerResultClearedHandler() {
+    this.workflowResultService
+      .getResultClearedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.clearResultPanel();
+        this.currentOperatorId = undefined;
+        this.operatorTitle = "";
+        this.changeDetectorRef.detectChanges();
       });
   }
 

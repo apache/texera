@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.workflow.WorkflowContext
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.engine.architecture.controller.{
+import org.apache.texera.amber.engine.architecture.coordinator.{
   ExecutionStateUpdate,
   ExecutionStatsUpdate,
   FatalError,

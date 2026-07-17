@@ -29,6 +29,8 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -45,12 +47,14 @@ class StripChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @JsonSchemaTitle("X-Axis Column")
   @JsonPropertyDescription("Column containing numeric values for the x-axis")
   @AutofillAttributeName
+  @NotNull(message = "X-Axis Column cannot be empty")
   var x: EncodableString = ""
 
   @JsonProperty(value = "y", required = true)
   @JsonSchemaTitle("Y-Axis Column")
   @JsonPropertyDescription("Column containing categorical values for the y-axis")
   @AutofillAttributeName
+  @NotNull(message = "Y-Axis Column cannot be empty")
   var y: EncodableString = ""
 
   @JsonProperty(value = "colorBy", required = false)

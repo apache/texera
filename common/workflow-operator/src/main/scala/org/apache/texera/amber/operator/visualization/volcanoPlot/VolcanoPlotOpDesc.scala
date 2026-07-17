@@ -29,6 +29,8 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -46,7 +48,9 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
       "of change between two experimental groups. This value is typically a log2 fold change " +
       "and is used for the x-axis of the volcano plot."
   )
-  @AutofillAttributeName var effectColumn: EncodableString = ""
+  @AutofillAttributeName
+  @NotNull(message = "Effect Size (log2 Fold Change) cannot be empty")
+  var effectColumn: EncodableString = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("P-Value Column")
@@ -55,7 +59,9 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
       "statistical test for each feature. This value is transformed using -log10(p-value) and " +
       "plotted on the y-axis to indicate statistical significance."
   )
-  @AutofillAttributeName var pvalueColumn: EncodableString = ""
+  @AutofillAttributeName
+  @NotNull(message = "P-Value Column cannot be empty")
+  var pvalueColumn: EncodableString = ""
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(

@@ -41,7 +41,7 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("Numeric column used to compute the empirical cumulative distribution.")
   @AutofillAttributeName
-  @NotNull(message = "Value column cannot be empty")
+  @NotNull(message = "Value Column cannot be empty")
   var valueColumn: EncodableString = ""
 
   @JsonProperty(required = false)
@@ -109,7 +109,7 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
   }
 
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(valueColumn.nonEmpty)
+    assert(valueColumn.nonEmpty, "Value Column cannot be empty")
     val requiredCols =
       List(
         Some(pyb"$valueColumn"),
@@ -127,7 +127,7 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
   }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(valueColumn.nonEmpty)
+    assert(valueColumn.nonEmpty, "Value Column cannot be empty")
 
     val args = scala.collection.mutable.ArrayBuffer[PythonTemplateBuilder](
       pyb"table",

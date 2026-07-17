@@ -29,6 +29,8 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 /**
   * Visualization Operator for Tree Plots.
   *
@@ -43,6 +45,7 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
   @JsonPropertyDescription("Column with [parent, child] pairs")
   @AutofillAttributeName
   @SampleColumn("edge_pair")
+  @NotNull(message = "Edge List Column cannot be empty")
   var edgeListColumn: EncodableString = ""
 
   override def operatorInfo: OperatorInfo =
@@ -63,7 +66,7 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
   }
 
   override def generatePythonCode(): String = {
-    assert(edgeListColumn.nonEmpty)
+    assert(edgeListColumn.nonEmpty, "Edge List Column cannot be empty")
 
     pyb"""
        |from pytexera import *

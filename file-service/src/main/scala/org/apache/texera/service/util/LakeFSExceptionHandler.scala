@@ -46,17 +46,36 @@ object LakeFSExceptionHandler {
     try {
       call
     } catch {
-      case e: io.lakefs.clients.sdk.ApiException => handleException(e)
+      case e: io.lakefs.clients.sdk.ApiException => handleException(e, None)
+    }
+  }
+
+  /**
+    * Wraps a LakeFS call with centralized error handling, prefixing the
+    * user-visible message with the operation that failed
+    * (e.g. "deleting file 'a.csv' from dataset 'd1'").
+    */
+  def withLakeFSErrorHandling[T](operation: String)(call: => T): T = {
+    try {
+      call
+    } catch {
+      case e: io.lakefs.clients.sdk.ApiException => handleException(e, Some(operation))
     }
   }
 
   /**
     * Converts LakeFS ApiException to appropriate HTTP exception
     */
-  private def handleException(e: io.lakefs.clients.sdk.ApiException): Nothing = {
+  private def handleException(
+      e: io.lakefs.clients.sdk.ApiException,
+      operation: Option[String]
+  ): Nothing = {
     val code = e.getCode
     val rawBody = Option(e.getResponseBody).filter(_.nonEmpty)
-    val message = s"${fallbackMessages(code)}"
+    val message = operation match {
+      case Some(op) => s"Error while $op: ${fallbackMessages(code)}"
+      case None     => fallbackMessages(code)
+    }
 
     logger.warn(s"LakeFS error $code, ${e.getMessage}, body: ${rawBody.getOrElse("N/A")}")
 

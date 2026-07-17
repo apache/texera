@@ -17,4 +17,17 @@
  * under the License.
  */
 
-@import "../../../dashboard/component/user/search/search.component";
+@use "../../../dashboard/component/user/search/search.component" as *;
+
+.filter {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-toggle {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: auto;
+}

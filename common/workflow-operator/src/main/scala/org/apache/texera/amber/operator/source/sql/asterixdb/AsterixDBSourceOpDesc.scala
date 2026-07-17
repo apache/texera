@@ -130,7 +130,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "AsterixDB Source",
-      "Read data from a AsterixDB instance",
+      "Read data from an AsterixDB instance",
       OperatorGroupConstants.DATABASE_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
@@ -139,9 +139,13 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   override def updatePort(): Unit = port = if (port.trim().equals("default")) "19002" else port
 
   override def sourceSchema(): Schema = {
-    if (this.host == null || this.port == null || this.database == null || this.table == null) {
-      return null
-    }
+    require(host != null && host.trim.nonEmpty, "Please enter a valid host name for AsterixDB.")
+    require(port != null && port.trim.nonEmpty, "Please enter a valid port for AsterixDB.")
+    require(
+      database != null && database.trim.nonEmpty,
+      "Please enter a valid database name for AsterixDB."
+    )
+    require(table != null && table.trim.nonEmpty, "Please enter a valid table name for AsterixDB.")
 
     updatePort()
 

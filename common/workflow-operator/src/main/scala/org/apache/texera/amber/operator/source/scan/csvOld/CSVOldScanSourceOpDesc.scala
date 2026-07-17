@@ -104,13 +104,22 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
   }
 
   override def sourceSchema(): Schema = {
-    if (customDelimiter.isEmpty || !fileResolved()) {
-      return null
+    val delimiterChar = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0)
+    require(
+      fileResolved(),
+      "No file selected. Please select a valid .csv file from the 'File' dropdown in the right panel."
+    )
+
+    val uri = new URI(fileName.get)
+    if (uri.getScheme == "file") {
+      require(
+        new java.io.File(uri).isFile,
+        "The selected item is a folder or does not exist. Please select an actual .csv file from the 'File' dropdown."
+      )
     }
-    // infer schema from the first few lines of the file
-    val file = DocumentFactory.openReadonlyDocument(new URI(fileName.get)).asFile()
+    val file = DocumentFactory.openReadonlyDocument(uri).asFile()
     implicit object CustomFormat extends DefaultCSVFormat {
-      override val delimiter: Char = customDelimiter.get.charAt(0)
+      override val delimiter: Char = delimiterChar
     }
     var reader: CSVReader =
       CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
@@ -131,10 +140,13 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
 
     reader.close()
 
-    // build schema based on inferred AttributeTypes
+    // build schema based on inferred AttributeTypes.
+    // Auto-rename blank header positions to `column-N` so empty CSV headers
+    // (e.g. a trailing comma) do not propagate empty attribute names to
+    // downstream Iceberg/Parquet writers, which reject them.
     Schema().add(firstRow.indices.map { i =>
       new Attribute(
-        if (hasHeader) firstRow(i) else s"column-${i + 1}",
+        if (hasHeader && firstRow(i).nonEmpty) firstRow(i) else s"column-${i + 1}",
         attributeTypeList(i)
       )
     })

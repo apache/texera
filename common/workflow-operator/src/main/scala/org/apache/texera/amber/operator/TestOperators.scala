@@ -31,7 +31,6 @@ import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
-import org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 
@@ -140,25 +139,6 @@ object TestOperators {
     aggOp
   }
 
-  def inMemoryMySQLSourceOpDesc(
-      host: String,
-      port: String,
-      database: String,
-      table: String,
-      username: String,
-      password: String
-  ): MySQLSourceOpDesc = {
-    val inMemoryMySQLSourceOpDesc = new MySQLSourceOpDesc()
-    inMemoryMySQLSourceOpDesc.host = host
-    inMemoryMySQLSourceOpDesc.port = port
-    inMemoryMySQLSourceOpDesc.database = database
-    inMemoryMySQLSourceOpDesc.table = table
-    inMemoryMySQLSourceOpDesc.username = username
-    inMemoryMySQLSourceOpDesc.password = password
-    inMemoryMySQLSourceOpDesc.limit = Some(1000)
-    inMemoryMySQLSourceOpDesc
-  }
-
   // TODO: use mock data to perform the test, remove dependency on the real AsterixDB
   def asterixDBSourceOpDesc(): AsterixDBSourceOpDesc = {
     val asterixDBOp = new AsterixDBSourceOpDesc()
@@ -197,6 +177,26 @@ object TestOperators {
                  |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
                  |        for i in range($numTuple):
                  |          yield {'field_1': str(i) }
+                 |""".stripMargin
+    udf
+  }
+
+  // Emits `numTuple` rows with a "Region" column, sleeping `delaySeconds`
+  // between rows.
+  def slowRegionSourceOpDesc(numTuple: Int, delaySeconds: Double): PythonUDFSourceOpDescV2 = {
+    val udf = new PythonUDFSourceOpDescV2()
+    udf.workers = 1
+    udf.columns = List(new Attribute("Region", AttributeType.STRING))
+    udf.code = s"""
+                 |from pytexera import *
+                 |import time
+                 |
+                 |class UDFSourceOperator(UDFSourceOperator):
+                 |    @overrides
+                 |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
+                 |        for i in range($numTuple):
+                 |            time.sleep($delaySeconds)
+                 |            yield {'Region': 'Asia'}
                  |""".stripMargin
     udf
   }

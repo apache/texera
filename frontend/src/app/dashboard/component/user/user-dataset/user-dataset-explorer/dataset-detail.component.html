@@ -19,100 +19,109 @@
 
 <div *ngIf="!isMaximized">
   <nz-card>
-    <h2>Dataset: {{datasetName}}</h2>
-    <nz-card-meta
-      style="padding-top: 5px"
-      [nzDescription]="descriptionTemplate">
-      <ng-template #descriptionTemplate>
-        Created at:
-        <span
-          nz-tooltip
-          [nzTooltipTitle]="datasetCreationTimeTooltip">
-          {{datasetCreationTime}}
-        </span>
-      </ng-template>
-    </nz-card-meta>
+    <div class="dataset-header">
+      <div class="dataset-header-meta">
+        <h2>Dataset: {{datasetName}}</h2>
+        <nz-card-meta
+          style="padding-top: 5px"
+          [nzDescription]="descriptionTemplate">
+          <ng-template #descriptionTemplate>
+            Created at:
+            <span
+              nz-tooltip
+              [nzTooltipTitle]="datasetCreationTimeTooltip">
+              {{datasetCreationTime}}
+            </span>
+          </ng-template>
+        </nz-card-meta>
 
-    <div class="status-tag-row">
-      <nz-tag
-        class="status-tag"
-        [ngClass]="{ 'tag-public': datasetIsPublic }">
-        <i
-          nz-icon
-          [nzType]="datasetIsPublic ? 'global' : 'lock'"
-          nzTheme="outline"></i>
-        {{ datasetIsPublic ? "Public" : "Private" }}
-      </nz-tag>
+        <div class="status-tag-row">
+          <nz-tag
+            class="status-tag"
+            [ngClass]="{ 'tag-public': datasetIsPublic }">
+            <i
+              nz-icon
+              [nzType]="datasetIsPublic ? 'global' : 'lock'"
+              nzTheme="outline"></i>
+            {{ datasetIsPublic ? "Public" : "Private" }}
+          </nz-tag>
 
-      <nz-tag
-        class="status-tag"
-        [ngClass]="{ 'tag-downloadable': datasetIsDownloadable }">
-        <i
-          nz-icon
-          [nzType]="datasetIsDownloadable ? 'download' : 'stop'"
-          nzTheme="outline"></i>
-        {{ datasetIsDownloadable ? "Downloadable" : "Download restricted" }}
-      </nz-tag>
+          <nz-tag
+            class="status-tag"
+            [ngClass]="{ 'tag-downloadable': datasetIsDownloadable }">
+            <i
+              nz-icon
+              [nzType]="datasetIsDownloadable ? 'download' : 'stop'"
+              nzTheme="outline"></i>
+            {{ datasetIsDownloadable ? "Downloadable" : "Download restricted" }}
+          </nz-tag>
 
-      <nz-tag class="status-tag">
-        <i
-          nz-icon
-          nzType="eye"
-          nzTheme="outline"></i>
-        {{ formatCount(viewCount) }}
-      </nz-tag>
+          <nz-tag class="status-tag">
+            <i
+              nz-icon
+              nzType="eye"
+              nzTheme="outline"></i>
+            {{ formatCount(viewCount) }}
+          </nz-tag>
 
-      <nz-tag
-        class="status-tag like-tag"
-        [ngClass]="{ liked: isLiked, disabled: !isLogin }"
-        (click)="isLogin && toggleLike()">
-        <i
-          nz-icon
-          nzType="like"
-          nzTheme="outline"></i>
-        {{ formatCount(likeCount) }}
-      </nz-tag>
+          <nz-tag
+            class="status-tag like-tag"
+            [ngClass]="{ liked: isLiked, disabled: !isLogin }"
+            (click)="isLogin && toggleLike()">
+            <i
+              nz-icon
+              nzType="like"
+              nzTheme="outline"></i>
+            {{ formatCount(likeCount) }}
+          </nz-tag>
 
-      <button
-        *ngIf="userHasWriteAccess()"
-        nz-button
-        nzType="text"
-        class="tag-settings-btn"
-        nz-popover
-        nzPopoverTrigger="click"
-        nzPopoverPlacement="bottomRight"
-        [nzPopoverContent]="tagSettingsPopover"
-        nz-tooltip
-        nzTooltipTitle="Settings">
-        <i
-          nz-icon
-          nzType="setting"
-          nzTheme="outline"></i>
-      </button>
+          <button
+            *ngIf="userHasWriteAccess()"
+            nz-button
+            nzType="text"
+            class="tag-settings-btn"
+            nz-popover
+            nzPopoverTrigger="click"
+            nzPopoverPlacement="bottomRight"
+            [nzPopoverContent]="tagSettingsPopover"
+            nz-tooltip
+            nzTooltipTitle="Settings">
+            <i
+              nz-icon
+              nzType="setting"
+              nzTheme="outline"></i>
+          </button>
 
-      <ng-template #tagSettingsPopover>
-        <div>
-          <div class="tag-settings-title">Quick Settings</div>
-          <div class="tag-settings-row">
-            <span>Visibility:</span>
-            <nz-switch
-              [ngModel]="datasetIsPublic"
-              (ngModelChange)="onPublicStatusChange($event)"
-              [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
-              nzCheckedChildren="public"
-              nzUnCheckedChildren="private"></nz-switch>
-          </div>
-          <div class="tag-settings-row">
-            <span>Downloadable:</span>
-            <nz-switch
-              [ngModel]="datasetIsDownloadable"
-              (ngModelChange)="onDownloadableStatusChange($event)"
-              [nzDisabled]="!isOwner"
-              nzCheckedChildren="allowed"
-              nzUnCheckedChildren="blocked"></nz-switch>
-          </div>
+          <ng-template #tagSettingsPopover>
+            <div>
+              <div class="tag-settings-title">Quick Settings</div>
+              <div class="tag-settings-row">
+                <span>Visibility:</span>
+                <nz-switch
+                  [ngModel]="datasetIsPublic"
+                  (ngModelChange)="onPublicStatusChange($event)"
+                  [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+                  nzCheckedChildren="public"
+                  nzUnCheckedChildren="private"></nz-switch>
+              </div>
+              <div class="tag-settings-row">
+                <span>Downloadable:</span>
+                <nz-switch
+                  [ngModel]="datasetIsDownloadable"
+                  (ngModelChange)="onDownloadableStatusChange($event)"
+                  [nzDisabled]="!isOwner"
+                  nzCheckedChildren="allowed"
+                  nzUnCheckedChildren="blocked"></nz-switch>
+              </div>
+            </div>
+          </ng-template>
         </div>
-      </ng-template>
+      </div>
+      <img
+        *ngIf="coverImageUrl"
+        class="dataset-cover-image"
+        [src]="coverImageUrl"
+        alt="Dataset cover" />
     </div>
 
     <div class="description-section">
@@ -244,7 +253,6 @@
   <nz-sider
     *ngIf="!isRightBarCollapsed"
     nzTheme="light"
-    style="float: right; height: 100%"
     [nzWidth]="siderWidth"
     nz-resizable
     [nzMinWidth]="MIN_SIDER_WIDTH"
@@ -330,6 +338,7 @@
           nzActive="true"
           nzHeader="Create New Version">
           <texera-user-files-uploader
+            [did]="did"
             [ownerEmail]="ownerEmail"
             [datasetName]="datasetName"
             (uploadedFiles)="onNewUploadFilesChanged($event)">
@@ -340,10 +349,26 @@
             class="upload-status-panels">
             <nz-collapse-panel
               *ngIf="queuedCount > 0"
-              [nzHeader]="'Pending: ' + queuedCount + ' file(s)'">
-              <div class="upload-progress-wrapper-pending">
-                <div *ngFor="let fileName of queuedFileNames">
-                  <span>{{ fileName }}</span>
+              [nzHeader]="'Pending: ' + queuedCount + ' file(s)'"
+              (nzActiveChange)="onPendingPanelActiveChange($event)">
+              <!-- Virtualized so only visible rows are in the DOM (#5586). The viewport
+                   measures height 0 while the panel is collapsed, so it is re-measured
+                   on expand. -->
+              <cdk-virtual-scroll-viewport
+                class="upload-progress-wrapper-pending"
+                [itemSize]="PENDING_ROW_HEIGHT_PX"
+                [minBufferPx]="PENDING_LIST_MAX_HEIGHT_PX"
+                [maxBufferPx]="2 * PENDING_LIST_MAX_HEIGHT_PX"
+                [style.height.px]="pendingListHeightPx">
+                <div
+                  class="pending-file-row"
+                  *cdkVirtualFor="let fileName of queuedFileNames; trackBy: trackByPendingFile">
+                  <span
+                    class="pending-file-name"
+                    nz-tooltip
+                    [nzTooltipTitle]="fileName"
+                    >{{ fileName }}</span
+                  >
                   <button
                     nz-button
                     nzType="text"
@@ -357,7 +382,7 @@
                       nzTheme="outline"></span>
                   </button>
                 </div>
-              </div>
+              </cdk-virtual-scroll-viewport>
             </nz-collapse-panel>
 
             <nz-divider
@@ -416,8 +441,10 @@
 
             <nz-collapse-panel
               *ngIf="hasAnyActivity"
-              [nzHeader]="'Finished: ' + pendingChangesCount + ' file(s)'">
+              [nzHeader]="'Finished: ' + pendingChangesCount + ' file(s)'"
+              (nzActiveChange)="$event && stagedObjectsList.remeasureViewport()">
               <texera-dataset-staged-objects-list
+                #stagedObjectsList
                 [uploadTimeMap]="uploadTimeMap"
                 [did]="did"
                 [userMakeChangesEvent]="userMakeChanges"

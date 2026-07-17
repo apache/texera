@@ -45,6 +45,7 @@ from core.models import Tuple, Schema, StateFrame
 from core.models.payload import DataPayload, DataFrame
 from core.models.state import State
 from core.storage.document_factory import DocumentFactory
+from core.storage.vfs_uri_factory import VFSURIFactory
 from core.storage.runnables.port_storage_writer import (
     PortStorageWriter,
     PortStorageWriterElement,
@@ -87,12 +88,16 @@ class OutputManager:
             PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
         ] = dict()
 
+        self._port_state_writers: typing.Dict[
+            PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
+        ] = dict()
+
     def is_missing_output_ports(self):
         """
         This method is only used for ensuring correct region execution.
         Some operators may have input port dependency relationships, for
         which we currently use a two-phase region execution scheme.
-        (See `RegionExecutionCoordinator.scala` for details.)
+        (See `RegionExecutionManager.scala` for details.)
         This logic will only be executed when the worker is part of an
         `executingDependeePortPhase` region-execution phase.
         We currently assume that in this phase the operator (worker) will
@@ -107,41 +112,52 @@ class OutputManager:
         self,
         port_id: PortIdentity,
         schema: Schema,
-        storage_uri: typing.Optional[str] = None,
+        storage_uri_base: typing.Optional[str] = None,
     ) -> None:
         if port_id.id is None:
             port_id.id = 0
         if port_id.internal is None:
             port_id.internal = False
 
-        if storage_uri is not None:
-            self.set_up_port_storage_writer(port_id, storage_uri)
+        if storage_uri_base is not None:
+            self.set_up_port_storage_writer(port_id, storage_uri_base)
 
         # each port can only be added and initialized once.
         if port_id not in self._ports:
             self._ports[port_id] = WorkerPort(schema)
 
-    def set_up_port_storage_writer(self, port_id: PortIdentity, storage_uri: str):
+    def set_up_port_storage_writer(self, port_id: PortIdentity, storage_uri_base: str):
         """
         Create a separate thread for saving output tuples of a port
-        to storage in batch.
+        to storage in batch, and open a long-lived buffered writer for
+        state materialization on the same port. `storage_uri_base` is the
+        port's base URI; the result and state URIs are derived from it.
         """
-        document, _ = DocumentFactory.open_document(storage_uri)
-        buffered_item_writer = document.writer(str(get_worker_index(self.worker_id)))
-        writer_queue = Queue()
-        port_storage_writer = PortStorageWriter(
-            buffered_item_writer=buffered_item_writer, queue=writer_queue
+
+        def start_writer(uri: str, name_prefix: str, registry: dict) -> None:
+            document, _ = DocumentFactory.open_document(uri)
+            writer_queue = Queue()
+            writer = PortStorageWriter(
+                buffered_item_writer=document.writer(
+                    str(get_worker_index(self.worker_id))
+                ),
+                queue=writer_queue,
+            )
+            thread = threading.Thread(
+                target=writer.run, daemon=True, name=f"{name_prefix}_{port_id}"
+            )
+            thread.start()
+            registry[port_id] = (writer_queue, writer, thread)
+
+        start_writer(
+            VFSURIFactory.result_uri(storage_uri_base),
+            "port_storage_writer_thread",
+            self._port_storage_writers,
         )
-        writer_thread = threading.Thread(
-            target=port_storage_writer.run,
-            daemon=True,
-            name=f"port_storage_writer_thread_{port_id}",
-        )
-        writer_thread.start()
-        self._port_storage_writers[port_id] = (
-            writer_queue,
-            port_storage_writer,
-            writer_thread,
+        start_writer(
+            VFSURIFactory.state_uri(storage_uri_base),
+            "port_state_writer_thread",
+            self._port_state_writers,
         )
 
     def get_port(self, port_id=None) -> WorkerPort:
@@ -171,19 +187,44 @@ class OutputManager:
                 PortStorageWriterElement(data_tuple=tuple_)
             )
 
+    def save_state_to_storage_if_needed(
+        self,
+        state: State,
+        loop_counter: int = 0,
+        loop_start_id: str = "",
+        port_id=None,
+    ) -> None:
+        # When port_id is omitted the same state row is fanned out to
+        # every output port's state table. This mirrors the
+        # broadcast-to-all-workers behavior on the emit side: state is
+        # shared context, not per-key data, so every downstream operator
+        # (and every worker reading the materialization) needs the full
+        # set.
+        element = PortStorageWriterElement(
+            data_tuple=state.to_tuple(loop_counter, loop_start_id)
+        )
+        if port_id is None:
+            for writer_queue, _, _ in self._port_state_writers.values():
+                writer_queue.put(element)
+        elif port_id in self._port_state_writers:
+            self._port_state_writers[port_id][0].put(element)
+
     def close_port_storage_writers(self) -> None:
         """
         Flush the buffers of port storage writers and wait for all the
         writer threads to finish, which indicates the port storage writing
         are finished.
         """
-        for _, writer, _ in self._port_storage_writers.values():
-            # This non-blocking stop call will let the storage writers
-            # flush the remaining buffer
-            writer.stop()
-        for _, _, writer_thread in self._port_storage_writers.values():
-            # This blocking call will wait for all the writer to finish commit
-            writer_thread.join()
+        for registry in (self._port_storage_writers, self._port_state_writers):
+            # Non-blocking stop lets each writer flush its remaining buffer;
+            # the join then waits for the commit to finish.
+            for _, writer, _ in registry.values():
+                writer.stop()
+            for _, _, thread in registry.values():
+                thread.join()
+            # Drop the stopped writers so a later close doesn't act on
+            # stale entries.
+            registry.clear()
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """
@@ -239,7 +280,10 @@ class OutputManager:
         )
 
     def emit_state(
-        self, state: State
+        self,
+        state: State,
+        loop_counter: int = 0,
+        loop_start_id: str = "",
     ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         return chain(
             *(
@@ -247,7 +291,11 @@ class OutputManager:
                     (
                         receiver,
                         (
-                            StateFrame(payload)
+                            StateFrame(
+                                payload,
+                                loop_counter=loop_counter,
+                                loop_start_id=loop_start_id,
+                            )
                             if isinstance(payload, State)
                             else self.tuple_to_frame(payload)
                         ),

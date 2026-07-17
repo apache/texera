@@ -30,6 +30,8 @@ import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNa
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
+import javax.validation.constraints.NotNull
+
 // type constraint: xVal / yVal are stacked into a numeric point matrix for
 // hierarchical clustering, so they can only be numeric columns.
 @JsonSchemaInject(json = """
@@ -45,18 +47,21 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @JsonSchemaTitle("Value X Column")
   @JsonPropertyDescription("The x values of points in dendrogram")
   @AutofillAttributeName
+  @NotNull(message = "Value X Column cannot be empty")
   var xVal: EncodableString = ""
 
   @JsonProperty(value = "yVal", required = true)
   @JsonSchemaTitle("Value Y Column")
   @JsonPropertyDescription("The y value of points in dendrogram")
   @AutofillAttributeName
+  @NotNull(message = "Value Y Column cannot be empty")
   var yVal: EncodableString = ""
 
   @JsonProperty(value = "Labels", required = true)
   @JsonSchemaTitle("Labels")
   @JsonPropertyDescription("The label of points in dendrogram")
   @AutofillAttributeName
+  @NotNull(message = "Labels cannot be empty")
   var labels: EncodableString = ""
 
   @JsonProperty(defaultValue = "", required = false)
@@ -80,9 +85,9 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
     )
 
   private def createDendrogram(): PythonTemplateBuilder = {
-    assert(xVal.nonEmpty)
-    assert(yVal.nonEmpty)
-    assert(labels.nonEmpty)
+    assert(xVal.nonEmpty, "Value X Column cannot be empty")
+    assert(yVal.nonEmpty, "Value Y Column cannot be empty")
+    assert(labels.nonEmpty, "Labels cannot be empty")
     val strippedThreshold: EncodableString = threshold.trim
     val isThreshold =
       if (strippedThreshold.nonEmpty) pyb"color_threshold=$strippedThreshold"

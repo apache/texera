@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.scatter3DChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -29,23 +29,35 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+
+import javax.validation.constraints.NotNull
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "title": "string"
+  }
+}
+""")
 class Scatter3dChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("X Column")
   @JsonPropertyDescription("Data column for the x-axis")
   @AutofillAttributeName
+  @NotNull(message = "X Column cannot be empty")
   var x: EncodableString = ""
 
   @JsonProperty(value = "y", required = true)
   @JsonSchemaTitle("Y Column")
   @JsonPropertyDescription("Data column for the y-axis")
   @AutofillAttributeName
+  @NotNull(message = "Y Column cannot be empty")
   var y: EncodableString = ""
 
   @JsonProperty(value = "z", required = true)
   @JsonSchemaTitle("Z Column")
   @JsonPropertyDescription("Data column for the z-axis")
   @AutofillAttributeName
+  @NotNull(message = "Z Column cannot be empty")
   var z: EncodableString = ""
 
   override def getOutputSchemas(
@@ -64,9 +76,9 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
     )
 
   private def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(x.nonEmpty)
-    assert(y.nonEmpty)
-    assert(z.nonEmpty)
+    assert(x.nonEmpty, "X Column cannot be empty")
+    assert(y.nonEmpty, "Y Column cannot be empty")
+    assert(z.nonEmpty, "Z Column cannot be empty")
     pyb"""
          |        fig = go.Figure(data=[go.Scatter3d(
          |            x=table[$x],

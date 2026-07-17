@@ -23,8 +23,9 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.util.ObjectMapperUtils
+import org.apache.texera.auth.{AuthFeatures, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{
   HealthCheckResource,
@@ -57,19 +58,26 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
     // serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 
+    environment.jersey.register(classOf[HealthCheckResource])
+
+    AuthFeatures.register(environment)
+
     SqlServer.initConnection(
       StorageConfig.jdbcUrl,
       StorageConfig.jdbcUsername,
       StorageConfig.jdbcPassword
     )
 
-    environment.jersey.register(classOf[HealthCheckResource])
-
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
 
     // register the workflow-to-python endpoint
     environment.jersey.register(classOf[WorkflowToPythonResource])
+
+    RoleAnnotationEnforcer.enforce(
+      environment.jersey.getResourceConfig,
+      "WorkflowCompilingService"
+    )
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     val requestLogger = org.slf4j.LoggerFactory.getLogger("org.eclipse.jetty.server.RequestLog")

@@ -29,6 +29,8 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 class CandlestickChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "date", required = true)
@@ -36,6 +38,7 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor with StandaloneCod
   @JsonPropertyDescription("the date of the candlestick")
   @AutofillAttributeName
   @SampleColumn("trade_date")
+  @NotNull(message = "Date Column cannot be empty")
   var date: EncodableString = ""
 
   @JsonProperty(value = "open", required = true)
@@ -43,6 +46,7 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor with StandaloneCod
   @JsonPropertyDescription("the opening price of the candlestick")
   @AutofillAttributeName
   @SampleColumn("open")
+  @NotNull(message = "Opening Price Column cannot be empty")
   var open: EncodableString = ""
 
   @JsonProperty(value = "high", required = true)
@@ -50,6 +54,7 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor with StandaloneCod
   @JsonPropertyDescription("the highest price of the candlestick")
   @AutofillAttributeName
   @SampleColumn("high")
+  @NotNull(message = "Highest Price Column cannot be empty")
   var high: EncodableString = ""
 
   @JsonProperty(value = "low", required = true)
@@ -57,6 +62,7 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor with StandaloneCod
   @JsonPropertyDescription("the lowest price of the candlestick")
   @AutofillAttributeName
   @SampleColumn("low")
+  @NotNull(message = "Lowest Price Column cannot be empty")
   var low: EncodableString = ""
 
   @JsonProperty(value = "close", required = true)
@@ -64,6 +70,7 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor with StandaloneCod
   @JsonPropertyDescription("the closing price of the candlestick")
   @AutofillAttributeName
   @SampleColumn("close")
+  @NotNull(message = "Closing Price Column cannot be empty")
   var close: EncodableString = ""
 
   override def getOutputSchemas(

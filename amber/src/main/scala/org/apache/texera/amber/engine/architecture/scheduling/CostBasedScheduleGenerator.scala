@@ -19,8 +19,8 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import org.apache.texera.amber.config.ApplicationConfig
-import org.apache.texera.amber.core.storage.VFSURIFactory.createResultURI
+import org.apache.texera.common.config.ApplicationConfig
+import org.apache.texera.amber.core.storage.VFSURIFactory.createPortBaseURI
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.engine.architecture.scheduling.SchedulingUtils.replaceVertex
@@ -43,6 +43,23 @@ import scala.concurrent.{Await, Future}
 import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
+
+object CostBasedScheduleGenerator {
+
+  /**
+    * The execution mode to schedule under: MATERIALIZED when any operator in
+    * `physicalPlan` requires it (e.g. the loop operators, whose back-edge is a
+    * cross-region materialized state channel), otherwise the requested mode.
+    */
+  private[scheduling] def effectiveExecutionMode(
+      physicalPlan: PhysicalPlan,
+      requestedMode: ExecutionMode
+  ): ExecutionMode =
+    if (physicalPlan.operators.exists(_.requiresMaterializedExecution))
+      ExecutionMode.MATERIALIZED
+    else
+      requestedMode
+}
 
 class CostBasedScheduleGenerator(
     workflowContext: WorkflowContext,
@@ -174,12 +191,12 @@ class CostBasedScheduleGenerator(
         // Allocate an URI for each of these output ports
         val outputPortConfigs: Map[GlobalPortIdentity, OutputPortConfig] =
           outputPortIdsNeedingStorage.map { gpid =>
-            val outputWriterURI = createResultURI(
+            val portBaseURI = createPortBaseURI(
               workflowId = workflowContext.workflowId,
               executionId = workflowContext.executionId,
               globalPortId = gpid
             )
-            gpid -> OutputPortConfig(outputWriterURI)
+            gpid -> OutputPortConfig(portBaseURI)
           }.toMap
 
         val resourceConfig = ResourceConfig(portConfigs = outputPortConfigs)
@@ -237,7 +254,7 @@ class CostBasedScheduleGenerator(
                     s"the outout port $globalOutputPortId has not been assigned a URI yet."
                 )
               )
-              .storageURI
+              .storageURIBase
 
             // Group all available URIs of this input port together
             acc.updated(
@@ -304,7 +321,11 @@ class CostBasedScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResultFuture: Future[SearchResult] = Future {
-      workflowContext.workflowSettings.executionMode match {
+      val effectiveMode = CostBasedScheduleGenerator.effectiveExecutionMode(
+        physicalPlan,
+        workflowContext.workflowSettings.executionMode
+      )
+      effectiveMode match {
         case ExecutionMode.MATERIALIZED =>
           getFullyMaterializedSearchState
         case ExecutionMode.PIPELINED =>

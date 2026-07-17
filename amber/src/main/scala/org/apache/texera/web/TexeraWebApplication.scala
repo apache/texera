@@ -26,7 +26,7 @@ import io.dropwizard.auth.AuthValueFactoryProvider
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
-import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.engine.common.Utils
 import org.apache.texera.amber.util.ObjectMapperUtils
 import org.apache.texera.auth.SessionUser
@@ -144,6 +144,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AuthResource])
     environment.jersey.register(classOf[GoogleAuthResource])
     environment.jersey.register(classOf[UserConfigResource])
+    environment.jersey.register(classOf[FeedbackResource])
     environment.jersey.register(classOf[AdminUserResource])
     environment.jersey.register(classOf[PublicProjectResource])
     environment.jersey.register(classOf[WorkflowAccessResource])
@@ -160,8 +161,16 @@ class TexeraWebApplication
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[AdminSettingsResource])
     environment.jersey.register(classOf[AIAssistantResource])
+    environment.jersey.register(classOf[HuggingFaceModelResource])
 
     AuthResource.createAdminUser()
+
+    // Set Cache-Control on static frontend asset responses.
+    environment.getApplicationContext.addFilter(
+      new FilterHolder(new StaticAssetCacheFilter),
+      "/*",
+      java.util.EnumSet.allOf(classOf[javax.servlet.DispatcherType])
+    )
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL.
     // TODO: replace with RequestLoggingFilter.register() from common/auth once Dropwizard is upgraded to 4.x

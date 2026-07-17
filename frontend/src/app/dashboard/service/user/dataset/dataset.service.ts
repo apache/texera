@@ -43,7 +43,18 @@ export const DATASET_DELETE_URL = DATASET_BASE_URL + "/delete";
 export const DATASET_VERSION_BASE_URL = "version";
 export const DATASET_VERSION_RETRIEVE_LIST_URL = DATASET_VERSION_BASE_URL + "/list";
 export const DATASET_VERSION_LATEST_URL = DATASET_VERSION_BASE_URL + "/latest";
-export const DEFAULT_DATASET_NAME = "Untitled dataset";
+export const DEFAULT_DATASET_NAME = "Untitled-dataset";
+
+export const DATASET_NAME_MAX_LENGTH = 128;
+const DATASET_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+export function validateDatasetName(name: string): string | null {
+  if (!DATASET_NAME_PATTERN.test(name) || name.length > DATASET_NAME_MAX_LENGTH) {
+    return "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)";
+  }
+  return null;
+}
+
 export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
 export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
 export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/user-dataset-owners";
@@ -420,6 +431,17 @@ export class DatasetService {
       .pipe(map(res => res?.filePaths ?? []));
   }
 
+  public findExistingUploadFiles(did: number, files: { path: string; sizeBytes: number }[]): Observable<string[]> {
+    return this.http
+      .post<{ filePaths: string[] }>(
+        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/existing-upload-files`,
+        {
+          files,
+        }
+      )
+      .pipe(map(res => res?.filePaths ?? []));
+  }
+
   public finalizeMultipartUpload(
     ownerEmail: string,
     datasetName: string,
@@ -556,5 +578,9 @@ export class DatasetService {
     return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/dataset/${did}/update/cover`, {
       coverImage: coverImage,
     });
+  }
+
+  public getDatasetCoverUrl(did: number): Observable<{ url: string | null }> {
+    return this.http.get<{ url: string | null }>(`${AppSettings.getApiEndpoint()}/dataset/${did}/cover-url`);
   }
 }

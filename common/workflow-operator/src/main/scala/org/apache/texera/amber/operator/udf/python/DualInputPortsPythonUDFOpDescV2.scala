@@ -70,6 +70,18 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   @JsonPropertyDescription("Keep the original input columns?")
   var retainInputColumns: Boolean = Boolean.box(false)
 
+  @JsonProperty(required = true, defaultValue = "true")
+  @JsonSchemaTitle("Default Python Environment")
+  @JsonPropertyDescription("Use Default Python Environment")
+  var defaultEnv: Boolean = Boolean.box(true)
+
+  @JsonProperty()
+  @JsonSchemaTitle("Virtual Environment")
+  @JsonPropertyDescription(
+    "Python Environment you would like this UDF to be executed within"
+  )
+  var envName: String = ""
+
   @JsonProperty
   @JsonSchemaTitle("Extra output column(s)")
   @JsonPropertyDescription(
@@ -82,6 +94,18 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
+
+    val pveName =
+      if (defaultEnv) ""
+      else {
+        val trimmed = envName.trim
+        if (trimmed.isEmpty)
+          throw new RuntimeException(
+            "Virtual Environment name is required when not using the default Python environment."
+          )
+        trimmed
+      }
+
     val physicalOp = if (workers > 1) {
       PhysicalOp
         .oneToOnePhysicalOp(
@@ -129,6 +153,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )
+      .withPveName(pveName)
   }
 
   override def operatorInfo: OperatorInfo =

@@ -47,6 +47,10 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   private readonly refreshComputingUnitListSignal = new Subject<void>();
 
+  // Emits when the active connection is torn down to switch computing units, so
+  // session consumers can clear their websocket-derived state.
+  private readonly connectionResetSubject = new Subject<void>();
+
   // Refresh interval in milliseconds
   private readonly REFRESH_INTERVAL_MS = 2000;
   private refreshSubscription: Subscription | null = null;
@@ -158,9 +162,16 @@ export class ComputingUnitStatusService implements OnDestroy {
       // open websocket if needed
       const shouldReconnect = this.currentConnectedCuid !== cuid || this.currentConnectedWid !== wid;
       if (isDefined(wid) && shouldReconnect) {
+        // Tear down stale state on switch even if the socket already dropped
+        // (e.g. the prior unit was terminated), not just while still connected.
+        const hadPreviousConnection = isDefined(this.currentConnectedWid) || isDefined(this.currentConnectedCuid);
         if (this.workflowWebsocketService.isConnected) {
           this.workflowWebsocketService.closeWebsocket();
+        }
+        if (hadPreviousConnection) {
           this.workflowStatusService.clearStatus();
+          // switching units: signal consumers to clear their stale state
+          this.connectionResetSubject.next();
         }
 
         this.workflowWebsocketService.openWebsocket(wid, this.userService.getCurrentUser()?.uid, cuid);
@@ -225,6 +236,28 @@ export class ComputingUnitStatusService implements OnDestroy {
     );
   }
 
+  /**
+   * Emits when the connection is reset to switch computing units. Consumers
+   * subscribe to clear their websocket-derived session state.
+   */
+  public getConnectionResetStream(): Observable<void> {
+    return this.connectionResetSubject.asObservable();
+  }
+
+  /**
+   * Tear down all websocket connection state when leaving the workspace, so
+   * re-entering a workflow starts from a clean connection instead of reusing
+   * the previous one.
+   */
+  public disconnect(): void {
+    this.workflowWebsocketService.closeWebsocket();
+    this.workflowStatusService.clearStatus();
+    this.stopPollingSelectedUnit();
+    this.currentConnectedCuid = undefined;
+    this.currentConnectedWid = undefined;
+    this.selectedUnitSubject.next(null);
+  }
+
   // Clean up on service destroy
   ngOnDestroy(): void {
     this.refreshSubscription?.unsubscribe();
@@ -232,6 +265,7 @@ export class ComputingUnitStatusService implements OnDestroy {
 
     this.selectedUnitSubject.complete();
     this.allComputingUnitsSubject.complete();
+    this.connectionResetSubject.complete();
   }
 
   /**

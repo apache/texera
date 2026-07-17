@@ -52,6 +52,9 @@ export class MockGuiConfigService {
     activeTimeInMinutes: 15,
     copilotEnabled: false,
     limitColumns: 15,
+    attributionEnabled: false,
+    pythonNotebookMigrationEnabled: false,
+    deploymentVersionCheckEnabled: false,
   };
 
   get env(): GuiConfig {
@@ -59,6 +62,10 @@ export class MockGuiConfigService {
   }
 
   load(): Observable<GuiConfig> {
+    return of(this._config);
+  }
+
+  loadPostLogin(): Observable<Partial<GuiConfig>> {
     return of(this._config);
   }
 

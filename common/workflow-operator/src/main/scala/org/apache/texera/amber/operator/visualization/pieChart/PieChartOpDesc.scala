@@ -51,7 +51,7 @@ class PieChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("The value associated with slice of pie")
   @AutofillAttributeName
-  @NotNull(message = "Value column cannot be empty")
+  @NotNull(message = "Value Column cannot be empty")
   var value: EncodableString = ""
 
   @JsonProperty(value = "name", required = true)
@@ -59,7 +59,7 @@ class PieChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
   @JsonPropertyDescription("The name of the slice of pie")
   @AutofillAttributeName
   @SampleColumn("uniq_name")
-  @NotNull(message = "Name column cannot be empty")
+  @NotNull(message = "Name Column cannot be empty")
   var name: EncodableString = ""
 
   override def getOutputSchemas(
@@ -78,14 +78,14 @@ class PieChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerat
     )
 
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(value.nonEmpty)
+    assert(value.nonEmpty, "Value Column cannot be empty")
     pyb"""
          |        table.dropna(subset = [$value, $name], inplace = True) #remove missing values
          |"""
   }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(value.nonEmpty)
+    assert(value.nonEmpty, "Value Column cannot be empty")
     pyb"""
        |        fig = px.pie(table, names=$name, values=$value)
        |        fig.update_traces(textposition='inside', textinfo='percent+label')

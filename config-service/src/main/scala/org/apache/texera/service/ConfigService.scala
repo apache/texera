@@ -21,13 +21,11 @@ package org.apache.texera.service
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import org.apache.texera.amber.config.StorageConfig
-import org.apache.texera.auth.{JwtAuthFilter, RequestLoggingFilter, SessionUser}
-import org.apache.texera.config.DefaultsConfig
+import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
+import org.apache.texera.common.config.{DefaultsConfig, StorageConfig}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
 import org.eclipse.jetty.server.session.SessionHandler
@@ -63,15 +61,11 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
 
     environment.jersey.register(classOf[HealthCheckResource])
 
-    // Register JWT authentication filter
-    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
-
-    // Enable @Auth annotation for injecting SessionUser
-    environment.jersey.register(
-      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
-    )
+    AuthFeatures.register(environment)
 
     environment.jersey.register(new ConfigResource)
+
+    RoleAnnotationEnforcer.enforce(environment.jersey.getResourceConfig, "ConfigService")
 
     // Preload default.conf into site_setting tables
     try {

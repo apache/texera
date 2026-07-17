@@ -219,183 +219,9 @@
 </div>
 
 <!-- Panel for creating the computing unit -->
-<nz-modal
-  [nzVisible]="addComputeUnitModalVisible"
-  [nzTitle]="getCreateModalTitle()"
-  [nzContent]="addComputeUnitModalContent"
-  [nzFooter]="addComputeUnitModalFooter"
-  (nzOnCancel)="handleAddComputeUnitModalCancel()">
-  <ng-template #addComputeUnitModalTitle>Create Computing Unit</ng-template>
-  <ng-template #addComputeUnitModalContent>
-    <div class="create-compute-unit-container">
-      <!-- Computing unit type selection -->
-      <div class="select-unit">
-        <span>Computing Unit Type</span>
-        <nz-select
-          class="type-selection"
-          [(ngModel)]="selectedComputingUnitType">
-          <nz-option
-            *ngFor="let type of availableComputingUnitTypes"
-            [nzValue]="type"
-            [nzLabel]="type | titlecase">
-          </nz-option>
-        </nz-select>
-      </div>
-
-      <!-- Fields for Kubernetes computing units -->
-      <ng-container *ngIf="selectedComputingUnitType === 'kubernetes'">
-        <div class="select-unit name-field">
-          <span>Computing Unit Name</span>
-          <input
-            [required]="true"
-            nz-input
-            placeholder="Enter the name of your computing unit (required)"
-            [(ngModel)]="newComputingUnitName"
-            class="unit-name-input" />
-        </div>
-        <div class="select-unit">
-          <span>Select RAM Size</span>
-          <nz-select
-            class="memory-selection"
-            [(ngModel)]="selectedMemory"
-            (ngModelChange)="onMemorySelectionChange()">
-            <nz-option
-              *ngFor="let option of memoryOptions"
-              [nzValue]="option"
-              [nzLabel]="option">
-            </nz-option>
-          </nz-select>
-        </div>
-
-        <div class="select-unit">
-          <span>Select #CPU Core(s)</span>
-          <nz-select
-            class="cpu-selection"
-            [(ngModel)]="selectedCpu">
-            <nz-option
-              *ngFor="let option of cpuOptions"
-              [nzValue]="option"
-              [nzLabel]="option">
-            </nz-option>
-          </nz-select>
-        </div>
-
-        <div
-          *ngIf="showGpuSelection()"
-          class="select-unit">
-          <span>Select #GPU(s)</span>
-          <nz-select
-            class="gpu-selection"
-            [(ngModel)]="selectedGpu">
-            <nz-option
-              *ngFor="let option of gpuOptions"
-              [nzValue]="option"
-              [nzLabel]="option">
-            </nz-option>
-          </nz-select>
-        </div>
-
-        <div class="select-unit shared-memory-group">
-          <span>
-            Adjust the Shared Memory Size
-            <i
-              nz-icon
-              nzType="info-circle"
-              nz-tooltip
-              [nzTooltipTitle]="
-                'Shared memory (/dev/shm) is used for inter-process communication. If you plan to run ML tasks (e.g., using PyTorch), consider increasing this size. Learn more: https://man7.org/linux/man-pages/man7/shm_overview.7.html'
-              ">
-            </i>
-          </span>
-          <div class="shm-input-row">
-            <input
-              nz-input
-              type="number"
-              min="0"
-              [(ngModel)]="shmSizeValue"
-              class="shm-size-input"
-              placeholder="e.g. 512" />
-            <nz-select
-              class="shm-unit-select"
-              [(ngModel)]="shmSizeUnit">
-              <nz-option
-                nzValue="Mi"
-                nzLabel="Mi"></nz-option>
-              <nz-option
-                nzValue="Gi"
-                nzLabel="Gi"></nz-option>
-            </nz-select>
-          </div>
-          <div
-            *ngIf="isShmTooLarge()"
-            class="shm-warning">
-            Shared memory cannot be greater than total memory.
-          </div>
-        </div>
-
-        <div class="select-unit name-field">
-          <span>JVM Memory Size: {{selectedJvmMemorySize}}</span>
-          <nz-slider
-            *ngIf="showJvmMemorySlider"
-            class="jvm-memory-slider"
-            [nzMarks]="jvmMemoryMarks"
-            [nzMin]="jvmMemorySteps[0] || 2"
-            [nzMax]="jvmMemoryMax"
-            [nzStep]="null"
-            [nzIncluded]="false"
-            [ngModel]="jvmMemorySliderValue"
-            (ngModelChange)="onJvmMemorySliderChange($event)">
-          </nz-slider>
-          <div
-            *ngIf="isMaxJvmMemorySelected()"
-            class="memory-warning">
-            <nz-alert
-              nzType="warning"
-              nzMessage="Using maximum JVM memory may affect the performance of Python-based operators."
-              nzShowIcon>
-            </nz-alert>
-          </div>
-        </div>
-      </ng-container>
-
-      <!-- Fields for Local computing units -->
-      <ng-container *ngIf="selectedComputingUnitType === 'local'">
-        <div class="select-unit name-field">
-          <span>Computing Unit Name</span>
-          <input
-            [required]="true"
-            nz-input
-            placeholder="Enter the name of your local computing unit (required)"
-            [(ngModel)]="newComputingUnitName"
-            class="unit-name-input" />
-        </div>
-        <div class="select-unit name-field">
-          <span>Computing Unit URI</span>
-          <input
-            [required]="true"
-            nz-input
-            placeholder="URI of the local computing unit (e.g. http://localhost:8085)"
-            [(ngModel)]="localComputingUnitUri"
-            class="unit-uri-input" />
-        </div>
-      </ng-container>
-    </div>
-  </ng-template>
-  <ng-template #addComputeUnitModalFooter>
-    <button
-      nz-button
-      nzType="default"
-      (click)="handleAddComputeUnitModalCancel()">
-      Cancel
-    </button>
-    <button
-      nz-button
-      nzType="primary"
-      (click)="handleAddComputeUnitModalOk()">
-      Create
-    </button>
-  </ng-template>
-</nz-modal>
+<texera-computing-unit-create-modal
+  [(visible)]="addComputeUnitModalVisible"
+  (unitCreated)="onComputingUnitCreated($event)"></texera-computing-unit-create-modal>
 
 <ng-template #metricsTemplate>
   <div class="resource-metrics">
@@ -452,12 +278,6 @@
         (click)="closePveModal()">
         Close
       </button>
-      <button
-        nz-button
-        nzType="primary"
-        (click)="addEnvironment()">
-        Add Environment
-      </button>
     </div>
   </ng-template>
 
@@ -472,28 +292,67 @@
         </ng-template>
         <nz-collapse-panel [nzHeader]="systemHeaderTpl">
           <div class="system-panel-inner">
-            <div class="package-header-row">
-              <div class="package-column-label">Package</div>
-              <div class="package-column-label">Version</div>
-            </div>
-
             <div
-              *ngFor="let pkg of systemPackages"
-              class="package-row system-row">
-              <div class="system-package-inputs">
-                <input
-                  nz-input
-                  class="system-input"
-                  [disabled]="true"
-                  [ngModel]="pkg.name" />
-
-                <input
-                  nz-input
-                  class="system-input"
-                  [disabled]="true"
-                  [ngModel]="pkg.version" />
-              </div>
+              *ngIf="systemPackagesLoading"
+              class="system-loading">
+              <span
+                nz-icon
+                nzType="loading"
+                nzTheme="outline"></span>
+              Fetching system packages…
             </div>
+
+            <ng-container *ngIf="!systemPackagesLoading">
+              <div class="package-header-row">
+                <div class="package-column-label">Package</div>
+                <div class="package-column-label">Version</div>
+              </div>
+
+              <div
+                *ngFor="let pkg of systemPackages"
+                class="package-row system-row">
+                <div class="system-package-inputs">
+                  <input
+                    nz-input
+                    class="system-input"
+                    [disabled]="true"
+                    [ngModel]="pkg.name" />
+
+                  <input
+                    nz-input
+                    class="system-input"
+                    [disabled]="true"
+                    [ngModel]="pkg.version" />
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </nz-collapse-panel>
+      </nz-collapse>
+    </div>
+
+    <!-- Saved environments (from the user's Python Venv DB list) -->
+    <div class="saved-pves-section">
+      <nz-collapse>
+        <nz-collapse-panel
+          nzHeader="Saved Environments"
+          [nzActive]="true">
+          <div
+            *ngIf="availableDbPves.length === 0"
+            class="saved-pve-empty">
+            No saved environments yet. Create one from the Environments tab.
+          </div>
+          <div
+            *ngFor="let saved of availableDbPves"
+            class="saved-pve-row">
+            <span class="saved-pve-name">{{ saved.name }}</span>
+            <button
+              nz-button
+              nzType="primary"
+              nzSize="small"
+              (click)="installFromSavedPve(saved.veid)">
+              {{ isSavedPveInstalledInCu(saved.name) ? "Reinstall" : "Install" }}
+            </button>
           </div>
         </nz-collapse-panel>
       </nz-collapse>
@@ -509,7 +368,14 @@
         <!-- Custom header -->
         <ng-template #headerTpl>
           <div class="env-header">
-            <span class="env-title"> {{ pve.name }} </span>
+            <span class="env-title">
+              {{ pve.name }}
+              <span
+                *ngIf="pve.isLocked"
+                class="env-unsynced-note">
+                Manual changes here won’t update the saved environment.
+              </span>
+            </span>
             <span
               class="env-actions"
               (click)="$event.stopPropagation()">
@@ -648,7 +514,7 @@
               nz-button
               nzType="primary"
               (click)="createVirtualEnvironment(envIndex)"
-              [disabled]="!pve.name?.trim()"
+              [disabled]="isCreateDisabled(pve)"
               [nzLoading]="pve.isInstalling">
               OK
             </button>

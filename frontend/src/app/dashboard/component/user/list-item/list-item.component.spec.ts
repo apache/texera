@@ -23,7 +23,6 @@ import { WorkflowPersistService } from "src/app/common/service/workflow-persist/
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError } from "rxjs";
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { RouterTestingModule } from "@angular/router/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -31,28 +30,58 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
+import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import {
+  HUB_DATASET_RESULT_DETAIL,
+  HUB_WORKFLOW_RESULT_DETAIL,
+  USER_DATASET,
+  USER_PROJECT,
+  USER_WORKSPACE,
+} from "../../../../app-routing.constant";
+
 describe("ListItemComponent", () => {
   let component: ListItemComponent;
   let fixture: ComponentFixture<ListItemComponent>;
   let workflowPersistService: Mocked<WorkflowPersistService>;
+  let datasetService: Mocked<DatasetService>;
 
   beforeEach(async () => {
     const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
+    const datasetServiceSpy = { updateDatasetName: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [ListItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
       providers: [
         { provide: WorkflowPersistService, useValue: workflowPersistServiceSpy },
+        { provide: DatasetService, useValue: datasetServiceSpy },
         { provide: UserService, useClass: StubUserService },
         NzModalService,
         ...commonTestProviders,
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ListItemComponent);
     component = fixture.componentInstance;
     workflowPersistService = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
+    datasetService = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
+    // initializeEntry() needs a fully-formed workflow entry to avoid throwing
+    // when the template renders for the first time. Each test below overwrites
+    // component.entry directly, which exercises confirm methods without going
+    // back through change detection.
+    component.entry = {
+      id: 0,
+      name: "default",
+      description: "",
+      type: "workflow",
+      workflow: { isOwner: true },
+      accessibleUserIds: [],
+      likeCount: 0,
+      viewCount: 0,
+      isLiked: false,
+      size: 0,
+    } as unknown as DashboardEntry;
+    fixture.detectChanges();
   });
 
   it("should update workflow name successfully", () => {
@@ -103,5 +132,119 @@ describe("ListItemComponent", () => {
     expect(workflowPersistService.updateWorkflowDescription).toHaveBeenCalledWith(1, newDescription);
     expect(component.entry.description).toBe("Old Description");
     expect(component.editingDescription).toBe(false);
+  });
+
+  describe("initializeEntry routes", () => {
+    const baseStats = { likeCount: 0, viewCount: 0, isLiked: false };
+
+    it("routes owned workflows to the user workspace", () => {
+      component.currentUid = 1;
+      component.entry = {
+        id: 100,
+        type: "workflow",
+        workflow: { isOwner: true },
+        accessibleUserIds: [1],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "100"]);
+    });
+
+    it("routes non-owned workflows to the hub workflow detail page", () => {
+      component.currentUid = 1;
+      component.entry = {
+        id: 101,
+        type: "workflow",
+        workflow: { isOwner: false },
+        accessibleUserIds: [2],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "101"]);
+    });
+
+    it("routes projects to the user project page", () => {
+      component.entry = { id: 200, type: "project", ...baseStats } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([USER_PROJECT, "200"]);
+    });
+
+    it("routes owned datasets to the user dataset page", () => {
+      component.currentUid = 1;
+      component.entry = {
+        id: 300,
+        type: "dataset",
+        dataset: { isOwner: true },
+        accessibleUserIds: [1],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([USER_DATASET, "300"]);
+    });
+
+    it("routes non-owned datasets to the hub dataset detail page", () => {
+      component.currentUid = 1;
+      component.entry = {
+        id: 301,
+        type: "dataset",
+        dataset: { isOwner: false },
+        accessibleUserIds: [2],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+      expect(component.entryLink).toEqual([HUB_DATASET_RESULT_DETAIL, "301"]);
+    });
+  });
+
+  it("should reject an invalid dataset name, revert to original, and exit editing", () => {
+    component.entry = {
+      id: 5,
+      name: "has space",
+      type: "dataset",
+    } as unknown as DashboardEntry;
+    component.originalName = "original-name";
+    component.editingName = true;
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("has space");
+
+    expect(datasetService.updateDatasetName).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    expect(component.entry.name).toBe("original-name");
+    expect(component.editingName).toBe(false);
+  });
+
+  it("should call the dataset service for a valid dataset rename", () => {
+    component.entry = {
+      id: 5,
+      name: "new-valid-name",
+      type: "dataset",
+    } as unknown as DashboardEntry;
+    component.originalName = "old-name";
+    datasetService.updateDatasetName.mockReturnValue(of({} as any));
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(datasetService.updateDatasetName).toHaveBeenCalledWith(5, "new-valid-name");
+  });
+
+  it("should surface the error message and revert the name when a dataset rename fails", () => {
+    component.entry = {
+      id: 5,
+      name: "new-valid-name",
+      type: "dataset",
+    } as unknown as DashboardEntry;
+    component.originalName = "old-name";
+    component.editingName = true;
+    datasetService.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(errorSpy).toHaveBeenCalledWith("boom");
+    expect(component.entry.name).toBe("old-name");
+    expect(component.editingName).toBe(false);
   });
 });

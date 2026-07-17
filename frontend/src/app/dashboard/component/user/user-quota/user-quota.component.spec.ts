@@ -17,7 +17,6 @@
  * under the License.
  */
 
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserQuotaComponent } from "./user-quota.component";
 import { UserQuotaService } from "../../../service/user/quota/user-quota.service";
@@ -46,7 +45,6 @@ describe("UserQuotaComponent", () => {
     TestBed.configureTestingModule({
       providers: [{ provide: UserQuotaService, useValue: mockUserQuotaService }, ...commonTestProviders],
       imports: [UserQuotaComponent, HttpClientTestingModule],
-      schemas: [NO_ERRORS_SCHEMA],
     });
 
     fixture = TestBed.createComponent(UserQuotaComponent);

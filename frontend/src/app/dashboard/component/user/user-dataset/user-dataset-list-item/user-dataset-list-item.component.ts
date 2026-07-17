@@ -20,12 +20,13 @@
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { Dataset } from "../../../../../common/type/dataset";
-import { DatasetService } from "../../../../service/user/dataset/dataset.service";
+import { DatasetService, validateDatasetName } from "../../../../service/user/dataset/dataset.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { extractErrorMessage } from "../../../../../common/util/error";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
-import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
+import { USER_DATASET } from "../../../../../app-routing.constant";
 import {
   NzListItemComponent,
   NzListItemMetaComponent,
@@ -73,7 +74,7 @@ import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
   ],
 })
 export class UserDatasetListItemComponent {
-  protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
+  protected readonly USER_DATASET = USER_DATASET;
 
   private _entry?: DashboardDataset;
 
@@ -119,6 +120,13 @@ export class UserDatasetListItemComponent {
       return;
     }
 
+    const nameError = validateDatasetName(name);
+    if (nameError) {
+      this.notificationService.error(nameError);
+      this.editingName = false;
+      return;
+    }
+
     if (this.entry.dataset.did)
       this.datasetService
         .updateDatasetName(this.entry.dataset.did, name)
@@ -128,8 +136,8 @@ export class UserDatasetListItemComponent {
             this.entry.dataset.name = name;
             this.editingName = false;
           },
-          error: () => {
-            this.notificationService.error("Update dataset name failed");
+          error: (err: unknown) => {
+            this.notificationService.error(extractErrorMessage(err));
             this.editingName = false;
           },
         });

@@ -17,14 +17,16 @@
  * under the License.
  */
 
-import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { UserComputingUnitComponent } from "./user-computing-unit.component";
+import { ComputingUnitCreateModalComponent } from "../../../../common/component/computing-unit-create-modal/computing-unit-create-modal.component";
+import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
 import { NzCardModule } from "ng-zorro-antd/card";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { FileAddOutline } from "@ant-design/icons-angular/icons";
-import { HttpClient } from "@angular/common/http";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -53,14 +55,17 @@ describe("UserComputingUnitComponent", () => {
     await TestBed.configureTestingModule({
       providers: [
         NzModalService,
-        HttpClient,
         { provide: UserService, useClass: StubUserService },
         { provide: WorkflowComputingUnitManagingService, useValue: mockComputingUnitService },
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         ...commonTestProviders,
       ],
-      imports: [UserComputingUnitComponent, NzCardModule, NzIconModule.forChild([FileAddOutline])],
-      schemas: [NO_ERRORS_SCHEMA],
+      imports: [
+        UserComputingUnitComponent,
+        HttpClientTestingModule,
+        NzCardModule,
+        NzIconModule.forChild([FileAddOutline]),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(UserComputingUnitComponent);
@@ -70,5 +75,23 @@ describe("UserComputingUnitComponent", () => {
   it("should create", () => {
     fixture.detectChanges();
     expect(component).toBeTruthy();
+  });
+
+  it("refreshes the computing unit list when the modal emits unitCreated", () => {
+    fixture.detectChanges();
+    const statusService = TestBed.inject(ComputingUnitStatusService);
+    const refreshSpy = vi.spyOn(statusService, "refreshComputingUnitList").mockImplementation(() => {});
+    const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
+    modal.unitCreated.emit({} as unknown as DashboardWorkflowComputingUnit);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("syncs visibility when the embedded modal closes itself", () => {
+    fixture.detectChanges();
+    component.showAddComputeUnitModalVisible();
+    expect(component.addComputeUnitModalVisible).toBe(true);
+    const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
+    modal.visibleChange.emit(false);
+    expect(component.addComputeUnitModalVisible).toBe(false);
   });
 });

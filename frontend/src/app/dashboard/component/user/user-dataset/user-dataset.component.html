@@ -32,6 +32,32 @@
           nzTheme="outline"></i>
         <span>Create Dataset</span>
       </button>
+      <nz-space-compact class="utility-button-group">
+        <texera-sort-button
+          [showEditTime]="false"
+          [showExecutionTime]="false"
+          (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
+        <button
+          nz-button
+          title="List View"
+          (click)="setViewType('list')"
+          [nzType]="viewType === 'list' ? 'primary' : 'default'">
+          <i
+            nz-icon
+            nzType="bars"
+            nzTheme="outline"></i>
+        </button>
+        <button
+          nz-button
+          title="Card View"
+          (click)="setViewType('card')"
+          [nzType]="viewType === 'card' ? 'primary' : 'default'">
+          <i
+            nz-icon
+            nzType="appstore"
+            nzTheme="outline"></i>
+        </button>
+      </nz-space-compact>
       <texera-filters #filters></texera-filters>
     </div>
   </nz-card>
@@ -45,7 +71,6 @@
       nzMode="tags"
       nzPlaceHolder="Search all dataset"
       nzVariant="borderless"
-      ]="true"
       [nzOpen]="false"
       ngDefaultControl
       [(ngModel)]="filters.masterFilterList"
@@ -53,9 +78,24 @@
     </nz-select>
   </div>
 
+  <ng-template
+    #datasetCardTpl
+    let-entry>
+    <texera-card-item
+      [entry]="entry"
+      [currentUid]="currentUid"
+      [isPrivateSearch]="true"
+      [editable]="true"
+      (deleted)="deleteDataset(entry)"
+      (refresh)="search(true)">
+    </texera-card-item>
+  </ng-template>
+
   <texera-search-results
     [editable]="true"
     [isPrivateSearch]="true"
+    [viewMode]="viewType"
+    [cardTemplate]="datasetCardTpl"
     (deleted)="deleteDataset($event)"
     (refresh)="ngAfterViewInit()"
     [currentUid]="currentUid"></texera-search-results>

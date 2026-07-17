@@ -39,7 +39,7 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
-  @JsonProperty(required = true)
+  @JsonProperty(required = true, defaultValue = "false")
   @JsonPropertyDescription("flatten nested objects and arrays")
   var flatten: Boolean = false
 
@@ -100,10 +100,19 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
   }
 
   override def sourceSchema(): Schema = {
-    if (!fileResolved()) {
-      return null
+    require(
+      fileResolved(),
+      "No file selected. Please select a valid .jsonl file from the 'File' dropdown in the right panel."
+    )
+
+    val uri = new URI(fileName.get)
+    if (uri.getScheme == "file") {
+      require(
+        new java.io.File(uri).isFile,
+        "The selected item is a folder or does not exist. Please select an actual .jsonl file from the 'File' dropdown."
+      )
     }
-    val stream = DocumentFactory.openReadonlyDocument(new URI(fileName.get)).asInputStream()
+    val stream = DocumentFactory.openReadonlyDocument(uri).asInputStream()
     val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
     var fieldNames = Set[String]()
 

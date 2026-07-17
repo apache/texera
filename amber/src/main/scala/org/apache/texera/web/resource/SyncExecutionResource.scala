@@ -22,7 +22,7 @@ package org.apache.texera.web.resource
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
-import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.core.storage.model.VirtualDocument
@@ -281,7 +281,7 @@ class SyncExecutionResource extends LazyLogging {
             killExecution(executionService)
             (executionService.executionStateStore.metadataStore.getState, true, false)
           case TargetResultsReady(_) =>
-            // RegionExecutionCoordinator caches upstream results asynchronously after operators
+            // RegionExecutionManager caches upstream results asynchronously after operators
             // complete; sleep gives that caching a chance to finish before we shut down the client.
             // TODO: replace with a synchronous signal from the engine.
             Thread.sleep(500)

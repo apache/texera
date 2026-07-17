@@ -42,14 +42,20 @@ import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/d
 import { ActionType, HubService } from "../../../../hub/service/hub.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
-import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { formatCount, formatRelativeTime } from "src/app/common/util/format.util";
 import {
-  DASHBOARD_HUB_DATASET_RESULT_DETAIL,
-  DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL,
-  DASHBOARD_USER_DATASET,
-  DASHBOARD_USER_PROJECT,
-  DASHBOARD_USER_WORKSPACE,
+  DatasetService,
+  DEFAULT_DATASET_NAME,
+  validateDatasetName,
+} from "../../../service/user/dataset/dataset.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { extractErrorMessage } from "../../../../common/util/error";
+import {
+  HUB_DATASET_RESULT_DETAIL,
+  HUB_WORKFLOW_RESULT_DETAIL,
+  USER_DATASET,
+  USER_PROJECT,
+  USER_WORKSPACE,
 } from "../../../../app-routing.constant";
 import { isDefined } from "../../../../common/util/predicate";
 import { NzCardComponent } from "ng-zorro-antd/card";
@@ -144,24 +150,24 @@ export class ListItemComponent implements OnChanges {
         this.disableDelete = !this.entry.workflow.isOwner;
         this.owners = this.entry.accessibleUserIds;
         if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-          this.entryLink = [DASHBOARD_USER_WORKSPACE, String(this.entry.id)];
+          this.entryLink = [USER_WORKSPACE, String(this.entry.id)];
         } else {
-          this.entryLink = [DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
+          this.entryLink = [HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
         }
         this.size = this.entry.size;
       }
       this.iconType = "project";
     } else if (this.entry.type === "project") {
-      this.entryLink = [DASHBOARD_USER_PROJECT, String(this.entry.id)];
+      this.entryLink = [USER_PROJECT, String(this.entry.id)];
       this.iconType = "container";
     } else if (this.entry.type === "dataset") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.dataset.isOwner;
         this.owners = this.entry.accessibleUserIds;
         if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-          this.entryLink = [DASHBOARD_USER_DATASET, String(this.entry.id)];
+          this.entryLink = [USER_DATASET, String(this.entry.id)];
         } else {
-          this.entryLink = [DASHBOARD_HUB_DATASET_RESULT_DETAIL, String(this.entry.id)];
+          this.entryLink = [HUB_DATASET_RESULT_DETAIL, String(this.entry.id)];
         }
         this.iconType = "database";
         this.size = this.entry.size;
@@ -310,8 +316,8 @@ export class ListItemComponent implements OnChanges {
             this.renderMarkdownPreview(newValue);
           }
         },
-        error: () => {
-          this.notificationService.error("Update failed");
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
           (this.entry as any)[propertyName] = originalValue ?? ""; // Fallback to original value
           if (propertyName === "description") {
             this.renderMarkdownPreview(originalValue);
@@ -334,6 +340,16 @@ export class ListItemComponent implements OnChanges {
 
   public confirmUpdateCustomName(name: string): void {
     const newName = this.entry.type === "workflow" ? name || DEFAULT_WORKFLOW_NAME : name || DEFAULT_DATASET_NAME;
+
+    if (this.entry.type === "dataset") {
+      const nameError = validateDatasetName(newName);
+      if (nameError) {
+        this.notificationService.error(nameError);
+        this.entry.name = this.originalName;
+        this.editingName = false;
+        return;
+      }
+    }
 
     if (this.entry.type === "workflow") {
       this.updateProperty(
@@ -372,31 +388,7 @@ export class ListItemComponent implements OnChanges {
     }
   }
 
-  formatTime(timestamp: number | undefined): string {
-    if (timestamp === undefined) {
-      return "Unknown"; // Return "Unknown" if the timestamp is undefined
-    }
-
-    const currentTime = new Date().getTime();
-    const timeDifference = currentTime - timestamp;
-
-    const minutesAgo = Math.floor(timeDifference / (1000 * 60));
-    const hoursAgo = Math.floor(timeDifference / (1000 * 60 * 60));
-    const daysAgo = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
-    const weeksAgo = Math.floor(daysAgo / 7);
-
-    if (minutesAgo < 60) {
-      return `${minutesAgo} minutes ago`;
-    } else if (hoursAgo < 24) {
-      return `${hoursAgo} hours ago`;
-    } else if (daysAgo < 7) {
-      return `${daysAgo} days ago`;
-    } else if (weeksAgo < 4) {
-      return `${weeksAgo} weeks ago`;
-    } else {
-      return new Date(timestamp).toLocaleDateString();
-    }
-  }
+  formatRelativeTime = formatRelativeTime;
 
   openDetailModal(wid: number | undefined): void {
     const modalRef = this.modal.create({
@@ -406,7 +398,7 @@ export class ListItemComponent implements OnChanges {
         wid: wid ?? 0,
       },
       nzFooter: null,
-      nzStyle: { width: "60%" },
+      nzWidth: "max(900px, 60vw)",
       nzBodyStyle: { maxHeight: "70vh", overflow: "auto" },
     });
 
@@ -465,12 +457,7 @@ export class ListItemComponent implements OnChanges {
     }
   }
 
-  formatCount(count: number): string {
-    if (count >= 1000) {
-      return (count / 1000).toFixed(1) + "k";
-    }
-    return count.toString();
-  }
+  formatCount = formatCount;
 
   // alias for formatSize
   formatSize = formatSize;

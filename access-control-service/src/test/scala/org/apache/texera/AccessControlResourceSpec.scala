@@ -55,6 +55,11 @@ class AccessControlResourceSpec
   private val testURI: String = "http://localhost:8080/"
   private val testPath: String = "/api/executions/1/stats/1"
 
+  // The host:port the managing service records for a computing unit when it
+  // creates the pod. The access-control-service routes to this recorded URI.
+  private val testRecordedUri: String =
+    "computing-unit-2.compute-unit-svc.default.svc.cluster.local:8888"
+
   private val testUser1: User = {
     val user = new User()
     user.setUid(1)
@@ -81,6 +86,31 @@ class AccessControlResourceSpec
     cu.setType(WorkflowComputingUnitTypeEnum.kubernetes)
     cu.setCuid(2)
     cu.setName("test-cu")
+    cu.setUri(testRecordedUri)
+    cu
+  }
+
+  // A computing unit the user can access but for which no URI was ever recorded
+  // (e.g. the pod was never created). Such a unit is not routable and must be
+  // refused.
+  private val testCUNoUri: WorkflowComputingUnit = {
+    val cu = new WorkflowComputingUnit()
+    cu.setUid(2)
+    cu.setType(WorkflowComputingUnitTypeEnum.kubernetes)
+    cu.setCuid(3)
+    cu.setName("test-cu-no-uri")
+    cu
+  }
+
+  // A computing unit whose recorded URI is blank/whitespace-only — also treated
+  // as "no URI recorded" and refused.
+  private val testCUBlankUri: WorkflowComputingUnit = {
+    val cu = new WorkflowComputingUnit()
+    cu.setUid(2)
+    cu.setType(WorkflowComputingUnitTypeEnum.kubernetes)
+    cu.setCuid(4)
+    cu.setName("test-cu-blank-uri")
+    cu.setUri("   ")
     cu
   }
 
@@ -96,12 +126,18 @@ class AccessControlResourceSpec
     userDao.insert(testUser1)
     userDao.insert(testUser2)
     computingUnitDao.insert(testCU)
+    computingUnitDao.insert(testCUNoUri)
+    computingUnitDao.insert(testCUBlankUri)
 
-    val cuAccess = new ComputingUnitUserAccess()
-    cuAccess.setUid(testUser1.getUid)
-    cuAccess.setCuid(testCU.getCuid)
-    cuAccess.setPrivilege(PrivilegeEnum.WRITE)
-    computingUnitOfUserDao.insert(cuAccess)
+    // Grant testUser1 WRITE access to every test computing unit so the routing
+    // logic (not the access check) is what each routing test exercises.
+    Seq(testCU, testCUNoUri, testCUBlankUri).foreach { cu =>
+      val cuAccess = new ComputingUnitUserAccess()
+      cuAccess.setUid(testUser1.getUid)
+      cuAccess.setCuid(cu.getCuid)
+      cuAccess.setPrivilege(PrivilegeEnum.WRITE)
+      computingUnitOfUserDao.insert(cuAccess)
+    }
 
     val claims = JwtAuth.jwtClaims(testUser1, 1)
     token = JwtAuth.jwtToken(claims)
@@ -232,5 +268,87 @@ class AccessControlResourceSpec
     response.getHeaderString(HeaderField.UserId) shouldBe testUser1.getUid.toString
     response.getHeaderString(HeaderField.UserName) shouldBe testUser1.getName
     response.getHeaderString(HeaderField.UserEmail) shouldBe testUser1.getEmail
+    // Envoy routes by the rewritten Host header, which must be the URI recorded
+    // for the computing unit.
+    response.getHeaderString("Host") shouldBe testRecordedUri
+  }
+
+  it should "refuse the connection when no URI is recorded for the computing unit" in {
+    val (uri, headers) = mockRequest(testPath, Some(testCUNoUri.getCuid.toString))
+    val response = new AccessControlResource().authorizeGet(uri, headers)
+
+    response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+  }
+
+  it should "refuse the connection when the recorded URI is blank" in {
+    val (uri, headers) = mockRequest(testPath, Some(testCUBlankUri.getCuid.toString))
+    val response = new AccessControlResource().authorizeGet(uri, headers)
+
+    response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+  }
+
+  private def mockRequest(
+      path: String,
+      cuidQueryParam: Option[String]
+  ): (UriInfo, HttpHeaders) = {
+    val mockUriInfo = mock(classOf[UriInfo])
+    val mockHttpHeaders = mock(classOf[HttpHeaders])
+
+    val queryParams = new MultivaluedHashMap[String, String]()
+    cuidQueryParam.foreach(queryParams.add("cuid", _))
+
+    val requestHeaders = new MultivaluedHashMap[String, String]()
+    requestHeaders.add("Authorization", "Bearer " + token)
+
+    when(mockUriInfo.getQueryParameters).thenReturn(queryParams)
+    when(mockUriInfo.getRequestUri).thenReturn(new URI(testURI))
+    when(mockUriInfo.getPath).thenReturn(path)
+    when(mockHttpHeaders.getRequestHeaders).thenReturn(requestHeaders)
+    when(mockHttpHeaders.getRequestHeader("Authorization"))
+      .thenReturn(util.Arrays.asList("Bearer " + token))
+
+    (mockUriInfo, mockHttpHeaders)
+  }
+
+  it should "return OK for /pve/system with cuid as query parameter" in {
+    val (uri, headers) = mockRequest("/pve/system", Some(testCU.getCuid.toString))
+    val response = new AccessControlResource().authorizeGet(uri, headers)
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+  }
+
+  it should "return OK for /pve/pves/{cuid} (cuid extracted from path)" in {
+    val (uri, headers) = mockRequest(s"/pve/pves/${testCU.getCuid}", None)
+    val response = new AccessControlResource().authorizeDelete(uri, headers)
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+  }
+
+  it should "return OK for /pve/{cuid}/{pveName}/packages/{packageName} (cuid extracted from path)" in {
+    val (uri, headers) = mockRequest(s"/pve/${testCU.getCuid}/myenv/packages/numpy", None)
+    val response = new AccessControlResource().authorizeDelete(uri, headers)
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+  }
+
+  it should "return FORBIDDEN for a PVE path with no cuid in query or path" in {
+    val (uri, headers) = mockRequest("/pve/no-cuid-anywhere", None)
+    val response = new AccessControlResource().authorizeGet(uri, headers)
+
+    response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+  }
+
+  it should "return FORBIDDEN for a non-PVE / non-whitelisted path" in {
+    val (uri, headers) = mockRequest("/random/garbage", Some(testCU.getCuid.toString))
+    val response = new AccessControlResource().authorizeGet(uri, headers)
+
+    response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+  }
+
+  it should "return OK for a PUT request when user has access" in {
+    val (uri, headers) = mockRequest("/pve/system", Some(testCU.getCuid.toString))
+    val response = new AccessControlResource().authorizePut(uri, headers, """{"name":"env"}""")
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
   }
 }

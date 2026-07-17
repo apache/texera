@@ -15,7 +15,7 @@ Thank you for your interest in contributing to Texera! Please follow the steps b
 ## 🛠 Contribution Steps
 
 ### 1. Fork the Repo
-- Fork the [Texera repository](https://github.com/Texera/texera) to your own GitHub account.
+- Fork the [Texera repository](https://github.com/apache/texera) to your own GitHub account.
 
 ### 2. Find an Existing Issue or Open an Issue
 - Find an existing issue that you want to work on, or create one issue for new proposal/bug description.
@@ -29,7 +29,7 @@ Thank you for your interest in contributing to Texera! Please follow the steps b
   
 #### PR Title and Commit Messages
 - We require all PR titles and commit messages to follow the [Conventional Commits spec](https://www.conventionalcommits.org/en/v1.0.0/).
-- All PR titles will be used as the **squashed commit message** when merged into the `master` branch.
+- All PR titles will be used as the **squashed commit message** when merged into the `main` branch.
 - Example PR titles:
   - `feat: add a new join operator`
   - `fix(ui): prevent racing of requests`
@@ -67,7 +67,7 @@ Do not include any of the following in your PR:
 * For the amber engine's tests, the working directory should be `amber`
 * For the other services' tests, the working directory should be the root directory
 #### Testing the frontend 
-Before merging your code to the master branch, you need to pass the existing unit tests first.
+Before merging your code to the main branch, you need to pass the existing unit tests first.
 1. Open a command line. Navigate to the `frontend` directory.
 2. Start the test:
 ```
@@ -85,7 +85,7 @@ yarn format:fix
 - [ ] Ask a Texera Committer (by commenting on the PR) to triage your PR, i.e., request a reviewer, and assign the PR to you.
 - [ ] Add appropriate labels such as `fix`, `enhancement`, `docs`, etc.
 - [ ] If the change should also land in a release branch, add the matching `release/<branch>` label (e.g. `release/v1.1.0-incubating`); the change will be backported to that branch automatically.
-- [ ] Ensure that all CI checks pass (see [GitHub Actions](https://github.com/Texera/texera/actions)).
+- [ ] Ensure that all CI checks pass (see [GitHub Actions](https://github.com/apache/texera/actions)).
 - [ ] Fully test your changes locally.
 
 > ℹ️ If your PR is not ready for review, please mark it as a draft. You can change it to “Ready for review” when it is complete.
@@ -93,6 +93,46 @@ yarn format:fix
 ### 5. After PR Approval
 - [ ] Wait for a Texera Committer, usually the reviewer, to merge the PR once it is approved.
 - [ ] Close the related issue once the PR is merged (if it is not automatically closed).
+
+---
+
+## 👋 Comment commands
+
+You can drive common housekeeping tasks just by leaving a comment on an issue or pull request. Type the command on its own line.
+
+### On issues
+
+| Command | What it does |
+|---|---|
+| `/take` | Assign the issue to yourself (self-claim it) |
+| `/untake` | Remove yourself as assignee |
+
+To find unclaimed work, search `is:issue is:open no:assignee` — there's no "triage" label; the search filter *is* the triage state.
+
+### Linking sub-issues
+
+You can link from either end of the parent/child relationship:
+
+| Command | Where to run it | What it does |
+|---|---|---|
+| `/sub-issue #12 #13` | On the **parent** | Links #12 and #13 as children of this issue |
+| `/unsub-issue #12 #13` | On the **parent** | Unlinks those children |
+| `/parent-issue #5` | On the **child** | Sets #5 as this issue's parent |
+| `/unparent-issue` | On the **child** | Removes this issue's parent (auto-detected) |
+| `/unparent-issue #5` | On the **child** | Removes parent #5 explicitly |
+
+You can write references as `#12` or bare `12`. Cross-repo references like `owner/repo#12` aren't supported and are ignored.
+
+### On pull requests (author only)
+
+| Command | What it does |
+|---|---|
+| `/request-review @user [@user ...]` | Request reviews from those users |
+| `/unrequest-review @user [@user ...]` | Cancel those review requests |
+
+You can mention teams as `@org/team`, and `@copilot` works too. Only the PR **author** can use these commands.
+
+> **Note:** Commands must match exactly — `/take this` won't work, only `/take`. Bots are ignored, and you can't self-link an issue or set an issue as its own parent.
 
 ---
 

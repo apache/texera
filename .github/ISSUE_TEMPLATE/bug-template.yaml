@@ -41,10 +41,11 @@ body:
   - type: dropdown
     id: branch
     attributes:
-      label: Branch
-      description: Which branch did you hit this on?
+      label: Version/Branch
+      description: Which version/branch did you hit this on?
       options:
-        - main
+        - 1.3.0-incubating-SNAPSHOT (main)
+        - 1.2.0-incubating (release/v1.2)
         - 1.1.0-incubating
       default: 0
     validations:

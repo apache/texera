@@ -54,6 +54,8 @@ button {
 
 .page-content-layout {
   border-left: 1px solid #f0f0f0;
+  height: 100%;
+  min-height: 0;
 }
 
 .ant-layout-sider-has-trigger {
@@ -87,11 +89,15 @@ button {
 nz-content {
   position: relative;
   overflow-y: auto;
+  min-height: 0;
+  flex: 1;
 }
 
 .page-container {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
   width: 100%;
 }
 
@@ -100,7 +106,7 @@ nz-content {
   padding: 5px 0;
 }
 
-#git-commit-id {
+#build-number {
   position: absolute;
   left: 5px;
   bottom: 5px;
@@ -108,6 +114,27 @@ nz-content {
   color: gray;
   z-index: 5;
   pointer-events: none;
+}
+
+#powered-by {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 56px;
+  text-align: center;
+  font-size: 11px;
+  color: gray;
+  z-index: 5;
+
+  a {
+    color: gray;
+    text-decoration: none;
+
+    &:hover {
+      color: #1890ff;
+      text-decoration: underline;
+    }
+  }
 }
 
 .hidden {

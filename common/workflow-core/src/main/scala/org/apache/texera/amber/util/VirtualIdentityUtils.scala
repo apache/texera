@@ -39,7 +39,10 @@ object VirtualIdentityUtils {
       layerName: String,
       workerId: Int
   ): ActorVirtualIdentity = {
-
+    require(
+      !layerName.contains('-'),
+      s"layerName must not contain '-' (worker-name parsing relies on this): $layerName"
+    )
     ActorVirtualIdentity(
       s"Worker:WF${workflowId.id}-$operator-$layerName-$workerId"
     )
@@ -63,9 +66,29 @@ object VirtualIdentityUtils {
       case workerNamePattern(_, operator, layerName, _) =>
         PhysicalOpIdentity(OperatorIdentity(operator), layerName)
       case other =>
-        // for special actorId such as SELF, CONTROLLER
+        // for special actorId such as SELF, COORDINATOR
         PhysicalOpIdentity(OperatorIdentity("__DummyOperator"), "__DummyLayer")
     }
+  }
+
+  /**
+    * Extract the logical operator id from a worker actor id of the form
+    * `Worker:WF<workflowId>-<operatorId>-<layerName>-<workerIndex>`.
+    *
+    * Returns the logical operator id only (the `<operatorId>` segment);
+    * the physical operator id additionally carries the `<layerName>` and
+    * is exposed by [[getPhysicalOpId]]. Method name parallels
+    * `getPhysicalOpId` so callers can distinguish the two at the call
+    * site; the Python sibling is `core.util.virtual_identity.get_logical_op_id`.
+    *
+    * The Python helper raises `ValueError` on a non-match for fail-loud
+    * semantics; this Scala helper preserves the existing sentinel-on-miss
+    * behavior (`"__DummyOperator"`) so it stays a drop-in replacement for
+    * the inline `getPhysicalOpId(workerId).logicalOpId.id` pattern at
+    * call sites.
+    */
+  def getLogicalOpId(workerId: ActorVirtualIdentity): String = {
+    getPhysicalOpId(workerId).logicalOpId.id
   }
 
   def getWorkerIndex(workerId: ActorVirtualIdentity): Option[Int] = {
@@ -73,7 +96,7 @@ object VirtualIdentityUtils {
       case workerNamePattern(_, _, _, idx) =>
         Some(idx.toInt)
       case _ =>
-        // for special actorId such as SELF, CONTROLLER
+        // for special actorId such as SELF, COORDINATOR
         None
     }
   }

@@ -25,7 +25,13 @@ import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters._
 import scala.sys.process._
 import java.util.Comparator
-import org.apache.texera.amber.config.PythonUtils
+import org.apache.texera.common.config.PythonUtils
+import org.apache.texera.dao.SqlServer
+import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.lang3.SystemUtils
+import org.apache.texera.dao.jooq.generated.tables.daos.VirtualEnvironmentsDao
+import org.apache.texera.dao.jooq.generated.tables.pojos.VirtualEnvironments
+import org.jooq.JSONB
 
 /**
   * PveManager is responsible for managing Python Virtual Environments (PVEs)
@@ -40,14 +46,21 @@ import org.apache.texera.amber.config.PythonUtils
   *   /tmp/texera-pve/venvs/{cuid}/{pveName}/
   */
 
-object PveManager {
+object PveManager extends LazyLogging {
 
   case class PvePackageResponse(
       pveName: String,
       userPackages: Seq[String]
   )
 
+  case class StoredPve(veid: Int, name: String, packagesJson: String)
+
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
+
+  private val SafePveName = "^[A-Za-z0-9._-]+$".r
+
+  def isValidPveName(name: String): Boolean =
+    name != null && name.length <= 128 && SafePveName.pattern.matcher(name).matches()
 
   private def cuidDir(cuid: Int, pveName: String): Path = {
     VenvRoot.resolve(cuid.toString).resolve(pveName)
@@ -56,8 +69,28 @@ object PveManager {
   private def pveDir(cuid: Int, pveName: String): Path =
     cuidDir(cuid, pveName).resolve("pve")
 
+  // Resolves the Python interpreter inside a venv. POSIX puts it at
+  // `<venv>/bin/python`; Windows puts it at `<venv>/Scripts/python.exe`.
+  private def venvPython(venvDir: Path): Path =
+    if (SystemUtils.IS_OS_WINDOWS)
+      venvDir.resolve("Scripts").resolve("python.exe")
+    else
+      venvDir.resolve("bin").resolve("python")
+
   private def pythonBinPath(cuid: Int, pveName: String): Path =
-    pveDir(cuid, pveName).resolve("bin").resolve("python")
+    venvPython(pveDir(cuid, pveName))
+
+  /*
+   * Validates the PVE name and returns the Python binary path if it exists,
+   * is executable, and resolves within the allowed virtual environment root.
+   */
+  def getPythonBin(cuid: Int, pveName: String): Option[Path] = {
+    if (!SafePveName.pattern.matcher(pveName).matches()) return None
+    val resolved = pythonBinPath(cuid, pveName).toAbsolutePath.normalize()
+    val root = VenvRoot.toAbsolutePath.normalize()
+    if (!resolved.startsWith(root)) return None
+    if (Files.exists(resolved) && Files.isExecutable(resolved)) Some(resolved) else None
+  }
 
   private def pipEnv: Map[String, String] =
     Map(
@@ -66,6 +99,16 @@ object PveManager {
       "PIP_DISABLE_PIP_VERSION_CHECK" -> "1",
       "PIP_NO_INPUT" -> "1"
     )
+
+  // Test seam: every child process (venv creation, pip install/uninstall/freeze)
+  // funnels through this so unit tests can run hermetically — no real venv, no
+  // pip, no network. Production wiring runs the command for real; PveResourceSpec
+  // swaps in a fake that fabricates the venv layout and emits canned output.
+  private[pythonvirtualenvironment] type ProcessRunner =
+    (Seq[String], Seq[(String, String)], ProcessLogger) => Int
+
+  private[pythonvirtualenvironment] var runProcess: ProcessRunner =
+    (command, env, logger) => Process(command, None, env: _*).!(logger)
 
   private def readPackageFile(path: Path): Seq[String] = {
     if (Files.exists(path)) {
@@ -80,32 +123,107 @@ object PveManager {
     }
   }
 
-  private def getSystemPath(isLocal: Boolean): Path = {
-    Paths.get(
-      if (isLocal) "amber/system-requirements-lock.txt"
-      else "/tmp/system-requirements-lock.txt"
-    )
-  }
+  private def locateRequirementsTxt(): Option[Path] =
+    Seq(Paths.get("/tmp", "requirements.txt"), Paths.get("amber", "requirements.txt"))
+      .find(Files.exists(_))
 
-  def getSystemPackages(isLocal: Boolean): Seq[String] = {
-    if (!Files.exists(getSystemPath(isLocal))) {
-      Seq()
-    } else {
-      Files
-        .readAllLines(getSystemPath(isLocal))
-        .asScala
-        .map(_.trim)
-        .filter(line => line.nonEmpty && !line.startsWith("#"))
-        .toSeq
+  // Resolves the fully-pinned system package set by installing requirements.txt
+  // into a throwaway venv and running `pip freeze`.
+  private def resolveSystemPackages(): Seq[String] = {
+    val requirementsPath = locateRequirementsTxt() match {
+      case Some(p) => p
+      case None =>
+        logger.error("requirements.txt not found; system package set will be empty")
+        return Seq.empty
+    }
+
+    val tempVenv = Files.createTempDirectory("texera-system-venv-")
+    try {
+      val python = venvPython(tempVenv).toString
+      val createCode =
+        runProcess(
+          Seq(PythonUtils.getPythonExecutable, "-m", "venv", tempVenv.toString),
+          Nil,
+          ProcessLogger(_ => (), _ => ())
+        )
+      if (createCode != 0) {
+        logger.error(s"failed to create temp venv for system-package resolution (exit=$createCode)")
+        return Seq.empty
+      }
+
+      val installCode = runProcess(
+        Seq(
+          python,
+          "-u",
+          "-m",
+          "pip",
+          "install",
+          "--progress-bar",
+          "off",
+          "--no-input",
+          "-r",
+          requirementsPath.toString
+        ),
+        pipEnv.toSeq,
+        ProcessLogger(_ => (), _ => ())
+      )
+      if (installCode != 0) {
+        logger.error(s"failed to install requirements into temp venv (exit=$installCode)")
+        return Seq.empty
+      }
+
+      val collected = scala.collection.mutable.ListBuffer[String]()
+      val freezeCode = runProcess(
+        Seq(python, "-m", "pip", "freeze"),
+        Nil,
+        ProcessLogger(line => collected += line, _ => ())
+      )
+      if (freezeCode != 0) {
+        logger.error(s"pip freeze failed (exit=$freezeCode)")
+        return Seq.empty
+      }
+      collected.toSeq.map(_.trim).filter(line => line.nonEmpty && !line.startsWith("#"))
+    } finally {
+      try {
+        val stream = Files.walk(tempVenv)
+        try stream
+          .sorted(Comparator.reverseOrder())
+          .iterator()
+          .asScala
+          .foreach(Files.deleteIfExists)
+        finally stream.close()
+      } catch {
+        case _: Throwable => ()
+      }
     }
   }
+
+  // Cached for the JVM lifetime. The system Python + requirements.txt don't
+  // change without an app restart, so resolving once is sufficient.
+  private lazy val systemPackages: Seq[String] = resolveSystemPackages()
+
+  // Normalised package names ("numpy", "pandas") — used to reject user
+  // attempts to install or delete system packages.
+  private lazy val systemPackageNames: Set[String] =
+    systemPackages.map(_.split("==")(0).trim.toLowerCase).toSet
+
+  // Materialised once: a file containing the frozen system requirements,
+  // passed as `pip install --constraint` so user installs respect system pins.
+  private lazy val systemConstraintFile: Path = {
+    val f = Files.createTempFile("texera-system-constraint-", ".txt")
+    Files.write(f, systemPackages.asJava)
+    f.toFile.deleteOnExit()
+    f
+  }
+
+  def getSystemPackages: Seq[String] = systemPackages
 
   private def runPipInstall(
       python: String,
       args: Seq[String],
       queue: BlockingQueue[String]
   ): Int = {
-    Process(
+    runProcess(
       Seq(
         python,
         "-u",
@@ -116,9 +234,7 @@ object PveManager {
         "off",
         "--no-input"
       ) ++ args,
-      None,
-      pipEnv.toSeq: _*
-    ).!(
+      pipEnv.toSeq,
       ProcessLogger(
         out => queue.put(s"[pip] $out"),
         err => queue.put(s"[pip][ERR] $err")
@@ -139,20 +255,15 @@ object PveManager {
   def createNewPve(
       cuid: Int,
       queue: BlockingQueue[String],
-      pveName: String,
-      isLocal: Boolean
+      pveName: String
   ): Unit = {
     queue.put(s"[PVE] Creating new PVE for cuid: $cuid with name: $pveName")
 
-    // NOTE: These paths are derived from computing-unit-master.dockerfile.
-    // If requirements.txt location changes, update these paths.
-    val requirementsPath =
-      if (isLocal) Paths.get("amber", "requirements.txt")
-      else Paths.get("/tmp", "requirements.txt")
-
-    if (!Files.exists(requirementsPath)) {
-      queue.put(s"[PVE][ERR] System requirements not found")
-      return
+    val requirementsPath = locateRequirementsTxt() match {
+      case Some(p) => p
+      case None =>
+        queue.put(s"[PVE][ERR] System requirements not found")
+        return
     }
 
     val venvDirPath = pveDir(cuid, pveName).toAbsolutePath
@@ -162,7 +273,9 @@ object PveManager {
 
     Files.createDirectories(venvDirPath.getParent)
 
-    val createCode = Process(Seq(createVenvPython, "-m", "venv", venvDirPath.toString)).!(
+    val createCode = runProcess(
+      Seq(createVenvPython, "-m", "venv", venvDirPath.toString),
+      Nil,
       ProcessLogger(
         out => queue.put(s"[pve] $out"),
         err => queue.put(s"[pve][ERR] $err")
@@ -197,6 +310,72 @@ object PveManager {
     }
 
     queue.put(s"[PVE] Created new environment for cuid = $cuid")
+  }
+
+  // Returns every PVE row belonging to the given user.
+  def listPvesForUser(uid: Int): List[StoredPve] = {
+    import org.apache.texera.dao.jooq.generated.Tables.VIRTUAL_ENVIRONMENTS
+    SqlServer
+      .getInstance()
+      .createDSLContext()
+      .selectFrom(VIRTUAL_ENVIRONMENTS)
+      .where(VIRTUAL_ENVIRONMENTS.UID.eq(uid))
+      .fetchInto(classOf[VirtualEnvironments])
+      .asScala
+      .map { row =>
+        val pkgsJson = Option(row.getPackages).map(_.data).getOrElse("{}")
+        StoredPve(row.getVeid, row.getName, pkgsJson)
+      }
+      .toList
+  }
+
+  // Deletes a PVE row owned by `uid`. Returns true if a row was deleted, false if no
+  // matching row was found (either the veid doesn't exist or it belongs to another user).
+  def deletePveFromDb(veid: Int, uid: Int): Boolean = {
+    import org.apache.texera.dao.jooq.generated.Tables.VIRTUAL_ENVIRONMENTS
+    val rows = SqlServer
+      .getInstance()
+      .createDSLContext()
+      .deleteFrom(VIRTUAL_ENVIRONMENTS)
+      .where(
+        VIRTUAL_ENVIRONMENTS.VEID
+          .eq(veid)
+          .and(VIRTUAL_ENVIRONMENTS.UID.eq(uid))
+      )
+      .execute()
+    rows > 0
+  }
+
+  // Updates an existing PVE row owned by `uid`. Returns true if a row was
+  // updated, false if no matching row was found.
+  def updatePve(veid: Int, uid: Int, name: String, packagesJson: String): Boolean = {
+    import org.apache.texera.dao.jooq.generated.Tables.VIRTUAL_ENVIRONMENTS
+    val rows = SqlServer
+      .getInstance()
+      .createDSLContext()
+      .update(VIRTUAL_ENVIRONMENTS)
+      .set(VIRTUAL_ENVIRONMENTS.NAME, name)
+      .set(VIRTUAL_ENVIRONMENTS.PACKAGES, JSONB.valueOf(packagesJson))
+      .where(
+        VIRTUAL_ENVIRONMENTS.VEID
+          .eq(veid)
+          .and(VIRTUAL_ENVIRONMENTS.UID.eq(uid))
+      )
+      .execute()
+    rows > 0
+  }
+
+  // Persists a PVE spec (name + packages JSON) for the given user. Returns the new veid.
+  def savePve(uid: Int, name: String, packagesJson: String): Int = {
+    val row = new VirtualEnvironments()
+    row.setUid(uid)
+    row.setName(name)
+    row.setPackages(JSONB.valueOf(packagesJson))
+    val dao = new VirtualEnvironmentsDao(
+      SqlServer.getInstance().createDSLContext().configuration
+    )
+    dao.insert(row)
+    row.getVeid
   }
 
   // returns list of PVE names and corresponding user packages for a given CU
@@ -265,8 +444,7 @@ object PveManager {
       packages: List[String],
       cuid: Int,
       queue: BlockingQueue[String],
-      pveName: String,
-      isLocal: Boolean
+      pveName: String
   ): Unit = {
 
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
@@ -280,19 +458,6 @@ object PveManager {
 
     var installedPackages = readPackageFile(metadataPath).toSet
 
-    val systemPackages =
-      if (Files.exists(getSystemPath(isLocal))) {
-        Files
-          .readAllLines(getSystemPath(isLocal))
-          .asScala
-          .map(_.trim)
-          .filter(line => line.nonEmpty && !line.startsWith("#"))
-          .map(line => line.split("==")(0).trim.toLowerCase)
-          .toSet
-      } else {
-        Set[String]()
-      }
-
     packages.foreach { pkg =>
       val trimmedPkg = pkg.trim
 
@@ -300,7 +465,7 @@ object PveManager {
 
         val userPackageName = trimmedPkg.split("==")(0).trim.toLowerCase
 
-        if (systemPackages.contains(userPackageName)) {
+        if (systemPackageNames.contains(userPackageName)) {
           queue.put(
             s"[PVE][ERR] $trimmedPkg is a system package and cannot be installed or modified by the user."
           )
@@ -312,8 +477,8 @@ object PveManager {
         val code = runPipInstall(
           python,
           Seq(
-            "--constraint", // check against system-requirements-lock
-            getSystemPath(isLocal).toString,
+            "--constraint", // pin to the runtime-resolved system set
+            systemConstraintFile.toString,
             trimmedPkg
           ),
           queue
@@ -351,42 +516,30 @@ object PveManager {
   def deletePackages(
       cuid: Int,
       packageName: String,
-      pveName: String,
-      isLocal: Boolean
+      pveName: String
   ): List[String] = {
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
     val metadataPath = cuidDir(cuid, pveName).resolve("user-packages.txt")
 
     if (!Files.exists(Paths.get(python))) {
       val msg = s"[PVE][ERR] Python executable not found for PVE: $python"
-      println(msg)
+      logger.error(msg)
       return List(msg)
     }
 
     val trimmedPackageName = packageName.trim
     val normalizedPackageName = trimmedPackageName.split("==")(0).trim.toLowerCase
 
-    val systemPackages =
-      if (Files.exists(getSystemPath(isLocal))) {
-        Files
-          .readAllLines(getSystemPath(isLocal))
-          .asScala
-          .map(_.trim)
-          .filter(line => line.nonEmpty && !line.startsWith("#"))
-          .map(line => line.split("==")(0).trim.toLowerCase)
-          .toSet
-      } else {
-        Set[String]()
-      }
-
-    if (systemPackages.contains(normalizedPackageName)) {
+    if (systemPackageNames.contains(normalizedPackageName)) {
       return List(
         s"[PVE][ERR] $trimmedPackageName is a system package and cannot be deleted."
       )
     }
 
     try {
-      val command = Process(
+      val output = scala.collection.mutable.ListBuffer[String]()
+
+      val exitCode = runProcess(
         Seq(
           python,
           "-u",
@@ -396,20 +549,14 @@ object PveManager {
           "-y",
           trimmedPackageName
         ),
-        None,
-        pipEnv.toSeq: _*
-      )
-
-      val output = scala.collection.mutable.ListBuffer[String]()
-
-      val exitCode = command.!(
+        pipEnv.toSeq,
         ProcessLogger(
           out => {
-            println(s"[pip] $out")
+            logger.info(s"[pip] $out")
             output += s"[pip] $out"
           },
           err => {
-            System.err.println(s"[pip][ERR] $err")
+            logger.error(s"[pip][ERR] $err")
             output += s"[pip][ERR] $err"
           }
         )
@@ -434,4 +581,5 @@ object PveManager {
         List(s"[PVE][ERR] Failed to delete package for cuid=$cuid: ${e.getMessage}")
     }
   }
+
 }

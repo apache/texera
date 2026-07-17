@@ -35,7 +35,7 @@ jobs:
           github.event.action == 'opened'
           && github.event.pull_request.user.type != 'Bot'
           && github.event.pull_request.assignees[0] == null
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const pr = context.payload.pull_request;
@@ -61,7 +61,7 @@ jobs:
           contains(fromJSON('["opened","edited"]'), github.event.action)
           && github.event.pull_request.state == 'open'
           && github.event.pull_request.user.type != 'Bot'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -150,7 +150,7 @@ jobs:
           github.event.action == 'closed'
           && github.event.pull_request.merged == false
           && github.event.pull_request.user.type != 'Bot'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -188,7 +188,7 @@ jobs:
 
       - name: Credit issue assignees on PR merge
         if: github.event.action == 'closed' && github.event.pull_request.merged
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;

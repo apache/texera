@@ -42,7 +42,8 @@ export class GmailService {
         next: () => this.notificationService.success("Email sent successfully"),
         error: (error: unknown) => {
           if (error instanceof HttpErrorResponse) {
-            console.error(error.error);
+            this.notificationService.error("Failed to send email. Please try again or contact admin.");
+            console.error("Send email error:", error.error);
           }
         },
       });

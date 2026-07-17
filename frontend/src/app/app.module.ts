@@ -20,7 +20,7 @@
 import { DatePipe, registerLocaleData } from "@angular/common";
 import { HTTP_INTERCEPTORS, HttpClientModule } from "@angular/common/http";
 import en from "@angular/common/locales/en";
-import { APP_INITIALIZER, CUSTOM_ELEMENTS_SCHEMA, NgModule } from "@angular/core";
+import { APP_INITIALIZER, CUSTOM_ELEMENTS_SCHEMA, ErrorHandler, NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -53,6 +53,7 @@ import { NullTypeComponent } from "./common/formly/null.type";
 import { ObjectTypeComponent } from "./common/formly/object.type";
 import { UserService } from "./common/service/user/user.service";
 import { GuiConfigService } from "./common/service/gui-config.service";
+import { GlobalErrorHandler } from "./common/service/global-error-handler/global-error-handler.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { ShareAccessComponent } from "./dashboard/component/user/share-access/share-access.component";
@@ -78,6 +79,7 @@ import { NzCardModule } from "ng-zorro-antd/card";
 import { NzTagModule } from "ng-zorro-antd/tag";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { BlobErrorHttpInterceptor } from "./common/service/blob-error-http-interceptor.service";
+import { UnauthorizedHttpInterceptor } from "./common/service/unauthorized-http-interceptor.service";
 import { ConsoleFrameComponent } from "./workspace/component/result-panel/console-frame/console-frame.component";
 import { ResultTableFrameComponent } from "./workspace/component/result-panel/result-table-frame/result-table-frame.component";
 import { RowModalComponent } from "./workspace/component/result-panel/result-panel-modal.component";
@@ -104,6 +106,9 @@ import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-u
 import { AgentPanelComponent } from "./workspace/component/agent/agent-panel/agent-panel.component";
 import { AgentChatComponent } from "./workspace/component/agent/agent-panel/agent-chat/agent-chat.component";
 import { AgentRegistrationComponent } from "./workspace/component/agent/agent-panel/agent-registration/agent-registration.component";
+import { HuggingFaceImageUploadComponent } from "./workspace/component/hugging-face-image-upload/hugging-face-image-upload.component";
+import { HuggingFaceComponent } from "./workspace/component/hugging-face/hugging-face.component";
+import { HuggingFaceAudioUploadComponent } from "./workspace/component/hugging-face-audio-upload/hugging-face-audio-upload.component";
 import { DatasetFileSelectorComponent } from "./workspace/component/dataset-file-selector/dataset-file-selector.component";
 import { DatasetVersionSelectorComponent } from "./workspace/component/dataset-version-selector/dataset-version-selector.component";
 import { DatasetSelectionModalComponent } from "./workspace/component/dataset-selection-modal/dataset-selection-modal.component";
@@ -156,10 +161,12 @@ import { NzTreeModule } from "ng-zorro-antd/tree";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
 import { NzNoAnimationModule } from "ng-zorro-antd/core/animation";
 import { TreeModule } from "@ali-hm/angular-tree-component";
+import { UiUdfParametersComponent } from "./workspace/component/ui-udf-parameters/ui-udf-parameters.component";
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
+import { CardItemComponent } from "./dashboard/component/user/list-item/card-item/card-item.component";
 import { HubComponent } from "./hub/component/hub.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
@@ -183,13 +190,13 @@ import { NzProgressModule } from "ng-zorro-antd/progress";
 import { ComputingUnitSelectionComponent } from "./workspace/component/power-button/computing-unit-selection.component";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
-import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.component";
 import { NzInputNumberModule } from "ng-zorro-antd/input-number";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { RegistrationRequestModalComponent } from "./common/service/user/registration-request-modal/registration-request-modal.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
 import { UserComputingUnitListItemComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit-list-item/user-computing-unit-list-item.component";
+import { UserVenvComponent } from "./dashboard/component/user/user-venv/user-venv.component";
 
 registerLocaleData(en);
 
@@ -202,9 +209,9 @@ registerLocaleData(en);
     JwtModule.forRoot({
       config: {
         tokenGetter: AuthService.getAccessToken,
-        skipWhenExpired: false,
+        skipWhenExpired: true,
         throwNoTokenError: false,
-        disallowedRoutes: ["forum/api/users"],
+        disallowedRoutes: ["forum/api/users", "api/config/pre-login"],
       },
     }),
     BrowserAnimationsModule,
@@ -264,7 +271,7 @@ registerLocaleData(en);
     NzCheckboxModule,
     NzGridModule,
     ScrollingModule,
-    FormlyRepeatDndComponent,
+    UiUdfParametersComponent,
     AdminGmailComponent,
     PublicProjectComponent,
     WorkspaceComponent,
@@ -326,6 +333,9 @@ registerLocaleData(en);
     AgentChatComponent,
     AgentRegistrationComponent,
     AgentInteractionComponent,
+    HuggingFaceComponent,
+    HuggingFaceAudioUploadComponent,
+    HuggingFaceImageUploadComponent,
     DatasetFileSelectorComponent,
     DatasetVersionSelectorComponent,
     DatasetSelectionModalComponent,
@@ -344,6 +354,7 @@ registerLocaleData(en);
     HighlightSearchTermsPipe,
     SearchBarComponent,
     ListItemComponent,
+    CardItemComponent,
     SearchResultsComponent,
     HubComponent,
     HubWorkflowDetailComponent,
@@ -358,8 +369,10 @@ registerLocaleData(en);
     MarkdownDescriptionComponent,
     UserComputingUnitComponent,
     UserComputingUnitListItemComponent,
+    UserVenvComponent,
   ],
   providers: [
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideNzI18n(en_US),
     AuthGuardService,
     AdminGuardService,
@@ -371,6 +384,11 @@ registerLocaleData(en);
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
+      multi: true,
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: UnauthorizedHttpInterceptor,
       multi: true,
     },
     {

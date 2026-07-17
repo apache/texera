@@ -54,7 +54,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor with StandaloneCodeGener
     Schema()
       .add(
         "URL content",
-        if (decodingMethod == DecodingMethod.UTF_8) AttributeType.STRING else AttributeType.ANY
+        if (decodingMethod eq DecodingMethod.UTF_8) AttributeType.STRING else AttributeType.BINARY
       )
   }
 

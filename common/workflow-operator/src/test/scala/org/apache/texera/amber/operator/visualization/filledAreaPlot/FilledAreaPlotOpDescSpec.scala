@@ -19,16 +19,24 @@
 
 package org.apache.texera.amber.operator.visualization.filledAreaPlot
 
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
+class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
 
   var opDesc: FilledAreaPlotOpDesc = _
 
   before {
     opDesc = new FilledAreaPlotOpDesc()
   }
+
+  // The part of an assert message that names the offending field.
+  private def fieldPart(msg: String): String =
+    msg.toLowerCase.replace("cannot be empty", "")
 
   it should "throw error if X is empty" in {
     val y = "test1"
@@ -65,4 +73,80 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     }
   }
 
+  it should "throw AssertionError naming the X-axis Attribute when only x is missing" in {
+    opDesc.y = "area_y"
+    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    fieldPart(ex.getMessage) should include("x")
+  }
+
+  it should "throw AssertionError naming the Y-axis Attribute when only y is missing" in {
+    opDesc.x = "area_x"
+    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    fieldPart(ex.getMessage) should include("y")
+  }
+
+  it should "throw AssertionError naming the Line Group when facetColumn is enabled without a line group" in {
+    opDesc.x = "area_x"
+    opDesc.y = "area_y"
+    opDesc.facetColumn = true
+    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+    fieldPart(ex.getMessage) should include("line")
+  }
+
+  it should "render the configured x and y attributes when set" in {
+    opDesc.x = "area_x"
+    opDesc.y = "area_y"
+    val plain = opDesc.createPlotlyFigure().plain
+    plain should include("area_x")
+    plain should include("area_y")
+    plain should include("px.area")
+  }
+
+  "FilledAreaPlotOpDesc.getOutputSchemas" should
+    "return exactly one html-content STRING column" in {
+    opDesc.getOutputSchemas(Map.empty) shouldBe Map(
+      opDesc.operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING)
+    )
+  }
+
+  "FilledAreaPlotOpDesc.createPlotlyFigure" should
+    "emit the optional plotly args when color, facet, line group, and pattern are set" in {
+    opDesc.x = "area_x"
+    opDesc.y = "area_y"
+    opDesc.color = "c"
+    opDesc.facetColumn = true
+    opDesc.lineGroup = "grp"
+    opDesc.pattern = "p"
+    val plain = opDesc.createPlotlyFigure().plain
+    plain should include("px.area")
+    plain should include("color=")
+    plain should include("facet_col=")
+    plain should include("line_group=")
+    plain should include("pattern_shape=")
+  }
+
+  "FilledAreaPlotOpDesc" should "round-trip its config fields through the polymorphic base" in {
+    opDesc.x = "area_x"
+    opDesc.y = "area_y"
+    opDesc.lineGroup = "grp"
+    opDesc.color = "c"
+    opDesc.facetColumn = true
+    opDesc.pattern = "p"
+    val restored =
+      objectMapper.readValue(objectMapper.writeValueAsString(opDesc), classOf[LogicalOp])
+    restored shouldBe a[FilledAreaPlotOpDesc]
+    val fp = restored.asInstanceOf[FilledAreaPlotOpDesc]
+    fp.x shouldBe "area_x"
+    fp.y shouldBe "area_y"
+    fp.lineGroup shouldBe "grp"
+    fp.color shouldBe "c"
+    fp.facetColumn shouldBe true
+    fp.pattern shouldBe "p"
+  }
 }

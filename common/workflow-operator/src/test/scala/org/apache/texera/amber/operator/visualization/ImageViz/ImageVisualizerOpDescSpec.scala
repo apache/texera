@@ -31,28 +31,26 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
     opDesc = new ImageVisualizerOpDesc()
   }
 
-  it should "currently throw NullPointerException when binaryContent is uninitialized" in {
-    // Documents the present behavior without claiming it is the contract:
-    // `binaryContent` is declared `var binaryContent: EncodableString = _`,
-    // so an uninitialized reference field defaults to null and the
-    // `assert(binaryContent.nonEmpty)` inside `createBinaryData` reaches
-    // `null.nonEmpty` and throws NPE before the assert message can fire.
-    assertThrows[NullPointerException] {
+  it should "throw AssertionError (not NPE) when binaryContent is left at its default" in {
+    // `binaryContent` now defaults to "" instead of null, so an unconfigured
+    // operator reaches the nonEmpty assert and surfaces a domain error with
+    // the standard "cannot be empty" message rather than a
+    // NullPointerException from dereferencing null.
+    val ex = intercept[AssertionError] {
       opDesc.createBinaryData()
     }
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
   }
 
-  it should "eventually reject missing binaryContent with a controlled error (pendingUntilFixed)" in pendingUntilFixed {
-    // Intended contract: because `binaryContent` is declared
-    // `@JsonProperty(required = true)`, an unconfigured operator should
-    // surface a domain error (AssertionError or IllegalArgumentException),
-    // not an NPE from dereferencing null. Using pendingUntilFixed so a
-    // future validation fix flips this test from Pending to a deliberate
-    // failure that forces removal of the marker.
-    val ex = intercept[RuntimeException] {
-      opDesc.createBinaryData()
+  it should "reject missing binaryContent with a controlled error via generatePythonCode" in {
+    // The assert inside createBinaryData is also reachable through the
+    // public codegen entry point; the same message must surface there.
+    val ex = intercept[AssertionError] {
+      opDesc.generatePythonCode()
     }
-    ex shouldBe a[AssertionError]
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
   }
 
   "ImageVisualizerOpDesc.operatorInfo" should "advertise the user-friendly name and Media group" in {
@@ -75,6 +73,23 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
     schema.getAttributes should have length 1
     schema.getAttributes.head.getName shouldBe "html-content"
     schema.getAttributes.head.getType shouldBe AttributeType.STRING
+  }
+
+  it should "throw AssertionError with a 'cannot be empty' message when binaryContent is an empty string" in {
+    // An explicitly assigned empty string (same as the new default) reaches
+    // the nonEmpty assert, whose message must end with the standard
+    // "cannot be empty" phrase.
+    opDesc.binaryContent = ""
+    val ex = intercept[AssertionError](opDesc.createBinaryData())
+    ex.getMessage should not be null
+    ex.getMessage should include("cannot be empty")
+  }
+
+  it should "render the configured binary content column in createBinaryData" in {
+    opDesc.binaryContent = "image_bytes"
+    val plain = opDesc.createBinaryData().plain
+    plain should include("image_bytes")
+    plain should include("binary_image_data")
   }
 
   "ImageVisualizerOpDesc.generatePythonCode" should "render a UDFOperatorV2 source with a runtime column-decode site" in {

@@ -21,8 +21,9 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
+import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
 import { getBackendConfig } from "./api/backend-api";
-import { extractUserFromToken, validateToken } from "./api/auth-api";
+import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
@@ -38,22 +39,28 @@ import type {
   AgentSettingsApi,
   ReActStep,
 } from "./types/agent";
-import { OperatorResultSerializationMode } from "./types/agent";
+import { AgentState, OperatorResultSerializationMode } from "./types/agent";
+import type { WsClientCommand, WsServerEvent } from "./types/ws";
+import { WsServerSnapshotEvent, WsServerStepEvent, WsServerStatusEvent, WsServerErrorEvent } from "./types/ws";
+import type { OperatorResultSummary } from "./types/execution";
 
 const agentStore = new Map<string, TexeraAgent>();
 let agentCounter = 0;
 
 async function createAgentInstance(
   modelType: string,
-  customName?: string,
-  delegateConfig?: AgentDelegateConfig
+  delegateConfig: AgentDelegateConfig,
+  customName?: string
 ): Promise<{ agentId: string; agent: TexeraAgent }> {
   const agentId = `agent-${++agentCounter}`;
   const config = getBackendConfig();
 
   const openai = createOpenAI({
     baseURL: `${config.modelsEndpoint}/api`,
-    apiKey: env.LLM_API_KEY,
+    // The LLM gateway (access-control-service) enforces a REGULAR/ADMIN-role
+    // JWT (apache/texera#5421) and injects the LiteLLM master key downstream,
+    // so the delegating user's JWT is the only credential this service sends.
+    apiKey: delegateConfig.userToken,
   });
 
   // Reasoning effort variants are configured as separate model entries in litellm-config.yaml
@@ -67,7 +74,7 @@ async function createAgentInstance(
 
   await agent.initialize();
 
-  if (delegateConfig?.workflowId && delegateConfig.userToken) {
+  if (delegateConfig.workflowId) {
     try {
       const workflow = await retrieveWorkflow(delegateConfig.userToken, delegateConfig.workflowId);
       delegateConfig.workflowName = workflow.name;
@@ -90,7 +97,7 @@ async function createAgentInstance(
   }
 
   agentStore.set(agentId, agent);
-  log.info({ agentId, delegate: !!delegateConfig }, "created agent");
+  log.info({ agentId, userId: delegateConfig.userInfo?.uid }, "created agent");
 
   return { agentId, agent };
 }
@@ -137,26 +144,27 @@ function getAgent(agentId: string): TexeraAgent {
   return agent;
 }
 
+// Status codes for handler-thrown errors; anything unlisted is a 500.
+const ERROR_STATUS: Record<string, number> = {
+  "Agent not found": 404,
+  "Invalid or expired token": 401,
+  "Authorization header with a Bearer token is required": 401,
+  "modelType is required": 400,
+};
+
 const agentsRouter = new Elysia({ prefix: "/agents" })
   // Error handler must live on the same Elysia instance whose routes throw, or
   // its scope will not see the errors. Elysia 1.x defaults to local scoping for
   // .onError, so attach here rather than on the outer app.
-  .onError(({ error, set }) => {
+  .onError(({ code, error, set }) => {
     log.error({ err: error }, "request error");
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage === "Agent not found") {
-      set.status = 404;
-      return { error: "Agent not found" };
-    }
-    if (errorMessage === "Invalid or expired token") {
-      set.status = 401;
-      return { error: "Invalid or expired token" };
-    }
-    if (errorMessage === "modelType is required") {
+    // Body schema violations and malformed JSON are client errors, not 500s.
+    if (code === "VALIDATION" || code === "PARSE") {
       set.status = 400;
-      return { error: "modelType is required" };
+      return { error: errorMessage || "Invalid request body" };
     }
-    set.status = 500;
+    set.status = ERROR_STATUS[errorMessage] ?? 500;
     return { error: errorMessage || "Internal server error" };
   })
   .get("/", () => {
@@ -166,29 +174,33 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
 
   .post(
     "/",
-    async ({ body }) => {
-      const { modelType, name, userToken, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
+    async ({ body, headers }) => {
+      const { modelType, name, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
 
       if (!modelType) {
         throw new Error("modelType is required");
       }
 
-      let delegateConfig: AgentDelegateConfig | undefined;
-      if (userToken) {
-        if (!validateToken(userToken)) {
-          throw new Error("Invalid or expired token");
-        }
-
-        const userInfo = extractUserFromToken(userToken);
-        delegateConfig = {
-          userToken,
-          userInfo,
-          workflowId,
-          computingUnitId,
-        };
+      // The agent always calls the LLM gateway as the delegating user, so an
+      // agent without a user token would be unable to generate anything. The
+      // token travels in the Authorization header, never in the payload.
+      const userToken = extractBearerToken(headers.authorization);
+      if (!userToken) {
+        throw new Error("Authorization header with a Bearer token is required");
+      }
+      if (!validateToken(userToken)) {
+        throw new Error("Invalid or expired token");
       }
 
-      const { agentId, agent } = await createAgentInstance(modelType, name, delegateConfig);
+      const userInfo = extractUserFromToken(userToken);
+      const delegateConfig: AgentDelegateConfig = {
+        userToken,
+        userInfo,
+        workflowId,
+        computingUnitId,
+      };
+
+      const { agentId, agent } = await createAgentInstance(modelType, delegateConfig, name);
 
       if (settings) {
         log.info(
@@ -219,7 +231,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       body: t.Object({
         modelType: t.String(),
         name: t.Optional(t.String()),
-        userToken: t.Optional(t.String()),
         workflowId: t.Optional(t.Number()),
         computingUnitId: t.Optional(t.Number()),
         settings: t.Optional(
@@ -300,31 +311,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     return { status: "cleared" };
   })
 
-  .post("/:id/checkout", ({ params: { id }, body }) => {
-    const agent = getAgent(id);
-    const { stepId } = body as { stepId: string };
-    if (!stepId) throw new Error("stepId is required");
-
-    const success = agent.checkout(stepId);
-    if (!success) throw new Error(`Step ${stepId} not found or checkout failed`);
-
-    const allSteps = agent.getAllSteps();
-    const workflowContent = agent.getWorkflowState().getWorkflowContent();
-
-    broadcastToAgent(id, {
-      type: "headChange",
-      headId: stepId,
-      steps: allSteps,
-      workflowContent,
-      operatorResults: getOperatorResultSummaries(agent),
-    });
-
-    return {
-      status: "checked out",
-      headId: stepId,
-    };
-  })
-
   .get("/:id/operator-types", ({ params: { id } }) => {
     const agent = getAgent(id);
     const metadataStore = agent.getMetadataStore();
@@ -402,41 +388,10 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   );
 
-interface WsMessage {
-  type: "message" | "stop";
-  content?: string;
-  messageSource?: "chat" | "feedback";
-}
-
-interface OperatorResultSummaryWs {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
-  outputColumns?: number;
-  error?: string;
-  warnings?: string[];
-  consoleLogCount?: number;
-  totalRowCount?: number;
-  sampleRecords?: Record<string, any>[];
-  resultStatistics?: Record<string, string>;
-}
-
-interface WsOutgoingMessage {
-  type: "step" | "state" | "error" | "complete" | "init" | "headChange";
-  step?: ReActStep;
-  state?: string;
-  error?: string;
-  steps?: ReActStep[];
-  headId?: string;
-  operatorResults?: Record<string, OperatorResultSummaryWs>;
-  workflowContent?: any;
-}
-
-function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummaryWs> {
+function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummary> {
   const resultState = agent.getWorkflowResultState();
   const visible = resultState.getAllVisible();
-  const results: Record<string, OperatorResultSummaryWs> = {};
+  const results: Record<string, OperatorResultSummary> = {};
   for (const [opId, entry] of visible) {
     const info = entry.operatorInfo;
     results[opId] = {
@@ -444,10 +399,7 @@ function getOperatorResultSummaries(agent: TexeraAgent): Record<string, Operator
       inputTuples: info.inputTuples,
       outputTuples: info.outputTuples,
       inputPortShapes: info.inputPortShapes,
-      outputColumns:
-        info.result && info.result.length > 0
-          ? Object.keys(info.result[0]).filter(k => k !== "__row_index__").length
-          : undefined,
+      outputColumns: info.result && info.result.length > 0 ? getVisibleResultHeaders(info.result[0]).length : undefined,
       error: info.error,
       warnings: info.warnings,
       consoleLogCount: info.consoleLogs?.length,
@@ -459,17 +411,24 @@ function getOperatorResultSummaries(agent: TexeraAgent): Record<string, Operator
   return results;
 }
 
-function broadcastToAgent(agentId: string, message: WsOutgoingMessage): void {
+// Send a single server event to one client. Each event is constructed with
+// `new WsServer*Event(...)`, so the `type` tag is never hand-written here.
+function sendEventToClient(ws: { send(data: string): void }, event: WsServerEvent): void {
+  ws.send(JSON.stringify(event));
+}
+
+// Broadcast a server event to every client attached to the agent.
+function broadcastToAgentClients(agentId: string, event: WsServerEvent): void {
   const agent = agentStore.get(agentId);
   if (!agent) return;
 
-  const jsonMessage = JSON.stringify(message);
-  for (const ws of agent.getWebsockets()) {
+  const serializedEvent = JSON.stringify(event);
+  for (const ws of agent.getClients()) {
     try {
-      ws.send(jsonMessage);
+      ws.send(serializedEvent);
     } catch (error) {
-      wsLog.error({ agentId, err: error }, "failed to send message to client");
-      agent.removeWebsocket(ws);
+      wsLog.error({ agentId, err: error }, "failed to send event to a client");
+      agent.removeClient(ws);
     }
   }
 }
@@ -492,21 +451,14 @@ export function buildApp() {
 
         const agent = agentStore.get(agentId);
         if (!agent) {
-          ws.send(JSON.stringify({ type: "error", error: "Agent not found" }));
+          sendEventToClient(ws, new WsServerErrorEvent("Agent not found"));
           ws.close();
           return;
         }
 
-        agent.addWebsocket(ws);
+        agent.addClient(ws);
 
-        const initMessage: WsOutgoingMessage = {
-          type: "init",
-          state: agent.getState(),
-          steps: agent.getAllSteps(),
-          headId: agent.getHead(),
-          operatorResults: getOperatorResultSummaries(agent),
-        };
-        ws.send(JSON.stringify(initMessage));
+        sendEventToClient(ws, new WsServerSnapshotEvent(agent.getState(), agent.getAllSteps(), agent.getHead()));
       },
 
       async message(ws, messageData) {
@@ -514,65 +466,68 @@ export function buildApp() {
         const agent = agentStore.get(agentId);
 
         if (!agent) {
-          ws.send(JSON.stringify({ type: "error", error: "Agent not found" }));
+          sendEventToClient(ws, new WsServerErrorEvent("Agent not found"));
           return;
         }
 
-        let msg: WsMessage;
+        let msg: WsClientCommand;
         try {
-          msg = typeof messageData === "string" ? JSON.parse(messageData) : (messageData as WsMessage);
+          msg = typeof messageData === "string" ? JSON.parse(messageData) : (messageData as WsClientCommand);
         } catch {
-          ws.send(JSON.stringify({ type: "error", error: "Invalid message format" }));
+          sendEventToClient(ws, new WsServerErrorEvent("Invalid message format"));
           return;
         }
 
-        if (msg.type === "stop") {
-          agent.stop();
-          broadcastToAgent(agentId, { type: "state", state: "STOPPING" });
-          return;
-        }
+        switch (msg.type) {
+          case "WsClientStopCommand":
+            agent.stop();
+            broadcastToAgentClients(agentId, new WsServerStatusEvent(AgentState.STOPPING));
+            return;
 
-        if (msg.type === "message") {
-          if (!msg.content || typeof msg.content !== "string") {
-            ws.send(JSON.stringify({ type: "error", error: "Message content is required" }));
+          case "WsClientPromptCommand": {
+            if (!msg.content || typeof msg.content !== "string") {
+              sendEventToClient(ws, new WsServerErrorEvent("Message content is required"));
+              return;
+            }
+
+            wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received command");
+
+            agent.setStepCallback((step: ReActStep) => {
+              broadcastToAgentClients(agentId, new WsServerStepEvent(step));
+            });
+
+            broadcastToAgentClients(agentId, new WsServerStatusEvent(AgentState.GENERATING));
+
+            try {
+              const result = await agent.sendMessage(msg.content, msg.messageSource);
+
+              agent.setStepCallback(null);
+
+              const allSteps = agent.getReActSteps();
+              const lastStep = allSteps[allSteps.length - 1];
+              if (lastStep && lastStep.isEnd) {
+                broadcastToAgentClients(agentId, new WsServerStepEvent(lastStep));
+              }
+
+              wsLog.info({ agentId, steps: result.messages.length }, "agent run complete");
+            } catch (error: any) {
+              agent.setStepCallback(null);
+              broadcastToAgentClients(agentId, new WsServerErrorEvent(error.message));
+            } finally {
+              // The run is over (success or failure) and TexeraAgent.sendMessage has
+              // reset the agent to its resting state (AVAILABLE) in its own finally.
+              // This status frame is the run-end signal (it also unsticks the client
+              // from GENERATING after errors).
+              broadcastToAgentClients(agentId, new WsServerStatusEvent(agent.getState()));
+            }
             return;
           }
 
-          wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received message");
-
-          agent.setStepCallback((step: ReActStep) => {
-            const hasToolCalls = step.toolCalls && step.toolCalls.length > 0;
-            broadcastToAgent(agentId, {
-              type: "step",
-              step,
-              ...(hasToolCalls ? { operatorResults: getOperatorResultSummaries(agent) } : {}),
-            });
-          });
-
-          broadcastToAgent(agentId, { type: "state", state: "GENERATING" });
-
-          try {
-            const result = await agent.sendMessage(msg.content, msg.messageSource);
-
-            agent.setStepCallback(null);
-
-            const allSteps = agent.getReActSteps();
-            const lastStep = allSteps[allSteps.length - 1];
-            if (lastStep && lastStep.isEnd) {
-              broadcastToAgent(agentId, { type: "step", step: lastStep });
-            }
-
-            broadcastToAgent(agentId, {
-              type: "complete",
-              state: agent.getState(),
-              operatorResults: getOperatorResultSummaries(agent),
-            });
-
-            wsLog.info({ agentId, steps: result.messages.length }, "agent run complete");
-          } catch (error: any) {
-            agent.setStepCallback(null);
-            broadcastToAgent(agentId, { type: "error", error: error.message });
-          }
+          default:
+            // Frames are parsed from untrusted JSON; reject unknown discriminators
+            // explicitly instead of silently no-op'ing, so client/server mismatches
+            // are easy to diagnose.
+            sendEventToClient(ws, new WsServerErrorEvent(`Unknown message type: ${(msg as { type?: unknown }).type}`));
         }
       },
 
@@ -582,7 +537,7 @@ export function buildApp() {
 
         const agent = agentStore.get(agentId);
         if (agent) {
-          agent.removeWebsocket(ws);
+          agent.removeClient(ws);
         }
       },
     })
@@ -598,6 +553,12 @@ export function buildApp() {
 export function _resetAgentStoreForTests(): void {
   agentStore.clear();
   agentCounter = 0;
+}
+
+// Look up an agent instance by id. Used by tests to stub agent behavior (e.g.
+// `sendMessage`) when exercising the WebSocket handlers.
+export function _getAgentForTests(agentId: string): TexeraAgent | undefined {
+  return agentStore.get(agentId);
 }
 
 function printStartupMessage(app: ReturnType<typeof buildApp>) {
@@ -625,14 +586,15 @@ function printStartupMessage(app: ReturnType<typeof buildApp>) {
     for (const route of wsRoutes) {
       console.log(`  WS     ${route.path}`);
     }
-    console.log("         Send: { type: 'message', content: '...' }");
-    console.log("         Send: { type: 'stop' }");
-    console.log("         Recv: { type: 'step' | 'state' | 'complete' | 'error' | 'init', ... }");
+    console.log("         Send: { type: 'WsClientPromptCommand', content: '...' }");
+    console.log("         Send: { type: 'WsClientStopCommand' }");
+    console.log(
+      "         Recv: { type: 'WsServerSnapshotEvent' | 'WsServerStepEvent' | 'WsServerStatusEvent' | 'WsServerErrorEvent', ... }"
+    );
   }
 
   console.log("");
   console.log("Environment:");
-  console.log(`  LLM_API_KEY: ${env.LLM_API_KEY === "dummy" ? "dummy (default)" : "set"}`);
   console.log(`  LLM_ENDPOINT: ${getBackendConfig().modelsEndpoint}`);
   console.log(`  WORKFLOW_COMPILING_SERVICE_ENDPOINT: ${getBackendConfig().compileEndpoint}`);
   console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${getBackendConfig().apiEndpoint}`);
@@ -661,6 +623,4 @@ export async function start() {
 
 // Run the server only when this file is the entry point, not when it is
 // imported by tests or other modules.
-if (import.meta.main) {
-  start();
-}
+if (import.meta.main) start();

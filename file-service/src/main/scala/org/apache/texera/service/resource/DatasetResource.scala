@@ -19,11 +19,12 @@
 
 package org.apache.texera.service.resource
 
+import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
-import jakarta.annotation.security.RolesAllowed
+import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
-import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.storage.model.OnDataset
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
@@ -201,6 +202,10 @@ object DatasetResource {
       sizeBytes: Option[Long] // Size of the changed file (None for directories)
   )
 
+  case class ExistingUploadFile(path: String, sizeBytes: Long)
+
+  case class ExistingUploadFilesRequest(files: List[ExistingUploadFile])
+
   case class DatasetDescriptionModification(did: Integer, description: String)
 
   case class DatasetNameModification(did: Integer, name: String)
@@ -215,7 +220,7 @@ object DatasetResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
 @Path("/dataset")
-class DatasetResource {
+class DatasetResource extends LazyLogging {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val EXPIRATION_MINUTES = 5
@@ -250,7 +255,9 @@ class DatasetResource {
       getOwner(ctx, did).getEmail,
       userAccessPrivilege,
       isOwner,
-      LakeFSStorageClient.retrieveRepositorySize(targetDataset.getRepositoryName)
+      withLakeFSErrorHandling(s"retrieving the size of dataset '${targetDataset.getName}'") {
+        LakeFSStorageClient.retrieveRepositorySize(targetDataset.getRepositoryName)
+      }
     )
   }
 
@@ -272,21 +279,16 @@ class DatasetResource {
       val isDatasetPublic = request.isDatasetPublic
       val isDatasetDownloadable = request.isDatasetDownloadable
 
-      // validate dataset name
-      try {
-        validateDatasetName(datasetName)
-      } catch {
-        case e: IllegalArgumentException =>
-          throw new BadRequestException(e.getMessage)
-      }
+      validateDatasetName(datasetName)
 
       // Check if a dataset with the same name already exists
-      val existingDatasets = context
-        .selectFrom(DATASET)
-        .where(DATASET.OWNER_UID.eq(uid))
-        .and(DATASET.NAME.eq(datasetName))
-        .fetch()
-      if (!existingDatasets.isEmpty) {
+      val duplicateExists = ctx.fetchExists(
+        ctx
+          .selectFrom(DATASET)
+          .where(DATASET.OWNER_UID.eq(uid))
+          .and(DATASET.NAME.eq(datasetName))
+      )
+      if (duplicateExists) {
         throw new BadRequestException("Dataset with the same name already exists")
       }
 
@@ -299,25 +301,34 @@ class DatasetResource {
       dataset.setOwnerUid(uid)
 
       // insert record and get created dataset with did
-      val createdDataset = ctx
-        .insertInto(DATASET)
-        .set(ctx.newRecord(DATASET, dataset))
-        .returning()
-        .fetchOne()
+      val createdDataset = failOnDuplicateDatasetName {
+        ctx
+          .insertInto(DATASET)
+          .set(ctx.newRecord(DATASET, dataset))
+          .returning()
+          .fetchOne()
+      }
 
       // Initialize the repository in LakeFS
       val repositoryName = s"dataset-${createdDataset.getDid}"
       try {
-        LakeFSStorageClient.initRepo(repositoryName)
+        withLakeFSErrorHandling(s"creating the repository of dataset '${dataset.getName}'") {
+          LakeFSStorageClient.initRepo(repositoryName)
+        }
       } catch {
         case e: Exception =>
+          // roll back the dataset record so a failed LakeFS init leaves no orphan row
           ctx
             .deleteFrom(DATASET)
             .where(DATASET.DID.eq(createdDataset.getDid))
             .execute()
-          throw new WebApplicationException(
-            s"Failed to create the dataset: ${e.getMessage}"
-          )
+          e match {
+            case web: WebApplicationException => throw web
+            case other =>
+              throw new WebApplicationException(
+                s"Failed to create the dataset: ${other.getMessage}"
+              )
+          }
       }
 
       // update repository name of the created dataset
@@ -443,14 +454,8 @@ class DatasetResource {
         // throw the exception that user has no access to certain dataset
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
-      try {
+      withLakeFSErrorHandling(s"deleting the repository of dataset '${dataset.getName}'") {
         LakeFSStorageClient.deleteRepo(dataset.getRepositoryName)
-      } catch {
-        case e: Exception =>
-          throw new WebApplicationException(
-            s"Failed to delete a repository in LakeFS: ${e.getMessage}",
-            e
-          )
       }
       // delete the directory on S3
       if (
@@ -506,8 +511,24 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
+      validateDatasetName(modificator.name)
+
+      // Check if the owner already has another dataset with the same name
+      val duplicateExists = ctx.fetchExists(
+        ctx
+          .selectFrom(DATASET)
+          .where(DATASET.OWNER_UID.eq(dataset.getOwnerUid))
+          .and(DATASET.NAME.eq(modificator.name))
+          .and(DATASET.DID.notEqual(dataset.getDid))
+      )
+      if (duplicateExists) {
+        throw new BadRequestException("Dataset with the same name already exists")
+      }
+
       dataset.setName(modificator.name)
-      datasetDao.update(dataset)
+      failOnDuplicateDatasetName {
+        datasetDao.update(dataset)
+      }
       Response.ok().build()
     }
   }
@@ -599,30 +620,39 @@ class DatasetResource {
         flush()
 
         // ---------- complete upload ----------
-        LakeFSStorageClient.completePresignedMultipartUploads(
-          repoName,
-          filePath,
-          uploadId,
-          completedParts.toList,
-          physicalAddress
-        )
+        withLakeFSErrorHandling(s"completing the multipart upload of file '$filePath'") {
+          LakeFSStorageClient.completePresignedMultipartUploads(
+            repoName,
+            filePath,
+            uploadId,
+            completedParts.toList,
+            physicalAddress
+          )
+        }
 
         Response.ok(Map("message" -> s"Uploaded $filePath in ${completedParts.size} parts")).build()
       }
     } catch {
       case e: Exception =>
         if (repoName != null && filePath != null && uploadId != null && physicalAddress != null) {
-          LakeFSStorageClient.abortPresignedMultipartUploads(
-            repoName,
-            filePath,
-            uploadId,
-            physicalAddress
-          )
+          // best-effort cleanup; never let an abort failure mask the original error
+          try {
+            LakeFSStorageClient.abortPresignedMultipartUploads(
+              repoName,
+              filePath,
+              uploadId,
+              physicalAddress
+            )
+          } catch { case _: Throwable => () }
         }
-        throw new WebApplicationException(
-          s"Failed to upload file to dataset: ${e.getMessage}",
-          e
-        )
+        e match {
+          case web: WebApplicationException => throw web
+          case other =>
+            throw new WebApplicationException(
+              s"Failed to upload file to dataset: ${other.getMessage}",
+              other
+            )
+        }
     }
   }
 
@@ -653,6 +683,7 @@ class DatasetResource {
   }
 
   @GET
+  @PermitAll
   @Path("/public-presign-download")
   def getPublicPresignedUrl(
       @QueryParam("filePath") encodedUrl: String,
@@ -663,6 +694,7 @@ class DatasetResource {
   }
 
   @GET
+  @PermitAll
   @Path("/public-presign-download-s3")
   def getPublicPresignedUrlWithS3(
       @QueryParam("filePath") encodedUrl: String,
@@ -690,14 +722,8 @@ class DatasetResource {
 
       // Decode the file path
       val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
-      // Try to initialize the repository in LakeFS
-      try {
+      withLakeFSErrorHandling(s"deleting file '$filePath' from the dataset repository") {
         LakeFSStorageClient.deleteObject(repositoryName, filePath)
-      } catch {
-        case e: Exception =>
-          throw new WebApplicationException(
-            s"Failed to delete the file from repo in LakeFS: ${e.getMessage}"
-          )
       }
 
       Response.ok().build()
@@ -1021,6 +1047,65 @@ class DatasetResource {
     }
   }
 
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/existing-upload-files")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def findExistingUploadFiles(
+      @PathParam("did") did: Integer,
+      request: ExistingUploadFilesRequest,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+    withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val requested = Option(request)
+        .flatMap(request => Option(request.files))
+        .getOrElse(List.empty)
+        .map { file =>
+          val originalPath = file.path
+          val path = validateAndNormalizeFilePathOrThrow(originalPath)
+          if (file.sizeBytes < 0L) throw new BadRequestException("sizeBytes must be >= 0")
+          (path, originalPath, file.sizeBytes)
+        }
+
+      val dataset = getDatasetByID(ctx, did)
+      val committed = getLatestDatasetVersion(ctx, did)
+        .map { v =>
+          withLakeFSErrorHandling(
+            s"retrieving committed files of dataset '${dataset.getName}'"
+          ) {
+            LakeFSStorageClient
+              .retrieveObjectsOfVersion(dataset.getRepositoryName, v.getVersionHash)
+              .map(obj => obj.getPath -> obj.getSizeBytes.longValue())
+          }
+        }
+        .getOrElse(List.empty)
+
+      val staged = withLakeFSErrorHandling(
+        s"retrieving staged files of dataset '${dataset.getName}'"
+      ) {
+        LakeFSStorageClient.retrieveUncommittedObjects(dataset.getRepositoryName)
+      }
+        .filterNot(diff => Option(diff.getType).exists(_.getValue.equalsIgnoreCase("removed")))
+        .flatMap(diff => Option(diff.getSizeBytes).map(size => diff.getPath -> size.longValue()))
+
+      val existing = (committed ++ staged).toMap
+      val matches = requested
+        .collect {
+          case (path, originalPath, size) if existing.get(path).contains(size) => originalPath
+        }
+        .toList
+        .distinct
+        .sorted
+
+      Response.ok(Map("filePaths" -> matches.asJava)).build()
+    }
+  }
+
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/diff")
@@ -1039,14 +1124,8 @@ class DatasetResource {
 
       // Decode the file path
       val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
-      // Try to reset the file change in LakeFS
-      try {
+      withLakeFSErrorHandling(s"resetting uncommitted changes of file '$filePath'") {
         LakeFSStorageClient.resetObjectUploadOrDeletion(repositoryName, filePath)
-      } catch {
-        case e: Exception =>
-          throw new WebApplicationException(
-            s"Failed to reset the changes from repo in LakeFS: ${e.getMessage}"
-          )
       }
       Response.ok().build()
     }
@@ -1105,28 +1184,32 @@ class DatasetResource {
         )
         .where(DATASET.IS_PUBLIC.eq(true))
         .fetch()
-        .map(record => {
+        .asScala
+        .flatMap { record =>
           val dataset = record.into(DATASET).into(classOf[Dataset])
           val ownerEmail = record.into(USER).getEmail
-          DashboardDataset(
-            isOwner = false,
-            dataset = dataset,
-            accessPrivilege = PrivilegeEnum.READ,
-            ownerEmail = ownerEmail,
-            size = LakeFSStorageClient.retrieveRepositorySize(dataset.getRepositoryName)
-          )
-        })
-      publicDatasets.forEach { publicDataset =>
+          try {
+            Some(
+              DashboardDataset(
+                isOwner = false,
+                dataset = dataset,
+                accessPrivilege = PrivilegeEnum.READ,
+                ownerEmail = ownerEmail,
+                size = LakeFSStorageClient.retrieveRepositorySize(dataset.getRepositoryName)
+              )
+            )
+          } catch {
+            case e: io.lakefs.clients.sdk.ApiException =>
+              logger.error(
+                s"LakeFS ApiException for dataset repository '${dataset.getRepositoryName}': ${e.getMessage}",
+                e
+              )
+              None
+          }
+        }
+      publicDatasets.foreach { publicDataset =>
         if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
-          val dashboardDataset = DashboardDataset(
-            isOwner = false,
-            dataset = publicDataset.dataset,
-            ownerEmail = publicDataset.ownerEmail,
-            accessPrivilege = PrivilegeEnum.READ,
-            size =
-              LakeFSStorageClient.retrieveRepositorySize(publicDataset.dataset.getRepositoryName)
-          )
-          accessibleDatasets = accessibleDatasets :+ dashboardDataset
+          accessibleDatasets = accessibleDatasets :+ publicDataset
         }
       }
       accessibleDatasets.toList
@@ -1151,6 +1234,7 @@ class DatasetResource {
   }
 
   @GET
+  @PermitAll
   @Path("/{name}/publicVersion/list")
   def getPublicDatasetVersionList(
       @PathParam("name") did: Integer
@@ -1247,7 +1331,11 @@ class DatasetResource {
       val datasetName = dataset.getName
       val repositoryName = dataset.getRepositoryName
       val versionHash = datasetVersion.getVersionHash
-      val objects = LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, versionHash)
+      val objects = withLakeFSErrorHandling(
+        s"listing files of version '$versionHash' of dataset '$datasetName'"
+      ) {
+        LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, versionHash)
+      }
 
       if (objects.isEmpty) {
         return Response
@@ -1263,7 +1351,9 @@ class DatasetResource {
           try {
             objects.foreach { obj =>
               val filePath = obj.getPath
-              val file = LakeFSStorageClient.getFileFromRepo(repositoryName, versionHash, filePath)
+              val file = withLakeFSErrorHandling(s"downloading file '$filePath' for the zip") {
+                LakeFSStorageClient.getFileFromRepo(repositoryName, versionHash, filePath)
+              }
 
               zipOut.putNextEntry(new ZipEntry(filePath))
               Files.copy(Paths.get(file.toURI), zipOut)
@@ -1297,6 +1387,7 @@ class DatasetResource {
   }
 
   @GET
+  @PermitAll
   @Path("/{did}/publicVersion/{dvid}/rootFileNodes")
   def retrievePublicDatasetVersionRootFileNodes(
       @PathParam("did") did: Integer,
@@ -1317,6 +1408,7 @@ class DatasetResource {
   }
 
   @GET
+  @PermitAll
   @Path("/public/{did}")
   def getPublicDataset(
       @PathParam("did") did: Integer
@@ -1344,26 +1436,45 @@ class DatasetResource {
       .fetchInto(classOf[String])
   }
 
+  private val DATASET_NAME_MAX_LENGTH = 128
+  private val DATASET_NAME_PATTERN = "^[A-Za-z0-9_-]+$".r
+
   /**
     * Validates the dataset name.
     *
     * Rules:
-    * - Must be at least 1 character long.
-    * - Only lowercase letters, numbers, underscores, and hyphens are allowed.
-    * - Cannot start with a hyphen.
+    * - Must be 1 to 128 characters long.
+    * - Only letters, numbers, underscores, and hyphens are allowed.
     *
     * @param name The dataset name to validate.
-    * @throws java.lang.IllegalArgumentException if the name is invalid.
+    * @throws jakarta.ws.rs.BadRequestException if the name is invalid.
     */
   private def validateDatasetName(name: String): Unit = {
-    val datasetNamePattern = "^[A-Za-z0-9_-]+$".r
-    if (!datasetNamePattern.matches(name)) {
-      throw new IllegalArgumentException(
-        s"Invalid dataset name: '$name'. " +
-          "Dataset names must be at least 1 character long and " +
-          "contain only lowercase letters, numbers, underscores, and hyphens, " +
-          "and cannot start with a hyphen."
+    if (name == null || !DATASET_NAME_PATTERN.matches(name)) {
+      throw new BadRequestException(
+        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed."
       )
+    }
+    if (name.length > DATASET_NAME_MAX_LENGTH) {
+      throw new BadRequestException(
+        s"Invalid dataset name: name must be at most $DATASET_NAME_MAX_LENGTH characters long."
+      )
+    }
+  }
+
+  /**
+    * Runs a dataset write and translates a (owner_uid, name) unique-constraint
+    * violation into the same BadRequestException the pre-checks throw, so
+    * requests losing a concurrent race get a 400 instead of a 500.
+    */
+  private[resource] def failOnDuplicateDatasetName[T](op: => T): T = {
+    try op
+    catch {
+      case e: DataAccessException =>
+        if (e.sqlState() == "23505") {
+          throw new BadRequestException("Dataset with the same name already exists")
+        }
+        throw e
     }
   }
 
@@ -1422,11 +1533,15 @@ class DatasetResource {
         errorResponse
 
       case Right((resolvedRepositoryName, resolvedCommitHash, resolvedFilePath)) =>
-        val url = LakeFSStorageClient.getFilePresignedUrl(
-          resolvedRepositoryName,
-          resolvedCommitHash,
-          resolvedFilePath
-        )
+        val url = withLakeFSErrorHandling(
+          s"generating a presigned URL for file '$resolvedFilePath'"
+        ) {
+          LakeFSStorageClient.getFilePresignedUrl(
+            resolvedRepositoryName,
+            resolvedCommitHash,
+            resolvedFilePath
+          )
+        }
 
         Response.ok(Map("presignedUrl" -> url)).build()
     }
@@ -2115,11 +2230,13 @@ class DatasetResource {
         )
         .asInstanceOf[OnDataset]
 
-      val fileSize = LakeFSStorageClient.getFileSize(
-        document.getRepositoryName(),
-        document.getVersionHash(),
-        document.getFileRelativePath()
-      )
+      val fileSize = withLakeFSErrorHandling(s"reading the size of cover image '$normalized'") {
+        LakeFSStorageClient.getFileSize(
+          document.getRepositoryName(),
+          document.getVersionHash(),
+          document.getFileRelativePath()
+        )
+      }
 
       if (fileSize > COVER_IMAGE_SIZE_LIMIT_BYTES) {
         throw new BadRequestException(
@@ -2141,6 +2258,7 @@ class DatasetResource {
     * @return 307 Temporary Redirect to cover image
     */
   @GET
+  @PermitAll
   @Path("/{did}/cover")
   def getDatasetCover(
       @PathParam("did") did: Integer,
@@ -2168,13 +2286,67 @@ class DatasetResource {
         .openReadonlyDocument(FileResolver.resolve(fullPath))
         .asInstanceOf[OnDataset]
 
-      val presignedUrl = LakeFSStorageClient.getFilePresignedUrl(
-        document.getRepositoryName(),
-        document.getVersionHash(),
-        document.getFileRelativePath()
-      )
+      val presignedUrl = withLakeFSErrorHandling(
+        s"generating a presigned URL for cover image '$coverImage'"
+      ) {
+        LakeFSStorageClient.getFilePresignedUrl(
+          document.getRepositoryName(),
+          document.getVersionHash(),
+          document.getFileRelativePath()
+        )
+      }
 
       Response.temporaryRedirect(new URI(presignedUrl)).build()
+    }
+  }
+
+  /**
+    * Get a presigned S3 URL for the dataset cover image as JSON.
+    * JWT-aware variant of GET /{did}/cover; required for private datasets
+    * since `<img src>` cannot attach the Authorization header.
+    */
+  @GET
+  @PermitAll
+  @Path("/{did}/cover-url")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getDatasetCoverUrl(
+      @PathParam("did") did: Integer,
+      @Auth sessionUser: Optional[SessionUser]
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val dataset = getDatasetByID(ctx, did)
+
+      val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
+
+      if (requesterUid.isEmpty && !dataset.getIsPublic) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      Option(dataset.getCoverImage) match {
+        case None =>
+          Response.ok(Map("url" -> null)).build()
+        case Some(coverImage) =>
+          val owner = getOwner(ctx, did)
+          val fullPath = s"${owner.getEmail}/${dataset.getName}/$coverImage"
+
+          val document = DocumentFactory
+            .openReadonlyDocument(FileResolver.resolve(fullPath))
+            .asInstanceOf[OnDataset]
+
+          val presignedUrl = withLakeFSErrorHandling(
+            s"generating a presigned URL for cover image '$coverImage'"
+          ) {
+            LakeFSStorageClient.getFilePresignedUrl(
+              document.getRepositoryName(),
+              document.getVersionHash(),
+              document.getFileRelativePath()
+            )
+          }
+
+          Response.ok(Map("url" -> presignedUrl)).build()
+      }
     }
   }
 }

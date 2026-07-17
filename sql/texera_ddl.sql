@@ -48,6 +48,7 @@ SET search_path TO texera_db, public;
 -- ============================================
 DROP TABLE IF EXISTS operator_executions CASCADE;
 DROP TABLE IF EXISTS operator_port_executions CASCADE;
+DROP TABLE IF EXISTS operator_port_cache CASCADE;
 DROP TABLE IF EXISTS workflow_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_of_user CASCADE;
 DROP TABLE IF EXISTS user_config CASCADE;
@@ -74,6 +75,9 @@ DROP TABLE IF EXISTS dataset_user_likes CASCADE;
 DROP TABLE IF EXISTS dataset_view_count CASCADE;
 DROP TABLE IF EXISTS site_settings CASCADE;
 DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
+DROP TABLE IF EXISTS notebook CASCADE;
+DROP TABLE IF EXISTS workflow_notebook_mapping CASCADE;
+DROP TABLE IF EXISTS virtual_environments CASCADE;
 
 -- ============================================
 -- 4. Create PostgreSQL enum types
@@ -120,6 +124,16 @@ CREATE TABLE IF NOT EXISTS user_config
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
 
+-- feedback
+CREATE TABLE IF NOT EXISTS feedback
+(
+    fid           SERIAL PRIMARY KEY,
+    uid           INT NOT NULL,
+    message       TEXT NOT NULL,
+    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+    );
+
 -- workflow
 CREATE TABLE IF NOT EXISTS workflow
 (
@@ -160,6 +174,14 @@ CREATE TABLE IF NOT EXISTS workflow_version
     wid            INT NOT NULL,
     content        TEXT NOT NULL,
     creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
+    );
+
+-- workflow_cover_image (optional custom card cover image, stored as a downscaled data URL)
+CREATE TABLE IF NOT EXISTS workflow_cover_image
+(
+    wid   INT PRIMARY KEY,
+    image TEXT NOT NULL,
     FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
     );
 
@@ -211,6 +233,17 @@ CREATE TABLE IF NOT EXISTS workflow_computing_unit
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
 
+-- virtual_environments table
+CREATE TABLE IF NOT EXISTS virtual_environments
+(
+    veid     SERIAL PRIMARY KEY,
+    uid      INT           NOT NULL,
+    name     VARCHAR(128)  NOT NULL,
+    packages JSONB         NOT NULL DEFAULT '{}'::jsonb,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    UNIQUE (uid, name)
+);
+
 -- workflow_executions
 CREATE TABLE IF NOT EXISTS workflow_executions
 (
@@ -254,7 +287,8 @@ CREATE TABLE IF NOT EXISTS dataset
     description    TEXT NOT NULL,
     creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     cover_image    varchar(255),
-    FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE
+    FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    UNIQUE (owner_uid, name)
     );
 
 -- dataset_user_access
@@ -347,6 +381,32 @@ CREATE TABLE operator_port_executions
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
 );
 
+-- operator_port_cache
+-- Caches a materialized output port result so it can be reused across executions.
+-- A row is identified by (workflow_id, global_port_id, cache_key_hash), where
+-- cache_key_hash is a SHA-256 hash of the upstream sub-DAG that produces the port (its
+-- operators, their parameters and exec info, schemas, and wiring). cache_key_hash is the
+-- lookup key; cache_key_json is the JSON the hash was computed from, kept so a hash match
+-- can be confirmed against the full content (collision safety). A different upstream
+-- computation (for example an operator parameter or version change) produces a different
+-- cache_key_hash and therefore a new row, so existing entries are never overwritten: each
+-- row is the result of one specific computation of one port. tuple_count is the result's
+-- row count, kept so the coordinator can report a reused region's output stats without a
+-- second query to the Iceberg catalog.
+CREATE TABLE operator_port_cache
+(
+    workflow_id         INT NOT NULL,
+    global_port_id      VARCHAR(200) NOT NULL,
+    cache_key_hash      CHAR(64) NOT NULL,
+    cache_key_json      TEXT NOT NULL,
+    storage_uri         TEXT NOT NULL,
+    tuple_count         BIGINT,
+    source_execution_id BIGINT,
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (workflow_id, global_port_id, cache_key_hash),
+    FOREIGN KEY (workflow_id) REFERENCES workflow(wid) ON DELETE CASCADE
+);
+
 -- workflow_user_likes
 CREATE TABLE IF NOT EXISTS workflow_user_likes
 (
@@ -433,6 +493,28 @@ CREATE TABLE IF NOT EXISTS computing_unit_user_access
     PRIMARY KEY (cuid, uid),
     FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE,
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
+
+-- notebook table
+CREATE TABLE IF NOT EXISTS notebook
+(
+    nid         SERIAL  NOT NULL PRIMARY KEY,
+    wid         INT     NOT NULL UNIQUE,
+    notebook    JSONB   NOT NULL,
+    UNIQUE (wid, nid),
+    FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
+);
+
+-- workflow_notebook_mapping table
+CREATE TABLE IF NOT EXISTS workflow_notebook_mapping
+(
+    wid         INT     NOT NULL,
+    vid         INT     NOT NULL,
+    nid         INT     NOT NULL,
+    mapping     JSONB   NOT NULL,
+    PRIMARY KEY (wid, vid, nid),
+    FOREIGN KEY (vid) REFERENCES workflow_version(vid) ON DELETE CASCADE,
+    FOREIGN KEY (wid, nid) REFERENCES notebook(wid, nid) ON DELETE CASCADE
 );
 
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)

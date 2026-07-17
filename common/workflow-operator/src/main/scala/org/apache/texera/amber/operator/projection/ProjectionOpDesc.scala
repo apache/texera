@@ -57,7 +57,7 @@ class ProjectionOpDesc extends MapOpDesc with StandaloneCodeGenerator {
       .withOutputPorts(operatorInfo.outputPorts)
       .withDerivePartition(derivePartition())
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
-        require(attributes.nonEmpty, "Attributes must not be empty")
+        require(attributes.nonEmpty, "Please select at least one attribute to project.")
 
         val inputSchema = inputSchemas.values.head
         val outputSchema = if (!isDrop) {

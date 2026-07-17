@@ -25,11 +25,11 @@ import io.dropwizard.Configuration
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
-import org.apache.texera.amber.config.{ApplicationConfig, StorageConfig}
+import org.apache.texera.common.config.{ApplicationConfig, StorageConfig}
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED
@@ -69,7 +69,7 @@ object ComputingUnitMaster {
   def createAmberRuntime(
       workflowContext: WorkflowContext,
       physicalPlan: PhysicalPlan,
-      conf: ControllerConfig,
+      conf: CoordinatorConfig,
       errorHandler: Throwable => Unit
   ): AmberClient = {
     new AmberClient(

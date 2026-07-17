@@ -64,7 +64,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0  # Full history for proper tagging
 
@@ -174,14 +174,14 @@ jobs:
 
           # Export the single-node directory from the tagged source
           mkdir -p "$TEMP_DIR/_raw"
-          git archive --format=tar "$TAG_NAME" -- bin/single-node/ sql/ | tar -x -C "$TEMP_DIR/_raw"
+          git archive --format=tar "$TAG_NAME" -- bin/single-node/ sql/ NOTICE | tar -x -C "$TEMP_DIR/_raw"
 
           # Copy deployment files
           cp "$TEMP_DIR/_raw/bin/single-node/docker-compose.yml" "$BUNDLE_DIR/"
           cp "$TEMP_DIR/_raw/bin/single-node/nginx.conf" "$BUNDLE_DIR/"
           cp "$TEMP_DIR/_raw/bin/single-node/litellm-config.yaml" "$BUNDLE_DIR/"
           cp "$TEMP_DIR/_raw/bin/single-node/LICENSE" "$BUNDLE_DIR/"
-          cp "$TEMP_DIR/_raw/bin/single-node/NOTICE" "$BUNDLE_DIR/"
+          cp "$TEMP_DIR/_raw/NOTICE" "$BUNDLE_DIR/"
           cp "$TEMP_DIR/_raw/bin/single-node/DISCLAIMER" "$BUNDLE_DIR/"
           cp -r "$TEMP_DIR/_raw/sql" "$BUNDLE_DIR/"
 
@@ -282,7 +282,7 @@ jobs:
           echo "✓ Vote email template generated!"
 
       - name: Upload RC artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: rc-artifacts
           path: |
@@ -301,7 +301,7 @@ jobs:
 
     steps:
       - name: Download RC artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: rc-artifacts
 

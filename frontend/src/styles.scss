@@ -155,10 +155,56 @@ hr {
     font-weight: 600;
   }
 
+  .saved-pves-section {
+    margin-top: 5px;
+    margin-bottom: 5px;
+
+    .ant-collapse-item {
+      overflow: hidden;
+      background: #ffffff;
+      border: 1px solid #eef0f3;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .ant-collapse-header {
+      font-weight: 600;
+    }
+
+    .saved-pve-empty {
+      color: rgba(0, 0, 0, 0.45);
+      font-style: italic;
+    }
+
+    .saved-pve-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 0;
+    }
+
+    .saved-pve-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
   .system-panel-inner {
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .system-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 4px;
+    color: rgba(0, 0, 0, 0.55);
+    font-style: italic;
   }
 
   .package-header-row,

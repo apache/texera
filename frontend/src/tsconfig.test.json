@@ -11,6 +11,10 @@
   "angularCompilerOptions": {
     "strictTemplates": false,
     "strictNullInputTypes": false,
-    "fullTemplateTypeCheck": false
+    "fullTemplateTypeCheck": false,
+    // extendedDiagnostics (inherited from tsconfig.app.json) requires
+    // strictTemplates, which this test build disables. Clear it to avoid
+    // NG4003; these diagnostics are enforced by the prod build instead.
+    "extendedDiagnostics": null
   }
 }
