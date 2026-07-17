@@ -187,9 +187,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
     if (keys.isEmpty) {
       val rowEntries = aggs
-        .map(agg =>
-          s"    ${toPyDoubleQuotedLiteral(agg.resultAttribute)}: ${aggExprScalar(agg)},"
-        )
+        .map(agg => s"    ${toPyDoubleQuotedLiteral(agg.resultAttribute)}: ${aggExprScalar(agg)},")
         .mkString("\n")
       s"""$concatHelper
          |out1df = pd.DataFrame([{
@@ -205,7 +203,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         .mkString("\n")
       val mergeLines = aggs.indices
         .map(i =>
-          s"out1df = out1df.merge(_texera_agg_s$i.reset_index(), on=$keysLit, how=\"left\")"
+          s"""out1df = out1df.merge(_texera_agg_s$i.reset_index(), on=$keysLit, how="left")"""
         )
         .mkString("\n")
       s"""$concatHelper

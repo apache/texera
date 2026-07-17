@@ -107,7 +107,7 @@ object PyOpExecHarness extends LazyLogging {
     }
     require(
       language == "python",
-      s"PyOpExecHarness only supports language=\"python\", got \"$language\""
+      s"""PyOpExecHarness only supports language="python", got "$language"."""
     )
 
     // External input ports = same definition as OpExecHarness. For a
@@ -196,8 +196,8 @@ object PyOpExecHarness extends LazyLogging {
         val entry: ObjectNode = inputsArr.addObject()
         entry.put("portIndex", portId.id)
         entry.put("dataPath", dataPath.toAbsolutePath.toString)
-        // schemaPath is implicit (data_path + ".schema.json") — the driver
-        // resolves it the same way TupleIO does.
+      // schemaPath is implicit (data_path + ".schema.json") — the driver
+      // resolves it the same way TupleIO does.
     }
 
     val outputsArr: ArrayNode = root.putArray("outputs")
