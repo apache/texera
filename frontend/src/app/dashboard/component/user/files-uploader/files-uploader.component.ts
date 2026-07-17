@@ -81,10 +81,14 @@ export class FilesUploaderComponent {
     private datasetService: DatasetService,
     private modal: NzModalService
   ) {
+    // A missing key or failed fetch keeps the initializer default above.
     this.adminSettingsService
       .getPublicSetting("single_file_upload_max_size_mib")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.singleFileUploadMaxSizeMiB = parseInt(value)));
+      .subscribe({
+        next: value => (this.singleFileUploadMaxSizeMiB = parseInt(value ?? "") || this.singleFileUploadMaxSizeMiB),
+        error: () => {},
+      });
   }
 
   private markForceRestart(item: FileUploadItem): void {

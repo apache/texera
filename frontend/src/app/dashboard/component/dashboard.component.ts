@@ -174,26 +174,44 @@ export class DashboardComponent implements OnInit {
     this.loadTabs();
   }
 
+  // A missing key or a failed settings fetch keeps the branding/tab defaults;
+  // the error callbacks stop a single failed shared request from surfacing as
+  // one unhandled RxJS error per subscription.
   loadLogos(): void {
     this.adminSettingsService
       .getPublicSetting("logo")
       .pipe(untilDestroyed(this))
-      .subscribe(dataUri => {
-        this.logo = dataUri;
+      .subscribe({
+        next: dataUri => {
+          if (dataUri) {
+            this.logo = dataUri;
+          }
+        },
+        error: () => {},
       });
 
     this.adminSettingsService
       .getPublicSetting("mini_logo")
       .pipe(untilDestroyed(this))
-      .subscribe(dataUri => {
-        this.miniLogo = dataUri;
+      .subscribe({
+        next: dataUri => {
+          if (dataUri) {
+            this.miniLogo = dataUri;
+          }
+        },
+        error: () => {},
       });
 
     this.adminSettingsService
       .getPublicSetting("favicon")
       .pipe(untilDestroyed(this))
-      .subscribe(dataUri => {
-        document.querySelectorAll("link[rel*='icon']").forEach(el => ((el as HTMLLinkElement).href = dataUri));
+      .subscribe({
+        next: dataUri => {
+          if (dataUri) {
+            document.querySelectorAll("link[rel*='icon']").forEach(el => ((el as HTMLLinkElement).href = dataUri));
+          }
+        },
+        error: () => {},
       });
   }
 
@@ -202,8 +220,11 @@ export class DashboardComponent implements OnInit {
       this.adminSettingsService
         .getPublicSetting(tab)
         .pipe(untilDestroyed(this))
-        .subscribe(value => {
-          this.sidebarTabs[tab] = value === "true";
+        .subscribe({
+          next: value => {
+            this.sidebarTabs[tab] = value === "true";
+          },
+          error: () => {},
         });
     });
   }

@@ -18,7 +18,7 @@
 
 package org.apache.texera.dao
 
-import org.jooq.impl.DSL
+import org.apache.texera.dao.jooq.generated.Tables.SITE_SETTINGS
 
 import scala.util.Try
 
@@ -48,9 +48,9 @@ object SiteSettings {
       val raw = SqlServer
         .getInstance()
         .createDSLContext()
-        .select(DSL.field("value", classOf[String]))
-        .from(DSL.table(DSL.name("texera_db", "site_settings")))
-        .where(DSL.field("key", classOf[String]).eq(key))
+        .select(SITE_SETTINGS.VALUE)
+        .from(SITE_SETTINGS)
+        .where(SITE_SETTINGS.KEY.eq(key))
         .fetchOneInto(classOf[String])
       parseOrDefault(Option(raw), default)(parse)
     }.getOrElse(default)

@@ -92,10 +92,10 @@ class ConfigSettingsCrudSpec
       .fetchOne(SITE_SETTINGS.UPDATED_BY) shouldBe "second-admin"
   }
 
-  it should "be a no-op when the payload carries a null value" in {
+  it should "reject a null value with 400 and leave the stored row untouched" in {
     resource.updateSetting(adminSession(), "logo", ConfigSettingPojo("logo", "kept.png"))
     val response = resource.updateSetting(adminSession(), "logo", ConfigSettingPojo("logo", null))
-    response.getStatus shouldBe 200
+    response.getStatus shouldBe 400
     resource.getSetting("logo").settingValue shouldBe "kept.png"
   }
 
@@ -110,6 +110,46 @@ class ConfigSettingsCrudSpec
     val publicSettings = resource.getPublicSettings
     publicSettings("favicon") shouldBe "fav.ico"
     publicSettings should not contain key("csv_parser_max_columns")
+  }
+
+  // The public whitelist is derived from the gui/dataset sections of
+  // default.conf. This pins the derived set, so moving a key between sections
+  // (or adding one) forces the visibility decision into review here.
+  it should "expose exactly the gui and dataset section keys of default.conf" in {
+    DefaultsConfig.keysUnderSections(Set("gui", "dataset")) shouldBe Set(
+      "logo",
+      "mini_logo",
+      "favicon",
+      "hub_enabled",
+      "home_enabled",
+      "workflow_enabled",
+      "dataset_enabled",
+      "your_work_enabled",
+      "projects_enabled",
+      "workflows_enabled",
+      "datasets_enabled",
+      "compute_enabled",
+      "quota_enabled",
+      "forum_enabled",
+      "about_enabled",
+      "single_file_upload_max_size_mib",
+      "multipart_upload_chunk_size_mib",
+      "max_number_of_concurrent_uploading_file",
+      "max_number_of_concurrent_uploading_file_chunks"
+    )
+  }
+
+  "GET /config/settings" should "serve every stored row, including management-only keys" in {
+    resource.updateSetting(adminSession(), "logo", ConfigSettingPojo("logo", "all.png"))
+    resource.updateSetting(
+      adminSession(),
+      "csv_parser_max_columns",
+      ConfigSettingPojo("csv_parser_max_columns", "2048")
+    )
+
+    val allSettings = resource.getAllSettings
+    allSettings("logo") shouldBe "all.png"
+    allSettings("csv_parser_max_columns") shouldBe "2048"
   }
 
   "POST /config/settings/reset/{key}" should "restore the default.conf value for a known key" in {

@@ -43,4 +43,20 @@ object DefaultsConfig {
       }
       .toMap
   }
+
+  /**
+    * Short keys (last path segment, matching the site_settings row keys) of every
+    * default declared under the given top-level sections of default.conf. Lets
+    * callers derive key groups (e.g. the user-visible gui/dataset settings) from
+    * the file that already defines them, instead of maintaining a parallel list.
+    */
+  def keysUnderSections(sections: Set[String]): Set[String] =
+    conf
+      .entrySet()
+      .asScala
+      .collect {
+        case entry if sections.contains(entry.getKey.takeWhile(_ != '.')) =>
+          entry.getKey.split("\\.").last
+      }
+      .toSet
 }

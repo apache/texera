@@ -118,37 +118,22 @@ class ConfigResource {
       "inviteOnly" -> UserSystemConfig.inviteOnly
     )
 
-  // The site_settings keys that logged-in, non-admin pages consume: dashboard
-  // branding, sidebar tab toggles, and dataset upload limits. Everything else
-  // in the table (e.g. csv_parser_max_columns) is management-only. Adding a
-  // key here makes it readable by every user — the explicit list forces that
-  // decision into review, same as the /pre-login payload above.
-  private val publicSettingKeys: Set[String] = Set(
-    "logo",
-    "mini_logo",
-    "favicon",
-    "hub_enabled",
-    "home_enabled",
-    "workflow_enabled",
-    "dataset_enabled",
-    "your_work_enabled",
-    "projects_enabled",
-    "workflows_enabled",
-    "datasets_enabled",
-    "compute_enabled",
-    "quota_enabled",
-    "forum_enabled",
-    "about_enabled",
-    "single_file_upload_max_size_mib",
-    "multipart_upload_chunk_size_mib",
-    "max_number_of_concurrent_uploading_file",
-    "max_number_of_concurrent_uploading_file_chunks"
-  )
+  // The site_settings keys that non-admin pages consume: dashboard branding,
+  // sidebar tab toggles, and dataset upload limits — exactly the gui.* and
+  // dataset.* sections of default.conf, which is also where the seeding
+  // pipeline gets them. Keys declared outside those sections (e.g.
+  // csv_parser_max_columns) are management-only. Deriving the set from the
+  // file keeps "which section does this default live in" the single place
+  // where visibility is decided.
+  private val publicSettingKeys: Set[String] =
+    DefaultsConfig.keysUnderSections(Set("gui", "dataset"))
 
-  // Read side for regular users: the public keys in one payload, so the
-  // dashboard doesn't fire a request per key.
+  // Read side for the public keys in one payload, so the dashboard doesn't
+  // fire a request per key. Anonymous by design: these values render on the
+  // logged-out shell (custom logo/favicon, Hub/About sidebar entries), so
+  // gating them behind a login would blank the public landing pages.
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @PermitAll
   @Path("/settings/public")
   def getPublicSettings: Map[String, String] = {
     ctx
@@ -161,7 +146,22 @@ class ConfigResource {
   }
 
   // Management read over the site_settings table this service seeds at
-  // startup: any key, including the ones not exposed through /settings/public.
+  // startup: every row, including the ones not exposed through
+  // /settings/public, in one payload for the admin settings page.
+  @GET
+  @RolesAllowed(Array("ADMIN"))
+  @Path("/settings")
+  def getAllSettings: Map[String, String] = {
+    ctx
+      .select(SITE_SETTINGS.KEY, SITE_SETTINGS.VALUE)
+      .from(SITE_SETTINGS)
+      .fetchMap(SITE_SETTINGS.KEY, SITE_SETTINGS.VALUE)
+      .asScala
+      .toMap
+  }
+
+  // Single-key management read, kept for API completeness alongside the bulk
+  // read above.
   @GET
   @RolesAllowed(Array("ADMIN"))
   @Path("/settings/{key}")
@@ -182,9 +182,13 @@ class ConfigResource {
       @PathParam("key") keyParam: String,
       setting: ConfigSettingPojo
   ): Response = {
-    if (setting.settingValue != null && keyParam.nonEmpty) {
-      upsertSetting(keyParam, setting.settingValue, currentUser.getName)
+    if (setting.settingValue == null) {
+      return Response
+        .status(Response.Status.BAD_REQUEST)
+        .entity("Setting value must not be null")
+        .build()
     }
+    upsertSetting(keyParam, setting.settingValue, currentUser.getName)
     Response.ok().build()
   }
 

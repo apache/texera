@@ -460,20 +460,29 @@ export class DatasetDetailComponent implements OnInit {
     return task.filePath;
   }
 
+  // A missing key or failed fetch keeps the field defaults; NaN here would
+  // silently stall the upload queue (`activeUploads < NaN` is always false).
   private loadUploadSettings(): void {
     this.adminSettingsService
       .getPublicSetting("multipart_upload_chunk_size_mib")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.chunkSizeMiB = parseInt(value)));
+      .subscribe({
+        next: value => (this.chunkSizeMiB = parseInt(value ?? "") || this.chunkSizeMiB),
+        error: () => {},
+      });
     this.adminSettingsService
       .getPublicSetting("max_number_of_concurrent_uploading_file_chunks")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
+      .subscribe({
+        next: value => (this.maxConcurrentChunks = parseInt(value ?? "") || this.maxConcurrentChunks),
+        error: () => {},
+      });
     this.adminSettingsService
       .getPublicSetting("max_number_of_concurrent_uploading_file")
       .pipe(untilDestroyed(this))
-      .subscribe(value => {
-        this.maxConcurrentFiles = parseInt(value);
+      .subscribe({
+        next: value => (this.maxConcurrentFiles = parseInt(value ?? "") || this.maxConcurrentFiles),
+        error: () => {},
       });
   }
 

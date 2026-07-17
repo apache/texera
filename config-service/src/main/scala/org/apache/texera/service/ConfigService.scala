@@ -27,6 +27,7 @@ import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
 import org.apache.texera.common.config.{DefaultsConfig, StorageConfig}
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.Tables.SITE_SETTINGS
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
 import org.eclipse.jetty.server.session.SessionHandler
 import org.jooq.impl.DSL
@@ -73,20 +74,17 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
 
       SqlServer.withTransaction(ctx) { tx =>
         if (DefaultsConfig.reinit) {
-          tx.deleteFrom(DSL.table("site_settings")).execute()
+          tx.deleteFrom(SITE_SETTINGS).execute()
         }
 
         DefaultsConfig.allDefaults.foreach {
           case (key, value) =>
             tx
-              .insertInto(DSL.table("site_settings"))
-              .columns(
-                DSL.field("key"),
-                DSL.field("value"),
-                DSL.field("updated_by"),
-                DSL.field("updated_at")
-              )
-              .values(key, value, "texera", DSL.currentTimestamp())
+              .insertInto(SITE_SETTINGS)
+              .set(SITE_SETTINGS.KEY, key)
+              .set(SITE_SETTINGS.VALUE, value)
+              .set(SITE_SETTINGS.UPDATED_BY, "texera")
+              .set(SITE_SETTINGS.UPDATED_AT, DSL.currentTimestamp())
               .onDuplicateKeyIgnore()
               .execute()
         }

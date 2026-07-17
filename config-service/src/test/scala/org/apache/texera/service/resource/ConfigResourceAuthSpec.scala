@@ -29,6 +29,7 @@ import jakarta.ws.rs.client.Entity
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
 import org.apache.texera.auth.{JwtAuth, JwtAuthFilter, SessionUser, UnauthorizedExceptionMapper}
+import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
@@ -38,14 +39,19 @@ import org.scalatest.matchers.should.Matchers
 
 // Wires ConfigResource through the same Jersey auth pipeline production uses
 // (JwtAuthFilter + RolesAllowedDynamicFeature) and fires HTTP requests with and
-// without an Authorization header. /config/pre-login is the only @PermitAll
-// endpoint and must answer unauthenticated callers (bootstrap regression guard,
-// same shape as the break that caused PR #5049 to be reverted in #5173).
-// /config/gui and /config/user-system are @RolesAllowed; they must reject
-// anonymous traffic with a 401 (now from JwtAuthFilter's eager check, not
-// from a downstream RolesAllowedRequestFilter 403) and accept callers with a
-// valid Bearer token.
-class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
+// without an Authorization header. /config/pre-login and /config/settings/public
+// are the @PermitAll endpoints and must answer unauthenticated callers
+// (bootstrap regression guard, same shape as the break that caused PR #5049 to
+// be reverted in #5173). /config/gui and /config/user-system are @RolesAllowed;
+// they must reject anonymous traffic with a 401 (now from JwtAuthFilter's eager
+// check, not from a downstream RolesAllowedRequestFilter 403) and accept
+// callers with a valid Bearer token. The embedded database backs the @PermitAll
+// settings read, which executes its query even for anonymous callers.
+class ConfigResourceAuthSpec
+    extends AnyFlatSpec
+    with Matchers
+    with BeforeAndAfterAll
+    with MockTexeraDB {
 
   // Mirror production's mapper: ConfigService bootstraps Dropwizard's default mapper
   // (Jackson.newObjectMapper) and registers DefaultScalaModule on top. Same call here.
@@ -66,8 +72,15 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     .addResource(new ConfigResourceAuthSpec.ProtectedProbe)
     .build()
 
-  override protected def beforeAll(): Unit = resources.before()
-  override protected def afterAll(): Unit = resources.after()
+  override protected def beforeAll(): Unit = {
+    initializeDBAndReplaceDSLContext()
+    resources.before()
+  }
+
+  override protected def afterAll(): Unit = {
+    resources.after()
+    shutdownDB()
+  }
 
   private def regularToken(): String = {
     val u = new User()
@@ -195,15 +208,31 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
   }
 
   // /config/settings is the site_settings API: /settings/public serves the
-  // whitelisted user-visible keys to any logged-in user; the single-key read
-  // and all mutation are ADMIN-only. Positive read/write paths need a
-  // database, so this spec only pins the auth gates plus the one ADMIN path
-  // that never reaches the DB (reset of a key absent from default.conf → 404).
-  "GET /config/settings/public" should "return 401 with a Bearer challenge without an Authorization header" in {
+  // user-visible keys (gui/dataset sections of default.conf) to anonymous
+  // callers — the values render on the logged-out shell (custom logo, Hub/About
+  // sidebar entries) — while the bulk read, single-key read, and all mutation
+  // are ADMIN-only. This spec pins the auth gates; the positive read/write
+  // bodies live in ConfigSettingsCrudSpec.
+  "GET /config/settings/public" should "return 200 without an Authorization header (anonymous branding read)" in {
     val response =
       resources.target("/config/settings/public").request(MediaType.APPLICATION_JSON).get()
+    response.getStatus shouldBe 200
+  }
+
+  "GET /config/settings" should "return 401 with a Bearer challenge without an Authorization header" in {
+    val response =
+      resources.target("/config/settings").request(MediaType.APPLICATION_JSON).get()
     response.getStatus shouldBe 401
     response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
+  }
+
+  it should "return 403 for a REGULAR user (bulk management read is ADMIN-only)" in {
+    val response = resources
+      .target("/config/settings")
+      .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", s"Bearer ${regularToken()}")
+      .get()
+    response.getStatus shouldBe 403
   }
 
   "GET /config/settings/{key}" should "return 401 with a Bearer challenge without an Authorization header" in {
