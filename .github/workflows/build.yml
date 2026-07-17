@@ -476,6 +476,12 @@ jobs:
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      # Exclude @IntegrationTest-tagged specs (workflow-compiling-service's
+      # OperatorBehaviorSpec forks Python, which this job does not provision).
+      # Those run in the workflow-compiling-service-integration job below.
+      # Read only by workflow-compiling-service/build.sbt; a no-op for the
+      # other services in this matrix.
+      WCS_TEST_FILTER: skip-integration
     services:
       # Each platform service transitively depends on DAO, which runs JOOQ
       # code generation at compile time and needs the live texera schema.
@@ -545,6 +551,86 @@ jobs:
           files: ./${{ matrix.service }}/target/scala-2.13/jacoco/report/jacoco.xml
           flags: ${{ matrix.service }}
           fail_ci_if_error: false
+
+  workflow-compiling-service-integration:
+    # Runs the @IntegrationTest-tagged verify spec (OperatorBehaviorSpec),
+    # which forks real Python processes to compare translator-generated code
+    # end-to-end. Provisions Python deps that the lighter `platform` job does
+    # not install (that job runs WCS_TEST_FILTER=skip-integration). Mirrors the
+    # amber / amber-integration split. Gated on run_platform (same stack); no
+    # separate label. Tests-only: no dist / no jacoco (these code paths are
+    # covered by the platform job's unit-test coverage).
+    if: ${{ inputs.run_platform }}
+    name: ${{ format('workflow-compiling-service-integration{0}', inputs.job_name_suffix) }}
+    runs-on: ubuntu-22.04
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+    services:
+      # WorkflowCompilingService transitively depends on DAO (JOOQ codegen at
+      # compile time), which needs the live texera schema.
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 17
+      - name: Setup Python for Scala-Python verification tests
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Show Python
+        run: python --version || python3 --version
+      - name: Install Python dependencies
+        # OperatorBehaviorSpec forks Python subprocesses that import pandas /
+        # pyarrow / plotly and pytexera (the harness adds amber/src/main/python
+        # to PYTHONPATH). Install amber's runtime deps, same as amber-integration.
+        run: |
+          python -m pip install uv
+          if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+      - name: Create Databases
+        run: |
+          psql -h localhost -U postgres -f sql/texera_ddl.sql
+          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/texera_lakefs.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Run workflow-compiling-service Python e2e (integration) tests
+        # WCS_TEST_FILTER=integration-only keeps only @IntegrationTest specs and
+        # bounds ScalaTest's parallel pool to 4 threads (build.sbt). CI is set by
+        # GitHub Actions, so the spec's local default-skip is off — all operators
+        # run. UDF_PYTHON_PATH points the harness at the provisioned interpreter
+        # (bare name resolves via PATH); it auto-locates amber/src/main/python.
+        env:
+          WCS_TEST_FILTER: integration-only
+          UDF_PYTHON_PATH: python
+        run: sbt "WorkflowCompilingService/test"
 
   python:
     if: ${{ inputs.run_python }}

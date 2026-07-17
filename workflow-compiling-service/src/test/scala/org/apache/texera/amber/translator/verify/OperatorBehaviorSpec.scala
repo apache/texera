@@ -22,6 +22,8 @@ package org.apache.texera.amber.translator.verify
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
+import org.apache.texera.amber.translator.verify.tags.IntegrationTest
+import org.scalatest.ParallelTestExecution
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -45,7 +47,11 @@ import org.scalatest.matchers.should.Matchers
   * Requires Python 3 with pandas on the [[Comparator]] / [[StandaloneRunner]]
   * resolution chain (`UDF_PYTHON_PATH` env var, then `python3.12`).
   */
-class OperatorBehaviorSpec extends AnyFlatSpec with Matchers {
+// Tagged @IntegrationTest: this is the only verify spec that forks a real
+// Python process end-to-end, so CI routes it to the Python-provisioned
+// integration job (see workflow-compiling-service/build.sbt WCS_TEST_FILTER).
+@IntegrationTest
+class OperatorBehaviorSpec extends AnyFlatSpec with Matchers with ParallelTestExecution {
 
   // Build the test list at class construction. Each branch below registers
   // one test (`in` for runnable, `ignore` for skipped) so the test report
@@ -53,7 +59,13 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers {
   OperatorBehaviorSpec.discoverStandaloneOperators().foreach { opClass =>
     val name = opClass.getSimpleName
 
-    if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass)) {
+    if (!OperatorBehaviorSpec.isSelected(name)) {
+      // Local-dev filter via VERIFY_SKIP / VERIFY_ONLY env vars (see the
+      // object below). Empty (the CI default) selects everything; when set,
+      // deselected operators are marked `ignore` so they don't run but still
+      // show up in the report.
+      name should "SKIPPED — not in local run set (CI runs all; override via VERIFY_ONLY/VERIFY_SKIP)" ignore {}
+    } else if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass)) {
       // Sources keep their handler-per-source design: each needs a real file
       // in its specific format, which a generic fixture can't supply.
       if (SourceCategoryRunner.canRun(opClass)) {
@@ -80,6 +92,97 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers {
 }
 
 object OperatorBehaviorSpec {
+
+  // Selection knobs. Case-sensitive substrings matched against the operator's
+  // simple name decide which operators run.
+  //
+  // Precedence (first match wins):
+  //   1. VERIFY_ONLY env set  -> run ONLY operators matching it.
+  //   2. VERIFY_SKIP env set   -> run everything EXCEPT operators matching it.
+  //   3. Running in CI          -> run everything (never skip by default).
+  //   4. Local dev (default)    -> skip DefaultLocalSkip (slow ML / viz /
+  //                                external-source / UDF families) so a bare
+  //                                `testOnly *OperatorBehaviorSpec` stays fast.
+  //
+  // This makes CI run the full set while a plain local run only exercises the
+  // fast core operators — no env exports needed. Override locally by setting
+  // VERIFY_ONLY or VERIFY_SKIP.
+  private def patterns(envVar: String): Seq[String] =
+    sys.env.getOrElse(envVar, "").split(",").iterator.map(_.trim).filter(_.nonEmpty).toSeq
+
+  // Skipped by default on a local machine only. ML uses family substrings
+  // (Sklearn / HuggingFace catch every variant); viz / source / UDF ops are
+  // listed by exact name because substrings like "Chart"/"Plot" would also
+  // match core viz ops we want to keep (BarChart, DotPlot, ...).
+  private val DefaultLocalSkip: Seq[String] = Seq(
+    "Sklearn",
+    "HuggingFace",
+    "MachineLearningScorer",
+    "ECDFPlotOpDesc",
+    "FigureFactoryTableOpDesc",
+    "FilledAreaPlotOpDesc",
+    "FunnelPlotOpDesc",
+    "GanttChartOpDesc",
+    "GaugeChartOpDesc",
+    "HeatMapOpDesc",
+    "HierarchyChartOpDesc",
+    "HistogramChartOpDesc",
+    "Histogram2DOpDesc",
+    "HtmlVizOpDesc",
+    "LineChartOpDesc",
+    "NestedTableOpDesc",
+    "NetworkGraphOpDesc",
+    "ParallelCoordinatesPlotOpDesc",
+    "PieChartOpDesc",
+    "PolarChartOpDesc",
+    "QuiverPlotOpDesc",
+    "RadarChartOpDesc",
+    "RadarPlotOpDesc",
+    "RangeSliderOpDesc",
+    "SankeyDiagramOpDesc",
+    "Scatter3dChartOpDesc",
+    "ScatterplotOpDesc",
+    "StripChartOpDesc",
+    "TablesPlotOpDesc",
+    "TernaryContourOpDesc",
+    "TernaryPlotOpDesc",
+    "TimeSeriesOpDesc",
+    "TreePlotOpDesc",
+    "UrlVizOpDesc",
+    "VolcanoPlotOpDesc",
+    "WaterfallChartOpDesc",
+    "WindRoseChartOpDesc",
+    "WordCloudOpDesc",
+    "FileListerSourceOpDesc",
+    "AsterixDBSourceOpDesc",
+    "MySQLSourceOpDesc",
+    "PostgreSQLSourceOpDesc",
+    "TwitterFullArchiveSearchSourceOpDesc",
+    "TwitterSearchSourceOpDesc",
+    "RedditSearchSourceOpDesc",
+    "PythonLambdaFunctionOpDesc",
+    "PythonTableReducerOpDesc",
+    "JavaUDFOpDesc",
+    "RUDFOpDesc",
+    "RUDFSourceOpDesc"
+  )
+
+  private lazy val onlyPatterns: Seq[String] = patterns("VERIFY_ONLY")
+
+  // Effective skip list per the precedence above. Empty means "skip nothing".
+  private lazy val skipPatterns: Seq[String] = {
+    val explicitSkip = patterns("VERIFY_SKIP")
+    if (onlyPatterns.nonEmpty || explicitSkip.nonEmpty) explicitSkip
+    else if (sys.env.get("CI").exists(_.nonEmpty)) Seq.empty
+    else DefaultLocalSkip
+  }
+
+  /** True if `name` should run under the current selection (see precedence above). */
+  def isSelected(name: String): Boolean = {
+    val included = onlyPatterns.isEmpty || onlyPatterns.exists(name.contains)
+    val excluded = skipPatterns.exists(name.contains)
+    included && !excluded
+  }
 
   /**
     * Enumerates every concrete subclass of [[LogicalOp]] declared in its

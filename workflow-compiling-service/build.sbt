@@ -41,8 +41,45 @@ ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 // Manage dependency conflicts by always using the latest revision
 ThisBuild / conflictManager := ConflictManager.latestRevision
 
-// Restrict parallel execution of tests to avoid conflicts
+// Restrict parallel execution of tests to avoid conflicts. This caps how many
+// test *suites* run concurrently; ParallelTestExecution still parallelizes the
+// tests *within* a suite (e.g. OperatorBehaviorSpec) via ScalaTest's own pool.
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
+
+// Test-filter switch driven by the WCS_TEST_FILTER env var so the
+// workflow-compiling-service and workflow-compiling-service-integration CI jobs
+// select disjoint subsets by ScalaTest tag. Mirrors amber's AMBER_TEST_FILTER.
+//   skip-integration : exclude @IntegrationTest-tagged specs (fast unit job;
+//                      these fork Python, which that job does not provision)
+//   integration-only : include only @IntegrationTest-tagged specs (the job
+//                      that installs Python deps)
+// Unset (default) runs everything — the normal local behavior.
+Test / testOptions ++= (sys.env.get("WCS_TEST_FILTER") match {
+  case Some("skip-integration") =>
+    Seq(
+      Tests.Argument(
+        TestFrameworks.ScalaTest,
+        "-l",
+        "org.apache.texera.amber.translator.verify.tags.IntegrationTest"
+      )
+    )
+  case Some("integration-only") =>
+    // -n <tag> : run only @IntegrationTest specs.
+    // -P4      : bound ScalaTest's ParallelTestExecution pool to 4 threads.
+    //            OperatorBehaviorSpec forks a Python subprocess per operator;
+    //            at core-count concurrency (e.g. 12) that caused rare flakes
+    //            from resource contention. A fixed 4 keeps it deterministic
+    //            across machines (incl. CI runners) while still ~3x serial.
+    Seq(
+      Tests.Argument(
+        TestFrameworks.ScalaTest,
+        "-n",
+        "org.apache.texera.amber.translator.verify.tags.IntegrationTest",
+        "-P4"
+      )
+    )
+  case _ => Nil
+})
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
