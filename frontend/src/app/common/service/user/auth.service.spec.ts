@@ -79,6 +79,9 @@ describe("AuthService", () => {
   });
 
   afterEach(() => {
+    // loginWithExistingToken()'s valid-token path schedules an auto-logout timer;
+    // logout() unsubscribes it so no real timer leaks into later tests / keeps Vitest alive.
+    service.logout();
     httpMock.verify();
     localStorage.clear();
   });
@@ -124,6 +127,25 @@ describe("AuthService", () => {
       expect(req.request.body).toEqual("cred");
       expect(req.request.headers.get("Content-Type")).toEqual("text/plain");
       req.flush({ accessToken: "t" });
+    });
+
+    const errorCases = [
+      { name: "register", call: () => service.register("alice", "pw"), endpoint: AuthService.REGISTER_ENDPOINT },
+      { name: "auth", call: () => service.auth("alice", "pw"), endpoint: AuthService.LOGIN_ENDPOINT },
+      { name: "googleAuth", call: () => service.googleAuth("cred"), endpoint: AuthService.GOOGLE_LOGIN_ENDPOINT },
+    ];
+
+    errorCases.forEach(({ name, call, endpoint }) => {
+      it(`${name}() propagates HTTP errors to the subscriber`, () => {
+        const onError = vi.fn();
+        call().subscribe({ error: onError });
+
+        const req = httpMock.expectOne(`${api}/${endpoint}`);
+        req.flush("nope", { status: 401, statusText: "Unauthorized" });
+
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError.mock.calls[0][0].status).toEqual(401);
+      });
     });
   });
 
