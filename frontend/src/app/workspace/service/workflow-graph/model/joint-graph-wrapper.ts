@@ -326,10 +326,7 @@ export class JointGraphWrapper {
           newPosition: newPosition,
         };
       }),
-      filter(
-        (event): event is { elementID: string; oldPosition: Point; newPosition: Point } =>
-          event !== undefined
-      )
+      filter((event): event is { elementID: string; oldPosition: Point; newPosition: Point } => event !== undefined)
     );
   }
 

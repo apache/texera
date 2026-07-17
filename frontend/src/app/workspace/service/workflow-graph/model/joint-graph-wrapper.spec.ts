@@ -826,9 +826,7 @@ describe("JointGraphWrapperService", () => {
       jointGraph.addCell(operator);
 
       const events: any[] = [];
-      const subscription = jointGraphWrapper
-        .getElementPositionChangeEvent()
-        .subscribe(event => events.push(event));
+      const subscription = jointGraphWrapper.getElementPositionChangeEvent().subscribe(event => events.push(event));
 
       // remove operator position from the internal map to force bug condition
       (jointGraphWrapper as any).elementPositions.delete(mockScanPredicate.operatorID);
@@ -837,13 +835,10 @@ describe("JointGraphWrapperService", () => {
       operator.position(100, 100);
 
       // restore position tracking
-      (jointGraphWrapper as any).elementPositions.set(
-        mockScanPredicate.operatorID,
-        {
-          currPos: { x: 100, y: 100 },
-          lastPos: undefined,
-        }
-      );
+      (jointGraphWrapper as any).elementPositions.set(mockScanPredicate.operatorID, {
+        currPos: { x: 100, y: 100 },
+        lastPos: undefined,
+      });
 
       // trigger another valid position change
       operator.position(200, 200);
