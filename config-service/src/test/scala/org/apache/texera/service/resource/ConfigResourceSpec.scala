@@ -32,7 +32,7 @@ import org.scalatest.matchers.should.Matchers
 // embedded Postgres: ConfigResourceAuthSpec pins the auth gates (401/403),
 // this spec exercises the bodies — read-miss, insert, upsert-on-conflict,
 // reset-to-default — by calling the resource methods directly.
-class ConfigResourceCrudSpec
+class ConfigResourceSpec
     extends AnyFlatSpec
     with Matchers
     with BeforeAndAfterAll
