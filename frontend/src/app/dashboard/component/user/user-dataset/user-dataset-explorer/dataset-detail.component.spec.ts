@@ -18,7 +18,8 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
+import { USER_DATASET } from "../../../../../app-routing.constant";
 import { of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { MarkdownService } from "ngx-markdown";
@@ -429,6 +430,8 @@ describe("DatasetDetailComponent behavior", () => {
       updateDatasetDownloadable: vi.fn(() => of({})),
       updateDatasetCoverImage: vi.fn(() => of({})),
       updateDatasetDescription: vi.fn(() => of({})),
+      updateDatasetName: vi.fn(() => of({})),
+      deleteDatasets: vi.fn(() => of({})),
       deleteDatasetFile: vi.fn(() => of({})),
       getDatasetDiff: vi.fn(() => of([])),
       multipartUpload: vi.fn(() => of()),
@@ -994,6 +997,95 @@ describe("DatasetDetailComponent behavior", () => {
       await component.copyCurrentFilePath();
 
       expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to copy file path");
+    });
+  });
+
+  describe("onSaveDatasetName", () => {
+    it("seeds editedDatasetName from the loaded dataset name", () => {
+      datasetServiceStub.getDataset.mockReturnValue(
+        of(makeDashboardDataset({ dataset: makeDataset({ name: "seed-name" }) }))
+      );
+      createComponent();
+      component.did = 5;
+      component.retrieveDatasetInfo();
+
+      expect(component.editedDatasetName).toBe("seed-name");
+    });
+
+    it("sanitizes the edited name, persists it, updates local state and toasts success", () => {
+      datasetServiceStub.updateDatasetName.mockReturnValue(of({}));
+      createComponent();
+      component.did = 5;
+      component.editedDatasetName = "  My Cool_Dataset";
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "my-cool-dataset");
+      expect(component.datasetName).toBe("my-cool-dataset");
+      expect(component.editedDatasetName).toBe("my-cool-dataset");
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset name updated to 'my-cool-dataset'");
+    });
+
+    it("toasts an error and leaves the name unchanged when the rename fails", () => {
+      datasetServiceStub.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      component.did = 5;
+      component.datasetName = "original";
+      component.editedDatasetName = "new-name";
+
+      component.onSaveDatasetName();
+
+      expect(component.datasetName).toBe("original");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to update dataset name");
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      component.did = undefined;
+      component.editedDatasetName = "whatever";
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("onDeleteDataset", () => {
+    it("deletes the dataset, toasts success and navigates back to the dataset list", () => {
+      datasetServiceStub.deleteDatasets.mockReturnValue(of({}));
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = 5;
+      component.datasetName = "DS";
+
+      component.onDeleteDataset();
+
+      expect(datasetServiceStub.deleteDatasets).toHaveBeenCalledWith(5);
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset DS was deleted");
+      expect(navigateSpy).toHaveBeenCalledWith([USER_DATASET]);
+    });
+
+    it("toasts an error and does not navigate when the deletion fails", () => {
+      datasetServiceStub.deleteDatasets.mockReturnValue(throwError(() => new Error("boom")));
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = 5;
+
+      component.onDeleteDataset();
+
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to delete the dataset");
+      expect(navigateSpy).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when there is no did", () => {
+      createComponent();
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+      component.did = undefined;
+
+      component.onDeleteDataset();
+
+      expect(datasetServiceStub.deleteDatasets).not.toHaveBeenCalled();
+      expect(navigateSpy).not.toHaveBeenCalled();
     });
   });
 });
