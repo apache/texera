@@ -662,9 +662,9 @@ describe("ResultTableFrameComponent", () => {
   });
 
   it("media-type util helpers should classify URLs consistently", () => {
-    expect(isVideoUrl("clip.webm")).toBe(true);
-    expect(isAudioUrl("track.flac")).toBe(true);
-    expect(isImageUrl("image.webp")).toBe(true);
+    expect(isVideoUrl("https://example.com/clip.webm")).toBe(true);
+    expect(isAudioUrl("https://example.com/track.flac")).toBe(true);
+    expect(isImageUrl("https://example.com/image.webp")).toBe(true);
     expect(isVideoUrl("text")).toBe(false);
     expect(isAudioUrl("text")).toBe(false);
     expect(isImageUrl("text")).toBe(false);

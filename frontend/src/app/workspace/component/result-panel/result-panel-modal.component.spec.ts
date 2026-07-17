@@ -105,17 +105,21 @@ describe("RowModalComponent", () => {
     createObjectURLSpy.mockRestore();
   });
 
-  it("should fall back to raw URL when media-proxy request fails", () => {
+  it("should fall back to the text view (not the raw remote URL) when media-proxy request fails", () => {
     const remoteUrl = "https://example.com/clip.mp4";
     const entries = (component as any).buildRowEntries({ vid: remoteUrl });
     const entry = entries[0];
+    expect(entry.isVideo).toBe(true);
 
     const req = httpMock.expectOne(
       `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`
     );
     req.error(new ProgressEvent("error"));
 
-    expect(entry.mediaSrc).toBe(remoteUrl);
+    expect(entry.mediaSrc).toBe("");
+    expect(entry.isVideo).toBe(false);
+    expect(entry.isImage).toBe(false);
+    expect(entry.isAudio).toBe(false);
   });
 
   it("should not fetch media-proxy for non-media remote URLs", () => {

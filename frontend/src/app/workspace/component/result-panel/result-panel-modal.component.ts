@@ -109,7 +109,10 @@ export class RowModalComponent implements OnChanges, OnDestroy {
     }
   }
 
-  private fetchBlobSrc(entry: { mediaSrc: string }, remoteUrl: string): void {
+  private fetchBlobSrc(
+    entry: { mediaSrc: string; isVideo: boolean; isImage: boolean; isAudio: boolean },
+    remoteUrl: string
+  ): void {
     const proxyUrl = `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`;
     this.http
       .get(proxyUrl, { responseType: "blob" })
@@ -121,7 +124,12 @@ export class RowModalComponent implements OnChanges, OnDestroy {
           entry.mediaSrc = blobUrl;
         },
         error: () => {
-          entry.mediaSrc = remoteUrl;
+          // The proxy rejected this URL (e.g. the SSRF allowlist blocked it). Don't fall
+          // back to loading the raw remote URL directly in the browser — fall back to the
+          // text view instead so the entry never bypasses the proxy's allowlist.
+          entry.isVideo = false;
+          entry.isImage = false;
+          entry.isAudio = false;
         },
       });
   }

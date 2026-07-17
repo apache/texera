@@ -162,17 +162,17 @@
             nzEllipsis
             (click)="open(i, row)">
             <span class="cell-content">
-              <ng-container *ngIf="isVideoCell(column.getCell(row)); else checkAudio">
-                <i
-                  nz-icon
-                  nzType="play-circle"
-                  nzTheme="outline"
-                  title="Play video"
-                  style="margin-right: 4px"></i>
-                Play Video
-              </ng-container>
-              <ng-template #checkAudio>
-                <ng-container *ngIf="isAudioCell(column.getCell(row)); else checkImage">
+              <ng-container [ngSwitch]="getCellMediaType(i, columnIndex)">
+                <ng-container *ngSwitchCase="'video'">
+                  <i
+                    nz-icon
+                    nzType="play-circle"
+                    nzTheme="outline"
+                    title="Play video"
+                    style="margin-right: 4px"></i>
+                  Play Video
+                </ng-container>
+                <ng-container *ngSwitchCase="'audio'">
                   <i
                     nz-icon
                     nzType="sound"
@@ -181,9 +181,7 @@
                     style="margin-right: 4px"></i>
                   Play Audio
                 </ng-container>
-              </ng-template>
-              <ng-template #checkImage>
-                <ng-container *ngIf="isImageCell(column.getCell(row)); else textCell">
+                <ng-container *ngSwitchCase="'image'">
                   <i
                     nz-icon
                     nzType="eye"
@@ -192,8 +190,8 @@
                     style="margin-right: 4px"></i>
                   View Image
                 </ng-container>
-              </ng-template>
-              <ng-template #textCell>{{ column.getCell(row) }}</ng-template>
+                <ng-container *ngSwitchDefault>{{ column.getCell(row) }}</ng-container>
+              </ng-container>
             </span>
             <button
               (click)="downloadData(currentResult[i][column.columnDef], i, columnIndex, column.columnDef); $event.stopPropagation()"
