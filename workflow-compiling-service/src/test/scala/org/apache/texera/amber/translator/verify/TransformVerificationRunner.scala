@@ -112,15 +112,18 @@ object TransformVerificationRunner {
   /** Ops whose two paths legitimately emit the same rows in different orders
     * (JVM hash-bucket iteration vs pandas order). Comparator lex-sorts both
     * sides — a deliberate weakening; only add a class here with a justifying
-    * comment. */
+    * comment.
+    */
   val orderInsensitiveOps: Set[Class[_]] = Set(
-    classOf[IntersectOpDesc],           // mutable.HashSet emit order
-    classOf[DifferenceOpDesc],          // leftHashSet.diff iterator order
+    classOf[IntersectOpDesc], // mutable.HashSet emit order
+    classOf[DifferenceOpDesc], // leftHashSet.diff iterator order
     classOf[SymmetricDifferenceOpDesc], // union of two hash-set diffs
-    classOf[HashJoinOpDesc[_]],         // build-map bucket order vs pd.merge
-    classOf[CartesianProductOpDesc],    // JVM emits per arriving right tuple × stored left (right-major) vs pandas cross-merge left-major
-    classOf[IntervalJoinOpDesc],        // streaming emit per arriving tuple against opposite-side buffer (port-interleaving order) vs pandas batch left-major
-    classOf[AggregateOpDesc]            // hash-partitioned group emit order vs groupby(sort=False) first-occurrence order
+    classOf[HashJoinOpDesc[_]], // build-map bucket order vs pd.merge
+    classOf[CartesianProductOpDesc], // JVM emits per arriving right tuple × stored left (right-major) vs pandas cross-merge left-major
+    classOf[IntervalJoinOpDesc], // streaming emit per arriving tuple against opposite-side buffer (port-interleaving order) vs pandas batch left-major
+    classOf[
+      AggregateOpDesc
+    ] // hash-partitioned group emit order vs groupby(sort=False) first-occurrence order
   )
 
   /** Curated ops whose enum sweep must be suppressed: an enum value is only
@@ -129,7 +132,8 @@ object TransformVerificationRunner {
     * certain source column types (attributeTypeRules), and the native executor
     * throws on an illegal cast (e.g. INTEGER → Timestamp); a blind sweep re-pairs
     * each curated column with every target type. The curated fixture already
-    * covers each branch with a type-compatible column, so no sweep is needed. */
+    * covers each branch with a type-compatible column, so no sweep is needed.
+    */
   val enumSweepExemptOps: Set[Class[_]] = Set(
     classOf[TypeCastingOpDesc]
   )
@@ -141,7 +145,8 @@ object TransformVerificationRunner {
     * numeric default and a text column — structurally incompatible with one
     * fixture. That branch is covered by a dedicated `extraScenarios` text
     * fixture instead, so the sweep would only regenerate invalid numeric+text
-    * combinations. */
+    * combinations.
+    */
   private def enumSweepExempt(opClass: Class[_ <: LogicalOp]): Boolean =
     enumSweepExemptOps.contains(opClass) ||
       classOf[SklearnClassifierOpDesc].isAssignableFrom(opClass) ||
@@ -201,7 +206,8 @@ object TransformVerificationRunner {
   )
 
   /** Triaged, explicitly-not-run operators: class → honest reason, shown in
-    * the test report and coverage table. */
+    * the test report and coverage table.
+    */
   val knownIssues: Map[Class[_], String] = Map(
     classOf[UnionOpDesc] ->
       ("variadic input port: generateStandaloneCode assumes exactly 2 " +
@@ -253,11 +259,13 @@ object TransformVerificationRunner {
     * exercised through the shared-CSV auto path instead. Lets us measure how
     * much of the hand-written curated set the auto tier can now replace: an op
     * that stays RUNNABLE/passes under force-auto no longer needs its curated
-    * handler. */
+    * handler.
+    */
   private def forceAuto: Boolean = sys.env.get("VERIFY_FORCE_AUTO").contains("1")
 
   /** Static classification — cheap (reflection only, no subprocesses), called
-    * at spec construction time to decide test-vs-ignore. */
+    * at spec construction time to decide test-vs-ignore.
+    */
   def disposition(opClass: Class[_ <: LogicalOp]): Disposition =
     knownIssues.get(opClass) match {
       case Some(reason) => Flagged(s"known issue: $reason")
@@ -305,7 +313,8 @@ object TransformVerificationRunner {
   /** True if the configured operator declares a BINARY output column (e.g. a
     * serialized trained model). Best-effort: only Python descriptors expose
     * getOutputSchemas, and a throw (schema needs real inputs) reads as "no
-    * detectable BINARY column" so the op falls through to its normal tier. */
+    * detectable BINARY column" so the op falls through to its normal tier.
+    */
   private def outputHasBinaryColumn(configured: LogicalOp): Boolean =
     configured match {
       case p: PythonOperatorDescriptor =>
@@ -318,7 +327,8 @@ object TransformVerificationRunner {
     }
 
   /** Execute both paths and assert parity on every declared output port.
-    * Precondition: disposition(opClass) returned Runnable. */
+    * Precondition: disposition(opClass) returned Runnable.
+    */
   def run(opClass: Class[_ <: LogicalOp]): Unit = {
     val testRoot = Files.createTempDirectory(s"verify-${opClass.getSimpleName}-")
 
@@ -342,7 +352,11 @@ object TransformVerificationRunner {
           primary.map { case (label, o) => (label, o, in) } ++ handler.extraScenarios(testRoot)
         case None =>
           val vs = ConfigGenerator
-            .generateVariants(opClass, CanonicalFixture.schemasByPort, CanonicalFixture.port0Rows.size)
+            .generateVariants(
+              opClass,
+              CanonicalFixture.schemasByPort,
+              CanonicalFixture.port0Rows.size
+            )
             .fold(
               reason => throw new IllegalStateException(s"cannot auto-configure: $reason"),
               identity
@@ -368,7 +382,8 @@ object TransformVerificationRunner {
 
   /** Run one configured variant of `opDesc` through both paths against `inputs`,
     * writing all intermediate/output files under `workDir`, and assert parity on
-    * every declared output port. */
+    * every declared output port.
+    */
   private def runVariant(
       opClass: Class[_ <: LogicalOp],
       opDesc: LogicalOp,
@@ -395,9 +410,13 @@ object TransformVerificationRunner {
 
     // StandaloneRunner keys inputs by 1-based port index (the inNdf convention).
     val standaloneInputs: Map[Int, Path] =
-      inputs.toSeq.sortBy(_._1.id).zipWithIndex.map {
-        case ((_, path), idx) => (idx + 1) -> path
-      }.toMap
+      inputs.toSeq
+        .sortBy(_._1.id)
+        .zipWithIndex
+        .map {
+          case ((_, path), idx) => (idx + 1) -> path
+        }
+        .toMap
 
     val pathB = StandaloneRunner.run(
       opDesc = opDesc,
@@ -448,7 +467,10 @@ object TransformVerificationRunner {
       visualizationJsonOps.contains(opClass) || visualizationHtmlOps.contains(opClass),
       s"${opClass.getSimpleName} is not registered for visualization validation"
     )
-    require(outputPortCount == 1, "visualization JSON validation currently supports one output port")
+    require(
+      outputPortCount == 1,
+      "visualization JSON validation currently supports one output port"
+    )
     require(
       classOf[PythonOperatorDescriptor].isAssignableFrom(opClass),
       "visualization JSON validation currently supports Python visualization operators"
@@ -463,9 +485,13 @@ object TransformVerificationRunner {
       )
 
     val standaloneInputs: Map[Int, Path] =
-      inputs.toSeq.sortBy(_._1.id).zipWithIndex.map {
-        case ((_, path), idx) => (idx + 1) -> path
-      }.toMap
+      inputs.toSeq
+        .sortBy(_._1.id)
+        .zipWithIndex
+        .map {
+          case ((_, path), idx) => (idx + 1) -> path
+        }
+        .toMap
 
     StandaloneRunner.run(
       opDesc = opDesc,

@@ -155,7 +155,6 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
     finalCode.encode
   }
 
-
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {

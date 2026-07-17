@@ -54,26 +54,47 @@ object CanonicalFixture {
     new Attribute("iso_country", AttributeType.STRING),
     new Attribute("trade_date", AttributeType.STRING),
     // --- Domain-specific columns (reached only via @SampleColumn) ---
-    new Attribute("pvalue", AttributeType.DOUBLE),    // strictly in (0,1): p-values
-    new Attribute("log2fc", AttributeType.DOUBLE),    // signed, centered on 0: fold-change
-    new Attribute("comp_a", AttributeType.DOUBLE),    // >0 ternary simplex component
-    new Attribute("comp_b", AttributeType.DOUBLE),    // >0 ternary simplex component
-    new Attribute("comp_c", AttributeType.DOUBLE),    // >0 ternary simplex component
-    new Attribute("uvec", AttributeType.DOUBLE),      // any real: a 4th numeric (Quiver u/v)
-    new Attribute("edge_pair", AttributeType.STRING), // "[parent, child]" literals, single-rooted tree
-    new Attribute("node_src", AttributeType.STRING),  // edge source id (Sankey/Network)
-    new Attribute("node_dst", AttributeType.STRING),  // edge target id, overlaps node_src (a DAG)
-    new Attribute("start_ts", AttributeType.TIMESTAMP),  // real timestamp; Gantt start / TimeSeries axis
-    new Attribute("finish_ts", AttributeType.TIMESTAMP), // always > start_ts; Gantt finish (bar width)
-    new Attribute("uniq_name", AttributeType.STRING),    // distinct per row: Pie/name-keyed ops need no duplicates
-    new Attribute("simplex_a", AttributeType.DOUBLE),    // >0 and simplex_a+simplex_b+simplex_c == 100 (ternary-contour)
-    new Attribute("simplex_b", AttributeType.DOUBLE),    // >0 simplex component summing to 100
-    new Attribute("simplex_c", AttributeType.DOUBLE),    // >0 simplex component summing to 100
+    new Attribute("pvalue", AttributeType.DOUBLE), // strictly in (0,1): p-values
+    new Attribute("log2fc", AttributeType.DOUBLE), // signed, centered on 0: fold-change
+    new Attribute("comp_a", AttributeType.DOUBLE), // >0 ternary simplex component
+    new Attribute("comp_b", AttributeType.DOUBLE), // >0 ternary simplex component
+    new Attribute("comp_c", AttributeType.DOUBLE), // >0 ternary simplex component
+    new Attribute("uvec", AttributeType.DOUBLE), // any real: a 4th numeric (Quiver u/v)
+    new Attribute(
+      "edge_pair",
+      AttributeType.STRING
+    ), // "[parent, child]" literals, single-rooted tree
+    new Attribute("node_src", AttributeType.STRING), // edge source id (Sankey/Network)
+    new Attribute("node_dst", AttributeType.STRING), // edge target id, overlaps node_src (a DAG)
+    new Attribute(
+      "start_ts",
+      AttributeType.TIMESTAMP
+    ), // real timestamp; Gantt start / TimeSeries axis
+    new Attribute(
+      "finish_ts",
+      AttributeType.TIMESTAMP
+    ), // always > start_ts; Gantt finish (bar width)
+    new Attribute(
+      "uniq_name",
+      AttributeType.STRING
+    ), // distinct per row: Pie/name-keyed ops need no duplicates
+    new Attribute(
+      "simplex_a",
+      AttributeType.DOUBLE
+    ), // >0 and simplex_a+simplex_b+simplex_c == 100 (ternary-contour)
+    new Attribute("simplex_b", AttributeType.DOUBLE), // >0 simplex component summing to 100
+    new Attribute("simplex_c", AttributeType.DOUBLE), // >0 simplex component summing to 100
     // ── text + iris-numeric columns for Hugging Face model operators ──
-    new Attribute("short_text", AttributeType.STRING),   // one sentence: sentiment / spam-detection input
-    new Attribute("long_text", AttributeType.STRING),    // a multi-sentence paragraph: summarization input
+    new Attribute(
+      "short_text",
+      AttributeType.STRING
+    ), // one sentence: sentiment / spam-detection input
+    new Attribute(
+      "long_text",
+      AttributeType.STRING
+    ), // a multi-sentence paragraph: summarization input
     new Attribute("petal_length", AttributeType.DOUBLE), // iris petal length in cm (~1.3–6.5)
-    new Attribute("petal_width", AttributeType.DOUBLE)   // iris petal width in cm (~0.2–2.4)
+    new Attribute("petal_width", AttributeType.DOUBLE) // iris petal width in cm (~0.2–2.4)
   )
 
   /** Schemas ConfigGenerator resolves @AutofillAttributeName fields against. */
@@ -97,23 +118,27 @@ object CanonicalFixture {
     val root =
       try new ObjectMapper().readTree(stream)
       finally stream.close()
-    root.elements().asScala.map { node =>
-      val b = Tuple.builder(schema)
-      schema.getAttributes.foreach { attr =>
-        val cell = node.get(attr.getName)
-        require(cell != null, s"fixture row missing column '${attr.getName}'")
-        val value: AnyRef = attr.getType match {
-          case AttributeType.INTEGER   => Int.box(cell.asInt())
-          case AttributeType.LONG      => Long.box(cell.asLong())
-          case AttributeType.DOUBLE    => Double.box(cell.asDouble())
-          case AttributeType.BOOLEAN   => Boolean.box(cell.asBoolean())
-          case AttributeType.TIMESTAMP => Timestamp.valueOf(cell.asText())
-          case _                       => cell.asText() // STRING
+    root
+      .elements()
+      .asScala
+      .map { node =>
+        val b = Tuple.builder(schema)
+        schema.getAttributes.foreach { attr =>
+          val cell = node.get(attr.getName)
+          require(cell != null, s"fixture row missing column '${attr.getName}'")
+          val value: AnyRef = attr.getType match {
+            case AttributeType.INTEGER   => Int.box(cell.asInt())
+            case AttributeType.LONG      => Long.box(cell.asLong())
+            case AttributeType.DOUBLE    => Double.box(cell.asDouble())
+            case AttributeType.BOOLEAN   => Boolean.box(cell.asBoolean())
+            case AttributeType.TIMESTAMP => Timestamp.valueOf(cell.asText())
+            case _                       => cell.asText() // STRING
+          }
+          b.add(attr, value)
         }
-        b.add(attr, value)
+        b.build()
       }
-      b.build()
-    }.toVector
+      .toVector
   }
 
   // Each port is a 10-row window over the 15-row table (kept small to minimize

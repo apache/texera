@@ -177,7 +177,10 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
-    val dropCols = List(xColumn, yColumn, colorColumn).filter(_.nonEmpty).map(c => "\"" + c + "\"").mkString("[", ", ", "]")
+    val dropCols = List(xColumn, yColumn, colorColumn)
+      .filter(_.nonEmpty)
+      .map(c => "\"" + c + "\"")
+      .mkString("[", ", ", "]")
     val args = scala.collection.mutable.ArrayBuffer[String](
       s"""x="$xColumn"""",
       s"""y="$yColumn"""",

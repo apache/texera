@@ -32,14 +32,21 @@ import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
-import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod, ScanSourceOpDesc}
+import org.apache.texera.amber.operator.source.scan.{
+  FileAttributeType,
+  FileDecodingMethod,
+  ScanSourceOpDesc
+}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.net.URI
 import java.nio.file.Paths
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
-class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc with StandaloneCodeGenerator {
+class FileScanSourceOpDesc
+    extends ScanSourceOpDesc
+    with TextSourceOpDesc
+    with StandaloneCodeGenerator {
   @JsonProperty(defaultValue = "UTF_8", required = true)
   @JsonSchemaTitle("Encoding")
   @JsonSchemaInject(

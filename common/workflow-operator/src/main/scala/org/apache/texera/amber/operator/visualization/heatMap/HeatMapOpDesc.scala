@@ -106,7 +106,6 @@ class HeatMapOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerato
     finalcode.encode
   }
 
-
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {

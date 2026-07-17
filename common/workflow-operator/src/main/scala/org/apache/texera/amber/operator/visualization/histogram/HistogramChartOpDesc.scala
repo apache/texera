@@ -132,7 +132,6 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
-
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {

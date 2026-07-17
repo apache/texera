@@ -147,7 +147,9 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
         // will diverge from JVM behavior.
         val tokenSetsLiteral = entries
           .map(tokenizeForConjunction)
-          .map(toks => toks.toList.sorted.map(toPyDoubleQuotedLiteral).mkString("frozenset({", ", ", "})"))
+          .map(toks =>
+            toks.toList.sorted.map(toPyDoubleQuotedLiteral).mkString("frozenset({", ", ", "})")
+          )
           .mkString("[", ", ", "]")
         val stopWordsLiteral = DictionaryMatcherOpDesc.STOP_WORDS.toList.sorted
           .map(toPyDoubleQuotedLiteral)
@@ -182,10 +184,46 @@ private object DictionaryMatcherOpDesc {
   // Mirrors Lucene's EnglishAnalyzer.ENGLISH_STOP_WORDS_SET plus the URL stop
   // words filtered by DictionaryMatcherOpExec.
   val STOP_WORDS: Set[String] = Set(
-    "a", "an", "and", "are", "as", "at", "be", "but", "by", "for", "if",
-    "in", "into", "is", "it", "no", "not", "of", "on", "or", "such",
-    "that", "the", "their", "then", "there", "these", "they", "this",
-    "to", "was", "will", "with",
-    "http", "https", "org", "net", "com", "store", "www", "html"
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "but",
+    "by",
+    "for",
+    "if",
+    "in",
+    "into",
+    "is",
+    "it",
+    "no",
+    "not",
+    "of",
+    "on",
+    "or",
+    "such",
+    "that",
+    "the",
+    "their",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "to",
+    "was",
+    "will",
+    "with",
+    "http",
+    "https",
+    "org",
+    "net",
+    "com",
+    "store",
+    "www",
+    "html"
   )
 }

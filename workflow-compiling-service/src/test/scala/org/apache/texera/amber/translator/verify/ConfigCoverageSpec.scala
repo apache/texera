@@ -57,7 +57,8 @@ class ConfigCoverageSpec extends AnyFlatSpec with Matchers {
         else "jvm"
       val tier =
         if (kind == "source") {
-          if (SourceCategoryRunner.canRun(opClass)) s"RUNNABLE (${SourceCategoryRunner.tier(opClass)})"
+          if (SourceCategoryRunner.canRun(opClass))
+            s"RUNNABLE (${SourceCategoryRunner.tier(opClass)})"
           else s"FLAG (${SourceCategoryRunner.flagReason(opClass)})"
         } else
           TransformVerificationRunner.disposition(opClass) match {

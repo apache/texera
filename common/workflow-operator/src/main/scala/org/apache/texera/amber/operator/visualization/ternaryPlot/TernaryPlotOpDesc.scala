@@ -145,7 +145,6 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
     finalCode.encode
   }
 
-
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {

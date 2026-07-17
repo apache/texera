@@ -21,11 +21,7 @@ package org.apache.texera.amber.translator.verify
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.core.executor.{
-  ExecFactory,
-  OpExecWithClassName,
-  OperatorExecutor
-}
+import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName, OperatorExecutor}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -107,8 +103,7 @@ object OpExecHarness extends LazyLogging {
     val externalInputs: Set[(PhysicalOpIdentity, PortIdentity)] =
       plan.operators.flatMap { phOp =>
         phOp.inputPorts.keys.collect {
-          case portId
-              if !plan.links.exists(l => l.toOpId == phOp.id && l.toPortId == portId) =>
+          case portId if !plan.links.exists(l => l.toOpId == phOp.id && l.toPortId == portId) =>
             (phOp.id, portId)
         }
       }
@@ -256,7 +251,8 @@ object OpExecHarness extends LazyLogging {
                   s"Op ${phOp.id} emitted to port $outPortId before its output schema was propagated"
                 )
               )
-            val tuple = tupleLike.asInstanceOf[org.apache.texera.amber.core.tuple.SeqTupleLike]
+            val tuple = tupleLike
+              .asInstanceOf[org.apache.texera.amber.core.tuple.SeqTupleLike]
               .enforceSchema(outSchema)
             produced
               .getOrElseUpdate((phOp.id, outPortId), mutable.ArrayBuffer.empty[Tuple]) += tuple
@@ -438,7 +434,10 @@ object TupleIO {
                 case AttributeType.DOUBLE  => node.put(attr.getName, v.asInstanceOf[Double])
                 case AttributeType.BOOLEAN => node.put(attr.getName, v.asInstanceOf[Boolean])
                 case AttributeType.BINARY =>
-                  node.put(attr.getName, Base64.getEncoder.encodeToString(v.asInstanceOf[Array[Byte]]))
+                  node.put(
+                    attr.getName,
+                    Base64.getEncoder.encodeToString(v.asInstanceOf[Array[Byte]])
+                  )
                 case AttributeType.TIMESTAMP =>
                   node.put(attr.getName, v.asInstanceOf[Timestamp].toString)
                 case other =>

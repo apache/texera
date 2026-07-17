@@ -191,7 +191,6 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor with StandaloneCodeGen
     finalCode.encode
   }
 
-
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {

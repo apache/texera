@@ -38,7 +38,9 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+abstract class SklearnClassifierOpDesc
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator {
 
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")

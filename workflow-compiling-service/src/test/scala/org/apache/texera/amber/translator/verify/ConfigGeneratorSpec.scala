@@ -72,7 +72,8 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
   // ── semantic column resolution (the @SampleColumn / attributeTypeRules tiers) ──
 
   it should "fill @SampleColumn-tagged fields with the named semantic columns" in {
-    val result = ConfigGenerator.generate(classOf[CandlestickChartOpDesc], CanonicalFixture.schemasByPort)
+    val result =
+      ConfigGenerator.generate(classOf[CandlestickChartOpDesc], CanonicalFixture.schemasByPort)
     withClue(result) { result.isRight shouldBe true }
     val op = result.toOption.get.asInstanceOf[CandlestickChartOpDesc]
     op.open.toString shouldBe "open"
@@ -87,7 +88,8 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
     // with no type-rule; before distinct-aware binding both resolved to the
     // first column ("id"). They must now differ so the plot isn't a degenerate
     // diagonal.
-    val result = ConfigGenerator.generate(classOf[Histogram2DOpDesc], CanonicalFixture.schemasByPort)
+    val result =
+      ConfigGenerator.generate(classOf[Histogram2DOpDesc], CanonicalFixture.schemasByPort)
     withClue(result) { result.isRight shouldBe true }
     val op = result.toOption.get.asInstanceOf[Histogram2DOpDesc]
     op.xColumn.toString should not be empty
@@ -95,7 +97,8 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "pick a type-matching column from attributeTypeRules, and a @SampleColumn for ISO codes" in {
-    val result = ConfigGenerator.generate(classOf[ChoroplethMapOpDesc], CanonicalFixture.schemasByPort)
+    val result =
+      ConfigGenerator.generate(classOf[ChoroplethMapOpDesc], CanonicalFixture.schemasByPort)
     withClue(result) { result.isRight shouldBe true }
     val op = result.toOption.get.asInstanceOf[ChoroplethMapOpDesc]
     op.locations.toString shouldBe "iso_country" // via @SampleColumn

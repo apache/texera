@@ -125,7 +125,6 @@ class WindRoseChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGe
     finalCode.encode
   }
 
-
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {

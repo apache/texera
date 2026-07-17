@@ -72,7 +72,10 @@ object Comparator {
     val modelArgs =
       if (modelColumns.nonEmpty) Seq("--model-cols", modelColumns.mkString(",")) else Seq.empty
     val probeArgs =
-      probePath.filter(_ => modelColumns.nonEmpty).map(p => Seq("--probe", p.toString)).getOrElse(Seq.empty)
+      probePath
+        .filter(_ => modelColumns.nonEmpty)
+        .map(p => Seq("--probe", p.toString))
+        .getOrElse(Seq.empty)
     val cmd =
       baseArgs ++ flagArgs ++ ignoreArgs ++ modelArgs ++ probeArgs ++ Seq(
         actual.toString,

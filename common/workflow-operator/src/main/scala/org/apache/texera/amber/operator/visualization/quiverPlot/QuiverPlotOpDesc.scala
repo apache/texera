@@ -141,7 +141,6 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
     finalCode.encode
   }
 
-
   override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {

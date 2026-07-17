@@ -131,8 +131,12 @@ class CanonicalFixtureSpec extends AnyFlatSpec with Matchers {
     val orig = CanonicalFixture.port0Rows.head
     // The JDBC-string codec is the exact inverse of Timestamp.toString, so the
     // value read back equals the value written — no timezone drift.
-    read.getField[java.sql.Timestamp]("start_ts") shouldBe orig.getField[java.sql.Timestamp]("start_ts")
-    read.getField[java.sql.Timestamp]("finish_ts") shouldBe orig.getField[java.sql.Timestamp]("finish_ts")
+    read.getField[java.sql.Timestamp]("start_ts") shouldBe orig.getField[java.sql.Timestamp](
+      "start_ts"
+    )
+    read.getField[java.sql.Timestamp]("finish_ts") shouldBe orig.getField[java.sql.Timestamp](
+      "finish_ts"
+    )
   }
 
   it should "expose non-empty short_text sentences for text-classification ops" in {

@@ -109,7 +109,8 @@ object SourceCategoryRunner {
   )
 
   /** The format tag a source declares, or `None` if it isn't an instantiable
-    * ScanSourceOpDesc (non-scan sources, or ones that fail to construct). */
+    * ScanSourceOpDesc (non-scan sources, or ones that fail to construct).
+    */
   private def declaredFileType(opDescClass: Class[_ <: LogicalOp]): Option[String] =
     Try(opDescClass.getDeclaredConstructor().newInstance()).toOption.collect {
       case scan: ScanSourceOpDesc => scan.fileTypeName
@@ -129,7 +130,8 @@ object SourceCategoryRunner {
     if (curatedHandlersByClass.contains(opDescClass)) "curated source" else "auto source"
 
   /** Why a non-runnable source is flagged: a specific known issue, an
-    * unsupported declared format, or no handler/format match at all. */
+    * unsupported declared format, or no handler/format match at all.
+    */
   def flagReason(opDescClass: Class[_ <: LogicalOp]): String =
     knownIssues.getOrElse(
       opDescClass,
@@ -242,20 +244,24 @@ object CanonicalSourceFixture {
     val root =
       try new ObjectMapper().readTree(stream)
       finally stream.close()
-    root.elements().asScala.map { node =>
-      val b = Tuple.builder(schema)
-      schema.getAttributes.foreach { attr =>
-        val cell = node.get(attr.getName)
-        require(cell != null, s"source fixture row missing column '${attr.getName}'")
-        val value: AnyRef = attr.getType match {
-          case AttributeType.INTEGER => Int.box(cell.asInt())
-          case AttributeType.DOUBLE  => Double.box(cell.asDouble())
-          case _                     => cell.asText()
+    root
+      .elements()
+      .asScala
+      .map { node =>
+        val b = Tuple.builder(schema)
+        schema.getAttributes.foreach { attr =>
+          val cell = node.get(attr.getName)
+          require(cell != null, s"source fixture row missing column '${attr.getName}'")
+          val value: AnyRef = attr.getType match {
+            case AttributeType.INTEGER => Int.box(cell.asInt())
+            case AttributeType.DOUBLE  => Double.box(cell.asDouble())
+            case _                     => cell.asText()
+          }
+          b.add(attr, value)
         }
-        b.add(attr, value)
+        b.build()
       }
-      b.build()
-    }.toVector
+      .toVector
   }
 
   /** Write the rows as a header-first, comma-delimited CSV. */
@@ -274,7 +280,8 @@ object CanonicalSourceFixture {
 
   /** Write the rows as JSON Lines (one object per line, keys in schema order).
     * Reuses [[TupleIO.writeTuples]] — the same writer the transform fixtures
-    * use; it also drops a `.schema.json` sidecar the source ignores. */
+    * use; it also drops a `.schema.json` sidecar the source ignores.
+    */
   def writeJsonl(dir: Path): Path = {
     val path = dir.resolve("sample.jsonl")
     TupleIO.writeTuples(path, rows.iterator, schema)
@@ -283,7 +290,8 @@ object CanonicalSourceFixture {
 
   /** Write the rows as an uncompressed Arrow IPC ("file" format) stream — the
     * format both `ArrowFileReader` (Path A) and `pd.read_feather` (Path B)
-    * read. */
+    * read.
+    */
   def writeArrow(dir: Path): Path = {
     val path = dir.resolve("sample.arrow")
     val arrowSchema = new ArrowSchema(

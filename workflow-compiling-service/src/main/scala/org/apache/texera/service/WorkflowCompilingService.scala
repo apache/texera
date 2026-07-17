@@ -26,7 +26,11 @@ import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.amber.config.StorageConfig
 import org.apache.texera.amber.util.ObjectMapperUtils
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource, WorkflowToPythonResource}
+import org.apache.texera.service.resource.{
+  HealthCheckResource,
+  WorkflowCompilationResource,
+  WorkflowToPythonResource
+}
 import org.eclipse.jetty.servlet.FilterHolder
 
 import java.nio.file.Path

@@ -148,11 +148,11 @@ class WorkflowToPythonTranslator extends LazyLogging {
   // and logs a warning — that signals a mismatch between an operator's
   // declared port count and what its generateStandaloneCode actually emits.
   private def substituteVars(
-                              code: String,
-                              inVars: List[String],
-                              outVars: List[String],
-                              displayName: String
-                            ): String = {
+      code: String,
+      inVars: List[String],
+      outVars: List[String],
+      displayName: String
+  ): String = {
     var result = code
 
     inVars.zipWithIndex.reverse.foreach {

@@ -19,12 +19,7 @@
 
 package org.apache.texera.amber.translator.verify
 
-import org.apache.texera.amber.core.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  Tuple
-}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.filter.{
@@ -32,14 +27,8 @@ import org.apache.texera.amber.operator.filter.{
   FilterPredicate,
   SpecializedFilterOpDesc
 }
-import org.apache.texera.amber.operator.hashJoin.{
-  HashJoinOpDesc,
-  JoinType
-}
-import org.apache.texera.amber.operator.projection.{
-  AttributeUnit,
-  ProjectionOpDesc
-}
+import org.apache.texera.amber.operator.hashJoin.{HashJoinOpDesc, JoinType}
+import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
 import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
 import org.apache.texera.amber.operator.visualization.bulletChart.{
@@ -60,7 +49,10 @@ import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnGaussianNaiveBayesOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
-import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.{HyperParameters, ParamClass}
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.{
+  HyperParameters,
+  ParamClass
+}
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import org.apache.texera.amber.operator.huggingFace.HuggingFaceSpamSMSDetectionOpDesc
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -87,7 +79,8 @@ trait TransformHandler {
     * is incompatible with the numeric default fixture (`X = table.drop(target)`
     * would feed a string column to a numeric estimator). Each scenario must
     * write its input files somewhere unique (e.g. a `testRoot` subdir) so it
-    * does not clobber the primary fixture's files. */
+    * does not clobber the primary fixture's files.
+    */
   def extraScenarios(testRoot: Path): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
     Seq.empty
 }
@@ -104,7 +97,8 @@ object CuratedHandlers {
     * on [[LogicalOp]] — the same source [[ConfigGenerator]] enumerates. The
     * sklearn handler families below are auto-derived from this list, so a newly
     * registered sklearn estimator is picked up with zero per-operator
-    * boilerplate here. */
+    * boilerplate here.
+    */
   private val registeredOps: Seq[Class[_ <: LogicalOp]] =
     Option(classOf[LogicalOp].getAnnotation(classOf[com.fasterxml.jackson.annotation.JsonSubTypes]))
       .map(_.value().toSeq.map(_.value().asInstanceOf[Class[_ <: LogicalOp]]))
@@ -115,7 +109,8 @@ object CuratedHandlers {
 
   /** Auto-discovery factory for the [[SklearnTrainingTransformHandler]] family:
     * every concrete `SklearnTrainingOpDesc` subclass, instantiated by
-    * reflection. */
+    * reflection.
+    */
   private def trainingHandler(cls: Class[_ <: LogicalOp]): SklearnTrainingTransformHandler =
     new SklearnTrainingTransformHandler {
       override val opDescClass: Class[_ <: LogicalOp] = cls
@@ -124,7 +119,8 @@ object CuratedHandlers {
     }
 
   /** Auto-discovery factory for the [[SklearnClassifierTransformHandler]]
-    * family: every concrete `SklearnClassifierOpDesc` subclass. */
+    * family: every concrete `SklearnClassifierOpDesc` subclass.
+    */
   private def classifierHandler(cls: Class[_ <: LogicalOp]): SklearnClassifierTransformHandler =
     new SklearnClassifierTransformHandler {
       override val opDescClass: Class[_ <: LogicalOp] = cls
@@ -133,7 +129,8 @@ object CuratedHandlers {
     }
 
   /** Auto-discovery factory for the [[SklearnAdvancedTrainerTransformHandler]]
-    * family: every concrete `SklearnMLOperatorDescriptor` subclass. */
+    * family: every concrete `SklearnMLOperatorDescriptor` subclass.
+    */
   private def advancedTrainerHandler(
       cls: Class[_ <: LogicalOp]
   ): SklearnAdvancedTrainerTransformHandler =
@@ -150,7 +147,8 @@ object CuratedHandlers {
     * ([[SklearnLinearRegressionTransformHandler]]) stays authoritative — it is
     * not actually a `SklearnClassifierOpDesc` subclass, but the exclusion makes
     * that invariant explicit and future-proof. The three families are disjoint
-    * hierarchies, so no op is double-counted. */
+    * hierarchies, so no op is double-counted.
+    */
   private def sklearnAutoHandlers: Seq[TransformHandler] = {
     val trainingBase = classOf[SklearnTrainingOpDesc]
     val classifierBase = classOf[SklearnClassifierOpDesc]
@@ -182,7 +180,8 @@ object CuratedHandlers {
   /** Op classes served by the auto-discovered sklearn tier. Exposed so
     * [[TransformVerificationRunner.disposition]] can label them `ml-auto`
     * (a systematic shared-fixture + predict-compare category) instead of
-    * `curated`, which is then reserved for genuine one-off fixtures. */
+    * `curated`, which is then reserved for genuine one-off fixtures.
+    */
   val sklearnAutoClasses: Set[Class[_ <: LogicalOp]] =
     sklearnAutoHandlers.map(_.opDescClass).toSet
 
@@ -200,7 +199,7 @@ object CuratedHandlers {
     SklearnLinearRegressionTransformHandler,
     IfTransformHandler,
     MachineLearningScorerTransformHandler,
-    HuggingFaceSpamSMSDetectionTransformHandler,
+    HuggingFaceSpamSMSDetectionTransformHandler
   ) ++ sklearnAutoHandlers
 
   val byClass: Map[Class[_ <: LogicalOp], TransformHandler] =
@@ -209,7 +208,8 @@ object CuratedHandlers {
   /** Generic fixture writer: builds a JSONL file with the given typed columns
     * and rows, boxing each value per its declared [[AttributeType]]. Lets a
     * curated handler declare bespoke per-operator input data in one call
-    * instead of hand-rolling a Schema + Tuple.builder loop. */
+    * instead of hand-rolling a Schema + Tuple.builder loop.
+    */
   def writeFixture(
       path: Path,
       columns: Seq[(String, AttributeType)],
@@ -244,7 +244,8 @@ object CuratedHandlers {
 
   /** Two-input balanced binary-classification fixture (train on port 0, test on
     * port 1) for the Sklearn classifier/regressor operators. Both ports get the
-    * same rows from the shared [[SklearnFixture]] resource. */
+    * same rows from the shared [[SklearnFixture]] resource.
+    */
   def writeClassification2Input(testRoot: Path): (Path, Path) = {
     val train = testRoot.resolve("input_port_0.jsonl")
     val test = testRoot.resolve("input_port_1.jsonl")
@@ -259,7 +260,8 @@ object CuratedHandlers {
     * was passed for X, but dense data is required"; text classification uses the
     * Multinomial/Bernoulli/Complement NB variants instead. `countVectorizer=true`
     * on these is an invalid production config, not a translation gap, so the
-    * scenario is skipped rather than flagged. */
+    * scenario is skipped rather than flagged.
+    */
   private val denseOnlyForCountVectorizer: Set[Class[_ <: LogicalOp]] =
     Set(
       classOf[SklearnGaussianNaiveBayesOpDesc],
@@ -273,10 +275,12 @@ object CuratedHandlers {
     * handling logic is actually exercised (vs. an empty sweep). Resolves the
     * operator's parameter enum (its `SklearnMLOperatorDescriptor[T]` type
     * argument), picks the first numeric hyperparameter, and gives it a fixed
-    * value — e.g. KNN `n_neighbors = 3`, SVC/SVR `C = 1.0`. */
+    * value — e.g. KNN `n_neighbors = 3`, SVC/SVR `C = 1.0`.
+    */
   def sampleHyperParameter(opClass: Class[_ <: LogicalOp]): HyperParameters[ParamClass] = {
     val consts = resolveParamEnum(opClass).getEnumConstants.map(_.asInstanceOf[ParamClass])
-    val chosen = consts.find(c => Set("int", "float", "double").contains(c.getType)).getOrElse(consts.head)
+    val chosen =
+      consts.find(c => Set("int", "float", "double").contains(c.getType)).getOrElse(consts.head)
     val hp = new HyperParameters[ParamClass]()
     hp.parameter = chosen
     hp.parametersSource = false
@@ -286,7 +290,8 @@ object CuratedHandlers {
   }
 
   /** The concrete enum bound to `T` in an operator's
-    * `SklearnMLOperatorDescriptor[T]` supertype (e.g. `SklearnAdvancedKNNParameters`). */
+    * `SklearnMLOperatorDescriptor[T]` supertype (e.g. `SklearnAdvancedKNNParameters`).
+    */
   private def resolveParamEnum(opClass: Class[_]): Class[_] = {
     var t: java.lang.reflect.Type = opClass.getGenericSuperclass
     while (t != null) t match {
@@ -330,20 +335,24 @@ object SklearnFixture {
     val root =
       try new ObjectMapper().readTree(stream)
       finally stream.close()
-    root.elements().asScala.map { node =>
-      val b = Tuple.builder(schema)
-      schema.getAttributes.foreach { attr =>
-        val cell = node.get(attr.getName)
-        require(cell != null, s"sklearn fixture row missing column '${attr.getName}'")
-        val value: AnyRef = attr.getType match {
-          case AttributeType.INTEGER => Int.box(cell.asInt())
-          case AttributeType.DOUBLE  => Double.box(cell.asDouble())
-          case _                     => cell.asText()
+    root
+      .elements()
+      .asScala
+      .map { node =>
+        val b = Tuple.builder(schema)
+        schema.getAttributes.foreach { attr =>
+          val cell = node.get(attr.getName)
+          require(cell != null, s"sklearn fixture row missing column '${attr.getName}'")
+          val value: AnyRef = attr.getType match {
+            case AttributeType.INTEGER => Int.box(cell.asInt())
+            case AttributeType.DOUBLE  => Double.box(cell.asDouble())
+            case _                     => cell.asText()
+          }
+          b.add(attr, value)
         }
-        b.add(attr, value)
+        b.build()
       }
-      b.build()
-    }.toVector
+      .toVector
   }
 }
 
@@ -374,19 +383,23 @@ object SklearnTextFixture {
     val root =
       try new ObjectMapper().readTree(stream)
       finally stream.close()
-    root.elements().asScala.map { node =>
-      val b = Tuple.builder(schema)
-      schema.getAttributes.foreach { attr =>
-        val cell = node.get(attr.getName)
-        require(cell != null, s"sklearn text fixture row missing column '${attr.getName}'")
-        val value: AnyRef = attr.getType match {
-          case AttributeType.INTEGER => Int.box(cell.asInt())
-          case _                     => cell.asText()
+    root
+      .elements()
+      .asScala
+      .map { node =>
+        val b = Tuple.builder(schema)
+        schema.getAttributes.foreach { attr =>
+          val cell = node.get(attr.getName)
+          require(cell != null, s"sklearn text fixture row missing column '${attr.getName}'")
+          val value: AnyRef = attr.getType match {
+            case AttributeType.INTEGER => Int.box(cell.asInt())
+            case _                     => cell.asText()
+          }
+          b.add(attr, value)
         }
-        b.add(attr, value)
+        b.build()
       }
-      b.build()
-    }.toVector
+      .toVector
   }
 
   /** Write the text table to `path` (columns in order: note, y). */
@@ -447,7 +460,8 @@ object SpecializedFilterTransformHandler extends TransformHandler {
 /** HashJoin INNER on `id`. Build (port 0) and probe (port 1) intentionally
   *  arrive in different id orders so any probe-major / left-major mismatch
   *  between the JVM emit and `pd.merge` shows up. Order policy lives in
-  *  [[TransformVerificationRunner.orderInsensitiveOps]]. */
+  *  [[TransformVerificationRunner.orderInsensitiveOps]].
+  */
 object HashJoinTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[HashJoinOpDesc[_]]
 
@@ -505,7 +519,8 @@ object HashJoinTransformHandler extends TransformHandler {
 /** Projection: `attributes` carries no @JsonProperty, so the auto-config tier
   *  leaves it empty and ProjectionOpExec rejects the empty list
   *  (Preconditions.checkArgument). Keep two columns, renaming one, to
-  *  exercise both select and alias. Map op — strict order holds. */
+  *  exercise both select and alias. Map op — strict order holds.
+  */
 object ProjectionTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[ProjectionOpDesc]
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
@@ -526,7 +541,8 @@ object ProjectionTransformHandler extends TransformHandler {
   *  output name here — purely a test-side override; the production default stays
   *  `"score"`. `attribute` is pointed at the sentence column (the op's own
   *  @SampleColumn target) so the classifier gets real text. Map op running the
-  *  same HuggingFace pipeline on both paths → compared as a DataFrame. */
+  *  same HuggingFace pipeline on both paths → compared as a DataFrame.
+  */
 object HuggingFaceSpamSMSDetectionTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[HuggingFaceSpamSMSDetectionOpDesc]
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
@@ -569,11 +585,11 @@ object TypeCastingTransformHandler extends TransformHandler {
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
     // One dedicated source column per target so the casts don't chain.
     val columns = Seq(
-      ("str_to_int", AttributeType.STRING),  // numeric string  → INTEGER
+      ("str_to_int", AttributeType.STRING), // numeric string  → INTEGER
       ("int_to_dbl", AttributeType.INTEGER), // integer         → DOUBLE
       ("int_to_str", AttributeType.INTEGER), // integer         → STRING
       ("int_to_lng", AttributeType.INTEGER), // integer         → LONG
-      ("int_to_bool", AttributeType.INTEGER)  // 1/0            → BOOLEAN
+      ("int_to_bool", AttributeType.INTEGER) // 1/0            → BOOLEAN
     )
     val rows = Seq(
       Seq[Any]("10", 1, 6, 11, 1),
@@ -606,7 +622,8 @@ object TypeCastingTransformHandler extends TransformHandler {
 
 /** BulletChart visualization fixture. Uses two numeric values so the runtime
   * path can render multiple bullet charts while the JSON comparator validates
-  * the first Plotly payload. */
+  * the first Plotly payload.
+  */
 object BulletChartVisualizationHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[BulletChartOpDesc]
 
@@ -637,7 +654,8 @@ object BulletChartVisualizationHandler extends TransformHandler {
 }
 
 /** ImageVisualizer fixture. Uses deterministic binary payloads; the operator
-  * base64-encodes them into img tags. */
+  * base64-encodes them into img tags.
+  */
 object ImageVisualizerVisualizationHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[ImageVisualizerOpDesc]
 
@@ -665,7 +683,8 @@ object ImageVisualizerVisualizationHandler extends TransformHandler {
 }
 
 /** ScatterMatrix visualization fixture. Uses three numeric dimensions and a
-  * stable categorical color column. */
+  * stable categorical color column.
+  */
 object ScatterMatrixVisualizationHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[ScatterMatrixChartOpDesc]
 
@@ -823,7 +842,8 @@ object GanttChartVisualizationHandler extends TransformHandler {
   * lands in a BINARY column the comparator ignores (functionally equivalent
   * but not bit-identical across paths); model_name and output shape are still
   * compared, so each operator is verified to run to completion on both paths.
-  * Each concrete handler only supplies its estimator-specific OpDesc. */
+  * Each concrete handler only supplies its estimator-specific OpDesc.
+  */
 abstract class SklearnTrainingTransformHandler extends TransformHandler {
   protected def newDesc(): SklearnTrainingOpDesc
 
@@ -841,7 +861,8 @@ abstract class SklearnTrainingTransformHandler extends TransformHandler {
 
   /** The `countVectorizer=true` branch: features come from a single text column
     * (`X = X[text]`), incompatible with the numeric default, so it runs as its
-    * own scenario on the text fixture rather than as an enum-sweep variant. */
+    * own scenario on the text fixture rather than as an enum-sweep variant.
+    */
   override def extraScenarios(
       testRoot: Path
   ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
@@ -864,7 +885,8 @@ abstract class SklearnTrainingTransformHandler extends TransformHandler {
   * port 0 + testing port 1). The fitted model lands in a BINARY column; the
   * comparator unpickles both paths' models and compares their predictions on
   * the training features, verifying behavior, not bytes. Each concrete handler
-  * supplies its estimator-specific OpDesc. */
+  * supplies its estimator-specific OpDesc.
+  */
 abstract class SklearnClassifierTransformHandler extends TransformHandler {
   protected def newDesc(): SklearnClassifierOpDesc
 
@@ -879,7 +901,8 @@ abstract class SklearnClassifierTransformHandler extends TransformHandler {
   /** The `countVectorizer=true` branch: train/test features come from a single
     * text column (`X = X[text]`), incompatible with the numeric default, so it
     * runs as its own scenario on the text fixture (both ports) rather than as an
-    * enum-sweep variant. */
+    * enum-sweep variant.
+    */
   override def extraScenarios(
       testRoot: Path
   ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
@@ -913,7 +936,8 @@ object SklearnLinearRegressionTransformHandler extends TransformHandler {
   * KNN `n_neighbors = 3`, SVC/SVR `C = 1.0`) so the parameter-handling logic
   * (`getParameter` and the param string both code paths build) is actually
   * exercised, not skipped with an empty paraList. The model lands in a BINARY
-  * column compared by prediction behavior. */
+  * column compared by prediction behavior.
+  */
 abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   protected def newDesc(): SklearnMLOperatorDescriptor[_]
 
@@ -945,14 +969,19 @@ abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   * forwards no condition rows; with no State message it keeps its default
   * active output (True), matching the standalone's default-True branch — so
   * the True output gets all data rows and the False output is empty on both
-  * paths. */
+  * paths.
+  */
 object IfTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[IfOpDesc]
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
     val cols = Seq("id" -> AttributeType.INTEGER, "name" -> AttributeType.STRING)
     val condition =
-      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), cols, Seq.empty[Seq[Any]])
+      CuratedHandlers.writeFixture(
+        testRoot.resolve("input_port_0.jsonl"),
+        cols,
+        Seq.empty[Seq[Any]]
+      )
     val data = CuratedHandlers.writeFixture(
       testRoot.resolve("input_port_1.jsonl"),
       cols,

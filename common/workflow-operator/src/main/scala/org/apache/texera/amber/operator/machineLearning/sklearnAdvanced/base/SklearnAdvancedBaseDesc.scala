@@ -98,7 +98,8 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
     * emitted as a quoted Python string literal (`table["col"]`). The shared
     * [[getParameter]]/[[getLoopTimes]] rely on EncodableString auto-encoding for
     * the native path; the standalone `.plain` path would otherwise drop the
-    * quotes (`table[col]`) and raise NameError. Returns (model-args, para_str). */
+    * quotes (`table[col]`) and raise NameError. Returns (model-args, para_str).
+    */
   private def getParameterStandalone(paraList: List[HyperParameters[T]]): (String, String) = {
     val workflowParam = new StringBuilder
     val portParam = new StringBuilder
@@ -120,7 +121,9 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
 
   private def getLoopTimesStandalone(paraList: List[HyperParameters[T]]): String =
     paraList
-      .collectFirst { case ele if ele.parametersSource => s"""table["${ele.attribute}"].values.shape[0]""" }
+      .collectFirst {
+        case ele if ele.parametersSource => s"""table["${ele.attribute}"].values.shape[0]"""
+      }
       .getOrElse("1")
 
   override def generatePythonCode(): String = {

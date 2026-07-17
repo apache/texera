@@ -23,7 +23,12 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, PortDescription, PortDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{
+  LogicalOp,
+  PortDescription,
+  PortDescriptor,
+  StandaloneCodeGenerator
+}
 
 class DummyOpDesc extends LogicalOp with PortDescriptor with StandaloneCodeGenerator {
 
