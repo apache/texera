@@ -152,7 +152,11 @@ describe("AdminUserService", () => {
   describe("error propagation", () => {
     const cases: { name: string; call: () => Observable<unknown>; url: string }[] = [
       { name: "getUserList", call: () => service.getUserList(), url: USER_LIST_URL },
-      { name: "updateUser", call: () => service.updateUser(1, "Alice", "alice@x.com", Role.ADMIN, "vip"), url: USER_UPDATE_URL },
+      {
+        name: "updateUser",
+        call: () => service.updateUser(1, "Alice", "alice@x.com", Role.ADMIN, "vip"),
+        url: USER_UPDATE_URL,
+      },
       { name: "addUser", call: () => service.addUser(), url: `${USER_ADD_URL}/` },
       { name: "getUploadedFiles", call: () => service.getUploadedFiles(9), url: USER_CREATED_FILES },
       { name: "getCreatedDatasets", call: () => service.getCreatedDatasets(9), url: USER_CREATED_DATASETS },
@@ -160,7 +164,11 @@ describe("AdminUserService", () => {
       { name: "getAccessFiles", call: () => service.getAccessFiles(3), url: USER_ACCESS_FILES },
       { name: "getAccessWorkflows", call: () => service.getAccessWorkflows(3), url: USER_ACCESS_WORKFLOWS },
       { name: "getExecutionQuota", call: () => service.getExecutionQuota(3), url: USER_QUOTA_SIZE },
-      { name: "deleteExecutionCollection", call: () => service.deleteExecutionCollection(7), url: `${USER_DELETE_EXECUTION_COLLECTION}/7` },
+      {
+        name: "deleteExecutionCollection",
+        call: () => service.deleteExecutionCollection(7),
+        url: `${USER_DELETE_EXECUTION_COLLECTION}/7`,
+      },
     ];
 
     cases.forEach(({ name, call, url }) => {
