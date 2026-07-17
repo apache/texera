@@ -22,6 +22,11 @@ package org.apache.texera.amber.translator.verify
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.aggregate.{
+  AggregateOpDesc,
+  AggregationFunction,
+  AggregationOperation
+}
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
@@ -186,6 +191,7 @@ object CuratedHandlers {
     sklearnAutoHandlers.map(_.opDescClass).toSet
 
   val all: Seq[TransformHandler] = Seq(
+    AggregateTransformHandler,
     SpecializedFilterTransformHandler,
     HashJoinTransformHandler,
     TypeCastingTransformHandler,
@@ -971,6 +977,49 @@ abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   * the True output gets all data rows and the False output is empty on both
   * paths.
   */
+/** Aggregate fixture exercising every aggregation function in one op, including
+  * COUNT(*) (empty attribute). Auto-config can't build this: upstream #5896 made
+  * `AggregationOperation.attribute` optional (required only for non-count via a
+  * conditional JSON-schema rule), so ConfigGenerator skips the optional autofill
+  * field and leaves it null — invalid for a non-count function, which NPEs in
+  * AggregateOpExec. This pins valid (function, column) pairs. Enum-sweep-exempt
+  * (see [[TransformVerificationRunner.enumSweepExemptOps]]): the sweep flips each
+  * element's function in isolation and would re-pair, e.g., concat with a numeric
+  * column; the fixture already covers each function with a type-compatible column.
+  * `AggregateOpDesc` is in [[TransformVerificationRunner.orderInsensitiveOps]], so
+  * the comparator lex-sorts rows before comparing.
+  */
+object AggregateTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[AggregateOpDesc]
+
+  private def agg(
+      fn: AggregationFunction,
+      attr: String,
+      result: String
+  ): AggregationOperation = {
+    val a = new AggregationOperation()
+    a.aggFunction = fn
+    a.attribute = attr
+    a.resultAttribute = result
+    a
+  }
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val desc = new AggregateOpDesc()
+    desc.groupByKeys = List("name")
+    desc.aggregations = List(
+      agg(AggregationFunction.SUM, "score", "sum_score"),
+      agg(AggregationFunction.COUNT, "", "count_all"), // empty attribute => COUNT(*)
+      agg(AggregationFunction.COUNT, "score", "count_score"),
+      agg(AggregationFunction.AVERAGE, "score", "avg_score"),
+      agg(AggregationFunction.MIN, "score", "min_score"),
+      agg(AggregationFunction.MAX, "score", "max_score"),
+      agg(AggregationFunction.CONCAT, "iso_country", "cat_country")
+    )
+    (desc, CanonicalFixture.writeInputs(testRoot, 1))
+  }
+}
+
 object IfTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[IfOpDesc]
 

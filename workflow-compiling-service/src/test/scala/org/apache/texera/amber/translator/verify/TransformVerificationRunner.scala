@@ -135,7 +135,13 @@ object TransformVerificationRunner {
     * covers each branch with a type-compatible column, so no sweep is needed.
     */
   val enumSweepExemptOps: Set[Class[_]] = Set(
-    classOf[TypeCastingOpDesc]
+    classOf[TypeCastingOpDesc],
+    // Aggregate's sweepable enum is each aggregation's `aggFunction`, but the
+    // function is cross-constrained with its `attribute` column type (concat→string,
+    // sum/avg/min/max→numeric) and with COUNT(*)'s empty attribute. A blind sweep
+    // re-pairs functions with the wrong column. The curated fixture already covers
+    // every function with a type-compatible column, so no sweep is needed.
+    classOf[AggregateOpDesc]
   )
 
   /** Whether the enum sweep is suppressed for `opClass`. True for
