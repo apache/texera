@@ -30,6 +30,8 @@ object UserSystemConfig {
   val adminUsername: String = conf.getString("user-sys.admin-username")
   val adminPassword: String = conf.getString("user-sys.admin-password")
   val googleClientId: String = conf.getString("user-sys.google.clientId")
+  val facebookClientId: String = conf.getString("user-sys.facebook.clientId")
+  val facebookAppSecret: String = conf.getString("user-sys.facebook.appSecret")
   val gmail: String = conf.getString("user-sys.google.smtp.gmail")
   val smtpPassword: String = conf.getString("user-sys.google.smtp.password")
   val inviteOnly: Boolean = conf.getBoolean("user-sys.invite-only")

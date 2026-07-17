@@ -22,7 +22,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { User } from "../../../../common/type/user";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
-import { ABOUT } from "../../../../app-routing.constant";
+import { LOGIN } from "../../../../app-routing.constant";
 import { UserAvatarComponent } from "../user-avatar/user-avatar.component";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
@@ -63,6 +63,6 @@ export class UserIconComponent {
   public onClickLogout(): void {
     this.userService.logout();
     document.cookie = "flarum_remember=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    this.router.navigate([ABOUT]);
+    this.router.navigate([LOGIN]);
   }
 }

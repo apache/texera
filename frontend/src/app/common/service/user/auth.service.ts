@@ -46,6 +46,7 @@ export class AuthService {
   public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
+  public static readonly FACEBOOK_LOGIN_ENDPOINT = "auth/facebook/login";
 
   private tokenExpirationSubscription?: Subscription;
 
@@ -74,14 +75,9 @@ export class AuthService {
     );
   }
 
-  /**
-   * This method will handle the request for Google login.
-   * It will automatically login, save the user account inside and trigger userChangeEvent when success
-
-   */
-  public googleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
+  private authRequest(authUrl: string, credential: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.post<Readonly<{ accessToken: string }>>(
-      `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
+      authUrl,
       credential,
       {
         headers: {
@@ -90,6 +86,17 @@ export class AuthService {
         },
       }
     );
+  }
+  /**
+   * This method will handle the request for Google login.
+   * It will automatically login, save the user account inside and trigger userChangeEvent when success
+   */
+  public googleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.authRequest(`${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`, credential)
+  }
+
+  public facebookAuth(credential: string): Observable<Readonly<{ accessToken : string}>> {
+    return this.authRequest(`${AppSettings.getApiEndpoint()}/${AuthService.FACEBOOK_LOGIN_ENDPOINT}`, credential)
   }
 
   /**

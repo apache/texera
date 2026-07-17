@@ -43,6 +43,7 @@ import { LandingPageComponent } from "./hub/component/landing-page/landing-page.
 import { USER_WORKFLOW } from "./app-routing.constant";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
+import { TexeraLoginComponent } from "./hub/component/login/texera-login.component";
 
 const routes: Routes = [];
 
@@ -175,6 +176,13 @@ routes.push({
       component: SearchComponent,
     },
   ],
+});
+
+// Full-page login: a top-level route (sibling of the DashboardComponent shell) so it
+// renders in the root outlet without the navbar/sidebar chrome.
+routes.push({
+  path: "login",
+  component: TexeraLoginComponent,
 });
 
 // redirect all other paths to index.

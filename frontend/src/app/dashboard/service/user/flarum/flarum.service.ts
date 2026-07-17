@@ -39,7 +39,11 @@ export class FlarumService {
       "forum/api/users",
       {
         data: {
-          attributes: { username: user!.email.split("@")[0] + user!.uid, email: user!.email, password: String(user!.uid) },
+          attributes: {
+            username: user!.email.split("@")[0] + user!.uid,
+            email: user!.email,
+            password: String(user!.uid),
+          },
         },
       },
       { headers: { Authorization: "Token hdebsyxiigyklxgsqivyswwiisohzlnezzzzzzzz;userId=1" } }
@@ -48,6 +52,10 @@ export class FlarumService {
 
   auth() {
     const user = this.userService.getCurrentUser();
-    return this.http.post("forum/api/token", { identification: user!.email, password: String(user!.uid), remember: "1" });
+    return this.http.post("forum/api/token", {
+      identification: user!.email,
+      password: String(user!.uid),
+      remember: "1",
+    });
   }
 }

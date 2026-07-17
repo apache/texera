@@ -58,6 +58,12 @@ export class UserService {
       .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
+  public facebookLogin(credential: string): Observable<void> {
+    return this.authService
+      .facebookAuth(credential)
+      .pipe(switchMap(({accessToken}) => this.handleAccessToken(accessToken)))
+  }
+
   public googleLogin(credential: string): Observable<void> {
     return this.authService
       .googleAuth(credential)

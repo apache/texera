@@ -53,6 +53,10 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     return of(MOCK_TOKEN);
   }
 
+  facebookAuth(): Observable<Readonly<{ accessToken: string }>> {
+    return of(MOCK_TOKEN);
+  }
+
   loginWithExistingToken(): User | undefined {
     if (AuthService.getAccessToken() === MOCK_TOKEN.accessToken) {
       return MOCK_USER;

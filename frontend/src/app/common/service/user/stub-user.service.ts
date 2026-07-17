@@ -56,6 +56,10 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     throw new Error("Method not implemented.");
   }
 
+  facebookLogin(): Observable<void> {
+    throw new Error("Method not implemented.");
+  }
+
   isLogin(): boolean {
     return this.user !== undefined;
   }
