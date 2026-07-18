@@ -391,13 +391,12 @@ describe("DashboardComponent", () => {
       expect(component.sidebarTabs.hub_enabled).toBe(true);
     });
 
-    it("defaults the sidebar to the deployment defaults before settings load", () => {
-      // The default mock returns EMPTY, so loadTabs never overrides; the
-      // initializers must mirror default.conf so a failed load isn't a blank
-      // sidebar.
-      expect(component.sidebarTabs.hub_enabled).toBe(true);
-      expect(component.sidebarTabs.projects_enabled).toBe(false);
-      expect(component.sidebarTabs.forum_enabled).toBe(false);
+    it("hides every tab until the settings load (no hardcoded default copy)", () => {
+      // The default mock returns EMPTY, so loadTabs never overrides. The
+      // frontend keeps no copy of the default.conf tab defaults: every tab
+      // starts false so an unfetched or failed load shows no tabs, and the
+      // backend /config/settings/public is the single source of the real values.
+      expect(Object.values(component.sidebarTabs).every(enabled => enabled === false)).toBe(true);
     });
   });
 });

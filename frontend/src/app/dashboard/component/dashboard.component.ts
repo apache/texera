@@ -92,22 +92,23 @@ export class DashboardComponent implements OnInit {
   showLinks: boolean = false;
   logo: string = "";
   miniLogo: string = "";
-  // Initializers mirror the default.conf gui.tabs defaults, so a failed or
-  // slow /config/settings/public load shows the intended sidebar rather than a
-  // blank one (loadTabs only overrides on a successful fetch).
+  // Every tab starts hidden; loadTabs turns on the ones /config/settings/public
+  // reports as enabled. The frontend keeps no copy of the default.conf gui.tabs
+  // defaults, so an unfetched or failed load shows no tabs (each *ngIf sees
+  // false) rather than a guessed set — the backend stays the single source.
   sidebarTabs: SidebarTabs = {
-    hub_enabled: true,
-    home_enabled: true,
-    workflow_enabled: true,
-    dataset_enabled: true,
-    your_work_enabled: true,
+    hub_enabled: false,
+    home_enabled: false,
+    workflow_enabled: false,
+    dataset_enabled: false,
+    your_work_enabled: false,
     projects_enabled: false,
-    workflows_enabled: true,
-    datasets_enabled: true,
-    compute_enabled: true,
-    quota_enabled: true,
+    workflows_enabled: false,
+    datasets_enabled: false,
+    compute_enabled: false,
+    quota_enabled: false,
     forum_enabled: false,
-    about_enabled: true,
+    about_enabled: false,
   };
 
   protected readonly USER_PROJECT = USER_PROJECT;
