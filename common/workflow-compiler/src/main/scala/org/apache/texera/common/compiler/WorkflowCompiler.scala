@@ -46,7 +46,7 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 object WorkflowCompiler {
-  // util function for convert the error list to error map, and report the error in log
+  // util function to convert the error list to an error map, and report the error in log
   private def convertErrorListToWorkflowFatalErrorMap(
       logger: Logger,
       errorList: List[(OperatorIdentity, Throwable)]
