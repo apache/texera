@@ -1372,7 +1372,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    */
   private registerQuillBinding() {
     // Operator name editor
-    const element = document.getElementById("customName") as Element;
+    const element = document.getElementById("customName") as HTMLElement;
     this.quill = new Quill(element, {
       modules: {
         cursors: true,

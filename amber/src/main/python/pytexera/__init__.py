@@ -19,6 +19,7 @@ from loguru import logger
 from overrides import overrides
 from typing import Iterator, Optional, Union
 
+from core.models.operator import LoopStartOperator, LoopEndOperator
 from pyamber import *
 from .storage.dataset_file_document import DatasetFileDocument
 from .storage.large_binary_input_stream import LargeBinaryInputStream
@@ -43,6 +44,8 @@ __all__ = [
     "UDFTableOperator",
     "UDFBatchOperator",
     "UDFSourceOperator",
+    "LoopStartOperator",
+    "LoopEndOperator",
     "DatasetFileDocument",
     "largebinary",
     "LargeBinaryInputStream",
