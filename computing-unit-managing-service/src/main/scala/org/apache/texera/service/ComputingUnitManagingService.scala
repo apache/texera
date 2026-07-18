@@ -48,6 +48,14 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
     )
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+
+    // Open the DB connection pool during bootstrap (as the sibling services do),
+    // so `run` only wires up HTTP resources and stays testable without a database.
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
   }
   override def run(
       configuration: ComputingUnitManagingServiceConfiguration,
@@ -58,12 +66,6 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
     environment.jersey.register(classOf[HealthCheckResource])
 
     AuthFeatures.register(environment)
-
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
 
     environment.jersey().register(new ComputingUnitManagingResource)
     environment.jersey().register(new ComputingUnitAccessResource)

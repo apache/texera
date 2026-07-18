@@ -138,7 +138,10 @@ object ComputingUnitHelpers {
   }
 
   private def isKubernetes(unit: WorkflowComputingUnit): Boolean =
-    unit.getType == WorkflowComputingUnitTypeEnum.kubernetes
+    unit.getType match {
+      case WorkflowComputingUnitTypeEnum.kubernetes => true
+      case _                                        => false
+    }
 
   /**
     * Fetch namespace-wide pod phases (one `list`) only when `units` contains a Kubernetes unit;
@@ -183,13 +186,14 @@ object ComputingUnitHelpers {
       units: List[WorkflowComputingUnit],
       podPhases: Map[String, String]
   ): List[WorkflowComputingUnit] = {
-    val (live, vanished) = partitionLiveUnits(units, podPhases)
+    val partitioned = partitionLiveUnits(units, podPhases)
+    val vanished = partitioned._2
     if (vanished.nonEmpty) {
       val now = new Timestamp(System.currentTimeMillis())
       vanished.foreach(_.setTerminateTime(now))
       dao.update(vanished.asJava)
     }
-    live
+    partitioned._1
   }
 
   /**
@@ -206,15 +210,15 @@ object ComputingUnitHelpers {
       podPhases: Map[String, String],
       podMetrics: Map[String, Map[String, String]]
   ): DashboardWorkflowComputingUnit = {
-    val (avatar, name) = ownerInfo.getOrElse(unit.getUid, (null, null))
+    val owner = ownerInfo.getOrElse(unit.getUid, (null, null))
     DashboardWorkflowComputingUnit(
       computingUnit = unit,
       status = getComputingUnitStatus(unit, podPhases).toString,
       metrics = getComputingUnitMetrics(unit, podMetrics),
       isOwner = isOwner,
       accessPrivilege = accessPrivilege,
-      ownerGoogleAvatar = avatar,
-      ownerName = name
+      ownerGoogleAvatar = owner._1,
+      ownerName = owner._2
     )
   }
 }

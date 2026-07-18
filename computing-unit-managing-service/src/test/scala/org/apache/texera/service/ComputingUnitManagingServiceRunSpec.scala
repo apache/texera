@@ -19,6 +19,11 @@
 
 package org.apache.texera.service
 
+import io.dropwizard.core.setup.Environment
+import io.dropwizard.jersey.DropwizardResourceConfig
+import io.dropwizard.jersey.setup.JerseyEnvironment
+import io.dropwizard.jetty.MutableServletContextHandler
+import io.dropwizard.jetty.setup.ServletEnvironment
 import org.apache.texera.auth.RoleAnnotationEnforcer
 import org.apache.texera.service.resource.{
   AdminComputingUnitResource,
@@ -26,6 +31,8 @@ import org.apache.texera.service.resource.{
   ComputingUnitManagingResource,
   HealthCheckResource
 }
+import org.mockito.ArgumentMatchers.isA
+import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -41,5 +48,24 @@ class ComputingUnitManagingServiceRunSpec extends AnyFlatSpec with Matchers {
         classOf[HealthCheckResource]
       )
     ) shouldBe empty
+  }
+
+  "ComputingUnitManagingService.run" should "register the admin resource on the Jersey environment" in {
+    val jersey = mock(classOf[JerseyEnvironment])
+    val servlets = mock(classOf[ServletEnvironment])
+    val context = mock(classOf[MutableServletContextHandler])
+    val env = mock(classOf[Environment])
+    when(env.jersey).thenReturn(jersey)
+    when(env.servlets).thenReturn(servlets)
+    when(env.getApplicationContext).thenReturn(context)
+    when(jersey.getResourceConfig).thenReturn(DropwizardResourceConfig.forTesting())
+
+    val service = new ComputingUnitManagingService
+    service.run(mock(classOf[ComputingUnitManagingServiceConfiguration]), env)
+
+    verify(jersey).register(isA(classOf[ComputingUnitManagingResource]))
+    verify(jersey).register(isA(classOf[ComputingUnitAccessResource]))
+    verify(jersey).register(isA(classOf[AdminComputingUnitResource]))
+    verify(jersey).setUrlPattern("/api/*")
   }
 }

@@ -29,9 +29,18 @@ import scala.jdk.CollectionConverters._
 object KubernetesClient {
 
   // Initialize the Kubernetes client
-  private val client: io.fabric8.kubernetes.client.KubernetesClient =
+  private var client: io.fabric8.kubernetes.client.KubernetesClient =
     new KubernetesClientBuilder().build()
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
+
+  /**
+    * Test seam: swap in a stubbed client so the pod/metrics wrappers can be exercised without a
+    * live cluster. Not used in production code.
+    */
+  private[util] def setClientForTesting(
+      testClient: io.fabric8.kubernetes.client.KubernetesClient
+  ): Unit =
+    client = testClient
   private val podNamePrefix = "computing-unit"
 
   def generatePodURI(cuid: Int): String = {

@@ -19,14 +19,40 @@
 
 package org.apache.texera.service.util
 
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
-import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
+import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.jooq.generated.enums.{
+  PrivilegeEnum,
+  UserRoleEnum,
+  WorkflowComputingUnitTypeEnum
+}
+import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
 import org.apache.texera.service.resource.ComputingUnitManagingResource.WorkflowComputingUnitMetrics
 import org.apache.texera.service.resource.ComputingUnitState.{Pending, Running}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class ComputingUnitHelpersSpec extends AnyFlatSpec with Matchers {
+class ComputingUnitHelpersSpec
+    extends AnyFlatSpec
+    with Matchers
+    with BeforeAndAfterAll
+    with MockTexeraDB {
+
+  override protected def beforeAll(): Unit = initializeDBAndReplaceDSLContext()
+
+  override protected def afterAll(): Unit = shutdownDB()
+
+  private def makeUser(uid: Int, name: String, email: String, avatar: String): User = {
+    val u = new User()
+    u.setUid(uid)
+    u.setName(name)
+    u.setEmail(email)
+    u.setRole(UserRoleEnum.REGULAR)
+    u.setPassword("password")
+    u.setGoogleAvatar(avatar)
+    u
+  }
 
   private def localUnit(cuid: Int = 0, uid: Int = 0): WorkflowComputingUnit = {
     val unit = new WorkflowComputingUnit()
@@ -132,6 +158,12 @@ class ComputingUnitHelpersSpec extends AnyFlatSpec with Matchers {
     vanished.map(_.getCuid) shouldBe List(21)
   }
 
+  it should "treat an untyped (null-type) unit as live (never kubernetes)" in {
+    val (live, vanished) = ComputingUnitHelpers.partitionLiveUnits(List(untypedUnit()), Map.empty)
+    live should have size 1
+    vanished shouldBe empty
+  }
+
   // ── buildDashboardUnit ───────────────────────────────────────────────
 
   "buildDashboardUnit" should "populate the row from the caller flags and pre-fetched maps" in {
@@ -170,5 +202,63 @@ class ComputingUnitHelpersSpec extends AnyFlatSpec with Matchers {
     row.ownerName shouldBe null
     row.status shouldBe "Running"
     row.metrics shouldBe WorkflowComputingUnitMetrics("NaN", "NaN")
+  }
+
+  // ── Bulk variants: unknown (untyped) branch ──────────────────────────
+
+  "getComputingUnitStatus(unit, podPhases)" should "return Pending for an unknown (untyped) unit" in {
+    ComputingUnitHelpers.getComputingUnitStatus(untypedUnit(), Map.empty) shouldBe Pending
+  }
+
+  "getComputingUnitMetrics(unit, podMetrics)" should "return NaN for an unknown (untyped) unit" in {
+    ComputingUnitHelpers.getComputingUnitMetrics(untypedUnit(), Map.empty) shouldBe
+      WorkflowComputingUnitMetrics("NaN", "NaN")
+  }
+
+  // ── resolveOwnerInfo (backed by the embedded database) ───────────────
+
+  "resolveOwnerInfo" should "resolve avatar/name and collapse blank values to null" in {
+    val userDao = new UserDao(getDSLContext.configuration())
+    userDao.insert(makeUser(500, "alice", "alice@example.com", "alice-avatar"))
+    userDao.insert(makeUser(501, "", "bob@example.com", ""))
+
+    val info = ComputingUnitHelpers.resolveOwnerInfo(userDao, Seq[Integer](500, 501))
+    info(500) shouldBe (("alice-avatar", "alice"))
+    info(501) shouldBe ((null, null))
+  }
+
+  it should "return an empty map (and issue no query) for no uids" in {
+    val userDao = new UserDao(getDSLContext.configuration())
+    ComputingUnitHelpers.resolveOwnerInfo(userDao, Seq.empty) shouldBe empty
+  }
+
+  // ── reconcileVanishedKubernetesUnits (backed by the embedded database) ─
+
+  "reconcileVanishedKubernetesUnits" should "terminate vanished kubernetes units and return the live ones" in {
+    val userDao = new UserDao(getDSLContext.configuration())
+    userDao.insert(makeUser(600, "carol", "carol@example.com", null))
+    val dao = new WorkflowComputingUnitDao(getDSLContext.configuration())
+
+    val present = kubernetesUnit(600, 600)
+    present.setName("present")
+    val gone = kubernetesUnit(601, 600)
+    gone.setName("gone")
+    val local = localUnit(602, 600)
+    local.setName("local")
+    Seq(present, gone, local).foreach(dao.insert(_))
+
+    // Only the pod for cuid 600 exists; cuid 601's pod has vanished.
+    val podPhases = Map(KubernetesClient.generatePodName(600) -> "Running")
+    val live =
+      ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
+        dao,
+        List(present, gone, local),
+        podPhases
+      )
+
+    live.map(_.getCuid) should contain theSameElementsAs Seq(600, 602)
+    dao.fetchOneByCuid(601).getTerminateTime should not be null
+    dao.fetchOneByCuid(600).getTerminateTime shouldBe null
+    dao.fetchOneByCuid(602).getTerminateTime shouldBe null
   }
 }

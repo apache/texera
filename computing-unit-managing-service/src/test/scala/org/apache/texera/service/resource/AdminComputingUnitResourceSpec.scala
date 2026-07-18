@@ -20,13 +20,42 @@
 package org.apache.texera.service.resource
 
 import jakarta.annotation.security.RolesAllowed
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
-import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
+import org.apache.texera.auth.SessionUser
+import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.jooq.generated.enums.{
+  PrivilegeEnum,
+  UserRoleEnum,
+  WorkflowComputingUnitTypeEnum
+}
+import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
 import org.apache.texera.service.util.KubernetesClient
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class AdminComputingUnitResourceSpec extends AnyFlatSpec with Matchers {
+import java.sql.Timestamp
+
+class AdminComputingUnitResourceSpec
+    extends AnyFlatSpec
+    with Matchers
+    with BeforeAndAfterAll
+    with MockTexeraDB {
+
+  override protected def beforeAll(): Unit = initializeDBAndReplaceDSLContext()
+
+  override protected def afterAll(): Unit = shutdownDB()
+
+  private def makeUser(uid: Int, name: String): User = {
+    val u = new User()
+    u.setUid(uid)
+    u.setName(name)
+    u.setEmail(s"user$uid@example.com")
+    u.setRole(UserRoleEnum.ADMIN)
+    u.setPassword("password")
+    u.setGoogleAvatar(s"avatar-$uid")
+    u
+  }
 
   private def makeUnit(
       cuid: Int,
@@ -160,5 +189,30 @@ class AdminComputingUnitResourceSpec extends AnyFlatSpec with Matchers {
     result.head.status shouldBe "Pending"
     result.head.metrics.cpuUsage shouldBe ""
     result.head.metrics.memoryUsage shouldBe ""
+  }
+
+  "listAllComputingUnits" should "return every non-terminated unit across users, marked WRITE" in {
+    val userDao = new UserDao(getDSLContext.configuration())
+    val unitDao = new WorkflowComputingUnitDao(getDSLContext.configuration())
+    val admin = makeUser(700, "admin")
+    userDao.insert(admin)
+    userDao.insert(makeUser(701, "other"))
+    unitDao.insert(localUnit(cuid = 700, uid = 700, name = "admin-cu"))
+    unitDao.insert(localUnit(cuid = 701, uid = 701, name = "other-cu"))
+    // A terminated unit must be excluded by the SQL filter.
+    val terminated = localUnit(cuid = 702, uid = 701, name = "terminated-cu")
+    terminated.setTerminateTime(new Timestamp(0L))
+    unitDao.insert(terminated)
+
+    val result = new AdminComputingUnitResource().listAllComputingUnits(new SessionUser(admin))
+
+    result.map(_.computingUnit.getCuid.intValue()) should contain theSameElementsAs Seq(700, 701)
+    all(result.map(_.accessPrivilege)) shouldBe PrivilegeEnum.WRITE
+    all(result.map(_.status)) shouldBe "Running" // local units
+    val byCuid = result.map(r => r.computingUnit.getCuid.intValue() -> r).toMap
+    byCuid(700).isOwner shouldBe true // owned by the requesting admin
+    byCuid(700).ownerName shouldBe "admin"
+    byCuid(701).isOwner shouldBe false
+    byCuid(701).ownerName shouldBe "other"
   }
 }
