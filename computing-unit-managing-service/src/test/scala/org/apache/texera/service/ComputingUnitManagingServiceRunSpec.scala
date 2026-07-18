@@ -25,6 +25,7 @@ import io.dropwizard.jersey.setup.JerseyEnvironment
 import io.dropwizard.jetty.MutableServletContextHandler
 import io.dropwizard.jetty.setup.ServletEnvironment
 import org.apache.texera.auth.RoleAnnotationEnforcer
+import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.service.resource.{
   AdminComputingUnitResource,
   ComputingUnitAccessResource,
@@ -36,7 +37,25 @@ import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.sql.DriverManager
+
 class ComputingUnitManagingServiceRunSpec extends AnyFlatSpec with Matchers {
+
+  // run() opens the real HikariCP pool via SqlServer.initConnection, so it is only
+  // exercisable where Postgres is provisioned at the configured JDBC URL (as in CI).
+  private def databaseReachable: Boolean =
+    try {
+      DriverManager
+        .getConnection(
+          StorageConfig.jdbcUrl,
+          StorageConfig.jdbcUsername,
+          StorageConfig.jdbcPassword
+        )
+        .close()
+      true
+    } catch {
+      case _: Throwable => false
+    }
 
   // Every endpoint this service registers declares @RolesAllowed/@PermitAll/@DenyAll.
   "ComputingUnitManagingService's registered resources" should "all declare access control" in {
@@ -60,8 +79,12 @@ class ComputingUnitManagingServiceRunSpec extends AnyFlatSpec with Matchers {
     when(env.getApplicationContext).thenReturn(context)
     when(jersey.getResourceConfig).thenReturn(DropwizardResourceConfig.forTesting())
 
-    val service = new ComputingUnitManagingService
-    service.run(mock(classOf[ComputingUnitManagingServiceConfiguration]), env)
+    assume(
+      databaseReachable,
+      "run() requires a reachable Postgres at the configured JDBC URL (provided in CI)"
+    )
+    new ComputingUnitManagingService()
+      .run(mock(classOf[ComputingUnitManagingServiceConfiguration]), env)
 
     verify(jersey).register(isA(classOf[ComputingUnitManagingResource]))
     verify(jersey).register(isA(classOf[ComputingUnitAccessResource]))
