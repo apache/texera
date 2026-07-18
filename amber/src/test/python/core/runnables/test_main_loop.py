@@ -2227,3 +2227,47 @@ class TestMainLoop:
 
         assert rpc_calls == [], "must fail before the jump RPC"
         assert write_log == [], "must fail before touching storage"
+
+    @pytest.mark.timeout(10)
+    def test_two_main_loops_load_distinct_operator_classes(self):
+        """
+        Two MainLoops created in the same process with DIFFERENT operator
+        classes must each load exactly the class they were given.
+
+        Regression test for executor-module contamination (#4705): executor
+        modules were once named ``udf-v<per-instance-counter>``, so every
+        loop's first executor was ``udf-v1`` in the process-wide
+        ``sys.modules``. A loop whose worker never completes never closes its
+        temp fs, so its ``udf-v1.py`` lingered on ``sys.path`` and the next
+        loop re-resolved ``udf-v1`` to that older file, silently running the
+        wrong operator. This test uses NO monkeypatch of
+        ``gen_module_file_name`` -- module names must be process-globally
+        unique on their own.
+        """
+        echo_code = "from pytexera import *\n" + inspect.getsource(EchoOperator)
+        count_code = "from pytexera import *\n" + inspect.getsource(CountBatchOperator)
+
+        first = MainLoop("worker-first", InternalQueue(), InternalQueue())
+        second = MainLoop("worker-second", InternalQueue(), InternalQueue())
+        try:
+            # The first loop loads EchoOperator and is intentionally left
+            # "unfinished": its temp fs is never closed, so its udf module and
+            # sys.path entry linger exactly as a crashed / never-completed
+            # worker's would.
+            first.context.executor_manager.initialize_executor(
+                echo_code, is_source=False, language="python"
+            )
+            first_cls = type(first.context.executor_manager.executor).__name__
+            assert first_cls == "EchoOperator"
+
+            # The second loop asks for a DIFFERENT class. It must get that
+            # class, not the first loop's EchoOperator via a udf module-name
+            # collision in the shared sys.modules / sys.path.
+            second.context.executor_manager.initialize_executor(
+                count_code, is_source=False, language="python"
+            )
+            second_cls = type(second.context.executor_manager.executor).__name__
+            assert second_cls == "CountBatchOperator"
+        finally:
+            first.context.executor_manager.close()
+            second.context.executor_manager.close()
