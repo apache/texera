@@ -342,37 +342,6 @@ class TestInternalQueue:
         queue.get()
         assert queue.in_mem_size() == 0
 
-    def test_peek_on_empty_queue_returns_none(self, queue):
-        assert queue.peek() is None
-
-    @pytest.mark.timeout(2)
-    def test_peek_does_not_remove_the_element(self, queue, control_channel):
-        dcm = self.dcm_element(control_channel)
-        queue.put(dcm)
-        # repeated peeks see the same element and nothing is consumed
-        assert queue.peek() is dcm
-        assert queue.peek() is dcm
-        assert queue.size() == 1
-        assert queue.get() is dcm
-        assert queue.peek() is None
-
-    @pytest.mark.timeout(2)
-    def test_peek_is_consistent_with_get_across_sub_queues(
-        self, queue, control_channel, data_channel
-    ):
-        dcm = self.dcm_element(control_channel)
-        data = self.data_element(data_channel)
-        queue.put(dcm)
-        queue.put(data)
-        # peek must surface exactly the element the next get() returns,
-        # whatever order the sub-queue selection strategy imposes
-        first_peeked = queue.peek()
-        assert queue.get() is first_peeked
-        second_peeked = queue.peek()
-        assert second_peeked is not first_peeked
-        assert queue.get() is second_peeked
-        assert queue.peek() is None
-
     @pytest.mark.timeout(2)
     def test_it_can_disable_and_enable_a_single_data_channel(
         self, queue, control_channel, data_channel, second_data_channel

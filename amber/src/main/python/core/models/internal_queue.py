@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from threading import RLock
-from typing import Optional, TypeVar, Set
+from typing import TypeVar, Set
 
 from core.models.internal_marker import InternalMarker
 from core.models.payload import DataPayload
@@ -73,14 +73,6 @@ class InternalQueue(IQueue):
 
     def get(self) -> T:
         return self._queue.get()
-
-    def peek(self) -> Optional[T]:
-        """
-        Peek the element that get() would return next, without removing it.
-
-        :return: Optional[T], the next available element, or None if empty.
-        """
-        return self._queue.peek()
 
     def put(self, item: T) -> None:
         if isinstance(item, InternalQueueElement):
