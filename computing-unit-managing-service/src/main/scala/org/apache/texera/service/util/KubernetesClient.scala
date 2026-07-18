@@ -28,15 +28,11 @@ import scala.jdk.CollectionConverters._
 
 object KubernetesClient {
 
-  // Initialize the Kubernetes client
   private var client: io.fabric8.kubernetes.client.KubernetesClient =
     new KubernetesClientBuilder().build()
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
 
-  /**
-    * Test seam: swap in a stubbed client so the pod/metrics wrappers can be exercised without a
-    * live cluster. Not used in production code.
-    */
+  /** Test-only seam to swap in a stubbed client (exercises the wrappers without a live cluster). */
   private[util] def setClientForTesting(
       testClient: io.fabric8.kubernetes.client.KubernetesClient
   ): Unit =
@@ -58,15 +54,9 @@ object KubernetesClient {
   }
 
   /**
-    * Fetch the phase of every pod in the namespace in a single list call, keyed by pod name.
-    * Intended for bulk listings (e.g. the admin view) so that N units do not trigger N separate
-    * `getPodByName` round trips. Left unfiltered (rather than label-scoped) to match the
-    * name-based existence semantics of `getPodByName`/`podExists`: a caller checks
-    * `contains(generatePodName(cuid))` to decide whether a unit's pod still exists, and the
-    * `computing-unit-<cuid>` names never collide with unrelated pods.
-    *
-    * A pod that exists but has no status yet maps to a `null` phase; callers can still rely
-    * on `contains(podName)` to decide whether the pod exists at all.
+    * Phase of every namespace pod in one `list`, keyed by pod name — so a bulk listing avoids N
+    * `getPodByName` round trips. Unfiltered to match the name-based existence check callers use
+    * (`contains(generatePodName(cuid))`); a status-less pod maps to a `null` phase but still appears.
     */
   def getAllPodPhases: Map[String, String] = {
     client
@@ -92,9 +82,8 @@ object KubernetesClient {
     client.top().pods().metrics(namespace).getItems.asScala
 
   /**
-    * Fetch CPU/memory usage for every pod in the namespace in a single `top` call, keyed by
-    * pod name. Intended for bulk listings so that N units do not each re-fetch the whole
-    * namespace metrics list (which `getPodMetrics` does per call).
+    * CPU/memory of every namespace pod in one `top`, keyed by pod name — the bulk counterpart to
+    * `getPodMetrics`, which re-fetches the whole list per call.
     */
   def getAllPodMetrics: Map[String, Map[String, String]] =
     fetchPodMetricsItems()

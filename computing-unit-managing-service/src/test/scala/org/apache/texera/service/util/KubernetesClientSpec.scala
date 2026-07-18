@@ -44,8 +44,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.jdk.CollectionConverters._
 
-// Exercises the fabric8 wrappers without a cluster by injecting a client whose
-// fluent pods()/top() chains are stubbed with Mockito.
+// Exercises the fabric8 wrappers without a cluster by stubbing the client with Mockito.
 class KubernetesClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace

@@ -495,9 +495,8 @@ class ComputingUnitManagingResource {
 
       val userDao = new UserDao(ctx.configuration())
 
-      // Pair each unit with the caller's privilege (owned units default to WRITE), keeping only
-      // one row per cuid. Do this first so we reconcile/render each unit exactly once even when a
-      // unit is both owned and shared.
+      // Pair each unit with the caller's privilege (owned default to WRITE), one row per cuid, so
+      // a unit that is both owned and shared is reconciled/rendered exactly once.
       val unitsWithPrivilege =
         (ownedUnits.map(u => (u, PrivilegeEnum.WRITE)) ++
           sharedUnits.map(u => (u, sharedUnitInfo(u.getCuid))))
@@ -508,13 +507,9 @@ class ComputingUnitManagingResource {
       }.toMap
       val candidateUnits = unitsWithPrivilege.map { case (unit, _) => unit }
 
-      // Pod phases (one namespace-wide `list`) decide which Kubernetes units are still alive;
-      // only fetched when there is a Kubernetes unit to resolve.
+      // Pod phases decide which Kubernetes units are still alive.
       val podPhases = ComputingUnitHelpers.podPhasesFor(candidateUnits)
 
-      // A Kubernetes unit whose pod has vanished (manually deleted or TTL GC-ed by the cluster)
-      // is treated as terminated: its terminateTime is persisted and it is dropped here so
-      // subsequent API calls no longer return it.
       val liveUnits =
         ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
           computingUnitDao,
@@ -522,8 +517,7 @@ class ComputingUnitManagingResource {
           podPhases
         )
 
-      // Metrics (one namespace-wide `top`) are only rendered for surviving units, so this is
-      // deferred until after reconciliation and skipped when no live Kubernetes unit remains.
+      // Metrics only for survivors, so fetch after reconciliation.
       val podMetrics = ComputingUnitHelpers.podMetricsFor(liveUnits)
 
       val ownerInfoMap =

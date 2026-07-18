@@ -77,8 +77,7 @@ class AdminComputingUnitResourceSpec
   private def kubernetesUnit(cuid: Int, uid: Int, name: String): WorkflowComputingUnit =
     makeUnit(cuid, uid, name, WorkflowComputingUnitTypeEnum.kubernetes)
 
-  // The class-level @RolesAllowed(Array("ADMIN")) is what makes Jersey's
-  // RolesAllowedDynamicFeature return 403 for any non-ADMIN (e.g. REGULAR) caller.
+  // The class-level @RolesAllowed(ADMIN) is what makes Jersey reject non-ADMIN callers.
   "AdminComputingUnitResource" should "only permit the ADMIN role (non-ADMIN callers are rejected)" in {
     val annotation = classOf[AdminComputingUnitResource].getAnnotation(classOf[RolesAllowed])
     annotation should not be null

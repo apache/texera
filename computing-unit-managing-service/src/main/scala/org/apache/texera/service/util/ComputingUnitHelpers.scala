@@ -34,9 +34,8 @@ import scala.jdk.CollectionConverters.{CollectionHasAsScala, SeqHasAsJava}
 object ComputingUnitHelpers {
 
   /**
-    * Resolve owner display info for the given owner uids in a single `fetchByUid` call,
-    * keyed by uid. Blank avatars/names collapse to `null` so callers can pass them straight
-    * into the dashboard shape. Returns an empty map when `uids` is empty (no query issued).
+    * Owner (avatar, name) keyed by uid, from one `fetchByUid`. Blank values collapse to `null`;
+    * an empty `uids` returns empty without querying.
     */
   def resolveOwnerInfo(
       userDao: UserDao,
@@ -91,10 +90,9 @@ object ComputingUnitHelpers {
   }
 
   /**
-    * Bulk variant of [[getComputingUnitStatus]]: resolves a unit's status from a pre-fetched
-    * map of pod name -> phase (see [[KubernetesClient.getAllPodPhases]]) instead of issuing a
-    * per-unit Kubernetes call. Used by listings that resolve many units at once so the number
-    * of cluster round trips is O(1) rather than O(units).
+    * Like [[getComputingUnitStatus]] but reads status from a pre-fetched pod-phase map
+    * (see [[KubernetesClient.getAllPodPhases]]), so a listing costs O(1) cluster round trips
+    * rather than one per unit.
     */
   def getComputingUnitStatus(
       unit: WorkflowComputingUnit,
@@ -104,7 +102,7 @@ object ComputingUnitHelpers {
       case WorkflowComputingUnitTypeEnum.local =>
         Running
       case WorkflowComputingUnitTypeEnum.kubernetes =>
-        // A missing entry or a null phase both yield `false` here (null != "Running").
+        // A missing entry or null phase both count as not-Running.
         if (podPhases.get(KubernetesClient.generatePodName(unit.getCuid)).contains("Running"))
           Running
         else Pending
@@ -114,9 +112,8 @@ object ComputingUnitHelpers {
   }
 
   /**
-    * Bulk variant of [[getComputingUnitMetrics]]: resolves a unit's metrics from a pre-fetched
-    * map of pod name -> (metric -> value) (see [[KubernetesClient.getAllPodMetrics]]) instead of
-    * re-fetching the whole namespace metrics list per unit.
+    * Like [[getComputingUnitMetrics]] but reads from a pre-fetched pod-metrics map
+    * (see [[KubernetesClient.getAllPodMetrics]]) instead of a per-unit fetch.
     */
   def getComputingUnitMetrics(
       unit: WorkflowComputingUnit,
@@ -143,32 +140,19 @@ object ComputingUnitHelpers {
       case _                                        => false
     }
 
-  /**
-    * Fetch namespace-wide pod phases (one `list`) only when `units` contains a Kubernetes unit;
-    * otherwise return an empty map without touching the cluster.
-    */
+  /** Namespace-wide pod phases (one `list`), but only when a Kubernetes unit is present. */
   def podPhasesFor(units: Seq[WorkflowComputingUnit]): Map[String, String] =
     if (units.exists(isKubernetes)) KubernetesClient.getAllPodPhases else Map.empty
 
-  /**
-    * Fetch namespace-wide pod metrics (one `top`) only when `units` contains a Kubernetes unit;
-    * otherwise return an empty map without touching the cluster.
-    */
+  /** Namespace-wide pod metrics (one `top`), but only when a Kubernetes unit is present. */
   def podMetricsFor(units: Seq[WorkflowComputingUnit]): Map[String, Map[String, String]] =
     if (units.exists(isKubernetes)) KubernetesClient.getAllPodMetrics else Map.empty
 
-  /**
-    * A Kubernetes unit is considered "vanished" when its pod is absent from the pre-fetched
-    * `podPhases` map (manually deleted or TTL GC-ed by the cluster). Local/other units always
-    * count as present.
-    */
+  /** A Kubernetes unit whose pod is absent from `podPhases` (deleted or TTL GC-ed). */
   private def isVanished(unit: WorkflowComputingUnit, podPhases: Map[String, String]): Boolean =
     isKubernetes(unit) && !podPhases.contains(KubernetesClient.generatePodName(unit.getCuid))
 
-  /**
-    * Split `units` into `(live, vanished)` using a pre-fetched pod-phase map (see
-    * [[KubernetesClient.getAllPodPhases]]). Pure — does no I/O — so it can be unit-tested.
-    */
+  /** Partition into `(live, vanished)` by `podPhases`. Pure (no I/O), so it is unit-testable. */
   def partitionLiveUnits(
       units: List[WorkflowComputingUnit],
       podPhases: Map[String, String]
@@ -176,10 +160,8 @@ object ComputingUnitHelpers {
     units.partition(unit => !isVanished(unit, podPhases))
 
   /**
-    * Reconcile a set of units against the cluster: any Kubernetes unit whose pod has vanished is
-    * stamped with `terminateTime` and persisted in a single batched update, then the surviving
-    * (live) units are returned. Shared by the per-user and admin listing endpoints so both agree
-    * on when a unit is treated as terminated.
+    * Stamp `terminateTime` on vanished Kubernetes units (one batched update) and return the live
+    * ones. Shared by both listing endpoints so they agree on when a unit is terminated.
     */
   def reconcileVanishedKubernetesUnits(
       dao: WorkflowComputingUnitDao,
@@ -197,10 +179,8 @@ object ComputingUnitHelpers {
   }
 
   /**
-    * Assemble a single dashboard row from a unit, its caller-relative ownership/privilege, and
-    * the pre-fetched owner-info/pod maps. Kubernetes status and metrics are resolved from the
-    * maps (no per-unit Kubernetes call). Shared by both listing endpoints so the row shape and
-    * owner-info fallback stay identical.
+    * Build one dashboard row; status/metrics come from the pre-fetched maps (no per-unit K8s
+    * call). Shared by both listing endpoints so row shape and owner-info fallback stay identical.
     */
   def buildDashboardUnit(
       unit: WorkflowComputingUnit,

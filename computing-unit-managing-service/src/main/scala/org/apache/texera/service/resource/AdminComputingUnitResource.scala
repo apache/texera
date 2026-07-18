@@ -42,17 +42,8 @@ object AdminComputingUnitResource {
       .createDSLContext()
 
   /**
-    * Assemble the admin dashboard rows for a set of active computing units. The `units` are
-    * expected to already be the active (non-terminated, pod-still-present) set; this is a pure
-    * mapping and does no filtering of its own. Every row is marked with WRITE access — admins
-    * have full control over every unit they can see — and `isOwner` reflects the requesting
-    * admin. Kubernetes status/metrics are resolved from the pre-fetched maps (no per-unit call).
-    *
-    * @param units      active computing units to render (across every owner)
-    * @param ownerInfo  map of owner uid -> (googleAvatar, userName)
-    * @param callerUid  the uid of the requesting admin, used to populate `isOwner`
-    * @param podPhases  map of pod name -> phase (see KubernetesClient.getAllPodPhases)
-    * @param podMetrics map of pod name -> (metric -> value) (see KubernetesClient.getAllPodMetrics)
+    * Render already-active `units` as admin dashboard rows (pure — no filtering). Every row gets
+    * WRITE access (an admin controls every unit it sees); `isOwner` reflects `callerUid`.
     */
   def buildDashboardUnits(
       units: List[WorkflowComputingUnit],
@@ -81,18 +72,9 @@ class AdminComputingUnitResource {
   import AdminComputingUnitResource._
 
   /**
-    * List every non-terminated computing unit across all users. ADMIN-only.
-    *
-    * Mirrors the reconciliation done by the per-user listing endpoint: a Kubernetes unit whose
-    * pod has vanished (manually deleted or TTL GC-ed by the cluster) is eagerly marked
-    * terminated in the database and excluded from the response, so ghost units do not
-    * accumulate in the admin view.
-    *
-    * Kubernetes status/metrics are resolved from a single namespace-wide `list`/`top` call each,
-    * so the number of cluster round trips is constant rather than proportional to the number of
-    * units.
-    *
-    * @return the computing units (owned by any user) that are active and whose pods still exist.
+    * List every non-terminated computing unit across all users (ADMIN-only). Like the per-user
+    * endpoint, a Kubernetes unit whose pod has vanished is marked terminated and dropped, so ghost
+    * units don't accumulate. Status/metrics use one namespace-wide `list`/`top` each (O(1) round trips).
     */
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -102,7 +84,7 @@ class AdminComputingUnitResource {
   ): List[DashboardWorkflowComputingUnit] = {
     val ctx = context
 
-    // Filter to active units in SQL so historically-terminated rows are never loaded.
+    // Filter to active units in SQL so terminated rows are never loaded.
     val activeUnits: List[WorkflowComputingUnit] =
       ctx
         .selectFrom(WORKFLOW_COMPUTING_UNIT)
@@ -111,19 +93,16 @@ class AdminComputingUnitResource {
         .asScala
         .toList
 
-    // Pod phases (one namespace-wide `list`) are needed to decide which units are still alive;
-    // only fetched when there is a Kubernetes unit to resolve.
+    // Pod phases decide which Kubernetes units are still alive.
     val podPhases = ComputingUnitHelpers.podPhasesFor(activeUnits)
 
-    // A Kubernetes unit whose pod is gone is stamped terminated and dropped from the response.
     val liveUnits = ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
       new WorkflowComputingUnitDao(ctx.configuration()),
       activeUnits,
       podPhases
     )
 
-    // Metrics (one namespace-wide `top`) are only rendered for surviving units, so this is
-    // deferred until after reconciliation and skipped when no live Kubernetes unit remains.
+    // Metrics only for survivors, so fetch after reconciliation.
     val podMetrics = ComputingUnitHelpers.podMetricsFor(liveUnits)
 
     val userDao = new UserDao(ctx.configuration())

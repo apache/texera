@@ -75,8 +75,7 @@ class ComputingUnitHelpersSpec
   private def kubernetesUnit(cuid: Int, uid: Int = 0): WorkflowComputingUnit =
     makeUnit(cuid, uid, WorkflowComputingUnitTypeEnum.kubernetes)
 
-  // WorkflowComputingUnitTypeEnum only defines `local` and `kubernetes`, so an
-  // untyped unit (getType == null) is what exercises the pure "unknown" branch.
+  // A null-type unit (the enum has only local/kubernetes) exercises the "unknown" branch.
   private def untypedUnit(): WorkflowComputingUnit = new WorkflowComputingUnit()
 
   "getComputingUnitStatus" should "return Running for a local unit" in {
