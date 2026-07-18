@@ -17,11 +17,20 @@
 # under the License.
 
 # smoke-boot.sh -- launch a packaged Texera service from its unpacked dist and
-# assert it boots (reaches a listening port) without a runtime classpath/linkage
-# failure (NoClassDefFoundError, LinkageError, Jackson/Scala-module version
-# conflict). That class of bug compiles and unit-tests clean but crashes the real
-# `main`, so it slips through CI, which otherwise only builds + unit-tests each
-# service and never starts it. See https://github.com/apache/texera/issues/6220.
+# assert it boots (reaches a listening port) instead of crashing on startup with
+# a runtime classpath/linkage failure (NoClassDefFoundError, LinkageError,
+# Jackson/Scala-module version conflict, ...). That class of bug compiles and
+# unit-tests clean but crashes the real `main`, so it slips through CI, which
+# otherwise only builds + unit-tests each service and never starts it. See
+# https://github.com/apache/texera/issues/6220.
+#
+# The verdict is based on the process's own behaviour, not on scanning its logs:
+#   * reaches LISTEN         -> booted OK
+#   * exits before LISTEN    -> crashed on boot (report its exit code)
+#   * neither, within timeout -> hung / failed to come up
+# Scanning stdout/stderr for exception names was fragile -- any library that
+# merely prints an exception name in prose (e.g. jOOQ's random "tip of the day")
+# tripped it. See https://github.com/apache/texera/issues/6332.
 #
 # Usage:
 #   smoke-boot.sh <launcher-glob> <port> [timeout_secs]
@@ -43,10 +52,41 @@ launcher_glob="${1:?usage: smoke-boot.sh <launcher-glob> <port> [timeout]}"
 port="${2:?port required}"
 timeout="${3:-60}"
 
-# Resolve the (possibly globbed) launcher to a concrete executable.
-launcher="$(ls $launcher_glob 2>/dev/null | head -n1 || true)"
-if [[ -z "$launcher" || ! -x "$launcher" ]]; then
-  echo "::error::smoke-boot: launcher not found or not executable: $launcher_glob"
+# Resolve the (possibly globbed) launcher to exactly one concrete executable.
+# Erroring on multiple matches avoids silently smoke-testing the wrong (e.g.
+# lexicographically-first) binary if a dist dir ever accumulates versions.
+matches="$(ls -d $launcher_glob 2>/dev/null || true)"
+count="$(printf '%s' "$matches" | grep -c . || true)"
+if [[ "$count" -eq 0 ]]; then
+  echo "::error::smoke-boot: launcher not found: $launcher_glob"
+  exit 1
+fi
+if [[ "$count" -gt 1 ]]; then
+  echo "::error::smoke-boot: launcher glob matched $count files, expected exactly 1: $launcher_glob"
+  exit 1
+fi
+launcher="$matches"
+if [[ ! -x "$launcher" ]]; then
+  echo "::error::smoke-boot: launcher not executable: $launcher"
+  exit 1
+fi
+
+port_open() {
+  # Probe 127.0.0.1 explicitly (not "localhost", which can resolve to ::1 first
+  # while the JVM binds IPv4 0.0.0.0, giving a false "not listening").
+  if command -v nc >/dev/null 2>&1; then
+    nc -z 127.0.0.1 "$port" >/dev/null 2>&1
+  else
+    (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null
+  fi
+}
+
+# Fail fast if the port is already taken. The wait loop below treats "something
+# is LISTENing on :port" as a healthy boot, so a leftover/unrelated listener
+# could otherwise mask a crashed service. Requiring the port to be free at launch
+# means a listener detected afterwards is the service we started.
+if port_open; then
+  echo "::error::smoke-boot: port $port is already in use before launching '$launcher'"
   exit 1
 fi
 
@@ -55,39 +95,18 @@ echo "smoke-boot: launching '$launcher' (port=$port timeout=${timeout}s)"
 "$launcher" >"$log" 2>&1 &
 pid=$!
 
-# Runtime classpath / linkage / module failures -- the class of regression this
-# check exists to catch.
-crash_re='NoClassDefFoundError|ClassNotFoundException|LinkageError|NoSuchMethodError|AbstractMethodError|ExceptionInInitializerError|IncompatibleClassChangeError|requires Jackson Databind'
+# On any exit -- including an unexpected abort under `set -e` -- stop the service
+# and remove the log, so a failing script can't orphan the JVM or leak temp files.
+trap 'kill "$pid" 2>/dev/null || true; rm -f "$log"' EXIT
 
-port_open() {
-  if command -v nc >/dev/null 2>&1; then
-    nc -z localhost "$port" >/dev/null 2>&1
-  else
-    (exec 3<>"/dev/tcp/localhost/$port") 2>/dev/null
-  fi
-}
-
+# Wait for the service to reach one of three terminal states: it opens its port
+# (booted), it exits on its own (crashed), or neither happens in time (hung).
 outcome="timeout"
 for ((i = 0; i < timeout; i++)); do
   if port_open; then outcome="listen"; break; fi
   if ! kill -0 "$pid" 2>/dev/null; then outcome="exited"; break; fi
   sleep 1
 done
-
-# Stop the service (it may already be gone). SIGTERM, then a bounded grace
-# period, then SIGKILL -- so a service that ignores SIGTERM or hangs in shutdown
-# can't leave the CI step running indefinitely.
-kill "$pid" 2>/dev/null || true
-for _ in $(seq 1 10); do
-  if ! kill -0 "$pid" 2>/dev/null; then
-    break
-  fi
-  sleep 1
-done
-if kill -0 "$pid" 2>/dev/null; then
-  kill -9 "$pid" 2>/dev/null || true
-fi
-wait "$pid" 2>/dev/null || true
 
 fail() {
   echo "::error::smoke-boot: $*"
@@ -96,19 +115,36 @@ fail() {
   exit 1
 }
 
-# A linkage/module error on boot fails regardless of whether the port came up.
-if grep -qE "$crash_re" "$log"; then
-  fail "'$launcher' hit a runtime classpath/linkage error on boot"
-fi
+# Stop a still-running service. SIGTERM, then a bounded grace period, then
+# SIGKILL -- so a service that ignores SIGTERM or hangs in shutdown can't leave
+# the CI step running indefinitely.
+stop_service() {
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 10); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      wait "$pid" 2>/dev/null || true
+      return 0
+    fi
+    sleep 1
+  done
+  kill -9 "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+}
 
 case "$outcome" in
   listen)
+    stop_service
     echo "smoke-boot: OK -- '$launcher' reached LISTEN on :$port"
     ;;
   exited)
-    fail "'$launcher' exited before listening on :$port"
+    # The service died before it ever listened -- a boot crash. Its own exit
+    # code is the signal; reap it (the process has already exited) and report it.
+    code=0
+    wait "$pid" 2>/dev/null || code=$?
+    fail "'$launcher' exited on boot (exit code $code) before listening on :$port"
     ;;
   *)
+    stop_service
     fail "'$launcher' did not listen on :$port within ${timeout}s"
     ;;
 esac

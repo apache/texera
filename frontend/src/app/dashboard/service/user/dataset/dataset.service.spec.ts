@@ -21,7 +21,7 @@ import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { firstValueFrom } from "rxjs";
 
-import { DATASET_BASE_URL, DatasetService } from "./dataset.service";
+import { DATASET_BASE_URL, DatasetService, validateDatasetName } from "./dataset.service";
 import { AppSettings } from "../../../../common/app-setting";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
@@ -115,6 +115,44 @@ class FakeXMLHttpRequest {
     }
   }
 }
+
+describe("validateDatasetName", () => {
+  it("returns null for a valid name", () => {
+    expect(validateDatasetName("my-dataset_1")).toBeNull();
+  });
+
+  it("returns null for a single valid character", () => {
+    expect(validateDatasetName("a")).toBeNull();
+  });
+
+  it("returns null for a name exactly at the 128-character limit", () => {
+    expect(validateDatasetName("a".repeat(128))).toBeNull();
+  });
+
+  it("returns an error for an empty string", () => {
+    expect(validateDatasetName("")).not.toBeNull();
+  });
+
+  it("returns an error for names with spaces", () => {
+    expect(validateDatasetName("has space")).not.toBeNull();
+  });
+
+  it("returns an error for names with dots", () => {
+    expect(validateDatasetName("dot.dot")).not.toBeNull();
+  });
+
+  it("returns an error for names with slashes", () => {
+    expect(validateDatasetName("a/b")).not.toBeNull();
+  });
+
+  it("returns an error for names with non-ASCII characters", () => {
+    expect(validateDatasetName("名前")).not.toBeNull();
+  });
+
+  it("returns an error for names exceeding 128 characters", () => {
+    expect(validateDatasetName("a".repeat(129))).not.toBeNull();
+  });
+});
 
 describe("DatasetService", () => {
   let service: DatasetService;
