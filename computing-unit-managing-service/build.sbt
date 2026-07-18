@@ -49,7 +49,7 @@ libraryDependencies ++= Seq(
   "io.kubernetes" % "client-java" % "21.0.0",
   "org.jooq" % "jooq" % "3.19.36",
   "com.typesafe" % "config" % "1.4.9",
-  "com.softwaremill.sttp.client4" %% "core" % "4.0.25",
+  "com.softwaremill.sttp.client4" %% "core" % "4.0.26",
   "com.typesafe.play" %% "play-json" % "2.10.6",
   "io.fabric8" % "kubernetes-client" % "6.12.1"
 )

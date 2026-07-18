@@ -107,7 +107,11 @@ class RegionExecutionManager(
     actorService: PekkoActorService,
     actorRefService: PekkoActorRefMappingService,
     maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
-    killRetryDelay: TwitterDuration = RegionExecutionManager.DefaultKillRetryDelay
+    killRetryDelay: TwitterDuration = RegionExecutionManager.DefaultKillRetryDelay,
+    // Loop-back write addresses (Loop Start logical op id -> its input port's
+    // state URI), shipped to every worker in InitializeExecutorRequest. See
+    // WorkflowExecutionManager.loopStartStateUris.
+    loopStartStateUris: Map[String, String] = Map.empty
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -431,7 +435,8 @@ class RegionExecutionManager(
                 InitializeExecutorRequest(
                   workerConfigs.length,
                   physicalOp.opExecInitInfo,
-                  physicalOp.isSourceOperator
+                  physicalOp.isSourceOperator,
+                  loopStartStateUris
                 ),
                 asyncRPCClient.mkContext(workerId)
               )
@@ -627,15 +632,6 @@ class RegionExecutionManager(
             .outputPorts(outputPortId.portId)
             ._1
             .reuseStorage
-        // Guard: no operator enables reuseStorage in production yet -- it
-        // activates with the loop operators, which aren't on main. Until then
-        // this fails loudly so the dormant reuse path is never silently
-        // exercised. Remove/relax this guard when introducing the loop operators.
-        require(
-          !reuseStorage,
-          s"Output port $outputPortId set reuseStorage, which is not " +
-            "supported in production yet (it activates with the loop operators)."
-        )
         Seq((resultURI, schema), (stateURI, State.schema)).foreach {
           case (uri, sch) =>
             DocumentFactory.createOrReuseDocument(uri, sch, reuseStorage)

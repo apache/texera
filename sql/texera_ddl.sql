@@ -287,7 +287,8 @@ CREATE TABLE IF NOT EXISTS dataset
     description    TEXT NOT NULL,
     creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     cover_image    varchar(255),
-    FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE
+    FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    UNIQUE (owner_uid, name)
     );
 
 -- dataset_user_access

@@ -81,7 +81,7 @@ describe("CardItemComponent", () => {
       setCoverFromFile: vi.fn(),
       clearCover: vi.fn().mockReturnValue(of(undefined)),
     };
-    const datasetServiceSpy = { getDatasetCoverUrl: vi.fn() };
+    const datasetServiceSpy = { getDatasetCoverUrl: vi.fn(), updateDatasetName: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [CardItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
@@ -124,6 +124,46 @@ describe("CardItemComponent", () => {
     component.confirmUpdateCustomName("New Workflow Name");
 
     expect(component.entry.name).toBe("Old Name");
+    expect(component.editingName).toBe(false);
+  });
+
+  it("should reject an invalid dataset name, revert to original, and exit editing", () => {
+    component.entry = makeDatasetEntry({ id: 5, name: "invalid name" });
+    component.originalName = "original-name";
+    component.editingName = true;
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("invalid name");
+
+    expect(datasetService.updateDatasetName).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    expect(component.entry.name).toBe("original-name");
+    expect(component.editingName).toBe(false);
+  });
+
+  it("should call the dataset service for a valid dataset rename", () => {
+    component.entry = makeDatasetEntry({ id: 5, name: "new-valid-name" });
+    component.originalName = "old-name";
+    datasetService.updateDatasetName.mockReturnValue(of({} as any));
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(datasetService.updateDatasetName).toHaveBeenCalledWith(5, "new-valid-name");
+  });
+
+  it("should surface the error message and revert the name when a dataset rename fails", () => {
+    component.entry = makeDatasetEntry({ id: 5, name: "new-valid-name" });
+    component.originalName = "old-name";
+    component.editingName = true;
+    datasetService.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(errorSpy).toHaveBeenCalledWith("boom");
+    expect(component.entry.name).toBe("old-name");
     expect(component.editingName).toBe(false);
   });
 
