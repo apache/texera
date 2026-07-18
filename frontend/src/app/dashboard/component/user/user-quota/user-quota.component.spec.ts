@@ -33,15 +33,19 @@ vi.mock("plotly.js-basic-dist-min", () => ({ newPlot: vi.fn() }));
 
 // ISO 'YYYY-MM-DD' for a date `days` before now (kept by the 1-year filter for small values).
 function isoDaysAgo(days: number): string {
-  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
 }
 
 // ISO 'YYYY-MM-DD' on `day` of the month `monthsAgo` months before now.
 function isoInMonthsAgo(monthsAgo: number, day: number): string {
   const d = new Date();
-  d.setDate(1); // avoid month-length overflow before shifting the month
-  d.setMonth(d.getMonth() - monthsAgo);
-  d.setDate(day);
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(1); // avoid month-length overflow before shifting the month
+  d.setUTCMonth(d.getUTCMonth() - monthsAgo);
+  d.setUTCDate(day);
   return d.toISOString().slice(0, 10);
 }
 
