@@ -54,9 +54,9 @@ object KubernetesClient {
   }
 
   /**
-    * Phase of every namespace pod in one `list`, keyed by pod name — so a bulk listing avoids N
-    * `getPodByName` round trips. Unfiltered to match the name-based existence check callers use
-    * (`contains(generatePodName(cuid))`); a status-less pod maps to a `null` phase but still appears.
+    * Phase of every pod in the namespace, keyed by pod name, in one call — so a bulk listing
+    * avoids a per-unit lookup. Unfiltered so callers can test a unit's presence by its pod-name
+    * key; a pod with no status yet maps to a `null` phase but still appears.
     */
   def getAllPodPhases: Map[String, String] = {
     client
@@ -77,13 +77,13 @@ object KubernetesClient {
       }
     }.toMap
 
-  // One namespace-wide `top` call, returning the raw per-pod metrics items.
+  // One namespace-wide metrics call, returning the raw per-pod items.
   private def fetchPodMetricsItems(): Iterable[PodMetrics] =
     client.top().pods().metrics(namespace).getItems.asScala
 
   /**
-    * CPU/memory of every namespace pod in one `top`, keyed by pod name — the bulk counterpart to
-    * `getPodMetrics`, which re-fetches the whole list per call.
+    * CPU/memory of every pod in the namespace, keyed by pod name, in one call — the bulk
+    * counterpart to the single-unit lookup.
     */
   def getAllPodMetrics: Map[String, Map[String, String]] =
     fetchPodMetricsItems()

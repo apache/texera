@@ -41,8 +41,8 @@ import java.sql.DriverManager
 
 class ComputingUnitManagingServiceRunSpec extends AnyFlatSpec with Matchers {
 
-  // run() opens the real HikariCP pool via SqlServer.initConnection, so it is only
-  // exercisable where Postgres is provisioned at the configured JDBC URL (as in CI).
+  // Booting the service opens a real connection pool, so this path is only exercisable where
+  // Postgres is provisioned at the configured JDBC URL (as in CI).
   private def databaseReachable: Boolean =
     try {
       DriverManager

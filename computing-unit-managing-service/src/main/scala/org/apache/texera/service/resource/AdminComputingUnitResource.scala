@@ -74,7 +74,7 @@ class AdminComputingUnitResource {
   /**
     * List every non-terminated computing unit across all users (ADMIN-only). Like the per-user
     * endpoint, a Kubernetes unit whose pod has vanished is marked terminated and dropped, so ghost
-    * units don't accumulate. Status/metrics use one namespace-wide `list`/`top` each (O(1) round trips).
+    * units don't accumulate. Status/metrics use one namespace-wide call each (O(1) round trips).
     */
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))

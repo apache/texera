@@ -34,8 +34,8 @@ import scala.jdk.CollectionConverters.{CollectionHasAsScala, SeqHasAsJava}
 object ComputingUnitHelpers {
 
   /**
-    * Owner (avatar, name) keyed by uid, from one `fetchByUid`. Blank values collapse to `null`;
-    * an empty `uids` returns empty without querying.
+    * Owner (avatar, name) keyed by uid, resolved in one query. Blank values collapse to `null`;
+    * empty `uids` returns empty without querying.
     */
   def resolveOwnerInfo(
       userDao: UserDao,
@@ -90,9 +90,8 @@ object ComputingUnitHelpers {
   }
 
   /**
-    * Like [[getComputingUnitStatus]] but reads status from a pre-fetched pod-phase map
-    * (see [[KubernetesClient.getAllPodPhases]]), so a listing costs O(1) cluster round trips
-    * rather than one per unit.
+    * Resolves status from a pre-fetched pod-phase map instead of a per-unit cluster call, so a
+    * listing costs O(1) round trips rather than one per unit.
     */
   def getComputingUnitStatus(
       unit: WorkflowComputingUnit,
@@ -111,10 +110,7 @@ object ComputingUnitHelpers {
     }
   }
 
-  /**
-    * Like [[getComputingUnitMetrics]] but reads from a pre-fetched pod-metrics map
-    * (see [[KubernetesClient.getAllPodMetrics]]) instead of a per-unit fetch.
-    */
+  /** Resolves metrics from a pre-fetched pod-metrics map instead of a per-unit cluster call. */
   def getComputingUnitMetrics(
       unit: WorkflowComputingUnit,
       podMetrics: Map[String, Map[String, String]]
@@ -140,11 +136,11 @@ object ComputingUnitHelpers {
       case _                                        => false
     }
 
-  /** Namespace-wide pod phases (one `list`), but only when a Kubernetes unit is present. */
+  /** Pod phases for the namespace; skipped (empty) when no Kubernetes unit is present. */
   def podPhasesFor(units: Seq[WorkflowComputingUnit]): Map[String, String] =
     if (units.exists(isKubernetes)) KubernetesClient.getAllPodPhases else Map.empty
 
-  /** Namespace-wide pod metrics (one `top`), but only when a Kubernetes unit is present. */
+  /** Pod metrics for the namespace; skipped (empty) when no Kubernetes unit is present. */
   def podMetricsFor(units: Seq[WorkflowComputingUnit]): Map[String, Map[String, String]] =
     if (units.exists(isKubernetes)) KubernetesClient.getAllPodMetrics else Map.empty
 

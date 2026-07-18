@@ -66,7 +66,7 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       .endStatus()
       .build()
 
-  // cuid 1 -> Running, cuid 2 -> Pending; a namespace-wide list returns both.
+  // cuid 1 -> Running, cuid 2 -> Pending; both returned by the namespace-wide listing.
   private val podList: PodList =
     new PodListBuilder().addToItems(pod(1, "Running"), pod(2, "Pending")).build()
 
@@ -101,7 +101,7 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     when(podsMixed.inNamespace(namespace)).thenReturn(podsInNamespace)
     when(podsInNamespace.list()).thenReturn(podList)
 
-    // withName(cuid 1) -> a present pod; withName(cuid 2) -> no pod.
+    // cuid 1 -> a present pod; cuid 2 -> no pod.
     val presentResource = mock(classOf[PodResource])
     when(presentResource.get()).thenReturn(pod(1, "Running"))
     val absentResource = mock(classOf[PodResource])
