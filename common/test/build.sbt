@@ -15,6 +15,20 @@
 // specific language governing permissions and limitations
 // under the License.
 
+/////////////////////////////////////////////////////////////////////////////
+// common/test — TEST-ONLY shared utilities
+//
+// Home for code that exists solely to support other modules' test suites:
+// today the shared ScalaTest tags (@IntegrationTest / IntegrationTestTag);
+// shared fixtures or matchers belong here too if they ever outgrow a single
+// module. The sources live in the Compile scope only so that downstream
+// modules can reach them from their Test configuration via
+// `.dependsOn(TestUtil % "test")` in the root build.sbt.
+//
+// Never add this module as a Compile-scope dependency and never bundle it
+// into a service dist — production code must not reference it.
+/////////////////////////////////////////////////////////////////////////////
+
 name := "test"
 
 // Enable semanticdb for Scalafix

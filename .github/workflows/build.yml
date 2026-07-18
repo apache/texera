@@ -285,7 +285,7 @@ jobs:
         # so common modules' tests are listed explicitly here.
         #
         # AMBER_TEST_FILTER=skip-integration tells amber/build.sbt to
-        # exclude @org.apache.texera.amber.tags.IntegrationTest specs;
+        # exclude @org.apache.texera.tags.IntegrationTest specs;
         # those run in the amber-integration job below.
         env:
           AMBER_TEST_FILTER: skip-integration
@@ -324,7 +324,7 @@ jobs:
           fail_ci_if_error: false
 
   amber-integration:
-    # Runs Scala tests tagged @org.apache.texera.amber.tags.IntegrationTest —
+    # Runs Scala tests tagged @org.apache.texera.tags.IntegrationTest —
     # currently the e2e specs that spawn Python UDF workers. Provisions
     # Python deps that the lighter `amber` job no longer installs. Cross-
     # cutting lints (scalafmt / scalafix) and the amber dist + binary
@@ -595,7 +595,7 @@ jobs:
         run: bash bin/python-proto-gen.sh
       - name: Lint and run amber integration tests
         # AMBER_TEST_FILTER=integration-only tells amber/build.sbt to
-        # keep only @org.apache.texera.amber.tags.IntegrationTest
+        # keep only @org.apache.texera.tags.IntegrationTest
         # specs. The Java @TagAnnotation makes the marker visible to
         # ScalaTest's reflection, so `-n TAG` correctly narrows the
         # run.

@@ -120,8 +120,10 @@ ThisBuild / excludeDependencies += ExclusionRule("log4j", "log4j")
 lazy val DAO = (project in file("common/dao")).settings(commonModuleSettings)
 lazy val Config = (project in file("common/config")).settings(commonModuleSettings)
 lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings)
-// Shared test utilities (e.g. the @IntegrationTest ScalaTest tag); main-scope
-// sources so downstream modules consume them via `dependsOn(TestUtil % "test")`.
+// TEST-ONLY shared utilities (the @IntegrationTest ScalaTest tag et al.).
+// Sources are main-scope only so downstream test suites can reach them via
+// `dependsOn(TestUtil % "test")`; never depend on it from Compile scope and
+// never bundle it into a service dist.
 lazy val TestUtil = (project in file("common/test")).settings(commonModuleSettings)
 lazy val Auth = (project in file("common/auth"))
   .settings(commonModuleSettings)
@@ -228,6 +230,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
 
 lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowOperator, Auth, Config)
+  .dependsOn(TestUtil % "test") // shared @IntegrationTest tag
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(

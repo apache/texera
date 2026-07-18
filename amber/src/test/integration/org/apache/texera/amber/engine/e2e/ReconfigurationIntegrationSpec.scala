@@ -45,7 +45,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
 }
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
-import org.apache.texera.amber.tags.IntegrationTest
+import org.apache.texera.tags.IntegrationTest
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 import org.scalatest.flatspec.AnyFlatSpecLike

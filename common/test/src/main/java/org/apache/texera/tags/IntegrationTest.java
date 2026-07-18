@@ -35,10 +35,9 @@ import org.scalatest.TagAnnotation;
  * integration CI legs; a module that wires no filter simply runs the tagged
  * specs with the rest of its suite.
  *
- * <p>The amber module predates this shared tag and still carries its own
- * {@code org.apache.texera.amber.tags.IntegrationTest} for the
- * amber/amber-integration job split; new specs outside amber should use this
- * one.
+ * <p>The amber module filters on it via the {@code AMBER_TEST_FILTER} env
+ * var in {@code amber/build.sbt} to split the amber and amber-integration
+ * CI jobs.
  *
  * <p>Written in Java rather than Scala because ScalaTest detects tag
  * annotations via {@code java.lang.annotation} reflection. A Scala
