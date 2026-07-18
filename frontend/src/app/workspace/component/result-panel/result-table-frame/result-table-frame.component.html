@@ -162,7 +162,7 @@
             nzEllipsis
             (click)="open(i, row)">
             <span class="cell-content">
-              <ng-container [ngSwitch]="getCellMediaType(i, columnIndex)">
+              <ng-container [ngSwitch]="getCellMediaType(row, columnIndex)">
                 <ng-container *ngSwitchCase="'video'">
                   <i
                     nz-icon
