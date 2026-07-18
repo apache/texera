@@ -43,6 +43,9 @@ class ComputingUnitHelpersSpec
 
   override protected def afterAll(): Unit = shutdownDB()
 
+  private lazy val userDao = new UserDao(getDSLContext.configuration())
+  private lazy val computingUnitDao = new WorkflowComputingUnitDao(getDSLContext.configuration())
+
   private def makeUser(uid: Int, name: String, email: String, avatar: String): User = {
     val u = new User()
     u.setUid(uid)
@@ -54,21 +57,23 @@ class ComputingUnitHelpersSpec
     u
   }
 
-  private def localUnit(cuid: Int = 0, uid: Int = 0): WorkflowComputingUnit = {
+  private def makeUnit(
+      cuid: Int,
+      uid: Int,
+      tpe: WorkflowComputingUnitTypeEnum
+  ): WorkflowComputingUnit = {
     val unit = new WorkflowComputingUnit()
     unit.setCuid(cuid)
     unit.setUid(uid)
-    unit.setType(WorkflowComputingUnitTypeEnum.local)
+    unit.setType(tpe)
     unit
   }
 
-  private def kubernetesUnit(cuid: Int, uid: Int = 0): WorkflowComputingUnit = {
-    val unit = new WorkflowComputingUnit()
-    unit.setCuid(cuid)
-    unit.setUid(uid)
-    unit.setType(WorkflowComputingUnitTypeEnum.kubernetes)
-    unit
-  }
+  private def localUnit(cuid: Int = 0, uid: Int = 0): WorkflowComputingUnit =
+    makeUnit(cuid, uid, WorkflowComputingUnitTypeEnum.local)
+
+  private def kubernetesUnit(cuid: Int, uid: Int = 0): WorkflowComputingUnit =
+    makeUnit(cuid, uid, WorkflowComputingUnitTypeEnum.kubernetes)
 
   // WorkflowComputingUnitTypeEnum only defines `local` and `kubernetes`, so an
   // untyped unit (getType == null) is what exercises the pure "unknown" branch.
@@ -218,7 +223,6 @@ class ComputingUnitHelpersSpec
   // ── resolveOwnerInfo (backed by the embedded database) ───────────────
 
   "resolveOwnerInfo" should "resolve avatar/name and collapse blank values to null" in {
-    val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(makeUser(500, "alice", "alice@example.com", "alice-avatar"))
     userDao.insert(makeUser(501, "", "bob@example.com", ""))
 
@@ -228,16 +232,13 @@ class ComputingUnitHelpersSpec
   }
 
   it should "return an empty map (and issue no query) for no uids" in {
-    val userDao = new UserDao(getDSLContext.configuration())
     ComputingUnitHelpers.resolveOwnerInfo(userDao, Seq.empty) shouldBe empty
   }
 
   // ── reconcileVanishedKubernetesUnits (backed by the embedded database) ─
 
   "reconcileVanishedKubernetesUnits" should "terminate vanished kubernetes units and return the live ones" in {
-    val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(makeUser(600, "carol", "carol@example.com", null))
-    val dao = new WorkflowComputingUnitDao(getDSLContext.configuration())
 
     val present = kubernetesUnit(600, 600)
     present.setName("present")
@@ -245,20 +246,20 @@ class ComputingUnitHelpersSpec
     gone.setName("gone")
     val local = localUnit(602, 600)
     local.setName("local")
-    Seq(present, gone, local).foreach(dao.insert(_))
+    Seq(present, gone, local).foreach(computingUnitDao.insert(_))
 
     // Only the pod for cuid 600 exists; cuid 601's pod has vanished.
     val podPhases = Map(KubernetesClient.generatePodName(600) -> "Running")
     val live =
       ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
-        dao,
+        computingUnitDao,
         List(present, gone, local),
         podPhases
       )
 
     live.map(_.getCuid) should contain theSameElementsAs Seq(600, 602)
-    dao.fetchOneByCuid(601).getTerminateTime should not be null
-    dao.fetchOneByCuid(600).getTerminateTime shouldBe null
-    dao.fetchOneByCuid(602).getTerminateTime shouldBe null
+    computingUnitDao.fetchOneByCuid(601).getTerminateTime should not be null
+    computingUnitDao.fetchOneByCuid(600).getTerminateTime shouldBe null
+    computingUnitDao.fetchOneByCuid(602).getTerminateTime shouldBe null
   }
 }

@@ -57,28 +57,19 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     u
   }
 
+  private def pod(cuid: Int, phase: String): Pod =
+    new PodBuilder()
+      .withNewMetadata()
+      .withName(KubernetesClient.generatePodName(cuid))
+      .endMetadata()
+      .withNewStatus()
+      .withPhase(phase)
+      .endStatus()
+      .build()
+
   // cuid 1 -> Running, cuid 2 -> Pending; a namespace-wide list returns both.
   private val podList: PodList =
-    new PodListBuilder()
-      .addToItems(
-        new PodBuilder()
-          .withNewMetadata()
-          .withName(KubernetesClient.generatePodName(1))
-          .endMetadata()
-          .withNewStatus()
-          .withPhase("Running")
-          .endStatus()
-          .build(),
-        new PodBuilder()
-          .withNewMetadata()
-          .withName(KubernetesClient.generatePodName(2))
-          .endMetadata()
-          .withNewStatus()
-          .withPhase("Pending")
-          .endStatus()
-          .build()
-      )
-      .build()
+    new PodListBuilder().addToItems(pod(1, "Running"), pod(2, "Pending")).build()
 
   // Only cuid 1 reports metrics.
   private val metricsList: PodMetricsList =
@@ -113,13 +104,7 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
 
     // withName(cuid 1) -> a present pod; withName(cuid 2) -> no pod.
     val presentResource = mock(classOf[PodResource])
-    when(presentResource.get()).thenReturn(
-      new PodBuilder()
-        .withNewMetadata()
-        .withName(KubernetesClient.generatePodName(1))
-        .endMetadata()
-        .build()
-    )
+    when(presentResource.get()).thenReturn(pod(1, "Running"))
     val absentResource = mock(classOf[PodResource])
     when(absentResource.get()).thenReturn(null)
     when(podsInNamespace.withName(KubernetesClient.generatePodName(1))).thenReturn(presentResource)
