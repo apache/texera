@@ -33,8 +33,9 @@ import org.apache.texera.common.config.{
   GuiConfig,
   UserSystemConfig
 }
-import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.{SiteSettings, SqlServer}
 import org.apache.texera.dao.jooq.generated.Tables.SITE_SETTINGS
+import org.jooq.Condition
 import org.jooq.impl.DSL
 
 import scala.jdk.CollectionConverters._
@@ -128,6 +129,22 @@ class ConfigResource {
   private val publicSettingKeys: Set[String] =
     DefaultsConfig.keysUnderSections(Set("gui", "dataset"))
 
+  // SECURITY: every key returned here is served anonymously (see
+  // /settings/public below), so `publicSettingKeys` is the anonymous-exposure
+  // surface. It is derived from the gui/dataset sections of default.conf and
+  // pinned by ConfigResourceSpec/DefaultsConfigSpec — adding a key under those
+  // sections (or moving one in) changes what unauthenticated callers can read
+  // and MUST be reviewed there. Never place a secret under gui/dataset.
+
+  private def fetchSettings(condition: Condition): Map[String, String] =
+    ctx
+      .select(SITE_SETTINGS.KEY, SITE_SETTINGS.VALUE)
+      .from(SITE_SETTINGS)
+      .where(condition)
+      .fetchMap(SITE_SETTINGS.KEY, SITE_SETTINGS.VALUE)
+      .asScala
+      .toMap
+
   // Read side for the public keys in one payload, so the dashboard doesn't
   // fire a request per key. Anonymous by design: these values render on the
   // logged-out shell (custom logo/favicon, Hub/About sidebar entries), so
@@ -135,15 +152,8 @@ class ConfigResource {
   @GET
   @PermitAll
   @Path("/settings/public")
-  def getPublicSettings: Map[String, String] = {
-    ctx
-      .select(SITE_SETTINGS.KEY, SITE_SETTINGS.VALUE)
-      .from(SITE_SETTINGS)
-      .where(SITE_SETTINGS.KEY.in(publicSettingKeys.asJava))
-      .fetchMap(SITE_SETTINGS.KEY, SITE_SETTINGS.VALUE)
-      .asScala
-      .toMap
-  }
+  def getPublicSettings: Map[String, String] =
+    fetchSettings(SITE_SETTINGS.KEY.in(publicSettingKeys.asJava))
 
   // Management read over the site_settings table this service seeds at
   // startup: every row, including the ones not exposed through
@@ -151,14 +161,8 @@ class ConfigResource {
   @GET
   @RolesAllowed(Array("ADMIN"))
   @Path("/settings")
-  def getAllSettings: Map[String, String] = {
-    ctx
-      .select(SITE_SETTINGS.KEY, SITE_SETTINGS.VALUE)
-      .from(SITE_SETTINGS)
-      .fetchMap(SITE_SETTINGS.KEY, SITE_SETTINGS.VALUE)
-      .asScala
-      .toMap
-  }
+  def getAllSettings: Map[String, String] =
+    fetchSettings(DSL.noCondition())
 
   // Single-key management read, kept for API completeness alongside the bulk
   // read above.
@@ -182,13 +186,23 @@ class ConfigResource {
       @PathParam("key") keyParam: String,
       setting: ConfigSettingPojo
   ): Response = {
-    if (setting.settingValue == null) {
+    if (setting == null || setting.settingValue == null) {
       return Response
         .status(Response.Status.BAD_REQUEST)
         .entity("Setting value must not be null")
         .build()
     }
-    upsertSetting(keyParam, setting.settingValue, currentUser.getName)
+    // Only keys backed by a default.conf entry are writable, mirroring
+    // resetSetting. This keeps site_settings within the known-default
+    // namespace: an arbitrary key would be un-resettable and would pollute
+    // getAllSettings forever.
+    if (!DefaultsConfig.allDefaults.contains(keyParam)) {
+      return Response
+        .status(Response.Status.BAD_REQUEST)
+        .entity(s"Unknown setting key '$keyParam'")
+        .build()
+    }
+    SiteSettings.upsert(ctx, keyParam, setting.settingValue, currentUser.getName)
     Response.ok().build()
   }
 
@@ -204,7 +218,7 @@ class ConfigResource {
   ): Response = {
     DefaultsConfig.allDefaults.get(keyParam) match {
       case Some(defaultValue) =>
-        upsertSetting(keyParam, defaultValue, currentUser.getName)
+        SiteSettings.upsert(ctx, keyParam, defaultValue, currentUser.getName)
         Response.ok().build()
       case None =>
         Response
@@ -212,19 +226,5 @@ class ConfigResource {
           .entity(s"No default for key '$keyParam'")
           .build()
     }
-  }
-
-  private def upsertSetting(keyParam: String, valueParam: String, userName: String): Unit = {
-    ctx
-      .insertInto(SITE_SETTINGS)
-      .set(SITE_SETTINGS.KEY, keyParam)
-      .set(SITE_SETTINGS.VALUE, valueParam)
-      .set(SITE_SETTINGS.UPDATED_BY, userName)
-      .onConflict(SITE_SETTINGS.KEY)
-      .doUpdate()
-      .set(SITE_SETTINGS.VALUE, valueParam)
-      .set(SITE_SETTINGS.UPDATED_BY, userName)
-      .set(SITE_SETTINGS.UPDATED_AT, DSL.currentTimestamp())
-      .execute()
   }
 }

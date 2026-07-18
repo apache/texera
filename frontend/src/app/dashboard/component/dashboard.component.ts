@@ -92,19 +92,22 @@ export class DashboardComponent implements OnInit {
   showLinks: boolean = false;
   logo: string = "";
   miniLogo: string = "";
+  // Initializers mirror the default.conf gui.tabs defaults, so a failed or
+  // slow /config/settings/public load shows the intended sidebar rather than a
+  // blank one (loadTabs only overrides on a successful fetch).
   sidebarTabs: SidebarTabs = {
-    hub_enabled: false,
-    home_enabled: false,
-    workflow_enabled: false,
-    dataset_enabled: false,
-    your_work_enabled: false,
+    hub_enabled: true,
+    home_enabled: true,
+    workflow_enabled: true,
+    dataset_enabled: true,
+    your_work_enabled: true,
     projects_enabled: false,
-    workflows_enabled: false,
-    datasets_enabled: false,
-    compute_enabled: false,
-    quota_enabled: false,
+    workflows_enabled: true,
+    datasets_enabled: true,
+    compute_enabled: true,
+    quota_enabled: true,
     forum_enabled: false,
-    about_enabled: false,
+    about_enabled: true,
   };
 
   protected readonly USER_PROJECT = USER_PROJECT;

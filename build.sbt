@@ -120,11 +120,6 @@ ThisBuild / excludeDependencies += ExclusionRule("log4j", "log4j")
 lazy val DAO = (project in file("common/dao")).settings(commonModuleSettings)
 lazy val Config = (project in file("common/config")).settings(commonModuleSettings)
 lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings)
-// TEST-ONLY shared utilities (the @IntegrationTest ScalaTest tag et al.).
-// Sources are main-scope only so downstream test suites can reach them via
-// `dependsOn(TestUtil % "test")`; never depend on it from Compile scope and
-// never bundle it into a service dist.
-lazy val TestUtil = (project in file("common/test")).settings(commonModuleSettings)
 lazy val Auth = (project in file("common/auth"))
   .settings(commonModuleSettings)
   .configs(Test)
@@ -133,7 +128,6 @@ lazy val Auth = (project in file("common/auth"))
 lazy val ConfigService = (project in file("config-service"))
   .dependsOn(Auth, Config, DAO, Resource)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
-  .dependsOn(TestUtil % "test") // shared @IntegrationTest tag
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -230,7 +224,6 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
 
 lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowOperator, Auth, Config)
-  .dependsOn(TestUtil % "test") // shared @IntegrationTest tag
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -266,7 +259,6 @@ lazy val TexeraProject = (project in file("."))
     Auth,
     Config,
     Resource,
-    TestUtil,
     DAO,
     PyBuilder,
     WorkflowCore,

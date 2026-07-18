@@ -24,7 +24,7 @@ import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.rest.RESTCatalog
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
-import org.apache.texera.common.test.tags.IntegrationTest
+import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.texera.amber.util.IcebergUtil
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec

@@ -390,5 +390,14 @@ describe("DashboardComponent", () => {
       expect(() => component.loadTabs()).not.toThrow();
       expect(component.sidebarTabs.hub_enabled).toBe(true);
     });
+
+    it("defaults the sidebar to the deployment defaults before settings load", () => {
+      // The default mock returns EMPTY, so loadTabs never overrides; the
+      // initializers must mirror default.conf so a failed load isn't a blank
+      // sidebar.
+      expect(component.sidebarTabs.hub_enabled).toBe(true);
+      expect(component.sidebarTabs.projects_enabled).toBe(false);
+      expect(component.sidebarTabs.forum_enabled).toBe(false);
+    });
   });
 });

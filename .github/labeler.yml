@@ -82,7 +82,7 @@ amber-integration:
   # Scala specs that exercise both Scala and Python end-to-end. They
   # live under amber/src/test/integration/** (sbt picks them up via
   # `Test / unmanagedSourceDirectories += .../test/integration` in
-  # amber/build.sbt) and are tagged @org.apache.texera.common.test.tags
+  # amber/build.sbt) and are tagged @org.apache.texera.amber.tags
   # .IntegrationTest. This label maps to the amber-integration stack
   # only, so a PR that touches just an integration spec does not pay
   # for the full Scala-only `amber` job.

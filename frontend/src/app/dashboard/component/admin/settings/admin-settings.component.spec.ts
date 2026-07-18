@@ -102,4 +102,25 @@ describe("AdminSettingsComponent", () => {
 
     expect(errorSpy).toHaveBeenCalledWith("Failed to load settings.");
   });
+
+  it("preserves a legitimately stored 0 instead of falling back to the default", () => {
+    httpTestingController.expectOne(SETTINGS_URL).flush({
+      max_number_of_concurrent_uploading_file: "0",
+      csv_parser_max_columns: "0",
+    });
+
+    expect(component.maxConcurrentFiles).toBe(0);
+    expect(component.csvMaxColumns).toBe(0);
+  });
+
+  it("blocks a tab save when the bulk load failed (no destructive all-off write)", () => {
+    const message = TestBed.inject(NzMessageService);
+    const errorSpy = vi.spyOn(message, "error").mockReturnValue({} as ReturnType<NzMessageService["error"]>);
+    httpTestingController.expectOne(SETTINGS_URL).flush("boom", { status: 500, statusText: "Server Error" });
+
+    component.saveTabs();
+
+    httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
+    expect(errorSpy).toHaveBeenCalledWith("Settings have not loaded; refresh before saving.");
+  });
 });

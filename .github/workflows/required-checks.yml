@@ -152,7 +152,7 @@ jobs:
             //   * / branch        |          |       |             |          |         |
             //
             // amber-integration runs the Scala tests tagged
-            // @org.apache.texera.common.test.tags.IntegrationTest (e2e specs that
+            // @org.apache.texera.amber.tags.IntegrationTest (e2e specs that
             // spawn Python UDF workers). The labeler attaches `pyamber` to
             // any *.py change (including amber/src/{main,test}/python/**),
             // so `engine` does not need to fire the pyamber stack itself —

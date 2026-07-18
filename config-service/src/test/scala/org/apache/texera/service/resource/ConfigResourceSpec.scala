@@ -34,7 +34,6 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.SITE_SETTINGS
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.apache.texera.common.test.tags.IntegrationTest
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -54,7 +53,6 @@ import org.scalatest.matchers.should.Matchers
 // Endpoint bodies: calls the resource methods directly for the positive
 // read/write paths — read-miss, insert, upsert-on-conflict, null-value 400,
 // public-whitelist filtering, reset-to-default.
-@IntegrationTest
 class ConfigResourceSpec
     extends AnyFlatSpec
     with Matchers
@@ -378,6 +376,20 @@ class ConfigResourceSpec
     resource.getSetting("logo").settingValue shouldBe "kept.png"
   }
 
+  it should "reject a null body with 400 rather than a 500 (empty/malformed request)" in {
+    resource.updateSetting(adminSession(), "logo", ConfigSettingPojo("logo", "kept.png"))
+    val response = resource.updateSetting(adminSession(), "logo", null)
+    response.getStatus shouldBe 400
+    resource.getSetting("logo").settingValue shouldBe "kept.png"
+  }
+
+  it should "reject a key with no default.conf entry with 400 and write nothing" in {
+    val response =
+      resource.updateSetting(adminSession(), "no-such-key", ConfigSettingPojo("no-such-key", "x"))
+    response.getStatus shouldBe 400
+    resource.getSetting("no-such-key") shouldBe null
+  }
+
   "getPublicSettings" should "serve whitelisted keys and hide management-only ones" in {
     resource.updateSetting(adminSession(), "favicon", ConfigSettingPojo("favicon", "fav.ico"))
     resource.updateSetting(
@@ -441,6 +453,17 @@ class ConfigResourceSpec
 
   it should "return 404 for a key that has no default" in {
     resource.resetSetting(adminSession(), "no-such-key").getStatus shouldBe 404
+  }
+
+  it should "restore a management-only key (csv_parser_max_columns) that is seeded from default.conf" in {
+    resource.updateSetting(
+      adminSession(),
+      "csv_parser_max_columns",
+      ConfigSettingPojo("csv_parser_max_columns", "4096")
+    )
+    resource.resetSetting(adminSession(), "csv_parser_max_columns").getStatus shouldBe 200
+    resource.getSetting("csv_parser_max_columns").settingValue shouldBe
+      DefaultsConfig.allDefaults("csv_parser_max_columns")
   }
 }
 

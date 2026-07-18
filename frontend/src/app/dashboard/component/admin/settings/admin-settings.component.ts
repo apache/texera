@@ -23,6 +23,7 @@ import { NzMessageService } from "ng-zorro-antd/message";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SidebarTabs } from "../../../../common/type/gui-config";
+import { parseIntOrDefault } from "../../../../common/util/format.util";
 import { forkJoin } from "rxjs";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
@@ -93,6 +94,11 @@ export class AdminSettingsComponent implements OnInit {
 
   private readonly RELOAD_DELAY = 1000;
 
+  // Guards the save buttons: a failed bulk load leaves every field at its
+  // initializer, so saving would persist those placeholders (e.g. disabling
+  // every sidebar tab). Only allow saves once a load has actually succeeded.
+  private settingsLoaded = false;
+
   constructor(
     private adminSettingsService: AdminSettingsService,
     private message: NzMessageService,
@@ -116,13 +122,18 @@ export class AdminSettingsComponent implements OnInit {
           (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).forEach(
             tab => (this.sidebarTabs[tab] = settings[tab] === "true")
           );
-          this.maxConcurrentFiles =
-            parseInt(settings["max_number_of_concurrent_uploading_file"]) || this.maxConcurrentFiles;
-          this.maxFileSizeMiB = parseInt(settings["single_file_upload_max_size_mib"]) || this.maxFileSizeMiB;
-          this.maxConcurrentChunks =
-            parseInt(settings["max_number_of_concurrent_uploading_file_chunks"]) || this.maxConcurrentChunks;
-          this.chunkSizeMiB = parseInt(settings["multipart_upload_chunk_size_mib"]) || this.chunkSizeMiB;
-          this.csvMaxColumns = parseInt(settings["csv_parser_max_columns"]) || this.csvMaxColumns;
+          this.maxConcurrentFiles = parseIntOrDefault(
+            settings["max_number_of_concurrent_uploading_file"],
+            this.maxConcurrentFiles
+          );
+          this.maxFileSizeMiB = parseIntOrDefault(settings["single_file_upload_max_size_mib"], this.maxFileSizeMiB);
+          this.maxConcurrentChunks = parseIntOrDefault(
+            settings["max_number_of_concurrent_uploading_file_chunks"],
+            this.maxConcurrentChunks
+          );
+          this.chunkSizeMiB = parseIntOrDefault(settings["multipart_upload_chunk_size_mib"], this.chunkSizeMiB);
+          this.csvMaxColumns = parseIntOrDefault(settings["csv_parser_max_columns"], this.csvMaxColumns);
+          this.settingsLoaded = true;
         },
         error: () => this.message.error("Failed to load settings."),
       });
@@ -183,6 +194,10 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   saveTabs(): void {
+    if (!this.settingsLoaded) {
+      this.message.error("Settings have not loaded; refresh before saving.");
+      return;
+    }
     const saveRequests = (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).map(tab =>
       this.adminSettingsService.updateSetting(tab, this.sidebarTabs[tab].toString())
     );
@@ -220,6 +235,10 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   saveDatasetSettings(): void {
+    if (!this.settingsLoaded) {
+      this.message.error("Settings have not loaded; refresh before saving.");
+      return;
+    }
     if (
       this.maxFileSizeMiB < 1 ||
       this.maxConcurrentFiles < 1 ||
@@ -272,6 +291,10 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   saveCsvSettings(): void {
+    if (!this.settingsLoaded) {
+      this.message.error("Settings have not loaded; refresh before saving.");
+      return;
+    }
     const saveRequests = [
       this.adminSettingsService.updateSetting("csv_parser_max_columns", this.csvMaxColumns.toString()),
     ];
@@ -285,7 +308,12 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   resetCsvSettings(): void {
-    this.adminSettingsService.resetSetting("csv_parser_max_columns").pipe(untilDestroyed(this)).subscribe({});
+    this.adminSettingsService
+      .resetSetting("csv_parser_max_columns")
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: () => this.notificationService.error("Could not reset result panel settings."),
+      });
 
     this.notificationService.info("Resetting result panel settings...");
     setTimeout(() => window.location.reload(), this.RELOAD_DELAY);

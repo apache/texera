@@ -41,7 +41,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
 import { Subscription } from "rxjs";
-import { formatCount, formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { formatCount, formatSpeed, formatTime, parseIntOrDefault } from "src/app/common/util/format.util";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
 import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
@@ -510,21 +510,21 @@ export class DatasetDetailComponent implements OnInit {
       .getPublicSetting("multipart_upload_chunk_size_mib")
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: value => (this.chunkSizeMiB = parseInt(value ?? "") || this.chunkSizeMiB),
+        next: value => (this.chunkSizeMiB = parseIntOrDefault(value, this.chunkSizeMiB)),
         error: () => {},
       });
     this.adminSettingsService
       .getPublicSetting("max_number_of_concurrent_uploading_file_chunks")
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: value => (this.maxConcurrentChunks = parseInt(value ?? "") || this.maxConcurrentChunks),
+        next: value => (this.maxConcurrentChunks = parseIntOrDefault(value, this.maxConcurrentChunks)),
         error: () => {},
       });
     this.adminSettingsService
       .getPublicSetting("max_number_of_concurrent_uploading_file")
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: value => (this.maxConcurrentFiles = parseInt(value ?? "") || this.maxConcurrentFiles),
+        next: value => (this.maxConcurrentFiles = parseIntOrDefault(value, this.maxConcurrentFiles)),
         error: () => {},
       });
   }

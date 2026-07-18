@@ -101,6 +101,9 @@ describe("FilesUploaderComponent", () => {
 
     expect(build(null).singleFileUploadMaxSizeMiB).toBe(20);
     expect(build("128").singleFileUploadMaxSizeMiB).toBe(128);
+    // an unparsable value keeps the default, but a stored 0 is honoured
+    expect(build("nope").singleFileUploadMaxSizeMiB).toBe(20);
+    expect(build("0").singleFileUploadMaxSizeMiB).toBe(0);
   });
 
   it("asks to resume failed multipart files and skip completed matching files in one retry batch", async () => {

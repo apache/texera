@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.common.test.tags;
+package org.apache.texera.amber.tags;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -27,17 +27,17 @@ import java.lang.annotation.Target;
 import org.scalatest.TagAnnotation;
 
 /**
- * Shared class-level marker tag for ScalaTest specs that need real external
- * infrastructure — e.g. a Postgres instance (embedded or otherwise) — as
- * opposed to pure in-memory unit tests. Modules can filter on it with
- * ScalaTest's {@code -l}/{@code -n} arguments
- * ({@code org.apache.texera.common.test.tags.IntegrationTest}) to split unit and
- * integration CI legs; a module that wires no filter simply runs the tagged
- * specs with the rest of its suite.
- *
- * <p>The amber module filters on it via the {@code AMBER_TEST_FILTER} env
- * var in {@code amber/build.sbt} to split the amber and amber-integration
- * CI jobs.
+ * Class-level marker tag for ScalaTest specs that exercise both Scala
+ * and Python end-to-end. Routing to the {@code amber-integration} CI
+ * job is by ScalaTest tag filtering, controlled by the
+ * {@code AMBER_TEST_FILTER} env var in {@code amber/build.sbt}: the
+ * lighter {@code amber} job runs with {@code skip-integration} (which
+ * passes {@code -l org.apache.texera.amber.tags.IntegrationTest} to
+ * ScalaTest), and the {@code amber-integration} job runs with
+ * {@code integration-only} (which passes {@code -n} for the same tag).
+ * The {@code amber/src/test/integration} directory is added to sbt's
+ * {@code Test/unmanagedSourceDirectories} so these specs compile in
+ * the regular Test config; there is no separate sbt configuration.
  *
  * <p>Written in Java rather than Scala because ScalaTest detects tag
  * annotations via {@code java.lang.annotation} reflection. A Scala

@@ -46,8 +46,22 @@ class DefaultsConfigSpec extends AnyFlatSpec with Matchers {
       defaults.get("single_file_upload_max_size_mib") shouldBe Some("20")
     )
     ifUnset("GUI_TABS_HUB_ENABLED")(defaults.get("hub_enabled") shouldBe Some("true"))
+    // management-only keys are flattened too (used by reset + the startup seeder)
+    ifUnset("OPERATOR_CSV_PARSER_MAX_COLUMNS")(
+      defaults.get("csv_parser_max_columns") shouldBe Some("512")
+    )
     // every value is rendered as a String
     defaults.values.foreach(_ shouldBe a[String])
+  }
+
+  it should "keep management-only keys out of the public gui/dataset whitelist" in {
+    // csv_parser_max_columns is seeded and resettable (present in allDefaults)
+    // but lives under `operator`, so it must never reach the anonymous
+    // /config/settings/public payload.
+    DefaultsConfig.allDefaults.keySet should contain("csv_parser_max_columns")
+    DefaultsConfig.keysUnderSections(
+      Set("gui", "dataset")
+    ) should not contain "csv_parser_max_columns"
   }
 
   "DefaultsConfig.keysUnderSections" should "collect the short keys of the requested sections only" in {

@@ -28,6 +28,7 @@ import { AdminSettingsService } from "../../../service/admin/settings/admin-sett
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { formatSize } from "../../../../common/util/size-formatter.util";
+import { parseIntOrDefault } from "../../../../common/util/format.util";
 import {
   ConflictingFileModalContentComponent,
   ConflictingFileModalData,
@@ -87,7 +88,7 @@ export class FilesUploaderComponent {
       .getPublicSetting("single_file_upload_max_size_mib")
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: value => (this.singleFileUploadMaxSizeMiB = parseInt(value ?? "") || this.singleFileUploadMaxSizeMiB),
+        next: value => (this.singleFileUploadMaxSizeMiB = parseIntOrDefault(value, this.singleFileUploadMaxSizeMiB)),
         error: () => {},
       });
   }

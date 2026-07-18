@@ -26,11 +26,10 @@ import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
 import org.apache.texera.common.config.{DefaultsConfig, StorageConfig}
-import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.{SiteSettings, SqlServer}
 import org.apache.texera.dao.jooq.generated.Tables.SITE_SETTINGS
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
 import org.eclipse.jetty.server.session.SessionHandler
-import org.jooq.impl.DSL
 
 import java.nio.file.Path
 
@@ -79,14 +78,7 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
 
         DefaultsConfig.allDefaults.foreach {
           case (key, value) =>
-            tx
-              .insertInto(SITE_SETTINGS)
-              .set(SITE_SETTINGS.KEY, key)
-              .set(SITE_SETTINGS.VALUE, value)
-              .set(SITE_SETTINGS.UPDATED_BY, "texera")
-              .set(SITE_SETTINGS.UPDATED_AT, DSL.currentTimestamp())
-              .onDuplicateKeyIgnore()
-              .execute()
+            SiteSettings.insertIfAbsent(tx, key, value, "texera")
         }
       }
     } catch {

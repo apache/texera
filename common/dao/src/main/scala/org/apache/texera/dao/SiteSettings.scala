@@ -19,18 +19,24 @@
 package org.apache.texera.dao
 
 import org.apache.texera.dao.jooq.generated.Tables.SITE_SETTINGS
+import org.jooq.DSLContext
+import org.jooq.impl.DSL
 
 import scala.util.Try
 
 /**
-  * Read-side accessor for the `site_settings` key/value table that admin pages
-  * write through. Centralises the "look up by key, parse, fall back on any
-  * failure" pattern that previously lived inline in ConfigResource,
-  * CSVScanSourceOpExec, and DatasetResource.
+  * Accessor for the `site_settings` key/value table that admin pages write
+  * through. Centralises the "look up by key, parse, fall back on any failure"
+  * read pattern (previously inline in ConfigResource, CSVScanSourceOpExec, and
+  * DatasetResource) and the write shape used by the admin API and the
+  * config-service startup seeder, so the column set / audit stamping live in
+  * one place.
   *
-  * Failures swallowed by the outer Try include: SqlServer not initialised
-  * (e.g. on workers in distributed mode), no row for the key, and value that
-  * can't be parsed. In all of these cases the caller's default takes over.
+  * Failures swallowed by the outer Try on the read path include: SqlServer not
+  * initialised (e.g. on workers in distributed mode), no row for the key, and
+  * value that can't be parsed. In all of these cases the caller's default takes
+  * over. The write helpers take an explicit [[DSLContext]] so callers can run
+  * them inside their own transaction and surface failures.
   */
 object SiteSettings {
 
@@ -39,6 +45,33 @@ object SiteSettings {
 
   def getLong(key: String, default: => Long): Long =
     readAndParse(key, default)(_.toLong)
+
+  /** Insert or overwrite the row for `key`, stamping who/when. */
+  def upsert(ctx: DSLContext, key: String, value: String, updatedBy: String): Unit =
+    ctx
+      .insertInto(SITE_SETTINGS)
+      .set(SITE_SETTINGS.KEY, key)
+      .set(SITE_SETTINGS.VALUE, value)
+      .set(SITE_SETTINGS.UPDATED_BY, updatedBy)
+      .onConflict(SITE_SETTINGS.KEY)
+      .doUpdate()
+      .set(SITE_SETTINGS.VALUE, value)
+      .set(SITE_SETTINGS.UPDATED_BY, updatedBy)
+      .set(SITE_SETTINGS.UPDATED_AT, DSL.currentTimestamp())
+      .execute()
+
+  /** Seed the row for `key` only if it does not already exist (never overwrites
+    * an admin-edited value). Used by the startup default seeder.
+    */
+  def insertIfAbsent(ctx: DSLContext, key: String, value: String, updatedBy: String): Unit =
+    ctx
+      .insertInto(SITE_SETTINGS)
+      .set(SITE_SETTINGS.KEY, key)
+      .set(SITE_SETTINGS.VALUE, value)
+      .set(SITE_SETTINGS.UPDATED_BY, updatedBy)
+      .set(SITE_SETTINGS.UPDATED_AT, DSL.currentTimestamp())
+      .onDuplicateKeyIgnore()
+      .execute()
 
   private[dao] def parseOrDefault[T](raw: Option[String], default: T)(parse: String => T): T =
     raw.flatMap(s => Try(parse(s.trim)).toOption).getOrElse(default)
