@@ -44,7 +44,7 @@ describe("AgentRegistrationComponent", () => {
   beforeEach(async () => {
     // Safe defaults so `ngOnInit` (run on the first detectChanges) always has
     // observables to subscribe to; individual tests override before rendering.
-    fetchModelTypes = vi.fn().mockReturnValue(of([]));
+    fetchModelTypes = vi.fn().mockReturnValue(of([MODEL]));
     createAgent = vi.fn();
     notifyError = vi.fn();
     getWorkflowMetadata = vi.fn().mockReturnValue({ wid: 123 });
