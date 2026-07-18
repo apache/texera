@@ -160,6 +160,8 @@ lazy val WorkflowCore = (project in file("common/workflow-core"))
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
   .dependsOn(WorkflowCore, Auth, Config, Resource)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -171,7 +173,16 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
       // with "Scala module 2.18.8 requires Jackson Databind version >= 2.18.0
       // and < 2.19.0 - Found jackson-databind version 2.21.0").
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
-    ) ++ nettyDependencyOverrides
+    ) ++ nettyDependencyOverrides,
+    // Fork the test JVM so the sharing feature flag can be enabled: ComputingUnitConfig
+    // reads computing-unit.conf's sharing.enabled as a load-time val (default false,
+    // overridable only via the COMPUTING_UNIT_SHARING_ENABLED env var), and the
+    // access-resource tests need it on to reach the share/revoke code paths. Also run
+    // from the repo root so MockTexeraDB can resolve sql/texera_ddl.sql by relative path.
+    Test / fork := true,
+    Test / envVars += "COMPUTING_UNIT_SHARING_ENABLED" -> "true",
+    Test / forkOptions := (Test / forkOptions).value
+      .withWorkingDirectory((ThisBuild / baseDirectory).value)
   )
 lazy val FileService = (project in file("file-service"))
   .settings(commonModuleSettings)
