@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.texera.tags
+package org.apache.texera.common.test.tags
 
 import org.scalatest.Tag
 
@@ -26,4 +26,4 @@ import org.scalatest.Tag
   * unit-level spec. Both forms carry the same tag name, so ScalaTest
   * `-l`/`-n` filters match either.
   */
-object IntegrationTestTag extends Tag("org.apache.texera.tags.IntegrationTest")
+object IntegrationTestTag extends Tag("org.apache.texera.common.test.tags.IntegrationTest")

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.tags;
+package org.apache.texera.common.test.tags;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -31,7 +31,7 @@ import org.scalatest.TagAnnotation;
  * infrastructure — e.g. a Postgres instance (embedded or otherwise) — as
  * opposed to pure in-memory unit tests. Modules can filter on it with
  * ScalaTest's {@code -l}/{@code -n} arguments
- * ({@code org.apache.texera.tags.IntegrationTest}) to split unit and
+ * ({@code org.apache.texera.common.test.tags.IntegrationTest}) to split unit and
  * integration CI legs; a module that wires no filter simply runs the tagged
  * specs with the rest of its suite.
  *

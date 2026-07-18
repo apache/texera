@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.storage.result.ResultSchema
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity._
-import org.apache.texera.tags.IntegrationTest
+import org.apache.texera.common.test.tags.IntegrationTest
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

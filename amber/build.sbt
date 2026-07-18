@@ -55,7 +55,7 @@ concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "python"
 
 // `amber/src/test/integration` holds Scala specs that exercise both
-// Scala and Python end-to-end (tagged @org.apache.texera.tags.IntegrationTest).
+// Scala and Python end-to-end (tagged @org.apache.texera.common.test.tags.IntegrationTest).
 // Sits next to `src/test/scala`, `src/test/java`, and `src/test/python`.
 // Adding it to Test/unmanagedSourceDirectories means scalafmtCheckAll /
 // scalafixAll --check naturally cover these sources, and the
@@ -77,9 +77,9 @@ Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "bench" / "sc
 //   (unset)          : run everything (default for local sbt)
 Test / testOptions ++= (sys.env.get("AMBER_TEST_FILTER") match {
   case Some("skip-integration") =>
-    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", "org.apache.texera.tags.IntegrationTest"))
+    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", "org.apache.texera.common.test.tags.IntegrationTest"))
   case Some("integration-only") =>
-    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", "org.apache.texera.tags.IntegrationTest"))
+    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", "org.apache.texera.common.test.tags.IntegrationTest"))
   case _ => Nil
 })
 

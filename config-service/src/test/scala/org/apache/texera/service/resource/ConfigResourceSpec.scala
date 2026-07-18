@@ -34,7 +34,7 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.SITE_SETTINGS
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.apache.texera.tags.IntegrationTest
+import org.apache.texera.common.test.tags.IntegrationTest
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
