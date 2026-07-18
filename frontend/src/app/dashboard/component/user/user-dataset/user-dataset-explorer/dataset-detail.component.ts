@@ -41,7 +41,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
 import { Subscription } from "rxjs";
-import { formatCount, formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { formatCount, formatSpeed, formatTime, parseIntOrDefault } from "src/app/common/util/format.util";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
 import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
@@ -503,20 +503,29 @@ export class DatasetDetailComponent implements OnInit {
     return fileName;
   }
 
+  // A missing key or failed fetch keeps the field defaults; NaN here would
+  // silently stall the upload queue (`activeUploads < NaN` is always false).
   private loadUploadSettings(): void {
     this.adminSettingsService
-      .getSetting("multipart_upload_chunk_size_mib")
+      .getPublicSetting("multipart_upload_chunk_size_mib")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.chunkSizeMiB = parseInt(value)));
+      .subscribe({
+        next: value => (this.chunkSizeMiB = parseIntOrDefault(value, this.chunkSizeMiB)),
+        error: () => {},
+      });
     this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file_chunks")
+      .getPublicSetting("max_number_of_concurrent_uploading_file_chunks")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
+      .subscribe({
+        next: value => (this.maxConcurrentChunks = parseIntOrDefault(value, this.maxConcurrentChunks)),
+        error: () => {},
+      });
     this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file")
+      .getPublicSetting("max_number_of_concurrent_uploading_file")
       .pipe(untilDestroyed(this))
-      .subscribe(value => {
-        this.maxConcurrentFiles = parseInt(value);
+      .subscribe({
+        next: value => (this.maxConcurrentFiles = parseIntOrDefault(value, this.maxConcurrentFiles)),
+        error: () => {},
       });
   }
 

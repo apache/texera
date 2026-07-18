@@ -72,7 +72,7 @@ describe("FilesUploaderComponent", () => {
       }),
     } as unknown as NzModalService;
     const adminSettingsService = {
-      getSetting: vi.fn().mockReturnValue(of("20")),
+      getPublicSetting: vi.fn().mockReturnValue(of("20")),
     } as unknown as AdminSettingsService;
     datasetService = {
       listMultipartUploads: vi.fn().mockReturnValue(of(["failed.csv"])),
@@ -88,6 +88,22 @@ describe("FilesUploaderComponent", () => {
     component.ownerEmail = "owner@example.com";
     component.datasetName = "dataset";
     component.did = 7;
+  });
+
+  it("keeps the default upload size limit when the public setting is missing, and parses it when present", () => {
+    const build = (value: string | null) =>
+      new FilesUploaderComponent(
+        { error: vi.fn() } as unknown as NotificationService,
+        { getPublicSetting: vi.fn().mockReturnValue(of(value)) } as unknown as AdminSettingsService,
+        datasetService as unknown as DatasetService,
+        { create: vi.fn() } as unknown as NzModalService
+      );
+
+    expect(build(null).singleFileUploadMaxSizeMiB).toBe(20);
+    expect(build("128").singleFileUploadMaxSizeMiB).toBe(128);
+    // an unparsable value keeps the default, but a stored 0 is honoured
+    expect(build("nope").singleFileUploadMaxSizeMiB).toBe(20);
+    expect(build("0").singleFileUploadMaxSizeMiB).toBe(0);
   });
 
   it("asks to resume failed multipart files and skip completed matching files in one retry batch", async () => {
