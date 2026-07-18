@@ -25,6 +25,20 @@ ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 ThisBuild / conflictManager := ConflictManager.latestRevision
 
 /////////////////////////////////////////////////////////////////////////////
+// Compiler Options
+/////////////////////////////////////////////////////////////////////////////
+
+// Scala compiler options (same set as the other common modules; scalafix's
+// RemoveUnused rule requires -Ywarn-unused)
+Compile / scalacOptions ++= Seq(
+  "-Xelide-below",
+  "WARNING", // Turn on optimizations with "WARNING" as the threshold
+  "-feature", // Check feature warnings
+  "-deprecation", // Check deprecation warnings
+  "-Ywarn-unused:imports" // Check for unused imports
+)
+
+/////////////////////////////////////////////////////////////////////////////
 // Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
