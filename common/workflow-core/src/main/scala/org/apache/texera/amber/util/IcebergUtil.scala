@@ -68,10 +68,16 @@ object IcebergUtil {
     * for chmod. In that case, swap in [[WinutilsFreeLocalFileSystem]], which skips
     * permission operations, so local development works without installing winutils.
     * On all other hosts the default configuration is returned unchanged.
+    *
+    * @param useWinutilsFreeLocalFs whether to swap in the winutils-free file system;
+    *                               defaults to the host's actual winutils availability
+    *                               and is only overridden in tests.
     */
-  private def newLocalHadoopConf(): Configuration = {
+  private[util] def newLocalHadoopConf(
+      useWinutilsFreeLocalFs: Boolean = Shell.WINDOWS && !Shell.hasWinutilsPath()
+  ): Configuration = {
     val conf = new Configuration()
-    if (Shell.WINDOWS && !Shell.hasWinutilsPath()) {
+    if (useWinutilsFreeLocalFs) {
       conf.set("fs.file.impl", classOf[WinutilsFreeLocalFileSystem].getName)
       // The FileSystem cache is keyed by scheme (not by impl class), so a plain
       // LocalFileSystem cached earlier by other code would bypass this override.
@@ -82,8 +88,8 @@ object IcebergUtil {
 
   /**
     * Creates and initializes a HadoopCatalog with the given parameters.
-    * - Uses an empty Hadoop `Configuration`, meaning the local file system (or `file:/`) will be used by default
-    * instead of HDFS.
+    * - Uses the Hadoop `Configuration` from [[newLocalHadoopConf]], meaning the local
+    * file system (or `file:/`) will be used by default instead of HDFS.
     * - The `warehouse` parameter specifies the root directory for storing table data.
     * - Sets the file I/O implementation to `HadoopFileIO`.
     *

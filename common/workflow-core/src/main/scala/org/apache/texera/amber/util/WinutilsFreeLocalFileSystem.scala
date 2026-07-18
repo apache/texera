@@ -24,17 +24,18 @@ import org.apache.hadoop.fs.{LocalFileSystem, Path, RawLocalFileSystem}
 import org.apache.hadoop.util.Shell
 
 /**
-  * A Hadoop local file system that never shells out to `winutils.exe`.
+  * A Hadoop local file system that works without a `winutils.exe` installation.
   *
   * On Windows, Hadoop's default local file system implements chmod/chown by invoking
   * `%HADOOP_HOME%\bin\winutils.exe`, and every file or directory creation applies POSIX
   * permissions through that path. Without a native Hadoop installation this fails with
   * "Hadoop bin directory does not exist". POSIX permission bits carry no meaning on NTFS,
-  * so these operations can be skipped safely.
+  * so on Windows hosts without winutils this file system skips permission operations
+  * instead of failing.
   *
   * Selected via `fs.file.impl` by [[IcebergUtil]] on Windows hosts where winutils is
-  * unavailable. Additionally self-gating: anywhere winutils is available — or on
-  * non-Windows systems — it behaves exactly like Hadoop's default local file system.
+  * unavailable. Everywhere else — winutils installed, or a non-Windows host — it behaves
+  * exactly like Hadoop's default local file system, including its winutils/chmod use.
   */
 class WinutilsFreeLocalFileSystem extends LocalFileSystem(new WinutilsFreeRawLocalFileSystem)
 

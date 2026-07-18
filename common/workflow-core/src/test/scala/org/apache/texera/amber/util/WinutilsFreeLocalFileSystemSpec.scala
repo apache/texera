@@ -71,4 +71,14 @@ class WinutilsFreeLocalFileSystemSpec extends AnyFlatSpec {
     // No-op on Windows hosts without winutils; delegates to Hadoop's default elsewhere.
     fs.setPermission(file, new FsPermission("755"))
   }
+
+  it should "not fail on setOwner" in {
+    val fs = newFs()
+    val tmp = Files.createTempDirectory("winutils-free-fs-owner")
+    val file = new Path(tmp.toUri.toString, "owner.txt")
+    fs.create(file, true).close()
+    // Chown-to-self is permitted everywhere; no-op on Windows hosts without winutils.
+    // (Not FileStatus.getOwner: reading the owner itself requires winutils on Windows.)
+    fs.setOwner(file, System.getProperty("user.name"), null)
+  }
 }
