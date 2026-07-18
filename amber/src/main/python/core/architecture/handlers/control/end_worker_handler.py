@@ -18,7 +18,7 @@
 from loguru import logger
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.util import IQueue
+from core.models.internal_queue import InternalQueue
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
     EmptyReturn,
     EmptyRequest,
@@ -38,12 +38,15 @@ class EndWorkerHandler(ControlHandler):
         of all the control messages.
         """
         # Ensure this is really the last message.
-        input_queue: IQueue = self.context.input_queue
+        input_queue: InternalQueue = self.context.input_queue
         if not input_queue.is_empty():
             logger.warning(
                 f"Received EndHandler before all messages are "
-                f"processed. Unprocessed messages: {input_queue.get()}"
+                f"processed. Unprocessed messages: {input_queue.peek()}"
             )
-        assert input_queue.is_empty()
+            # Fail this RPC (the counterpart of the Scala EndHandler's
+            # Future.exception) so the coordinator retries once the queue
+            # has drained, instead of dropping the pending message.
+            raise RuntimeError("worker still has unprocessed messages")
         # Now we can safely acknowledge that this worker can be terminated.
         return EmptyReturn()
