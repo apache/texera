@@ -137,14 +137,30 @@ object ComputingUnitHelpers {
     }
   }
 
+  private def isKubernetes(unit: WorkflowComputingUnit): Boolean =
+    unit.getType == WorkflowComputingUnitTypeEnum.kubernetes
+
+  /**
+    * Fetch namespace-wide pod phases (one `list`) only when `units` contains a Kubernetes unit;
+    * otherwise return an empty map without touching the cluster.
+    */
+  def podPhasesFor(units: Seq[WorkflowComputingUnit]): Map[String, String] =
+    if (units.exists(isKubernetes)) KubernetesClient.getAllPodPhases else Map.empty
+
+  /**
+    * Fetch namespace-wide pod metrics (one `top`) only when `units` contains a Kubernetes unit;
+    * otherwise return an empty map without touching the cluster.
+    */
+  def podMetricsFor(units: Seq[WorkflowComputingUnit]): Map[String, Map[String, String]] =
+    if (units.exists(isKubernetes)) KubernetesClient.getAllPodMetrics else Map.empty
+
   /**
     * A Kubernetes unit is considered "vanished" when its pod is absent from the pre-fetched
     * `podPhases` map (manually deleted or TTL GC-ed by the cluster). Local/other units always
     * count as present.
     */
   private def isVanished(unit: WorkflowComputingUnit, podPhases: Map[String, String]): Boolean =
-    unit.getType == WorkflowComputingUnitTypeEnum.kubernetes &&
-      !podPhases.contains(KubernetesClient.generatePodName(unit.getCuid))
+    isKubernetes(unit) && !podPhases.contains(KubernetesClient.generatePodName(unit.getCuid))
 
   /**
     * Split `units` into `(live, vanished)` using a pre-fetched pod-phase map (see
@@ -153,10 +169,8 @@ object ComputingUnitHelpers {
   def partitionLiveUnits(
       units: List[WorkflowComputingUnit],
       podPhases: Map[String, String]
-  ): (List[WorkflowComputingUnit], List[WorkflowComputingUnit]) = {
-    val (vanished, live) = units.partition(isVanished(_, podPhases))
-    (live, vanished)
-  }
+  ): (List[WorkflowComputingUnit], List[WorkflowComputingUnit]) =
+    units.partition(unit => !isVanished(unit, podPhases))
 
   /**
     * Reconcile a set of units against the cluster: any Kubernetes unit whose pod has vanished is

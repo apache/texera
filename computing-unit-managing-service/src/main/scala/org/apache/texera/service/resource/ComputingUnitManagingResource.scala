@@ -493,7 +493,6 @@ class ComputingUnitManagingResource {
           (List.empty[WorkflowComputingUnit], Map.empty[Integer, PrivilegeEnum])
         }
 
-      val allUnits = ownedUnits ++ sharedUnits
       val userDao = new UserDao(ctx.configuration())
 
       // Pair each unit with the caller's privilege (owned units default to WRITE), keeping only
@@ -504,46 +503,41 @@ class ComputingUnitManagingResource {
           sharedUnits.map(u => (u, sharedUnitInfo(u.getCuid))))
           .distinctBy { case (unit, _) => unit.getCuid }
           .filter { case (unit, _) => unit.getTerminateTime == null }
+      val privilegeByCuid = unitsWithPrivilege.map {
+        case (unit, privilege) => unit.getCuid -> privilege
+      }.toMap
+      val candidateUnits = unitsWithPrivilege.map { case (unit, _) => unit }
 
       // Pod phases (one namespace-wide `list`) decide which Kubernetes units are still alive;
-      // only fetch them when there is a Kubernetes unit to resolve.
-      val candidateUnits = unitsWithPrivilege.map { case (unit, _) => unit }
-      val podPhases: Map[String, String] =
-        if (candidateUnits.exists(_.getType == WorkflowComputingUnitTypeEnum.kubernetes))
-          KubernetesClient.getAllPodPhases
-        else Map.empty
+      // only fetched when there is a Kubernetes unit to resolve.
+      val podPhases = ComputingUnitHelpers.podPhasesFor(candidateUnits)
 
       // A Kubernetes unit whose pod has vanished (manually deleted or TTL GC-ed by the cluster)
       // is treated as terminated: its terminateTime is persisted and it is dropped here so
       // subsequent API calls no longer return it.
-      val liveCuids = ComputingUnitHelpers
-        .reconcileVanishedKubernetesUnits(computingUnitDao, candidateUnits, podPhases)
-        .map(_.getCuid)
-        .toSet
-      val liveUnitsWithPrivilege =
-        unitsWithPrivilege.filter { case (unit, _) => liveCuids.contains(unit.getCuid) }
+      val liveUnits =
+        ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
+          computingUnitDao,
+          candidateUnits,
+          podPhases
+        )
 
-      // Metrics (one namespace-wide `top`) are only rendered for surviving units, so defer this
-      // call until after reconciliation and skip it when no live Kubernetes unit remains.
-      val podMetrics: Map[String, Map[String, String]] =
-        if (liveUnitsWithPrivilege.exists {
-              case (unit, _) => unit.getType == WorkflowComputingUnitTypeEnum.kubernetes
-            }) KubernetesClient.getAllPodMetrics
-        else Map.empty
+      // Metrics (one namespace-wide `top`) are only rendered for surviving units, so this is
+      // deferred until after reconciliation and skipped when no live Kubernetes unit remains.
+      val podMetrics = ComputingUnitHelpers.podMetricsFor(liveUnits)
 
       val ownerInfoMap =
-        ComputingUnitHelpers.resolveOwnerInfo(userDao, allUnits.map(_.getUid).distinct)
+        ComputingUnitHelpers.resolveOwnerInfo(userDao, liveUnits.map(_.getUid).distinct)
 
-      liveUnitsWithPrivilege.map {
-        case (unit, privilege) =>
-          ComputingUnitHelpers.buildDashboardUnit(
-            unit,
-            isOwner = unit.getUid.equals(uid),
-            accessPrivilege = privilege,
-            ownerInfo = ownerInfoMap,
-            podPhases = podPhases,
-            podMetrics = podMetrics
-          )
+      liveUnits.map { unit =>
+        ComputingUnitHelpers.buildDashboardUnit(
+          unit,
+          isOwner = unit.getUid.equals(uid),
+          accessPrivilege = privilegeByCuid(unit.getCuid),
+          ownerInfo = ownerInfoMap,
+          podPhases = podPhases,
+          podMetrics = podMetrics
+        )
       }
     }
   }

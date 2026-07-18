@@ -78,31 +78,23 @@ object KubernetesClient {
       }
     }.toMap
 
+  // One namespace-wide `top` call, returning the raw per-pod metrics items.
+  private def fetchPodMetricsItems(): Iterable[PodMetrics] =
+    client.top().pods().metrics(namespace).getItems.asScala
+
   /**
     * Fetch CPU/memory usage for every pod in the namespace in a single `top` call, keyed by
     * pod name. Intended for bulk listings so that N units do not each re-fetch the whole
     * namespace metrics list (which `getPodMetrics` does per call).
     */
-  def getAllPodMetrics: Map[String, Map[String, String]] = {
-    client
-      .top()
-      .pods()
-      .metrics(namespace)
-      .getItems
-      .asScala
+  def getAllPodMetrics: Map[String, Map[String, String]] =
+    fetchPodMetricsItems()
       .map(podMetrics => podMetrics.getMetadata.getName -> containerUsage(podMetrics))
       .toMap
-  }
 
   def getPodMetrics(cuid: Int): Map[String, String] = {
     val targetPodName = generatePodName(cuid)
-
-    client
-      .top()
-      .pods()
-      .metrics(namespace)
-      .getItems
-      .asScala
+    fetchPodMetricsItems()
       .collectFirst {
         case podMetrics if podMetrics.getMetadata.getName == targetPodName =>
           containerUsage(podMetrics)

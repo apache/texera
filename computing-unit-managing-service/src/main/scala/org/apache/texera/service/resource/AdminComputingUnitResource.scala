@@ -26,11 +26,11 @@ import jakarta.ws.rs.core.MediaType
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_COMPUTING_UNIT
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
+import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import org.apache.texera.service.resource.ComputingUnitManagingResource.DashboardWorkflowComputingUnit
-import org.apache.texera.service.util.{ComputingUnitHelpers, KubernetesClient}
+import org.apache.texera.service.util.ComputingUnitHelpers
 import org.jooq.DSLContext
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -51,7 +51,7 @@ object AdminComputingUnitResource {
     * @param units      active computing units to render (across every owner)
     * @param ownerInfo  map of owner uid -> (googleAvatar, userName)
     * @param callerUid  the uid of the requesting admin, used to populate `isOwner`
-    * @param podPhases  map of pod name -> phase (see [[KubernetesClient.getAllPodPhases]])
+    * @param podPhases  map of pod name -> phase (see KubernetesClient.getAllPodPhases)
     * @param podMetrics map of pod name -> (metric -> value) (see KubernetesClient.getAllPodMetrics)
     */
   def buildDashboardUnits(
@@ -102,9 +102,6 @@ class AdminComputingUnitResource {
   ): List[DashboardWorkflowComputingUnit] = {
     val ctx = context
 
-    def isKubernetes(unit: WorkflowComputingUnit): Boolean =
-      unit.getType == WorkflowComputingUnitTypeEnum.kubernetes
-
     // Filter to active units in SQL so historically-terminated rows are never loaded.
     val activeUnits: List[WorkflowComputingUnit] =
       ctx
@@ -115,9 +112,8 @@ class AdminComputingUnitResource {
         .toList
 
     // Pod phases (one namespace-wide `list`) are needed to decide which units are still alive;
-    // only fetch them when there is a Kubernetes unit to resolve.
-    val podPhases: Map[String, String] =
-      if (activeUnits.exists(isKubernetes)) KubernetesClient.getAllPodPhases else Map.empty
+    // only fetched when there is a Kubernetes unit to resolve.
+    val podPhases = ComputingUnitHelpers.podPhasesFor(activeUnits)
 
     // A Kubernetes unit whose pod is gone is stamped terminated and dropped from the response.
     val liveUnits = ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
@@ -126,10 +122,9 @@ class AdminComputingUnitResource {
       podPhases
     )
 
-    // Metrics (one namespace-wide `top`) are only rendered for surviving units, so defer this
-    // call until after reconciliation and skip it when no live Kubernetes unit remains.
-    val podMetrics: Map[String, Map[String, String]] =
-      if (liveUnits.exists(isKubernetes)) KubernetesClient.getAllPodMetrics else Map.empty
+    // Metrics (one namespace-wide `top`) are only rendered for surviving units, so this is
+    // deferred until after reconciliation and skipped when no live Kubernetes unit remains.
+    val podMetrics = ComputingUnitHelpers.podMetricsFor(liveUnits)
 
     val userDao = new UserDao(ctx.configuration())
     val ownerInfo = ComputingUnitHelpers.resolveOwnerInfo(userDao, liveUnits.map(_.getUid).distinct)
