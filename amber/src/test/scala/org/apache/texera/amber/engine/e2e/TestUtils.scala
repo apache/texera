@@ -103,14 +103,7 @@ object TestUtils {
       LogicalPlanPojo(operators, links, List(), List()),
       CompilationErrorHandling.Strict
     )
-    // Write the storage ports back onto the context so the schedule generators
-    // materialize terminal results — the unified compiler returns them instead
-    // of mutating the context, so the execution path must copy them over (as
-    // WorkflowExecutionService does in production).
-    context.workflowSettings = context.workflowSettings.copy(
-      outputPortsNeedingStorage = compilationResult.outputPortsNeedingStorage
-    )
-    Workflow(context, compilationResult.logicalPlan, compilationResult.physicalPlan.get)
+    Workflow.fromCompilationResult(context, compilationResult)
   }
 
   /**

@@ -20,6 +20,7 @@
 package org.apache.texera.amber.engine.architecture.coordinator
 
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
+import org.apache.texera.common.compiler.WorkflowCompilationResult
 import org.apache.texera.common.compiler.model.LogicalPlan
 
 case class Workflow(
@@ -27,3 +28,22 @@ case class Workflow(
     logicalPlan: LogicalPlan,
     physicalPlan: PhysicalPlan
 )
+
+object Workflow {
+
+  /**
+    * Builds the engine `Workflow` from a Strict-mode compilation result. Also writes the
+    * result's `outputPortsNeedingStorage` back onto the context so the schedule generators
+    * materialize terminal results — every execution-path caller must do both, so they are
+    * kept together here. Strict mode guarantees `physicalPlan` is defined.
+    */
+  def fromCompilationResult(
+      context: WorkflowContext,
+      compilationResult: WorkflowCompilationResult
+  ): Workflow = {
+    context.workflowSettings = context.workflowSettings.copy(
+      outputPortsNeedingStorage = compilationResult.outputPortsNeedingStorage
+    )
+    Workflow(context, compilationResult.logicalPlan, compilationResult.physicalPlan.get)
+  }
+}

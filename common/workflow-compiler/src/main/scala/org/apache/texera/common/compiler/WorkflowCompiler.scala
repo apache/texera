@@ -37,6 +37,7 @@ import org.apache.texera.amber.core.workflow.{
 }
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.texera.amber.util.StackTraceUtils.getStackTraceWithAllCauses
 
 import java.time.Instant
 import scala.collection.mutable
@@ -45,21 +46,6 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 object WorkflowCompiler {
-  // util function for extracting the error causes
-  private def getStackTraceWithAllCauses(err: Throwable, topLevel: Boolean = true): String = {
-    val header = if (topLevel) {
-      "Stack trace for developers: \n\n"
-    } else {
-      "\n\nCaused by:\n"
-    }
-    val message = header + err.toString + "\n" + err.getStackTrace.mkString("\n")
-    if (err.getCause != null) {
-      message + getStackTraceWithAllCauses(err.getCause, topLevel = false)
-    } else {
-      message
-    }
-  }
-
   // util function for convert the error list to error map, and report the error in log
   private def convertErrorListToWorkflowFatalErrorMap(
       logger: Logger,
@@ -271,12 +257,14 @@ class WorkflowCompiler(
 
     // 4. collect the output schema for each logical op
     // even if error is encountered when logical => physical, we still want to get the input schemas
-    // for the rest of the no-error operators. NOTE: in Strict mode there is no shared buffer, so
-    // schema-propagation failures are NOT thrown — they surface as `None` schemas and the plan is
-    // still returned. This matches the legacy execution path; making Strict fail fast here too is
-    // tracked as a follow-up.
+    // for the rest of the no-error operators. In Lenient mode schema-propagation failures land in
+    // the shared buffer alongside the other errors; in Strict mode they must fail fast too (e.g. a
+    // Projection on a missing column would otherwise be launched and only fail at runtime).
     val schemaErrorList = errorList.getOrElse(new ArrayBuffer[(OperatorIdentity, Throwable)]())
     val opIdToOutputSchema = collectOutputSchemaFromPhysicalPlan(physicalPlan, schemaErrorList)
+    if (errorHandling == CompilationErrorHandling.Strict && schemaErrorList.nonEmpty) {
+      throw schemaErrorList.head._2
+    }
 
     val hasErrors = errorList.exists(_.nonEmpty)
     WorkflowCompilationResult(

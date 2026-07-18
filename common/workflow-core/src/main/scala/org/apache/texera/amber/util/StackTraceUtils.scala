@@ -17,19 +17,26 @@
  * under the License.
  */
 
-package org.apache.texera.common.compiler
+package org.apache.texera.amber.util
 
-/**
-  * Controls how the compiler reacts to a per-operator compilation error.
-  *
-  *   - [[CompilationErrorHandling.Lenient]] collects every error and returns them in the result,
-  *     with `physicalPlan = None` when any error occurred. Used for editing-time validation.
-  *   - [[CompilationErrorHandling.Strict]] throws on the first error — during file resolution,
-  *     logical-to-physical expansion, and schema propagation. Used before execution.
-  */
-sealed trait CompilationErrorHandling
+object StackTraceUtils {
 
-object CompilationErrorHandling {
-  case object Lenient extends CompilationErrorHandling
-  case object Strict extends CompilationErrorHandling
+  /**
+    * Renders a throwable and its full cause chain as a single string for
+    * user-facing error details. Shared by amber's ErrorUtils and the
+    * workflow compiler.
+    */
+  def getStackTraceWithAllCauses(err: Throwable, topLevel: Boolean = true): String = {
+    val header = if (topLevel) {
+      "Stack trace for developers: \n\n"
+    } else {
+      "\n\nCaused by:\n"
+    }
+    val message = header + err.toString + "\n" + err.getStackTrace.mkString("\n")
+    if (err.getCause != null) {
+      message + getStackTraceWithAllCauses(err.getCause, topLevel = false)
+    } else {
+      message
+    }
+  }
 }

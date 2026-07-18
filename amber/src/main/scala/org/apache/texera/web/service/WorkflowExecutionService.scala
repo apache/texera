@@ -112,14 +112,7 @@ class WorkflowExecutionService(
     try {
       val compilationResult = new WorkflowCompiler(workflowContext)
         .compile(request.logicalPlan, CompilationErrorHandling.Strict)
-      workflowContext.workflowSettings = workflowContext.workflowSettings.copy(
-        outputPortsNeedingStorage = compilationResult.outputPortsNeedingStorage
-      )
-      workflow = Workflow(
-        workflowContext,
-        compilationResult.logicalPlan,
-        compilationResult.physicalPlan.get
-      )
+      workflow = Workflow.fromCompilationResult(workflowContext, compilationResult)
     } catch {
       case err: Throwable =>
         // stop here: `workflow` is still null, so falling through would NPE
