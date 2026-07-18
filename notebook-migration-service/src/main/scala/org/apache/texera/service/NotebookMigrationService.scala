@@ -17,44 +17,23 @@
 
 package org.apache.texera.service
 
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import io.dropwizard.auth.AuthDynamicFeature
-import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.auth.{
-  JwtAuthFilter,
+  AuthFeatures,
   RequestLoggingFilter,
-  SessionUser,
-  UnauthorizedExceptionMapper
+  RoleAnnotationEnforcer,
+  ServiceBootstrap
 }
-import org.apache.texera.auth.RoleAnnotationEnforcer
-import org.apache.texera.dao.SqlServer
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
-import java.nio.file.Path
 import org.apache.texera.service.resource.{HealthCheckResource, NotebookMigrationResource}
 
 class NotebookMigrationService
     extends Application[NotebookMigrationServiceConfiguration]
     with LazyLogging {
   override def initialize(bootstrap: Bootstrap[NotebookMigrationServiceConfiguration]): Unit = {
-    // enable environment variable substitution in YAML config
-    bootstrap.setConfigurationSourceProvider(
-      new SubstitutingSourceProvider(
-        bootstrap.getConfigurationSourceProvider,
-        new EnvironmentVariableSubstitutor(false)
-      )
-    )
-    // Register Scala module to Dropwizard default object mapper
-    bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
-
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
+    ServiceBootstrap.configure(bootstrap)
+    ServiceBootstrap.initDatabase()
   }
 
   override def run(
@@ -66,7 +45,7 @@ class NotebookMigrationService
 
     environment.jersey.register(classOf[HealthCheckResource])
 
-    NotebookMigrationService.registerAuthFeatures(environment)
+    AuthFeatures.register(environment)
 
     environment.jersey.register(classOf[NotebookMigrationResource])
 
@@ -80,34 +59,10 @@ class NotebookMigrationService
   }
 }
 object NotebookMigrationService {
-  // Registers JWT auth, @Auth injection, and @RolesAllowed enforcement.
-  // Mirrors the other Dropwizard services' registerAuthFeatures so they don't drift apart.
-  def registerAuthFeatures(environment: Environment): Unit = {
-    // Register JWT authentication filter
-    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
-    environment.jersey.register(classOf[UnauthorizedExceptionMapper])
-
-    // Enable @Auth annotation for injecting SessionUser
-    environment.jersey.register(
-      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
+  def main(args: Array[String]): Unit =
+    ServiceBootstrap.start(
+      new NotebookMigrationService,
+      "notebook-migration-service",
+      "notebook-migration-service-web-config.yaml"
     )
-
-    // Enforce @RolesAllowed annotations on resource methods
-    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
-  }
-
-  def main(args: Array[String]): Unit = {
-    val notebookMigrationPath = Path
-      .of(sys.env.getOrElse("TEXERA_HOME", "."))
-      .resolve("notebook-migration-service")
-      .resolve("src")
-      .resolve("main")
-      .resolve("resources")
-      .resolve("notebook-migration-service-web-config.yaml")
-      .toAbsolutePath
-      .toString
-
-    // Start the Dropwizard application
-    new NotebookMigrationService().run("server", notebookMigrationPath)
-  }
 }

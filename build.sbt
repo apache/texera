@@ -122,6 +122,12 @@ lazy val Config = (project in file("common/config")).settings(commonModuleSettin
 lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings)
 lazy val Auth = (project in file("common/auth"))
   .settings(commonModuleSettings)
+  .settings(
+    // ServiceBootstrapSpec exercises ServiceBootstrap.initDatabase, which mutates the
+    // JVM-wide SqlServer singleton that ComputingUnitAccessSpec also relies on. Run this
+    // module's suites serially so the two can't clobber each other's connection.
+    Test / parallelExecution := false
+  )
   .configs(Test)
   .dependsOn(DAO, Config)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
@@ -141,7 +147,11 @@ lazy val AccessControlService = (project in file("access-control-service"))
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
-    )
+    ),
+    // AccessControlServiceRunSpec's initialize test opens the JVM-wide SqlServer
+    // singleton that the DB-backed AccessControlResourceSpec also relies on; run
+    // the suites serially so they can't clobber each other's connection.
+    Test / parallelExecution := false
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test")
@@ -247,8 +257,13 @@ lazy val NotebookMigrationService = (project in file("notebook-migration-service
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
-    )
+    ),
+    // NotebookMigrationServiceRunSpec's initialize test opens the JVM-wide SqlServer
+    // singleton that the DB-backed NotebookMigrationResourceSpec also relies on; run
+    // the suites serially so they can't clobber each other's connection.
+    Test / parallelExecution := false
   )
+  .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 
 // root project definition

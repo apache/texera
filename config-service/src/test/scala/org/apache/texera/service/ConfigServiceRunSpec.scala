@@ -19,10 +19,17 @@
 
 package org.apache.texera.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.dropwizard.configuration.ConfigurationSourceProvider
+import io.dropwizard.core.setup.Bootstrap
 import org.apache.texera.auth.RoleAnnotationEnforcer
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.util.control.NonFatal
 
 class ConfigServiceRunSpec extends AnyFlatSpec with Matchers {
 
@@ -31,5 +38,19 @@ class ConfigServiceRunSpec extends AnyFlatSpec with Matchers {
     RoleAnnotationEnforcer.findUnannotatedEndpoints(
       Seq(classOf[ConfigResource], classOf[HealthCheckResource])
     ) shouldBe empty
+  }
+
+  "ConfigService.initialize" should "run the shared bootstrap configuration and database setup" in {
+    val bootstrap = mock(classOf[Bootstrap[ConfigServiceConfiguration]])
+    when(bootstrap.getObjectMapper).thenReturn(mock(classOf[ObjectMapper]))
+    when(bootstrap.getConfigurationSourceProvider)
+      .thenReturn(mock(classOf[ConfigurationSourceProvider]))
+
+    // initialize() also opens the SQL pool, which needs a live database that a bare unit
+    // run lacks, so tolerate a failure after the config wiring asserted below.
+    try new ConfigService().initialize(bootstrap)
+    catch { case NonFatal(_) => }
+
+    verify(bootstrap).setConfigurationSourceProvider(any(classOf[ConfigurationSourceProvider]))
   }
 }
