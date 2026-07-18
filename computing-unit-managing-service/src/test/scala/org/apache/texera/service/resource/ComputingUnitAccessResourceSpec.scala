@@ -212,6 +212,6 @@ class ComputingUnitAccessResourceSpec
       accessResource.getOwner(ownerSession, nonExistentCuid)
     }
     ex.getResponse.getStatus shouldEqual 404
-    ex.getMessage should include("Computing unit does not exist")
+    ex.getMessage should include(s"Computing unit with cuid=$nonExistentCuid does not exist")
   }
 }

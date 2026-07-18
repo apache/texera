@@ -216,7 +216,8 @@ class ComputingUnitAccessResource {
       if (unit == null) {
         // JAX-RS exception so it maps to 404: the service registers no ExceptionMapper
         // for IllegalArgumentException, which would otherwise surface as an HTTP 500.
-        throw new NotFoundException("Computing unit does not exist")
+        // Message style matches ComputingUnitManagingResource's nonexistent-unit error.
+        throw new NotFoundException(s"Computing unit with cuid=$cuid does not exist.")
       }
 
       val uid = unit.getUid
