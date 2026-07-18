@@ -20,7 +20,7 @@
 package org.apache.texera.amber.core.storage.result.iceberg
 
 import org.apache.texera.amber.core.storage.IcebergCatalogInstance
-import org.apache.texera.amber.core.storage.LocalHadoopIcebergCatalog
+import org.apache.texera.amber.core.storage.LocalInMemoryIcebergCatalog
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil
@@ -37,9 +37,9 @@ import java.util.UUID
 import java.util.zip.ZipInputStream
 
 /**
-  * Unit-level tests for [[IcebergDocument]] running against a local Hadoop-backed
+  * Unit-level tests for [[IcebergDocument]] running against a local in-memory
   * Iceberg catalog (temp `file:/` warehouse) installed into the shared
-  * `IcebergCatalogInstance` singleton via [[LocalHadoopIcebergCatalog]].
+  * `IcebergCatalogInstance` singleton via [[LocalInMemoryIcebergCatalog]].
   *
   * `IcebergDocument` reads its catalog from `IcebergCatalogInstance.getInstance()`,
   * so the catalog must be installed before any document access. Each test creates a
@@ -64,7 +64,7 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    LocalHadoopIcebergCatalog.ensure()
+    LocalInMemoryIcebergCatalog.ensure()
   }
 
   private def freshTableName(): String =

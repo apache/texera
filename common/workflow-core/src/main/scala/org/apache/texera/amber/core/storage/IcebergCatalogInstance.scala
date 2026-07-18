@@ -44,11 +44,6 @@ object IcebergCatalogInstance {
       case Some(catalog) => catalog
       case None =>
         val catalog = StorageConfig.icebergCatalogType match {
-          case "hadoop" =>
-            IcebergUtil.createHadoopCatalog(
-              "texera_iceberg",
-              StorageConfig.fileStorageDirectoryPath
-            )
           case "rest" =>
             IcebergUtil.createRestCatalog(
               "texera_iceberg",

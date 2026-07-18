@@ -27,7 +27,7 @@ import org.apache.iceberg.catalog.{Catalog, SupportsNamespaces, TableIdentifier}
 import org.apache.iceberg.data.parquet.GenericParquetReaders
 import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.aws.s3.S3FileIO
-import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
+import org.apache.iceberg.hadoop.HadoopFileIO
 import org.apache.iceberg.io.{CloseableIterator, InputFile}
 import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
@@ -84,34 +84,6 @@ object IcebergUtil {
       conf.setBoolean("fs.file.impl.disable.cache", true)
     }
     conf
-  }
-
-  /**
-    * Creates and initializes a HadoopCatalog with the given parameters.
-    * - Uses the Hadoop `Configuration` from [[newLocalHadoopConf]], meaning the local
-    * file system (or `file:/`) will be used by default instead of HDFS.
-    * - The `warehouse` parameter specifies the root directory for storing table data.
-    * - Sets the file I/O implementation to `HadoopFileIO`.
-    *
-    * @param catalogName the name of the catalog.
-    * @param warehouse   the root path for the warehouse where the tables are stored.
-    * @return the initialized HadoopCatalog instance.
-    */
-  def createHadoopCatalog(
-      catalogName: String,
-      warehouse: Path
-  ): HadoopCatalog = {
-    val catalog = new HadoopCatalog()
-    catalog.setConf(newLocalHadoopConf()) // Defaults to `file:/`, no HDFS
-    catalog.initialize(
-      catalogName,
-      Map(
-        "warehouse" -> warehouse.toString,
-        CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName
-      ).asJava
-    )
-
-    catalog
   }
 
   /**
