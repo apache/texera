@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.bulletChart
 
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 
@@ -36,7 +36,16 @@ class BulletChartStepDefinition {
   @JsonSchemaTitle("End")
   var end: EncodableString = ""
 
-  def this(start: EncodableString, end: EncodableString) = {
+  // @JsonCreator on the two-arg constructor (params carry @JsonProperty) so
+  // Jackson deserializes step objects via it, while the no-arg primary ctor is
+  // kept for callers that build-then-set (e.g. BulletChartOpDescSpec). Upstream
+  // merged a BulletChartStepDefinitionSpec that asserts this @JsonCreator ctor
+  // exists; our fork's class predated it without the annotation.
+  @JsonCreator
+  def this(
+      @JsonProperty("start") start: EncodableString,
+      @JsonProperty("end") end: EncodableString
+  ) = {
     this()
     this.start = start
     this.end = end
