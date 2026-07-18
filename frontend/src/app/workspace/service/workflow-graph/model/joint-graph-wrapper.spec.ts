@@ -832,7 +832,7 @@ describe("JointGraphWrapperService", () => {
       (jointGraphWrapper as any).elementPositions.delete(mockScanPredicate.operatorID);
 
       // trigger position change with missing oldPosition
-      operator.position(100, 100);
+      operator.position(150, 150);
 
       // restore position tracking
       (jointGraphWrapper as any).elementPositions.set(mockScanPredicate.operatorID, {
