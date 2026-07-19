@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784466375073,
+  "lastUpdate": 1784466377568,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -18102,6 +18102,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 2122028.39,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "80c45be89dbbc64abafe0f70a1c05ef7117fbaa8",
+          "message": "fix(amber): run Iceberg local storage on Windows in the Python worker (#6545)\n\n### What changes were proposed in this PR?\n\nFollow-up to #6488, which made Iceberg local storage work on Windows\nwithout\nwinutils **on the Scala/JVM side only** (`IcebergUtil` +\n`WinutilsFreeLocalFileSystem`).\nThe Python UDF worker writes its output-port Iceberg storage through its\n**own**\npyiceberg path — `core/storage/iceberg/iceberg_document.py` and\n`document_factory.py`\ncall `IcebergCatalogInstance.get_instance()` → `create_postgres_catalog`\ninside the\nPython process — so #6488 does not reach it. On a Windows dev machine\nwith a\nlocal-filesystem warehouse (`postgres` catalog type), that path fails\ntwo ways:\n\n| # | Symptom | Root cause |\n|---|---|---|\n| 1 | `ValueError: Unrecognized filesystem type in URI: c` at table\ncreation | a bare drive path `C:\\...` is parsed by pyiceberg as URI\nscheme `c` |\n| 2 | `OSError: [WinError 123] ... The filename, directory name, or\nvolume label syntax is incorrect` | even a `file:///C:/...` URI is\nrejected by pyiceberg's default **pyarrow** FileIO (`/C:/...`) |\n\nFix (in `iceberg_utils.py`, mirroring #6488's tight, self-gating\napproach):\n\n| Change | Detail |\n|---|---|\n| `_is_windows_local_warehouse(warehouse)` (new) | True only when the\nwarehouse carries a **Windows drive letter** — bare (`C:\\...`, `C:/...`)\nor `file:///C:/...`. Excludes POSIX paths, colon-stripped paths\n(`C/...`), and remote object stores (`s3://...`). |\n| `_to_file_uri(warehouse)` (new) | Normalizes a bare drive path to a\n`file:///` URI via `PureWindowsPath.as_posix()` — not `.as_uri()`, which\nwould percent-encode a space to `%20` (deterministic on every host OS);\nalready-URI values pass through. |\n| `create_postgres_catalog` | When (and only when) the warehouse is\nWindows-local, register the normalized `file:///` URI and select\n`pyiceberg.io.fsspec.FsspecFileIO`, whose `LocalFileSystem` handles\nWindows drive paths. |\n| `create_rest_catalog` | Unchanged — its `warehouse_name` is a logical\nidentifier resolved server-side via `S3FileIO`, not a local path\n(checked, exempt). |\n\nThe gate is deliberately narrow so the fix cannot alter the\ncross-runtime\nwarehouse convention that Linux, macOS, CI, and the Scala engine rely\non: PyIceberg\npersists the `warehouse` value into table metadata, so a `postgres`\ncatalog with a\nPOSIX or remote warehouse must keep the plain-path / default-FileIO\nbehavior\n(regression fixed in #4409). Only genuine Windows drive-letter\nwarehouses are\nnormalized.\n\nThe drive path is normalized with `PureWindowsPath.as_posix()` (not\n`.as_uri()`)\nso a warehouse containing a space — e.g. `C:\\Users\\John Doe\\...`,\n`C:\\Program\nFiles\\...`, OneDrive-redirected profiles — keeps a **raw** space rather\nthan\n`%20`; fsspec's `LocalFileSystem` does not URL-decode, so a `%20` would\nwrite\ninto a literally `%20`-named directory.\n\nScope note: on Windows the two runtimes register different warehouse\nstrings into\nthe shared `postgres` catalog — the Scala side its existing\ncolon-stripped path\n(`C/Users/...`), the Python worker the absolute `file:///C:/...` URI.\nThis is fine\nfor the actual data flow here (a Python UDF's output-port table is\nwritten by the\nPython worker and read back by the engine/result service via the\nabsolute metadata\npointer, verified end-to-end); reconciling the Scala side's\ncolon-stripped\nconvention is out of scope for this fix and would belong with #6488's\nfollow-ups.\n\nBefore → after:\n\n| Environment (`postgres` catalog) | Before | After |\n|---|---|---|\n| Windows, local warehouse (`C:\\...`) | worker crashes at first table\ncreate | works |\n| Linux / macOS / CI, local warehouse (`/tmp/...`) | works | unchanged\n(gate off) |\n| Any host, remote warehouse (`s3://...`) | works | unchanged (gate off)\n|\n| `rest` catalog | unaffected (`S3FileIO`) | unaffected |\n\n### Any related issues, documentation, discussions?\n\nFollow-up to #6488 (Scala/JVM side); closes the Python-worker half of\n#6487.\nPreserves the cross-runtime warehouse invariant from #4409.\n\n### How was this PR tested?\n\n- New `TestCreatePostgresCatalogWindowsLocal` in\n`test_iceberg_utils_catalog.py`\n(written first, TDD): a Windows drive-letter warehouse is normalized to\na\n`file:///` URI and `FsspecFileIO` is selected; POSIX, colon-stripped,\nand\nremote (`s3://`) warehouses are left untouched (no FileIO override). The\ntests\nassert on the computed `SqlCatalog` props and use `PureWindowsPath`, so\nthey are\n  OS-independent and pass on Linux CI.\n- The pre-existing `TestCreatePostgresCatalog` tests (the #4409\nplain-path\n  invariant) still pass unchanged.\n- Verified end-to-end on a real Windows filesystem: a bare `C:\\...`\nwarehouse\nfed through the productionized helpers into a real catalog creates a\ntable and\nround-trips rows (both failure modes above reproduced on stock `main`\nfirst).\n- `amber/` `ruff check` and `ruff format --check` pass on the changed\nfiles.\n(The `test_iceberg_document.py` / REST integration tests require a live\npostgres / REST catalog server and are environment-gated locally; they\nare\nunaffected by this change — confirmed identical pass/fail with the diff\nstashed.)\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-07-19T06:02:30Z",
+          "url": "https://github.com/apache/texera/commit/80c45be89dbbc64abafe0f70a1c05ef7117fbaa8"
+        },
+        "date": 1784466376998,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 15164.347,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 19060.507,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 22461.841,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 74537.731,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 83165.586,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 87906.374,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 707035.795,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 749909.235,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 765496.905,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 10439.818,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 12416.877,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 14731.124,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 73692.485,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 80692.711,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 87505.296,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 703567.479,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 748843.381,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 760252.236,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 10929.004,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 12795.505,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 15587.598,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 73700.322,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 81092.488,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 87589.82,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 718082.982,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 754323.972,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 801066.67,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 12733.218,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 15760.783,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 18403.935,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 94653.622,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 104851.113,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 143983.367,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 889946.376,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 939988.411,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 971948.59,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 12700.113,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 13905.639,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 16827.561,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 96972.402,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 103503.139,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 117884.186,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 930049.054,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 975247.847,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 992551.225,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 12334.702,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 16374.919,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 18483.826,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 95791.796,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 102715.877,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 148498.169,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 915614.376,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 976667.071,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1026294.015,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 21566.521,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 24239.795,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 30689.08,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 173105.419,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 183082.409,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 205423.01,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1745626.069,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1825476.659,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1863315.618,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 21534.708,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 23543.745,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 29687.31,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 177086.571,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 190871.228,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 220246.116,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1738777.577,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1793437.736,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1828107.559,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 21229.204,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 24450.438,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 26239.472,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 183444.524,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 198650.862,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 217205.158,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1794003.815,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1889328.695,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1918459.813,
             "unit": "us"
           }
         ]
