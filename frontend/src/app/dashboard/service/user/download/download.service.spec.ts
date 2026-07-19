@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { DownloadService } from "./download.service";
+import { DownloadService, EXPORT_BASE_URL } from "./download.service";
 import { DatasetService } from "../dataset/dataset.service";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -27,6 +27,13 @@ import { WorkflowPersistService } from "../../../../common/service/workflow-pers
 import { firstValueFrom, lastValueFrom, of, throwError } from "rxjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
+import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
+import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
+
+function computingUnit(type: string, cuid: number): DashboardWorkflowComputingUnit {
+  return { computingUnit: { cuid, type } } as unknown as DashboardWorkflowComputingUnit;
+}
+const EXPORT_OPERATORS = [{ id: "op1", outputType: "csv" }];
 
 describe("DownloadService", () => {
   let downloadService: DownloadService;
@@ -277,5 +284,145 @@ describe("DownloadService", () => {
 
     const map = await promise;
     expect(map).toEqual({ "op-1": ["my-dataset"], "op-2": [] });
+  });
+
+  // ─── exportWorkflowResultToDataset ────────────────────────────────────────
+
+  it("POSTs the dataset export request and returns the response body", async () => {
+    const promise = lastValueFrom(
+      downloadService.exportWorkflowResultToDataset(
+        "csv",
+        1,
+        "WF",
+        EXPORT_OPERATORS,
+        [7],
+        0,
+        0,
+        "out.csv",
+        computingUnit("local", 5)
+      )
+    );
+
+    const req = httpMock.expectOne(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/dataset`);
+    expect(req.request.method).toBe("POST");
+    expect(req.request.body).toMatchObject({
+      exportType: "csv",
+      workflowId: 1,
+      datasetIds: [7],
+      filename: "out.csv",
+      computingUnitId: 5,
+    });
+    expect(req.request.headers.get("Accept")).toBe("application/json");
+    req.flush({ status: "ok", message: "done" });
+
+    const res = await promise;
+    expect(res.body).toEqual({ status: "ok", message: "done" });
+  });
+
+  it("appends the cuid query param for a kubernetes computing unit", () => {
+    downloadService
+      .exportWorkflowResultToDataset(
+        "csv",
+        1,
+        "WF",
+        EXPORT_OPERATORS,
+        [7],
+        0,
+        0,
+        "out.csv",
+        computingUnit("kubernetes", 9)
+      )
+      .subscribe();
+
+    const req = httpMock.expectOne(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/dataset?cuid=9`);
+    expect(req.request.method).toBe("POST");
+    req.flush({ status: "ok", message: "done" });
+  });
+
+  // ─── exportWorkflowResultToLocal ──────────────────────────────────────────
+
+  describe("exportWorkflowResultToLocal", () => {
+    let submitSpy: ReturnType<typeof vi.spyOn>;
+    let setTimeoutSpy: ReturnType<typeof vi.spyOn>;
+    let cleanup: (() => void) | undefined;
+
+    beforeEach(() => {
+      // Stub form.submit (jsdom does not implement it) so we can assert it fired, and
+      // capture the 10s cleanup callback instead of scheduling a real timer that could
+      // fire during a later test (a leaked timer is flaky). Fake timers are avoided
+      // because they make localStorage unavailable in this environment.
+      submitSpy = vi.spyOn(HTMLFormElement.prototype, "submit").mockImplementation(() => {});
+      cleanup = undefined;
+      setTimeoutSpy = vi.spyOn(window, "setTimeout").mockImplementation((handler: TimerHandler) => {
+        cleanup = handler as () => void;
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      });
+      // localStorage is not available in this jsdom service-test environment; stub it so
+      // the method can read the auth token deterministically.
+      vi.stubGlobal("localStorage", {
+        getItem: vi.fn().mockReturnValue("tok-123"),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      });
+    });
+
+    afterEach(() => {
+      submitSpy.mockRestore();
+      setTimeoutSpy.mockRestore();
+      vi.unstubAllGlobals();
+      document
+        .querySelectorAll('form[target="download-iframe"], iframe[name="download-iframe"]')
+        .forEach(el => el.remove());
+    });
+
+    it("builds and submits a hidden form carrying the request and token, then cleans up on timeout", () => {
+      downloadService.exportWorkflowResultToLocal(
+        "csv",
+        1,
+        "WF",
+        EXPORT_OPERATORS,
+        0,
+        0,
+        "out.csv",
+        computingUnit("local", 5)
+      );
+
+      const form = document.querySelector('form[target="download-iframe"]') as HTMLFormElement;
+      expect(form).toBeTruthy();
+      expect(form.getAttribute("action")).toBe(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local`);
+      expect(form.method).toBe("post");
+      expect(submitSpy).toHaveBeenCalledTimes(1);
+
+      const requestInput = form.querySelector('input[name="request"]') as HTMLInputElement;
+      expect(JSON.parse(requestInput.value)).toMatchObject({
+        exportType: "csv",
+        workflowId: 1,
+        computingUnitId: 5,
+        datasetIds: [],
+      });
+      expect((form.querySelector('input[name="token"]') as HTMLInputElement).value).toBe("tok-123");
+
+      // Running the captured cleanup callback removes the form and the iframe.
+      expect(document.querySelector('iframe[name="download-iframe"]')).toBeTruthy();
+      cleanup?.();
+      expect(document.querySelector('form[target="download-iframe"]')).toBeNull();
+      expect(document.querySelector('iframe[name="download-iframe"]')).toBeNull();
+    });
+
+    it("targets the cuid-scoped endpoint for a kubernetes computing unit", () => {
+      downloadService.exportWorkflowResultToLocal(
+        "csv",
+        1,
+        "WF",
+        EXPORT_OPERATORS,
+        0,
+        0,
+        "out.csv",
+        computingUnit("kubernetes", 9)
+      );
+
+      const form = document.querySelector('form[target="download-iframe"]') as HTMLFormElement;
+      expect(form.getAttribute("action")).toBe(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local?cuid=9`);
+    });
   });
 });
