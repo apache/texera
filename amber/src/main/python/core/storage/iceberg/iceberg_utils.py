@@ -64,8 +64,9 @@ def _is_windows_local_warehouse(warehouse: str) -> bool:
     text = str(warehouse)
     if _WINDOWS_DRIVE_PATH.match(text):
         return True
-    if text.startswith("file://"):
-        return bool(_WINDOWS_DRIVE_PATH.match(urlparse(text).path.lstrip("/")))
+    parsed = urlparse(text)
+    if parsed.scheme.lower() == "file":  # `file` URI schemes are case-insensitive
+        return bool(_WINDOWS_DRIVE_PATH.match(parsed.path.lstrip("/")))
     return False
 
 

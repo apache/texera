@@ -102,9 +102,9 @@ class TestCreatePostgresCatalog:
         assert kwargs["warehouse"] == warehouse_path
 
 
-# FileIO selected for Windows-local warehouses in place of the default pyarrow
-# FileIO; its fsspec LocalFileSystem parses Windows drive paths.
-_FSSPEC_FILE_IO = "pyiceberg.io.fsspec.FsspecFileIO"
+# Reference the production constant (the fsspec FileIO selected for Windows-local
+# warehouses) rather than duplicating its literal, so the tests cannot drift from it.
+_FSSPEC_FILE_IO = iceberg_utils._FSSPEC_FILE_IO
 
 
 class TestCreatePostgresCatalogWindowsLocal:
@@ -196,6 +196,16 @@ class TestCreatePostgresCatalogWindowsLocal:
         assert kwargs["warehouse"] == "file:///C:/Users/texera/warehouse"
         assert kwargs["py-io-impl"] == _FSSPEC_FILE_IO
 
+    def test_uppercase_file_scheme_with_drive_is_detected(self):
+        """
+        `file` URI schemes are case-insensitive, so `FILE:///C:/...` must be
+        detected as Windows-local (and select `FsspecFileIO`) too.
+        """
+        kwargs = self._make("FILE:///C:/Users/texera/warehouse")
+
+        assert kwargs["warehouse"] == "FILE:///C:/Users/texera/warehouse"
+        assert kwargs["py-io-impl"] == _FSSPEC_FILE_IO
+
     def test_posix_absolute_path_is_untouched(self):
         """
         A POSIX warehouse (Linux/macOS/CI) must keep the plain-path convention
@@ -237,4 +247,11 @@ class TestCreatePostgresCatalogWindowsLocal:
         kwargs = self._make("file:///tmp/texera/iceberg-warehouse")
 
         assert kwargs["warehouse"] == "file:///tmp/texera/iceberg-warehouse"
+        assert "py-io-impl" not in kwargs
+
+    def test_empty_warehouse_is_untouched(self):
+        """An empty warehouse is treated as non-Windows-local (default FileIO)."""
+        kwargs = self._make("")
+
+        assert kwargs["warehouse"] == ""
         assert "py-io-impl" not in kwargs
