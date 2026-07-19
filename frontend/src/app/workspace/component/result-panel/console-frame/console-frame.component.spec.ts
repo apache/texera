@@ -173,7 +173,7 @@ describe("ConsoleFrameComponent", () => {
   });
 
   describe("debug controls", () => {
-    it("onClickContinue steps every worker via the debug service", () => {
+    it("onClickContinue continues every worker via the debug service", () => {
       component.operatorId = "op1";
       component.workerIds = ["w-1", "w-2"];
 
