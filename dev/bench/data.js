@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784380403428,
+  "lastUpdate": 1784466375073,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -5131,6 +5131,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 487.8403398758089,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "80c45be89dbbc64abafe0f70a1c05ef7117fbaa8",
+          "message": "fix(amber): run Iceberg local storage on Windows in the Python worker (#6545)\n\n### What changes were proposed in this PR?\n\nFollow-up to #6488, which made Iceberg local storage work on Windows\nwithout\nwinutils **on the Scala/JVM side only** (`IcebergUtil` +\n`WinutilsFreeLocalFileSystem`).\nThe Python UDF worker writes its output-port Iceberg storage through its\n**own**\npyiceberg path — `core/storage/iceberg/iceberg_document.py` and\n`document_factory.py`\ncall `IcebergCatalogInstance.get_instance()` → `create_postgres_catalog`\ninside the\nPython process — so #6488 does not reach it. On a Windows dev machine\nwith a\nlocal-filesystem warehouse (`postgres` catalog type), that path fails\ntwo ways:\n\n| # | Symptom | Root cause |\n|---|---|---|\n| 1 | `ValueError: Unrecognized filesystem type in URI: c` at table\ncreation | a bare drive path `C:\\...` is parsed by pyiceberg as URI\nscheme `c` |\n| 2 | `OSError: [WinError 123] ... The filename, directory name, or\nvolume label syntax is incorrect` | even a `file:///C:/...` URI is\nrejected by pyiceberg's default **pyarrow** FileIO (`/C:/...`) |\n\nFix (in `iceberg_utils.py`, mirroring #6488's tight, self-gating\napproach):\n\n| Change | Detail |\n|---|---|\n| `_is_windows_local_warehouse(warehouse)` (new) | True only when the\nwarehouse carries a **Windows drive letter** — bare (`C:\\...`, `C:/...`)\nor `file:///C:/...`. Excludes POSIX paths, colon-stripped paths\n(`C/...`), and remote object stores (`s3://...`). |\n| `_to_file_uri(warehouse)` (new) | Normalizes a bare drive path to a\n`file:///` URI via `PureWindowsPath.as_posix()` — not `.as_uri()`, which\nwould percent-encode a space to `%20` (deterministic on every host OS);\nalready-URI values pass through. |\n| `create_postgres_catalog` | When (and only when) the warehouse is\nWindows-local, register the normalized `file:///` URI and select\n`pyiceberg.io.fsspec.FsspecFileIO`, whose `LocalFileSystem` handles\nWindows drive paths. |\n| `create_rest_catalog` | Unchanged — its `warehouse_name` is a logical\nidentifier resolved server-side via `S3FileIO`, not a local path\n(checked, exempt). |\n\nThe gate is deliberately narrow so the fix cannot alter the\ncross-runtime\nwarehouse convention that Linux, macOS, CI, and the Scala engine rely\non: PyIceberg\npersists the `warehouse` value into table metadata, so a `postgres`\ncatalog with a\nPOSIX or remote warehouse must keep the plain-path / default-FileIO\nbehavior\n(regression fixed in #4409). Only genuine Windows drive-letter\nwarehouses are\nnormalized.\n\nThe drive path is normalized with `PureWindowsPath.as_posix()` (not\n`.as_uri()`)\nso a warehouse containing a space — e.g. `C:\\Users\\John Doe\\...`,\n`C:\\Program\nFiles\\...`, OneDrive-redirected profiles — keeps a **raw** space rather\nthan\n`%20`; fsspec's `LocalFileSystem` does not URL-decode, so a `%20` would\nwrite\ninto a literally `%20`-named directory.\n\nScope note: on Windows the two runtimes register different warehouse\nstrings into\nthe shared `postgres` catalog — the Scala side its existing\ncolon-stripped path\n(`C/Users/...`), the Python worker the absolute `file:///C:/...` URI.\nThis is fine\nfor the actual data flow here (a Python UDF's output-port table is\nwritten by the\nPython worker and read back by the engine/result service via the\nabsolute metadata\npointer, verified end-to-end); reconciling the Scala side's\ncolon-stripped\nconvention is out of scope for this fix and would belong with #6488's\nfollow-ups.\n\nBefore → after:\n\n| Environment (`postgres` catalog) | Before | After |\n|---|---|---|\n| Windows, local warehouse (`C:\\...`) | worker crashes at first table\ncreate | works |\n| Linux / macOS / CI, local warehouse (`/tmp/...`) | works | unchanged\n(gate off) |\n| Any host, remote warehouse (`s3://...`) | works | unchanged (gate off)\n|\n| `rest` catalog | unaffected (`S3FileIO`) | unaffected |\n\n### Any related issues, documentation, discussions?\n\nFollow-up to #6488 (Scala/JVM side); closes the Python-worker half of\n#6487.\nPreserves the cross-runtime warehouse invariant from #4409.\n\n### How was this PR tested?\n\n- New `TestCreatePostgresCatalogWindowsLocal` in\n`test_iceberg_utils_catalog.py`\n(written first, TDD): a Windows drive-letter warehouse is normalized to\na\n`file:///` URI and `FsspecFileIO` is selected; POSIX, colon-stripped,\nand\nremote (`s3://`) warehouses are left untouched (no FileIO override). The\ntests\nassert on the computed `SqlCatalog` props and use `PureWindowsPath`, so\nthey are\n  OS-independent and pass on Linux CI.\n- The pre-existing `TestCreatePostgresCatalog` tests (the #4409\nplain-path\n  invariant) still pass unchanged.\n- Verified end-to-end on a real Windows filesystem: a bare `C:\\...`\nwarehouse\nfed through the productionized helpers into a real catalog creates a\ntable and\nround-trips rows (both failure modes above reproduced on stock `main`\nfirst).\n- `amber/` `ruff check` and `ruff format --check` pass on the changed\nfiles.\n(The `test_iceberg_document.py` / REST integration tests require a live\npostgres / REST catalog server and are environment-gated locally; they\nare\nunaffected by this change — confirmed identical pass/fail with the diff\nstashed.)\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-07-19T06:02:30Z",
+          "url": "https://github.com/apache/texera/commit/80c45be89dbbc64abafe0f70a1c05ef7117fbaa8"
+        },
+        "date": 1784466374495,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 641.0323950826678,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1330.7297494005013,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1410.7476660700545,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 942.0592887556938,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1346.0708234693989,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1418.3581213681846,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 902.63933913611,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1340.097663187225,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1395.1794508407363,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 762.0160470185604,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1052.9471370073677,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1118.0432012069487,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 784.5324983767346,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1031.000425506299,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1073.6836160456676,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 780.8181986909177,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1034.8309668052061,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1088.0195773518133,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 454.67137516279945,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 571.9502972831795,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 571.8528558708039,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 456.949757590941,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 557.4881711497828,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 576.0766694212174,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 460.86832772181054,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 540.9749447663148,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 554.5056675831621,
             "unit": "tuples/sec"
           }
         ]
