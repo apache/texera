@@ -158,6 +158,10 @@ describe("AdminSettingsComponent", () => {
     });
 
     afterEach(() => {
+      // nz-icon lazily fetches its SVG assets over HTTP; drain those so verify()
+      // only asserts on the requests the handlers under test actually issue.
+      httpTestingController.match(req => req.url.startsWith("assets/")).forEach(req => req.flush(""));
+      httpTestingController.verify();
       vi.useRealTimers();
       vi.restoreAllMocks();
     });
@@ -240,8 +244,14 @@ describe("AdminSettingsComponent", () => {
 
         component.saveTabs();
 
-        const firstTab = Object.keys(component.sidebarTabs)[0];
-        httpTestingController.expectOne(updateUrl(firstTab)).flush("boom", HTTP_ERROR);
+        // Fail the last request; forkJoin errors only after the earlier ones
+        // have resolved, so every issued PUT is flushed (none left pending).
+        const tabs = Object.keys(component.sidebarTabs);
+        tabs.forEach((tab, i) => {
+          const req = httpTestingController.expectOne(updateUrl(tab));
+          if (i === tabs.length - 1) req.flush("boom", HTTP_ERROR);
+          else req.flush(null);
+        });
         expect(msgError).toHaveBeenCalledWith("Failed to save tabs.");
       });
 
@@ -303,7 +313,18 @@ describe("AdminSettingsComponent", () => {
 
         component.saveDatasetSettings();
 
-        httpTestingController.expectOne(updateUrl("max_number_of_concurrent_uploading_file")).flush("boom", HTTP_ERROR);
+        // Fail the last of the four PUTs so forkJoin errors with every request flushed.
+        const keys = [
+          "max_number_of_concurrent_uploading_file",
+          "single_file_upload_max_size_mib",
+          "max_number_of_concurrent_uploading_file_chunks",
+          "multipart_upload_chunk_size_mib",
+        ];
+        keys.forEach((key, i) => {
+          const req = httpTestingController.expectOne(updateUrl(key));
+          if (i === keys.length - 1) req.flush("boom", HTTP_ERROR);
+          else req.flush(null);
+        });
         expect(msgError).toHaveBeenCalledWith("Failed to save dataset settings.");
       });
 
@@ -379,8 +400,8 @@ describe("AdminSettingsComponent", () => {
             queueMicrotask(() => this.onload?.({ target: { result: dataUrl } }));
           }
         }
-        const OriginalFileReader = globalThis.FileReader;
-        globalThis.FileReader = FakeFileReader as unknown as typeof FileReader;
+        const realFileReader = globalThis.FileReader;
+        (globalThis as any).FileReader = FakeFileReader;
 
         try {
           const event = {
@@ -392,7 +413,7 @@ describe("AdminSettingsComponent", () => {
 
           expect(component.miniLogoData).toBe(dataUrl);
         } finally {
-          globalThis.FileReader = OriginalFileReader;
+          (globalThis as any).FileReader = realFileReader;
         }
       });
     });
