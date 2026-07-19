@@ -24,12 +24,19 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { of } from "rxjs";
 import type { Mocked } from "vitest";
-import * as Plotly from "plotly.js-basic-dist-min";
 import { ExecutionQuota } from "../../../../common/type/user";
 import { DatasetQuota } from "../../../type/quota-statistic.interface";
 
-// Plotly is a read-only ESM namespace (can't be spied on), so mock the whole module.
-vi.mock("plotly.js-basic-dist-min", () => ({ newPlot: vi.fn() }));
+// Real Plotly renders into a DOM element by id; create one and assert on the
+// `data`/`layout` Plotly attaches to that graph div. (Module-level mocking of
+// plotly.js-basic-dist-min was flaky across the CI matrix — the mock did not
+// always intercept, letting the real newPlot throw "No DOM element with id".)
+function chartDiv(id: string): void {
+  document.getElementById(id)?.remove(); // avoid duplicate ids across reruns/retries
+  const div = document.createElement("div");
+  div.id = id;
+  document.body.appendChild(div);
+}
 
 // ISO 'YYYY-MM-DD' for a date `days` before now (kept by the 1-year filter for small values).
 function isoDaysAgo(days: number): string {
@@ -211,9 +218,8 @@ describe("UserQuotaComponent", () => {
   });
 
   describe("chart generation", () => {
-    it("generatePieChart passes labels/values and the sizing layout to Plotly", () => {
-      const newPlot = vi.mocked(Plotly.newPlot);
-      newPlot.mockClear();
+    it("generatePieChart renders the labels/values and sizing layout onto the target div", () => {
+      chartDiv("pieDiv");
 
       component.generatePieChart(
         [
@@ -224,20 +230,15 @@ describe("UserQuotaComponent", () => {
         "pieDiv"
       );
 
-      expect(newPlot).toHaveBeenCalledTimes(1);
-      const [chartId, data, layout] = newPlot.mock.calls[0];
-      expect(chartId).toBe("pieDiv");
-      expect(data).toEqual([{ values: [1, 2], labels: ["a", "b"], type: "pie" }]);
-      expect(layout).toMatchObject({
-        height: component.DEFAULT_PIE_CHART_HEIGHT,
-        width: component.DEFAULT_PIE_CHART_WIDTH,
-        title: { text: "Pie Title" },
-      });
+      const gd = document.getElementById("pieDiv") as unknown as { data: any[]; layout: any };
+      expect(gd.data[0]).toMatchObject({ values: [1, 2], labels: ["a", "b"], type: "pie" });
+      expect(gd.layout.width).toBe(component.DEFAULT_PIE_CHART_WIDTH);
+      expect(gd.layout.height).toBe(component.DEFAULT_PIE_CHART_HEIGHT);
+      expect(gd.layout.title).toMatchObject({ text: "Pie Title" });
     });
 
-    it("generateLineChart passes x/y series and the axis labels to Plotly", () => {
-      const newPlot = vi.mocked(Plotly.newPlot);
-      newPlot.mockClear();
+    it("generateLineChart renders the x/y series and axis labels onto the target div", () => {
+      chartDiv("lineDiv");
 
       component.generateLineChart(
         [
@@ -250,15 +251,11 @@ describe("UserQuotaComponent", () => {
         "lineDiv"
       );
 
-      expect(newPlot).toHaveBeenCalledTimes(1);
-      const [chartId, data, layout] = newPlot.mock.calls[0];
-      expect(chartId).toBe("lineDiv");
-      expect(data).toEqual([{ x: ["2024-01-01", "2024-01-02"], y: [1, 3], type: "scatter" }]);
-      expect(layout).toMatchObject({
-        title: { text: "Line Title" },
-        xaxis: { title: { text: "X Label" } },
-        yaxis: { title: { text: "Y Label" } },
-      });
+      const gd = document.getElementById("lineDiv") as unknown as { data: any[]; layout: any };
+      expect(gd.data[0]).toMatchObject({ x: ["2024-01-01", "2024-01-02"], y: [1, 3], type: "scatter" });
+      expect(gd.layout.title).toMatchObject({ text: "Line Title" });
+      expect(gd.layout.xaxis.title).toMatchObject({ text: "X Label" });
+      expect(gd.layout.yaxis.title).toMatchObject({ text: "Y Label" });
     });
   });
 });
