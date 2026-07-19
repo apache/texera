@@ -2250,10 +2250,10 @@ class TestMainLoop:
         first = MainLoop("worker-first", InternalQueue(), InternalQueue())
         second = MainLoop("worker-second", InternalQueue(), InternalQueue())
         try:
-            # The first loop loads EchoOperator and is intentionally left
-            # "unfinished": its temp fs is never closed, so its udf module and
-            # sys.path entry linger exactly as a crashed / never-completed
-            # worker's would.
+            # The first loop loads EchoOperator and is intentionally left "unfinished"
+            # until after the second loop is initialized: its temp fs is not closed yet,
+            # so its udf module and sys.path entry linger exactly as a crashed /
+            # never-completed worker's would.
             first.context.executor_manager.initialize_executor(
                 echo_code, is_source=False, language="python"
             )
