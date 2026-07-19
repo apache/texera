@@ -2258,6 +2258,7 @@ class TestMainLoop:
                 echo_code, is_source=False, language="python"
             )
             first_cls = type(first.context.executor_manager.executor).__name__
+            first_module = first.context.executor_manager.operator_module_name
             assert first_cls == "EchoOperator"
 
             # The second loop asks for a DIFFERENT class. It must get that
@@ -2267,7 +2268,18 @@ class TestMainLoop:
                 count_code, is_source=False, language="python"
             )
             second_cls = type(second.context.executor_manager.executor).__name__
+            second_module = second.context.executor_manager.operator_module_name
             assert second_cls == "CountBatchOperator"
+
+            # The module names themselves must be process-globally unique -- a
+            # per-instance counter would name both loops' first executor
+            # "udf-v1" and reintroduce the sys.modules collision. Asserting the
+            # names differ ties the guard directly to the root cause, not just
+            # the (downstream) loaded class.
+            assert first_module != second_module, (
+                "executor module names must be process-globally unique; "
+                f"both loops used {first_module!r}"
+            )
         finally:
             first.context.executor_manager.close()
             second.context.executor_manager.close()
