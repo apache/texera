@@ -37,9 +37,9 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
 // inputs/outputs the parent template binds so change-detection compiles.
 @Component({
   selector: "texera-user-project-list-item",
+  standalone: true,
   template: "",
 })
-class StubUserProjectListItemComponent {
   @Input() entry?: DashboardProject;
   @Input() editable = false;
   @Input() uid?: number;
