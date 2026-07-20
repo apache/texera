@@ -186,4 +186,37 @@ describe("FilesUploaderComponent", () => {
     expect(modals).toHaveLength(1);
     expect(component.fileUploadBannerType).toBe("success");
   });
+
+  it("showFileUploadBanner marks uploading finished and stores the given type and message", () => {
+    // preconditions: fresh component starts hidden with the default "success" type and empty message
+    expect(component.fileUploadingFinished).toBe(false);
+    expect(component.fileUploadBannerType).toBe("success");
+    expect(component.fileUploadBannerMessage).toBe("");
+
+    component.showFileUploadBanner("error", "3 files failed to be selected.");
+
+    expect(component.fileUploadingFinished).toBe(true);
+    expect(component.fileUploadBannerType).toBe("error");
+    expect(component.fileUploadBannerMessage).toBe("3 files failed to be selected.");
+  });
+
+  it("showFileUploadBanner overwrites the previously shown banner on a second call", () => {
+    component.showFileUploadBanner("error", "first message");
+    component.showFileUploadBanner("info", "second message");
+
+    expect(component.fileUploadingFinished).toBe(true);
+    expect(component.fileUploadBannerType).toBe("info");
+    expect(component.fileUploadBannerMessage).toBe("second message");
+  });
+
+  it("hideBanner clears only the finished flag, leaving the last banner type and message intact", () => {
+    component.showFileUploadBanner("warning", "heads up");
+
+    component.hideBanner();
+
+    expect(component.fileUploadingFinished).toBe(false);
+    // hideBanner resets visibility only; it does not touch type or message
+    expect(component.fileUploadBannerType).toBe("warning");
+    expect(component.fileUploadBannerMessage).toBe("heads up");
+  });
 });
