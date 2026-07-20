@@ -547,6 +547,7 @@
               nz-button
               nzType="text"
               title="Delete"
+              [disabled]="!isOwner"
               (nzOnConfirm)="onDeleteDataset()"
               nz-popconfirm
               nzPopconfirmTitle="Confirm to delete this dataset.">

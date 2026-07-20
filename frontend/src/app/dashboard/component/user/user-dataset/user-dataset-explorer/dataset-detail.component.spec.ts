@@ -1117,4 +1117,38 @@ describe("DatasetDetailComponent behavior", () => {
       expect(navigateSpy).not.toHaveBeenCalled();
     });
   });
+
+  describe("delete button disabled state", () => {
+    // The Settings tab (and its Delete card) only render for WRITE access; the
+    // delete button itself is owner-only, mirroring the Downloadable switch's
+    // [nzDisabled]="!isOwner". Renders WRITE access with the given ownership,
+    // activates the (inactive) Settings tab so its pane is in the DOM, then
+    // returns the delete button element.
+    const renderDeleteButton = (isOwner: boolean): HTMLButtonElement => {
+      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset({ accessPrivilege: "WRITE", isOwner })));
+      createComponent();
+      fixture.detectChanges();
+
+      const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
+      const settingsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Settings"));
+      settingsTab?.click();
+      fixture.detectChanges();
+
+      return fixture.nativeElement.querySelector('button[title="Delete"]') as HTMLButtonElement;
+    };
+
+    it("disables the delete button for a non-owner with write access", () => {
+      const button = renderDeleteButton(false);
+
+      expect(button).toBeTruthy();
+      expect(button.disabled).toBe(true);
+    });
+
+    it("enables the delete button for the owner", () => {
+      const button = renderDeleteButton(true);
+
+      expect(button).toBeTruthy();
+      expect(button.disabled).toBe(false);
+    });
+  });
 });
