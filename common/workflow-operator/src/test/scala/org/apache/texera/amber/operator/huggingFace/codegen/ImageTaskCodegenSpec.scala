@@ -133,7 +133,7 @@ class ImageTaskCodegenSpec extends AnyFlatSpec with Matchers {
   it should "extract chat and generated-text shapes for the text-producing image tasks" in {
     val out = ImageTaskCodegen.parsePython(makeCtx())
     out should include("""body["choices"][0]["message"]["content"]""")
-    out should include("""body.get("answer"""")
+    out should include("""body.get("answer", json.dumps(body))""")
     out should include("generated_text")
   }
 
