@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.ws.rs.{BadRequestException, ForbiddenException}
+import jakarta.ws.rs.{BadRequestException, ForbiddenException, NotFoundException}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.ComputingUnitConfig
 import org.apache.texera.dao.MockTexeraDB
@@ -90,6 +90,7 @@ class ComputingUnitAccessResourceSpec
   }
 
   private val nonExistentEmail: String = "nobody@test.com"
+  private val nonExistentCuid: Integer = 999999
 
   lazy val accessResource = new ComputingUnitAccessResource()
 
@@ -200,5 +201,17 @@ class ComputingUnitAccessResourceSpec
     }
     ex.getResponse.getStatus shouldEqual 403
     ex.getMessage should include("does not have permission to revoke access")
+  }
+
+  // ===========================================================================
+  // getOwner
+  // ===========================================================================
+
+  "getOwner" should "reject a nonexistent computing unit with a 404 instead of crashing" in {
+    val ex = intercept[NotFoundException] {
+      accessResource.getOwner(ownerSession, nonExistentCuid)
+    }
+    ex.getResponse.getStatus shouldEqual 404
+    ex.getMessage should include(s"Computing unit with cuid=$nonExistentCuid does not exist")
   }
 }
