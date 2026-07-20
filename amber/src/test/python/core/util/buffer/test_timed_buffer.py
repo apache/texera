@@ -172,4 +172,4 @@ class TestDefaults:
         buffer = TimedBuffer()
         assert buffer._max_message_num == 10
         assert buffer._max_flush_interval_in_ms == 500
-        assert buffer._buffer == []
+        assert len(buffer._buffer) == 0
