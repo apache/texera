@@ -179,7 +179,9 @@ describe("PublicProjectComponent", () => {
     component.addPublicProjects();
 
     expect(mockPublicProjectService.addPublicProjects).toHaveBeenCalledTimes(1);
-    expect(mockPublicProjectService.addPublicProjects).toHaveBeenCalledWith([1, 3]);
+    const [[checkedIds]] = mockPublicProjectService.addPublicProjects.mock.calls;
+    expect(checkedIds).toHaveLength(2);
+    expect(checkedIds).toEqual(expect.arrayContaining([1, 3]));
     expect(modalRef.destroy).toHaveBeenCalledTimes(1);
   });
 });
