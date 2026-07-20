@@ -55,7 +55,14 @@ describe("assert", () => {
   });
 
   it("throws with an empty message when none is provided", () => {
-    expect(() => assert(false)).toThrow();
+    let err: unknown;
+    try {
+      assert(false);
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toBe("");
   });
 });
 
