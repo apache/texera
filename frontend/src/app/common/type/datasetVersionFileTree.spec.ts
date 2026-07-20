@@ -211,6 +211,20 @@ describe("DatasetVersionFileTreeManager", () => {
       expect(dir.children!.map(child => child.name)).toEqual(["file2.txt"]);
     });
 
+    it("removes a whole subtree when removing a directory path", () => {
+      const file: DatasetFileNode = { name: "f.txt", type: "file", parentDir: "/dir/sub" };
+      const subDir: DatasetFileNode = { name: "sub", type: "directory", parentDir: "/dir", children: [file] };
+      const dir: DatasetFileNode = { name: "dir", type: "directory", parentDir: "/", children: [subDir] };
+      const manager = new DatasetVersionFileTreeManager([dir]);
+
+      manager.removeNodeWithPath("/dir/sub");
+      expect(dir.children).toEqual([]);
+
+      // Removing a descendant path after the subtree is gone is also a no-op.
+      manager.removeNodeWithPath("/dir/sub/f.txt");
+      expect(dir.children).toEqual([]);
+    });
+
     it("does nothing for an unknown path", () => {
       const dir: DatasetFileNode = {
         name: "dir",
