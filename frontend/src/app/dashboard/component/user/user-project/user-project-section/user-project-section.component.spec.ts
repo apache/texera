@@ -324,7 +324,11 @@ describe("UserProjectSectionComponent", () => {
 
       fixture.detectChanges();
 
-      // getProjectList runs after retrieveProject, so its matching-pid values win
+      // In production both are independent HTTP calls with no guaranteed completion order.
+      // Here the result is deterministic only because both mocks emit synchronously via of(...),
+      // so the getProjectList subscription (registered after retrieveProject in the component)
+      // resolves last and its matching-pid values overwrite. This test pins that mocked ordering,
+      // not a production ordering guarantee.
       expect(component.name).toBe("FromList");
       expect(component.description).toBe("list description");
       expect(component.ownerID).toBe(42);
