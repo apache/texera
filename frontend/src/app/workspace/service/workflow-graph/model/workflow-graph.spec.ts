@@ -39,12 +39,10 @@ describe("WorkflowGraph", () => {
   });
 
   afterEach(() => {
-    // tear down the underlying shared model (awareness / websocket provider) to avoid leaks across tests
-    try {
-      workflowGraph.destroyYModel();
-    } catch (e) {
-      // already destroyed (e.g. by a test that called destroyYModel/loadNewYModel) - ignore
-    }
+    // Tear down the underlying shared model (awareness / websocket provider) to avoid leaks across tests.
+    // No test leaves the per-test workflowGraph destroyed (loadNewYModel installs a fresh model; the one
+    // destroyYModel() call is on a separate local graph), so let any teardown failure surface here.
+    workflowGraph.destroyYModel();
   });
 
   it("should have an empty graph from the beginning", () => {
