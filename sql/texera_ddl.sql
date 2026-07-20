@@ -92,7 +92,7 @@ CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN'
 CREATE TYPE action_enum AS ENUM ('like', 'unlike', 'view', 'clone');
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
 CREATE TYPE workflow_computing_unit_type_enum AS ENUM ('local', 'kubernetes');
-CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE');
+CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE', 'FACEBOOK');
 
 -- ============================================
 -- 5. Create tables
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS auth_provider
 (
     uid               INT                 NOT NULL,
     provider_type     provider_type_enum  NOT NULL,
-    provider_id       VARCHAR(256),          -- external subject id (Google sub); NULL for LOCAL
+    provider_id       VARCHAR(256),          -- external subject id (e.g. Google sub, Facebook id); NULL for LOCAL
     password          VARCHAR(256),          -- hashed credential; only for LOCAL
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (uid, provider_type),
@@ -125,9 +125,9 @@ CREATE TABLE IF NOT EXISTS auth_provider
     CONSTRAINT uq_provider_identity UNIQUE (provider_type, provider_id),
     CONSTRAINT ck_provider_credential CHECK (
         (provider_type = 'LOCAL'  AND password    IS NOT NULL AND provider_id IS NULL) OR
-        (provider_type = 'GOOGLE' AND provider_id IS NOT NULL AND password    IS NULL)
+        (provider_type != 'LOCAL' AND provider_id IS NOT NULL AND password    IS NULL)
     )
-    );
+);
 
 -- user_config
 CREATE TABLE IF NOT EXISTS user_config

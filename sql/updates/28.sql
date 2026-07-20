@@ -26,7 +26,7 @@ BEGIN;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'provider_type_enum') THEN
-        CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE');
+        CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE', 'FACEBOOK');
     END IF;
 END
 $$;
@@ -35,7 +35,7 @@ $$;
 CREATE TABLE IF NOT EXISTS auth_provider (
     uid               INT                 NOT NULL,
     provider_type     provider_type_enum  NOT NULL,
-    provider_id       VARCHAR(256),          -- external subject id (Google sub); NULL for LOCAL
+    provider_id       VARCHAR(256),          -- external subject id (e.g. Google sub, Facebook id); NULL for LOCAL
     password          VARCHAR(256),          -- hashed credential; only for LOCAL
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
 
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS auth_provider (
     -- credential shape must match the provider (replaces the old ck_nulltest)
     CONSTRAINT ck_provider_credential CHECK (
         (provider_type = 'LOCAL'  AND password    IS NOT NULL AND provider_id IS NULL) OR
-        (provider_type = 'GOOGLE' AND provider_id IS NOT NULL AND password    IS NULL)
+        (provider_type != 'LOCAL' AND provider_id IS NOT NULL AND password    IS NULL)
     )
 );
 

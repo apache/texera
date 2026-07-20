@@ -175,7 +175,9 @@ import { BreakpointConditionInputComponent } from "./workspace/component/code-ed
 import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
 import { AgentInteractionComponent } from "./workspace/component/agent/agent-interaction/agent-interaction.component";
 import { GoogleAuthService } from "./common/service/user/google-auth.service";
+import { FacebookAuthService } from "./common/service/user/facebook-auth.service";
 import {
+  FacebookLoginProvider,
   GoogleLoginProvider,
   GoogleSigninButtonModule,
   SocialAuthServiceConfig,
@@ -393,17 +395,28 @@ registerLocaleData(en);
     },
     {
       provide: "SocialAuthServiceConfig",
-      useFactory: (googleAuthService: GoogleAuthService, userService: UserService) => {
-        return lastValueFrom(googleAuthService.getClientId()).then(clientId => ({
+      useFactory: (
+        googleAuthService: GoogleAuthService,
+        facebookAuthService: FacebookAuthService,
+        userService: UserService
+      ) => {
+        return Promise.all([
+          lastValueFrom(googleAuthService.getClientId()),
+          lastValueFrom(facebookAuthService.getClientId()),
+        ]).then(([googleClientId, facebookClientId]) => ({
           providers: [
             {
               id: GoogleLoginProvider.PROVIDER_ID,
-              provider: new GoogleLoginProvider(clientId, { oneTapEnabled: !userService.isLogin() }),
+              provider: new GoogleLoginProvider(googleClientId, { oneTapEnabled: !userService.isLogin() }),
+            },
+            {
+              id: FacebookLoginProvider.PROVIDER_ID,
+              provider: new FacebookLoginProvider(facebookClientId),
             },
           ],
         })) as Promise<SocialAuthServiceConfig>;
       },
-      deps: [GoogleAuthService, UserService],
+      deps: [GoogleAuthService, FacebookAuthService, UserService],
     },
     {
       provide: APP_INITIALIZER,
