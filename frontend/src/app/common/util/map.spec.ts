@@ -33,7 +33,7 @@ describe("mapToRecord", () => {
     expect(mapToRecord(new Map())).toEqual({});
   });
 
-  it("keeps the last value when JSON serialization would collapse it (order preserved on write)", () => {
+  it("overwrites an existing key with the latest value", () => {
     const map = new Map<string, any>();
     map.set("x", 1);
     map.set("y", 2);
