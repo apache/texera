@@ -38,12 +38,19 @@ class WinutilsFreeLocalFileSystemSpec extends AnyFlatSpec {
     FileSystem.get(URI.create("file:///"), conf)
   }
 
-  "WinutilsFreeLocalFileSystem" should "be selected through fs.file.impl" in {
-    assert(newFs().isInstanceOf[WinutilsFreeLocalFileSystem])
+  // Caching is disabled, so every newFs() is a fresh instance that must be closed to
+  // avoid leaking file handles across tests (especially on Windows). Loan-pattern helper.
+  private def withFs(test: FileSystem => Unit): Unit = {
+    val fs = newFs()
+    try test(fs)
+    finally fs.close()
   }
 
-  it should "create directories and read/write files without winutils" in {
-    val fs = newFs()
+  "WinutilsFreeLocalFileSystem" should "be selected through fs.file.impl" in withFs { fs =>
+    assert(fs.isInstanceOf[WinutilsFreeLocalFileSystem])
+  }
+
+  it should "create directories and read/write files without winutils" in withFs { fs =>
     val tmp = Files.createTempDirectory("winutils-free-fs")
     val dir = new Path(tmp.toUri.toString, "a/b/c")
     assert(fs.mkdirs(dir))
@@ -63,8 +70,7 @@ class WinutilsFreeLocalFileSystemSpec extends AnyFlatSpec {
     assert(fs.delete(file, false))
   }
 
-  it should "not fail on setPermission" in {
-    val fs = newFs()
+  it should "not fail on setPermission" in withFs { fs =>
     val tmp = Files.createTempDirectory("winutils-free-fs-perm")
     val file = new Path(tmp.toUri.toString, "perm.txt")
     fs.create(file, true).close()
@@ -72,8 +78,7 @@ class WinutilsFreeLocalFileSystemSpec extends AnyFlatSpec {
     fs.setPermission(file, new FsPermission("755"))
   }
 
-  it should "not fail on setOwner" in {
-    val fs = newFs()
+  it should "not fail on setOwner" in withFs { fs =>
     val tmp = Files.createTempDirectory("winutils-free-fs-owner")
     val file = new Path(tmp.toUri.toString, "owner.txt")
     fs.create(file, true).close()

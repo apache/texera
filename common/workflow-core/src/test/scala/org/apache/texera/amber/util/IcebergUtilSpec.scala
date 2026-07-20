@@ -307,9 +307,10 @@ class IcebergUtilSpec extends AnyFlatSpec {
     val conf = IcebergUtil.newLocalHadoopConf(useWinutilsFreeLocalFs = true)
     assert(conf.get("fs.file.impl") == classOf[WinutilsFreeLocalFileSystem].getName)
     assert(conf.getBoolean("fs.file.impl.disable.cache", false))
-    assert(
-      FileSystem.get(URI.create("file:///"), conf).isInstanceOf[WinutilsFreeLocalFileSystem]
-    )
+    // Caching is disabled, so this is a fresh instance that must be closed to avoid leaking handles.
+    val fs = FileSystem.get(URI.create("file:///"), conf)
+    try assert(fs.isInstanceOf[WinutilsFreeLocalFileSystem])
+    finally fs.close()
   }
 
   it should "leave the Hadoop configuration untouched when winutils is not needed" in {
@@ -321,23 +322,30 @@ class IcebergUtilSpec extends AnyFlatSpec {
   it should "create and load tables via createHadoopCatalog in a local warehouse on every platform" in {
     val warehouse = Files.createTempDirectory("iceberg-local-warehouse")
     val catalog = IcebergUtil.createHadoopCatalog("local_test", warehouse)
+    try {
+      // On Windows hosts without a winutils.exe installation, this used to fail with
+      // "Hadoop bin directory does not exist": Hadoop's default local file system
+      // shells out to winutils for chmod on every file/directory creation.
+      IcebergUtil.createTable(
+        catalog,
+        "test_namespace",
+        "test_table",
+        IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER)),
+        overrideIfExists = true
+      )
 
-    // On Windows hosts without a winutils.exe installation, this used to fail with
-    // "Hadoop bin directory does not exist": Hadoop's default local file system
-    // shells out to winutils for chmod on every file/directory creation.
-    IcebergUtil.createTable(
-      catalog,
-      "test_namespace",
-      "test_table",
-      IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER)),
-      overrideIfExists = true
-    )
-
-    assert(
-      Files.exists(warehouse.resolve("test_namespace").resolve("test_table").resolve("metadata")),
-      "table metadata must be written through the local file system"
-    )
-    assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").nonEmpty)
+      assert(
+        Files.exists(warehouse.resolve("test_namespace").resolve("test_table").resolve("metadata")),
+        "table metadata must be written through the local file system"
+      )
+      assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").nonEmpty)
+    } finally {
+      // Close the catalog (and its underlying Hadoop FileSystem) to avoid leaking handles across the suite.
+      catalog match {
+        case closeable: AutoCloseable => closeable.close()
+        case _                        =>
+      }
+    }
   }
 
   it should "surface RESTException when createRestCatalog cannot reach the REST endpoint" in {
