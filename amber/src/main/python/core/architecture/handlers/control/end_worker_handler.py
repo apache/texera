@@ -18,7 +18,7 @@
 from loguru import logger
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.util import IQueue
+from core.models.internal_queue import InternalQueue
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
     EmptyReturn,
     EmptyRequest,
@@ -37,11 +37,13 @@ class EndWorkerHandler(ControlHandler):
         has finished not only the data processing logic, but also the processing
         of all the control messages.
         """
-        # Ensure this is really the last message.
-        input_queue: IQueue = self.context.input_queue
-        if not input_queue.is_empty():
+        # Ensure this is really the last message. Read the queued count once (InternalQueue
+        # exposes size(); the base IQueue interface does not) and branch on it.
+        input_queue: InternalQueue = self.context.input_queue
+        queued_count = input_queue.size()
+        if queued_count > 0:
             logger.warning(
-                f"Received EndWorker before all {len(input_queue)} queued "
+                f"Received EndWorker before all {queued_count} queued "
                 f"message(s) were processed; failing the RPC so the coordinator "
                 f"retries once the queue has drained."
             )
