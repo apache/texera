@@ -27,9 +27,8 @@ export function isDefined<T>(val: T | undefined | null): val is T {
 }
 
 /**
- * checks that the given value is a real object, guarding against the
- * JavaScript quirk that `typeof null === "object"` (a bare `typeof`
- * check would admit null).
+ * checks that the given value is a non-null object in the `typeof` sense,
+ * guarding against the JavaScript quirk that `typeof null === "object"`.
  * @param x
  * @returns {boolean}
  */
