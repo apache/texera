@@ -25,9 +25,9 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
-import { of, throwError } from "rxjs";
+import { Observable, of, throwError } from "rxjs";
 import { ExecutionState } from "../../types/execute-workflow.interface";
-import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { DownloadService, ExportWorkflowJsonResponse } from "src/app/dashboard/service/user/download/download.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
@@ -93,7 +93,12 @@ describe("WorkflowResultExportService", () => {
     ewSpy.getExecutionState.mockReturnValue({ state: ExecutionState.Completed });
 
     const wrSpy = { hasAnyResult: vi.fn(), getResultService: vi.fn(), getPaginatedResultService: vi.fn() };
-    const downloadSpy = { downloadOperatorsResult: vi.fn() };
+    const downloadSpy = {
+      downloadOperatorsResult: vi.fn(),
+      getWorkflowResultDownloadability: vi.fn(),
+      exportWorkflowResultToDataset: vi.fn(),
+      exportWorkflowResultToLocal: vi.fn(),
+    };
     downloadSpy.downloadOperatorsResult.mockReturnValue(of(new Blob()));
 
     const datasetSpy = { retrieveAccessibleDatasets: vi.fn() };
@@ -125,6 +130,12 @@ describe("WorkflowResultExportService", () => {
     workflowResultServiceSpy = TestBed.inject(WorkflowResultService) as unknown as Mocked<WorkflowResultService>;
     downloadServiceSpy = TestBed.inject(DownloadService) as unknown as Mocked<DownloadService>;
     datasetServiceSpy = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
+
+    // Reset the GuiConfig to a known baseline (export disabled) so tests that
+    // enable it via enableExport() do not leak state and become order-dependent.
+    (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+      exportExecutionResultEnabled: false,
+    });
   });
 
   it("should be created", () => {
@@ -157,25 +168,28 @@ describe("WorkflowResultExportService", () => {
     downloadability?: Record<string, string[]>;
     datasetResponse?: HttpResponse<unknown>;
     datasetError?: unknown;
-  }): {
-    getWorkflowResultDownloadability: ReturnType<typeof vi.fn>;
-    exportWorkflowResultToDataset: ReturnType<typeof vi.fn>;
-    exportWorkflowResultToLocal: ReturnType<typeof vi.fn>;
-  } {
-    const getWorkflowResultDownloadability = vi.fn().mockReturnValue(of(overrides?.downloadability ?? {}));
-    const exportWorkflowResultToDataset = vi
+  }): Pick<
+    Mocked<DownloadService>,
+    "getWorkflowResultDownloadability" | "exportWorkflowResultToDataset" | "exportWorkflowResultToLocal"
+  > {
+    downloadServiceSpy.getWorkflowResultDownloadability.mockReturnValue(of(overrides?.downloadability ?? {}));
+    downloadServiceSpy.exportWorkflowResultToDataset.mockReturnValue(
+      (overrides?.datasetError !== undefined
+        ? throwError(() => overrides.datasetError)
+        : of(
+            overrides?.datasetResponse ?? new HttpResponse({ body: { status: "success", message: "ok" } })
+          )) as Observable<HttpResponse<ExportWorkflowJsonResponse>>
+    );
+    // determineOutputExtension echoes the requested export type so the stubbed
+    // outputType stays coherent with the format passed to each export call.
+    (workflowResultServiceSpy as any).determineOutputExtension = vi
       .fn()
-      .mockReturnValue(
-        overrides?.datasetError !== undefined
-          ? throwError(() => overrides.datasetError)
-          : of(overrides?.datasetResponse ?? new HttpResponse({ body: { status: "success", message: "ok" } }))
-      );
-    const exportWorkflowResultToLocal = vi.fn();
-    (downloadServiceSpy as any).getWorkflowResultDownloadability = getWorkflowResultDownloadability;
-    (downloadServiceSpy as any).exportWorkflowResultToDataset = exportWorkflowResultToDataset;
-    (downloadServiceSpy as any).exportWorkflowResultToLocal = exportWorkflowResultToLocal;
-    (workflowResultServiceSpy as any).determineOutputExtension = vi.fn().mockReturnValue("csv");
-    return { getWorkflowResultDownloadability, exportWorkflowResultToDataset, exportWorkflowResultToLocal };
+      .mockImplementation((_operatorId: string, exportType: string) => exportType);
+    return {
+      getWorkflowResultDownloadability: downloadServiceSpy.getWorkflowResultDownloadability,
+      exportWorkflowResultToDataset: downloadServiceSpy.exportWorkflowResultToDataset,
+      exportWorkflowResultToLocal: downloadServiceSpy.exportWorkflowResultToLocal,
+    };
   }
 
   describe("computeRestrictionAnalysis", () => {
@@ -367,7 +381,7 @@ describe("WorkflowResultExportService", () => {
         "json",
         "workflow1",
         "wf",
-        [{ id: "op1", outputType: "csv" }],
+        [{ id: "op1", outputType: "json" }],
         3,
         4,
         "local-file",
