@@ -214,7 +214,10 @@ case class PhysicalOp(
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None,
     // name of the PVE to execute within
-    pveName: String = ""
+    pveName: String = "",
+    // dataset version to FUSE-mount into the computing unit before this operator's
+    // Python workers start, encoded as "<repositoryName>:<commitHash>"; empty = no mount
+    mountDataset: String = ""
 ) extends LazyLogging {
 
   // all the "dependee" links are also blocking
@@ -391,6 +394,10 @@ case class PhysicalOp(
 
   def withPveName(name: String): PhysicalOp = {
     this.copy(pveName = name)
+  }
+
+  def withMountDataset(locator: String): PhysicalOp = {
+    this.copy(mountDataset = locator)
   }
 
   /**

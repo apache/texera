@@ -19,6 +19,7 @@ import fs
 import importlib
 import inspect
 import itertools
+import os
 import sys
 from cached_property import cached_property
 from fs.base import FS
@@ -104,6 +105,14 @@ class ExecutorManager:
         # from the tmp fs we just wrote — no re-import / reload dance.
         executor_module = importlib.import_module(module_name)
         self.operator_module_name = module_name
+
+        # Expose the FUSE-mounted dataset path (set by texera_run_python_worker
+        # from the worker startup config) to the UDF code as a module-level
+        # variable, unless the UDF defines its own.
+        if not hasattr(executor_module, "MOUNTED_DATASET_PATH"):
+            executor_module.MOUNTED_DATASET_PATH = os.environ.get(
+                "MOUNTED_DATASET_PATH", ""
+            )
 
         executors = list(
             filter(self.is_concrete_operator, executor_module.__dict__.values())

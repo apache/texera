@@ -58,6 +58,7 @@ EXPECTED_CONFIG_KEYS = frozenset(
     {
         "workerId",
         "outputPort",
+        "mountedDatasetPath",
         "loggerLevel",
         "rPath",
         "icebergCatalogType",
@@ -144,6 +145,15 @@ def main(raw_config: str) -> None:
         import os
 
         os.environ["R_HOME"] = r_path
+
+    # Expose the FUSE-mounted dataset path (if any) so UDF code can read the
+    # mounted dataset from the local file system (see ExecutorManager, which
+    # also injects it into the UDF module as MOUNTED_DATASET_PATH).
+    mounted_dataset_path = config["mountedDatasetPath"]
+    if mounted_dataset_path:
+        import os
+
+        os.environ["MOUNTED_DATASET_PATH"] = mounted_dataset_path
 
     PythonWorker(
         worker_id=config["workerId"],

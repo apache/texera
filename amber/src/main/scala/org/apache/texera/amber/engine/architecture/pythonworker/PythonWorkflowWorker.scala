@@ -35,6 +35,7 @@ import org.apache.texera.amber.engine.architecture.pythonworker.WorkerBatchInter
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import org.apache.texera.amber.engine.architecture.scheduling.config.WorkerConfig
+import org.apache.texera.amber.engine.common.DatasetMountManager
 import org.apache.texera.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import org.apache.texera.amber.engine.common.ambermessage._
@@ -84,13 +85,15 @@ object PythonWorkflowWorker {
       workerId: String,
       outputPort: String,
       rPath: String,
-      largeBinaryBaseUri: String
+      largeBinaryBaseUri: String,
+      mountedDatasetPath: String = ""
   ): Seq[(String, String)] = {
     val isPostgres = StorageConfig.icebergCatalogType == "postgres"
     val isRest = StorageConfig.icebergCatalogType == "rest"
     Seq(
       "workerId" -> workerId,
       "outputPort" -> outputPort,
+      "mountedDatasetPath" -> mountedDatasetPath,
       "loggerLevel" -> UdfConfig.pythonLogStreamHandlerLevel,
       "rPath" -> rPath,
       "icebergCatalogType" -> StorageConfig.icebergCatalogType,
@@ -251,6 +254,15 @@ class PythonWorkflowWorker(
 
     val pythonBin: String = choosePythonBin()
 
+    // FUSE-mount the requested dataset version (if any) before the Python process
+    // starts, so the mounted path can be handed to the UDF code.
+    val mountedDatasetPath: String =
+      if (workerConfig.mountDataset.nonEmpty) {
+        DatasetMountManager.ensureMounted(workerConfig.mountDataset).toString
+      } else {
+        ""
+      }
+
     // Pass startup configuration to the Python worker by name, as a single JSON
     // object, rather than by argv position. This way the two sides agree by key,
     // so adding/removing/reordering a field can no longer silently misassign
@@ -259,7 +271,8 @@ class PythonWorkflowWorker(
       workerConfig.workerId.name,
       Integer.toString(pythonProxyServer.getPortNumber.get()),
       RENVPath,
-      workerConfig.largeBinaryBaseUri
+      workerConfig.largeBinaryBaseUri,
+      mountedDatasetPath
     )
 
     pythonServerProcess = Process(

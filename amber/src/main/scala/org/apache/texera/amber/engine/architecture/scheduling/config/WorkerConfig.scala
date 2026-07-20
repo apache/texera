@@ -47,7 +47,8 @@ case object WorkerConfig {
         VirtualIdentityUtils.createWorkerIdentity(physicalOp.workflowId, physicalOp.id, idx),
         pveName = physicalOp.pveName,
         cuid = cuid,
-        largeBinaryBaseUri = LargeBinaryManager.baseUriForExecution(physicalOp.executionId.id)
+        largeBinaryBaseUri = LargeBinaryManager.baseUriForExecution(physicalOp.executionId.id),
+        mountDataset = physicalOp.mountDataset
       )
     )
   }
@@ -59,5 +60,8 @@ case class WorkerConfig(
     cuid: Option[Int] = None,
     // Coordinator-named, execution-scoped base URI under which this worker's large binaries
     // live; create() appends a unique suffix. Empty when large binaries are unconfigured.
-    largeBinaryBaseUri: String = ""
+    largeBinaryBaseUri: String = "",
+    // dataset version to FUSE-mount before the Python process starts,
+    // encoded as "<repositoryName>:<commitHash>"; empty = no mount
+    mountDataset: String = ""
 )

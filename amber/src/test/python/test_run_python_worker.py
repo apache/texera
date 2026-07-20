@@ -38,6 +38,7 @@ def _full_config() -> dict:
     return {
         "workerId": "worker-1",
         "outputPort": "5005",
+        "mountedDatasetPath": "",
         "loggerLevel": "INFO",
         "rPath": "",
         "icebergCatalogType": "postgres",
@@ -131,6 +132,31 @@ def test_main_mapping_is_independent_of_key_order():
     python_worker.assert_called_once_with(
         worker_id="worker-1", host="localhost", output_port=5005
     )
+
+
+def test_main_sets_mounted_dataset_path_when_present(monkeypatch):
+    monkeypatch.delenv("MOUNTED_DATASET_PATH", raising=False)
+    config = _full_config()
+    config["mountedDatasetPath"] = "/tmp/texera-dataset-mounts/dataset-1/abc123"
+    storage_patch, worker_patch, _logger_patch = _patched_collaborators()
+    with storage_patch, worker_patch, _logger_patch:
+        import os
+
+        entry.main(_encode(config))
+        assert (
+            os.environ["MOUNTED_DATASET_PATH"]
+            == "/tmp/texera-dataset-mounts/dataset-1/abc123"
+        )
+
+
+def test_main_leaves_mounted_dataset_path_unset_when_empty(monkeypatch):
+    monkeypatch.delenv("MOUNTED_DATASET_PATH", raising=False)
+    storage_patch, worker_patch, _logger_patch = _patched_collaborators()
+    with storage_patch, worker_patch, _logger_patch:
+        import os
+
+        entry.main(_encode(_full_config()))
+        assert "MOUNTED_DATASET_PATH" not in os.environ
 
 
 def test_main_sets_r_home_when_r_path_present(monkeypatch):

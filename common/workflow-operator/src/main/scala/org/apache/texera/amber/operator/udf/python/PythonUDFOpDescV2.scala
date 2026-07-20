@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithCode
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{Attribute, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
@@ -91,6 +92,15 @@ class PythonUDFOpDescV2 extends LogicalOp {
   )
   var outputColumns: List[Attribute] = List()
 
+  @JsonProperty()
+  @JsonSchemaTitle("Mount dataset")
+  @JsonPropertyDescription(
+    "FUSE-mount a dataset version into the computing unit's local file system " +
+      "(format: /ownerEmail/datasetName/versionName). The mounted directory is exposed " +
+      "to the UDF code as the variable MOUNTED_DATASET_PATH."
+  )
+  var mountDataset: String = ""
+
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
@@ -156,6 +166,14 @@ class PythonUDFOpDescV2 extends LogicalOp {
         trimmed
       }
 
+    // Resolve the dataset version to mount into a "<repositoryName>:<commitHash>" locator
+    val mountDatasetLocator =
+      if (mountDataset == null || mountDataset.trim.isEmpty) ""
+      else {
+        val (repositoryName, versionHash) = FileResolver.resolveDatasetVersion(mountDataset.trim)
+        s"$repositoryName:$versionHash"
+      }
+
     physicalOp
       .withDerivePartition(_ => UnknownPartition())
       .withInputPorts(operatorInfo.inputPorts)
@@ -164,6 +182,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
       .withIsOneToManyOp(true)
       .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
       .withPveName(pveName)
+      .withMountDataset(mountDatasetLocator)
   }
 
   override def operatorInfo: OperatorInfo = {

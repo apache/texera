@@ -179,6 +179,56 @@ object FileResolver {
   }
 
   /**
+    * Resolves a dataset version path to its LakeFS repository name and commit hash.
+    * Expected format: /ownerEmail/datasetName/versionName
+    *   e.g. /bob@texera.com/twitterDataset/v1
+    *
+    * @param datasetPath the dataset version path to resolve
+    * @throws java.io.FileNotFoundException if the dataset or version cannot be found
+    * @return (repositoryName, versionHash) of the dataset version
+    */
+  def resolveDatasetVersion(datasetPath: String): (String, String) = {
+    val path = Paths.get(datasetPath)
+    val segments = (0 until path.getNameCount).map(path.getName(_).toString)
+    if (segments.length < 3) {
+      throw new FileNotFoundException(
+        s"Dataset version path $datasetPath is invalid; expected /ownerEmail/datasetName/versionName."
+      )
+    }
+    val (ownerEmail, datasetName, versionName) = (segments(0), segments(1), segments(2))
+
+    withTransaction(
+      SqlServer
+        .getInstance()
+        .createDSLContext()
+    ) { ctx =>
+      val dataset = ctx
+        .select(DATASET.fields: _*)
+        .from(DATASET)
+        .leftJoin(USER)
+        .on(USER.UID.eq(DATASET.OWNER_UID))
+        .where(USER.EMAIL.eq(ownerEmail))
+        .and(DATASET.NAME.eq(datasetName))
+        .fetchOneInto(classOf[Dataset])
+
+      if (dataset == null) {
+        throw new FileNotFoundException(s"Dataset $datasetPath not found.")
+      }
+
+      val datasetVersion = ctx
+        .selectFrom(DATASET_VERSION)
+        .where(DATASET_VERSION.DID.eq(dataset.getDid))
+        .and(DATASET_VERSION.NAME.eq(versionName))
+        .fetchOneInto(classOf[DatasetVersion])
+
+      if (datasetVersion == null) {
+        throw new FileNotFoundException(s"Dataset version $datasetPath not found.")
+      }
+      (dataset.getRepositoryName, datasetVersion.getVersionHash)
+    }
+  }
+
+  /**
     * Checks if a given file path has a valid scheme.
     *
     * @param filePath The file path to check.
