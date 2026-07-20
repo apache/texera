@@ -28,7 +28,7 @@ describe("exhaustiveGuard", () => {
 
   it("includes the offending value in the error message", () => {
     expect(() => exhaustiveGuard("oops" as never)).toThrow(
-      "ERROR! Reached forbidden guard function with unexpected value: \"oops\""
+      'ERROR! Reached forbidden guard function with unexpected value: "oops"'
     );
   });
 
