@@ -20,6 +20,7 @@
 import { Component, EventEmitter, OnInit, Output, ViewChild } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { USER_DATASET } from "../../../../../app-routing.constant";
+import { extractErrorMessage } from "../../../../../common/util/error";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
   DatasetService,
@@ -951,7 +952,7 @@ export class DatasetDetailComponent implements OnInit {
           this.notificationService.success(`Dataset name updated to '${name}'`);
         },
         error: (err: unknown) => {
-          this.notificationService.error("Failed to update dataset name");
+          this.notificationService.error(extractErrorMessage(err));
         },
       });
   }
@@ -969,7 +970,7 @@ export class DatasetDetailComponent implements OnInit {
           this.router.navigate([USER_DATASET]);
         },
         error: (err: unknown) => {
-          this.notificationService.error("Failed to delete the dataset");
+          this.notificationService.error(extractErrorMessage(err));
         },
       });
   }

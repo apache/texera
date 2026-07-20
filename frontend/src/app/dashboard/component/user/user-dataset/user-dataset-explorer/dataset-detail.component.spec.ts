@@ -1065,7 +1065,7 @@ describe("DatasetDetailComponent behavior", () => {
       component.onSaveDatasetName();
 
       expect(component.datasetName).toBe("original");
-      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to update dataset name");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("boom");
     });
 
     it("does nothing when there is no did", () => {
@@ -1102,7 +1102,7 @@ describe("DatasetDetailComponent behavior", () => {
 
       component.onDeleteDataset();
 
-      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to delete the dataset");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("boom");
       expect(navigateSpy).not.toHaveBeenCalled();
     });
 
