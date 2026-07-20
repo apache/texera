@@ -50,6 +50,7 @@ from proto.org.apache.texera.amber.core import (
     OpExecInitInfo,
     EmbeddedControlMessageIdentity,
 )
+from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
@@ -2231,7 +2232,7 @@ class TestMainLoop:
     @pytest.mark.timeout(10)
     def test_two_main_loops_load_distinct_operator_classes(self):
         """
-        Two MainLoops created in the same process with DIFFERENT operator
+        Two worker Contexts created in the same process with DIFFERENT operator
         classes must each load exactly the class they were given.
 
         Regression test for executor-module contamination (#4705): executor
@@ -2243,32 +2244,38 @@ class TestMainLoop:
         wrong operator. This test uses NO monkeypatch of
         ``gen_module_file_name`` -- module names must be process-globally
         unique on their own.
+
+        The module-naming collision lives entirely in ``ExecutorManager``, which
+        each ``MainLoop`` owns via its ``Context``. We construct ``Context``
+        directly (rather than ``MainLoop``) so the regression is exercised
+        without spawning the per-loop ``DataProcessor`` daemon thread that a
+        full ``MainLoop`` would leave running for the rest of the test session.
         """
         echo_code = "from pytexera import *\n" + inspect.getsource(EchoOperator)
         count_code = "from pytexera import *\n" + inspect.getsource(CountBatchOperator)
 
-        first = MainLoop("worker-first", InternalQueue(), InternalQueue())
-        second = MainLoop("worker-second", InternalQueue(), InternalQueue())
+        first = Context("worker-first", InternalQueue())
+        second = Context("worker-second", InternalQueue())
         try:
             # The first loop loads EchoOperator and is intentionally left "unfinished"
             # until after the second loop is initialized: its temp fs is not closed yet,
             # so its udf module and sys.path entry linger exactly as a crashed /
             # never-completed worker's would.
-            first.context.executor_manager.initialize_executor(
+            first.executor_manager.initialize_executor(
                 echo_code, is_source=False, language="python"
             )
-            first_cls = type(first.context.executor_manager.executor).__name__
-            first_module = first.context.executor_manager.operator_module_name
+            first_cls = type(first.executor_manager.executor).__name__
+            first_module = first.executor_manager.operator_module_name
             assert first_cls == "EchoOperator"
 
             # The second loop asks for a DIFFERENT class. It must get that
             # class, not the first loop's EchoOperator via a udf module-name
             # collision in the shared sys.modules / sys.path.
-            second.context.executor_manager.initialize_executor(
+            second.executor_manager.initialize_executor(
                 count_code, is_source=False, language="python"
             )
-            second_cls = type(second.context.executor_manager.executor).__name__
-            second_module = second.context.executor_manager.operator_module_name
+            second_cls = type(second.executor_manager.executor).__name__
+            second_module = second.executor_manager.operator_module_name
             assert second_cls == "CountBatchOperator"
 
             # The module names themselves must be process-globally unique -- a
@@ -2281,5 +2288,5 @@ class TestMainLoop:
                 f"both loops used {first_module!r}"
             )
         finally:
-            first.context.executor_manager.close()
-            second.context.executor_manager.close()
+            first.executor_manager.close()
+            second.executor_manager.close()
