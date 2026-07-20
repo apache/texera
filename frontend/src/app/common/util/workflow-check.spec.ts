@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { ExecutionMode } from "../type/workflow";
 import { checkIfWorkflowBroken } from "./workflow-check";
 
 type WorkflowInput = Parameters<typeof checkIfWorkflowBroken>[0];
@@ -29,14 +30,33 @@ function createWorkflow(
   }>
 ): WorkflowInput {
   return {
+    name: "test-workflow",
+    description: undefined,
+    wid: undefined,
+    creationTime: undefined,
+    lastModifiedTime: undefined,
+    isPublished: 0,
+    readonly: false,
     content: {
-      operators: operatorIDs.map(operatorID => ({ operatorID })),
-      links: links.map(({ sourceOperatorID, targetOperatorID }) => ({
-        source: { operatorID: sourceOperatorID },
-        target: { operatorID: targetOperatorID },
+      operators: operatorIDs.map(operatorID => ({
+        operatorID,
+        operatorType: "TestOperator",
+        operatorVersion: "0",
+        operatorProperties: {},
+        inputPorts: [],
+        outputPorts: [],
+        showAdvanced: false,
       })),
+      operatorPositions: {},
+      links: links.map(({ sourceOperatorID, targetOperatorID }, index) => ({
+        linkID: `link-${index}`,
+        source: { operatorID: sourceOperatorID, portID: "output-0" },
+        target: { operatorID: targetOperatorID, portID: "input-0" },
+      })),
+      commentBoxes: [],
+      settings: { dataTransferBatchSize: 1, executionMode: ExecutionMode.PIPELINED },
     },
-  } as unknown as WorkflowInput;
+  };
 }
 
 describe("checkIfWorkflowBroken", () => {
