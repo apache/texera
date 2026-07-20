@@ -50,20 +50,40 @@ describe("isNonNullObject", () => {
 });
 
 describe("isDefined", () => {
-  it("should return true for defined values", () => {
-    expect(isDefined(42)).toBe(true);
-    expect(isDefined("string")).toBe(true);
-    expect(isDefined({})).toBe(true);
+  it("returns false for undefined", () => {
+    expect(isDefined(undefined)).toBe(false);
   });
 
-  it("should return true for falsy but defined values", () => {
+  it("returns false for null", () => {
+    expect(isDefined(null)).toBe(false);
+  });
+
+  it("returns true for defined primitive values", () => {
     expect(isDefined(0)).toBe(true);
     expect(isDefined("")).toBe(true);
     expect(isDefined(false)).toBe(true);
+    expect(isDefined(NaN)).toBe(true);
   });
 
-  it("should return false for null and undefined", () => {
-    expect(isDefined(null)).toBe(false);
-    expect(isDefined(undefined)).toBe(false);
+  it("returns true for defined object and array values", () => {
+    expect(isDefined({})).toBe(true);
+    expect(isDefined([])).toBe(true);
+    expect(isDefined(() => undefined)).toBe(true);
+  });
+
+  it("narrows the type so the value is usable without a nullable guard", () => {
+    const maybe: string | undefined = "hello";
+    if (isDefined(maybe)) {
+      // If narrowing failed this would not compile; assert runtime behavior too.
+      expect(maybe.toUpperCase()).toBe("HELLO");
+    } else {
+      throw new Error("expected value to be defined");
+    }
+  });
+
+  it("filters nullish entries out of a collection", () => {
+    const values: (number | null | undefined)[] = [1, null, 2, undefined, 3];
+    const defined: number[] = values.filter(isDefined);
+    expect(defined).toEqual([1, 2, 3]);
   });
 });

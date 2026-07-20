@@ -258,7 +258,7 @@ Scala/Java jars:
   - com.googlecode.javaewah.JavaEWAH-1.1.12.jar
   - com.helger.profiler-1.1.1.jar
   - com.nimbusds.nimbus-jose-jwt-10.4.jar
-  - com.softwaremill.sttp.client4.core_2.13-4.0.25.jar
+  - com.softwaremill.sttp.client4.core_2.13-4.0.26.jar
   - com.softwaremill.sttp.model.core_2.13-1.7.17.jar
   - com.softwaremill.sttp.shared.core_2.13-1.5.2.jar
   - com.softwaremill.sttp.shared.ws_2.13-1.5.2.jar
