@@ -33,6 +33,14 @@ spec:
         app: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
     spec:
       serviceAccountName: {{ .Values.workflowComputingUnitManager.serviceAccountName }}
+      {{- with .Values.coreServices.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.coreServices.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       initContainers:
         - name: wait-lakekeeper
           image: curlimages/curl:latest

@@ -25,6 +25,19 @@
 # own. The buckets must already exist (the init job does not create them).
 # ---------------------------------------------------------------------------
 
+# Pin the always-on singleton services onto a dedicated, long-lived node pool so a
+# cluster autoscaler (e.g. Karpenter) never evicts them to consolidate a transient
+# or computing-unit node. Replace the label/taint below with whatever your core
+# node pool actually uses. Leave this section out for a default (unpinned) install.
+coreServices:
+  nodeSelector:
+    texera.io/node-pool: core-services
+  tolerations:
+    - key: texera.io/node-pool
+      operator: Equal
+      value: core-services
+      effect: NoSchedule
+
 # Turn off the bundled MinIO object store; the services talk to external S3.
 minio:
   enabled: false

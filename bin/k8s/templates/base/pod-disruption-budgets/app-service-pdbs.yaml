@@ -1,0 +1,45 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# PodDisruptionBudgets for the replicated, stateless app services.
+#
+# These services run multiple interchangeable replicas with no anti-affinity, so
+# a cluster autoscaler (e.g. Karpenter) is free to consolidate idle nodes by
+# relocating their pods. A PDB with maxUnavailable: 1 keeps each service
+# continuously available (at most one replica down at a time) while still
+# permitting that consolidation — the right trade-off for stateless,
+# horizontally-replicated services.
+#
+# Deliberately excluded: singletons that cannot tolerate eviction (the
+# computing-unit manager is pinned to a dedicated node pool via coreServices
+# instead) and stateful/session-affine services (shared-editing-server, pylsp),
+# whose pods hold per-connection state that eviction would drop.
+{{- range $svc := list .Values.webserver.name .Values.accessControlService.name .Values.agentService.name .Values.configService.name .Values.fileService.name .Values.litellm.name .Values.workflowCompilingService.name }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $.Release.Name }}-{{ $svc }}-pdb
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $.Release.Name }}-{{ $svc }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{ $.Release.Name }}-{{ $svc }}
+{{- end }}

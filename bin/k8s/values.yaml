@@ -26,6 +26,16 @@ global:
   security:
     allowInsecureImages: true
 
+# Node placement for always-on singleton services (currently the computing-unit
+# manager). Empty by default, so local / on-prem installs are unaffected and pods
+# schedule anywhere. On a cluster autoscaler such as Karpenter, set a nodeSelector
+# and tolerations here (via an AWS overlay like values-aws.yaml) to pin these
+# singletons onto a dedicated, long-lived "core services" node pool, so they never
+# land on — and thereby block the scale-down of — a transient / computing-unit node.
+coreServices:
+  nodeSelector: {}
+  tolerations: []
+
 # Persistence Configuration
 # This controls how Persistent Volumes (PVs) and Persistent Volume Claims (PVCs) are managed
 # 
