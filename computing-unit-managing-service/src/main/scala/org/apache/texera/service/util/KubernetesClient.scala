@@ -144,6 +144,13 @@ object KubernetesClient {
       .withEnv(envList)
       .withResources(resourceBuilder.build())
 
+    // FUSE mounting of a LakeFS repository (GeeseFS) needs /dev/fuse, which requires a
+    // privileged container; the container process itself still runs as the non-root image user.
+    containerBuilder
+      .withNewSecurityContext()
+      .withPrivileged(true)
+      .endSecurityContext()
+
     // If shmSize requested, mount /dev/shm
     shmSize.foreach { _ =>
       containerBuilder

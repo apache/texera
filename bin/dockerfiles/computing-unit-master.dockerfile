@@ -102,6 +102,18 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && apt-get clean
 
+# FUSE support for mounting a LakeFS repository: GeeseFS mounts a LakeFS
+# repository (at a commit) from the LakeFS S3 gateway into the pod's file system.
+# The CAP_SYS_ADMIN file capability lets the non-root image user mount FUSE
+# file systems when the pod grants the capability (privileged computing units).
+ARG GEESEFS_VERSION=v0.43.8
+RUN apt-get update && apt-get install -y fuse3 libcap2-bin curl \
+    && apt-get clean \
+    && curl -fsSL -o /usr/local/bin/geesefs \
+       "https://github.com/yandex-cloud/geesefs/releases/download/${GEESEFS_VERSION}/geesefs-linux-$(dpkg --print-architecture)" \
+    && chmod 755 /usr/local/bin/geesefs \
+    && setcap cap_sys_admin+ep /usr/local/bin/geesefs
+
 # Install Python packages
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install -r /tmp/requirements.txt && \
