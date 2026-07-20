@@ -1024,18 +1024,35 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.editedDatasetName).toBe("seed-name");
     });
 
-    it("sanitizes the edited name, persists it, updates local state and toasts success", () => {
+    it("persists a valid name unchanged and toasts success", () => {
       datasetServiceStub.updateDatasetName.mockReturnValue(of({}));
       createComponent();
       component.did = 5;
-      component.editedDatasetName = "  My Cool_Dataset";
+      // Mixed case, hyphen and underscore are all valid: the name must be saved
+      // verbatim, not rewritten.
+      component.editedDatasetName = "My-Cool_Dataset";
 
       component.onSaveDatasetName();
 
-      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "my-cool-dataset");
-      expect(component.datasetName).toBe("my-cool-dataset");
-      expect(component.editedDatasetName).toBe("my-cool-dataset");
-      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset name updated to 'my-cool-dataset'");
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "My-Cool_Dataset");
+      expect(component.datasetName).toBe("My-Cool_Dataset");
+      expect(component.editedDatasetName).toBe("My-Cool_Dataset");
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset name updated to 'My-Cool_Dataset'");
+    });
+
+    it("rejects an invalid name with a validation error and does not call the rename API", () => {
+      createComponent();
+      component.did = 5;
+      component.datasetName = "original";
+      component.editedDatasetName = "My Cool Dataset"; // spaces are not allowed
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+      expect(component.datasetName).toBe("original");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith(
+        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)"
+      );
     });
 
     it("toasts an error and leaves the name unchanged when the rename fails", () => {

@@ -21,7 +21,11 @@ import { Component, EventEmitter, OnInit, Output, ViewChild } from "@angular/cor
 import { ActivatedRoute, Router } from "@angular/router";
 import { USER_DATASET } from "../../../../../app-routing.constant";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
+import {
+  DatasetService,
+  MultipartUploadProgress,
+  validateDatasetName,
+} from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandleComponent } from "ng-zorro-antd/resizable";
 import {
   DatasetFileNode,
@@ -928,21 +932,23 @@ export class DatasetDetailComponent implements OnInit {
     if (!this.did) {
       return;
     }
-    // Sanitize using the same rules as dataset creation: trim leading whitespace,
-    // collapse runs of non-alphanumeric characters to a single "-", then lowercase.
-    const sanitizedName = this.editedDatasetName
-      .trimStart()
-      .replace(/[^a-zA-Z0-9]+/g, "-")
-      .toLowerCase();
+    // Reject invalid names outright instead of silently rewriting them, matching
+    // the shared validation used by the other rename entry points (PR #6426).
+    const name = this.editedDatasetName;
+    const nameError = validateDatasetName(name);
+    if (nameError) {
+      this.notificationService.error(nameError);
+      return;
+    }
 
     this.datasetService
-      .updateDatasetName(this.did, sanitizedName)
+      .updateDatasetName(this.did, name)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          this.datasetName = sanitizedName;
-          this.editedDatasetName = sanitizedName;
-          this.notificationService.success(`Dataset name updated to '${sanitizedName}'`);
+          this.datasetName = name;
+          this.editedDatasetName = name;
+          this.notificationService.success(`Dataset name updated to '${name}'`);
         },
         error: (err: unknown) => {
           this.notificationService.error("Failed to update dataset name");
