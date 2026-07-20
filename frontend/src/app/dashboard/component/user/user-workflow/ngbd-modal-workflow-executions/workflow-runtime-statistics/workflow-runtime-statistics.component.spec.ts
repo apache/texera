@@ -20,17 +20,23 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
-import type { Mock } from "vitest";
-import * as Plotly from "plotly.js-basic-dist-min";
 import { WorkflowRuntimeStatisticsComponent } from "./workflow-runtime-statistics.component";
 import { WorkflowRuntimeStatistics } from "../../../../../type/workflow-runtime-statistics";
 import { commonTestProviders } from "../../../../../../common/testing/test-utils";
 
-// jsdom has no plotting engine; mock the module so the component's rendering call
-// becomes an observable spy and the exact dataset/layout it builds can be asserted.
-vi.mock("plotly.js-basic-dist-min", () => ({ newPlot: vi.fn() }));
-
-const newPlotMock = Plotly.newPlot as unknown as Mock;
+// Real Plotly renders into a DOM element by id; create one and assert on the
+// `data`/`layout` Plotly attaches to that graph div. Module-level mocking of
+// plotly.js-basic-dist-min is flaky across the CI matrix (the shared module
+// registry means the mock does not always intercept), so the data-shaping logic
+// is asserted directly via the (private) grouping/dataset methods, and the
+// plotting behavior is asserted against the real graph div.
+function chartDiv(): { data?: unknown[]; layout?: { title?: { text?: string }; xaxis?: unknown; yaxis?: unknown } } {
+  document.getElementById("chart")?.remove(); // avoid duplicate ids across reruns/retries
+  const div = document.createElement("div");
+  div.id = "chart";
+  document.body.appendChild(div);
+  return div as unknown as { data?: unknown[]; layout?: { title?: { text?: string } } };
+}
 
 // The shape createDataset produces and hands to Plotly.newPlot as its second argument.
 type Series = { x: number[]; y: number[]; mode: string; name: string };
@@ -40,7 +46,7 @@ const NANOS = 1_000_000_000;
 describe("WorkflowRuntimeStatisticsComponent", () => {
   let fixture: ComponentFixture<WorkflowRuntimeStatisticsComponent>;
   let component: WorkflowRuntimeStatisticsComponent;
-  let warnSpy: Mock;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
 
   // Deterministic, fully-populated statistic; only the fields under test are overridden.
   function makeStat(overrides: Partial<WorkflowRuntimeStatistics>): WorkflowRuntimeStatistics {
@@ -99,77 +105,83 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
     component = fixture.componentInstance;
   }
 
-  // The dataset (2nd arg) passed to newPlot on a given call.
-  function datasetOfCall(callIndex: number): Series[] {
-    return newPlotMock.mock.calls[callIndex][1] as Series[];
+  // Calls the private grouping method (its output is otherwise only reachable through Plotly).
+  function group(): Record<string, WorkflowRuntimeStatistics[]> {
+    return (
+      component as unknown as { groupStatisticsByOperatorId(): Record<string, WorkflowRuntimeStatistics[]> }
+    ).groupStatisticsByOperatorId();
   }
 
-  function seriesNamed(dataset: Series[], name: string): Series {
-    const found = dataset.find(s => s.name === name);
+  // Builds the dataset for a metric index directly off a grouped result.
+  function dataset(metricIndex: number, grouped = group()): Series[] {
+    (component as unknown as { groupedStatistics?: Record<string, WorkflowRuntimeStatistics[]> }).groupedStatistics =
+      grouped;
+    return (component as unknown as { createDataset(i: number): Series[] }).createDataset(metricIndex);
+  }
+
+  function seriesNamed(data: Series[], name: string): Series {
+    const found = data.find(s => s.name === name);
     expect(found).toBeDefined();
     return found as Series;
   }
 
   beforeEach(() => {
-    newPlotMock.mockClear();
-    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {}) as unknown as Mock;
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
-    warnSpy.mockRestore();
+    document.getElementById("chart")?.remove();
+    vi.restoreAllMocks();
     fixture?.destroy();
   });
 
   it("should create", async () => {
     await createFixture({ workflowRuntimeStatistics: validStats() });
+    chartDiv();
     fixture.detectChanges();
     expect(component).toBeTruthy();
   });
 
-  it("ngOnInit groups by operatorId and plots once with the chart id, a non-empty dataset, and the metric-0 layout", async () => {
+  it("ngOnInit plots the metric-0 dataset and layout onto the #chart div", async () => {
     await createFixture({ workflowRuntimeStatistics: validStats() });
-    fixture.detectChanges(); // triggers ngOnInit -> createChart(0)
+    const gd = chartDiv();
+    fixture.detectChanges(); // ngOnInit -> createChart(0)
 
-    expect(newPlotMock).toHaveBeenCalledTimes(1);
-    const [chartId, dataset, layout] = newPlotMock.mock.calls[0];
-    expect(chartId).toBe("chart");
-    // Two distinct operatorIds => two grouped series.
-    expect((dataset as Series[]).length).toBe(2);
-    expect((dataset as Series[]).length).toBeGreaterThan(0);
+    // Two distinct operatorIds => two grouped series rendered onto the chart div.
+    expect(gd.data).toBeDefined();
+    expect((gd.data as Series[]).length).toBe(2);
     // Metric index 0 selects "Input Tuple Count" for the layout titles.
-    expect((layout as any).title.text).toBe("Input Tuple Count");
-    expect((layout as any).xaxis.title.text).toBe("Time (s)");
-    expect((layout as any).yaxis.title.text).toBe("Input Tuple Count");
+    expect(gd.layout?.title?.text).toBe("Input Tuple Count");
+    expect((gd.layout as { xaxis: { title: { text: string } } }).xaxis.title.text).toBe("Time (s)");
+    expect((gd.layout as { yaxis: { title: { text: string } } }).yaxis.title.text).toBe("Input Tuple Count");
   });
 
   it("ngOnInit warns and does not plot when workflowRuntimeStatistics is undefined", async () => {
     await createFixture({ workflowRuntimeStatistics: undefined });
+    const gd = chartDiv();
     fixture.detectChanges();
 
     expect(warnSpy).toHaveBeenCalledWith("No workflow runtime statistics available.");
-    expect(newPlotMock).not.toHaveBeenCalled();
+    expect(gd.data).toBeUndefined();
   });
 
   it("groupStatisticsByOperatorId converts ns->s, makes timestamps relative, and groups repeated operatorIds", async () => {
     await createFixture({ workflowRuntimeStatistics: validStats() });
-    fixture.detectChanges();
-    // Switch to metric index 4 (Total Data Processing Time) to observe the ns->s conversion.
-    component.onTabChanged(4);
+    const grouped = group();
 
-    const dataset = datasetOfCall(newPlotMock.mock.calls.length - 1);
-    const scan = seriesNamed(dataset, "scan-111111");
-
-    // Two stats for scan-op-111111 collapsed under one series.
-    expect(scan.y.length).toBe(2);
+    // Two stats for scan-op-111111 collapsed under one group key; one for filter.
+    expect(Object.keys(grouped).sort()).toEqual(["filter-op-222222", "scan-op-111111"]);
+    const scan = grouped["scan-op-111111"] as Array<WorkflowRuntimeStatistics & { dataProcessingTime: number }>;
+    expect(scan.length).toBe(2);
     // totalDataProcessingTime (2e9, 5e9 ns) divided by 1e9 => seconds.
-    expect(scan.y).toEqual([2, 5]);
-    // x = (timestamp - initialTimestamp) / 1000 => (0/1000, 2000/1000).
-    expect(scan.x).toEqual([0, 2]);
-
-    const filter = seriesNamed(dataset, "filter-222222");
-    expect(filter.y).toEqual([1]);
-    // filter stat timestamp 2000 - initial 1000 = 1000; /1000 => 1.
-    expect(filter.x).toEqual([1]);
+    expect(scan.map(s => s.dataProcessingTime)).toEqual([2, 5]);
+    // control/idle also converted ns->s on the first stat (3e9 -> 3, 4e9 -> 4).
+    expect((scan[0] as unknown as { controlProcessingTime: number }).controlProcessingTime).toBe(3);
+    expect((scan[0] as unknown as { idleTime: number }).idleTime).toBe(4);
+    // timestamps made relative to the first stat (1000): 0 and 2000.
+    expect(scan.map(s => s.timestamp)).toEqual([0, 2000]);
+    // filter stat timestamp 2000 - initial 1000 = 1000.
+    expect(grouped["filter-op-222222"][0].timestamp).toBe(1000);
   });
 
   it("groupStatisticsByOperatorId skips stats missing an operatorId", async () => {
@@ -180,14 +192,12 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
         makeStat({ operatorId: "scan-op-111111", timestamp: 3000, inputTupleCount: 20 }),
       ],
     });
-    fixture.detectChanges();
+    const grouped = group();
 
     expect(warnSpy).toHaveBeenCalledWith("Missing operatorId in statistic:", expect.anything());
-    const dataset = datasetOfCall(0);
-    // Only the scan series survives; the operatorId-less stat contributed nothing.
-    expect(dataset.length).toBe(1);
-    const scan = seriesNamed(dataset, "scan-111111");
-    expect(scan.y).toEqual([10, 20]);
+    // Only the scan group survives; the operatorId-less stat contributed nothing.
+    expect(Object.keys(grouped)).toEqual(["scan-op-111111"]);
+    expect(grouped["scan-op-111111"].length).toBe(2);
   });
 
   it("createDataset removes sink operators and names series '<operatorName>-<last6ofId>'", async () => {
@@ -197,50 +207,69 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
         makeStat({ operatorId: "sink-op-999999", timestamp: 1000, inputTupleCount: 1234 }),
       ],
     });
-    fixture.detectChanges();
+    const data = dataset(0);
 
-    const dataset = datasetOfCall(0);
     // The sink operator is dropped, leaving only the aggregate series.
-    expect(dataset.length).toBe(1);
-    expect(dataset.map(s => s.name)).not.toContain("sink-999999");
+    expect(data.length).toBe(1);
+    expect(data.map(s => s.name)).not.toContain("sink-999999");
     // Name = first "-" segment + last 6 chars of the full id.
-    expect(dataset[0].name).toBe("aggregate-abcdef");
-    expect(dataset[0].y).toEqual([7]);
+    expect(data[0].name).toBe("aggregate-abcdef");
+    expect(data[0].y).toEqual([7]);
   });
 
-  it("onTabChanged re-plots with metric-specific y-values (input tuple count vs number of workers)", async () => {
+  it("createDataset selects the metric by index and scales x by 1/1000", async () => {
     await createFixture({ workflowRuntimeStatistics: validStats() });
+    const grouped = group();
+
+    // Metric 0 = Input Tuple Count.
+    const scanInput = seriesNamed(dataset(0, grouped), "scan-111111");
+    expect(scanInput.y).toEqual([10, 20]);
+    // x = relative timestamp / 1000 => [0/1000, 2000/1000].
+    expect(scanInput.x).toEqual([0, 2]);
+    expect(scanInput.mode).toBe("lines");
+
+    // Metric 7 = Number of Workers (a genuinely different series for the same operator).
+    const scanWorkers = seriesNamed(dataset(7, grouped), "scan-111111");
+    expect(scanWorkers.y).toEqual([1, 2]);
+    expect(scanWorkers.y).not.toEqual(scanInput.y);
+
+    // Metric 4 = Total Data Processing Time (ns->s converted during grouping).
+    const scanProc = seriesNamed(dataset(4, grouped), "scan-111111");
+    expect(scanProc.y).toEqual([2, 5]);
+  });
+
+  it("onTabChanged re-plots the newly selected metric onto the #chart div", async () => {
+    await createFixture({ workflowRuntimeStatistics: validStats() });
+    const gd = chartDiv();
     fixture.detectChanges(); // metric index 0 (Input Tuple Count)
-    const inputCounts = seriesNamed(datasetOfCall(0), "scan-111111").y;
-    expect(inputCounts).toEqual([10, 20]);
+    expect(gd.layout?.title?.text).toBe("Input Tuple Count");
 
     component.onTabChanged(7); // metric index 7 (Number of Workers)
-    expect(newPlotMock).toHaveBeenCalledTimes(2);
-    const workers = seriesNamed(datasetOfCall(1), "scan-111111").y;
-    expect(workers).toEqual([1, 2]);
-    // The two metrics genuinely differ for the same series.
-    expect(workers).not.toEqual(inputCounts);
-    // Layout title tracks the newly-selected metric.
-    expect((newPlotMock.mock.calls[1][2] as any).title.text).toBe("Number of Workers");
+    // Plotly re-renders the same div; the layout title tracks the new metric.
+    expect(gd.layout?.title?.text).toBe("Number of Workers");
+    const workers = seriesNamed(gd.data as Series[], "scan-111111");
+    expect(workers.y).toEqual([1, 2]);
   });
 
   it("createChart warns and does not plot when the dataset is empty (only a sink operator)", async () => {
     await createFixture({
       workflowRuntimeStatistics: [makeStat({ operatorId: "sink-op-999999", timestamp: 1000, inputTupleCount: 42 })],
     });
+    const gd = chartDiv();
     fixture.detectChanges();
 
-    expect(newPlotMock).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith("No data available for the chart.");
+    expect(gd.data).toBeUndefined();
   });
 
   it("createChart warns twice and does not plot when the statistics array is empty", async () => {
     await createFixture({ workflowRuntimeStatistics: [] });
+    const gd = chartDiv();
     fixture.detectChanges();
 
-    expect(newPlotMock).not.toHaveBeenCalled();
     // groupStatisticsByOperatorId warns about the empty input, then createChart warns about the empty dataset.
     expect(warnSpy).toHaveBeenCalledWith("No workflow runtime statistics available.");
     expect(warnSpy).toHaveBeenCalledWith("No data available for the chart.");
+    expect(gd.data).toBeUndefined();
   });
 });
