@@ -40,6 +40,7 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
   standalone: true,
   template: "",
 })
+class StubUserProjectListItemComponent {
   @Input() entry?: DashboardProject;
   @Input() editable = false;
   @Input() uid?: number;
