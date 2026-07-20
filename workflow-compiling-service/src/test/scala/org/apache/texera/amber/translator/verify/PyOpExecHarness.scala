@@ -224,10 +224,6 @@ object PyOpExecHarness extends LazyLogging {
       pythonExe: String,
       amberPythonHome: Path
   ): Unit = {
-    val outBuf = ArrayBuffer.empty[String]
-    val errBuf = ArrayBuffer.empty[String]
-    val procLogger = ProcessLogger(line => outBuf += line, line => errBuf += line)
-
     // Prepend amber's Python source to PYTHONPATH so `import pytexera`
     // resolves. Existing PYTHONPATH (if any) is preserved as the lower-
     // priority suffix.
@@ -236,14 +232,7 @@ object PyOpExecHarness extends LazyLogging {
       if (existing.isEmpty) amberPythonHome.toAbsolutePath.toString
       else s"${amberPythonHome.toAbsolutePath}${File.pathSeparator}$existing"
 
-    val exit = Process(
-      Seq(pythonExe, driverPath.toString, configPath.toString),
-      Some(cwd.toFile),
-      "PYTHONPATH" -> newPyPath
-    ).!(procLogger)
-
-    val stdout = outBuf.mkString("\n")
-    val stderr = errBuf.mkString("\n")
+    val (exit, stdout, stderr) = execDriver(driverPath, configPath, cwd, pythonExe, newPyPath)
     if (exit != 0) {
       throw new PyOpDriverException(
         exitCode = exit,
@@ -253,6 +242,62 @@ object PyOpExecHarness extends LazyLogging {
         stderr = stderr
       )
     }
+  }
+
+  // Prefer a pooled persistent worker (imports pytexera/pyamber once via
+  // `py_op_driver.py --serve`, the ~300 ms cost that dominates a per-Python-op
+  // run — see PythonWorkerPool). A rare hard worker crash falls back to a
+  // one-shot subprocess so behavior is never worse than the original path. Both
+  // paths use absolute config paths, so cwd only matters to the subprocess
+  // form; the worker constructs a fresh operator per job for isolation.
+  private def execDriver(
+      driverPath: Path,
+      configPath: Path,
+      cwd: Path,
+      pythonExe: String,
+      pythonPath: String
+  ): (Int, String, String) = {
+    if (PythonWorkerPool.enabled) {
+      try {
+        val req = objectMapper.createObjectNode()
+        req.put("configPath", configPath.toAbsolutePath.toString)
+        val o = PythonWorkerPool.run(
+          DriverResourcePath,
+          Seq("--serve"),
+          pythonExe,
+          req,
+          env = Map("PYTHONPATH" -> pythonPath)
+        )
+        return (o.exit, o.stdout, o.stderr)
+      } catch {
+        case e: PythonWorkerPool.WorkerDiedException =>
+          logger.warn(
+            s"py_op_driver worker unavailable; falling back to one-shot subprocess " +
+              s"for $configPath: ${e.getMessage}"
+          )
+      }
+    }
+    runDriverSubprocess(driverPath, configPath, cwd, pythonExe, pythonPath)
+  }
+
+  // Original one-process-per-operator path. Retained as the fallback and as the
+  // behavior selected by VERIFY_PYTHON_WORKER=0.
+  private def runDriverSubprocess(
+      driverPath: Path,
+      configPath: Path,
+      cwd: Path,
+      pythonExe: String,
+      pythonPath: String
+  ): (Int, String, String) = {
+    val outBuf = ArrayBuffer.empty[String]
+    val errBuf = ArrayBuffer.empty[String]
+    val procLogger = ProcessLogger(line => outBuf += line, line => errBuf += line)
+    val exit = Process(
+      Seq(pythonExe, driverPath.toString, configPath.toString),
+      Some(cwd.toFile),
+      "PYTHONPATH" -> pythonPath
+    ).!(procLogger)
+    (exit, outBuf.mkString("\n"), errBuf.mkString("\n"))
   }
 
   // --------------------------------------------------------------------------

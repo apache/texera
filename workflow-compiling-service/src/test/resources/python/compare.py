@@ -47,6 +47,20 @@ Usage: compare.py [--unordered] [--ignore-cols c1,c2]
 Exit 0  - DataFrames equal (and model predictions match, if --model-cols)
 Exit 1  - DataFrames differ / model predictions differ; detail on stderr
 Exit 2  - Bad invocation
+
+Persistent mode: `compare.py --serve` imports pandas once and then serves many
+comparisons over its lifetime, reading one JSON job per line on stdin and
+writing one JSON result per line on stdout. This avoids paying the ~214 ms
+pandas import on every comparison (the comparison itself is ~ms). It reuses the
+exact same `_run_comparison` used by the CLI, so behavior is identical.
+
+  request   {"actual": "<abs>", "expected": "<abs>", "unordered": false,
+             "ignoreCols": [], "modelCols": [], "probe": null}\n
+  response  {"exit": 0|1, "stdout": "", "stderr": "<diff on mismatch>"}\n
+
+A mismatch is exit 1 with the diff on `stderr`, mirroring the CLI's nonzero
+exit so the Scala side's ComparatorMismatchException path is unchanged. A
+comparison error never kills the server; only closing stdin (EOF) ends it.
 """
 import sys
 
@@ -113,6 +127,64 @@ def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None
                 )
 
 
+def _run_comparison(
+    actual_path: str,
+    expected_path: str,
+    unordered: bool,
+    ignore_cols: list,
+    model_cols: list,
+    probe_path,
+) -> "str | None":
+    """Compare two JSONL DataFrames. Returns None if they match, or a human
+    diff string if they differ (exit-1 condition). Unexpected errors (e.g. a
+    bad input file) propagate to the caller. This is the single source of
+    comparison truth shared by the CLI and the --serve loop."""
+    actual = pd.read_json(actual_path, lines=True)
+    expected = pd.read_json(expected_path, lines=True)
+
+    # Model columns: compare behavior (predictions) rather than bytes, then drop
+    # the raw columns so the frame comparison covers everything else exactly.
+    if model_cols:
+        try:
+            _compare_model_predictions(actual, expected, model_cols, probe_path)
+        except AssertionError as exc:
+            return str(exc)
+        actual = actual.drop(columns=model_cols, errors="ignore")
+        expected = expected.drop(columns=model_cols, errors="ignore")
+
+    if ignore_cols:
+        actual = actual.drop(columns=ignore_cols, errors="ignore")
+        expected = expected.drop(columns=ignore_cols, errors="ignore")
+
+    if unordered:
+        # Sort both sides by the same column key so set-equal frames collapse
+        # to the same row sequence. assert_frame_equal still does the actual
+        # value diff and respects rtol/check_dtype. Mergesort = stable, so
+        # rows that are tied on all columns keep their relative order — not
+        # strictly necessary for set equality (no ties → no duplicates after
+        # the op's dedup step) but cheap insurance.
+        cols = list(actual.columns)
+        if cols:
+            actual = actual.sort_values(
+                by=cols, kind="mergesort", na_position="last"
+            ).reset_index(drop=True)
+            expected = expected.sort_values(
+                by=cols, kind="mergesort", na_position="last"
+            ).reset_index(drop=True)
+
+    try:
+        pd.testing.assert_frame_equal(
+            actual,
+            expected,
+            check_like=True,
+            check_dtype=False,
+            rtol=1e-5,
+        )
+    except AssertionError as exc:
+        return str(exc)
+    return None
+
+
 def main() -> None:
     args = sys.argv[1:]
     unordered = False
@@ -153,53 +225,62 @@ def main() -> None:
         )
         sys.exit(2)
 
-    actual_path, expected_path = args[0], args[1]
-    actual = pd.read_json(actual_path, lines=True)
-    expected = pd.read_json(expected_path, lines=True)
-
-    # Model columns: compare behavior (predictions) rather than bytes, then drop
-    # the raw columns so the frame comparison covers everything else exactly.
-    if model_cols:
-        try:
-            _compare_model_predictions(actual, expected, model_cols, probe_path)
-        except AssertionError as exc:
-            print(str(exc), file=sys.stderr)
-            sys.exit(1)
-        actual = actual.drop(columns=model_cols, errors="ignore")
-        expected = expected.drop(columns=model_cols, errors="ignore")
-
-    if ignore_cols:
-        actual = actual.drop(columns=ignore_cols, errors="ignore")
-        expected = expected.drop(columns=ignore_cols, errors="ignore")
-
-    if unordered:
-        # Sort both sides by the same column key so set-equal frames collapse
-        # to the same row sequence. assert_frame_equal still does the actual
-        # value diff and respects rtol/check_dtype. Mergesort = stable, so
-        # rows that are tied on all columns keep their relative order — not
-        # strictly necessary for set equality (no ties → no duplicates after
-        # the op's dedup step) but cheap insurance.
-        cols = list(actual.columns)
-        if cols:
-            actual = actual.sort_values(
-                by=cols, kind="mergesort", na_position="last"
-            ).reset_index(drop=True)
-            expected = expected.sort_values(
-                by=cols, kind="mergesort", na_position="last"
-            ).reset_index(drop=True)
-
-    try:
-        pd.testing.assert_frame_equal(
-            actual,
-            expected,
-            check_like=True,
-            check_dtype=False,
-            rtol=1e-5,
-        )
-    except AssertionError as exc:
-        print(str(exc), file=sys.stderr)
+    msg = _run_comparison(
+        args[0], args[1], unordered, ignore_cols, model_cols, probe_path
+    )
+    if msg is not None:
+        print(msg, file=sys.stderr)
         sys.exit(1)
 
 
+def serve() -> None:
+    """Persistent comparison server. See the module docstring for the protocol.
+
+    pandas is imported once (at module load, above). Each job runs the same
+    `_run_comparison` the CLI uses. A comparison error is reported as exit 1
+    with the diff on `stderr`; only closing stdin ends the loop.
+    """
+    import io
+    import json
+    import traceback
+    from contextlib import redirect_stderr, redirect_stdout
+
+    sys.stdout.write(json.dumps({"ready": True}) + "\n")
+    sys.stdout.flush()
+
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        out_buf, err_buf = io.StringIO(), io.StringIO()
+        try:
+            job = json.loads(line)
+            with redirect_stdout(out_buf), redirect_stderr(err_buf):
+                msg = _run_comparison(
+                    job["actual"],
+                    job["expected"],
+                    job.get("unordered", False),
+                    job.get("ignoreCols", []),
+                    job.get("modelCols", []),
+                    job.get("probe"),
+                )
+            resp = {
+                "exit": 0 if msg is None else 1,
+                "stdout": out_buf.getvalue(),
+                "stderr": err_buf.getvalue() + ("" if msg is None else msg),
+            }
+        except BaseException:  # noqa: BLE001 — a bad job must not kill the server
+            resp = {
+                "exit": 1,
+                "stdout": out_buf.getvalue(),
+                "stderr": err_buf.getvalue() + traceback.format_exc(),
+            }
+        sys.stdout.write(json.dumps(resp) + "\n")
+        sys.stdout.flush()
+
+
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "--serve":
+        serve()
+    else:
+        main()

@@ -106,6 +106,47 @@ object StandaloneRunner extends LazyLogging {
     val source = renderScript(gen.generateStandaloneCode(), inputs, outputPaths)
     Files.write(scriptPath, source.getBytes(StandardCharsets.UTF_8))
 
+    val (exit, stdout, stderr) = execute(scriptPath, workDir, pythonExe)
+    if (exit != 0) {
+      throw new StandaloneExecutionException(exit, scriptPath, source, stdout, stderr)
+    }
+    Result(outputPaths, stdout, stderr)
+  }
+
+  private val WorkerResourcePath = "/python/standalone_worker.py"
+
+  // Run the rendered script and return (exitCode, stdout, stderr). Prefers a
+  // pooled persistent worker (imports pandas/plotly once, ~18x faster per op —
+  // see PythonWorkerPool); a rare hard worker crash falls back to a one-shot
+  // subprocess so behavior is never worse than the original path. Both paths
+  // run with cwd = workDir and read results from files, so they are
+  // interchangeable — the executed script is byte-identical.
+  private def execute(scriptPath: Path, workDir: Path, pythonExe: String): (Int, String, String) = {
+    if (PythonWorkerPool.enabled) {
+      try {
+        val req = org.apache.texera.amber.util.JSONUtils.objectMapper.createObjectNode()
+        req.put("scriptPath", scriptPath.toString)
+        req.put("workDir", workDir.toString)
+        val o = PythonWorkerPool.run(WorkerResourcePath, Seq.empty, pythonExe, req)
+        return (o.exit, o.stdout, o.stderr)
+      } catch {
+        case e: PythonWorkerPool.WorkerDiedException =>
+          logger.warn(
+            s"Standalone worker unavailable; falling back to one-shot subprocess " +
+              s"for $scriptPath: ${e.getMessage}"
+          )
+      }
+    }
+    runSubprocess(scriptPath, workDir, pythonExe)
+  }
+
+  // Original one-process-per-operator path. Retained as the fallback and as the
+  // behavior selected by VERIFY_STANDALONE_WORKER=0.
+  private def runSubprocess(
+      scriptPath: Path,
+      workDir: Path,
+      pythonExe: String
+  ): (Int, String, String) = {
     // Capture stdout/stderr separately. ProcessLogger's append is called from
     // the subprocess's I/O thread, so we collect into ArrayBuffer (thread-safe
     // append is fine for this serial use) and join at the end.
@@ -116,13 +157,7 @@ object StandaloneRunner extends LazyLogging {
     // basename-stripped `pd.read_csv("sample.csv")`) resolves against workDir.
     // Absolute paths written by the prologue/epilogue are unaffected.
     val exit = Process(Seq(pythonExe, scriptPath.toString), Some(workDir.toFile)).!(logger)
-
-    val stdout = outBuf.mkString("\n")
-    val stderr = errBuf.mkString("\n")
-    if (exit != 0) {
-      throw new StandaloneExecutionException(exit, scriptPath, source, stdout, stderr)
-    }
-    Result(outputPaths, stdout, stderr)
+    (exit, outBuf.mkString("\n"), errBuf.mkString("\n"))
   }
 
   // Builds the full Python source: imports + prologue + verbatim operator body

@@ -403,14 +403,15 @@ def _run_operator(
 # --------------------------------------------------------------------------
 # Entry point.
 # --------------------------------------------------------------------------
-def main(argv: Sequence[str]) -> int:
-    if len(argv) != 2:
-        sys.stderr.write(f"usage: {argv[0]} <config.json>\n")
-        return 2
-    config_path = Path(argv[1])
-    with config_path.open("r", encoding="utf-8") as fh:
-        config = json.load(fh)
+def run_config(config: Mapping[str, Any]) -> None:
+    """Run one operator to completion from a parsed config dict. Writes the
+    output JSONL+sidecar as a side effect. Raises on any failure. Shared by the
+    CLI (main) and the persistent server (serve) so both behave identically.
 
+    Each call execs the user code in a FRESH namespace and constructs a FRESH
+    operator instance, so operators don't share Python-level state across jobs
+    when run through the server (the isolation the per-process CLI gave for
+    free)."""
     operator_code: str = config["operatorCode"]
     is_source: bool = bool(config.get("isSource", False))
     port_order: Sequence[int] = list(config.get("portOrder", []))
@@ -445,8 +446,65 @@ def main(argv: Sequence[str]) -> int:
         out_schema = _schema_from_dict(out_entry["schema"])
         rows = list(_emit_as_dicts(emitted, out_schema))
         _write_tuples(out_path, rows, out_schema)
+
+
+def main(argv: Sequence[str]) -> int:
+    if len(argv) != 2:
+        sys.stderr.write(f"usage: {argv[0]} <config.json>\n")
+        return 2
+    config_path = Path(argv[1])
+    with config_path.open("r", encoding="utf-8") as fh:
+        config = json.load(fh)
+    run_config(config)
+    return 0
+
+
+def serve() -> int:
+    """Persistent driver: import pyamber once, then run many operators.
+
+    pytexera/pyamber import at module load (~300 ms) is the dominant per-call
+    cost; paying it once here instead of per operator is the whole point. Reads
+    one JSON job per line on stdin, writes one JSON result per line on stdout:
+
+      request   {"configPath": "<abs path to py_op_driver_config.json>"}\n
+      response  {"exit": 0|1, "stdout": "...", "stderr": "..."}\n
+
+    exit=1 with the traceback on stderr mirrors a nonzero CLI exit, so the
+    Scala side's PyOpDriverException path is unchanged. An operator error never
+    kills the server; only closing stdin (EOF) ends it. The executed script's
+    stdout/stderr are captured so they can't corrupt the protocol channel.
+    """
+    import io
+    from contextlib import redirect_stderr, redirect_stdout
+
+    sys.stdout.write(json.dumps({"ready": True}) + "\n")
+    sys.stdout.flush()
+
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        out_buf, err_buf = io.StringIO(), io.StringIO()
+        try:
+            job = json.loads(line)
+            with Path(job["configPath"]).open("r", encoding="utf-8") as fh:
+                config = json.load(fh)
+            with redirect_stdout(out_buf), redirect_stderr(err_buf):
+                run_config(config)
+            resp = {"exit": 0, "stdout": out_buf.getvalue(), "stderr": err_buf.getvalue()}
+        except BaseException:  # noqa: BLE001 — a bad job must not kill the server
+            resp = {
+                "exit": 1,
+                "stdout": out_buf.getvalue(),
+                "stderr": err_buf.getvalue() + traceback.format_exc(),
+            }
+        sys.stdout.write(json.dumps(resp) + "\n")
+        sys.stdout.flush()
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    if len(sys.argv) > 1 and sys.argv[1] == "--serve":
+        sys.exit(serve())
+    else:
+        sys.exit(main(sys.argv))

@@ -19,6 +19,9 @@
 
 package org.apache.texera.amber.translator.verify
 
+import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+
 import java.nio.file.{Files, Path, StandardCopyOption}
 import scala.collection.mutable.ArrayBuffer
 import scala.sys.process._
@@ -38,7 +41,7 @@ import scala.sys.process._
   * Python resolution mirrors [[StandaloneRunner.resolvePython]]:
   * `UDF_PYTHON_PATH` env var first, else `python3.12` on PATH.
   */
-object Comparator {
+object Comparator extends LazyLogging {
 
   // Resource path is absolute (leading slash) so getResourceAsStream resolves
   // against the classpath root regardless of caller's package.
@@ -53,6 +56,71 @@ object Comparator {
       probePath: Option[Path] = None,
       pythonExe: String = resolvePython()
   ): Unit = {
+    val (exit, stdout, stderr) =
+      compare(actual, expected, orderSensitive, ignoreColumns, modelColumns, probePath, pythonExe)
+    if (exit != 0) {
+      throw new ComparatorMismatchException(
+        actual = actual,
+        expected = expected,
+        exitCode = exit,
+        stdout = stdout,
+        stderr = stderr
+      )
+    }
+  }
+
+  // Prefer a pooled persistent worker (imports pandas once via `compare.py
+  // --serve`, so the ~214 ms import isn't repaid per comparison — the diff
+  // itself is ~ms). A rare hard worker crash falls back to the one-shot CLI so
+  // behavior is never worse than the original path. Both invoke the same
+  // `_run_comparison`, so results are identical.
+  private def compare(
+      actual: Path,
+      expected: Path,
+      orderSensitive: Boolean,
+      ignoreColumns: Seq[String],
+      modelColumns: Seq[String],
+      probePath: Option[Path],
+      pythonExe: String
+  ): (Int, String, String) = {
+    if (PythonWorkerPool.enabled) {
+      try {
+        val req = objectMapper.createObjectNode()
+        req.put("actual", actual.toString)
+        req.put("expected", expected.toString)
+        req.put("unordered", !orderSensitive)
+        val ignoreArr = req.putArray("ignoreCols")
+        ignoreColumns.foreach(ignoreArr.add)
+        val modelArr = req.putArray("modelCols")
+        modelColumns.foreach(modelArr.add)
+        // --probe only applies with --model-cols (mirrors the CLI's guard).
+        probePath.filter(_ => modelColumns.nonEmpty) match {
+          case Some(p) => req.put("probe", p.toString)
+          case None    => req.putNull("probe")
+        }
+        val o = PythonWorkerPool.run(ScriptResourcePath, Seq("--serve"), pythonExe, req)
+        return (o.exit, o.stdout, o.stderr)
+      } catch {
+        case e: PythonWorkerPool.WorkerDiedException =>
+          logger.warn(
+            s"Comparator worker unavailable; falling back to one-shot CLI: ${e.getMessage}"
+          )
+      }
+    }
+    runCli(actual, expected, orderSensitive, ignoreColumns, modelColumns, probePath, pythonExe)
+  }
+
+  // Original one-subprocess-per-comparison CLI path. Retained as the fallback
+  // and as the behavior selected by VERIFY_PYTHON_WORKER=0.
+  private def runCli(
+      actual: Path,
+      expected: Path,
+      orderSensitive: Boolean,
+      ignoreColumns: Seq[String],
+      modelColumns: Seq[String],
+      probePath: Option[Path],
+      pythonExe: String
+  ): (Int, String, String) = {
     val scriptPath = extractScript()
     val outBuf = ArrayBuffer.empty[String]
     val errBuf = ArrayBuffer.empty[String]
@@ -82,16 +150,7 @@ object Comparator {
         expected.toString
       )
     val exit = Process(cmd).!(procLogger)
-
-    if (exit != 0) {
-      throw new ComparatorMismatchException(
-        actual = actual,
-        expected = expected,
-        exitCode = exit,
-        stdout = outBuf.mkString("\n"),
-        stderr = errBuf.mkString("\n")
-      )
-    }
+    (exit, outBuf.mkString("\n"), errBuf.mkString("\n"))
   }
 
   // Resources may live inside a jar at runtime; copy to a temp file so Python
