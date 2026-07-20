@@ -30,4 +30,6 @@ class InitializeExecutorHandler(ControlHandler):
         self.context.executor_manager.initialize_executor(
             op_exec_with_code.code, req.is_source, op_exec_with_code.language
         )
+        # Loop-back write addresses; see the proto field doc on loopStartStateUris.
+        self.context.loop_start_state_uris = dict(req.loop_start_state_uris)
         return EmptyReturn()

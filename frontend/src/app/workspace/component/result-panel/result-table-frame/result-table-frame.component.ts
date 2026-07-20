@@ -37,16 +37,19 @@ import { IndexableObject, TableColumn } from "../../../types/result-table.interf
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+import { isAudioUrl, isVideoUrl, isImageUrl } from "../../../../common/util/media-type.util";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { NgIf, NgFor, NgClass } from "@angular/common";
+import { NgIf, NgFor, NgClass, NgSwitch, NgSwitchCase, NgSwitchDefault } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+
+export type MediaCellType = "video" | "audio" | "image" | "text";
 
 /**
  * The Component will display the result in an excel table format,
@@ -63,6 +66,9 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
   styleUrls: ["./result-table-frame.component.scss"],
   imports: [
     NgIf,
+    NgSwitch,
+    NgSwitchCase,
+    NgSwitchDefault,
     NzSpaceCompactItemDirective,
     NzInputDirective,
     NzButtonComponent,
@@ -108,6 +114,13 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
   isOperatorFinished: boolean = false;
+
+  // Media type of each cell, precomputed once per row when result data arrives so the
+  // template doesn't re-run getCell + regex-based classification on every change
+  // detection cycle. Keyed by row object (not row index) because *ngFor iterates
+  // basicTable.data, which under front-end pagination is a page-local slice of
+  // currentResult whose indices don't line up with currentResult's indices.
+  cellMediaTypes: Map<IndexableObject, MediaCellType[]> = new Map();
 
   constructor(
     private modalService: NzModalService,
@@ -431,6 +444,10 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     // generate columnDef from first row, column definition is in order
     this.currentColumns = this.generateColumns(columns);
     this.totalNumTuples = totalRowCount;
+
+    this.cellMediaTypes = new Map(
+      this.currentResult.map(row => [row, this.currentColumns!.map(column => this.classifyCell(column.getCell(row)))])
+    );
   }
 
   /**
@@ -475,6 +492,31 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       this.currentColumnOffset += this.columnLimit;
       this.changePaginatedResultData();
     }
+  }
+
+  isVideoCell(value: unknown): boolean {
+    return typeof value === "string" && isVideoUrl(value);
+  }
+
+  isAudioCell(value: unknown): boolean {
+    return typeof value === "string" && isAudioUrl(value);
+  }
+
+  isImageCell(value: unknown): boolean {
+    return typeof value === "string" && isImageUrl(value);
+  }
+
+  private classifyCell(value: unknown): MediaCellType {
+    if (this.isVideoCell(value)) return "video";
+    if (this.isAudioCell(value)) return "audio";
+    if (this.isImageCell(value)) return "image";
+    return "text";
+  }
+
+  // O(1) lookup into the precomputed cellMediaTypes map, used by the template
+  // instead of calling isVideoCell/isAudioCell/isImageCell on every change detection cycle.
+  getCellMediaType(row: IndexableObject, columnIndex: number): MediaCellType {
+    return this.cellMediaTypes.get(row)?.[columnIndex] ?? "text";
   }
 
   onColumnSearch(event: Event): void {

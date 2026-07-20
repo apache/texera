@@ -18,7 +18,7 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { WorkflowResultExportService } from "./workflow-result-export.service";
+import { WorkflowResultDownloadability, WorkflowResultExportService } from "./workflow-result-export.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
@@ -125,5 +125,53 @@ describe("WorkflowResultExportService", () => {
 
   it("should be created", () => {
     expect(service).toBeTruthy();
+  });
+
+  it("resetFlags clears the highlighted flag and resets the all-operators subject to false", () => {
+    service.hasResultToExportOnHighlightedOperators = true;
+    service.hasResultToExportOnAllOperators.next(true);
+
+    service.resetFlags();
+
+    expect(service.hasResultToExportOnHighlightedOperators).toBe(false);
+    expect(service.hasResultToExportOnAllOperators.value).toBe(false);
+  });
+});
+
+describe("WorkflowResultDownloadability", () => {
+  const restrictedMap = new Map<string, Set<string>>([
+    ["opB", new Set(["ds1 (a@x.com)"])],
+    ["opD", new Set(["ds2 (b@y.com)", "ds1 (a@x.com)"])],
+  ]);
+  const ids = ["opA", "opB", "opC", "opD"];
+
+  it("getExportableOperatorIds keeps only operators absent from the restricted map", () => {
+    const downloadability = new WorkflowResultDownloadability(restrictedMap);
+    expect(downloadability.getExportableOperatorIds(ids)).toEqual(["opA", "opC"]);
+  });
+
+  it("getBlockedOperatorIds keeps only operators present in the restricted map", () => {
+    const downloadability = new WorkflowResultDownloadability(restrictedMap);
+    expect(downloadability.getBlockedOperatorIds(ids)).toEqual(["opB", "opD"]);
+  });
+
+  it("getBlockingDatasets returns the deduped union of blocking dataset labels", () => {
+    const downloadability = new WorkflowResultDownloadability(restrictedMap);
+    const result = downloadability.getBlockingDatasets(["opB", "opD"]);
+    // ds1 is shared by opB and opD, so the union must be deduped (length 2, not 3).
+    // The return builds a Set, so assert membership order-independently.
+    expect(result).toHaveLength(2);
+    expect([...result].sort()).toEqual(["ds1 (a@x.com)", "ds2 (b@y.com)"]);
+  });
+
+  it("getBlockingDatasets returns an empty array for unrestricted operators", () => {
+    const downloadability = new WorkflowResultDownloadability(restrictedMap);
+    expect(downloadability.getBlockingDatasets(["opA", "opC"])).toEqual([]);
+  });
+
+  it("treats every operator as exportable when the restricted map is empty", () => {
+    const downloadability = new WorkflowResultDownloadability(new Map());
+    expect(downloadability.getExportableOperatorIds(ids)).toEqual(ids);
+    expect(downloadability.getBlockedOperatorIds(ids)).toEqual([]);
   });
 });

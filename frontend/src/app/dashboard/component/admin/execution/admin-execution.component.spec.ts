@@ -27,6 +27,9 @@ import { NzModalModule } from "ng-zorro-antd/modal";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { Execution } from "../../../../common/type/execution";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
+import { NO_SORT } from "./admin-execution.component";
 import { of } from "rxjs";
 
 describe("AdminDashboardComponent", () => {
@@ -184,5 +187,233 @@ describe("AdminExecutionComponent pagination (#3586)", () => {
     changeParams(5, 5);
 
     expect(service.getExecutionList).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("AdminExecutionComponent methods (#6550)", () => {
+  let component: AdminExecutionComponent;
+  let fixture: ComponentFixture<AdminExecutionComponent>;
+  let service: AdminExecutionService;
+
+  const NOW = 1_700_000_000_000; // fixed clock (ms) for Date.now()-based logic
+
+  function makeExecution(over: Partial<Execution> = {}): Execution {
+    return {
+      access: true,
+      workflowId: 1,
+      workflowName: "wf",
+      executionId: 1,
+      executionName: "exec",
+      userName: "alice",
+      executionStatus: "COMPLETED",
+      startTime: 0,
+      endTime: 0,
+      executionTime: 0,
+      ...over,
+    } as unknown as Execution;
+  }
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      providers: [AdminExecutionService, ...commonTestProviders],
+      imports: [AdminExecutionComponent, HttpClientTestingModule, NzDropDownModule, NzModalModule],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(AdminExecutionComponent);
+    component = fixture.componentInstance;
+    service = TestBed.inject(AdminExecutionService);
+    // Keep data fetches inert and synchronous. We deliberately do NOT call
+    // detectChanges(), so ngOnInit's pollers never start.
+    vi.spyOn(service, "getExecutionList").mockReturnValue(of([]));
+    vi.spyOn(service, "getTotalWorkflows").mockReturnValue(of(0));
+    // Fixed clock makes the Date.now()-based methods deterministic and also keeps the
+    // websocket heartbeat interval (created in the action handlers) from ever firing.
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    fixture.destroy();
+  });
+
+  describe("pure helpers", () => {
+    it("padZero pads single digits to two characters", () => {
+      expect(component.padZero(5)).toBe("05");
+      expect(component.padZero(12)).toBe("12");
+    });
+
+    it("convertSecondsToTime formats seconds as HH:MM:SS", () => {
+      expect(component.convertSecondsToTime(0)).toBe("00:00:00");
+      expect(component.convertSecondsToTime(45)).toBe("00:00:45");
+      expect(component.convertSecondsToTime(3661)).toBe("01:01:01");
+    });
+
+    it("maxStringLength truncates only when longer than the limit", () => {
+      expect(component.maxStringLength("hello world", 5)).toBe("hello . . . ");
+      expect(component.maxStringLength("hi", 5)).toBe("hi");
+    });
+
+    it("getStatusColor maps statuses to colors and falls back to black", () => {
+      expect(component.getStatusColor("RUNNING")).toBe("orange");
+      expect(component.getStatusColor("COMPLETED")).toBe("green");
+      expect(component.getStatusColor("KILLED")).toBe("red");
+      expect(component.getStatusColor("SOMETHING_ELSE")).toBe("black");
+    });
+
+    it("convertTimeToTimestamp renders the timestamp via toLocaleString", () => {
+      // Assert against the same locale call so the test is timezone-independent.
+      const expected = new Date(NOW).toLocaleString("en-US", { timeZoneName: "short" });
+      expect(component.convertTimeToTimestamp("COMPLETED", NOW)).toBe(expected);
+    });
+
+    it("calculateTime uses the fixed final duration for a completed execution", () => {
+      expect(component.calculateTime(10000, 4000, "COMPLETED", "w")).toBe(6);
+    });
+
+    it("calculateTime uses the live elapsed time for a running execution", () => {
+      // now = NOW/1000 seconds; start = NOW - 5000 ms -> elapsed 5 s.
+      expect(component.calculateTime(0, NOW - 5000, "RUNNING", "w")).toBe(5);
+    });
+  });
+
+  describe("time status", () => {
+    it("specifyCompletedStatus flips COMPLETED to JUST COMPLETED within the 5s window", () => {
+      const exec = makeExecution({ executionStatus: "COMPLETED", endTime: NOW - 2000 });
+      component.listOfExecutions = [exec];
+
+      component.specifyCompletedStatus();
+
+      expect(exec.executionStatus).toBe("JUST COMPLETED");
+    });
+
+    it("specifyCompletedStatus reverts JUST COMPLETED to COMPLETED after 5s", () => {
+      const exec = makeExecution({ executionStatus: "JUST COMPLETED", endTime: NOW - 10000 });
+      component.listOfExecutions = [exec];
+
+      component.specifyCompletedStatus();
+
+      expect(exec.executionStatus).toBe("COMPLETED");
+    });
+
+    it("updateTimeDifferences assigns the elapsed time for each execution", () => {
+      const exec = makeExecution({ executionStatus: "COMPLETED", startTime: 4000, endTime: 10000 });
+      component.listOfExecutions = [exec];
+
+      component.updateTimeDifferences();
+
+      expect(exec.executionTime).toBe(6);
+    });
+
+    it("updateTimeStatus delegates to specifyCompletedStatus and updateTimeDifferences", () => {
+      const specify = vi.spyOn(component, "specifyCompletedStatus");
+      const diffs = vi.spyOn(component, "updateTimeDifferences");
+
+      component.updateTimeStatus();
+
+      expect(specify).toHaveBeenCalledTimes(1);
+      expect(diffs).toHaveBeenCalledTimes(1);
+    });
+
+    it("dataCheck flags a status change and ignores a fresh JUST COMPLETED", () => {
+      const oldRunning = makeExecution({ executionStatus: "RUNNING" });
+      const newCompleted = makeExecution({ executionStatus: "COMPLETED" });
+      expect(component.dataCheck(oldRunning, newCompleted)).toBe(true);
+
+      const oldJustCompleted = makeExecution({ executionStatus: "JUST COMPLETED" });
+      const newFresh = makeExecution({ executionStatus: "COMPLETED", endTime: NOW - 2000 });
+      expect(component.dataCheck(oldJustCompleted, newFresh)).toBe(false);
+    });
+  });
+
+  describe("data + table", () => {
+    it("fetchData populates the list, total and loading flag", () => {
+      const exec = makeExecution({ workflowId: 7 });
+      vi.mocked(service.getExecutionList).mockReturnValue(of([exec]));
+      vi.mocked(service.getTotalWorkflows).mockReturnValue(of(3));
+
+      component.fetchData();
+
+      expect(component.listOfExecutions).toEqual([exec]);
+      expect(component.totalWorkflows).toBe(3);
+      expect(component.isLoading).toBe(false);
+    });
+
+    it("onFilterChange stringifies the filter and refetches with it", () => {
+      vi.mocked(service.getExecutionList).mockClear();
+
+      component.onFilterChange(["RUNNING", "COMPLETED"]);
+
+      expect(component.filter).toEqual(["RUNNING", "COMPLETED"]);
+      expect(vi.mocked(service.getExecutionList).mock.calls[0][4]).toEqual(["RUNNING", "COMPLETED"]);
+    });
+
+    it("onSortChange sets the field/direction and refetches", () => {
+      vi.mocked(service.getExecutionList).mockClear();
+
+      component.onSortChange("executionName", "ascend");
+
+      expect(component.sortField).toBe("executionName");
+      expect(component.sortDirection).toBe("asc");
+      expect(service.getExecutionList).toHaveBeenCalledTimes(1);
+    });
+
+    it("onSortChange resets to NO_SORT when the active field is cleared", () => {
+      component.sortField = "executionName";
+      component.sortDirection = "asc";
+
+      component.onSortChange("executionName", null);
+
+      expect(component.sortField).toBe(NO_SORT);
+      expect(component.sortDirection).toBe(NO_SORT);
+    });
+  });
+
+  describe("execution actions", () => {
+    let openWebsocket: ReturnType<typeof vi.fn>;
+    let send: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      openWebsocket = vi.spyOn(WorkflowWebsocketService.prototype, "openWebsocket").mockImplementation(() => {});
+      send = vi.spyOn(WorkflowWebsocketService.prototype, "send").mockImplementation(() => {});
+    });
+
+    it("killExecution opens the socket for the workflow, sends a kill request and refreshes", () => {
+      vi.mocked(service.getExecutionList).mockClear();
+
+      component.killExecution(42);
+
+      expect(openWebsocket).toHaveBeenCalledWith(42);
+      expect(send).toHaveBeenCalledWith("WorkflowKillRequest", {});
+      expect(service.getExecutionList).toHaveBeenCalledTimes(1);
+    });
+
+    it("pauseExecution sends a pause request", () => {
+      component.pauseExecution(9);
+
+      expect(openWebsocket).toHaveBeenCalledWith(9);
+      expect(send).toHaveBeenCalledWith("WorkflowPauseRequest", {});
+    });
+
+    it("resumeExecution sends a resume request", () => {
+      component.resumeExecution(9);
+
+      expect(openWebsocket).toHaveBeenCalledWith(9);
+      expect(send).toHaveBeenCalledWith("WorkflowResumeRequest", {});
+    });
+
+    it("clickToViewHistory opens the history modal for the workflow", () => {
+      const modal = TestBed.inject(NzModalService);
+      const create = vi.spyOn(modal, "create").mockReturnValue({} as ReturnType<NzModalService["create"]>);
+
+      component.clickToViewHistory(7, "My Workflow");
+
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(create.mock.calls[0][0]).toMatchObject({
+        nzData: { wid: 7 },
+        nzTitle: "Execution results of Workflow: My Workflow",
+      });
+    });
   });
 });

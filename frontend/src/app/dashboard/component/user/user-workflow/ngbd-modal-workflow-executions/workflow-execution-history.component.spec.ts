@@ -23,7 +23,6 @@ import { ActivatedRoute } from "@angular/router";
 import { NZ_MODAL_DATA, NzModalModule, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import type { ModalOptions } from "ng-zorro-antd/modal";
 import { config, of, throwError } from "rxjs";
-import * as Plotly from "plotly.js-basic-dist-min";
 import Fuse from "fuse.js";
 
 import { WorkflowExecutionHistoryComponent } from "./workflow-execution-history.component";
@@ -37,11 +36,6 @@ import { StubUserService } from "../../../../../common/service/user/stub-user.se
 import { OperatorMetadataService } from "../../../../../workspace/service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../../../workspace/service/operator-metadata/stub-operator-metadata.service";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
-
-// Plotly draws onto real canvas/WebGL surfaces jsdom does not provide; the component
-// only ever calls newPlot, so replace the module wholesale (same precedent as
-// menu.component.spec.ts mocking file-saver).
-vi.mock("plotly.js-basic-dist-min", () => ({ newPlot: vi.fn() }));
 
 function makeEntry(overrides: Partial<WorkflowExecutionsEntry> = {}): WorkflowExecutionsEntry {
   return {
@@ -165,14 +159,17 @@ describe("WorkflowExecutionHistoryComponent", () => {
       ],
     }).compileComponents();
 
-    vi.mocked(Plotly.newPlot).mockClear();
     fixture = TestBed.createComponent(WorkflowExecutionHistoryComponent);
     component = fixture.componentInstance;
+    // Attach to the document so ngAfterViewInit's real Plotly.newPlot can resolve the
+    // chart divs by id (a detached fixture is not reachable via getElementById).
+    document.body.appendChild(fixture.nativeElement);
     // first detectChanges runs ngOnInit (table load) + ngAfterViewInit (charts)
     fixture.detectChanges();
   }
 
   afterEach(() => {
+    fixture?.nativeElement.remove();
     fixture?.destroy();
   });
 
@@ -205,33 +202,30 @@ describe("WorkflowExecutionHistoryComponent", () => {
     it("draws a username pie, a status pie, and a process-time bar chart", async () => {
       await setup();
 
-      const newPlot = vi.mocked(Plotly.newPlot);
-      expect(newPlot).toHaveBeenCalledTimes(3);
+      // ngAfterViewInit renders the charts via real Plotly, which attaches `data`/`layout`
+      // to each graph div (looked up by the id the component passes, incl. the leading '#').
+      const gd = (id: string) => document.getElementById(id) as unknown as { data: any[]; layout: any };
 
-      const [usernameChartId, usernameData, usernameLayout] = newPlot.mock.calls[0];
-      expect(usernameChartId).toBe("#execution-userName-pie-chart");
-      const usernamePie = (usernameData as unknown as Array<{ labels: string[]; values: number[]; type: string }>)[0];
+      const usernamePie = gd("#execution-userName-pie-chart").data[0];
       expect(usernamePie.type).toBe("pie");
       expect(usernamePie.labels).toEqual(["alice", "bob"]);
       expect(usernamePie.values).toEqual([2, 1]);
-      expect(usernameLayout).toEqual(
-        expect.objectContaining({ width: 450, height: 450, title: { text: "Users who ran the execution" } })
-      );
+      expect(gd("#execution-userName-pie-chart").layout).toMatchObject({
+        width: 450,
+        height: 450,
+        title: { text: "Users who ran the execution" },
+      });
 
-      const [statusChartId, statusData] = newPlot.mock.calls[1];
-      expect(statusChartId).toBe("#execution-status-pie-chart");
-      const statusPie = (statusData as unknown as Array<{ labels: string[]; values: number[] }>)[0];
+      const statusPie = gd("#execution-status-pie-chart").data[0];
       expect(statusPie.labels).toEqual(["Running", "Completed"]);
       expect(statusPie.values).toEqual([1, 2]);
 
-      const [barChartId, barData, barLayout] = newPlot.mock.calls[2];
-      expect(barChartId).toBe("#execution-average-process-time-bar-chart");
-      const bar = (barData as unknown as Array<{ x: string[]; y: number[]; type: string }>)[0];
+      const bar = gd("#execution-average-process-time-bar-chart").data[0];
       expect(bar.type).toBe("bar");
       // ceil(3 rows / divider 10) = 1-row buckets; process times are 1, 2, 3 minutes
       expect(bar.x).toEqual(["1~1", "2~2", "3~3"]);
       expect(bar.y).toEqual([1, 2, 3]);
-      expect(barLayout).toEqual(expect.objectContaining({ width: 600, height: 600 }));
+      expect(gd("#execution-average-process-time-bar-chart").layout).toMatchObject({ width: 600, height: 600 });
     });
 
     it("buckets 20 rows into ceil(20/10)=2-row groups keyed by position and averages minutes", async () => {

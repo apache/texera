@@ -106,7 +106,7 @@ describe("DatasetDetailComponent upload queue", () => {
             isLiked: vi.fn(() => of([{ isLiked: false }])),
           },
         },
-        { provide: AdminSettingsService, useValue: { getSetting: vi.fn(() => of("3")) } },
+        { provide: AdminSettingsService, useValue: { getPublicSetting: vi.fn(() => of("3")) } },
         { provide: MarkdownService, useValue: { parse: vi.fn(() => "") } },
         ...commonTestProviders,
       ],
@@ -449,7 +449,7 @@ describe("DatasetDetailComponent behavior", () => {
       postLike: vi.fn(() => of(true)),
       postUnlike: vi.fn(() => of(true)),
     };
-    adminSettingsServiceStub = { getSetting: vi.fn(() => of("50")) };
+    adminSettingsServiceStub = { getPublicSetting: vi.fn(() => of("50")) };
   });
 
   describe("ngOnInit", () => {
@@ -468,7 +468,7 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.likeCount).toBe(7);
       expect(component.viewCount).toBe(42);
       expect(hubServiceStub.isLiked).not.toHaveBeenCalled();
-      expect(adminSettingsServiceStub.getSetting).not.toHaveBeenCalled();
+      expect(adminSettingsServiceStub.getPublicSetting).not.toHaveBeenCalled();
     });
 
     it("fetches liked status and upload settings for a logged-in user", () => {
@@ -480,7 +480,19 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(hubServiceStub.isLiked).toHaveBeenCalled();
       expect(component.isLiked).toBe(true);
-      expect(adminSettingsServiceStub.getSetting).toHaveBeenCalled();
+      expect(adminSettingsServiceStub.getPublicSetting).toHaveBeenCalled();
+    });
+
+    it("keeps the default upload settings when the public settings are missing", () => {
+      adminSettingsServiceStub.getPublicSetting.mockReturnValue(of(null));
+
+      createComponent({ did: 5 });
+      login();
+      fixture.detectChanges();
+
+      expect(component.chunkSizeMiB).toBe(50);
+      expect(component.maxConcurrentChunks).toBe(10);
+      expect(component.maxConcurrentFiles).toBe(3);
     });
 
     it("makes no hub calls when the route carries no did", () => {

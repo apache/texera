@@ -200,7 +200,8 @@ class WorkerSpec
         OpExecWithClassName(
           "org.apache.texera.amber.engine.architecture.worker.DummyOperatorExecutor"
         ),
-        isSource = false
+        isSource = false,
+        loopStartStateUris = Map.empty
       ),
       AsyncRPCContext(COORDINATOR, identifier1),
       4
