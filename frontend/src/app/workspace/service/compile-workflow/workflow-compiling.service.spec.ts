@@ -31,6 +31,8 @@ import { UndoRedoService } from "../undo-redo/undo-redo.service";
 import { mockPoint, mockScanPredicate } from "../workflow-graph/model/mock-workflow-data";
 import { serializePortIdentity } from "../../../common/util/port-identity-serde";
 import { commonTestImports, commonTestProviders } from "../../../common/testing/test-utils";
+import { firstValueFrom } from "rxjs";
+import { CompilationState } from "../../types/workflow-compiling.interface";
 
 describe("WorkflowCompilingService.dropInvalidAttributeValues", () => {
   // A schema shaped like the Aggregate operator after schema propagation has filled in the
@@ -238,5 +240,91 @@ describe("WorkflowCompilingService schema propagation property cleanup", () => {
 
     expect(setSpy).not.toHaveBeenCalled();
     expect(workflowActionService.getTexeraGraph().getOperator(operatorID).operatorProperties.attribute).toBe("col_y");
+  });
+});
+
+describe("WorkflowCompilingService public getters", () => {
+  let service: WorkflowCompilingService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [...commonTestImports],
+      providers: [
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        JointUIService,
+        WorkflowActionService,
+        WorkflowUtilService,
+        UndoRedoService,
+        DynamicSchemaService,
+        ValidationWorkflowService,
+        WorkflowCompilingService,
+        ...commonTestProviders,
+      ],
+    });
+    service = TestBed.inject(WorkflowCompilingService);
+  });
+
+  // Overwrite the private compilation-state snapshot the getters read from.
+  const setState = (info: unknown): void => {
+    (service as any).currentCompilationStateInfo = info;
+  };
+
+  it("getWorkflowCompilationState returns the current state", () => {
+    setState({ state: CompilationState.Succeeded });
+    expect(service.getWorkflowCompilationState()).toBe(CompilationState.Succeeded);
+  });
+
+  it("getWorkflowCompilationErrors is empty while succeeded or uninitialized", () => {
+    setState({ state: CompilationState.Succeeded, operatorErrors: { op1: { message: "x" } } });
+    expect(service.getWorkflowCompilationErrors()).toEqual({});
+
+    setState({ state: CompilationState.Uninitialized });
+    expect(service.getWorkflowCompilationErrors()).toEqual({});
+  });
+
+  it("getWorkflowCompilationErrors surfaces the operator errors when compilation failed", () => {
+    const errors = { op1: { message: "boom" } };
+    setState({ state: CompilationState.Failed, operatorOutputPortSchemaMap: {}, operatorErrors: errors });
+    expect(service.getWorkflowCompilationErrors()).toBe(errors);
+  });
+
+  it("getCompilationStateInfoChangedStream replays the latest state", async () => {
+    (service as any).compilationStateInfoChangedStream.next(CompilationState.Succeeded);
+    expect(await firstValueFrom(service.getCompilationStateInfoChangedStream())).toBe(CompilationState.Succeeded);
+  });
+
+  it("getOperatorOutputSchemaMap returns undefined when uninitialized", () => {
+    setState({ state: CompilationState.Uninitialized });
+    expect(service.getOperatorOutputSchemaMap("op1")).toBeUndefined();
+  });
+
+  it("getOperatorOutputSchemaMap returns the operator's output port schema map", () => {
+    const opMap = {
+      [serializePortIdentity({ id: 0, internal: false })]: [{ attributeName: "a", attributeType: "string" }],
+    };
+    setState({ state: CompilationState.Succeeded, operatorOutputPortSchemaMap: { op1: opMap } });
+    expect(service.getOperatorOutputSchemaMap("op1")).toBe(opMap);
+  });
+
+  it("getPortInputSchema looks the port up by its serialized identity", () => {
+    const portSchema = [{ attributeName: "a", attributeType: "string" }];
+    vi.spyOn(service, "getOperatorInputSchemaMap").mockReturnValue({
+      [serializePortIdentity({ id: 0, internal: false })]: portSchema,
+    } as any);
+    expect(service.getPortInputSchema("op1", 0)).toBe(portSchema);
+  });
+
+  it("getPortInputSchema returns undefined when the operator has no input schema map", () => {
+    vi.spyOn(service, "getOperatorInputSchemaMap").mockReturnValue(undefined);
+    expect(service.getPortInputSchema("op1", 0)).toBeUndefined();
+  });
+
+  it("getOperatorInputAttributeType finds the named attribute's type on the input port", () => {
+    vi.spyOn(service, "getPortInputSchema").mockReturnValue([
+      { attributeName: "a", attributeType: "string" },
+      { attributeName: "b", attributeType: "integer" },
+    ]);
+    expect(service.getOperatorInputAttributeType("op1", 0, "b")).toBe("integer");
+    expect(service.getOperatorInputAttributeType("op1", 0, "missing")).toBeUndefined();
   });
 });
