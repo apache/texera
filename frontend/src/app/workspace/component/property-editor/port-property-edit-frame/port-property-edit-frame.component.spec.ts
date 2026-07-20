@@ -52,7 +52,7 @@ describe("PortPropertyEditFrameComponent", () => {
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
     dynamicSchemaService = TestBed.inject(DynamicSchemaService);
-    texeraGraph = (workflowActionService as any).texeraGraph;
+    texeraGraph = workflowActionService.getTexeraGraph();
     fixture.detectChanges();
   });
 
@@ -240,7 +240,7 @@ describe("PortPropertyEditFrameComponent", () => {
 
       const newValue = { type: "hash", hashAttributeNames: ["a"] };
       component.onFormChanges(newValue);
-      tick(FORM_DEBOUNCE_TIME_MS);
+      tick(FORM_DEBOUNCE_TIME_MS + 10);
 
       expect(setSpy).toHaveBeenCalledTimes(1);
       expect(setSpy).toHaveBeenCalledWith(inputPort, newValue);
@@ -259,7 +259,7 @@ describe("PortPropertyEditFrameComponent", () => {
       const setSpy = vi.spyOn(workflowActionService, "setPortProperty").mockImplementation(() => {});
 
       component.onFormChanges({ type: "none" });
-      tick(FORM_DEBOUNCE_TIME_MS);
+      tick(FORM_DEBOUNCE_TIME_MS + 10);
 
       expect(setSpy).not.toHaveBeenCalled();
     }));
