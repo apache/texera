@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { OverlayContainer } from "@angular/cdk/overlay";
 
 import { FiltersComponent } from "./filters.component";
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
@@ -41,6 +42,20 @@ import { NotificationService } from "src/app/common/service/notification/notific
 describe("FiltersComponent", () => {
   let component: FiltersComponent;
   let fixture: ComponentFixture<FiltersComponent>;
+
+  // The component parses a "YYYY-MM-DD" tag into a Date via the LOCAL-time
+  // `new Date(year, month - 1, day)`. Assert on the individual calendar fields
+  // read with the matching LOCAL getters (not getUTC*) so the expectation
+  // recovers the intended calendar day in every runner timezone.
+  function expectDateRange(
+    actual: ReadonlyArray<Date>,
+    start: [number, number, number],
+    end: [number, number, number]
+  ): void {
+    expect(actual).toHaveLength(2);
+    expect([actual[0].getFullYear(), actual[0].getMonth(), actual[0].getDate()]).toEqual(start);
+    expect([actual[1].getFullYear(), actual[1].getMonth(), actual[1].getDate()]).toEqual(end);
+  }
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -66,7 +81,13 @@ describe("FiltersComponent", () => {
 
   afterEach(() => {
     fixture.destroy();
-    document.querySelectorAll(".cdk-overlay-container").forEach(c => (c.innerHTML = ""));
+    // Clear any CDK overlays (dropdowns/modals) opened during the test via the
+    // injected OverlayContainer rather than mutating the global document, so we
+    // only touch the container Angular created for this TestBed.
+    const overlayContainer = TestBed.inject(OverlayContainer, null);
+    if (overlayContainer) {
+      overlayContainer.getContainerElement().innerHTML = "";
+    }
   });
 
   it("should create", () => {
@@ -75,12 +96,12 @@ describe("FiltersComponent", () => {
 
   it("parses manually entered mtime", () => {
     component.masterFilterList = ["mtime: 2022-01-22 ~ 2022-04-21"];
-    expect(component.selectedMtime).toEqual([new Date(2022, 0, 22), new Date(2022, 3, 21)]);
+    expectDateRange(component.selectedMtime, [2022, 0, 22], [2022, 3, 21]);
   });
 
   it("parses manually entered ctime", () => {
     component.masterFilterList = ["ctime: 2022-01-22 ~ 2022-04-21"];
-    expect(component.selectedCtime).toEqual([new Date(2022, 0, 22), new Date(2022, 3, 21)]);
+    expectDateRange(component.selectedCtime, [2022, 0, 22], [2022, 3, 21]);
   });
 
   it("preserves ordering when parsing drop down", () => {
@@ -111,16 +132,23 @@ describe("FiltersComponent", () => {
 
     it("skips owner and id retrieval when the user is not logged in at init", () => {
       const stubUser = TestBed.inject(UserService) as unknown as StubUserService;
-      stubUser.user = undefined;
-      const loggedOutFixture = TestBed.createComponent(FiltersComponent);
-      const loggedOutComponent = loggedOutFixture.componentInstance;
-      loggedOutFixture.detectChanges();
-      expect(loggedOutComponent.isLogin).toBe(false);
-      expect(loggedOutComponent.owners).toEqual([]);
-      expect(loggedOutComponent.wids).toEqual([]);
-      // Operator metadata is not login-gated, so it is still loaded.
-      expect(loggedOutComponent.operatorGroups).toEqual(["Source", "Analysis", "View Results"]);
-      loggedOutFixture.destroy();
+      // Capture and restore the shared stub's user so logging out here does not
+      // leak into later tests (state leak / order-dependence).
+      const previousUser = stubUser.user;
+      try {
+        stubUser.user = undefined;
+        const loggedOutFixture = TestBed.createComponent(FiltersComponent);
+        const loggedOutComponent = loggedOutFixture.componentInstance;
+        loggedOutFixture.detectChanges();
+        expect(loggedOutComponent.isLogin).toBe(false);
+        expect(loggedOutComponent.owners).toEqual([]);
+        expect(loggedOutComponent.wids).toEqual([]);
+        // Operator metadata is not login-gated, so it is still loaded.
+        expect(loggedOutComponent.operatorGroups).toEqual(["Source", "Analysis", "View Results"]);
+        loggedOutFixture.destroy();
+      } finally {
+        stubUser.user = previousUser;
+      }
     });
   });
 
@@ -253,7 +281,7 @@ describe("FiltersComponent", () => {
 
     beforeEach(() => {
       const notificationService = TestBed.inject(NotificationService);
-      errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => undefined as never);
+      errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
     });
 
     it("reports an invalid owner name and removes the tag", () => {
@@ -290,7 +318,7 @@ describe("FiltersComponent", () => {
 
     beforeEach(() => {
       const notificationService = TestBed.inject(NotificationService);
-      errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => undefined as never);
+      errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
     });
 
     it("rejects a malformed ctime tag", () => {
@@ -308,14 +336,14 @@ describe("FiltersComponent", () => {
     it("keeps only the first ctime tag when multiple are supplied", () => {
       component.masterFilterList = ["ctime: 2022-01-22 ~ 2022-04-21", "ctime: 2023-01-01 ~ 2023-02-02"];
       expect(errorSpy).toHaveBeenCalledWith("Multiple search dates is not allowed");
-      expect(component.selectedCtime).toEqual([new Date(2022, 0, 22), new Date(2022, 3, 21)]);
+      expectDateRange(component.selectedCtime, [2022, 0, 22], [2022, 3, 21]);
       expect(component.masterFilterList).toEqual(["ctime: 2022-01-22 ~ 2022-04-21"]);
     });
 
     it("keeps only the first mtime tag when multiple are supplied", () => {
       component.masterFilterList = ["mtime: 2022-01-22 ~ 2022-04-21", "mtime: 2023-01-01 ~ 2023-02-02"];
       expect(errorSpy).toHaveBeenCalledWith("Multiple search dates is not allowed");
-      expect(component.selectedMtime).toEqual([new Date(2022, 0, 22), new Date(2022, 3, 21)]);
+      expectDateRange(component.selectedMtime, [2022, 0, 22], [2022, 3, 21]);
       expect(component.masterFilterList).toEqual(["mtime: 2022-01-22 ~ 2022-04-21"]);
     });
   });
@@ -334,6 +362,13 @@ describe("FiltersComponent", () => {
       component.selectedMtime = [new Date(2022, 10, 15), new Date(2022, 11, 20)];
       component.buildMasterFilterList();
       expect(component.masterFilterList).toEqual(["mtime: 2022-11-15 ~ 2022-12-20"]);
+    });
+
+    it("zero-pads single-digit months and days", () => {
+      // Month index 8 -> "09" and days 5/9 -> "05"/"09" exercise the padding branch.
+      component.selectedMtime = [new Date(2022, 8, 5), new Date(2022, 8, 9)];
+      component.buildMasterFilterList();
+      expect(component.masterFilterList).toEqual(["mtime: 2022-09-05 ~ 2022-09-09"]);
     });
   });
 
