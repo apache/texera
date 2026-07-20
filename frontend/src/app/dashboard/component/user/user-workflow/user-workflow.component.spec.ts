@@ -724,14 +724,16 @@ describe("SavedWorkflowSectionComponent", () => {
       // tick, mirroring the real async contract (the component assigns onload afterwards).
       class NonStringFileReader {
         public result: unknown = 12345;
-        public onload: (() => void) | null = null;
-        readAsText(): void {
-          setTimeout(() => this.onload?.(), 0);
+        public onload: ((event: ProgressEvent<FileReader>) => void) | null = null;
+        readAsText(_blob: Blob): void {
+          setTimeout(() => this.onload?.({} as ProgressEvent<FileReader>), 0);
         }
       }
 
       afterEach(() => {
         vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+        localStorage.removeItem(VIEW_MODE_KEY);
       });
 
       describe("view-child getters", () => {
