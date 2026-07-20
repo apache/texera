@@ -184,18 +184,20 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
     Test / envVars += "COMPUTING_UNIT_SHARING_ENABLED" -> "true",
     Test / forkOptions := (Test / forkOptions).value
       .withWorkingDirectory((ThisBuild / baseDirectory).value),
-    // Run each suite in its own forked JVM, and drop COMPUTING_UNIT_SHARING_ENABLED for the
-    // sharing-disabled suite: the config flag is a load-time val, so the disabled branch can
-    // only be exercised in a JVM where the env var is absent (not merely unset per-test).
+    // Isolate the sharing-disabled suite into its own forked JVM without
+    // COMPUTING_UNIT_SHARING_ENABLED: the config flag is a load-time val, so the disabled
+    // branch can only be exercised where the env var is absent (not merely unset per-test).
+    // All other suites keep running together in one forked JVM (the pre-grouping default).
     Test / testGrouping := {
       val opts = (Test / forkOptions).value
-      (Test / definedTests).value.map { suite =>
-        val suiteOpts =
-          if (suite.name.endsWith("SharingDisabledSpec"))
-            opts.withEnvVars(opts.envVars - "COMPUTING_UNIT_SHARING_ENABLED")
-          else opts
-        Tests.Group(suite.name, Seq(suite), Tests.SubProcess(suiteOpts))
+      val (disabled, enabled) =
+        (Test / definedTests).value.partition(_.name.endsWith("SharingDisabledSpec"))
+      val enabledGroup = Tests.Group("sharing-enabled", enabled, Tests.SubProcess(opts))
+      val disabledGroups = disabled.map { suite =>
+        val disabledOpts = opts.withEnvVars(opts.envVars - "COMPUTING_UNIT_SHARING_ENABLED")
+        Tests.Group(suite.name, Seq(suite), Tests.SubProcess(disabledOpts))
       }
+      enabledGroup +: disabledGroups
     }
   )
 lazy val FileService = (project in file("file-service"))
