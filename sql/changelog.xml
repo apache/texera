@@ -48,6 +48,11 @@
         <sqlFile path="sql/updates/27.sql"/>
     </changeSet>
 
+    <!-- Enforce unique dataset names per owner -->
+    <changeSet id="28" author="kunwp1">
+        <sqlFile path="sql/updates/28.sql"/>
+    </changeSet>
+
     <changeSet id="29" author="Neilk1021">
         <sqlFile path="sql/updates/29.sql"/>
     </changeSet>

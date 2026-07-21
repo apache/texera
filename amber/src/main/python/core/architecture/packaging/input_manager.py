@@ -155,13 +155,15 @@ class InputManager:
 
     def process_data_payload(
         self, from_: ChannelIdentity, payload: DataPayload
-    ) -> Iterator[Union[Tuple, InternalMarker]]:
+    ) -> Iterator[Union[Tuple, StateFrame, InternalMarker]]:
         self._current_channel_id = from_
 
         if isinstance(payload, DataFrame):
             yield from self._process_data(payload.frame)
         elif isinstance(payload, StateFrame):
-            yield payload.frame
+            # Yield the whole envelope (not just .frame) so the runtime can
+            # read its loop_counter; the operator still receives a bare State.
+            yield payload
         else:
             raise NotImplementedError()
 

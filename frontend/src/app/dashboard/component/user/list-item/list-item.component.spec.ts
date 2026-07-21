@@ -22,7 +22,8 @@ import { ListItemComponent } from "./list-item.component";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { of, throwError } from "rxjs";
+import { of, Subject, throwError } from "rxjs";
+import { ActionType, HubService } from "../../../../hub/service/hub.service";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { RouterTestingModule } from "@angular/router/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -30,6 +31,8 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
+import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
@@ -42,14 +45,19 @@ describe("ListItemComponent", () => {
   let component: ListItemComponent;
   let fixture: ComponentFixture<ListItemComponent>;
   let workflowPersistService: Mocked<WorkflowPersistService>;
+  let datasetService: Mocked<DatasetService>;
+  let hubService: HubService;
+  let modalService: NzModalService;
 
   beforeEach(async () => {
     const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
+    const datasetServiceSpy = { updateDatasetName: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [ListItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
       providers: [
         { provide: WorkflowPersistService, useValue: workflowPersistServiceSpy },
+        { provide: DatasetService, useValue: datasetServiceSpy },
         { provide: UserService, useClass: StubUserService },
         NzModalService,
         ...commonTestProviders,
@@ -59,6 +67,9 @@ describe("ListItemComponent", () => {
     fixture = TestBed.createComponent(ListItemComponent);
     component = fixture.componentInstance;
     workflowPersistService = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
+    datasetService = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
+    hubService = TestBed.inject(HubService);
+    modalService = TestBed.inject(NzModalService);
     // initializeEntry() needs a fully-formed workflow entry to avoid throwing
     // when the template renders for the first time. Each test below overwrites
     // component.entry directly, which exercises confirm methods without going
@@ -187,6 +198,156 @@ describe("ListItemComponent", () => {
       } as unknown as DashboardEntry;
       component.initializeEntry();
       expect(component.entryLink).toEqual([HUB_DATASET_RESULT_DETAIL, "301"]);
+    });
+  });
+
+  it("should reject an invalid dataset name, revert to original, and exit editing", () => {
+    component.entry = {
+      id: 5,
+      name: "has space",
+      type: "dataset",
+    } as unknown as DashboardEntry;
+    component.originalName = "original-name";
+    component.editingName = true;
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("has space");
+
+    expect(datasetService.updateDatasetName).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    expect(component.entry.name).toBe("original-name");
+    expect(component.editingName).toBe(false);
+  });
+
+  it("should call the dataset service for a valid dataset rename", () => {
+    component.entry = {
+      id: 5,
+      name: "new-valid-name",
+      type: "dataset",
+    } as unknown as DashboardEntry;
+    component.originalName = "old-name";
+    datasetService.updateDatasetName.mockReturnValue(of({} as any));
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(datasetService.updateDatasetName).toHaveBeenCalledWith(5, "new-valid-name");
+  });
+
+  it("should surface the error message and revert the name when a dataset rename fails", () => {
+    component.entry = {
+      id: 5,
+      name: "new-valid-name",
+      type: "dataset",
+    } as unknown as DashboardEntry;
+    component.originalName = "old-name";
+    component.editingName = true;
+    datasetService.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(errorSpy).toHaveBeenCalledWith("boom");
+    expect(component.entry.name).toBe("old-name");
+    expect(component.editingName).toBe(false);
+  });
+
+  describe("edit + interaction handlers", () => {
+    it("onEditName captures the original name and enters edit mode", () => {
+      component.entry = { id: 1, name: "My Name", type: "workflow" } as unknown as DashboardEntry;
+
+      component.onEditName();
+
+      expect(component.editingName).toBe(true);
+      expect(component.originalName).toBe("My Name");
+    });
+
+    it("onEditDescription opens the edit modal and applies the change, then closes it", () => {
+      component.editable = true;
+      component.entry = { id: 1, description: "old", type: "workflow" } as unknown as DashboardEntry;
+      const descriptionChange = new Subject<string>();
+      const modalRef = { componentInstance: { descriptionChange }, destroy: vi.fn() };
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue(modalRef as any);
+      const confirmSpy = vi.spyOn(component, "confirmUpdateCustomDescription").mockImplementation(() => {});
+
+      component.onEditDescription();
+      expect(createSpy).toHaveBeenCalled();
+
+      descriptionChange.next("new description");
+      expect(confirmSpy).toHaveBeenCalledWith("new description");
+      expect(modalRef.destroy).toHaveBeenCalled();
+    });
+
+    it("onEditDescription is a no-op when the entry is not editable", () => {
+      component.editable = false;
+      const createSpy = vi.spyOn(modalService, "create");
+
+      component.onEditDescription();
+
+      expect(createSpy).not.toHaveBeenCalled();
+    });
+
+    it("onCheckboxChange toggles the entry's checked flag and emits the change", () => {
+      const entry = { checked: false } as unknown as DashboardEntry;
+      const emitSpy = vi.fn();
+      component.checkboxChanged.subscribe(emitSpy);
+
+      component.onCheckboxChange(entry);
+
+      expect(entry.checked).toBe(true);
+      expect(emitSpy).toHaveBeenCalled();
+    });
+
+    it("toggleLike likes the entry and refreshes the like count on success", () => {
+      component.currentUid = 1;
+      component.entry = { id: 5, type: "workflow" } as unknown as DashboardEntry;
+      component.isLiked = false;
+      vi.spyOn(hubService, "postLike").mockReturnValue(of(true));
+      vi.spyOn(hubService, "getCounts").mockReturnValue(of([{ counts: { like: 3 } }] as any));
+
+      component.toggleLike();
+
+      expect(hubService.postLike).toHaveBeenCalledWith(5, "workflow");
+      expect(component.isLiked).toBe(true);
+      expect(component.likeCount).toBe(3);
+    });
+
+    it("toggleLike unlikes the entry and refreshes the like count on success", () => {
+      component.currentUid = 1;
+      component.entry = { id: 5, type: "workflow" } as unknown as DashboardEntry;
+      component.isLiked = true;
+      vi.spyOn(hubService, "postUnlike").mockReturnValue(of(true));
+      vi.spyOn(hubService, "getCounts").mockReturnValue(of([{ counts: { like: 1 } }] as any));
+
+      component.toggleLike();
+
+      expect(hubService.postUnlike).toHaveBeenCalledWith(5, "workflow");
+      expect(component.isLiked).toBe(false);
+      expect(component.likeCount).toBe(1);
+    });
+
+    it("toggleLike does nothing when there is no current user", () => {
+      component.currentUid = undefined;
+      component.entry = { id: 5, type: "workflow" } as unknown as DashboardEntry;
+      const postLikeSpy = vi.spyOn(hubService, "postLike");
+
+      component.toggleLike();
+
+      expect(postLikeSpy).not.toHaveBeenCalled();
+    });
+
+    it("openDetailModal opens the detail modal and increments the view count", () => {
+      component.entry = { id: 9, type: "workflow" } as unknown as DashboardEntry;
+      const modalRef = { componentInstance: {}, destroy: vi.fn() };
+      vi.spyOn(modalService, "create").mockReturnValue(modalRef as any);
+      vi.spyOn(hubService, "getCounts").mockReturnValue(of([{ counts: { view: 4 } }] as any));
+
+      component.openDetailModal(9);
+
+      expect(modalService.create).toHaveBeenCalled();
+      expect(hubService.getCounts).toHaveBeenCalledWith(["workflow"], [9], [ActionType.View]);
+      expect(component.viewCount).toBe(5); // 4 + 1
     });
   });
 });
