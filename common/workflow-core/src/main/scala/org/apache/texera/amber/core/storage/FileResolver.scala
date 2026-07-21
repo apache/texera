@@ -101,6 +101,48 @@ object FileResolver {
   }
 
   /**
+    * Fetches a dataset and one of its versions from the DB by owner email, dataset name,
+    * and version name.
+    *
+    * @param originalPath the caller's original path, used only for the error message
+    * @throws java.io.FileNotFoundException if the dataset or the version cannot be found
+    */
+  private def fetchDatasetAndVersion(
+      ownerEmail: String,
+      datasetName: String,
+      versionName: String,
+      originalPath: String
+  ): (Dataset, DatasetVersion) =
+    withTransaction(
+      SqlServer
+        .getInstance()
+        .createDSLContext()
+    ) { ctx =>
+      val dataset = ctx
+        .select(DATASET.fields: _*)
+        .from(DATASET)
+        .leftJoin(USER)
+        .on(USER.UID.eq(DATASET.OWNER_UID))
+        .where(USER.EMAIL.eq(ownerEmail))
+        .and(DATASET.NAME.eq(datasetName))
+        .fetchOneInto(classOf[Dataset])
+
+      val datasetVersion =
+        if (dataset == null) null
+        else
+          ctx
+            .selectFrom(DATASET_VERSION)
+            .where(DATASET_VERSION.DID.eq(dataset.getDid))
+            .and(DATASET_VERSION.NAME.eq(versionName))
+            .fetchOneInto(classOf[DatasetVersion])
+
+      if (dataset == null || datasetVersion == null) {
+        throw new FileNotFoundException(s"Dataset file $originalPath not found.")
+      }
+      (dataset, datasetVersion)
+    }
+
+  /**
     * Attempts to resolve a given fileName to a URI.
     *
     * The fileName format should be: /ownerEmail/datasetName/versionName/fileRelativePath
@@ -123,33 +165,7 @@ object FileResolver {
 
     // fetch the dataset and version from DB to get dataset ID and version hash
     val (dataset, datasetVersion) =
-      withTransaction(
-        SqlServer
-          .getInstance()
-          .createDSLContext()
-      ) { ctx =>
-        // fetch the dataset from DB
-        val dataset = ctx
-          .select(DATASET.fields: _*)
-          .from(DATASET)
-          .leftJoin(USER)
-          .on(USER.UID.eq(DATASET.OWNER_UID))
-          .where(USER.EMAIL.eq(ownerEmail))
-          .and(DATASET.NAME.eq(datasetName))
-          .fetchOneInto(classOf[Dataset])
-
-        // fetch the dataset version from DB
-        val datasetVersion = ctx
-          .selectFrom(DATASET_VERSION)
-          .where(DATASET_VERSION.DID.eq(dataset.getDid))
-          .and(DATASET_VERSION.NAME.eq(versionName))
-          .fetchOneInto(classOf[DatasetVersion])
-
-        if (dataset == null || datasetVersion == null) {
-          throw new FileNotFoundException(s"Dataset file $fileName not found.")
-        }
-        (dataset, datasetVersion)
-      }
+      fetchDatasetAndVersion(ownerEmail, datasetName, versionName, fileName)
 
     // Convert each segment of fileRelativePath to an encoded String
     val encodedFileRelativePath = fileRelativePath
@@ -195,37 +211,9 @@ object FileResolver {
         s"Dataset version path $datasetPath is invalid; expected /ownerEmail/datasetName/versionName."
       )
     }
-    val (ownerEmail, datasetName, versionName) = (segments(0), segments(1), segments(2))
-
-    withTransaction(
-      SqlServer
-        .getInstance()
-        .createDSLContext()
-    ) { ctx =>
-      val dataset = ctx
-        .select(DATASET.fields: _*)
-        .from(DATASET)
-        .leftJoin(USER)
-        .on(USER.UID.eq(DATASET.OWNER_UID))
-        .where(USER.EMAIL.eq(ownerEmail))
-        .and(DATASET.NAME.eq(datasetName))
-        .fetchOneInto(classOf[Dataset])
-
-      if (dataset == null) {
-        throw new FileNotFoundException(s"Dataset $datasetPath not found.")
-      }
-
-      val datasetVersion = ctx
-        .selectFrom(DATASET_VERSION)
-        .where(DATASET_VERSION.DID.eq(dataset.getDid))
-        .and(DATASET_VERSION.NAME.eq(versionName))
-        .fetchOneInto(classOf[DatasetVersion])
-
-      if (datasetVersion == null) {
-        throw new FileNotFoundException(s"Dataset version $datasetPath not found.")
-      }
-      (dataset.getRepositoryName, datasetVersion.getVersionHash)
-    }
+    val (dataset, datasetVersion) =
+      fetchDatasetAndVersion(segments(0), segments(1), segments(2), datasetPath)
+    (dataset.getRepositoryName, datasetVersion.getVersionHash)
   }
 
   /**

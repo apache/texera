@@ -17,6 +17,7 @@
 
 import base64
 import json
+import os
 import sys
 from loguru import logger
 
@@ -142,8 +143,6 @@ def main(raw_config: str) -> None:
     # Setting R_HOME environment variable for R-UDF usage
     r_path = config["rPath"]
     if r_path:
-        import os
-
         os.environ["R_HOME"] = r_path
 
     # Expose the FUSE-mounted dataset path (if any) so UDF code can read the
@@ -151,8 +150,6 @@ def main(raw_config: str) -> None:
     # also injects it into the UDF module as MOUNTED_DATASET_PATH).
     mounted_dataset_path = config["mountedDatasetPath"]
     if mounted_dataset_path:
-        import os
-
         os.environ["MOUNTED_DATASET_PATH"] = mounted_dataset_path
 
     PythonWorker(
