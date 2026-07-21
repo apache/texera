@@ -1861,4 +1861,227 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(component.formData.marker).toBe("allowed");
     });
   });
+  describe("real template rendering", () => {
+    let realFixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
+    let realComponent: OperatorPropertyEditFrameComponent;
+
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          WorkflowActionService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+          DatePipe,
+          ...commonTestProviders,
+        ],
+        imports: [
+          OperatorPropertyEditFrameComponent,
+          BrowserAnimationsModule,
+          FormsModule,
+          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+          FormlyNgZorroAntdModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule,
+        ],
+      }).compileComponents();
+
+      realFixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
+      realComponent = realFixture.componentInstance;
+    });
+
+    it("should render the title section when editingTitle is false and formTitle is set", () => {
+      realComponent.editingTitle = false;
+      realComponent.formTitle = "My Operator";
+      realFixture.detectChanges();
+      const titleEl = realFixture.debugElement.query(By.css("#formly-title"));
+      expect(titleEl).toBeTruthy();
+      const h3 = realFixture.debugElement.query(By.css("h3.texera-workspace-property-editor-title"));
+      expect(h3).toBeTruthy();
+      expect((h3.nativeElement as HTMLElement).textContent?.trim()).toBe("My Operator");
+    });
+
+    it("should not render the h3 title when formTitle is undefined", () => {
+      realComponent.editingTitle = false;
+      realComponent.formTitle = undefined;
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css("h3.texera-workspace-property-editor-title"))).toBeNull();
+    });
+
+    it("should disable the edit button when interactive is false", () => {
+      realComponent.editingTitle = false;
+      realComponent.interactive = false;
+      realFixture.detectChanges();
+      const btn = realFixture.debugElement.query(By.css("#formly-title button")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+    });
+
+    it("should enable the edit button when interactive is true", () => {
+      realComponent.editingTitle = false;
+      realComponent.interactive = true;
+      realFixture.detectChanges();
+      const btn = realFixture.debugElement.query(By.css("#formly-title button")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+
+    it("should hide the title section when editingTitle is true", () => {
+      realComponent.editingTitle = true;
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css("#formly-title"))).toBeNull();
+    });
+
+    it("should hide the customName div when editingTitle is false", () => {
+      realComponent.editingTitle = false;
+      realFixture.detectChanges();
+      const customName = realFixture.debugElement.query(By.css("#customName"));
+      expect(customName).toBeTruthy();
+      expect((customName.nativeElement as HTMLElement).hidden).toBe(true);
+    });
+
+    it("should show the customName div when editingTitle is true", () => {
+      realComponent.editingTitle = true;
+      realFixture.detectChanges();
+      const customName = realFixture.debugElement.query(By.css("#customName"));
+      expect(customName).toBeTruthy();
+      expect((customName.nativeElement as HTMLElement).hidden).toBe(false);
+    });
+
+    it("should show the PythonLambdaFunction icon when currentOperatorId includes PythonLambdaFunction", () => {
+      realComponent.editingTitle = false;
+      realComponent.currentOperatorId = "PythonLambdaFunction-abc";
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".question-circle-button"))).toBeTruthy();
+    });
+
+    it("should not show the PythonLambdaFunction icon for other operator types", () => {
+      realComponent.editingTitle = false;
+      realComponent.currentOperatorId = "ScanSource-abc";
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".question-circle-button"))).toBeNull();
+    });
+
+    it("should not render the form section when formlyFields is undefined", () => {
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".property-editor-form"))).toBeNull();
+    });
+
+    it("should render the operator version span", () => {
+      realComponent.operatorVersion = "v1.2.3";
+      realFixture.detectChanges();
+      const versionEl = realFixture.debugElement.query(By.css(".operator-version span"));
+      expect(versionEl).toBeTruthy();
+      expect((versionEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Operator Version: v1.2.3");
+    });
+
+    // ── HF task preview template nodes ──
+    // formlyFields=[] and formlyFormGroup=new FormGroup({}) satisfy the outer
+    // *ngIf without triggering Formly rendering; the getter is mocked directly.
+
+    function setupPreview(preview: object): void {
+      vi.spyOn(realComponent, "huggingFaceTaskPreview", "get").mockReturnValue(preview as any);
+      realComponent.formlyFields = [];
+      realComponent.formlyFormGroup = new FormGroup({});
+      realComponent.formData = {};
+      realFixture.detectChanges();
+    }
+
+    it("should not render the HF preview card when huggingFaceTaskPreview is null", () => {
+      vi.spyOn(realComponent, "huggingFaceTaskPreview", "get").mockReturnValue(null);
+      realComponent.formlyFields = [];
+      realComponent.formlyFormGroup = new FormGroup({});
+      realComponent.formData = {};
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview"))).toBeNull();
+    });
+
+    it("should render a video element for kind='video'", () => {
+      setupPreview({ kind: "video", title: "Video preview", assetSrc: "assets/sample.mp4" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview"))).toBeTruthy();
+      expect(realFixture.debugElement.query(By.css("video.hf-task-preview-media"))).toBeTruthy();
+    });
+
+    it("should bind [src] and [muted] on the video element", () => {
+      setupPreview({ kind: "video", title: "Video preview", assetSrc: "assets/sample.mp4" });
+      const video = realFixture.debugElement.query(By.css("video")).nativeElement as HTMLVideoElement;
+      expect(video.muted).toBe(true);
+    });
+
+    it("should render an img element for kind='image'", () => {
+      setupPreview({ kind: "image", title: "Image preview", assetSrc: "assets/sample.png" });
+      expect(realFixture.debugElement.query(By.css("img.hf-task-preview-media"))).toBeTruthy();
+    });
+
+    it("should render an audio element for kind='audio'", () => {
+      setupPreview({ kind: "audio", title: "Audio preview", assetSrc: "assets/sample.mp3" });
+      expect(realFixture.debugElement.query(By.css("audio.hf-task-preview-audio"))).toBeTruthy();
+    });
+
+    it("should render the text surface for kind='text'", () => {
+      setupPreview({ kind: "text", title: "Text preview", body: "Some body" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-surface"))).toBeTruthy();
+      const titleEl = realFixture.debugElement.query(By.css(".hf-task-preview-text-title"));
+      expect((titleEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Text preview");
+      const bodyEl = realFixture.debugElement.query(By.css(".hf-task-preview-text-body"));
+      expect((bodyEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Some body");
+    });
+
+    it("should render outputBody in the text surface when present", () => {
+      setupPreview({ kind: "text", title: "T", body: "B", outputBody: "Output" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-output"))).toBeTruthy();
+    });
+
+    it("should not render outputBody in the text surface when absent", () => {
+      setupPreview({ kind: "text", title: "T", body: "B" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-output"))).toBeNull();
+    });
+
+    it("should render the flow section when inputLabel and outputLabel are set", () => {
+      setupPreview({ kind: "image", title: "T", inputLabel: "Input", outputLabel: "Output" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-flow"))).toBeTruthy();
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-arrow"))).toBeTruthy();
+      const chips = realFixture.debugElement.queryAll(By.css(".hf-task-preview-chip"));
+      expect(chips.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("should not render the flow section when inputLabel and outputLabel are absent", () => {
+      setupPreview({ kind: "image", title: "T" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-flow"))).toBeNull();
+    });
+
+    it("should render the description for non-text kinds with body", () => {
+      setupPreview({ kind: "image", title: "T", body: "Some description" });
+      const desc = realFixture.debugElement.query(By.css(".hf-task-preview-description"));
+      expect(desc).toBeTruthy();
+      expect((desc.nativeElement as HTMLElement).textContent?.trim()).toBe("Some description");
+    });
+
+    it("should not render the description for kind='text'", () => {
+      setupPreview({ kind: "text", title: "T", body: "B" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-description"))).toBeNull();
+    });
+
+    it("should render outputBody in meta for non-text kinds", () => {
+      setupPreview({ kind: "image", title: "T", outputBody: "Result" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-output"))).toBeTruthy();
+    });
+
+    it("should not render outputBody in meta for kind='text'", () => {
+      setupPreview({ kind: "text", title: "T", body: "B", outputBody: "Result" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-output"))).toBeNull();
+    });
+
+    it("should render pills when pills array is non-empty", () => {
+      setupPreview({ kind: "text", title: "T", pills: ["NLP", "Classification"] });
+      const pillsContainer = realFixture.debugElement.query(By.css(".hf-task-preview-pills"));
+      expect(pillsContainer).toBeTruthy();
+      const pills = realFixture.debugElement.queryAll(By.css(".hf-task-preview-pill"));
+      expect(pills.length).toBe(2);
+      expect((pills[0].nativeElement as HTMLElement).textContent?.trim()).toBe("NLP");
+    });
+
+    it("should not render pills when pills array is empty", () => {
+      setupPreview({ kind: "text", title: "T", pills: [] });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-pills"))).toBeNull();
+    });
+  });
 });

@@ -20,21 +20,15 @@
 import { NotebookMigrationLLM, Notebook } from "./migration-llm";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { generateText } from "ai";
-import type { Mock } from "vitest";
-
-// The LLM transport and OpenAI client are mocked so the tests exercise only the
-// deterministic transformation (parsing, operator/edge construction, cell<->operator mapping).
-vi.mock("ai", () => ({ generateText: vi.fn() }));
-vi.mock("@ai-sdk/openai", () => ({
-  createOpenAI: vi.fn(() => ({ chat: vi.fn(() => ({})) })),
-}));
-
-const mockGenerateText = generateText as unknown as Mock;
 
 describe("NotebookMigrationLLM", () => {
   let opIdCounter = 0;
   let stubUtil: WorkflowUtilService;
+  // Stub the model transport at the class seam (callModel) rather than mocking the
+  // "ai" module. Module mocks are unreliable in the Angular unit-test builder when
+  // "ai" is also loaded by a sibling spec, which silently hangs these tests on real
+  // network calls.
+  let callModelSpy: ReturnType<typeof vi.spyOn>;
 
   // Build a fresh, initialized session with stubbed dependencies. The stubbed
   // getNewOperatorPredicate hands out deterministic ids (PythonUDFV2-0, -1, ...).
@@ -75,12 +69,17 @@ describe("NotebookMigrationLLM", () => {
 
   // Queue the two responses convertNotebookToWorkflow consumes, in order.
   function mockResponses(workflowResponse: string, mappingResponse: string) {
-    mockGenerateText.mockResolvedValueOnce({ text: workflowResponse }).mockResolvedValueOnce({ text: mappingResponse });
+    callModelSpy.mockResolvedValueOnce({ text: workflowResponse }).mockResolvedValueOnce({ text: mappingResponse });
   }
 
   beforeEach(() => {
     opIdCounter = 0;
-    mockGenerateText.mockReset();
+    // Default: resolve empty so an unarmed call never reaches the real transport.
+    callModelSpy = vi.spyOn(NotebookMigrationLLM.prototype as any, "callModel").mockResolvedValue({ text: "" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe("convertNotebookToWorkflow", () => {
@@ -218,7 +217,7 @@ describe("NotebookMigrationLLM", () => {
 
       await expect(makeLLM().convertNotebookToWorkflow(notebook)).rejects.toThrow(/metadata\.uuid/);
       // It fails before prompting, so the LLM is never called.
-      expect(mockGenerateText).not.toHaveBeenCalled();
+      expect(callModelSpy).not.toHaveBeenCalled();
     });
 
     it("joins array-form cell source (nbformat lines) without inserting commas", async () => {
@@ -238,8 +237,9 @@ describe("NotebookMigrationLLM", () => {
 
       await makeLLM().convertNotebookToWorkflow(notebook);
 
-      const allPromptContent = mockGenerateText.mock.calls
-        .flatMap(call => call[0].messages.map((m: any) => m.content))
+      // callModel's first argument is the messages array.
+      const allPromptContent = callModelSpy.mock.calls
+        .flatMap((call: any[]) => (call[0] as any[]).map((m: any) => m.content))
         .join("\n");
       expect(allPromptContent).toContain("import pandas as pd\nx = 1\n");
       expect(allPromptContent).not.toContain("import pandas as pd\n,");
@@ -262,8 +262,9 @@ describe("NotebookMigrationLLM", () => {
       );
       await llm.convertNotebookToWorkflow({ cells: [codeCell("BBB", "b = 2")] });
 
-      // The 3rd generateText call is the workflow prompt of the second conversion.
-      const secondConversionMessages = mockGenerateText.mock.calls[2][0].messages.map((m: any) => m.content).join("\n");
+      // The 3rd callModel call is the workflow prompt of the second conversion;
+      // its first argument is the messages array.
+      const secondConversionMessages = (callModelSpy.mock.calls[2][0] as any[]).map((m: any) => m.content).join("\n");
 
       expect(secondConversionMessages).toContain("# START BBB");
       expect(secondConversionMessages).not.toContain("AAA");
