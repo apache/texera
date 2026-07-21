@@ -19,55 +19,50 @@
 
 package org.apache.texera.amber.engine.common
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.common.config.EnvironmentalVariable
 
-import java.net.URI
+import java.net.{HttpURLConnection, URI, URL}
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import scala.io.Source
-import scala.sys.process.{Process, ProcessLogger}
 import scala.util.Using
 
 /**
-  * Lazily FUSE-mounts dataset versions into the computing unit's local file system
-  * using GeeseFS. A dataset version is addressed by a locator
-  * "<repositoryName>:<commitHash>"; since a commit is immutable, a mount is created at
-  * most once per (repository, commit) for the lifetime of the pod and reused by every
-  * subsequent worker/execution.
+  * Lazily FUSE-mounts dataset versions into the computing unit's local file system.
+  *
+  * The mount is NOT performed in this (user-accessible, unprivileged) pod. Instead the
+  * pod asks the per-node `texera-mounter` (a trusted, privileged DaemonSet) to run
+  * GeeseFS on its behalf; the resulting read-only mount is exposed back into this pod
+  * through Kubernetes mount propagation, under a host directory scoped to this CU id.
+  * A dataset version is addressed by a locator "<repositoryName>:<commitHash>"; since a
+  * commit is immutable, a mount is created at most once per (repository, commit) for the
+  * lifetime of the pod and reused by every subsequent worker/execution.
   *
   * The mount is authorized with the pod's per-user JWT, not with global LakeFS
-  * credentials (a computing-unit pod is user-accessible, so it must never hold the
-  * global LakeFS identity). GeeseFS talks to file-service's JWT-authenticated S3 proxy:
-  * the JWT already present in the pod is passed to GeeseFS as its S3 access key, so it
-  * rides in every request's signature and the proxy re-signs to the LakeFS S3 gateway
-  * with the global credentials held only server-side. No separate mount credential is
-  * issued or stored.
-  *
-  * Requirements inside the container: the `geesefs` binary (with the CAP_SYS_ADMIN
-  * file capability when running as a non-root user), `fuse3`, and access to /dev/fuse
-  * (the computing-unit pod is created privileged for dataset mounting).
+  * credentials: the JWT is handed to the mounter, which passes it to GeeseFS as the S3
+  * access key so it reaches file-service's JWT-authenticated S3 proxy exactly as a direct
+  * mount would. Neither this pod nor the mounter holds any global LakeFS credential.
   */
 object DatasetMountManager extends LazyLogging {
 
-  private val mountRoot: Path =
-    Paths.get(sys.env.getOrElse("TEXERA_DATASET_MOUNT_ROOT", "/tmp/texera-dataset-mounts"))
-
-  private val geesefsBinary: String = sys.env.getOrElse("TEXERA_GEESEFS_PATH", "geesefs")
+  // Root, inside this pod, under which the agent's mounts appear via propagation.
+  private val inPodMountRoot: Path =
+    Paths.get(sys.env.getOrElse(EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT, "/mnt/texera-mounts"))
 
   private val mountTimeoutMs = 30000L
 
-  // GeeseFS requires a non-empty S3 secret key to produce a signature, but file-service's
-  // proxy treats the JWT (the access key) as the bearer capability and never validates the
-  // pod-side signature, so any fixed placeholder secret works.
-  private val mountSecretPlaceholder = "texera-jwt-mount"
+  private val jsonMapper = new ObjectMapper()
 
-  private def userJwtToken: String =
-    sys.env.getOrElse(EnvironmentalVariable.ENV_USER_JWT_TOKEN, "").trim
+  private def env(name: String): String = sys.env.getOrElse(name, "").trim
+
+  private def userJwtToken: String = env(EnvironmentalVariable.ENV_USER_JWT_TOKEN)
 
   /**
-    * Base URL of file-service as reachable from the pod (scheme://authority), derived
-    * from the presigned-URL endpoint the pod already receives. GeeseFS mounts against the
-    * S3 proxy hosted at its root.
+    * Base URL of file-service as reachable from the node (scheme://authority), derived
+    * from the presigned-URL endpoint the pod already receives. The mounter's GeeseFS mount
+    * targets the S3 proxy hosted at its root.
     */
   private def fileServiceBaseUrl: String = {
     val presignEndpoint = sys.env.getOrElse(
@@ -78,9 +73,22 @@ object DatasetMountManager extends LazyLogging {
     s"${uri.getScheme}://${uri.getAuthority}"
   }
 
+  /** Base URL of the node-local mounter, reachable at the node IP + mounter port. */
+  private def mounterBaseUrl: String = {
+    val nodeIp = env(EnvironmentalVariable.ENV_NODE_IP)
+    if (nodeIp.isEmpty) {
+      throw new RuntimeException(
+        s"No ${EnvironmentalVariable.ENV_NODE_IP} present in the computing unit; " +
+          "cannot reach the node mounter to mount a dataset."
+      )
+    }
+    val port = sys.env.getOrElse(EnvironmentalVariable.ENV_MOUNTER_PORT, "8100").trim
+    s"http://$nodeIp:$port"
+  }
+
   /**
     * Ensure the dataset version identified by the locator "<repositoryName>:<commitHash>"
-    * is mounted, and return the local mount point. Thread-safe and idempotent.
+    * is mounted, and return the local (in-pod) mount point. Thread-safe and idempotent.
     */
   def ensureMounted(locator: String): Path =
     synchronized {
@@ -92,7 +100,7 @@ object DatasetMountManager extends LazyLogging {
           )
       }
 
-      val mountPoint = mountRoot.resolve(repositoryName).resolve(commitHash)
+      val mountPoint = inPodMountRoot.resolve(repositoryName).resolve(commitHash)
       if (isMounted(mountPoint)) {
         logger.info(s"Dataset $locator already mounted at $mountPoint")
         return mountPoint
@@ -106,43 +114,9 @@ object DatasetMountManager extends LazyLogging {
         )
       }
 
-      // Authorize the mount with the pod's JWT and mount through file-service's S3 proxy;
-      // no global LakeFS credentials are ever placed in this (user-accessible) pod. The
-      // JWT is passed as the S3 access key so the proxy can read it back out and verify it.
-      val proxyEndpoint = fileServiceBaseUrl
+      requestMount(repositoryName, commitHash, token)
 
-      Files.createDirectories(mountPoint)
-      val command = Seq(
-        geesefsBinary,
-        "--endpoint",
-        proxyEndpoint,
-        "--memory-limit",
-        "512",
-        "-o",
-        "ro",
-        s"$repositoryName:$commitHash",
-        mountPoint.toString
-      )
-      logger.info(s"Mounting dataset $locator at $mountPoint via: ${command.mkString(" ")}")
-
-      val output = new StringBuilder
-      val exitCode = Process(
-        command,
-        None,
-        "AWS_ACCESS_KEY_ID" -> token,
-        "AWS_SECRET_ACCESS_KEY" -> mountSecretPlaceholder
-      ).!(ProcessLogger(line => {
-        output.append(line).append('\n')
-        logger.info(s"geesefs: $line")
-      }))
-
-      if (exitCode != 0) {
-        throw new RuntimeException(
-          s"geesefs failed to mount dataset $locator (exit code $exitCode): ${output.toString.trim}"
-        )
-      }
-
-      // geesefs daemonizes after a successful mount; wait until the kernel reports it.
+      // The mounter daemonizes GeeseFS; wait until the propagated mount appears in this pod.
       val deadline = System.currentTimeMillis() + mountTimeoutMs
       while (!isMounted(mountPoint)) {
         if (System.currentTimeMillis() > deadline) {
@@ -155,6 +129,44 @@ object DatasetMountManager extends LazyLogging {
       logger.info(s"Dataset $locator mounted at $mountPoint")
       mountPoint
     }
+
+  /**
+    * Ask the node mounter to mount `repositoryName`@`commitHash` for this CU. The mounter
+    * runs GeeseFS against file-service's S3 proxy with the pod's JWT and mounts into this
+    * CU's host directory, from where it propagates back into this pod.
+    */
+  private def requestMount(repositoryName: String, commitHash: String, token: String): Unit = {
+    val payload = jsonMapper.createObjectNode()
+    payload.put("cuid", env(EnvironmentalVariable.ENV_CU_ID))
+    payload.put("repositoryName", repositoryName)
+    payload.put("commitHash", commitHash)
+    payload.put("jwt", token)
+    payload.put("fileServiceBase", fileServiceBaseUrl)
+    val body = jsonMapper.writeValueAsBytes(payload)
+
+    val url = s"$mounterBaseUrl/mount"
+    logger.info(s"Requesting mount of $repositoryName:$commitHash from node mounter at $url")
+    val connection = new URL(url).openConnection().asInstanceOf[HttpURLConnection]
+    connection.setRequestMethod("POST")
+    connection.setRequestProperty("Content-Type", "application/json")
+    connection.setDoOutput(true)
+    connection.setConnectTimeout(10000)
+    connection.setReadTimeout(mountTimeoutMs.toInt)
+    try {
+      Using(connection.getOutputStream)(_.write(body))
+      val code = connection.getResponseCode
+      if (code != HttpURLConnection.HTTP_OK) {
+        val err = Option(connection.getErrorStream)
+          .map(s => new String(s.readAllBytes(), StandardCharsets.UTF_8))
+          .getOrElse("")
+        throw new RuntimeException(
+          s"Node mounter failed to mount $repositoryName:$commitHash: HTTP $code $err"
+        )
+      }
+    } finally {
+      connection.disconnect()
+    }
+  }
 
   private def isMounted(mountPoint: Path): Boolean = {
     if (!Files.exists(mountPoint)) {

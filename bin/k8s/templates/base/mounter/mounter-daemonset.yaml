@@ -1,0 +1,73 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Per-node privileged mounter that performs the GeeseFS FUSE mount on behalf of
+# (unprivileged) computing-unit pods. It mounts under a host directory and the mount
+# propagates into each CU pod via mountPropagation, so CU pods — which run untrusted user
+# code — never need to be privileged. This is the ONLY privileged component of the mount
+# feature, and it runs only trusted mount code (never user code).
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}-mounter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-mounter
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-mounter
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-mounter
+    spec:
+      serviceAccountName: {{ .Values.mounter.serviceAccountName }}
+      tolerations:
+        - operator: "Exists"
+      containers:
+        - name: mounter
+          image: {{ .Values.texera.imageRegistry }}/{{ .Values.mounter.imageName }}:{{ .Values.texera.imageTag }}
+          imagePullPolicy: {{ .Values.mounter.imagePullPolicy }}
+          securityContext:
+            privileged: true
+          ports:
+            - name: mounter
+              containerPort: {{ .Values.mounter.port }}
+              hostPort: {{ .Values.mounter.port }}
+          env:
+            - name: MOUNTER_PORT
+              value: "{{ .Values.mounter.port }}"
+            - name: MOUNT_ROOT
+              value: "{{ .Values.mounter.hostMountRoot }}"
+            - name: POOL_NAMESPACE
+              value: "{{ .Values.workflowComputingUnitPool.namespace }}"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: mounter
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          volumeMounts:
+            - name: texera-mounts
+              mountPath: {{ .Values.mounter.hostMountRoot }}
+              mountPropagation: Bidirectional
+      volumes:
+        - name: texera-mounts
+          hostPath:
+            path: {{ .Values.mounter.hostMountRoot }}
+            type: DirectoryOrCreate

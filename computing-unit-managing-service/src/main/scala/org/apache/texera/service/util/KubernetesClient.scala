@@ -22,7 +22,7 @@ package org.apache.texera.service.util
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
-import org.apache.texera.common.config.KubernetesConfig
+import org.apache.texera.common.config.{EnvironmentalVariable, KubernetesConfig}
 
 import scala.jdk.CollectionConverters._
 
@@ -92,16 +92,35 @@ object KubernetesClient {
       throw new Exception(s"Pod with cuid $cuid already exists")
     }
 
-    val envList = envVars
-      .map {
-        case (key, value) =>
-          new EnvVarBuilder()
-            .withName(key)
-            .withValue(value.toString)
-            .build()
-      }
-      .toList
-      .asJava
+    val baseEnv = envVars.map {
+      case (key, value) =>
+        new EnvVarBuilder().withName(key).withValue(value.toString).build()
+    }.toList
+
+    // Env for the out-of-pod mounter: the node IP (downward API) plus this CU's id,
+    // the mounter port, and the in-pod root that the propagated mount appears under.
+    val inPodMountRoot = "/mnt/texera-mounts"
+    val mounterEnv = List(
+      new EnvVarBuilder()
+        .withName(EnvironmentalVariable.ENV_NODE_IP)
+        .withNewValueFrom()
+        .withNewFieldRef()
+        .withFieldPath("status.hostIP")
+        .endFieldRef()
+        .endValueFrom()
+        .build(),
+      new EnvVarBuilder().withName(EnvironmentalVariable.ENV_CU_ID).withValue(cuid.toString).build(),
+      new EnvVarBuilder()
+        .withName(EnvironmentalVariable.ENV_MOUNTER_PORT)
+        .withValue(KubernetesConfig.mounterPort.toString)
+        .build(),
+      new EnvVarBuilder()
+        .withName(EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT)
+        .withValue(inPodMountRoot)
+        .build()
+    )
+
+    val envList = (baseEnv ++ mounterEnv).asJava
 
     // Setup the resource requirements
     val resourceBuilder = new ResourceRequirementsBuilder()
@@ -144,12 +163,15 @@ object KubernetesClient {
       .withEnv(envList)
       .withResources(resourceBuilder.build())
 
-    // FUSE mounting of a LakeFS repository (GeeseFS) needs /dev/fuse, which requires a
-    // privileged container; the container process itself still runs as the non-root image user.
+    // The FUSE mount is performed by the per-node texera-mounter (privileged), not here,
+    // so this pod stays UNPRIVILEGED. It only *receives* the mount via HostToContainer
+    // propagation from a host directory scoped to this CU id (see the hostPath volume below).
     containerBuilder
-      .withNewSecurityContext()
-      .withPrivileged(true)
-      .endSecurityContext()
+      .addNewVolumeMount()
+      .withName("texera-mounts")
+      .withMountPath(inPodMountRoot)
+      .withMountPropagation("HostToContainer")
+      .endVolumeMount()
 
     // If shmSize requested, mount /dev/shm
     shmSize.foreach { _ =>
@@ -175,6 +197,17 @@ object KubernetesClient {
         )
         .endVolume()
     }
+
+    // Per-CU host directory the mounter mounts into (DirectoryOrCreate so it exists
+    // before the mounter mounts). Scoped by cuid so a CU can only ever see its own mounts.
+    specBuilder
+      .addNewVolume()
+      .withName("texera-mounts")
+      .withNewHostPath()
+      .withPath(s"${KubernetesConfig.mounterHostRoot}/$cuid")
+      .withType("DirectoryOrCreate")
+      .endHostPath()
+      .endVolume()
 
     val pod = specBuilder
       .withHostname(podName)

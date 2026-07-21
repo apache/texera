@@ -64,4 +64,8 @@ object KubernetesConfig {
 
   // GPU resource key used directly in Kubernetes resource specifications
   val gpuResourceKey: String = conf.getString("kubernetes.computing-unit-gpu-resource-key")
+
+  // Per-node mounter that performs the FUSE mount outside the (unprivileged) CU pod.
+  val mounterPort: Int = conf.getInt("kubernetes.mounter-port")
+  val mounterHostRoot: String = conf.getString("kubernetes.mounter-host-root")
 }
