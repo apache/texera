@@ -67,7 +67,7 @@ def _make_server(handlers: dict) -> AsyncRPCServer:
 
 
 def _make_invocation(
-    method_name: str, command_id: int, context: AsyncRpcContext = None
+    method_name: str, command_id: int, context: AsyncRpcContext | None = None
 ) -> ControlInvocation:
     invocation = ControlInvocation(
         method_name=method_name,
