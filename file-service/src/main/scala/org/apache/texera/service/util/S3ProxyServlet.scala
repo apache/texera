@@ -105,7 +105,8 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
       method: SdkHttpMethod,
       streamBody: Boolean
   ): Unit = {
-    val user = extractCredentialToken(req.getHeader("Authorization"))
+    val user = S3ProxyServlet
+      .extractCredentialToken(req.getHeader("Authorization"))
       .flatMap(token => JwtParser.parseToken(token).toScala)
     if (user.isEmpty) {
       // GeeseFS probes the bucket unauthenticated on mount, so this is expected noise.
@@ -114,7 +115,7 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
     }
 
     val uid = user.get.getUid
-    val repositoryName = requestedBucket(req)
+    val repositoryName = S3ProxyServlet.bucketFromUri(req.getRequestURI)
     if (repositoryName.isEmpty || !authorizedToRead(uid, repositoryName)) {
       logger.warn(
         s"user $uid denied mount access to repository '$repositoryName' for ${req.getRequestURI}"
@@ -130,29 +131,6 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
         logger.error(s"error proxying ${req.getRequestURI} to LakeFS gateway", e)
         resp.sendError(HttpServletResponse.SC_BAD_GATEWAY, "upstream error")
     }
-  }
-
-  /**
-    * Extract the credential token from an AWS `Authorization` header. GeeseFS carries the
-    * user JWT in the access-key-id position and signs with either SigV4
-    * (`AWS4-HMAC-SHA256 Credential=<token>/<date>/...`) or, against a plain-HTTP custom
-    * endpoint, SigV2 (`AWS <token>:<signature>`); support both. A JWT is base64url with
-    * `.` separators, so it never contains the `/` or `:` these formats delimit on. The
-    * pod-side S3 signature itself is not re-validated — the JWT is the bearer capability —
-    * so only the token needs to be read out.
-    */
-  private[util] def extractCredentialToken(authHeader: String): Option[String] = {
-    Option(authHeader).flatMap { h =>
-      "Credential=([^/,\\s]+)/".r
-        .findFirstMatchIn(h)
-        .map(_.group(1)) // SigV4
-        .orElse("^AWS ([^:\\s]+):".r.findFirstMatchIn(h.trim).map(_.group(1))) // SigV2
-    }
-  }
-
-  private[util] def requestedBucket(req: HttpServletRequest): String = {
-    val firstSegment = req.getRequestURI.stripPrefix("/").split("/", 2)(0)
-    if (firstSegment.isEmpty) "" else URLDecoder.decode(firstSegment, "UTF-8")
   }
 
   /**
@@ -247,5 +225,36 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
     } else {
       upstream.body().close()
     }
+  }
+}
+
+object S3ProxyServlet {
+
+  /**
+    * Extract the credential token from an AWS `Authorization` header. GeeseFS carries the
+    * user JWT in the access-key-id position and signs with either SigV4
+    * (`AWS4-HMAC-SHA256 Credential=<token>/<date>/...`) or, against a plain-HTTP custom
+    * endpoint, SigV2 (`AWS <token>:<signature>`); support both. A JWT is base64url with
+    * `.` separators, so it never contains the `/` or `:` these formats delimit on. The
+    * pod-side S3 signature itself is not re-validated — the JWT is the bearer capability —
+    * so only the token needs to be read out.
+    */
+  private[util] def extractCredentialToken(authHeader: String): Option[String] = {
+    Option(authHeader).flatMap { h =>
+      "Credential=([^/,\\s]+)/".r
+        .findFirstMatchIn(h)
+        .map(_.group(1)) // SigV4
+        .orElse("^AWS ([^:\\s]+):".r.findFirstMatchIn(h.trim).map(_.group(1))) // SigV2
+    }
+  }
+
+  /**
+    * The repository (S3 bucket) a path-style request URI `/<bucket>/<key>` targets: its
+    * first path segment, URL-decoded. Empty when the URI carries no bucket (root, or a
+    * service-level list-buckets), which is never authorized.
+    */
+  private[util] def bucketFromUri(requestUri: String): String = {
+    val firstSegment = requestUri.stripPrefix("/").split("/", 2)(0)
+    if (firstSegment.isEmpty) "" else URLDecoder.decode(firstSegment, "UTF-8")
   }
 }
