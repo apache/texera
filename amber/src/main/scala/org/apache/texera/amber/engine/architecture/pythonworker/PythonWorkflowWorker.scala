@@ -254,8 +254,6 @@ class PythonWorkflowWorker(
 
     val pythonBin: String = choosePythonBin()
 
-    // FUSE-mount the requested dataset version (if any) before the Python process
-    // starts, so the mounted path can be handed to the UDF code.
     val mountedDatasetPath: String =
       if (workerConfig.mountDataset.nonEmpty) {
         DatasetMountManager.ensureMounted(workerConfig.mountDataset).toString

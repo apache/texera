@@ -33,7 +33,7 @@ import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams
 import software.amazon.awssdk.http.{SdkHttpFullRequest, SdkHttpMethod}
 import software.amazon.awssdk.regions.Region
 
-import java.net.URI
+import java.net.{URI, URLDecoder}
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
@@ -82,8 +82,6 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
     .connectTimeout(Duration.ofSeconds(10))
     .build()
 
-  // Response headers worth passing back to GeeseFS; hop-by-hop and length/encoding
-  // headers are recomputed by the servlet container, so they are intentionally omitted.
   private val forwardedResponseHeaderPrefixes =
     Seq("content-", "etag", "last-modified", "accept-ranges", "x-amz-")
 
@@ -152,14 +150,9 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
     }
   }
 
-  /**
-    * The repository (S3 bucket) a request targets: the first path segment of a path-style
-    * request `/<bucket>/<key>`. Empty when the request carries no bucket (e.g. a
-    * service-level list-buckets), which is never authorized.
-    */
   private[util] def requestedBucket(req: HttpServletRequest): String = {
     val firstSegment = req.getRequestURI.stripPrefix("/").split("/", 2)(0)
-    if (firstSegment.isEmpty) "" else java.net.URLDecoder.decode(firstSegment, "UTF-8")
+    if (firstSegment.isEmpty) "" else URLDecoder.decode(firstSegment, "UTF-8")
   }
 
   /**
