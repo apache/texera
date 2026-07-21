@@ -41,6 +41,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   workflowContext
 }
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.tags.IntegrationTest
@@ -162,6 +163,12 @@ class LoopIntegrationSpec
     op
   }
 
+  private def limit(n: Int): LimitOpDesc = {
+    val op = new LimitOpDesc()
+    op.limit = n
+    op
+  }
+
   private def link(from: LogicalOp, to: LogicalOp): LogicalLink =
     LogicalLink(from.operatorIdentifier, PortIdentity(), to.operatorIdentifier, PortIdentity())
 
@@ -224,6 +231,73 @@ class LoopIntegrationSpec
       outerRows == 9,
       s"outer LoopEnd must accumulate all 9 inner-iteration rows: " +
         s"expected 9, got $outerRows (all: $materialized)"
+    )
+    assert(
+      innerRows == 3,
+      s"inner LoopEnd must reset per outer iteration (3 rows, not 9): " +
+        s"expected 3, got $innerRows (all: $materialized)"
+    )
+  }
+
+  it should "run a loop whose body contains a JVM (Scala) operator" in {
+    // TextInput -> LoopStart -> Limit (a Scala built-in) -> LoopEnd.
+    //
+    // The loop envelope (loop_counter / loop_start_id) must survive the hop
+    // through a JVM operator: the Scala worker replays the materialized state,
+    // forwards it through the default processState, and re-materializes it for
+    // the LoopEnd. Before the envelope was carried through on the Scala side
+    // (StateFrame fields + reader/emit/save plumbing), this hop zeroed the
+    // counter and blanked the id, so the LoopEnd captured loop_start_id = ""
+    // and the back-jump failed with "no loop-back state URI configured for
+    // LoopStart ''" -- the loop never iterated. Limit(10) passes every row
+    // through, so the loop semantics are identical to the single-loop test.
+    val src = textInput("1\n2\n3")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val mid = limit(10)
+    val end = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, mid, end),
+      List(link(src, start), link(start, mid), link(mid, end))
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 3,
+      s"LoopEnd must accumulate all 3 iterations with a Scala operator in the " +
+        s"loop body: expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "run a nested loop whose inner body contains a JVM (Scala) operator" in {
+    // TextInput -> OuterStart -> InnerStart -> Limit -> InnerEnd -> OuterEnd.
+    //
+    // The nested variant of the JVM-hop test: the OUTER loop's state crosses
+    // the Scala operator stamped (loop_counter = 1, loop_start_id = outer), so
+    // this pins that the JVM hop preserves the counter MAGNITUDE too, not just
+    // the id. A zeroed counter would make the inner LoopEnd mis-consume the
+    // outer state (KeyError on the missing 'table' key / clobbered jump id)
+    // instead of passing it through with -1.
+    val src = textInput("1\n2\n3")
+    val outerStart = loopStart("i = 0", "table")
+    val innerStart = loopStart("j = 0", "table.iloc[j]")
+    val mid = limit(10)
+    val innerEnd = loopEnd("j += 1", "j < len(table)")
+    val outerEnd = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, outerStart, innerStart, mid, innerEnd, outerEnd),
+      List(
+        link(src, outerStart),
+        link(outerStart, innerStart),
+        link(innerStart, mid),
+        link(mid, innerEnd),
+        link(innerEnd, outerEnd)
+      )
+    )
+    val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier, -1L)
+    val innerRows = materialized.getOrElse(innerEnd.operatorIdentifier, -1L)
+    assert(
+      outerRows == 9,
+      s"outer LoopEnd must accumulate all 9 inner-iteration rows with a Scala " +
+        s"operator in the inner body: expected 9, got $outerRows (all: $materialized)"
     )
     assert(
       innerRows == 3,
