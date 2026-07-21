@@ -102,7 +102,13 @@ class ExternalAuthProvisionerSpec
 
   "ExternalAuthProvisioner.loginOrProvision" should "create an INACTIVE user and provider row for a brand-new Google identity" in {
     val user = ExternalAuthProvisioner.loginOrProvision(
-      ExternalProfile(ProviderTypeEnum.GOOGLE, "google-sub-1", "New User", "new" + emailDomain, Some("avatar1"))
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "google-sub-1",
+        "New User",
+        "new" + emailDomain,
+        Some("avatar1")
+      )
     )
 
     user.getUid should not be null
@@ -128,7 +134,13 @@ class ExternalAuthProvisionerSpec
 
   it should "be idempotent for a returning identity (same uid, no duplicate provider row or user)" in {
     val profile =
-      ExternalProfile(ProviderTypeEnum.GOOGLE, "google-sub-return", "Ret", "ret" + emailDomain, Some("a"))
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "google-sub-return",
+        "Ret",
+        "ret" + emailDomain,
+        Some("a")
+      )
 
     val first = ExternalAuthProvisioner.loginOrProvision(profile)
     val second = ExternalAuthProvisioner.loginOrProvision(profile)
@@ -140,10 +152,22 @@ class ExternalAuthProvisionerSpec
 
   it should "refresh drifted profile fields for a known identity" in {
     ExternalAuthProvisioner.loginOrProvision(
-      ExternalProfile(ProviderTypeEnum.GOOGLE, "sub-drift", "Old Name", "drift" + emailDomain, Some("oldpic"))
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-drift",
+        "Old Name",
+        "drift" + emailDomain,
+        Some("oldpic")
+      )
     )
     val updated = ExternalAuthProvisioner.loginOrProvision(
-      ExternalProfile(ProviderTypeEnum.GOOGLE, "sub-drift", "New Name", "drift" + emailDomain, Some("newpic"))
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-drift",
+        "New Name",
+        "drift" + emailDomain,
+        Some("newpic")
+      )
     )
 
     updated.getName shouldBe "New Name"
@@ -172,7 +196,13 @@ class ExternalAuthProvisionerSpec
     val existing = seedUser("Local User", "linkme")
 
     val result = ExternalAuthProvisioner.loginOrProvision(
-      ExternalProfile(ProviderTypeEnum.GOOGLE, "sub-link", "Local User", "linkme" + emailDomain, Some("pic"))
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "sub-link",
+        "Local User",
+        "linkme" + emailDomain,
+        Some("pic")
+      )
     )
 
     result.getUid shouldBe existing.getUid
@@ -187,7 +217,13 @@ class ExternalAuthProvisionerSpec
     seedExternalProvider(existing.getUid, ProviderTypeEnum.GOOGLE, "old-sub")
 
     val result = ExternalAuthProvisioner.loginOrProvision(
-      ExternalProfile(ProviderTypeEnum.GOOGLE, "new-sub", "Rotating", "rotate" + emailDomain, Some("p"))
+      ExternalProfile(
+        ProviderTypeEnum.GOOGLE,
+        "new-sub",
+        "Rotating",
+        "rotate" + emailDomain,
+        Some("p")
+      )
     )
 
     result.getUid shouldBe existing.getUid

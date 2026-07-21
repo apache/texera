@@ -76,27 +76,23 @@ export class AuthService {
   }
 
   private authRequest(authUrl: string, credential: string): Observable<Readonly<{ accessToken: string }>> {
-    return this.http.post<Readonly<{ accessToken: string }>>(
-      authUrl,
-      credential,
-      {
-        headers: {
-          "Content-Type": "text/plain",
-          Accept: "application/json",
-        },
-      }
-    );
+    return this.http.post<Readonly<{ accessToken: string }>>(authUrl, credential, {
+      headers: {
+        "Content-Type": "text/plain",
+        Accept: "application/json",
+      },
+    });
   }
   /**
    * This method will handle the request for Google login.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    */
   public googleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
-    return this.authRequest(`${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`, credential)
+    return this.authRequest(`${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`, credential);
   }
 
-  public facebookAuth(credential: string): Observable<Readonly<{ accessToken : string}>> {
-    return this.authRequest(`${AppSettings.getApiEndpoint()}/${AuthService.FACEBOOK_LOGIN_ENDPOINT}`, credential)
+  public facebookAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.authRequest(`${AppSettings.getApiEndpoint()}/${AuthService.FACEBOOK_LOGIN_ENDPOINT}`, credential);
   }
 
   /**

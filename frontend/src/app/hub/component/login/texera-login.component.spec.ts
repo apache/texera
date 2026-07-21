@@ -43,9 +43,8 @@ describe("TexeraLoginComponent", () => {
   let authState$: Subject<SocialUser>;
 
   const facebookUser = (authToken: string): SocialUser =>
-    ({ provider: FacebookLoginProvider.PROVIDER_ID, authToken } as unknown as SocialUser);
-  const googleUser = (idToken: string): SocialUser =>
-    ({ provider: "GOOGLE", idToken } as unknown as SocialUser);
+    ({ provider: FacebookLoginProvider.PROVIDER_ID, authToken }) as unknown as SocialUser;
+  const googleUser = (idToken: string): SocialUser => ({ provider: "GOOGLE", idToken }) as unknown as SocialUser;
 
   const createComponent = async (queryParams: Record<string, any> = {}) => {
     TestBed.resetTestingModule();

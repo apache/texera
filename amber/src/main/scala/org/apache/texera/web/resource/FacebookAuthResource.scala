@@ -55,9 +55,9 @@ class FacebookAuthResource {
 
   private def verifyFacebookToken(accessToken: String): (String, Option[String], Option[String]) = {
     val facebookUrl = "https://graph.facebook.com"
-    val appId     = UserSystemConfig.facebookClientId
+    val appId = UserSystemConfig.facebookClientId
     val appSecret = UserSystemConfig.facebookAppSecret
-    val appToken  = s"$appId|$appSecret"
+    val appToken = s"$appId|$appSecret"
 
     val verifyRequest = getJson(
       UriBuilder
@@ -67,7 +67,11 @@ class FacebookAuthResource {
         .build()
     ).path("data")
 
-    if (!verifyRequest.path("is_valid").asBoolean(false) || verifyRequest.path("app_id").asText() != appId)
+    if (
+      !verifyRequest
+        .path("is_valid")
+        .asBoolean(false) || verifyRequest.path("app_id").asText() != appId
+    )
       throw new NotAuthorizedException("Invalid Facebook token")
 
     val me = getJson(
@@ -78,8 +82,8 @@ class FacebookAuthResource {
         .build()
     )
 
-    val id    = me.path("id").asText()
-    val name  = Option(me.path("name").asText(null))
+    val id = me.path("id").asText()
+    val name = Option(me.path("name").asText(null))
     val email = Option(me.path("email").asText(null))
     (id, name, email)
   }
