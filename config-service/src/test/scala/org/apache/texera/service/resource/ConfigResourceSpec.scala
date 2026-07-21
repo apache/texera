@@ -103,7 +103,6 @@ class ConfigResourceSpec
     u.setUid(2)
     u.setName("test-regular")
     u.setEmail("test-regular@example.com")
-    u.setGoogleId(null)
     u.setRole(UserRoleEnum.REGULAR)
     JwtAuth.jwtToken(JwtAuth.jwtClaims(u, expireInDays = 1))
   }
@@ -113,7 +112,6 @@ class ConfigResourceSpec
     u.setUid(1)
     u.setName("test-admin")
     u.setEmail("test-admin@example.com")
-    u.setGoogleId(null)
     u.setRole(UserRoleEnum.ADMIN)
     JwtAuth.jwtToken(JwtAuth.jwtClaims(u, expireInDays = 1))
   }

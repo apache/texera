@@ -21,12 +21,13 @@ package org.apache.texera.service.resource
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import io.dropwizard.auth.AuthValueFactoryProvider
 import io.dropwizard.jackson.Jackson
 import io.dropwizard.testing.junit5.ResourceExtension
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
-import org.apache.texera.auth.{JwtAuth, JwtAuthFilter, UnauthorizedExceptionMapper}
+import org.apache.texera.auth.{JwtAuth, JwtAuthFilter, SessionUser, UnauthorizedExceptionMapper}
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
@@ -56,6 +57,10 @@ class ConfigResourceAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     .addProvider(classOf[JwtAuthFilter])
     .addProvider(classOf[UnauthorizedExceptionMapper])
     .addProvider(classOf[RolesAllowedDynamicFeature])
+    // Provide the @Auth SessionUser value factory (as production's AuthFeatures.register
+    // and the sibling ConfigResourceSpec do); ConfigResource.updateSetting takes an
+    // @Auth SessionUser, so without this the resource fails Jersey model validation.
+    .addProvider(new AuthValueFactoryProvider.Binder(classOf[SessionUser]))
     .addResource(new ConfigResource)
     .addResource(new ConfigResourceAuthSpec.ProtectedProbe)
     .build()
