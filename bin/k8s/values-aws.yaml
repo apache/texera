@@ -25,6 +25,19 @@
 # own. The buckets must already exist (the init job does not create them).
 # ---------------------------------------------------------------------------
 
+# Karpenter consolidates underutilized nodes by evicting and rescheduling their
+# pods, so enable the PodDisruptionBudgets that cap each app service at one
+# replica down at a time (see templates/aws/pod-disruption-budgets/).
+podDisruptionBudgets:
+  enabled: true
+
+# The computing-unit manager is stateless, so run more than one replica in
+# production. Its PodDisruptionBudget (maxUnavailable: 1) then keeps at least one
+# replica serving while a cluster autoscaler (e.g. Karpenter) drains and
+# consolidates idle nodes one pod at a time.
+workflowComputingUnitManager:
+  numOfPods: 2
+
 # Turn off the bundled MinIO object store; the services talk to external S3.
 minio:
   enabled: false

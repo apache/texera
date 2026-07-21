@@ -178,6 +178,16 @@ lakekeeperInit:
 texeraImages:
   pullPolicy: Always
 
+# PodDisruptionBudgets for the replicated app services (see
+# templates/aws/pod-disruption-budgets/). A PDB only constrains *voluntary*
+# evictions, so it is worth enabling on clusters where something evicts pods on
+# its own -- a cluster autoscaler consolidating underutilized nodes (e.g.
+# Karpenter on EKS), or routine node drains. Local / on-prem installs that never
+# consolidate nodes have nothing to constrain, so this is off by default and the
+# chart renders exactly as it did before. Enabled by values-aws.yaml.
+podDisruptionBudgets:
+  enabled: false
+
 # Example data loader configuration
 exampleDataLoader:
   enabled: true
