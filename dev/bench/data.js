@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784554755348,
+  "lastUpdate": 1784640032768,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -5445,6 +5445,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 480.9718886225128,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Ryan Zhang",
+            "username": "zyratlo",
+            "email": "97552093+zyratlo@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "0467c76529981b3951bceb33eedf6bcc776f16a3",
+          "message": "feat(python-notebook-migration): add notebook migration orchestration service (#5262)\n\n### What changes were proposed in this PR?\nIntroduces `NotebookMigrationService`, the frontend orchestration\nservice that sits between the migration-tool UI and the lower layers:\nthe LLM client (`migration-tool-llm-client`) and the backend\nnotebook-migration microservice\n(`migration-tool-backend-notebook-migration-service`).\n\n**`notebook-migration.service.ts`**\n- `getAvailableModels()` — `GET /api/models` against the existing\nLiteLLM proxy, returns the model dropdown options.\n- `sendToAIGenerateWorkflow(notebook, modelType)` — drives the full\n`NotebookMigrationLLM` lifecycle (initialize → verify connection →\nconvert → close in `finally`) and returns `{ workflowContent,\nmappingContent }`.\n- `sendNotebookToJupyter(notebookData)` — `POST\n/api/notebook-migration/set-notebook`; surfaces a `NotificationService`\ntoast on success and failure; returns `1` / `0`.\n- `getJupyterURL()`, `getJupyterIframeURL()` — calls the matching\nmicroservice endpoints to retrieve URLs to embed.\n- `storeNotebookAndMapping(wid, vid, mappingContent, notebookContent)` —\n`POST /api/notebook-migration/store-notebook-and-mapping`; returns the\n`HttpClient` observable directly so callers can compose with\n`switchMap`.\n- Mapping cache — small in-memory dictionary `{ [key: string]:\nMappingContent }` keyed by `mapping_wid_<workflowId>`, with\n`hasMapping`, `getMapping`, `setMapping`, `deleteMapping`.\n\n  **`notebook-migration.service.spec.ts`**\n- `getAvailableModels`: maps the LiteLLM `data[].id` array correctly;\nfalls back to an empty array on HTTP error.\n- `sendNotebookToJupyter`: success → returns `1`; error → returns `0`\nand toasts.\n- `getJupyterURL` / `getJupyterIframeURL`: success → returns the URL;\nnon-OK response or thrown error → returns `null`.\n- Mapping cache: `setMapping` then `getMapping` round-trips;\n`deleteMapping` removes the entry.\n- `storeNotebookAndMapping`: makes the expected `POST` to the\npersistence endpoint.\n\n\n### Any related issues, documentation, discussions?\nCloses #5261 \nParent issue #4301 \n\n\n### How was this PR tested?\nThe new `notebook-migration.service.spec.ts` adds\n`HttpClientTestingModule`-driven test cases\n\n\n\n### Was this PR authored or co-authored using generative AI tooling?\nGenerated-by: Claude Code (Claude Opus 4.7)",
+          "timestamp": "2026-07-20T23:11:48Z",
+          "url": "https://github.com/apache/texera/commit/0467c76529981b3951bceb33eedf6bcc776f16a3"
+        },
+        "date": 1784640032377,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 693.233627426296,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1326.7313979605633,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1435.3178019848385,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 858.9364059332423,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1331.4569899971118,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1435.3317608994626,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 940.1238760430085,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1365.7218544925156,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1424.2588571900608,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 796.4017676169088,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1076.3358249011214,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1118.7611311145383,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 802.4106344453904,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1085.5295579734561,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1112.1095871261784,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 786.9007580117819,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1041.5105920190704,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1077.1185709012498,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 473.20315246302886,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 577.3737562513514,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 575.1929478784659,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 484.4146026157064,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 575.7502687373178,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 576.8553584459413,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 449.7626265410214,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 549.3102832055514,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 535.556608399068,
             "unit": "tuples/sec"
           }
         ]
