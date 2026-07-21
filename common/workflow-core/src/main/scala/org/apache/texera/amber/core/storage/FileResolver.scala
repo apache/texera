@@ -75,18 +75,19 @@ object FileResolver {
     filePath.toUri
   }
 
-  private val RESOURCE_TYPE_PREFIXES = Set("datasets")
+  // The resource-type segment that identifies a dataset logical path. The prefix selects the
+  // resource kind (and thus the backing table) during resolution, so it is REQUIRED: a path
+  // without it is not a dataset path. Other resource types (e.g. models) get their own prefix.
+  private val DATASET_PATH_PREFIX = "datasets"
 
   /**
     * Parses a dataset file path and extracts its components.
     *
-    * Two path shapes are accepted:
-    *   - Prefixed:   /datasets/ownerEmail/datasetName/versionName/fileRelativePath
-    *   - Unprefixed: /ownerEmail/datasetName/versionName/fileRelativePath
+    * Expected format: /datasets/ownerEmail/datasetName/versionName/fileRelativePath
     *
-    * A leading resource-type prefix listed in [[RESOURCE_TYPE_PREFIXES]] (e.g. "datasets") is
-    * stripped if present. A path whose leading segment is not a recognized prefix is parsed
-    * as-is, with that segment treated as the ownerEmail.
+    * The leading [[DATASET_PATH_PREFIX]] segment is required — it identifies the path as a
+    * dataset path (as opposed to another resource type). A path without the prefix is not a
+    * dataset path and yields None (it may still resolve as a local file or fail).
     *
     * @param fileName The file path to parse
     * @return Some((ownerEmail, datasetName, versionName, fileRelativePath)) if valid, None otherwise
@@ -95,21 +96,18 @@ object FileResolver {
       fileName: String
   ): Option[(String, String, String, Array[String])] = {
     val filePath = Paths.get(fileName)
-    var pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
+    val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
-    // Strip known resource type prefix if present
-    if (pathSegments.nonEmpty && RESOURCE_TYPE_PREFIXES.contains(pathSegments(0))) {
-      pathSegments = pathSegments.drop(1)
-    }
-
-    if (pathSegments.length < 4) {
+    // A dataset path must start with the datasets prefix and carry at least
+    // datasets/ownerEmail/datasetName/versionName/<file> (5 segments).
+    if (pathSegments.length < 5 || pathSegments(0) != DATASET_PATH_PREFIX) {
       return None
     }
 
-    val ownerEmail = pathSegments(0)
-    val datasetName = pathSegments(1)
-    val versionName = pathSegments(2)
-    val fileRelativePathSegments = pathSegments.drop(3)
+    val ownerEmail = pathSegments(1)
+    val datasetName = pathSegments(2)
+    val versionName = pathSegments(3)
+    val fileRelativePathSegments = pathSegments.drop(4)
 
     Some((ownerEmail, datasetName, versionName, fileRelativePathSegments))
   }

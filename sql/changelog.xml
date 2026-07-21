@@ -53,6 +53,11 @@
         <sqlFile path="sql/updates/28.sql"/>
     </changeSet>
 
+    <!-- Prefix legacy dataset paths in stored workflow content with "datasets/" -->
+    <changeSet id="29" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/29.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

@@ -44,67 +44,61 @@ def make_response(status_code: int, body=None, content: bytes = b""):
 
 
 class TestDatasetFileDocumentInit:
-    def test_parses_minimal_four_part_path(self, auth_env):
-        doc = DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
-        assert doc.owner_email == "bob@x.com"
-        assert doc.dataset_name == "ds"
-        assert doc.version_name == "v1"
-        assert doc.file_relative_path == "file.csv"
-
-    def test_joins_nested_relative_path_back_with_slashes(self, auth_env):
-        doc = DatasetFileDocument("/bob@x.com/ds/v1/a/b/c/file.csv")
-        assert doc.file_relative_path == "a/b/c/file.csv"
-
-    def test_strips_leading_and_trailing_slashes_before_parsing(self, auth_env):
-        doc = DatasetFileDocument("///bob@x.com/ds/v1/file.csv///")
-        assert doc.owner_email == "bob@x.com"
-        assert doc.file_relative_path == "file.csv"
-
-    def test_strips_datasets_resource_type_prefix(self, auth_env):
+    def test_parses_prefixed_path(self, auth_env):
         doc = DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
         assert doc.owner_email == "bob@x.com"
         assert doc.dataset_name == "ds"
         assert doc.version_name == "v1"
         assert doc.file_relative_path == "file.csv"
 
-    def test_only_datasets_prefix_is_stripped(self, auth_env):
-        # Any other leading segment (e.g. "models") is treated as the owner email,
-        # matching the backend which only registers "datasets" as a prefix.
-        doc = DatasetFileDocument("/models/bob@x.com/ds/v1/file.csv")
-        assert doc.owner_email == "models"
-        assert doc.dataset_name == "bob@x.com"
-        assert doc.version_name == "ds"
-        assert doc.file_relative_path == "v1/file.csv"
+    def test_joins_nested_relative_path_back_with_slashes(self, auth_env):
+        doc = DatasetFileDocument("/datasets/bob@x.com/ds/v1/a/b/c/file.csv")
+        assert doc.file_relative_path == "a/b/c/file.csv"
 
-    def test_rejects_path_with_fewer_than_four_segments(self, auth_env):
+    def test_strips_leading_and_trailing_slashes_before_parsing(self, auth_env):
+        doc = DatasetFileDocument("///datasets/bob@x.com/ds/v1/file.csv///")
+        assert doc.owner_email == "bob@x.com"
+        assert doc.file_relative_path == "file.csv"
+
+    def test_rejects_unprefixed_path(self, auth_env):
+        # Without the datasets prefix the path is not a dataset path.
         with pytest.raises(ValueError, match="Invalid file path format"):
-            DatasetFileDocument("/bob@x.com/ds/v1")
+            DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
+
+    def test_rejects_non_datasets_prefix(self, auth_env):
+        # Any other leading segment (e.g. "models") is not the datasets prefix.
+        with pytest.raises(ValueError, match="Invalid file path format"):
+            DatasetFileDocument("/models/bob@x.com/ds/v1/file.csv")
+
+    def test_rejects_path_with_too_few_segments(self, auth_env):
+        with pytest.raises(ValueError, match="Invalid file path format"):
+            DatasetFileDocument("/datasets/bob@x.com/ds/v1")
 
     def test_requires_jwt_token_in_environment(self, monkeypatch):
         monkeypatch.delenv("USER_JWT_TOKEN", raising=False)
         monkeypatch.setenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
         with pytest.raises(ValueError, match="JWT token is required"):
-            DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
+            DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
 
     def test_treats_empty_jwt_as_missing(self, monkeypatch):
         # An empty string is falsy and should be rejected just like an unset var.
         monkeypatch.setenv("USER_JWT_TOKEN", "")
         with pytest.raises(ValueError, match="JWT token is required"):
-            DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
+            DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
 
     def test_falls_back_to_default_endpoint_when_env_missing(self, monkeypatch):
         monkeypatch.setenv("USER_JWT_TOKEN", "tok")
         monkeypatch.delenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", raising=False)
-        doc = DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
+        doc = DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
         assert doc.presign_endpoint == DEFAULT_ENDPOINT
 
     def test_uses_explicit_endpoint_from_environment(self, auth_env):
-        doc = DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
+        doc = DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
         assert doc.presign_endpoint == CUSTOM_ENDPOINT
 
 
 class TestGetPresignedUrl:
-    def _make_doc(self, monkeypatch, path="/bob@x.com/ds/v1/file.csv"):
+    def _make_doc(self, monkeypatch, path="/datasets/bob@x.com/ds/v1/file.csv"):
         monkeypatch.setenv("USER_JWT_TOKEN", "test-jwt-token")
         monkeypatch.setenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
         return DatasetFileDocument(path)
@@ -132,7 +126,7 @@ class TestGetPresignedUrl:
     def test_url_encodes_filepath_query_parameter(self, monkeypatch):
         # urllib.parse.quote keeps "/" as safe by default, but encodes "@"
         # and " " — pin both pieces so the contract is explicit.
-        doc = self._make_doc(monkeypatch, path="/bob@x.com/ds/v1/data file.csv")
+        doc = self._make_doc(monkeypatch, path="/datasets/bob@x.com/ds/v1/data file.csv")
         with patch(
             "pytexera.storage.dataset_file_document.requests.Session.get"
         ) as mock_get:
@@ -145,9 +139,8 @@ class TestGetPresignedUrl:
             assert file_path.startswith("/")
 
     def test_sends_datasets_prefixed_filepath(self, monkeypatch):
-        # The reconstructed filePath is re-emitted with the "datasets" prefix,
-        # even when the input path was the legacy unprefixed form.
-        doc = self._make_doc(monkeypatch, path="/bob@x.com/ds/v1/file.csv")
+        # The reconstructed filePath sent to the file-service carries the "datasets" prefix.
+        doc = self._make_doc(monkeypatch, path="/datasets/bob@x.com/ds/v1/file.csv")
         with patch(
             "pytexera.storage.dataset_file_document.requests.Session.get"
         ) as mock_get:
@@ -220,7 +213,7 @@ class TestReadFile:
     def _make_doc(self, monkeypatch):
         monkeypatch.setenv("USER_JWT_TOKEN", "test-jwt-token")
         monkeypatch.setenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
-        return DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
+        return DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
 
     def test_returns_bytesio_with_downloaded_content(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
@@ -274,7 +267,7 @@ class TestTimeoutsAndRetries:
     def _make_doc(self, monkeypatch):
         monkeypatch.setenv("USER_JWT_TOKEN", "test-jwt-token")
         monkeypatch.setenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT", CUSTOM_ENDPOINT)
-        return DatasetFileDocument("/bob@x.com/ds/v1/file.csv")
+        return DatasetFileDocument("/datasets/bob@x.com/ds/v1/file.csv")
 
     def test_presigned_url_request_passes_request_timeout(self, monkeypatch):
         doc = self._make_doc(monkeypatch)

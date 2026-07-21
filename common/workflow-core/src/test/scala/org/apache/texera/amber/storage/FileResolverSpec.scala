@@ -83,11 +83,11 @@ class FileResolverSpec
 
   private val dataset1TxtFilePath = "/datasets/test_user@test.com/test_dataset/v1/1.txt"
 
-  // Unprefixed form (no resource-type segment); parsed the same way.
+  // Unprefixed form (no resource-type segment); no longer resolvable as a dataset.
   private val unprefixedDataset1TxtFilePath = "/test_user@test.com/test_dataset/v1/1.txt"
 
-  // "models" is not (yet) a registered resource-type prefix, so it must NOT be stripped.
-  private val unknownPrefixFilePath = "/models/test_user@test.com/test_dataset/v1/1.txt"
+  // "models" is not the dataset prefix, so this is not a dataset path.
+  private val nonDatasetPrefixFilePath = "/models/test_user@test.com/test_dataset/v1/1.txt"
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
@@ -124,21 +124,18 @@ class FileResolverSpec
     )
   }
 
-  "FileResolver" should "resolve an unprefixed dataset path identically to the prefixed path" in {
-    val prefixedUri = FileResolver.resolve(dataset1TxtFilePath)
-    val unprefixedUri = FileResolver.resolve(unprefixedDataset1TxtFilePath)
-
-    assert(unprefixedUri == prefixedUri)
-    assert(
-      unprefixedUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getRepositoryName}/${testDatasetVersion1.getVersionHash}/1.txt"
-    )
+  "FileResolver" should "not resolve an unprefixed dataset path (the datasets prefix is required)" in {
+    // Without the datasets prefix the path is not a dataset path; it falls through to the
+    // local-file resolver and fails.
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolve(unprefixedDataset1TxtFilePath)
+    }
   }
 
-  "FileResolver" should "not strip an unregistered resource-type prefix" in {
-    // "models" is treated as the ownerEmail segment, so the dataset lookup fails and
-    // resolution falls back to a (missing) local file.
+  "FileResolver" should "not resolve a path whose prefix is not the datasets prefix" in {
+    // "models" is not the dataset prefix, so this is not a dataset path.
     assertThrows[FileNotFoundException] {
-      FileResolver.resolve(unknownPrefixFilePath)
+      FileResolver.resolve(nonDatasetPrefixFilePath)
     }
   }
 

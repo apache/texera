@@ -24,9 +24,9 @@ from urllib3.util.retry import Retry
 
 
 class DatasetFileDocument:
-    # Leading resource-type segment on dataset logical paths. It is stripped when
-    # parsing and re-emitted when calling the file-service, mirroring FileResolver
-    # on the backend. An unprefixed path is parsed as-is.
+    # Leading resource-type segment on dataset logical paths. It identifies the path as
+    # a dataset path and is REQUIRED, mirroring FileResolver on the backend. A path
+    # without it is rejected.
     RESOURCE_TYPE_PREFIX = "datasets"
 
     # (connect, read) timeout and retry settings for the file-service GETs below.
@@ -65,26 +65,24 @@ class DatasetFileDocument:
              "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
            Example:
              "/datasets/bob@texera.com/twitterDataset/v1/california/tw1.csv"
-           A leading "datasets" resource-type segment is stripped if present; an
-           unprefixed path is parsed as-is.
+           The leading "datasets" resource-type segment is required; a path
+           without it is rejected. Mirrors FileResolver on the backend.
         """
         parts = file_path.strip("/").split("/")
 
-        # Strip the resource-type prefix ("datasets") if present; an unprefixed
-        # path is parsed as-is. Mirrors FileResolver on the backend.
-        if parts and parts[0] == self.RESOURCE_TYPE_PREFIX:
-            parts = parts[1:]
-
-        if len(parts) < 4:
+        # The datasets prefix is required and identifies the path as a dataset
+        # path; without it (datasets/owner/name/version/<file> => >= 5 segments)
+        # the path is invalid. Mirrors FileResolver on the backend.
+        if len(parts) < 5 or parts[0] != self.RESOURCE_TYPE_PREFIX:
             raise ValueError(
                 "Invalid file path format. Expected: "
                 "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
             )
 
-        self.owner_email = parts[0]
-        self.dataset_name = parts[1]
-        self.version_name = parts[2]
-        self.file_relative_path = "/".join(parts[3:])
+        self.owner_email = parts[1]
+        self.dataset_name = parts[2]
+        self.version_name = parts[3]
+        self.file_relative_path = "/".join(parts[4:])
 
         self.jwt_token = os.getenv("USER_JWT_TOKEN")
         self.presign_endpoint = os.getenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT")
