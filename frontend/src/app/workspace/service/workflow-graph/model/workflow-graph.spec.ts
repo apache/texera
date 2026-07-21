@@ -27,9 +27,23 @@ import {
   mockSentimentPredicate,
   mockSentimentResultLink,
 } from "./mock-workflow-data";
-import { WorkflowGraph } from "./workflow-graph";
+import {
+  DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE,
+  isPythonUdf,
+  isSink,
+  PYTHON_UDF_SOURCE_V2_OP_TYPE,
+  PYTHON_UDF_V2_OP_TYPE,
+  VIEW_RESULT_OP_TYPE,
+  WorkflowGraph,
+} from "./workflow-graph";
 import { Observable } from "rxjs";
-import { Comment, OperatorLink, PortDescription, PortProperty } from "../../../types/workflow-common.interface";
+import {
+  Comment,
+  OperatorLink,
+  OperatorPredicate,
+  PortDescription,
+  PortProperty,
+} from "../../../types/workflow-common.interface";
 
 describe("WorkflowGraph", () => {
   let workflowGraph: WorkflowGraph;
@@ -813,6 +827,72 @@ describe("WorkflowGraph", () => {
       workflowGraph.triggerCenterEvent();
       expect(fired).toBe(true);
       sub.unsubscribe();
+    });
+  });
+
+  describe("isSink", () => {
+    const makeOperator = (operatorType: string): OperatorPredicate => ({
+      operatorID: "op",
+      operatorType,
+      operatorVersion: "v",
+      operatorProperties: {},
+      inputPorts: [],
+      outputPorts: [],
+      showAdvanced: true,
+      isDisabled: false,
+    });
+
+    it("should return true for the view-result sink operator type", () => {
+      expect(isSink(makeOperator(VIEW_RESULT_OP_TYPE))).toBe(true);
+    });
+
+    it("should return true whenever the operator type contains 'sink' as a substring", () => {
+      expect(isSink(makeOperator("CsvFileSink"))).toBe(true);
+      expect(isSink(makeOperator("SinkOperator"))).toBe(true);
+    });
+
+    it("should match case-insensitively", () => {
+      expect(isSink(makeOperator("SINK"))).toBe(true);
+      expect(isSink(makeOperator("SiNk"))).toBe(true);
+      expect(isSink(makeOperator("mySINKop"))).toBe(true);
+    });
+
+    it("should return false for operator types that do not contain 'sink'", () => {
+      expect(isSink(makeOperator("ScanSource"))).toBe(false);
+      expect(isSink(makeOperator("NlpSentiment"))).toBe(false);
+      expect(isSink(makeOperator(""))).toBe(false);
+    });
+  });
+
+  describe("isPythonUdf", () => {
+    const makeOperator = (operatorType: string): OperatorPredicate => ({
+      operatorID: "op",
+      operatorType,
+      operatorVersion: "v",
+      operatorProperties: {},
+      inputPorts: [],
+      outputPorts: [],
+      showAdvanced: true,
+      isDisabled: false,
+    });
+
+    it("should return true for the single-input Python UDF v2 type", () => {
+      expect(isPythonUdf(makeOperator(PYTHON_UDF_V2_OP_TYPE))).toBe(true);
+    });
+
+    it("should return true for the Python UDF source v2 type", () => {
+      expect(isPythonUdf(makeOperator(PYTHON_UDF_SOURCE_V2_OP_TYPE))).toBe(true);
+    });
+
+    it("should return true for the dual-input-ports Python UDF v2 type", () => {
+      expect(isPythonUdf(makeOperator(DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE))).toBe(true);
+    });
+
+    it("should return false for operator types outside the Python UDF list", () => {
+      expect(isPythonUdf(makeOperator("JavaUDF"))).toBe(false);
+      expect(isPythonUdf(makeOperator("ScanSource"))).toBe(false);
+      // membership is exact and case-sensitive, so a differently-cased variant must not match
+      expect(isPythonUdf(makeOperator(PYTHON_UDF_V2_OP_TYPE.toLowerCase()))).toBe(false);
     });
   });
 });
