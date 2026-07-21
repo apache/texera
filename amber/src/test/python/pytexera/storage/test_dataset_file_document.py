@@ -126,7 +126,9 @@ class TestGetPresignedUrl:
     def test_url_encodes_filepath_query_parameter(self, monkeypatch):
         # urllib.parse.quote keeps "/" as safe by default, but encodes "@"
         # and " " — pin both pieces so the contract is explicit.
-        doc = self._make_doc(monkeypatch, path="/datasets/bob@x.com/ds/v1/data file.csv")
+        doc = self._make_doc(
+            monkeypatch, path="/datasets/bob@x.com/ds/v1/data file.csv"
+        )
         with patch(
             "pytexera.storage.dataset_file_document.requests.Session.get"
         ) as mock_get:
