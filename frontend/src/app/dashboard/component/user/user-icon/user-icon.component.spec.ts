@@ -27,7 +27,7 @@ import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";
 import { AboutComponent } from "../../../../hub/component/about/about.component";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-import { ABOUT } from "../../../../app-routing.constant";
+import { LOGIN } from "../../../../app-routing.constant";
 
 describe("UserIconComponent", () => {
   let component: UserIconComponent;
@@ -56,7 +56,7 @@ describe("UserIconComponent", () => {
   });
 
   describe("onClickLogout", () => {
-    it("navigates to /about (no /dashboard prefix) after logout", () => {
+    it("navigates to /login (no /dashboard prefix) after logout", () => {
       const router = TestBed.inject(Router);
       const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
       const userService = TestBed.inject(UserService);
@@ -65,8 +65,8 @@ describe("UserIconComponent", () => {
       component.onClickLogout();
 
       expect(logoutSpy).toHaveBeenCalledTimes(1);
-      expect(navigateSpy).toHaveBeenCalledWith([ABOUT]);
-      expect(ABOUT).toBe("/about");
+      expect(navigateSpy).toHaveBeenCalledWith([LOGIN]);
+      expect(LOGIN).toBe("/login");
     });
 
     it("clears the flarum_remember cookie on logout", () => {

@@ -56,7 +56,7 @@ describe("FlarumService", () => {
       expect(req.request.body.data.attributes).toEqual({
         username: "alice42",
         email: "alice@example.com",
-        password: "secret-token",
+        password: String(mockUser.uid),
       });
       expect(req.request.headers.get("Authorization")).toContain("Token ");
       req.flush({});
@@ -92,7 +92,7 @@ describe("FlarumService", () => {
       expect(req.request.method).toEqual("POST");
       expect(req.request.body).toEqual({
         identification: "alice@example.com",
-        password: "secret-token",
+        password: String(mockUser.uid),
         remember: "1",
       });
       req.flush({});
