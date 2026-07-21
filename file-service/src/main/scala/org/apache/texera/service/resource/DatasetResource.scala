@@ -2242,7 +2242,7 @@ class DatasetResource extends LazyLogging {
       val owner = getOwner(ctx, did)
       val document = DocumentFactory
         .openReadonlyDocument(
-          FileResolver.resolve(s"${owner.getEmail}/${dataset.getName}/$normalized")
+          FileResolver.resolve(s"datasets/${owner.getEmail}/${dataset.getName}/$normalized")
         )
         .asInstanceOf[OnDataset]
 
@@ -2296,7 +2296,7 @@ class DatasetResource extends LazyLogging {
       )
 
       val owner = getOwner(ctx, did)
-      val fullPath = s"${owner.getEmail}/${dataset.getName}/$coverImage"
+      val fullPath = s"datasets/${owner.getEmail}/${dataset.getName}/$coverImage"
 
       val document = DocumentFactory
         .openReadonlyDocument(FileResolver.resolve(fullPath))
@@ -2345,7 +2345,7 @@ class DatasetResource extends LazyLogging {
           Response.ok(Map("url" -> null)).build()
         case Some(coverImage) =>
           val owner = getOwner(ctx, did)
-          val fullPath = s"${owner.getEmail}/${dataset.getName}/$coverImage"
+          val fullPath = s"datasets/${owner.getEmail}/${dataset.getName}/$coverImage"
 
           val document = DocumentFactory
             .openReadonlyDocument(FileResolver.resolve(fullPath))
