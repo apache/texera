@@ -42,12 +42,19 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 )
 
 
-def _make_handler(func) -> grpclib.const.Handler:
+def _make_handler(func=None) -> grpclib.const.Handler:
     """Builds a real grpclib Handler namedtuple around an async callable.
 
     AsyncRPCServer only ever touches `.func`, but using the real namedtuple
     keeps the stub shape identical to what AsyncRPCHandlerInitializer yields.
+    Defaults to a no-op async callable so the handler always carries a real
+    coroutine function, even in tests that never invoke it.
     """
+    if func is None:
+
+        async def func(stream):
+            pass
+
     return grpclib.const.Handler(
         func, Cardinality.UNARY_UNARY, ControlRequest, ControlReturn
     )
@@ -123,8 +130,8 @@ class TestHandlerMapConstruction:
 
     @pytest.mark.timeout(2)
     def test_keys_are_lowercased_last_path_segments(self, monkeypatch):
-        pause = _make_handler(None)
-        resume = _make_handler(None)
+        pause = _make_handler()
+        resume = _make_handler()
         server = self._server_with_mapping(
             monkeypatch,
             {
@@ -138,7 +145,7 @@ class TestHandlerMapConstruction:
 
     @pytest.mark.timeout(2)
     def test_key_without_slash_is_just_lowercased(self, monkeypatch):
-        handler = _make_handler(None)
+        handler = _make_handler()
         server = self._server_with_mapping(monkeypatch, {"BareName": handler})
         assert server._handlers == {"barename": handler}
 
@@ -148,7 +155,7 @@ class TestHandlerMapConstruction:
         # method name happens in receive(), not here. Querying with the
         # original mixed-case name must therefore fail.
         server = self._server_with_mapping(
-            monkeypatch, {"/texera.WorkerService/PauseWorker": _make_handler(None)}
+            monkeypatch, {"/texera.WorkerService/PauseWorker": _make_handler()}
         )
         with pytest.raises(KeyError):
             server.look_up("PauseWorker")
