@@ -43,7 +43,9 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
+import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
+import org.apache.texera.amber.operator.udf.java.JavaUDFOpDesc
 import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -166,6 +168,38 @@ class LoopIntegrationSpec
   private def limit(n: Int): LimitOpDesc = {
     val op = new LimitOpDesc()
     op.limit = n
+    op
+  }
+
+  private def sleep(seconds: Int): SleepOpDesc = {
+    val op = new SleepOpDesc()
+    op.sleepTime = seconds
+    op
+  }
+
+  /** An identity Java UDF (the descriptor's own default template): a
+    * runtime-compiled Java operator, i.e. the most literal "Java native
+    * operator inside the loop" case. Single worker; keeps the input schema.
+    */
+  private def javaUDF(): JavaUDFOpDesc = {
+    val op = new JavaUDFOpDesc()
+    op.code = "import org.apache.texera.amber.operator.map.MapOpExec;\n" +
+      "import org.apache.texera.amber.core.tuple.Tuple;\n" +
+      "import org.apache.texera.amber.core.tuple.TupleLike;\n" +
+      "import scala.Function1;\n" +
+      "import java.io.Serializable;\n" +
+      "\n" +
+      "public class JavaUDFOpExec extends MapOpExec {\n" +
+      "    public JavaUDFOpExec () {\n" +
+      "        this.setMapFunc((Function1<Tuple, TupleLike> & Serializable) this::processTuple);\n" +
+      "    }\n" +
+      "    \n" +
+      "    public TupleLike processTuple(Tuple tuple) {\n" +
+      "        return tuple;\n" +
+      "    }\n" +
+      "}"
+    op.workers = 1
+    op.retainInputColumns = true
     op
   }
 
@@ -303,6 +337,55 @@ class LoopIntegrationSpec
       innerRows == 3,
       s"inner LoopEnd must reset per outer iteration (3 rows, not 9): " +
         s"expected 3, got $innerRows (all: $materialized)"
+    )
+  }
+
+  it should "run a loop whose body contains a runtime-compiled Java UDF operator" in {
+    // TextInput -> LoopStart -> JavaUDF (identity map) -> LoopEnd.
+    //
+    // The Java UDF is compiled from source at runtime and runs on a JVM
+    // worker -- the most literal "Java native operator inside the loop" case
+    // (and a different executor kind than the Scala built-ins: OpExecWithCode
+    // vs OpExecWithClassName). The loop envelope must survive it exactly like
+    // any other JVM hop.
+    val src = textInput("1\n2\n3")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val mid = javaUDF()
+    val end = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, mid, end),
+      List(link(src, start), link(start, mid), link(mid, end))
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 3,
+      s"LoopEnd must accumulate all 3 iterations with a Java UDF in the " +
+        s"loop body: expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "run a loop whose body chains multiple JVM operators" in {
+    // TextInput -> LoopStart -> Limit -> Sleep(0) -> LoopEnd.
+    //
+    // Two consecutive JVM hops pin the JVM-to-JVM state handoff: the first
+    // Scala worker WRITES the envelope columns to its output state table and
+    // the second Scala worker READS them back. The single-JVM-op tests never
+    // exercise that pairing (there, each hop faces a Python worker on at
+    // least one side). Sleep(0) is a pure identity pass-through.
+    val src = textInput("1\n2\n3")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val first = limit(10)
+    val second = sleep(0)
+    val end = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, first, second, end),
+      List(link(src, start), link(start, first), link(first, second), link(second, end))
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 3,
+      s"LoopEnd must accumulate all 3 iterations with two chained JVM " +
+        s"operators in the loop body: expected 3, got $endRows (all: $materialized)"
     )
   }
 }
