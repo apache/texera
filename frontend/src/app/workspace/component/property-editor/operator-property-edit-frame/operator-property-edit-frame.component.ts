@@ -1034,7 +1034,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         }
       }
 
-      if (mappedField.key === "datasetVersionPath") {
+      if (mappedField.key === "datasetVersionPath" || mappedField.key === "mountDataset") {
         mappedField.type = "datasetversionselector";
       }
 

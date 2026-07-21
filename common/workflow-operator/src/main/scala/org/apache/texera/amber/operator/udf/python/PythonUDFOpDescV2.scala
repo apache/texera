@@ -36,7 +36,11 @@ class PythonUDFOpDescV2 extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
-      "# Choose from the following templates:\n" +
+      "# If a dataset is mounted (see the \"Mount dataset\" property), its files\n" +
+        "# are available under the path in the MOUNTED_DATASET_PATH variable, e.g.\n" +
+        "#     open(f\"{MOUNTED_DATASET_PATH}/file.csv\")\n" +
+        "# \n" +
+        "# Choose from the following templates:\n" +
         "# \n" +
         "# from pytexera import *\n" +
         "# \n" +
@@ -94,11 +98,6 @@ class PythonUDFOpDescV2 extends LogicalOp {
 
   @JsonProperty()
   @JsonSchemaTitle("Mount dataset")
-  @JsonPropertyDescription(
-    "FUSE-mount a dataset version into the computing unit's local file system " +
-      "(format: /ownerEmail/datasetName/versionName). The mounted directory is exposed " +
-      "to the UDF code as the variable MOUNTED_DATASET_PATH."
-  )
   var mountDataset: String = ""
 
   override def getPhysicalOp(

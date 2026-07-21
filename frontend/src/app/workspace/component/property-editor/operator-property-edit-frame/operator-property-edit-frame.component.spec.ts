@@ -1695,6 +1695,14 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("datasetVersionPath")?.type).toBe("datasetversionselector");
     });
 
+    it("maps mountDataset to the datasetversionselector field type", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { mountDataset: { type: "string" } },
+      });
+      expect(getField("mountDataset")?.type).toBe("datasetversionselector");
+    });
+
     it("maps a field described as 'Input your code here' to the codearea field type", () => {
       component.setFormlyFormBinding({
         type: "object",
