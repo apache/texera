@@ -133,6 +133,26 @@ object KubernetesClient {
       specBuilder.withRuntimeClassName("nvidia")
     }
 
+    // Pin CU pods to the dedicated CU node pool when configured (see
+    // KubernetesConfig); empty => schedule on the cluster's default pool.
+    if (
+      KubernetesConfig.computeUnitNodeSelectorLabel.nonEmpty &&
+      KubernetesConfig.computeUnitNodeSelectorValue.nonEmpty
+    ) {
+      specBuilder.addToNodeSelector(
+        KubernetesConfig.computeUnitNodeSelectorLabel,
+        KubernetesConfig.computeUnitNodeSelectorValue
+      )
+    }
+    if (KubernetesConfig.computeUnitTolerationKey.nonEmpty) {
+      specBuilder
+        .addNewToleration()
+        .withKey(KubernetesConfig.computeUnitTolerationKey)
+        .withOperator("Exists")
+        .withEffect("NoSchedule")
+        .endToleration()
+    }
+
     val containerBuilder = specBuilder
       .addNewContainer()
       .withName("computing-unit-master")

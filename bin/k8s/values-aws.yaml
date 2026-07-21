@@ -37,6 +37,40 @@ podDisruptionBudgets:
 # consolidates idle nodes one pod at a time.
 workflowComputingUnitManager:
   numOfPods: 2
+  # Pin the on-demand CU pods onto the dedicated Karpenter CU NodePool below.
+  # These three values are the single source for both sides: the cu-manager
+  # stamps them onto every CU pod as a nodeSelector + toleration, and
+  # templates/aws/computing-unit-nodepool/ renders the pool's node label and
+  # taint from them. Change them here and both sides move together; a CU pod
+  # matches this node label, not the pool's name (computingUnitNodePool.name).
+  computeUnitPlacement:
+    nodeSelectorLabel: texera.io/node-role
+    nodeSelectorValue: computing-unit
+    tolerationKey: texera.io/computing-unit
+
+# Dedicated Karpenter NodePool the CU pods above are pinned to, so consolidation
+# never evicts a running CU (see templates/aws/computing-unit-nodepool/ for
+# the full rationale). Requires Karpenter -- on EKS Auto Mode it is already
+# installed. Every requirement list below may be left empty, which drops that
+# constraint and lets Karpenter choose freely.
+computingUnitNodePool:
+  enabled: true
+  name: cu-pool
+  # on-demand only by default. Adding "spot" is cheaper but a spot reclamation
+  # kills the CU pods on that node for good -- they are bare pods, so nothing
+  # recreates them. Use ["on-demand", "spot"] only if that is acceptable to you.
+  capacityTypes: ["on-demand"]
+  # The stock CU master image is amd64-only. Empty (or adding "arm64") lets
+  # Karpenter launch Graviton nodes, which only works with a multi-arch image.
+  architectures: ["amd64"]
+  # Availability zones the CU nodes may launch in, e.g. ["us-west-2a",
+  # "us-west-2c"]. Empty = every zone the cluster's subnets cover.
+  zones: []
+  # Empty lets Karpenter pick any instance type that fits the pending CUs, which
+  # is usually what you want. Pin the list to control cost or packing, e.g.
+  # ["m6a.2xlarge", "m7a.2xlarge", "m6a.4xlarge"] -- an m-family 2xlarge-4xlarge
+  # packs several 4 vCPU / 16 Gi CUs per node.
+  instanceTypes: []
 
 # Turn off the bundled MinIO object store; the services talk to external S3.
 minio:

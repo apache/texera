@@ -66,6 +66,17 @@ spec:
               value: {{ .Values.workflowComputingUnitPool.name }}-svc
             - name: KUBERNETES_IMAGE_NAME
               value: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowComputingUnitPool.imageName }}:{{ .Values.texera.imageTag }}
+            {{- with .Values.workflowComputingUnitManager.computeUnitPlacement }}
+            {{- if .nodeSelectorLabel }}
+            # Pin CU pods to the dedicated CU node pool (templates/aws/computing-unit-nodepool/)
+            - name: KUBERNETES_COMPUTE_UNIT_NODE_SELECTOR_LABEL
+              value: {{ .nodeSelectorLabel | quote }}
+            - name: KUBERNETES_COMPUTE_UNIT_NODE_SELECTOR_VALUE
+              value: {{ .nodeSelectorValue | quote }}
+            - name: KUBERNETES_COMPUTE_UNIT_TOLERATION_KEY
+              value: {{ .tolerationKey | quote }}
+            {{- end }}
+            {{- end }}
             # TexeraDB Access
             - name: STORAGE_JDBC_URL
               value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
