@@ -70,4 +70,56 @@ class LakeFSStorageClientSpec extends AnyFlatSpec {
     assert(Thread.interrupted())
     assert(ex.getCause.isInstanceOf[InterruptedException])
   }
+
+  "parsePhysicalAddress" should "split a well-formed address into bucket and key" in {
+    assert(
+      LakeFSStorageClient.parsePhysicalAddress("s3://my-bucket/path/to/file.csv") ==
+        (("my-bucket", "path/to/file.csv"))
+    )
+    // key should have its leading slash stripped and preserve nested segments
+    assert(
+      LakeFSStorageClient.parsePhysicalAddress("gs://another-bucket/some/prefix/data.json") ==
+        (("another-bucket", "some/prefix/data.json"))
+    )
+  }
+
+  it should "throw for an empty or blank address" in {
+    val emptyEx = intercept[IllegalArgumentException] {
+      LakeFSStorageClient.parsePhysicalAddress("")
+    }
+    assert(emptyEx.getMessage.contains("empty"))
+
+    val blankEx = intercept[IllegalArgumentException] {
+      LakeFSStorageClient.parsePhysicalAddress("   ")
+    }
+    assert(blankEx.getMessage.contains("empty"))
+  }
+
+  it should "throw when the address is not a valid URI" in {
+    val ex = intercept[IllegalArgumentException] {
+      LakeFSStorageClient.parsePhysicalAddress("s3://bad host/key")
+    }
+    assert(ex.getMessage.contains("Invalid address URI"))
+    assert(ex.getCause != null)
+  }
+
+  it should "throw when the address is missing a host/bucket" in {
+    val ex = intercept[IllegalArgumentException] {
+      LakeFSStorageClient.parsePhysicalAddress("s3:///only-a-key")
+    }
+    assert(ex.getMessage.contains("missing host/bucket"))
+  }
+
+  it should "throw when the address is missing a key/path" in {
+    val noPathEx = intercept[IllegalArgumentException] {
+      LakeFSStorageClient.parsePhysicalAddress("s3://my-bucket")
+    }
+    assert(noPathEx.getMessage.contains("missing key/path"))
+
+    // a trailing slash yields an empty key after stripping, which is also invalid
+    val rootPathEx = intercept[IllegalArgumentException] {
+      LakeFSStorageClient.parsePhysicalAddress("s3://my-bucket/")
+    }
+    assert(rootPathEx.getMessage.contains("missing key/path"))
+  }
 }
