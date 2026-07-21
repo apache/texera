@@ -3,19 +3,14 @@ package org.apache.texera.web.resource
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import org.apache.texera.common.config.UserSystemConfig
-import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
-import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
+import org.apache.texera.dao.jooq.generated.enums.ProviderTypeEnum
 import org.apache.texera.web.model.http.response.TokenIssueResponse
+import org.apache.texera.web.resource.auth.{ExternalAuthProvisioner, ExternalProfile}
 
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
-import java.time.OffsetDateTime
 import javax.ws.rs.core.{MediaType, UriBuilder}
 import javax.ws.rs._
-import scala.util.chaining.scalaUtilChainingOps
 
 @Path("/auth/facebook")
 class FacebookAuthResource {
@@ -82,76 +77,9 @@ class FacebookAuthResource {
     val facebookEmail = emailOpt.filter(_.nonEmpty).getOrElse(s"$facebookId@facebook.local")
     val facebookName = nameOpt.filter(_.nonEmpty).getOrElse(facebookEmail)
 
-    val user = SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
-      val txUserDao = new UserDao(ctx.configuration())
-      val txAuthDao = new AuthProviderDao(ctx.configuration())
-
-      Option(
-        ctx
-          .select()
-          .from(USER)
-          .join(AUTH_PROVIDER)
-          .on(USER.UID.eq(AUTH_PROVIDER.UID))
-          .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.FACEBOOK))
-          .and(AUTH_PROVIDER.PROVIDER_ID.eq(facebookId))
-          .fetchOne()
-      ) match {
-        case Some(record) =>
-          val uid = record.get(USER.UID)
-          txUserDao.fetchOneByUid(uid).tap { user =>
-            // name/email are profile fields on "user"; refresh from Facebook if changed
-            if (user.getName != facebookName || user.getEmail != facebookEmail) {
-              user.setName(facebookName)
-              user.setEmail(facebookEmail)
-              txUserDao.update(user)
-            }
-          }
-        case None =>
-          val user = Option(txUserDao.fetchOneByEmail(facebookEmail)) match {
-            case Some(user) =>
-              user.tap { user =>
-                if (user.getName != facebookName) {
-                  user.setName(facebookName)
-                  txUserDao.update(user)
-                }
-              }
-            case None =>
-              new User().tap { user =>
-                user.setName(facebookName)
-                user.setEmail(facebookEmail)
-                user.setRole(UserRoleEnum.INACTIVE)
-                txUserDao.insert(user)
-              }
-          }
-
-          // an email-matched user may already have a FACEBOOK provider row, so
-          // upsert rather than blindly insert (avoids a (uid, provider_type) PK collision)
-          val hasFacebookProvider = ctx.fetchExists(
-            ctx
-              .selectFrom(AUTH_PROVIDER)
-              .where(AUTH_PROVIDER.UID.eq(user.getUid))
-              .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.FACEBOOK))
-          )
-          if (hasFacebookProvider) {
-            ctx
-              .update(AUTH_PROVIDER)
-              .set(AUTH_PROVIDER.PROVIDER_ID, facebookId)
-              .where(AUTH_PROVIDER.UID.eq(user.getUid))
-              .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.FACEBOOK))
-              .execute()
-          } else {
-            txAuthDao.insert(
-              new AuthProvider().tap { auth =>
-                auth.setUid(user.getUid)
-                auth.setProviderType(ProviderTypeEnum.FACEBOOK)
-                auth.setProviderId(facebookId)
-                auth.setCreatedAt(OffsetDateTime.now())
-              }
-            )
-          }
-          user
-      }
-    }
+    val user = ExternalAuthProvisioner.loginOrProvision(
+      ExternalProfile(ProviderTypeEnum.FACEBOOK, facebookId, facebookName, facebookEmail)
+    )
 
     TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
   }
