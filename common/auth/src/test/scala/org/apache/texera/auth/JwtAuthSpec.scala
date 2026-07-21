@@ -67,6 +67,13 @@ class JwtAuthSpec extends AnyFlatSpec with Matchers {
     user.getRole shouldBe UserRoleEnum.ADMIN
   }
 
+  it should "carry the user's avatar onto the avatar claim" in {
+    val user = buildUser()
+    user.setAvatar("avatar-123")
+    val claims = JwtAuth.jwtClaims(user, 1)
+    claims.getClaimValueAsString("avatar") shouldBe "avatar-123"
+  }
+
   it should "carry through null optional fields without error" in {
     val user = new User()
     user.setUid(7)
@@ -75,5 +82,6 @@ class JwtAuthSpec extends AnyFlatSpec with Matchers {
     val claims = JwtAuth.jwtClaims(user, 1)
     claims.getSubject shouldBe "bob"
     claims.getClaimValueAsString("email") shouldBe null
+    claims.getClaimValueAsString("avatar") shouldBe null
   }
 }
