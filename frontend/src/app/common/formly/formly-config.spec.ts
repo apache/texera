@@ -31,36 +31,36 @@ import {
   multipleOfValidationMessage,
 } from "./formly-config";
 
-// The formatters ignore their first (error) argument and read only field.props.
-const err = {};
-const field = (props: Record<string, unknown>): FormlyFieldConfig => ({ props }) as FormlyFieldConfig;
+// the `err` argument is unused by every message builder, so any value is fine
+const err = {} as any;
+const field = (props: Record<string, any>): FormlyFieldConfig => ({ props }) as FormlyFieldConfig;
 
-describe("formly-config validation-message formatters", () => {
-  it("minItemsValidationMessage reports the minimum item count", () => {
+describe("formly validation messages", () => {
+  it("minItemsValidationMessage reports the minItems bound", () => {
     expect(minItemsValidationMessage(err, field({ minItems: 3 }))).toBe("should NOT have fewer than 3 items");
   });
 
-  it("maxItemsValidationMessage reports the maximum item count", () => {
+  it("maxItemsValidationMessage reports the maxItems bound", () => {
     expect(maxItemsValidationMessage(err, field({ maxItems: 5 }))).toBe("should NOT have more than 5 items");
   });
 
-  it("minlengthValidationMessage reports the minimum length", () => {
+  it("minlengthValidationMessage reports the minLength bound", () => {
     expect(minlengthValidationMessage(err, field({ minLength: 2 }))).toBe("should NOT be shorter than 2 characters");
   });
 
-  it("maxlengthValidationMessage reports the maximum length", () => {
-    expect(maxlengthValidationMessage(err, field({ maxLength: 10 }))).toBe("should NOT be longer than 10 characters");
+  it("maxlengthValidationMessage reports the maxLength bound", () => {
+    expect(maxlengthValidationMessage(err, field({ maxLength: 8 }))).toBe("should NOT be longer than 8 characters");
   });
 
-  it("minValidationMessage reports the inclusive minimum", () => {
+  it("minValidationMessage reports the min bound", () => {
     expect(minValidationMessage(err, field({ min: 0 }))).toBe("should be >= 0");
   });
 
-  it("maxValidationMessage reports the inclusive maximum", () => {
+  it("maxValidationMessage reports the max bound", () => {
     expect(maxValidationMessage(err, field({ max: 100 }))).toBe("should be <= 100");
   });
 
-  it("multipleOfValidationMessage reports the step", () => {
+  it("multipleOfValidationMessage reports the step value", () => {
     expect(multipleOfValidationMessage(err, field({ step: 4 }))).toBe("should be multiple of 4");
   });
 
@@ -72,11 +72,12 @@ describe("formly-config validation-message formatters", () => {
     expect(exclusiveMaximumValidationMessage(err, field({ exclusiveMaximum: 9 }))).toBe("should be < 9");
   });
 
-  it("constValidationMessage reports the required constant", () => {
-    expect(constValidationMessage(err, field({ const: "foo" }))).toBe('should be equal to constant "foo"');
+  it("constValidationMessage quotes the expected constant", () => {
+    expect(constValidationMessage(err, field({ const: "hello" }))).toBe('should be equal to constant "hello"');
   });
 
-  it("interpolates undefined when the referenced prop is absent (optional-chaining branch)", () => {
-    expect(minItemsValidationMessage(err, {} as FormlyFieldConfig)).toBe("should NOT have fewer than undefined items");
+  it("renders the literal 'undefined' when the relevant prop is missing", () => {
+    expect(minValidationMessage(err, field({}))).toBe("should be >= undefined");
+    expect(constValidationMessage(err, field({}))).toBe('should be equal to constant "undefined"');
   });
 });
