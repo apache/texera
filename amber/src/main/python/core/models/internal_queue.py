@@ -22,7 +22,6 @@ from enum import Enum
 from threading import RLock
 from typing import TypeVar, Set
 
-from core.models.internal_marker import InternalMarker
 from core.models.payload import DataPayload
 from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,
@@ -77,11 +76,19 @@ class InternalQueue(IQueue):
     def put(self, item: T) -> None:
         if isinstance(item, InternalQueueElement):
             if item.tag not in self._queue_ids:
-                self._queue.add_sub_queue(item.tag, 1 if item.tag.is_control else 2)
-                self._queue_ids.add(item.tag)
-            if isinstance(item, (DataElement, InternalMarker, ECMElement)):
-                self._queue.put(item.tag, item)
-            elif isinstance(item, DCMElement):
+                # registration must not interleave with disable_data/enable_data
+                with self._lock:
+                    if item.tag not in self._queue_ids:
+                        self._queue.add_sub_queue(
+                            item.tag, 1 if item.tag.is_control else 2
+                        )
+                        # while data is disabled, a new data sub-queue must
+                        # start disabled too (before its first element is
+                        # enqueued), or it would leak data during the pause
+                        if not item.tag.is_control and self._queue_state:
+                            self._queue.disable(item.tag)
+                        self._queue_ids.add(item.tag)
+            if isinstance(item, (DataElement, ECMElement, DCMElement)):
                 self._queue.put(item.tag, item)
             else:
                 raise ValueError(f"item {item} is not recognized by internal queue")

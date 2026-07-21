@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import threading
 from dataclasses import dataclass
 
 import pytest
@@ -364,3 +365,197 @@ class TestInternalQueue:
         queue.enable(data_channel)
         assert queue.get() is blocked
         assert queue.is_empty()
+
+    # Regression tests below: data channels whose sub-queue is created lazily
+    # (on the channel's first put) AFTER disable_data has been called must
+    # come up disabled — a paused or backpressured worker must not be able to
+    # dequeue data from them, and is_data_enabled() must not flip back to
+    # True just because a new channel delivered its first message.
+
+    def test_channel_registered_after_disable_comes_up_disabled(
+        self, queue, data_channel
+    ):
+        # the main regression: disable first, then the channel's FIRST put
+        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        queue.put(self.data_element(data_channel))
+        assert not queue.is_data_enabled()
+        # the element stays queued but must not be dequeuable
+        assert queue.size_data() == 1
+        assert queue._queue.peek() is None
+
+    @pytest.mark.timeout(2)
+    def test_enable_data_releases_a_channel_registered_mid_disable(
+        self, queue, data_channel
+    ):
+        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        data = self.data_element(data_channel)
+        queue.put(data)
+        assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        assert queue.is_data_enabled()
+        assert queue._queue.peek() is data
+        assert queue.get() is data
+        assert queue.is_empty()
+
+    @pytest.mark.timeout(2)
+    def test_channel_registered_under_stacked_disables_stays_disabled(
+        self, queue, data_channel
+    ):
+        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
+        data = self.data_element(data_channel)
+        queue.put(data)
+        # releasing only one of the two reasons must not open the channel
+        assert not queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        assert not queue.is_data_enabled()
+        assert queue._queue.peek() is None
+        # releasing the remaining reason makes the element dequeuable
+        assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
+        assert queue.is_data_enabled()
+        assert queue.get() is data
+
+    @pytest.mark.timeout(2)
+    def test_control_channel_registered_mid_disable_is_never_blocked(
+        self, queue, control_channel, data_channel
+    ):
+        # register a data channel first so is_data_enabled() is meaningful
+        queue.put(self.data_element(data_channel))
+        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        # the control channel's FIRST put happens while data is disabled
+        dcm = self.dcm_element(control_channel)
+        queue.put(dcm)
+        # control must flow immediately, and data must stay disabled
+        assert queue._queue.peek() is dcm
+        assert queue.get() is dcm
+        assert not queue.is_data_enabled()
+        assert queue.size_data() == 1
+
+    @pytest.mark.timeout(2)
+    def test_channel_registered_before_disable_is_disabled_and_reenabled(
+        self, queue, data_channel
+    ):
+        # baseline: the pre-existing behavior for eagerly-registered channels
+        data = self.data_element(data_channel)
+        queue.put(data)
+        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        assert not queue.is_data_enabled()
+        assert queue._queue.peek() is None
+        assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        assert queue.is_data_enabled()
+        assert queue.get() is data
+
+    @pytest.mark.timeout(2)
+    def test_channel_registered_while_enabled_behaves_normally(
+        self, queue, second_data_channel
+    ):
+        data = self.data_element(second_data_channel)
+        queue.put(data)
+        assert queue.is_data_enabled()
+        assert queue._queue.peek() is data
+        assert queue.get() is data
+        assert queue.is_empty()
+
+    @pytest.mark.timeout(10)
+    def test_concurrent_first_time_puts_while_toggling_disable(self, queue):
+        # concurrency smoke test: receiver threads register brand-new data
+        # channels while the DP thread toggles disable_data/enable_data;
+        # only the final state is asserted, deterministically.
+        n_threads = 8
+        elements_per_thread = 25
+        start_barrier = threading.Barrier(n_threads + 1)
+        errors = []
+
+        def producer(thread_index):
+            channel = ChannelIdentity(
+                ActorVirtualIdentity(f"upstream_{thread_index}"),
+                ActorVirtualIdentity("dummy_worker_id"),
+                False,
+            )
+            try:
+                start_barrier.wait()
+                for _ in range(elements_per_thread):
+                    queue.put(self.data_element(channel))
+            except Exception as exc:  # pragma: no cover - failure path
+                errors.append(exc)
+
+        threads = [
+            threading.Thread(target=producer, args=(i,)) for i in range(n_threads)
+        ]
+        for thread in threads:
+            thread.start()
+        start_barrier.wait()
+        for _ in range(5):
+            queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+            queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        for thread in threads:
+            thread.join()
+        # one last full cycle after all puts settled: every channel must be
+        # disabled, then re-enabled with its count added back exactly once
+        queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+        assert not queue.is_data_enabled()
+        assert queue._queue.peek() is None
+        assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+
+        assert not errors
+        total = n_threads * elements_per_thread
+        assert queue.is_data_enabled()
+        assert queue.size_data() == total
+        # size() is the getable total_count: a mismatch with size_data()
+        # means an element was double-counted or lost by a toggle race
+        assert queue.size() == total
+        drained = 0
+        while queue._queue.peek() is not None:
+            queue.get()
+            drained += 1
+        assert drained == total
+        assert queue.is_empty()
+
+    @pytest.mark.timeout(30)
+    def test_concurrent_first_time_puts_racing_disable_enable_toggles(self):
+        # Receiver threads deliver first-ever messages on distinct new data
+        # channels while the DP-thread side toggles pause on and off. Only
+        # the final state is asserted (deterministic): with the queue left
+        # disabled, nothing is dequeuable; after the final enable_data every
+        # element is dequeuable exactly once, so total_count stayed exact.
+        threads, channels_per_thread, toggles = 4, 10, 10
+        for _ in range(5):
+            queue = InternalQueue()
+            errors = []
+            start = threading.Barrier(threads + 1)
+
+            def producer(thread_id):
+                try:
+                    start.wait()
+                    for i in range(channels_per_thread):
+                        channel = ChannelIdentity(
+                            ActorVirtualIdentity(f"upstream-{thread_id}-{i}"),
+                            ActorVirtualIdentity("dummy_worker_id"),
+                            False,
+                        )
+                        queue.put(self.data_element(channel))
+                except Exception as exc:  # pragma: no cover - failure path
+                    errors.append(exc)
+
+            producers = [
+                threading.Thread(target=producer, args=(t,)) for t in range(threads)
+            ]
+            for producer_thread in producers:
+                producer_thread.start()
+            start.wait()
+            for _ in range(toggles):
+                queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+                queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+            queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+            for producer_thread in producers:
+                producer_thread.join()
+
+            assert errors == []
+            total = threads * channels_per_thread
+            assert queue.size_data() == total
+            assert queue._queue.peek() is None
+            assert not queue.is_data_enabled()
+            assert queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
+            dequeued = 0
+            while queue._queue.peek() is not None:
+                queue.get()
+                dequeued += 1
+            assert dequeued == total
