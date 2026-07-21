@@ -48,8 +48,8 @@
         <sqlFile path="sql/updates/27.sql"/>
     </changeSet>
 
-    <changeSet id="28" author="Neilk1021">
-        <sqlFile path="sql/updates/28.sql"/>
+    <changeSet id="29" author="Neilk1021">
+        <sqlFile path="sql/updates/29.sql"/>
     </changeSet>
 
     <!-- example changeSet
