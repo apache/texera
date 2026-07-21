@@ -19,12 +19,10 @@
 
 package org.apache.texera.amber.engine.common
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.common.config.EnvironmentalVariable
 
-import java.net.{HttpURLConnection, URI, URL, URLEncoder}
-import java.nio.charset.StandardCharsets
+import java.net.URI
 import java.nio.file.{Files, Path, Paths}
 import scala.io.Source
 import scala.sys.process.{Process, ProcessLogger}
@@ -40,9 +38,10 @@ import scala.util.Using
   * The mount is authorized with the pod's per-user JWT, not with global LakeFS
   * credentials (a computing-unit pod is user-accessible, so it must never hold the
   * global LakeFS identity). GeeseFS talks to file-service's JWT-authenticated S3 proxy:
-  * the pod first exchanges its JWT for a short-lived, single-dataset-scoped session
-  * credential, then mounts through the proxy, which re-signs to the LakeFS S3 gateway
-  * with the global credentials held only server-side.
+  * the JWT already present in the pod is passed to GeeseFS as its S3 access key, so it
+  * rides in every request's signature and the proxy re-signs to the LakeFS S3 gateway
+  * with the global credentials held only server-side. No separate mount credential is
+  * issued or stored.
   *
   * Requirements inside the container: the `geesefs` binary (with the CAP_SYS_ADMIN
   * file capability when running as a non-root user), `fuse3`, and access to /dev/fuse
@@ -57,16 +56,18 @@ object DatasetMountManager extends LazyLogging {
 
   private val mountTimeoutMs = 30000L
 
-  private val jsonMapper = new ObjectMapper()
+  // GeeseFS requires a non-empty S3 secret key to produce a signature, but file-service's
+  // proxy treats the JWT (the access key) as the bearer capability and never validates the
+  // pod-side signature, so any fixed placeholder secret works.
+  private val mountSecretPlaceholder = "texera-jwt-mount"
 
   private def userJwtToken: String =
     sys.env.getOrElse(EnvironmentalVariable.ENV_USER_JWT_TOKEN, "").trim
 
   /**
     * Base URL of file-service as reachable from the pod (scheme://authority), derived
-    * from the presigned-URL endpoint the pod already receives. It hosts both the
-    * mount-session endpoint (/api/dataset/mount-session) and the S3 proxy (at the root)
-    * that GeeseFS mounts against.
+    * from the presigned-URL endpoint the pod already receives. GeeseFS mounts against the
+    * S3 proxy hosted at its root.
     */
   private def fileServiceBaseUrl: String = {
     val presignEndpoint = sys.env.getOrElse(
@@ -75,49 +76,6 @@ object DatasetMountManager extends LazyLogging {
     )
     val uri = new URI(presignEndpoint)
     s"${uri.getScheme}://${uri.getAuthority}"
-  }
-
-  /** Short-lived, dataset-scoped credential for the in-pod GeeseFS mount. */
-  private case class MountSession(accessKey: String, secretKey: String)
-
-  /**
-    * Exchange the pod's JWT for a mount session scoped to `repositoryName`@`commitHash`
-    * by calling file-service's /api/dataset/mount-session endpoint.
-    */
-  private def requestMountSession(repositoryName: String, commitHash: String): MountSession = {
-    val token = userJwtToken
-    if (token.isEmpty) {
-      throw new RuntimeException(
-        s"No ${EnvironmentalVariable.ENV_USER_JWT_TOKEN} present in the computing unit; " +
-          "cannot authorize a dataset mount without a user JWT."
-      )
-    }
-    val url =
-      s"$fileServiceBaseUrl/api/dataset/mount-session" +
-        s"?repositoryName=${URLEncoder.encode(repositoryName, StandardCharsets.UTF_8.name())}" +
-        s"&commitHash=${URLEncoder.encode(commitHash, StandardCharsets.UTF_8.name())}"
-
-    val connection = new URL(url).openConnection().asInstanceOf[HttpURLConnection]
-    connection.setRequestMethod("POST")
-    connection.setRequestProperty("Authorization", s"Bearer $token")
-    connection.setConnectTimeout(10000)
-    connection.setReadTimeout(10000)
-    try {
-      val code = connection.getResponseCode
-      if (code != HttpURLConnection.HTTP_OK) {
-        val err = Option(connection.getErrorStream)
-          .map(s => new String(s.readAllBytes(), StandardCharsets.UTF_8))
-          .getOrElse("")
-        throw new RuntimeException(
-          s"Failed to obtain a mount session for $repositoryName@$commitHash: HTTP $code $err"
-        )
-      }
-      val body = new String(connection.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
-      val json = jsonMapper.readTree(body)
-      MountSession(json.get("accessKey").asText(), json.get("secretKey").asText())
-    } finally {
-      connection.disconnect()
-    }
   }
 
   /**
@@ -140,9 +98,17 @@ object DatasetMountManager extends LazyLogging {
         return mountPoint
       }
 
+      val token = userJwtToken
+      if (token.isEmpty) {
+        throw new RuntimeException(
+          s"No ${EnvironmentalVariable.ENV_USER_JWT_TOKEN} present in the computing unit; " +
+            "cannot authorize a dataset mount without a user JWT."
+        )
+      }
+
       // Authorize the mount with the pod's JWT and mount through file-service's S3 proxy;
-      // no global LakeFS credentials are ever placed in this (user-accessible) pod.
-      val session = requestMountSession(repositoryName, commitHash)
+      // no global LakeFS credentials are ever placed in this (user-accessible) pod. The
+      // JWT is passed as the S3 access key so the proxy can read it back out and verify it.
       val proxyEndpoint = fileServiceBaseUrl
 
       Files.createDirectories(mountPoint)
@@ -163,8 +129,8 @@ object DatasetMountManager extends LazyLogging {
       val exitCode = Process(
         command,
         None,
-        "AWS_ACCESS_KEY_ID" -> session.accessKey,
-        "AWS_SECRET_ACCESS_KEY" -> session.secretKey
+        "AWS_ACCESS_KEY_ID" -> token,
+        "AWS_SECRET_ACCESS_KEY" -> mountSecretPlaceholder
       ).!(ProcessLogger(line => {
         output.append(line).append('\n')
         logger.info(s"geesefs: $line")

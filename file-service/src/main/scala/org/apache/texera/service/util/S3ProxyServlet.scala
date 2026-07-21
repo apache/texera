@@ -21,7 +21,12 @@ package org.apache.texera.service.util
 
 import com.typesafe.scalalogging.LazyLogging
 import jakarta.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
+import org.apache.texera.auth.JwtParser
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.SqlServer.withTransaction
+import org.apache.texera.dao.jooq.generated.tables.daos.DatasetDao
+import org.apache.texera.service.resource.DatasetAccessResource.userHasReadAccess
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.signer.AwsS3V4Signer
 import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams
@@ -31,20 +36,24 @@ import software.amazon.awssdk.regions.Region
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters._
+import scala.jdk.OptionConverters._
 
 /**
-  * Read-only, scope-enforcing, re-signing reverse proxy in front of the LakeFS S3
-  * gateway. A computing-unit pod's GeeseFS mount talks to this servlet using a
-  * short-lived [[MountSession]] credential (obtained from
-  * [[org.apache.texera.service.resource.MountSessionResource]] with the pod's per-user
-  * JWT). The servlet:
+  * Read-only, JWT-authenticated, re-signing reverse proxy in front of the LakeFS S3
+  * gateway. A computing-unit pod's GeeseFS mount talks to this servlet using the pod's
+  * own per-user JWT as the S3 credential: the JWT is passed to GeeseFS as
+  * `AWS_ACCESS_KEY_ID`, so it rides in the request's SigV4/SigV2 `Authorization` header.
+  * Reusing the JWT that is already present in the pod means no separate mount credential
+  * is ever issued, stored, or made multi-replica-consistent. The servlet:
   *
-  *   1. reads the session access key out of the incoming SigV4 `Authorization` header
-  *      (the session key is the bearer capability; the pod-side signature is not
-  *      re-validated, and no LakeFS credentials ever leave this service),
-  *   2. enforces that the request stays within the session's `repository`@`commit`
-  *      scope, so a session can never read another repository or commit, and
+  *   1. reads the JWT back out of the incoming `Authorization` header (the JWT is the
+  *      bearer capability; the pod-side S3 signature is not re-validated, and no LakeFS
+  *      credentials ever leave this service),
+  *   2. verifies the JWT and checks that its user has read access to the requested
+  *      repository (the S3 bucket), using the same `userHasReadAccess` gate as the
+  *      dataset REST endpoints, and
   *   3. re-signs the request with the global LakeFS credentials and forwards it to the
   *      LakeFS S3 gateway, streaming the response back.
   *
@@ -75,7 +84,16 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
 
   // Response headers worth passing back to GeeseFS; hop-by-hop and length/encoding
   // headers are recomputed by the servlet container, so they are intentionally omitted.
-  private val forwardedResponseHeaderPrefixes = Seq("content-", "etag", "last-modified", "accept-ranges", "x-amz-")
+  private val forwardedResponseHeaderPrefixes =
+    Seq("content-", "etag", "last-modified", "accept-ranges", "x-amz-")
+
+  // Short-lived cache of (uid, repository) -> read-access decision. A mount issues many
+  // range reads for the same repository, so this avoids a DB round-trip per request. It
+  // is a pure optimization: each replica caches independently and a miss just re-queries,
+  // so unlike a shared session store it needs no cross-replica consistency.
+  private val AuthCacheTtlMs = 60000L
+  private case class CachedDecision(allowed: Boolean, expiresAtMs: Long)
+  private val authCache = new ConcurrentHashMap[String, CachedDecision]()
 
   override def doGet(req: HttpServletRequest, resp: HttpServletResponse): Unit =
     proxy(req, resp, SdkHttpMethod.GET, streamBody = true)
@@ -89,22 +107,21 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
       method: SdkHttpMethod,
       streamBody: Boolean
   ): Unit = {
-    val now = System.currentTimeMillis()
-
-    val accessKey = extractAccessKey(req.getHeader("Authorization"))
-    val session = accessKey.flatMap(MountSessionStore.get(_, now))
-    if (session.isEmpty) {
+    val user = extractCredentialToken(req.getHeader("Authorization"))
+      .flatMap(token => JwtParser.parseToken(token).toScala)
+    if (user.isEmpty) {
       // GeeseFS probes the bucket unauthenticated on mount, so this is expected noise.
-      resp.sendError(HttpServletResponse.SC_FORBIDDEN, "invalid or expired mount session")
+      resp.sendError(HttpServletResponse.SC_FORBIDDEN, "missing or invalid user token")
       return
     }
 
-    if (!withinScope(req, session.get)) {
+    val uid = user.get.getUid
+    val repositoryName = requestedBucket(req)
+    if (repositoryName.isEmpty || !authorizedToRead(uid, repositoryName)) {
       logger.warn(
-        s"mount session for ${session.get.repositoryName}@${session.get.commitHash} " +
-          s"denied out-of-scope request: ${req.getRequestURI}"
+        s"user $uid denied mount access to repository '$repositoryName' for ${req.getRequestURI}"
       )
-      resp.sendError(HttpServletResponse.SC_FORBIDDEN, "request outside mount session scope")
+      resp.sendError(HttpServletResponse.SC_FORBIDDEN, "no read access to the requested repository")
       return
     }
 
@@ -118,13 +135,15 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
   }
 
   /**
-    * Extract the access key id from an AWS `Authorization` header. GeeseFS signs with
-    * either SigV4 (`AWS4-HMAC-SHA256 Credential=<accessKey>/<date>/...`) or, against a
-    * plain-HTTP custom endpoint, SigV2 (`AWS <accessKey>:<signature>`); support both.
-    * The pod-side signature itself is not re-validated — the session key is the bearer
-    * capability — so only the access key id needs to be read out.
+    * Extract the credential token from an AWS `Authorization` header. GeeseFS carries the
+    * user JWT in the access-key-id position and signs with either SigV4
+    * (`AWS4-HMAC-SHA256 Credential=<token>/<date>/...`) or, against a plain-HTTP custom
+    * endpoint, SigV2 (`AWS <token>:<signature>`); support both. A JWT is base64url with
+    * `.` separators, so it never contains the `/` or `:` these formats delimit on. The
+    * pod-side S3 signature itself is not re-validated — the JWT is the bearer capability —
+    * so only the token needs to be read out.
     */
-  private[util] def extractAccessKey(authHeader: String): Option[String] = {
+  private[util] def extractCredentialToken(authHeader: String): Option[String] = {
     Option(authHeader).flatMap { h =>
       "Credential=([^/,\\s]+)/".r
         .findFirstMatchIn(h)
@@ -134,35 +153,38 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
   }
 
   /**
-    * True iff the request targets only the session's `repository`@`commit`. GeeseFS
-    * addresses a `repo:commit` mount as bucket=`repo` with every key/list-prefix under
-    * `commit/`, so we require: bucket == repository, object keys start with the commit,
-    * and listings carry a prefix under the commit. Bucket-level metadata requests
-    * (e.g. `?location`) carry no key/prefix and expose no data, so they are allowed.
+    * The repository (S3 bucket) a request targets: the first path segment of a path-style
+    * request `/<bucket>/<key>`. Empty when the request carries no bucket (e.g. a
+    * service-level list-buckets), which is never authorized.
     */
-  private[util] def withinScope(req: HttpServletRequest, session: MountSession): Boolean = {
-    val segments = req.getRequestURI.stripPrefix("/").split("/", 2)
-    val bucket = java.net.URLDecoder.decode(segments(0), "UTF-8")
-    if (bucket != session.repositoryName) return false
+  private[util] def requestedBucket(req: HttpServletRequest): String = {
+    val firstSegment = req.getRequestURI.stripPrefix("/").split("/", 2)(0)
+    if (firstSegment.isEmpty) "" else java.net.URLDecoder.decode(firstSegment, "UTF-8")
+  }
 
-    val key = if (segments.length > 1) java.net.URLDecoder.decode(segments(1), "UTF-8") else ""
-    if (key.nonEmpty) {
-      // object request: must be inside the commit prefix
-      return key == session.commitHash || key.startsWith(session.commitHash + "/")
+  /**
+    * True iff `uid` has read access to the dataset backing `repositoryName`, cached for a
+    * short window. Read access to a repository grants read to all of its commits, so no
+    * per-commit check is needed: a session addresses a single repository's data and any
+    * version the user may already read.
+    */
+  private def authorizedToRead(uid: Integer, repositoryName: String): Boolean = {
+    val now = System.currentTimeMillis()
+    val cacheKey = s"$uid:$repositoryName"
+    val cached = authCache.get(cacheKey)
+    if (cached != null && cached.expiresAtMs > now) {
+      return cached.allowed
     }
 
-    // bucket-level request: a listing must be confined to the commit prefix
-    val isListing =
-      req.getParameter("list-type") != null ||
-        req.getParameter("prefix") != null ||
-        req.getParameter("marker") != null
-    if (isListing) {
-      val prefix = Option(req.getParameter("prefix")).getOrElse("")
-      prefix.startsWith(session.commitHash)
-    } else {
-      // non-listing bucket metadata (location, versioning, HEAD bucket): no data exposure
-      true
+    val allowed = withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
+      val datasets = new DatasetDao(ctx.configuration())
+        .fetchByRepositoryName(repositoryName)
+        .asScala
+        .toList
+      datasets.nonEmpty && userHasReadAccess(ctx, datasets.head.getDid, uid)
     }
+    authCache.put(cacheKey, CachedDecision(allowed, now + AuthCacheTtlMs))
+    allowed
   }
 
   /** Re-sign the request with LakeFS credentials and send it to the LakeFS gateway. */
