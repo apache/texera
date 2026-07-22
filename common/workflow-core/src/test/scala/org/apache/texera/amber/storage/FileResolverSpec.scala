@@ -170,18 +170,22 @@ class FileResolverSpec
 
   "parseDatasetOwnerAndName" should "extract owner email and dataset name from a valid path" in {
     assert(
-      FileResolver.parseDatasetOwnerAndName("/test_user@test.com/test_dataset/v1/1.txt")
+      FileResolver.parseDatasetOwnerAndName("/datasets/test_user@test.com/test_dataset/v1/1.txt")
         == Some(("test_user@test.com", "test_dataset"))
     )
     // extra segments beyond the file-relative path are ignored
     assert(
-      FileResolver.parseDatasetOwnerAndName("/owner@x.com/ds/v2/directory/nested/a.csv")
+      FileResolver.parseDatasetOwnerAndName("/datasets/owner@x.com/ds/v2/directory/nested/a.csv")
         == Some(("owner@x.com", "ds"))
     )
   }
 
-  it should "return None when the path has fewer than four segments" in {
-    assert(FileResolver.parseDatasetOwnerAndName("/owner@x.com/ds/v1").isEmpty)
+  it should "return None for an unprefixed path (the datasets prefix is required)" in {
+    assert(FileResolver.parseDatasetOwnerAndName(unprefixedDataset1TxtFilePath).isEmpty)
+  }
+
+  it should "return None when the prefixed path has too few segments" in {
+    assert(FileResolver.parseDatasetOwnerAndName("/datasets/owner@x.com/ds").isEmpty)
     assert(FileResolver.parseDatasetOwnerAndName("owner/dataset").isEmpty)
   }
 
