@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { formatCount, formatRelativeTime, formatSpeed, formatTime } from "./format.util";
+import { formatCount, formatRelativeTime, formatSpeed, formatTime, parseIntOrDefault } from "./format.util";
 
 describe("formatSpeed", () => {
   it('returns "0.0 MB/s" for zero, negative, or undefined input', () => {
@@ -136,5 +136,36 @@ describe("formatCount", () => {
     expect(formatCount(1500)).toBe("1.5k");
     expect(formatCount(12345)).toBe("12.3k");
     expect(formatCount(999999)).toBe("1000.0k");
+  });
+});
+
+describe("parseIntOrDefault", () => {
+  it("parses a well-formed integer string", () => {
+    expect(parseIntOrDefault("42", 7)).toBe(42);
+    expect(parseIntOrDefault("-5", 7)).toBe(-5);
+  });
+
+  it("parses a leading integer and ignores the trailing non-numeric part", () => {
+    // parseInt semantics: reads as many leading digits as possible.
+    expect(parseIntOrDefault("128px", 7)).toBe(128);
+  });
+
+  it("preserves a legitimately stored 0 instead of falling back", () => {
+    // This is the whole point of the helper over `parseInt(raw) || fallback`.
+    expect(parseIntOrDefault("0", 7)).toBe(0);
+  });
+
+  it("returns the fallback for null or undefined", () => {
+    expect(parseIntOrDefault(null, 7)).toBe(7);
+    expect(parseIntOrDefault(undefined, 7)).toBe(7);
+  });
+
+  it("returns the fallback for an empty or whitespace-only string", () => {
+    expect(parseIntOrDefault("", 7)).toBe(7);
+    expect(parseIntOrDefault("   ", 7)).toBe(7);
+  });
+
+  it("returns the fallback for an unparsable, non-numeric string", () => {
+    expect(parseIntOrDefault("abc", 7)).toBe(7);
   });
 });

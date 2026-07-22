@@ -16,6 +16,7 @@
 # under the License.
 
 import pandas
+import pyarrow as pa
 from pampy import match
 from typing import Iterator, TypeVar, List
 
@@ -80,6 +81,34 @@ class Table(pandas.DataFrame):
             return all(a == b for a, b in zip(self.as_tuples(), other.as_tuples()))
         else:
             return super().__eq__(other).all()
+
+
+def table_to_ipc_bytes(table: Table) -> bytes:
+    """Serialize ``table`` as an Apache Arrow IPC stream.
+
+    Used by the loop operators to round-trip a Table through a state dict
+    (and through iceberg storage) without resorting to ``pickle.dumps``,
+    which would expose ``pickle.loads`` as a remote-code-execution surface
+    on the receiving side. Arrow IPC is a length-prefixed, schema-typed
+    format that carries data only -- no executable payload.
+    """
+    arrow_table = pa.Table.from_pandas(table, preserve_index=False)
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_stream(sink, arrow_table.schema) as writer:
+        writer.write_table(arrow_table)
+    return sink.getvalue().to_pybytes()
+
+
+def table_from_ipc_bytes(buf: bytes) -> Table:
+    """Inverse of :func:`table_to_ipc_bytes`.
+
+    Reconstruct a Table from an Apache Arrow IPC stream buffer. Raises if
+    ``buf`` is not a well-formed Arrow IPC stream, so malformed input
+    surfaces as a parse error rather than executing anything.
+    """
+    with pa.ipc.open_stream(pa.py_buffer(buf)) as reader:
+        arrow_table = reader.read_all()
+    return Table(arrow_table.to_pandas())
 
 
 def all_output_to_tuple(output) -> Iterator[Tuple]:

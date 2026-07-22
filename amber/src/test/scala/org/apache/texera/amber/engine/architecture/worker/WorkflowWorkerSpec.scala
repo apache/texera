@@ -118,7 +118,8 @@ class WorkflowWorkerSpec
         OpExecWithClassName(
           "org.apache.texera.amber.engine.architecture.worker.DummyOperatorExecutor"
         ),
-        isSource = false
+        isSource = false,
+        loopStartStateUris = Map.empty
       )
     )
 
