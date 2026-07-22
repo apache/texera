@@ -65,9 +65,10 @@ describe("PropertyEditorComponent", () => {
     fixture.detectChanges();
   });
 
-  afterEach(async () => {
-    // Allow pending macro-tasks (e.g., updateHeightBasedOnContent setTimeout) to complete before teardown.
-    await fixture.whenStable();
+  afterEach(() => {
+    // Note: no fixture.whenStable() here — the rendered child frames keep the zone
+    // perpetually unstable, so awaiting it hangs teardown and leaves TestBed un-reset
+    // (causing "test module already instantiated" on the next spec). Destroy synchronously.
     fixture.destroy();
     vi.restoreAllMocks();
     localStorage.removeItem("right-panel-width");
