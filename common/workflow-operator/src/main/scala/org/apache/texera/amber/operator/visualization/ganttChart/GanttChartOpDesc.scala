@@ -26,7 +26,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
+import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
@@ -50,7 +50,6 @@ class GanttChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @JsonSchemaTitle("Start Datetime Column")
   @JsonPropertyDescription("the start timestamp of the task")
   @AutofillAttributeName
-  @SampleColumn("start_ts")
   @NotNull(message = "Start Datetime Column cannot be empty")
   var start: EncodableString = ""
 
@@ -58,7 +57,6 @@ class GanttChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @JsonSchemaTitle("Finish Datetime Column")
   @JsonPropertyDescription("the end timestamp of the task")
   @AutofillAttributeName
-  @SampleColumn("finish_ts")
   @NotNull(message = "Finish Datetime Column cannot be empty")
   var finish: EncodableString = ""
 
