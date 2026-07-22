@@ -341,7 +341,7 @@ describe("NotebookMigrationLLM", () => {
   });
 
   describe("initialize", () => {
-    it("falls back to the AuthService access token when none is passed", async () => {
+    it("defaults the access token to an empty string when AuthService returns null and none is passed", async () => {
       const tokenSpy = vi.spyOn(AuthService, "getAccessToken").mockReturnValue(null);
       const llm = makeUninitializedLLM();
 
