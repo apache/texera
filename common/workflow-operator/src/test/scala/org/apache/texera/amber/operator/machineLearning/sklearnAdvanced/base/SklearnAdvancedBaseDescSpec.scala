@@ -122,7 +122,7 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     val d = new TestSklearnMLOp
     val paraList = List(hyperParam("n_neighbors", "int", fromWorkflow = false, value = "5"))
     val paramString = d.getParameter(paraList)(1).encode
-    paramString should include("n_neighbors = int (")
+    paramString.filterNot(_.isWhitespace) should include("n_neighbors=int(")
     // The value is user input, so it is emitted as a safe decode expression.
     paramString should include("decode_python_template")
     paramString should not include ".values[i]"
