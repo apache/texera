@@ -172,7 +172,7 @@ describe("ResultExportationComponent", () => {
 
   describe("operator-id resolution and downloadability getters (menu source)", () => {
     // Reconfigure the graph mock so the "menu" branch of getOperatorIdsToCheck
-    // returns concrete operator IDs (drives the .map() callback on line 114).
+    // returns concrete operator IDs (drives the `.getAllOperators().map(op => op.operatorID)` branch).
     function setAllOperators(ids: string[]): void {
       const graph = TestBed.inject(WorkflowActionService) as unknown as {
         getTexeraGraph: ReturnType<typeof vi.fn>;
