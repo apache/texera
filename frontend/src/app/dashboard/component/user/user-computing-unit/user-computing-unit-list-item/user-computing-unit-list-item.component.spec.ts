@@ -334,7 +334,8 @@ describe("UserComputingUnitListItemComponent", () => {
       try {
         component.startEditingUnitName(makeEntry());
         // The editable input is rendered synchronously via cdr.detectChanges().
-        const input = document.querySelector(".unit-name-edit-input");
+        // Scope the query to this fixture's host so it can't match another fixture's input.
+        const input = (fixture.nativeElement as HTMLElement).querySelector(".unit-name-edit-input");
         expect(input).toBeTruthy();
         // The focus/select happen inside a setTimeout(0) callback.
         expect(focusSpy).not.toHaveBeenCalled();
@@ -396,7 +397,7 @@ describe("UserComputingUnitListItemComponent", () => {
       expect(component.getMemoryStatus()).toBe("exception");
     });
 
-    it("reports success statuses when there are no metrics", () => {
+    it("reports 0% and success statuses for the default entry's N/A (unavailable) metrics", () => {
       expect(component.getCpuPercentage()).toBe(0);
       expect(component.getMemoryPercentage()).toBe(0);
       expect(component.getCpuStatus()).toBe("success");
