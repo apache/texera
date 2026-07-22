@@ -31,7 +31,7 @@ export function extractErrorMessage(err: unknown): string {
     if (typeof backendErr === "string") {
       return backendErr;
     }
-    if (typeof backendErr === "object" && "message" in backendErr) {
+    if (typeof backendErr === "object" && backendErr !== null && "message" in backendErr) {
       return backendErr.message;
     }
   }

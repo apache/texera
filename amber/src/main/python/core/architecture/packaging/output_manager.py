@@ -92,6 +92,11 @@ class OutputManager:
             PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
         ] = dict()
 
+        # Loop-end operators have a single output port; remember its base
+        # URI so `reset_output_storage` can re-provision the iceberg
+        # tables on each loop iteration.
+        self._storage_uri_base: typing.Optional[str] = None
+
     def is_missing_output_ports(self):
         """
         This method is only used for ensuring correct region execution.
@@ -133,6 +138,9 @@ class OutputManager:
         state materialization on the same port. `storage_uri_base` is the
         port's base URI; the result and state URIs are derived from it.
         """
+        # Remember the base URI so `reset_output_storage` can re-provision
+        # the iceberg tables on subsequent loop iterations.
+        self._storage_uri_base = storage_uri_base
 
         def start_writer(uri: str, name_prefix: str, registry: dict) -> None:
             document, _ = DocumentFactory.open_document(uri)
@@ -209,6 +217,42 @@ class OutputManager:
         elif port_id in self._port_state_writers:
             self._port_state_writers[port_id][0].put(element)
 
+    def reset_output_storage(self) -> None:
+        """Drop and recreate this operator's result and state tables, then
+        reopen the storage writers against the empty tables.
+
+        Called only for the inner Loop End of a nested loop, once per outer
+        iteration (see the ``MainLoop._process_state_frame`` call site).
+        Truncating live storage is safe because loop workflows run in
+        MATERIALIZED mode, so no reader observes the intermediate truncation.
+
+        Preconditions, checked so misuse fails loudly: the operator has
+        exactly one output port, and ``set_up_port_storage_writer`` has
+        already run for it.
+        """
+        port_ids = self.get_port_ids()
+        if len(port_ids) != 1:
+            raise RuntimeError(
+                f"reset_output_storage expects exactly one output port, "
+                f"but found {len(port_ids)}"
+            )
+        if self._storage_uri_base is None:
+            raise RuntimeError(
+                "reset_output_storage called before the output port's storage "
+                "writer was set up"
+            )
+        port_id = port_ids[0]
+        storage_uri_base = self._storage_uri_base
+        self.close_port_storage_writers()
+        DocumentFactory.create_document(
+            VFSURIFactory.result_uri(storage_uri_base),
+            self._ports[port_id].get_schema(),
+        )
+        DocumentFactory.create_document(
+            VFSURIFactory.state_uri(storage_uri_base), State.SCHEMA
+        )
+        self.set_up_port_storage_writer(port_id, storage_uri_base)
+
     def close_port_storage_writers(self) -> None:
         """
         Flush the buffers of port storage writers and wait for all the
@@ -222,8 +266,8 @@ class OutputManager:
                 writer.stop()
             for _, _, thread in registry.values():
                 thread.join()
-            # Drop the stopped writers so a later close doesn't act on
-            # stale entries.
+            # Drop the stopped writers so a later reset/close doesn't act on
+            # stale entries (set_up_port_storage_writer repopulates on reset).
             registry.clear()
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:

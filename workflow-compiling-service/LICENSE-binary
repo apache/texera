@@ -231,8 +231,8 @@ Scala/Java jars:
   - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.21.0.jar
   - com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-base-2.16.1.jar
   - com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider-2.16.1.jar
-  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-base-2.12.7.jar
-  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider-2.12.7.jar
+  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-base-2.18.6.jar
+  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider-2.18.6.jar
   - com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1.jar
   - com.fasterxml.jackson.module.jackson-module-jakarta-xmlbind-annotations-2.16.1.jar
   - com.fasterxml.jackson.module.jackson-module-jsonSchema-2.18.8.jar
@@ -253,8 +253,8 @@ Scala/Java jars:
   - com.google.guava.failureaccess-1.0.3.jar
   - com.google.guava.guava-33.5.0-android.jar
   - com.google.guava.listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
-  - com.google.inject.extensions.guice-servlet-4.2.3.jar
-  - com.google.inject.guice-4.2.3.jar
+  - com.google.inject.extensions.guice-servlet-5.1.0.jar
+  - com.google.inject.guice-5.1.0.jar
   - com.google.j2objc.j2objc-annotations-3.1.jar
   - com.googlecode.javaewah.JavaEWAH-1.1.12.jar
   - com.helger.profiler-1.1.1.jar
@@ -337,11 +337,12 @@ Scala/Java jars:
   - io.netty.netty-transport-native-unix-common-4.2.15.Final.jar
   - org.jspecify.jspecify-1.0.0.jar
   - io.perfmark.perfmark-api-0.27.0.jar
-  - io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar
+  - io.r2dbc.r2dbc-spi-1.0.0.RELEASE.jar
   - jakarta.inject.jakarta.inject-api-2.0.1.jar
   - jakarta.validation.jakarta.validation-api-3.0.2.jar
   - javax.inject.javax.inject-1.jar
   - javax.validation.validation-api-2.0.1.Final.jar
+  - net.jodah.failsafe-2.4.4.jar
   - org.apache.arrow.arrow-format-19.0.0.jar
   - org.apache.arrow.arrow-memory-core-19.0.0.jar
   - org.apache.arrow.arrow-memory-netty-19.0.0.jar
@@ -360,14 +361,14 @@ Scala/Java jars:
   - org.apache.curator.curator-client-5.2.0.jar
   - org.apache.curator.curator-framework-5.2.0.jar
   - org.apache.curator.curator-recipes-5.2.0.jar
-  - org.apache.hadoop.hadoop-annotations-3.4.3.jar
-  - org.apache.hadoop.hadoop-auth-3.4.3.jar
-  - org.apache.hadoop.hadoop-common-3.4.3.jar
-  - org.apache.hadoop.hadoop-hdfs-client-3.4.3.jar
-  - org.apache.hadoop.hadoop-mapreduce-client-core-3.4.3.jar
-  - org.apache.hadoop.hadoop-yarn-api-3.4.3.jar
-  - org.apache.hadoop.hadoop-yarn-client-3.4.3.jar
-  - org.apache.hadoop.hadoop-yarn-common-3.4.3.jar
+  - org.apache.hadoop.hadoop-annotations-3.5.0.jar
+  - org.apache.hadoop.hadoop-auth-3.5.0.jar
+  - org.apache.hadoop.hadoop-common-3.5.0.jar
+  - org.apache.hadoop.hadoop-hdfs-client-3.5.0.jar
+  - org.apache.hadoop.hadoop-mapreduce-client-core-3.5.0.jar
+  - org.apache.hadoop.hadoop-yarn-api-3.5.0.jar
+  - org.apache.hadoop.hadoop-yarn-client-3.5.0.jar
+  - org.apache.hadoop.hadoop-yarn-common-3.5.0.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-guava-1.5.0.jar
   - org.apache.hadoop.thirdparty.hadoop-shaded-protobuf_3_25-1.5.0.jar
   - org.apache.httpcomponents.client5.httpclient5-5.4.3.jar
@@ -411,8 +412,8 @@ Scala/Java jars:
   - org.apache.parquet.parquet-hadoop-1.15.2.jar
   - org.apache.parquet.parquet-jackson-1.15.2.jar
   - org.apache.yetus.audience-annotations-0.12.0.jar
-  - org.apache.zookeeper.zookeeper-3.8.4.jar
-  - org.apache.zookeeper.zookeeper-jute-3.8.4.jar
+  - org.apache.zookeeper.zookeeper-3.8.6.jar
+  - org.apache.zookeeper.zookeeper-jute-3.8.6.jar
   - org.bitbucket.b_c.jose4j-0.9.6.jar
   - org.codehaus.jettison.jettison-1.5.4.jar
   - org.eclipse.jetty.jetty-http-11.0.20.jar
@@ -424,9 +425,9 @@ Scala/Java jars:
   - org.eclipse.jetty.jetty-util-11.0.20.jar
   - org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api-5.0.2.jar
   - org.eclipse.jetty.toolchain.setuid.jetty-setuid-java-1.0.4.jar
-  - org.eclipse.jetty.websocket.websocket-api-9.4.57.v20241219.jar
-  - org.eclipse.jetty.websocket.websocket-client-9.4.57.v20241219.jar
-  - org.eclipse.jetty.websocket.websocket-common-9.4.57.v20241219.jar
+  - org.eclipse.jetty.websocket.websocket-api-9.4.58.v20250814.jar
+  - org.eclipse.jetty.websocket.websocket-client-9.4.58.v20250814.jar
+  - org.eclipse.jetty.websocket.websocket-common-9.4.58.v20250814.jar
   - org.ehcache.sizeof-0.4.3.jar
   - org.hibernate.validator.hibernate-validator-7.0.5.Final.jar
   - org.javassist.javassist-3.30.2-GA.jar
@@ -506,7 +507,7 @@ Scala/Java jars:
   - com.konghq.unirest-java-3.14.2.jar
   - io.github.classgraph.classgraph-4.8.157.jar
   - net.sourceforge.argparse4j.argparse4j-0.9.0.jar
-  - org.bouncycastle.bcprov-jdk18on-1.82.jar
+  - org.bouncycastle.bcprov-jdk18on-1.84.jar
   - org.checkerframework.checker-qual-3.52.0.jar
   - org.codehaus.mojo.animal-sniffer-annotations-1.26.jar
   - org.projectlombok.lombok-1.18.24.jar
@@ -584,7 +585,6 @@ CDDL 1.0
 
 Scala/Java jars:
   - javax.annotation.javax.annotation-api-1.3.2.jar
-  - javax.servlet.javax.servlet-api-3.1.0.jar
   - javax.ws.rs.jsr311-api-1.1.1.jar
 
 
@@ -592,7 +592,6 @@ CDDL 1.1
 ~~~~~~~~
 
 Scala/Java jars:
-  - com.sun.jersey.contribs.jersey-guice-1.19.4.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Eclipse Distribution License, Version 1.0

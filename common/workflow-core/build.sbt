@@ -160,7 +160,22 @@ val excludeJersey = ExclusionRule(organization = "com.sun.jersey")
 // Hadoop 3.3.2+ ships jersey-json via the com.github.pjfanning fork; its Jersey 1.x
 // providers break Jersey 2 auto-discovery at startup, so exclude it as well.
 val excludeJerseyJsonFork = ExclusionRule(organization = "com.github.pjfanning", name = "jersey-json")
-val excludeGlassfishJersey = ExclusionRule(organization = "org.glassfish.jersey")
+// Hadoop 3.5.0 moved its web stack from Jersey 1.x (com.sun.jersey) to Jersey 2.x
+// (org.glassfish.jersey.{core,containers,inject}) plus the glassfish JAXB runtime,
+// istack-commons, and the Jakarta JSP API. ExclusionRule matches the organization string
+// exactly, so a bare "org.glassfish.jersey" rule matches none of the real artifacts.
+// Texera uses hadoop only as a filesystem client, so none of this servlet/JAX-RS/JAXB web
+// stack is needed. Excluding it here keeps those jars out of every downstream service dist
+// and, for services still on a Jersey 2.x server stack (amber), avoids evicting the Jersey
+// their auth wiring depends on.
+val excludeHadoopJersey2Stack = Seq(
+  ExclusionRule(organization = "org.glassfish.jersey.core"),
+  ExclusionRule(organization = "org.glassfish.jersey.containers"),
+  ExclusionRule(organization = "org.glassfish.jersey.inject"),
+  ExclusionRule(organization = "org.glassfish.jaxb"),
+  ExclusionRule(organization = "com.sun.istack"),
+  ExclusionRule(organization = "jakarta.servlet.jsp")
+)
 val excludeSlf4j = ExclusionRule(organization = "org.slf4j")
 val excludeJetty = ExclusionRule(organization = "org.eclipse.jetty")
 val excludeJsp = ExclusionRule(organization = "javax.servlet.jsp")
@@ -191,30 +206,32 @@ libraryDependencies ++= Seq(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.apache.hadoop" % "hadoop-common" % "3.4.3" excludeAll(
-    excludeXmlBind,
-    excludeGlassfishJersey,
-    excludeJersey,
-    excludeJerseyJsonFork,
-    excludeSlf4j,
-    excludeJetty,
-    excludeJsp,
-    excludeJackson,
-    excludeJacksonModule
+  "org.apache.hadoop" % "hadoop-common" % "3.5.0" excludeAll(
+    (Seq(
+      excludeXmlBind,
+      excludeJersey,
+      excludeJerseyJsonFork,
+      excludeSlf4j,
+      excludeJetty,
+      excludeJsp,
+      excludeJackson,
+      excludeJacksonModule
+    ) ++ excludeHadoopJersey2Stack): _*
   ),
   // hadoop 3.4 adds a direct netty-all dependency; exclude it — the netty
   // artifacts this module needs are declared explicitly above.
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.4.3" excludeAll(
-    excludeXmlBind,
-    excludeGlassfishJersey,
-    excludeJersey,
-    excludeJerseyJsonFork,
-    excludeSlf4j,
-    excludeJetty,
-    excludeJsp,
-    excludeJackson,
-    excludeJacksonModule,
-    excludeNetty
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.5.0" excludeAll(
+    (Seq(
+      excludeXmlBind,
+      excludeJersey,
+      excludeJerseyJsonFork,
+      excludeSlf4j,
+      excludeJetty,
+      excludeJsp,
+      excludeJackson,
+      excludeJacksonModule,
+      excludeNetty
+    ) ++ excludeHadoopJersey2Stack): _*
   ),
   // log4j:log4j is excluded build-wide (root build.sbt) because 1.x is EOL
   // with open CVEs. These log4j 2.x bridges keep hadoop/zookeeper's
@@ -236,7 +253,9 @@ libraryDependencies ++= Seq(
   "org.jgrapht" % "jgrapht-core" % "1.4.0",                           // JGraphT Core
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",          // Scala Logging
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r",  // jgit
-  "org.apache.commons" % "commons-vfs2" % "2.9.0",                     // for FileResolver throw VFS-related exceptions
+  // commons-vfs2 pulls hadoop-hdfs-client (for its HDFS provider), which drags in the
+  // Hadoop client stack and, via 3.5.0, the Jersey 2.x/JAXB web stack; exclude it here too.
+  "org.apache.commons" % "commons-vfs2" % "2.9.0" excludeAll(excludeHadoopJersey2Stack: _*), // for FileResolver throw VFS-related exceptions
   "io.lakefs" % "sdk" % "1.51.0",                                     // for lakeFS api calls
   "com.typesafe" % "config" % "1.4.6",                                 // config reader
   "org.apache.commons" % "commons-jcs3-core" % "3.2",                 // Apache Commons JCS
