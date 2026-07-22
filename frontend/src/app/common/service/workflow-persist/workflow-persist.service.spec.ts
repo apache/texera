@@ -187,7 +187,7 @@ describe("WorkflowPersistService", () => {
     });
 
     it("persistWorkflow POSTs the serialized body and parses the response content", () => {
-      const errorSpy = vi.spyOn(notificationService, "error");
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
       const workflow = {
         wid: 9,
         name: "my wf",
@@ -217,7 +217,7 @@ describe("WorkflowPersistService", () => {
     });
 
     it("persistWorkflow notifies the user when the workflow is broken but still POSTs", () => {
-      const errorSpy = vi.spyOn(notificationService, "error");
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
       const workflow = {
         wid: 1,
         name: "broken",
@@ -345,7 +345,7 @@ describe("WorkflowPersistService", () => {
     });
 
     it("updateWorkflowName notifies with the server message and rethrows on error", () => {
-      const errorSpy = vi.spyOn(notificationService, "error");
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
 
       let caught: unknown;
       service.updateWorkflowName(13, "bad").subscribe({
@@ -373,7 +373,7 @@ describe("WorkflowPersistService", () => {
     });
 
     it("updateWorkflowDescription notifies with the server message and rethrows on error", () => {
-      const errorSpy = vi.spyOn(notificationService, "error");
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
 
       let caught: unknown;
       service.updateWorkflowDescription(15, "bad").subscribe({
