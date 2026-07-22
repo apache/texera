@@ -175,13 +175,16 @@ describe("LeftPanelComponent", () => {
       cb(0);
       return 1;
     });
+    const cafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    try {
+      component.onResize({ width: 321, height: 654 } as NzResizeEvent);
 
-    component.onResize({ width: 321, height: 654 } as NzResizeEvent);
-
-    expect(component.width).toBe(321);
-    expect(component.height).toBe(654);
-
-    rafSpy.mockRestore();
+      expect(component.width).toBe(321);
+      expect(component.height).toBe(654);
+    } finally {
+      rafSpy.mockRestore();
+      cafSpy.mockRestore();
+    }
   });
 
   it("resetPanelPosition docks the panel back onto its return position", () => {
@@ -300,8 +303,8 @@ describe("LeftPanelComponent", () => {
     freshFixture.destroy();
   });
 
-  it("constructor ignores a saved tab order whose value-set does not match", () => {
-    // duplicate/short set -> Set sizes differ -> fall back to the default order
+  it("constructor ignores a saved tab order whose unique-entry count differs from the default", () => {
+    // the guard compares Set sizes only: a duplicate/short set has a different unique count -> fall back to the default order
     localStorage.setItem("left-panel-order", "1,1,1");
 
     const freshFixture = TestBed.createComponent(LeftPanelComponent);
@@ -312,13 +315,23 @@ describe("LeftPanelComponent", () => {
     freshFixture.destroy();
   });
 
-  it("ngOnInit restores the saved left-container style from localStorage", () => {
+  it("restores the saved left-container style on its first ngOnInit", () => {
+    // Destroy the default fixture so a single #left-container lives in the document, set the
+    // saved style, then create a fresh component and attach it before its FIRST ngOnInit runs
+    // (mirroring real usage where the value exists before init). Assert the immediate restore:
+    // a subsequent change-detection pass re-applies the template's [style.width]/[style.height]
+    // bindings, which would overwrite this cssText, so the restore is observed at ngOnInit time.
+    fixture.destroy();
     localStorage.setItem("left-panel-style", "width: 123px;");
-    const container = document.getElementById("left-container")!;
-    container.style.cssText = "";
 
-    component.ngOnInit();
-
-    expect(container.style.cssText).toContain("width: 123px");
+    const freshFixture = TestBed.createComponent(LeftPanelComponent);
+    document.body.appendChild(freshFixture.nativeElement);
+    try {
+      freshFixture.componentInstance.ngOnInit();
+      expect(document.getElementById("left-container")!.style.cssText).toContain("width: 123px");
+    } finally {
+      document.body.removeChild(freshFixture.nativeElement);
+      freshFixture.destroy();
+    }
   });
 });
