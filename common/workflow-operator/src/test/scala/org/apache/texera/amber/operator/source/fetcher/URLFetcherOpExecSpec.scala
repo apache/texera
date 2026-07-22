@@ -44,4 +44,21 @@ class URLFetcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(!iterator.hasNext)
   }
 
+  // On a failed fetch the fallback message must interpolate `desc.url` itself,
+  // not the descriptor's reflectionToString dump. A file:// URL to a nonexistent
+  // path makes getInputStreamFromURL return None deterministically and offline,
+  // so the failure branch is exercised without depending on external connectivity.
+  it should "report only the URL, not the operator descriptor, when the fetch fails" in {
+    opDesc.url = "file:///nonexistent/texera-urlfetcher-regression"
+    opDesc.decodingMethod = DecodingMethod.UTF_8
+    val fetcherOpExec = new URLFetcherOpExec(objectMapper.writeValueAsString(opDesc))
+    val content = fetcherOpExec.produceTuple().next().getFields.toList.head.asInstanceOf[String]
+
+    assert(content == s"Fetch failed for URL: ${opDesc.url}")
+    // Guard against the pre-fix `$desc.url` behavior, which leaked the whole
+    // descriptor dump (class name + internal fields) into the message.
+    assert(!content.contains("URLFetcherOpDesc"))
+    assert(!content.contains("operatorId"))
+  }
+
 }
