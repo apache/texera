@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, fakeAsync, tick } from "@angular/core/testing";
+import { ComponentFixture, TestBed, discardPeriodicTasks, fakeAsync, tick } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormControl, FormGroup } from "@angular/forms";
 import { FieldTypeConfig } from "@ngx-formly/core";
@@ -659,6 +659,162 @@ describe("HuggingFaceComponent (TestBed)", () => {
     it("should clean up on destroy without errors", () => {
       initComponent();
       expect(() => component.ngOnDestroy()).not.toThrow();
+    });
+
+    it("should clear taskPollInterval on destroy", fakeAsync(() => {
+      // Create a second fixture so the first one is still fetching tasks when this one inits
+      invalidateHuggingFaceModelCache();
+      const fixture2 = TestBed.createComponent(HuggingFaceComponent);
+      const component2 = fixture2.componentInstance;
+      const { field: field2 } = buildFieldWithFormGroup("text-generation");
+      component2.field = field2;
+      fixture2.detectChanges(); // triggers ngOnInit → loadTasks() (sets tasksFetchSubscription)
+      http.match(req => req.url.startsWith("assets/")).forEach(req => req.flush("<svg></svg>"));
+
+      // Now init our main component — tasks in flight, so it enters poll path
+      const { field } = buildFieldWithFormGroup("text-generation");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+
+      // comp enters poll path for tasks — taskPollInterval is set
+      expect((component as any).taskPollInterval).not.toBeNull();
+
+      // Destroy while poll is still running
+      expect(() => component.ngOnDestroy()).not.toThrow();
+
+      // Clean up fixture2
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.match(req => req.url.startsWith(`${API}/huggingface/models`)).forEach(req => req.flush([]));
+      fixture2.destroy();
+      discardPeriodicTasks();
+    }));
+  });
+
+  // ── Cached error states ──
+
+  describe("cached error states", () => {
+    it("should show cached tasks error for a second component without re-fetching", () => {
+      const { field: field1 } = buildFieldWithFormGroup();
+      component.field = field1;
+      fixture.detectChanges();
+      flushIconRequests();
+
+      // comp1: tasks error, models succeed → models are cached
+      http.expectOne(`${API}/huggingface/tasks`).error(new ProgressEvent("error"));
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush([]);
+
+      expect(component.tasksError).toBeTruthy();
+
+      const fixture2 = TestBed.createComponent(HuggingFaceComponent);
+      const component2 = fixture2.componentInstance;
+      const { field: field2 } = buildFieldWithFormGroup();
+      component2.field = field2;
+      fixture2.detectChanges();
+      flushIconRequests();
+
+      // Tasks error cached (no new tasks request); models cached (no new model request)
+
+      expect(component2.tasksError).toBeTruthy();
+      expect(component2.taskOptions).toEqual(STATIC_TASK_OPTIONS);
+      expect(component2.tasksLoading).toBe(false);
+
+      fixture2.destroy();
+    });
+
+    it("should show cached model error for a second component without re-fetching models", () => {
+      const { field: field1 } = buildFieldWithFormGroup("text-generation");
+      component.field = field1;
+      fixture.detectChanges();
+      flushIconRequests();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).error(new ProgressEvent("error"));
+
+      expect(component.errorMessage).toBeTruthy();
+
+      const fixture2 = TestBed.createComponent(HuggingFaceComponent);
+      const component2 = fixture2.componentInstance;
+      const { field: field2 } = buildFieldWithFormGroup("text-generation");
+      component2.field = field2;
+      fixture2.detectChanges();
+      flushIconRequests();
+
+      // Tasks cached; model error cached — no new HTTP requests at all
+      expect(component2.errorMessage).toBeTruthy();
+      expect(component2.loading).toBe(false);
+      expect(component2.pagedModels.length).toBe(0);
+
+      fixture2.destroy();
+    });
+  });
+
+  // ── Polling ──
+
+  describe("polling", () => {
+    it("should enter model poll path (loading=true) when another instance is already fetching models", fakeAsync(() => {
+      // comp1 fetches tasks first, but leaves models in flight
+      const { field: field1 } = buildFieldWithFormGroup("text-generation");
+      component.field = field1;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      // models still in flight for comp1
+
+      // comp2: tasks cached, but models are in-flight → enters model poll path
+      const fixture2 = TestBed.createComponent(HuggingFaceComponent);
+      const component2 = fixture2.componentInstance;
+      const { field: field2 } = buildFieldWithFormGroup("text-generation");
+      component2.field = field2;
+      fixture2.detectChanges();
+      http.match(req => req.url.startsWith("assets/")).forEach(req => req.flush("<svg></svg>"));
+
+      expect(component2.loading).toBe(true); // poll path entered
+
+      // Clean up: flush comp1's pending model request, discard comp2's poll
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(3));
+      fixture2.destroy();
+      discardPeriodicTasks();
+    }));
+
+    it("should enter task poll path (tasksLoading=true) when another instance is already fetching tasks", fakeAsync(() => {
+      // comp1 starts fetching tasks — leave in flight
+      const { field: field1 } = buildFieldWithFormGroup("text-generation");
+      component.field = field1;
+      fixture.detectChanges();
+      flushIconRequests();
+      // tasks and models both in flight for comp1
+
+      // comp2: tasksFetchSubscription not null → enters task poll path
+      const fixture2 = TestBed.createComponent(HuggingFaceComponent);
+      const component2 = fixture2.componentInstance;
+      const { field: field2 } = buildFieldWithFormGroup("text-generation");
+      component2.field = field2;
+      fixture2.detectChanges();
+      http.match(req => req.url.startsWith("assets/")).forEach(req => req.flush("<svg></svg>"));
+
+      expect(component2.tasksLoading).toBe(true); // poll path entered
+
+      // Clean up: flush comp1's pending requests, discard comp2's polls
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.match(req => req.url.startsWith(`${API}/huggingface/models`)).forEach(req => req.flush([]));
+      fixture2.destroy();
+      discardPeriodicTasks();
+    }));
+
+    it("should clear error and re-fetch models on retryLoad", () => {
+      initComponent();
+
+      component.onTaskSelected("image-classification");
+      http.expectOne(`${API}/huggingface/models?task=image-classification`).error(new ProgressEvent("error"));
+
+      expect(component.errorMessage).toBeTruthy();
+
+      component.retryLoad();
+      http.expectOne(`${API}/huggingface/models?task=image-classification`).flush(buildModels(4, "img"));
+
+      expect(component.errorMessage).toBeNull();
+      expect(component.pagedModels.length).toBe(4);
     });
   });
 

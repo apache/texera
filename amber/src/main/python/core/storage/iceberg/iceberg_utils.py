@@ -15,6 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import re
+from pathlib import PureWindowsPath
+from urllib.parse import urlparse
+
 import pyarrow as pa
 import pyiceberg.table
 from pyiceberg.catalog import Catalog, load_catalog
@@ -34,6 +38,58 @@ from core.models.schema.attribute_type import AttributeType, TO_ARROW_MAPPING
 
 # Suffix used to encode LARGE_BINARY fields in Iceberg (must match Scala IcebergUtil)
 LARGE_BINARY_FIELD_SUFFIX = "__texera_large_binary_ptr"
+
+# pyiceberg FileIO whose fsspec LocalFileSystem handles Windows drive paths,
+# which the default pyarrow FileIO cannot. See `_is_windows_local_warehouse`.
+_FSSPEC_FILE_IO = "pyiceberg.io.fsspec.FsspecFileIO"
+
+# Matches a filesystem path that starts with a Windows drive letter and a
+# separator, e.g. `C:\...` or `C:/...` (but not the drive-relative `C:foo`).
+_WINDOWS_DRIVE_PATH = re.compile(r"^[A-Za-z]:[\\/]")
+
+
+def _is_windows_local_warehouse(warehouse: str) -> bool:
+    """
+    Whether ``warehouse`` is a LOCAL filesystem path carrying a Windows drive
+    letter, either as a bare path (``C:\\...`` / ``C:/...``) or a ``file://``
+    URI (``file:///C:/...``).
+
+    Remote object stores (``s3://...``), POSIX paths, drive-less relative paths,
+    and colon-stripped paths (the form the Scala side registers, ``C/...``) are
+    excluded, so the default pyarrow FileIO / plain-path convention that Linux,
+    macOS, CI, and the Scala engine rely on is left untouched (see #4409).
+    """
+    if not warehouse:
+        return False
+    text = str(warehouse)
+    if _WINDOWS_DRIVE_PATH.match(text):
+        return True
+    parsed = urlparse(text)
+    if parsed.scheme.lower() == "file":  # `file` URI schemes are case-insensitive
+        return bool(_WINDOWS_DRIVE_PATH.match(parsed.path.lstrip("/")))
+    return False
+
+
+def _to_file_uri(warehouse: str) -> str:
+    """
+    Normalize a bare Windows drive path (``C:\\...``) to a ``file:///`` URI so
+    pyiceberg does not mis-parse the drive letter as a URI scheme (``c://`` ->
+    "Unrecognized filesystem type in URI: c"). Values that are already URIs
+    (e.g. ``file:///C:/...``) are returned unchanged.
+
+    The URI is built from ``PureWindowsPath.as_posix()`` rather than
+    ``.as_uri()`` so the path is *not* percent-encoded: the fsspec
+    ``LocalFileSystem`` behind ``FsspecFileIO`` does not URL-decode, so an
+    encoded space (``C:\\Users\\John Doe`` -> ``.../John%20Doe``) would send
+    writes to a literally ``%20``-named directory. ``PureWindowsPath`` keeps the
+    conversion deterministic on every host OS (the result is identical off
+    Windows).
+    """
+    text = str(warehouse)
+    if _WINDOWS_DRIVE_PATH.match(text):
+        return "file:///" + PureWindowsPath(text).as_posix()
+    return text
+
 
 # Type mappings
 _ICEBERG_TO_AMBER_TYPE_MAPPING = {
@@ -144,13 +200,22 @@ def create_postgres_catalog(
     :param password: the password of the postgres database.
     :return: a SQLCatalog instance.
     """
-    return SqlCatalog(
-        catalog_name,
-        **{
-            "uri": f"postgresql+pg8000://{username}:{password}@{uri_without_scheme}",
-            "warehouse": warehouse_path,
-        },
-    )
+    props = {
+        "uri": f"postgresql+pg8000://{username}:{password}@{uri_without_scheme}",
+        "warehouse": warehouse_path,
+    }
+    # On Windows with a local-filesystem warehouse, a bare drive path (`C:\...`)
+    # crashes pyiceberg, and even a `file:///C:/...` URI is rejected by the
+    # default pyarrow FileIO. Normalize the path to a `file:///` URI and switch
+    # to fsspec's LocalFileSystem, which handles Windows drive paths. This is
+    # the Python-worker counterpart to the Scala/JVM fix in #6488
+    # (WinutilsFreeLocalFileSystem, issue #6487). Gated to warehouses that
+    # actually carry a Windows drive letter, so remote object stores and POSIX
+    # paths keep the default FileIO / plain-path convention (see #4409).
+    if _is_windows_local_warehouse(warehouse_path):
+        props["warehouse"] = _to_file_uri(warehouse_path)
+        props["py-io-impl"] = _FSSPEC_FILE_IO
+    return SqlCatalog(catalog_name, **props)
 
 
 def create_rest_catalog(
@@ -168,6 +233,9 @@ def create_rest_catalog(
     :param rest_uri: the URI of the REST catalog endpoint.
     :return: a Catalog instance (REST catalog).
     """
+    # No Windows-local normalization here (unlike create_postgres_catalog):
+    # `warehouse_name` is a logical warehouse identifier resolved by the REST
+    # server, whose I/O goes through S3FileIO, not the local filesystem.
     return load_catalog(
         catalog_name,
         **{
