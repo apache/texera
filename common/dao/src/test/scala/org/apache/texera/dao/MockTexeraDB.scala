@@ -147,6 +147,9 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
       }
     }
 
+  // NOTE: This shared JVM singleton design assumes test suites run sequentially.
+  // If parallel suite execution is enabled in the future (#4525), thread safety
+  // and schema isolation must be re-evaluated.
   abstract override def withFixture(test: NoArgTest): Outcome = {
     initializeDBAndReplaceDSLContext()
 
