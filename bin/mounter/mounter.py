@@ -53,10 +53,59 @@ WATCH_RETRY_S = 10
 
 SA_DIR = "/var/run/secrets/kubernetes.io/serviceaccount"
 POD_NAME_PREFIX = "computing-unit-"
+PROC_MOUNTS = "/proc/mounts"
 
 
 def log(msg):
     print(f"[mounter] {msg}", flush=True)
+
+
+def _unescape(field):
+    """Decode the four characters /proc/mounts escapes octally."""
+    for code, char in (("\\040", " "), ("\\011", "\t"), ("\\012", "\n"), ("\\134", "\\")):
+        field = field.replace(code, char)
+    return field
+
+
+def mount_targets_under(path):
+    """Mount targets at or under `path`, deepest first.
+
+    Read from /proc/mounts rather than using os.path.ismount(): when a FUSE server dies
+    (the mounter being restarted kills every GeeseFS it started) its mount entry survives
+    here, but stat()ing the mount point fails with ENOTCONN, which os.path.ismount()
+    reports as "not a mount point". Such a dead mount would then never be unmounted, and
+    its directory could never be removed.
+    """
+    path = os.path.normpath(path)
+    prefix = path + "/"
+    targets = []
+    try:
+        with open(PROC_MOUNTS) as mounts:
+            for line in mounts:
+                fields = line.split()
+                if len(fields) < 2:
+                    continue
+                target = _unescape(fields[1])
+                if target == path or target.startswith(prefix):
+                    targets.append(target)
+    except OSError as e:
+        log(f"reading {PROC_MOUNTS} failed: {e}")
+    # Deepest first, so nested mounts are detached before their parents.
+    return sorted(targets, key=len, reverse=True)
+
+
+def is_mounted(path):
+    """True if `path` itself is a mount point, alive or dead."""
+    return os.path.normpath(path) in mount_targets_under(path)
+
+
+def _responds(path):
+    """True if `path` can be stat()ed — false for a mount whose FUSE server is gone."""
+    try:
+        os.stat(path)
+        return True
+    except OSError:
+        return False
 
 
 def ensure_shared_root():
@@ -73,9 +122,15 @@ def do_mount(cuid, repo, commit, jwt, file_service_base):
         raise ValueError("cuid, repositoryName, commitHash, jwt and fileServiceBase are required")
 
     target = os.path.join(MOUNT_ROOT, cuid, repo, commit)
-    if os.path.ismount(target):
-        log(f"{repo}:{commit} already mounted for cu {cuid} at {target}")
-        return target
+    if is_mounted(target):
+        if _responds(target):
+            log(f"{repo}:{commit} already mounted for cu {cuid} at {target}")
+            return target
+        # The GeeseFS process backing this mount is gone — most likely the mounter was
+        # restarted, which kills every GeeseFS it started. The mount point survives but
+        # every access to it fails with ENOTCONN, so detach it and mount again.
+        log(f"{repo}:{commit} for cu {cuid} has a dead mount at {target}; remounting")
+        subprocess.run(["umount", "-l", target], capture_output=True, text=True)
 
     os.makedirs(target, exist_ok=True)
     # allow_other: the mounter runs as root but the CU pod's UDF runs as a different
@@ -100,7 +155,7 @@ def do_mount(cuid, repo, commit, jwt, file_service_base):
 
     # GeeseFS daemonizes after a successful mount; wait until the kernel reports it.
     deadline = time.time() + MOUNT_TIMEOUT_S
-    while not os.path.ismount(target):
+    while not is_mounted(target):
         if time.time() > deadline:
             raise RuntimeError(f"{repo}:{commit} did not appear as a mount at {target} in {MOUNT_TIMEOUT_S}s")
         time.sleep(0.2)
@@ -193,25 +248,27 @@ def clean_cu_dir(cuid, quiet=False):
     already reported, so a repeatedly retried one does not re-log on every resync.
     """
     cu_dir = os.path.join(MOUNT_ROOT, cuid)
-    if not os.path.isdir(cu_dir):
+    # Never treat the shared root itself as a CU directory: unmounting it would break
+    # propagation for every CU on this node.
+    if os.path.normpath(cu_dir) == os.path.normpath(MOUNT_ROOT) or not os.path.isdir(cu_dir):
         return True
     if not quiet:
         log(f"cu {cuid} pod is gone; unmounting {cu_dir}")
 
-    for dirpath, _, _ in os.walk(cu_dir, topdown=False):
-        if os.path.ismount(dirpath):
-            # The mounter is root, so a plain lazy umount works (no setuid fusermount needed).
-            result = subprocess.run(["umount", "-l", dirpath], capture_output=True, text=True)
-            if result.returncode != 0 and not quiet:
-                log(f"cu {cuid}: umount -l {dirpath} failed: {(result.stdout + result.stderr).strip()}")
+    for target in mount_targets_under(cu_dir):
+        # The mounter is root, so a plain lazy umount works (no setuid fusermount needed).
+        result = subprocess.run(["umount", "-l", target], capture_output=True, text=True)
+        if result.returncode != 0 and not quiet:
+            log(f"cu {cuid}: umount -l {target} failed: {(result.stdout + result.stderr).strip()}")
 
     # A lazy umount only detaches once the last reference to the mount goes away, so a mount
     # another namespace still holds can outlive this call. Removing the directory would then
     # fail, so only remove it once nothing is mounted underneath and let the next resync retry
     # the rest — the mounts are read-only, so an orphan lingering a while is harmless.
-    if any(os.path.ismount(dirpath) for dirpath, _, _ in os.walk(cu_dir)):
+    remaining = mount_targets_under(cu_dir)
+    if remaining:
         if not quiet:
-            log(f"cu {cuid}: mounts still busy, leaving {cu_dir} for the next resync")
+            log(f"cu {cuid}: {len(remaining)} mount(s) still busy, leaving {cu_dir} for the next resync")
         return False
 
     shutil.rmtree(cu_dir, ignore_errors=True)
