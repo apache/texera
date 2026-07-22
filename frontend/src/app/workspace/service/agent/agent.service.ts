@@ -347,10 +347,12 @@ export class AgentService {
     };
   }
 
+  // Helper to batch-convert an array of API ReActSteps to the frontend format.
   private convertApiReActSteps(apiSteps: any[]): ReActStep[] {
     return apiSteps.map(s => this.convertApiReActStep(s));
   }
 
+  // Helper to map an API agent info payload to the frontend AgentInfo model.
   private mapApiAgentInfo(api: ApiAgentInfo): AgentInfo {
     return {
       id: api.id,
