@@ -1038,12 +1038,26 @@ describe("HuggingFaceComponent (TestBed)", () => {
 
   // ── Poll-path resolution (second instance waits on an in-flight fetch) ──
   //
-  // The poll uses setInterval created inside ngOnInit (via detectChanges), which
-  // is a real timer here, so these use a real delay rather than fakeAsync/tick.
+  // The poll uses setInterval created inside ngOnInit (via detectChanges), which is a
+  // real timer not captured by fakeAsync, so these use real timers. Rather than sleep a
+  // fixed interval (flaky under CI load), waitForPoll polls until the awaited condition
+  // holds, up to a generous cap.
 
   describe("poll-path resolution", () => {
-    /** Wait past one 200ms poll tick using real timers. */
-    const waitForPoll = () => new Promise<void>(resolve => setTimeout(resolve, 300));
+    /** Poll (real timers) until `done()` holds, up to a generous timeout. */
+    const waitForPoll = (done: () => boolean, timeoutMs = 3000): Promise<void> =>
+      new Promise<void>((resolve, reject) => {
+        const started = Date.now();
+        const timer = setInterval(() => {
+          if (done()) {
+            clearInterval(timer);
+            resolve();
+          } else if (Date.now() - started > timeoutMs) {
+            clearInterval(timer);
+            reject(new Error("waitForPoll: condition not met within timeout"));
+          }
+        }, 20);
+      });
 
     it("resolves both the task and model poll callbacks when the in-flight fetch succeeds", async () => {
       // comp1 leaves BOTH tasks and models in flight.
@@ -1068,7 +1082,9 @@ describe("HuggingFaceComponent (TestBed)", () => {
       http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(7));
 
       // Let the 200ms poll intervals observe the now-populated caches.
-      await waitForPoll();
+      await waitForPoll(
+        () => (component2 as any).taskPollInterval === null && (component2 as any).modelPollInterval === null
+      );
       flushIconRequests();
 
       expect(component2.tasksLoading).toBe(false);
@@ -1102,7 +1118,9 @@ describe("HuggingFaceComponent (TestBed)", () => {
       http.expectOne(`${API}/huggingface/tasks`).error(new ProgressEvent("error"));
       http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).error(new ProgressEvent("error"));
 
-      await waitForPoll();
+      await waitForPoll(
+        () => (component2 as any).taskPollInterval === null && (component2 as any).modelPollInterval === null
+      );
       flushIconRequests();
 
       // Task poll falls back to the static list and surfaces the cached error.
@@ -1143,7 +1161,9 @@ describe("HuggingFaceComponent (TestBed)", () => {
       // detect the canceled fetch and fall back rather than wait forever.
       invalidateHuggingFaceModelCache();
 
-      await waitForPoll();
+      await waitForPoll(
+        () => (component2 as any).taskPollInterval === null && (component2 as any).modelPollInterval === null
+      );
       flushIconRequests();
 
       // Task poll detects the canceled fetch → stops and falls back to the static list.
@@ -1157,7 +1177,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
 
       fixture2.destroy();
       // Drain the now-canceled comp1 requests so the shared afterEach verify() passes.
-      http.match(() => true);
+      http.match(req => req.url.includes("/huggingface/"));
     });
 
     it("replaces (does not leak) an existing poll interval when re-entering a poll path", () => {
