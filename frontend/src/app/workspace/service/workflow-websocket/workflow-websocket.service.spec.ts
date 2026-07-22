@@ -18,6 +18,7 @@
  */
 
 import { TestBed } from "@angular/core/testing";
+import { Subscription } from "rxjs";
 import { WorkflowWebsocketService } from "./workflow-websocket.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
@@ -139,11 +140,12 @@ describe("WorkflowWebsocketService", () => {
     }
     window.WebSocket = CapturingWebSocket as unknown as typeof WebSocket;
 
+    const subscriptions: Subscription[] = [];
     try {
       const events: unknown[] = [];
-      service.websocketEvent().subscribe(event => events.push(event));
+      subscriptions.push(service.websocketEvent().subscribe(event => events.push(event)));
       let connected: boolean | undefined;
-      service.getConnectionStatusStream().subscribe(value => (connected = value));
+      subscriptions.push(service.getConnectionStatusStream().subscribe(value => (connected = value)));
 
       service.openWebsocket(1, 1, 1);
       await Promise.resolve(); // let the fake socket transition to OPEN
@@ -155,6 +157,9 @@ describe("WorkflowWebsocketService", () => {
       expect(events).toContainEqual(event);
       expect(connected).toBe(true);
     } finally {
+      // The service's subjects never complete, so unsubscribe our observers
+      // explicitly rather than leaving them attached past the test.
+      subscriptions.forEach(subscription => subscription.unsubscribe());
       service.closeWebsocket();
       window.WebSocket = originalWebSocket;
     }

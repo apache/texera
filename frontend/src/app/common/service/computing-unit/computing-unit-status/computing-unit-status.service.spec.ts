@@ -266,11 +266,14 @@ describe("ComputingUnitStatusService", () => {
       // interval() fires only after the first period elapses
       expect(getSpy).not.toHaveBeenCalled();
 
-      vi.advanceTimersByTime(2000);
+      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
 
       expect(getSpy).toHaveBeenCalledWith(3);
       expect((service as any).allComputingUnitsSubject.value).toEqual([polled]);
     } finally {
+      // Stop the interval poll here so the test is self-contained rather than
+      // relying on afterEach's ngOnDestroy to tear it down.
+      (service as any).stopPollingSelectedUnit();
       vi.useRealTimers();
     }
   });
