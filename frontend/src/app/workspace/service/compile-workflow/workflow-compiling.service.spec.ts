@@ -33,6 +33,7 @@ import { serializePortIdentity } from "../../../common/util/port-identity-serde"
 import { commonTestImports, commonTestProviders } from "../../../common/testing/test-utils";
 import { firstValueFrom } from "rxjs";
 import { CompilationState } from "../../types/workflow-compiling.interface";
+import { OperatorSchema } from "../../types/operator-schema.interface";
 
 describe("WorkflowCompilingService.dropInvalidAttributeValues", () => {
   // A schema shaped like the Aggregate operator after schema propagation has filled in the
@@ -326,5 +327,228 @@ describe("WorkflowCompilingService public getters", () => {
     ]);
     expect(service.getOperatorInputAttributeType("op1", 0, "b")).toBe("integer");
     expect(service.getOperatorInputAttributeType("op1", 0, "missing")).toBeUndefined();
+  });
+});
+
+describe("WorkflowCompilingService.setOperatorInputAttrs / restoreOperatorInputAttrs", () => {
+  const port0 = serializePortIdentity({ id: 0, internal: false });
+
+  // Builds an OperatorSchema wrapping the given json schema. Only jsonSchema matters for these pure transforms;
+  // additionalMetadata is included only to satisfy the OperatorSchema type.
+  const makeOperatorSchema = (jsonSchema: any): OperatorSchema =>
+    ({
+      operatorType: "TestOp",
+      operatorVersion: "1",
+      jsonSchema,
+      additionalMetadata: {
+        userFriendlyName: "Test Op",
+        operatorGroupName: "Test",
+        inputPorts: [{ displayName: "input" }],
+        outputPorts: [{ displayName: "output" }],
+      },
+    }) as unknown as OperatorSchema;
+
+  // input port 0 exposes two attributes.
+  const inputPortSchemaMap = {
+    [port0]: [
+      { attributeName: "col_a", attributeType: "string" },
+      { attributeName: "col_b", attributeType: "integer" },
+    ],
+  } as any;
+
+  describe("setOperatorInputAttrs", () => {
+    it("returns the original operator schema unchanged when the input schema map is undefined", () => {
+      const schema = makeOperatorSchema({ type: "object", properties: {} });
+      expect(WorkflowCompilingService.setOperatorInputAttrs(schema, undefined)).toBe(schema);
+    });
+
+    it("returns the original operator schema unchanged when the input schema map is empty", () => {
+      const schema = makeOperatorSchema({ type: "object", properties: {} });
+      expect(WorkflowCompilingService.setOperatorInputAttrs(schema, {})).toBe(schema);
+    });
+
+    it("injects the input attribute names as an enum on an optional attributeName property", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        properties: {
+          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 },
+        },
+      });
+
+      const result = WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap);
+      const prop = (result.jsonSchema.properties as any).attribute;
+      // optional (not in `required`) properties append "" so the empty selection passes validation.
+      expect(prop.enum).toEqual(["col_a", "col_b", ""]);
+      expect(prop.type).toBe("string");
+      expect(prop.uniqueItems).toBe(true);
+    });
+
+    it('appends the property\'s string default instead of "" for optional properties', () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        properties: {
+          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0, default: "col_a" },
+        },
+      });
+
+      const result = WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap);
+      expect((result.jsonSchema.properties as any).attribute.enum).toEqual(["col_a", "col_b", "col_a"]);
+    });
+
+    it("throws when the property's default value is not a string", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        properties: {
+          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0, default: 42 },
+        },
+      });
+
+      expect(() => WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap)).toThrow(
+        "default value must be a string"
+      );
+    });
+
+    it("does not append an empty option for required properties", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        required: ["attribute"],
+        properties: {
+          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 },
+        },
+      });
+
+      expect(
+        (WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any)
+          .attribute.enum
+      ).toEqual(["col_a", "col_b"]);
+    });
+
+    it("includes additionalEnumValue before the optional empty option", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        properties: {
+          attribute: {
+            type: "string",
+            autofill: "attributeName",
+            autofillAttributeOnPort: 0,
+            additionalEnumValue: "*",
+          },
+        },
+      });
+
+      expect(
+        (WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any)
+          .attribute.enum
+      ).toEqual(["col_a", "col_b", "*", ""]);
+    });
+
+    it("yields an undefined enum when autofillAttributeOnPort is missing", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        properties: {
+          attribute: { type: "string", autofill: "attributeName" },
+        },
+      });
+
+      expect(
+        (WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any)
+          .attribute.enum
+      ).toBeUndefined();
+    });
+
+    it("yields an undefined enum when the referenced input port has no schema", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        properties: {
+          // port 5 is not present in inputPortSchemaMap.
+          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 5 },
+        },
+      });
+
+      expect(
+        (WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any)
+          .attribute.enum
+      ).toBeUndefined();
+    });
+
+    it("injects the enum into the items of an attributeNameList property", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        properties: {
+          attributes: {
+            type: "array",
+            autofill: "attributeNameList",
+            autofillAttributeOnPort: 0,
+            items: { type: "string" },
+          },
+        },
+      });
+
+      const prop = (
+        WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any
+      ).attributes;
+      expect(prop.type).toBe("array");
+      expect(prop.uniqueItems).toBe(true);
+      expect(prop.items.type).toBe("string");
+      expect(prop.items.enum).toEqual(["col_a", "col_b", ""]);
+    });
+  });
+
+  describe("restoreOperatorInputAttrs", () => {
+    it("clears the injected enum/uniqueItems from an attributeName property", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        properties: {
+          attribute: {
+            type: "string",
+            autofill: "attributeName",
+            autofillAttributeOnPort: 0,
+            enum: ["col_a", "col_b", ""],
+            uniqueItems: true,
+          },
+        },
+      });
+
+      const prop = (WorkflowCompilingService.restoreOperatorInputAttrs(schema).jsonSchema.properties as any).attribute;
+      expect(prop.enum).toBeUndefined();
+      expect(prop.uniqueItems).toBeUndefined();
+      expect(prop.type).toBe("string");
+    });
+
+    it("clears the injected enum from the items of an attributeNameList property", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        properties: {
+          attributes: {
+            type: "array",
+            autofill: "attributeNameList",
+            autofillAttributeOnPort: 0,
+            uniqueItems: true,
+            items: { type: "string", enum: ["col_a", "col_b", ""] },
+          },
+        },
+      });
+
+      const prop = (WorkflowCompilingService.restoreOperatorInputAttrs(schema).jsonSchema.properties as any).attributes;
+      expect(prop.type).toBe("array");
+      expect(prop.uniqueItems).toBeUndefined();
+      expect(prop.items.enum).toBeUndefined();
+      expect(prop.items.type).toBe("string");
+    });
+
+    it("round-trips: restore reverses the enums that setOperatorInputAttrs injected", () => {
+      const schema = makeOperatorSchema({
+        type: "object",
+        properties: {
+          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 },
+        },
+      });
+
+      const propagated = WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap);
+      expect((propagated.jsonSchema.properties as any).attribute.enum).toEqual(["col_a", "col_b", ""]);
+
+      const restored = WorkflowCompilingService.restoreOperatorInputAttrs(propagated);
+      expect((restored.jsonSchema.properties as any).attribute.enum).toBeUndefined();
+    });
   });
 });

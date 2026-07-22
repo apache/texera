@@ -107,7 +107,7 @@
     "@types/node": "24.10.1",
     "@types/papaparse": "5.3.5",
     "@types/plotly.js-basic-dist-min": "2.12.4",
-    "@types/quill": "2.0.9",
+    "@types/quill": "2.0.14",
     "@typescript-eslint/eslint-plugin": "8.59.0",
     "@typescript-eslint/parser": "8.62.1",
     "@typescript-eslint/types": "8.59.0",
