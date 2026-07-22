@@ -1124,7 +1124,7 @@ _install_hint() {
             printf "  or set JAVA_HOME=/path/to/jdk-17 explicitly\n"
             ;;
         python)
-            printf "  ${BOLD}install Python 3.10+ and the TUI deps:${RESET}\n"
+            printf "  ${BOLD}install Python 3.11+ and the TUI deps:${RESET}\n"
             printf "    macOS:   brew install python@3.12\n"
             printf "    Linux:   apt install python3 python3-pip\n"
             printf "    then:    python3 -m pip install -r %s/amber/dev-requirements.txt\n" "$REPO_ROOT"

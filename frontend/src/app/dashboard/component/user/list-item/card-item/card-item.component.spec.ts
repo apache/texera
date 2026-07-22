@@ -17,8 +17,9 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture, TestBed, fakeAsync, tick } from "@angular/core/testing";
 import { CardItemComponent } from "./card-item.component";
+import { ActionType, EntityType, HubService } from "src/app/hub/service/hub.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -30,7 +31,7 @@ import { UserService } from "../../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
-import { HUB_WORKFLOW_RESULT_DETAIL, USER_WORKSPACE } from "../../../../../app-routing.constant";
+import { HUB_WORKFLOW_RESULT_DETAIL, USER_PROJECT, USER_WORKSPACE } from "../../../../../app-routing.constant";
 import { WorkflowCoverService } from "src/app/dashboard/service/user/workflow-cover/workflow-cover.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DatasetService } from "../../../../service/user/dataset/dataset.service";
@@ -81,7 +82,7 @@ describe("CardItemComponent", () => {
       setCoverFromFile: vi.fn(),
       clearCover: vi.fn().mockReturnValue(of(undefined)),
     };
-    const datasetServiceSpy = { getDatasetCoverUrl: vi.fn() };
+    const datasetServiceSpy = { getDatasetCoverUrl: vi.fn(), updateDatasetName: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [CardItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
@@ -124,6 +125,46 @@ describe("CardItemComponent", () => {
     component.confirmUpdateCustomName("New Workflow Name");
 
     expect(component.entry.name).toBe("Old Name");
+    expect(component.editingName).toBe(false);
+  });
+
+  it("should reject an invalid dataset name, revert to original, and exit editing", () => {
+    component.entry = makeDatasetEntry({ id: 5, name: "invalid name" });
+    component.originalName = "original-name";
+    component.editingName = true;
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("invalid name");
+
+    expect(datasetService.updateDatasetName).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    expect(component.entry.name).toBe("original-name");
+    expect(component.editingName).toBe(false);
+  });
+
+  it("should call the dataset service for a valid dataset rename", () => {
+    component.entry = makeDatasetEntry({ id: 5, name: "new-valid-name" });
+    component.originalName = "old-name";
+    datasetService.updateDatasetName.mockReturnValue(of({} as any));
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(datasetService.updateDatasetName).toHaveBeenCalledWith(5, "new-valid-name");
+  });
+
+  it("should surface the error message and revert the name when a dataset rename fails", () => {
+    component.entry = makeDatasetEntry({ id: 5, name: "new-valid-name" });
+    component.originalName = "old-name";
+    component.editingName = true;
+    datasetService.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(errorSpy).toHaveBeenCalledWith("boom");
+    expect(component.entry.name).toBe("old-name");
     expect(component.editingName).toBe(false);
   });
 
@@ -202,24 +243,27 @@ describe("CardItemComponent", () => {
     expect(component.canEditCover).toBe(false);
   });
 
-  it("should load the stored cover on initialization and use it as the preview image", () => {
+  it("should use the stored cover image on initialization", () => {
     const cover = "data:image/jpeg;base64,abc";
-    workflowCoverService.getCover.mockReturnValue(of(cover));
-    component.entry = makeWorkflowEntry({ id: 7 });
+    const entry = makeWorkflowEntry({ id: 7 });
+    entry.coverImageUrl = cover;
 
+    component.entry = entry;
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
-    expect(workflowCoverService.getCover).toHaveBeenCalledWith(7);
+    expect(workflowCoverService.getCover).not.toHaveBeenCalled();
     expect(component.hasCustomImage).toBe(true);
     expect(component.coverImageSrc).toBe(cover);
   });
 
   it("should fall back to the default preview image when no cover is set", () => {
-    workflowCoverService.getCover.mockReturnValue(of(undefined));
-    component.entry = makeWorkflowEntry({ id: 7 });
+    const entry = makeWorkflowEntry({ id: 7 });
+    entry.coverImageUrl = undefined;
 
+    component.entry = entry;
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
+    expect(workflowCoverService.getCover).not.toHaveBeenCalled();
     expect(component.hasCustomImage).toBe(false);
     expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
@@ -359,5 +403,236 @@ describe("CardItemComponent", () => {
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
     expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("initializeEntry configures workflow metadata: disableDelete, workspace link, icon, counts", () => {
+    component.currentUid = 42;
+    component.entry = makeWorkflowEntry({
+      id: 7,
+      workflow: { isOwner: false },
+      accessibleUserIds: [42],
+      size: 123,
+      likeCount: 9,
+      viewCount: 4,
+      isLiked: true,
+    } as any);
+
+    component.initializeEntry();
+
+    expect(component.disableDelete).toBe(true); // !entry.workflow.isOwner
+    expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]); // currentUid is an accessible owner
+    expect(component.size).toBe(123);
+    expect(component.iconType).toBe("project");
+    expect(component.likeCount).toBe(9);
+    expect(component.viewCount).toBe(4);
+    expect(component.isLiked).toBe(true);
+  });
+
+  it("initializeEntry sets the project link and container icon and resets the cover for a project entry", () => {
+    component.coverImageSrc = "stale-value";
+    component.entry = {
+      id: 3,
+      name: "proj",
+      type: "project",
+      likeCount: 2,
+      viewCount: 1,
+      isLiked: false,
+    } as unknown as DashboardEntry;
+
+    component.initializeEntry();
+
+    expect(component.entryLink).toEqual([USER_PROJECT, "3"]);
+    expect(component.iconType).toBe("container");
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE); // reset at method start
+    expect(component.likeCount).toBe(2);
+  });
+
+  it("initializeEntry uses the folder-open icon for a file entry", () => {
+    component.entry = {
+      id: 8,
+      name: "f",
+      type: "file",
+      likeCount: 0,
+      viewCount: 0,
+      isLiked: false,
+    } as unknown as DashboardEntry;
+
+    component.initializeEntry();
+
+    expect(component.iconType).toBe("folder-open");
+  });
+
+  it("initializeEntry throws for an unexpected entry type", () => {
+    component.entry = {
+      id: 1,
+      name: "x",
+      type: "bogus",
+      likeCount: 0,
+      viewCount: 0,
+      isLiked: false,
+    } as unknown as DashboardEntry;
+
+    expect(() => component.initializeEntry()).toThrow("Unexpected type in DashboardEntry.");
+  });
+
+  it("onEditName captures the original name, enters edit mode, and focuses the input at the caret end", fakeAsync(() => {
+    component.entry = makeWorkflowEntry({ name: "Current Name" }); // length 12
+    const focus = vi.fn();
+    const setSelectionRange = vi.fn();
+    component.nameInput = { nativeElement: { value: "Current Name", focus, setSelectionRange } } as any;
+
+    component.onEditName();
+
+    expect(component.originalName).toBe("Current Name");
+    expect(component.editingName).toBe(true);
+
+    tick(0); // flush the focus timer
+
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(setSelectionRange).toHaveBeenCalledWith(12, 12);
+  }));
+
+  it("onEditName enters edit mode without throwing when the input is not rendered", fakeAsync(() => {
+    component.entry = makeWorkflowEntry({ name: "n" });
+    component.nameInput = undefined as any;
+
+    component.onEditName();
+
+    expect(component.editingName).toBe(true);
+    expect(component.originalName).toBe("n");
+    expect(() => tick(0)).not.toThrow(); // timer guard skips the missing input
+  }));
+
+  it("onEditDescription captures the original description, enters edit mode, and focuses the textarea at the caret end", fakeAsync(() => {
+    component.entry = makeWorkflowEntry({ description: "Some desc" }); // length 9
+    const focus = vi.fn();
+    const setSelectionRange = vi.fn();
+    component.descriptionInput = { nativeElement: { value: "Some desc", focus, setSelectionRange } } as any;
+
+    component.onEditDescription();
+
+    expect(component.originalDescription).toBe("Some desc");
+    expect(component.editingDescription).toBe(true);
+
+    tick(0);
+
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(setSelectionRange).toHaveBeenCalledWith(9, 9);
+  }));
+
+  it("openDetailModal opens the workflow detail modal and bumps the view count", () => {
+    const modalService = TestBed.inject(NzModalService);
+    const hubService = TestBed.inject(HubService);
+    const createSpy = vi.spyOn(modalService, "create").mockReturnValue({ componentInstance: {} } as any);
+    const getCountsSpy = vi.spyOn(hubService, "getCounts").mockReturnValue(of([{ counts: { view: 5 } }] as any));
+
+    component.entry = makeWorkflowEntry({ id: 7 }); // type defaults to "workflow"
+    component.openDetailModal(7);
+
+    expect(createSpy).toHaveBeenCalledTimes(1);
+    const cfg = createSpy.mock.calls[0][0];
+    expect(cfg.nzData).toEqual({ wid: 7 });
+    expect(cfg.nzFooter).toBeNull();
+    expect(getCountsSpy).toHaveBeenCalledWith([EntityType.Workflow], [7], [ActionType.View]);
+    expect(component.viewCount).toBe(6); // (5 view count) + 1
+  });
+
+  it("openDetailModal defaults nzData wid to 0 and skips the count fetch when wid is undefined", () => {
+    const modalService = TestBed.inject(NzModalService);
+    const hubService = TestBed.inject(HubService);
+    const createSpy = vi.spyOn(modalService, "create").mockReturnValue({ componentInstance: {} } as any);
+    const getCountsSpy = vi.spyOn(hubService, "getCounts");
+
+    component.openDetailModal(undefined);
+
+    expect(createSpy.mock.calls[0][0].nzData).toEqual({ wid: 0 });
+    expect(getCountsSpy).not.toHaveBeenCalled();
+  });
+
+  it("openDetailModal skips the count fetch when the modal has no component instance", () => {
+    const modalService = TestBed.inject(NzModalService);
+    const hubService = TestBed.inject(HubService);
+    vi.spyOn(modalService, "create").mockReturnValue({ componentInstance: null } as any);
+    const getCountsSpy = vi.spyOn(hubService, "getCounts");
+
+    component.openDetailModal(7);
+
+    expect(getCountsSpy).not.toHaveBeenCalled();
+  });
+
+  it("toggleLike posts a like and refreshes the count when the entry is not yet liked", () => {
+    const hubService = TestBed.inject(HubService);
+    const postLikeSpy = vi.spyOn(hubService, "postLike").mockReturnValue(of(true));
+    const getCountsSpy = vi.spyOn(hubService, "getCounts").mockReturnValue(of([{ counts: { like: 10 } }] as any));
+
+    component.currentUid = 42;
+    component.entry = makeWorkflowEntry({ id: 7 });
+    component.isLiked = false;
+
+    component.toggleLike();
+
+    expect(postLikeSpy).toHaveBeenCalledWith(7, EntityType.Workflow);
+    expect(getCountsSpy).toHaveBeenCalledWith([EntityType.Workflow], [7], [ActionType.Like]);
+    expect(component.isLiked).toBe(true);
+    expect(component.likeCount).toBe(10);
+  });
+
+  it("toggleLike posts an unlike and refreshes the count when the entry is already liked", () => {
+    const hubService = TestBed.inject(HubService);
+    const postUnlikeSpy = vi.spyOn(hubService, "postUnlike").mockReturnValue(of(true));
+    const getCountsSpy = vi.spyOn(hubService, "getCounts").mockReturnValue(of([{ counts: { like: 3 } }] as any));
+
+    component.currentUid = 42;
+    component.entry = makeWorkflowEntry({ id: 7 });
+    component.isLiked = true;
+
+    component.toggleLike();
+
+    expect(postUnlikeSpy).toHaveBeenCalledWith(7, EntityType.Workflow);
+    expect(getCountsSpy).toHaveBeenCalledWith([EntityType.Workflow], [7], [ActionType.Like]);
+    expect(component.isLiked).toBe(false);
+    expect(component.likeCount).toBe(3);
+  });
+
+  it("toggleLike leaves state unchanged and skips the count fetch when the like request reports failure", () => {
+    const hubService = TestBed.inject(HubService);
+    vi.spyOn(hubService, "postLike").mockReturnValue(of(false));
+    const getCountsSpy = vi.spyOn(hubService, "getCounts");
+
+    component.currentUid = 42;
+    component.entry = makeWorkflowEntry({ id: 7 });
+    component.isLiked = false;
+
+    component.toggleLike();
+
+    expect(component.isLiked).toBe(false);
+    expect(getCountsSpy).not.toHaveBeenCalled();
+  });
+
+  it("toggleLike is a no-op when there is no current user", () => {
+    const hubService = TestBed.inject(HubService);
+    const postLikeSpy = vi.spyOn(hubService, "postLike");
+    const postUnlikeSpy = vi.spyOn(hubService, "postUnlike");
+
+    component.currentUid = undefined;
+    component.entry = makeWorkflowEntry({ id: 7 });
+
+    component.toggleLike();
+
+    expect(postLikeSpy).not.toHaveBeenCalled();
+    expect(postUnlikeSpy).not.toHaveBeenCalled();
+  });
+
+  it("toggleLike is a no-op when the entry has no id", () => {
+    const hubService = TestBed.inject(HubService);
+    const postLikeSpy = vi.spyOn(hubService, "postLike");
+
+    component.currentUid = 42;
+    component.entry = makeWorkflowEntry({ id: undefined });
+    component.isLiked = false;
+
+    component.toggleLike();
+
+    expect(postLikeSpy).not.toHaveBeenCalled();
   });
 });

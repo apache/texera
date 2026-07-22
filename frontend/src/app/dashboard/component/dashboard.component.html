@@ -204,6 +204,7 @@
         *ngIf="sidebarTabs.about_enabled"
         nz-menu-item
         nz-tooltip
+        nzMatchRouter="true"
         nzTooltipPlacement="right"
         [routerLink]="ABOUT">
         <span
@@ -216,6 +217,7 @@
         *ngIf="isLogin"
         nz-menu-item
         nz-tooltip
+        nzMatchRouter="true"
         nzTooltipPlacement="right"
         [routerLink]="USER_FEEDBACK">
         <span

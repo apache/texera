@@ -252,15 +252,13 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     tasksFetchSubscription = this.http
       .get<HuggingFaceTaskOption[]>(`${AppSettings.getApiEndpoint()}/huggingface/tasks`)
       .pipe(
-        takeUntil(this.destroy$),
         finalize(() => {
-          // If takeUntil fires before next/error, reset the module-level guard
-          // so the next component instance can start a fresh fetch.
           if (cachedTaskOptions === null && tasksFetchError === null) {
             tasksFetchSubscription = null;
           }
         })
       )
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
       .subscribe({
         next: tasks => {
           tasksFetchSubscription = null;
@@ -296,8 +294,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.restoreTaskState(tag);
     this.searchText = "";
     this.filteredModels = null;
-    // Cancel any in-flight server search for the previous task
-    this.searchSubject$.next("");
     this.loadAllModels();
   }
 
@@ -379,14 +375,8 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
         { observe: "response" }
       )
       .pipe(
-        takeUntil(this.destroy$),
-        finalize(() => {
-          // If takeUntil cancels before next/error fires, clear the in-flight
-          // guard so a later instance re-fetches instead of polling forever.
-          if (!allModelsByTag.has(tag) && !errorByTag.has(tag)) {
-            inFlightByTag.delete(tag);
-          }
-        })
+        finalize(() => inFlightByTag.delete(tag)),
+        takeUntil(this.destroy$)
       )
       .subscribe({
         next: resp => {
@@ -395,7 +385,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
             truncatedByTag.add(tag);
           }
           allModelsByTag.set(tag, models);
-          inFlightByTag.delete(tag);
           this.loading = false;
           this.truncated = truncatedByTag.has(tag);
           this.allModels = models;
@@ -405,7 +394,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           console.error(`Failed to load HuggingFace models for task '${tag}':`, err);
           const msg = "Failed to load models. Click retry to try again.";
           errorByTag.set(tag, msg);
-          inFlightByTag.delete(tag);
           this.loading = false;
           this.errorMessage = msg;
           this.cdr.detectChanges();
@@ -459,11 +447,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
       .pipe(
         debounceTime(300),
         switchMap(query => {
-          if (!query.trim()) {
-            this.searchLoading = false;
-            this.cdr.detectChanges();
-            return of(null);
-          }
           const tag = this.selectedTaskTag || "text-generation";
           this.searchLoading = true;
           this.cdr.detectChanges();
@@ -497,8 +480,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     if (!query.trim()) {
       this.filteredModels = null;
       this.searchLoading = false;
-      // Cancel any in-flight server search via switchMap
-      this.searchSubject$.next("");
       this.goToPage(0);
       return;
     }
@@ -517,8 +498,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.searchText = "";
     this.filteredModels = null;
     this.searchLoading = false;
-    // Cancel any in-flight server search via switchMap
-    this.searchSubject$.next("");
     this.goToPage(0);
   }
 

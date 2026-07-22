@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, OnInit, Output } from "@angular/core";
+import { Component, EventEmitter, OnInit, Output, ViewChild } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
@@ -41,7 +41,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
 import { Subscription } from "rxjs";
-import { formatCount, formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { formatCount, formatSpeed, formatTime, parseIntOrDefault } from "src/app/common/util/format.util";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
 import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
@@ -67,6 +67,7 @@ import { FilesUploaderComponent } from "../../files-uploader/files-uploader.comp
 import { NzProgressComponent } from "ng-zorro-antd/progress";
 import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
 import { NzInputDirective } from "ng-zorro-antd/input";
+import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 
 export const THROTTLE_TIME_MS = 1000;
 export const ABORT_RETRY_MAX_ATTEMPTS = 10;
@@ -110,6 +111,9 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
     NzProgressComponent,
     UserDatasetStagedObjectsListComponent,
     NzInputDirective,
+    CdkVirtualScrollViewport,
+    CdkFixedSizeVirtualScroll,
+    CdkVirtualForOf,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
@@ -148,6 +152,11 @@ export class DatasetDetailComponent implements OnInit {
 
   userHasPendingChanges: boolean = false;
   pendingChangesCount: number = 0;
+  // Staged paths from the last diff response, plus locally staged paths not yet
+  // in one: counted together so the Finished header keeps pace with the
+  // real-time Pending header between throttled refetches.
+  private confirmedStagedPaths = new Set<string>();
+  private unconfirmedStagedPaths = new Set<string>();
 
   // Uploading setting
   chunkSizeMiB: number = 50;
@@ -158,7 +167,16 @@ export class DatasetDetailComponent implements OnInit {
   // Cap number of concurrent files uploads
   maxConcurrentFiles: number = 3;
   private activeUploads: number = 0;
-  private pendingQueue: Array<{ fileName: string; startUpload: () => void }> = [];
+  // FIFO queue of uploads waiting for a concurrency slot, keyed by file name.
+  private pendingQueue = new Map<string, () => void>();
+  private pendingQueueDirty = false;
+  private queuedFileNamesSnapshot: string[] = [];
+
+  // Row height must match .pending-file-row in the SCSS.
+  readonly PENDING_ROW_HEIGHT_PX = 32;
+  readonly PENDING_LIST_MAX_HEIGHT_PX = 160;
+
+  @ViewChild(CdkVirtualScrollViewport) private pendingViewport?: CdkVirtualScrollViewport;
 
   versionName: string = "";
   isCreatingVersion: boolean = false;
@@ -263,6 +281,10 @@ export class DatasetDetailComponent implements OnInit {
             this.notificationService.success("Version Created");
             this.isCreatingVersion = false;
             this.versionName = "";
+            // A new version consumes all staged changes.
+            this.confirmedStagedPaths.clear();
+            this.unconfirmedStagedPaths.clear();
+            this.refreshPendingChanges();
             this.retrieveDatasetVersionList();
             this.userMakeChanges.emit();
           },
@@ -411,8 +433,25 @@ export class DatasetDetailComponent implements OnInit {
   }
 
   onStagedObjectsUpdated(stagedObjects: DatasetStagedObject[]) {
-    this.userHasPendingChanges = stagedObjects.length > 0;
-    this.pendingChangesCount = stagedObjects.length;
+    this.confirmedStagedPaths = new Set(stagedObjects.map(obj => obj.path));
+    for (const path of this.confirmedStagedPaths) {
+      this.unconfirmedStagedPaths.delete(path);
+    }
+    this.refreshPendingChanges();
+  }
+
+  // Reflects a locally staged change (finished upload or file deletion) in the
+  // Finished header immediately, ahead of the next diff response.
+  private markPathStaged(path: string): void {
+    if (!this.confirmedStagedPaths.has(path)) {
+      this.unconfirmedStagedPaths.add(path);
+    }
+    this.refreshPendingChanges();
+  }
+
+  private refreshPendingChanges(): void {
+    this.pendingChangesCount = this.confirmedStagedPaths.size + this.unconfirmedStagedPaths.size;
+    this.userHasPendingChanges = this.pendingChangesCount > 0;
   }
 
   onVersionSelected(version: DatasetVersion): void {
@@ -460,20 +499,33 @@ export class DatasetDetailComponent implements OnInit {
     return task.filePath;
   }
 
+  trackByPendingFile(_: number, fileName: string): string {
+    return fileName;
+  }
+
+  // A missing key or failed fetch keeps the field defaults; NaN here would
+  // silently stall the upload queue (`activeUploads < NaN` is always false).
   private loadUploadSettings(): void {
     this.adminSettingsService
-      .getSetting("multipart_upload_chunk_size_mib")
+      .getPublicSetting("multipart_upload_chunk_size_mib")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.chunkSizeMiB = parseInt(value)));
+      .subscribe({
+        next: value => (this.chunkSizeMiB = parseIntOrDefault(value, this.chunkSizeMiB)),
+        error: () => {},
+      });
     this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file_chunks")
+      .getPublicSetting("max_number_of_concurrent_uploading_file_chunks")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
+      .subscribe({
+        next: value => (this.maxConcurrentChunks = parseIntOrDefault(value, this.maxConcurrentChunks)),
+        error: () => {},
+      });
     this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file")
+      .getPublicSetting("max_number_of_concurrent_uploading_file")
       .pipe(untilDestroyed(this))
-      .subscribe(value => {
-        this.maxConcurrentFiles = parseInt(value);
+      .subscribe({
+        next: value => (this.maxConcurrentFiles = parseIntOrDefault(value, this.maxConcurrentFiles)),
+        error: () => {},
       });
   }
 
@@ -484,7 +536,7 @@ export class DatasetDetailComponent implements OnInit {
         const continueWithUpload = () => {
           // Create upload function
           const startUpload = () => {
-            this.pendingQueue = this.pendingQueue.filter(item => item.fileName !== file.name);
+            this.removeFromPendingQueue(file.name);
 
             // Add an initializing task placeholder to uploadTasks
             this.uploadTasks.unshift({
@@ -517,10 +569,12 @@ export class DatasetDetailComponent implements OnInit {
                       percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
                     };
 
-                    // Auto-hide when upload is truly finished
-                    if (progress.status === "finished" && progress.totalTime) {
+                    // totalTime may be exactly 0 (resumed upload with no missing
+                    // parts); a truthiness check would leak the concurrency slot.
+                    if (progress.status === "finished" && progress.totalTime !== undefined) {
                       const filename = file.name.split("/").pop() || file.name;
                       this.uploadTimeMap.set(filename, progress.totalTime);
+                      this.markPathStaged(file.name);
                       this.userMakeChanges.emit();
                       this.scheduleHide(taskIndex);
                       this.onUploadComplete();
@@ -554,6 +608,7 @@ export class DatasetDetailComponent implements OnInit {
                   const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
                   if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
                     this.uploadTasks[taskIndex].status = "finished";
+                    this.markPathStaged(file.name);
                     this.userMakeChanges.emit();
                     this.scheduleHide(taskIndex);
                     this.onUploadComplete();
@@ -569,7 +624,8 @@ export class DatasetDetailComponent implements OnInit {
             this.activeUploads++;
             startUpload();
           } else {
-            this.pendingQueue.push({ fileName: file.name, startUpload });
+            this.pendingQueue.set(file.name, startUpload);
+            this.pendingQueueDirty = true;
           }
         };
 
@@ -588,18 +644,21 @@ export class DatasetDetailComponent implements OnInit {
       }
     }
     // Remove from pending queue if present
-    this.pendingQueue = this.pendingQueue.filter(item => item.fileName !== fileName);
+    this.removeFromPendingQueue(fileName);
     if (onCanceled) {
       onCanceled();
     }
   }
 
   private processNextQueuedUpload(): void {
-    if (this.pendingQueue.length > 0 && this.activeUploads < this.maxConcurrentFiles) {
-      const next = this.pendingQueue.shift();
-      if (next) {
+    if (this.activeUploads < this.maxConcurrentFiles) {
+      const next = this.pendingQueue.entries().next();
+      if (!next.done) {
+        const [fileName, startUpload] = next.value;
+        this.pendingQueue.delete(fileName);
+        this.pendingQueueDirty = true;
         this.activeUploads++;
-        next.startUpload();
+        startUpload();
       }
     }
   }
@@ -609,12 +668,36 @@ export class DatasetDetailComponent implements OnInit {
     this.processNextQueuedUpload();
   }
 
+  private removeFromPendingQueue(fileName: string): void {
+    if (this.pendingQueue.delete(fileName)) {
+      this.pendingQueueDirty = true;
+    }
+  }
+
+  // Stable array for the template: rebuilt at most once per queue change so
+  // change detection does not allocate a new array per pass (#5586).
   get queuedFileNames(): string[] {
-    return this.pendingQueue.map(item => item.fileName);
+    if (this.pendingQueueDirty) {
+      this.queuedFileNamesSnapshot = Array.from(this.pendingQueue.keys());
+      this.pendingQueueDirty = false;
+    }
+    return this.queuedFileNamesSnapshot;
   }
 
   get queuedCount(): number {
-    return this.pendingQueue.length;
+    return this.pendingQueue.size;
+  }
+
+  get pendingListHeightPx(): number {
+    return Math.min(this.queuedCount * this.PENDING_ROW_HEIGHT_PX, this.PENDING_LIST_MAX_HEIGHT_PX);
+  }
+
+  // The viewport initializes inside the collapsed (display: none) panel and
+  // measures height 0; the CDK only re-measures on window resize.
+  onPendingPanelActiveChange(active: boolean): void {
+    if (active) {
+      setTimeout(() => this.pendingViewport?.checkViewportSize());
+    }
   }
 
   get activeCount(): number {
@@ -630,10 +713,12 @@ export class DatasetDetailComponent implements OnInit {
     if (idx === -1) {
       return;
     }
-    const key = this.uploadTasks[idx].filePath;
-    this.uploadSubscriptions.delete(key);
+    const task = this.uploadTasks[idx];
+    this.uploadSubscriptions.delete(task.filePath);
+    // Remove by identity, not filePath: a same-named re-upload within the
+    // window has its own row, which must survive this timer.
     setTimeout(() => {
-      this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== key);
+      this.uploadTasks = this.uploadTasks.filter(t => t !== task);
     }, 5000);
   }
 
@@ -720,6 +805,7 @@ export class DatasetDetailComponent implements OnInit {
             this.notificationService.success(
               `File ${node.name} is successfully deleted. You may finalize it or revert it at the "Create Version" panel`
             );
+            this.markPathStaged(getRelativePathFromDatasetFileNode(node));
             this.userMakeChanges.emit();
           },
           error: (err: unknown) => {

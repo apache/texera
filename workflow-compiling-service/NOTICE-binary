@@ -2064,16 +2064,6 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-com.google.inject.extensions.guice-servlet
---------------------------------------------------------------------------------
-
-Google Guice - Extensions - Servlet
-Copyright 2006-2020 Google, Inc.
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 com.google.guava.guava
 --------------------------------------------------------------------------------
 
@@ -2232,16 +2222,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 --------------------------------------------------------------------------------
-cglib.cglib
---------------------------------------------------------------------------------
-
-Google Guice - Core Library
-Copyright 2006-2020 Google, Inc.
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
---------------------------------------------------------------------------------
 org.apache.commons.commons-jcs3-core
 --------------------------------------------------------------------------------
 
@@ -2323,6 +2303,16 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
+com.google.inject.guice
+--------------------------------------------------------------------------------
+
+Google Guice - Core Library
+Copyright 2006-2022 Google, Inc.
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
 org.apache.parquet.parquet-avro
 --------------------------------------------------------------------------------
 
@@ -2385,6 +2375,16 @@ org.apache.httpcomponents.httpcore-nio
 
 Apache HttpCore NIO
 Copyright 2005-2020 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--------------------------------------------------------------------------------
+com.google.inject.extensions.guice-servlet
+--------------------------------------------------------------------------------
+
+Google Guice - Extensions - Servlet
+Copyright 2006-2022 Google, Inc.
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).

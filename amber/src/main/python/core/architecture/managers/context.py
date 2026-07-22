@@ -17,6 +17,9 @@
 
 from typing import Dict, Optional, Set
 
+from loguru import logger
+
+from core.util.console_message.error_message import create_error_console_message
 from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.org.apache.texera.amber.engine.architecture.worker import WorkerState
 from .console_message_manager import ConsoleMessageManager
@@ -83,6 +86,26 @@ class Context:
         self.console_message_manager = ConsoleMessageManager()
         self.debug_manager = DebugManager(
             self.tuple_processing_manager.context_switch_condition
+        )
+        # Loop-back write addresses delivered at setup; see the proto field doc
+        # on InitializeExecutorRequest.loopStartStateUris (controlcommands.proto).
+        self.loop_start_state_uris: Dict[str, str] = {}
+
+    def report_exception(self, err: BaseException) -> None:
+        """Route an operator-facing exception to the exception manager and
+        queue its stack trace as an error console message.
+
+        Shared by DataProcessor (a UDF error on the data path) and MainLoop
+        (a Loop End condition() or loop-back write error on the main-loop
+        thread) so both report identically. Reporting must happen before the reporting worker
+        switches/pauses, so the console message reaches the coordinator with
+        the error rather than after the worker resumes.
+        """
+        logger.exception(err)
+        exc_info = (type(err), err, err.__traceback__)
+        self.exception_manager.set_exception_info(exc_info)
+        self.console_message_manager.put_message(
+            create_error_console_message(self.worker_id, exc_info)
         )
 
     def close(self):
