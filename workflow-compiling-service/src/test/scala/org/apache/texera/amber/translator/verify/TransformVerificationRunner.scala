@@ -21,6 +21,7 @@ package org.apache.texera.amber.translator.verify
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.operator.{
   LogicalOp,
   PythonOperatorDescriptor,
@@ -405,12 +406,19 @@ object TransformVerificationRunner {
       return
     }
 
+    // Path A's getPhysicalPlan/getPhysicalOp may mutate the OpDesc in place —
+    // AggregateOpDesc rewrites its `aggregations` to the final stage (COUNT→SUM)
+    // via getFinal. Run Path A on an isolated deep copy (same JSON round-trip the
+    // executor itself uses) so the shared instance stays pristine for Path B,
+    // whose generateStandaloneCode reads the original fields directly.
+    val opDescForPathA =
+      objectMapper.readValue(objectMapper.writeValueAsString(opDesc), opClass).asInstanceOf[LogicalOp]
     val (pathAOutputs, pathAOutputSchemas): (Map[PortIdentity, Path], Map[PortIdentity, Schema]) =
       if (classOf[PythonOperatorDescriptor].isAssignableFrom(opClass)) {
-        val r = PyOpExecHarness.execute(opDesc, inputs = inputs, outputDir = actualDir)
+        val r = PyOpExecHarness.execute(opDescForPathA, inputs = inputs, outputDir = actualDir)
         (r.outputs, r.outputSchemas)
       } else {
-        val r = OpExecHarness.execute(opDesc, inputs = inputs, outputDir = actualDir)
+        val r = OpExecHarness.execute(opDescForPathA, inputs = inputs, outputDir = actualDir)
         (r.outputs, r.outputSchemas)
       }
 

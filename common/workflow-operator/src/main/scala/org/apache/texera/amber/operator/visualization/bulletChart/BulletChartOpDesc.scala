@@ -93,8 +93,6 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   }
 
   override def generatePythonCode(): String = {
-    assertRequiredFields()
-
     // Convert the Scala list of steps into a list of dictionaries
     val stepsStr = if (steps != null && !steps.isEmpty) {
       val stepsSeq =
