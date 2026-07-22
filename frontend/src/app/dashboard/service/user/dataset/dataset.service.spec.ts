@@ -736,7 +736,13 @@ describe("DatasetService", () => {
       await done;
 
       const uploading = emissions.filter(e => e.status === "uploading");
-      expect(uploading.some(e => (e.estimatedTimeRemaining ?? 0) > 0)).toBe(true);
+      expect(uploading.length).toBeGreaterThanOrEqual(3);
+
+      const etaBefore = uploading[1].estimatedTimeRemaining ?? 0;
+      const etaAfter = uploading[2].estimatedTimeRemaining ?? 0;
+
+      expect(etaBefore).toBeGreaterThan(0);
+      expect(etaAfter).toBeLessThanOrEqual(Math.round(etaBefore * 1.3));
       expect(emissions.at(-1)).toMatchObject({ status: "finished", percentage: 100 });
     } finally {
       dateSpy.mockRestore();
