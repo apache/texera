@@ -109,7 +109,10 @@ object KubernetesClient {
         .endFieldRef()
         .endValueFrom()
         .build(),
-      new EnvVarBuilder().withName(EnvironmentalVariable.ENV_CU_ID).withValue(cuid.toString).build(),
+      new EnvVarBuilder()
+        .withName(EnvironmentalVariable.ENV_CU_ID)
+        .withValue(cuid.toString)
+        .build(),
       new EnvVarBuilder()
         .withName(EnvironmentalVariable.ENV_MOUNTER_PORT)
         .withValue(KubernetesConfig.mounterPort.toString)
