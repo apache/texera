@@ -126,7 +126,6 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
   // spliced verbatim into `metric_list = [...]`. An EncodableString would be
   // re-encoded as one quoted value, collapsing the list into a single element.
   private def getSelectedMetrics(): String = {
-    // Return a string of metrics using the getEachScorerName() method
     val metric = if (isRegression) regressionMetrics else classificationMetrics
     metric.map(metric => getMetricName(metric)).mkString("'", "','", "'")
   }
