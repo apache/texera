@@ -546,7 +546,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   onFormChanges(event: Record<string, unknown>): void {
     const requiredFields = this.currentOperatorSchema?.jsonSchema?.required ?? [];
     const cleanedEvent = Object.fromEntries(
-      Object.entries(event).filter(([key, value]) => value !== null || requiredFields.includes(key))
+      Object.entries(event).filter(([key, value]) => value != null || requiredFields.includes(key))
     );
     this.sourceFormChangeEventStream.next(cleanedEvent);
   }
