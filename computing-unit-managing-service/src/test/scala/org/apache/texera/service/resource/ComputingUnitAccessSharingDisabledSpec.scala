@@ -33,9 +33,9 @@ import org.scalatest.matchers.should.Matchers
   * Spec for [[ComputingUnitAccessResource]] when the sharing feature is DISABLED.
   *
   * `ComputingUnitConfig.sharingComputingUnitEnabled` is a load-time val resolved from the
-  * COMPUTING_UNIT_SHARING_ENABLED env var, so the disabled branch can only be exercised in a
-  * JVM where that var is absent. build.sbt's `Test / testGrouping` drops the var for any suite
-  * whose name ends with "SharingDisabledSpec", so this suite forks separately with sharing off.
+  * COMPUTING_UNIT_SHARING_ENABLED env var, so the disabled branch must be exercised in a
+  * forked JVM where that var resolves to false (build.sbt's `Test / testGrouping` isolates any
+  * suite whose name ends with "SharingDisabledSpec" and forces the flag off there).
   * The first assertion guards that grouping — if it ever stops applying, this suite fails loudly
   * rather than silently passing against a sharing-enabled JVM.
   */
