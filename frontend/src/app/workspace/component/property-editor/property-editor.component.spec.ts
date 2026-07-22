@@ -65,10 +65,15 @@ describe("PropertyEditorComponent", () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-    fixture.destroy();
-  });
+afterEach(async () => {
+  // Allow pending macro-tasks (e.g., updateHeightBasedOnContent setTimeout) to complete before teardown.
+  await fixture.whenStable();
+  fixture.destroy();
+  vi.restoreAllMocks();
+  localStorage.removeItem("right-panel-width");
+  localStorage.removeItem("right-panel-height");
+  localStorage.removeItem("right-panel-style");
+});
 
   it("should create", () => {
     expect(component).toBeTruthy();
