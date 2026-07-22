@@ -17,7 +17,37 @@
  * under the License.
  */
 
-import { isDefined } from "./predicate";
+import { isDefined, isNonNullObject } from "./predicate";
+
+describe("isNonNullObject", () => {
+  it("should return true for plain objects", () => {
+    expect(isNonNullObject({})).toBe(true);
+    expect(isNonNullObject({ a: 1 })).toBe(true);
+  });
+
+  it("should return true for arrays", () => {
+    // Arrays intentionally pass: the predicate checks "non-null object" in the
+    // `typeof` sense, and `typeof [] === "object"`.
+    expect(isNonNullObject([])).toBe(true);
+    expect(isNonNullObject([1, 2, 3])).toBe(true);
+  });
+
+  it("should return false for null and undefined", () => {
+    expect(isNonNullObject(null)).toBe(false);
+    expect(isNonNullObject(undefined)).toBe(false);
+  });
+
+  it("should return false for primitives", () => {
+    expect(isNonNullObject(42)).toBe(false);
+    expect(isNonNullObject("string")).toBe(false);
+    expect(isNonNullObject(true)).toBe(false);
+  });
+
+  it("should return false for functions", () => {
+    // `typeof fn === "function"`, not "object", so functions are rejected.
+    expect(isNonNullObject(() => {})).toBe(false);
+  });
+});
 
 describe("isDefined", () => {
   it("returns false for undefined", () => {
