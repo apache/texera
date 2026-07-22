@@ -54,6 +54,15 @@ describe("FileSaverService", () => {
     expect(saveAs).toHaveBeenCalledWith("https://example.com/file.csv", "file.csv", undefined);
   });
 
+  it("propagates errors thrown by saveAs", () => {
+    const err = new Error("boom");
+    vi.mocked(saveAs).mockImplementationOnce(() => {
+      throw err;
+    });
+
+    expect(() => service.saveAs(new Blob([]), "x.txt")).toThrow(err);
+  });
+
   it("passes undefined through when filename and options are omitted", () => {
     const blob = new Blob([]);
 
