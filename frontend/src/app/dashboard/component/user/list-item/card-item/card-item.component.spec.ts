@@ -648,7 +648,7 @@ describe("CardItemComponent", () => {
 
   describe("extended coverage", () => {
     it("entry getter throws when no entry has been provided", () => {
-      (component as any)._entry = undefined;
+      component.entry = undefined as any;
       expect(() => component.entry).toThrow("entry property must be provided.");
     });
 
@@ -686,7 +686,7 @@ describe("CardItemComponent", () => {
     });
 
     it("onClickDownload downloads a workflow via the download service", () => {
-      const downloadService = (component as any).downloadService as DownloadService;
+      const downloadService = TestBed.inject(DownloadService);
       const downloadWorkflowSpy = vi.spyOn(downloadService, "downloadWorkflow").mockReturnValue(of({} as any));
       component.entry = makeWorkflowEntry({ id: 7, workflow: { isOwner: true, workflow: { name: "myflow" } } } as any);
 
@@ -696,7 +696,7 @@ describe("CardItemComponent", () => {
     });
 
     it("onClickDownload downloads a dataset via the download service", () => {
-      const downloadService = (component as any).downloadService as DownloadService;
+      const downloadService = TestBed.inject(DownloadService);
       const downloadDatasetSpy = vi.spyOn(downloadService, "downloadDataset").mockReturnValue(of(new Blob()));
       component.entry = makeDatasetEntry({ id: 5, name: "mydataset", coverImageUrl: undefined });
 
@@ -706,7 +706,7 @@ describe("CardItemComponent", () => {
     });
 
     it("onClickDownload is a no-op when the entry has no id", () => {
-      const downloadService = (component as any).downloadService as DownloadService;
+      const downloadService = TestBed.inject(DownloadService);
       const downloadWorkflowSpy = vi.spyOn(downloadService, "downloadWorkflow");
       const downloadDatasetSpy = vi.spyOn(downloadService, "downloadDataset");
       component.entry = makeWorkflowEntry({ id: undefined });
@@ -740,9 +740,10 @@ describe("CardItemComponent", () => {
       expect(cfg.nzTitle).toBe("Share this workflow with others");
 
       const refreshSpy = vi.fn();
-      component.refresh.subscribe(refreshSpy);
+      const refreshSub = component.refresh.subscribe(refreshSpy);
       refresh$.next();
       expect(refreshSpy).toHaveBeenCalledTimes(1);
+      refreshSub.unsubscribe();
     });
 
     it("onClickOpenShareAccess opens the dataset share modal with dataset-specific data", async () => {
