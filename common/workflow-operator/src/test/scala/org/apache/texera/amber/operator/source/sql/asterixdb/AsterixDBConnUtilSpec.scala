@@ -67,7 +67,10 @@ class AsterixDBConnUtilSpec
   server.createContext(
     "/query/service",
     (exchange: HttpExchange) => {
-      val body = new String(exchange.getRequestBody.readAllBytes(), StandardCharsets.UTF_8)
+      val is = exchange.getRequestBody
+      val body =
+        try new String(is.readAllBytes(), StandardCharsets.UTF_8)
+        finally is.close()
       val form = parseForm(body)
       recordedQueries.synchronized { recordedQueries += form }
       val (status, responseBody) = queryResponder(form.getOrElse("statement", ""))
