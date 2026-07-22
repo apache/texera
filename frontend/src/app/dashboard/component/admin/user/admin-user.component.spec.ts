@@ -398,7 +398,7 @@ describe("AdminUserComponent", () => {
   describe("startEdit caret focus", () => {
     const fakeInput = (value: string) => ({ value, focus: vi.fn(), setSelectionRange: vi.fn() });
 
-    it("focuses the name input and places the caret at the end after the microtask", fakeAsync(() => {
+    it("focuses the name input and places the caret at the end after the setTimeout macrotask", fakeAsync(() => {
       const input = fakeInput("Alice");
       component.nameInputRef = { nativeElement: input } as any;
 
