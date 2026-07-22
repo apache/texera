@@ -71,4 +71,18 @@ class LogicalOpSpec extends AnyFlatSpec {
     }
     assert(ex.getMessage == "operator DistinctOpDesc does not support reconfiguration")
   }
+
+  "LogicalOp @JsonSubTypes" should "register each operator subtype exactly once" in {
+    // SklearnLogisticRegression / ...CV were each listed twice, so consumers
+    // enumerating the registry saw them twice.
+    val types = classOf[LogicalOp]
+      .getAnnotation(classOf[com.fasterxml.jackson.annotation.JsonSubTypes])
+      .value()
+    val dupClasses =
+      types.map(_.value()).groupBy(identity).collect { case (c, ts) if ts.length > 1 => c.getName }
+    val dupNames =
+      types.map(_.name()).groupBy(identity).collect { case (n, ts) if ts.length > 1 => n }
+    assert(dupClasses.isEmpty, s"duplicate subtype classes: ${dupClasses.mkString(", ")}")
+    assert(dupNames.isEmpty, s"duplicate subtype names: ${dupNames.mkString(", ")}")
+  }
 }
