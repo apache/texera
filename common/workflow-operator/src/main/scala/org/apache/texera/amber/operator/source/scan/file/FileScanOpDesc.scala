@@ -109,8 +109,13 @@ class FileScanOpDesc
     buf += "for _fn in in1df.iloc[:, 0]:"
     buf += s"    with open(_fn, $openArgs) as _f:"
 
+    // Match the platform (FileScanUtils.createTuplesFromFile): its line-by-line
+    // branch ignores outputFileName and emits only the value, so the filename
+    // column is added ONLY in single-value mode.
+    val emitFilename = outputFileName && attributeType.isSingle
+
     if (attributeType.isSingle) {
-      if (outputFileName) buf += "        _rows.append((_fn, _f.read()))"
+      if (emitFilename) buf += "        _rows.append((_fn, _f.read()))"
       else buf += "        _rows.append(_f.read())"
     } else {
       val castExpr = attributeType match {
@@ -129,19 +134,13 @@ class FileScanOpDesc
           case None    => s"_lines[$start:]"
         }
         buf += s"        _lines = [$castExpr for l in _f]"
-        if (outputFileName) buf += s"    _rows.extend((_fn, _v) for _v in $sliceExpr)"
-        else buf += s"    _rows.extend($sliceExpr)"
+        buf += s"    _rows.extend($sliceExpr)"
       } else {
-        if (outputFileName) {
-          buf += "        for l in _f:"
-          buf += s"            _rows.append((_fn, $castExpr))"
-        } else {
-          buf += s"        _rows.extend($castExpr for l in _f)"
-        }
+        buf += s"        _rows.extend($castExpr for l in _f)"
       }
     }
 
-    if (outputFileName) {
+    if (emitFilename) {
       buf += s"""out1df = pd.DataFrame(_rows, columns=["filename", "$col"])"""
     } else {
       buf += s"""out1df = pd.DataFrame({"$col": _rows})"""
