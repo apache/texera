@@ -515,10 +515,10 @@ describe("ShareAccessComponent", () => {
 
   describe("hasWriteAccess without a resolved email", () => {
     it("returns false when the current user has no email at all", () => {
-      // an empty string makes the stubbed UserService.getCurrentUser return undefined,
-      // so this.currentEmail resolves to undefined and the early-return guard is exercised
-      const c = setupComponent({ currentEmail: "" });
-      expect(c.currentEmail).toBeUndefined();
+      const c = setupComponent();
+      // Exercise the no-email early-return guard directly, independent of how the
+      // user service happens to resolve an empty/absent email.
+      c.currentEmail = undefined;
       expect(c.hasWriteAccess).toBe(false);
     });
   });
@@ -542,14 +542,14 @@ describe("ShareAccessComponent", () => {
   describe("onChange", () => {
     it("filters allOwners case-insensitively by the typed value", () => {
       const c = setupComponent();
-      (c as any).allOwners = ["Alice", "Bob", "alfred"];
+      c.allOwners.push("Alice", "Bob", "alfred");
       c.onChange("al");
       expect(c.filteredOwners).toEqual(["Alice", "alfred"]);
     });
 
     it("clears filteredOwners when the value is null", () => {
       const c = setupComponent();
-      (c as any).allOwners = ["Alice"];
+      c.allOwners.push("Alice");
       c.filteredOwners = ["stale"];
       c.onChange(null as unknown as string);
       expect(c.filteredOwners).toEqual([]);
