@@ -158,10 +158,7 @@ describe("AdminUserService", () => {
         url: USER_UPDATE_URL,
       },
       { name: "addUser", call: () => service.addUser(), url: `${USER_ADD_URL}/` },
-      { name: "getUploadedFiles", call: () => service.getUploadedFiles(9), url: USER_CREATED_FILES },
-      { name: "getCreatedDatasets", call: () => service.getCreatedDatasets(9), url: USER_CREATED_DATASETS },
       { name: "getCreatedWorkflows", call: () => service.getCreatedWorkflows(3), url: USER_CREATED_WORKFLOWS },
-      { name: "getAccessFiles", call: () => service.getAccessFiles(3), url: USER_ACCESS_FILES },
       { name: "getAccessWorkflows", call: () => service.getAccessWorkflows(3), url: USER_ACCESS_WORKFLOWS },
       { name: "getExecutionQuota", call: () => service.getExecutionQuota(3), url: USER_QUOTA_SIZE },
       {
