@@ -128,13 +128,12 @@ class TestRun:
 
         runnable.run()
 
-        # pre_start first, both entries received in FIFO order, post_stop last.
-        assert runnable.events == [
-            ("pre_start",),
-            ("receive", first),
-            ("receive", second),
-            ("post_stop",),
-        ]
+        # pre_start first, both entries received in FIFO order (by identity), post_stop last.
+        assert len(runnable.events) == 4
+        assert runnable.events[0] == ("pre_start",)
+        assert runnable.events[1][0] == "receive" and runnable.events[1][1] is first
+        assert runnable.events[2][0] == "receive" and runnable.events[2][1] is second
+        assert runnable.events[3] == ("post_stop",)
 
     def test_post_stop_runs_even_when_receive_raises(self):
         queue = FakeQueue()
