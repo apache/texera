@@ -194,6 +194,7 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   override def generateStandaloneCode(): String = {
     val stepsStr: EncodableString = serializeSteps(steps)
     s"""import plotly.graph_objects as go
+       |import plotly.io as pio
        |import json
        |
        |def render_error(error_msg):
@@ -237,41 +238,56 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
        |                })
        |        except Exception:
        |            steps_list = []
-       |        row = table.iloc[0]
-       |        actual = float(row[gauge_value])
-       |        max_val = actual
-       |        if delta_ref is not None:
-       |            max_val = max(max_val, delta_ref)
-       |        if threshold_val is not None:
-       |            max_val = max(max_val, threshold_val)
-       |        if steps_list:
-       |            for r in steps_list:
-       |                max_val = max(max_val, r["range"][1])
-       |        gauge_config = {'axis': {'range': [None, max_val * 1.2]}}
-       |        if steps_list:
-       |            gauge_config['steps'] = steps_list
-       |        if threshold_val is not None:
-       |            gauge_config['threshold'] = {
-       |                "value": threshold_val,
-       |                "line": {"color": "red", "width": 3},
-       |                "thickness": 0.75
-       |            }
-       |        mode_parts = ["number", "gauge"]
-       |        if delta_ref is not None:
-       |            mode_parts.append("delta")
-       |        mode = "+".join(mode_parts)
-       |        delta_config = {"reference": delta_ref} if delta_ref is not None else None
-       |        fig = go.Figure(go.Indicator(
-       |            mode=mode,
-       |            value=actual,
-       |            delta=delta_config,
-       |            gauge=gauge_config,
-       |            domain={"x": [0, 1], "y": [0, 1]},
-       |            title={"text": gauge_value}
-       |        ))
-       |        fig.update_layout(margin=dict(l=20, r=20, b=40, t=60), height=250)
-       |        fig.write_json("output.json")
-       |        fig.write_html("output.html")
+       |
+       |        # Mirror the platform path: one gauge per row, concatenated into a
+       |        # single <div>. output.json holds the FIRST figure (what the
+       |        # platform's html-content exposes first) for the parity comparison.
+       |        html_chunks = []
+       |        first_fig = None
+       |        for _, row in table.iterrows():
+       |            try:
+       |                actual = float(row[gauge_value])
+       |                max_val = actual
+       |                if delta_ref is not None:
+       |                    max_val = max(max_val, delta_ref)
+       |                if threshold_val is not None:
+       |                    max_val = max(max_val, threshold_val)
+       |                if steps_list:
+       |                    for r in steps_list:
+       |                        max_val = max(max_val, r["range"][1])
+       |                gauge_config = {'axis': {'range': [None, max_val * 1.2]}}
+       |                if steps_list:
+       |                    gauge_config['steps'] = steps_list
+       |                if threshold_val is not None:
+       |                    gauge_config['threshold'] = {
+       |                        "value": threshold_val,
+       |                        "line": {"color": "red", "width": 3},
+       |                        "thickness": 0.75
+       |                    }
+       |                mode_parts = ["number", "gauge"]
+       |                if delta_ref is not None:
+       |                    mode_parts.append("delta")
+       |                mode = "+".join(mode_parts)
+       |                delta_config = {"reference": delta_ref} if delta_ref is not None else None
+       |                fig = go.Figure(go.Indicator(
+       |                    mode=mode,
+       |                    value=actual,
+       |                    delta=delta_config,
+       |                    gauge=gauge_config,
+       |                    domain={"x": [0, 1], "y": [0, 1]},
+       |                    title={"text": gauge_value}
+       |                ))
+       |                fig.update_layout(margin=dict(l=20, r=20, b=40, t=60), height=250)
+       |                if first_fig is None:
+       |                    first_fig = fig
+       |                html_chunks.append(pio.to_html(fig, include_plotlyjs='cdn', auto_play=False))
+       |            except Exception as e:
+       |                html_chunks.append(render_error(f"Error generating chart: {str(e)}"))
+       |
+       |        with open("output.html", "w", encoding="utf-8") as output:
+       |            output.write("<div>" + "".join(html_chunks) + "</div>")
+       |        if first_fig is not None:
+       |            first_fig.write_json("output.json")
        |        print("Gauge chart saved to output.html")""".stripMargin
   }
 }
