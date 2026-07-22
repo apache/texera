@@ -137,44 +137,44 @@ jobs:
         run: ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} npm frontend/dist/3rdpartylicenses.json
       - name: Run frontend unit tests
         run: yarn --cwd frontend run test:ci
-      - name: Upload frontend coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && always()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./frontend/coverage/**/lcov.info
-          flags: frontend
-          fail_ci_if_error: false
-      - name: Upload frontend unit test results to Codecov
-        # vitest.config.ts adds a `junit` reporter that writes to junit.xml
-        # in the working dir; the @angular/build:unit-test runner forwards
-        # vitest config through unchanged.
-        if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./frontend/junit.xml
-          flags: frontend
-          report_type: test_results
-          disable_search: true
-          fail_ci_if_error: false
       - name: Install Playwright Chromium
         run: yarn --cwd frontend playwright install ${{ matrix.os == 'ubuntu-latest' && '--with-deps' || '' }} chromium
       - name: Run frontend browser-mode tests
         run: yarn --cwd frontend ng run gui:test-browser
-      - name: Upload frontend browser-mode test results to Codecov
-        # vitest.browser.config.ts emits junit-browser.xml (distinct from
-        # the unit-test report). Same `frontend` flag — Codecov merges
-        # multi-file uploads under one flag.
-        if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      # Codecov upload is deferred to the codecov-upload.yml workflow, which runs
+      # on workflow_run in the base-repo context. A PR from a fork never receives
+      # secrets.CODECOV_TOKEN on the pull_request event, so uploading directly from
+      # here falls back to Codecov's tokenless path; under a burst of fork-PR
+      # uploads Codecov still processes the report but silently drops the PR comment
+      # (reported on #6685). Staging the reports as an artifact lets the follow-up workflow
+      # re-upload them with a token so the comment posts reliably. Skipped on
+      # backport builds — they check out a different ref and would collide on the
+      # artifact name across the target matrix.
+      - name: Stage frontend coverage for deferred Codecov upload
+        if: matrix.os == 'ubuntu-latest' && inputs.backport_target_branch == '' && !cancelled()
+        shell: bash
+        run: |
+          mkdir -p frontend/codecov-report
+          cp frontend/coverage/gui/lcov.info frontend/codecov-report/ 2>/dev/null || true
+          cp frontend/junit.xml frontend/codecov-report/ 2>/dev/null || true
+          cp frontend/junit-browser.xml frontend/codecov-report/ 2>/dev/null || true
+          # Persist the identifiers the deferred upload needs to attach coverage to
+          # the right pull request: the workflow_run event resolves to the default
+          # branch and its pull_requests array is empty for forks, and the PR build
+          # checks out the merge commit (github.sha) while Codecov keys on the PR
+          # head sha — so stash the head sha explicitly. All three fall back to the
+          # push-commit values when there is no pull_request (push to main).
+          echo "${{ github.event.pull_request.number }}" > frontend/codecov-report/pr-number.txt
+          echo "${{ github.event.pull_request.head.sha || github.sha }}" > frontend/codecov-report/commit-sha.txt
+          echo "${{ github.event.pull_request.head.ref || github.ref_name }}" > frontend/codecov-report/branch.txt
+      - name: Upload frontend coverage artifact
+        if: matrix.os == 'ubuntu-latest' && inputs.backport_target_branch == '' && !cancelled()
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./frontend/junit-browser.xml
-          flags: frontend
-          report_type: test_results
-          disable_search: true
-          fail_ci_if_error: false
+          name: codecov-frontend
+          path: frontend/codecov-report/
+          retention-days: 1
+          if-no-files-found: warn
 
   amber:
     # The amber job runs the cross-cutting Scala lints (scalafmtCheckAll,

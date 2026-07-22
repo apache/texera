@@ -1,0 +1,128 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Deferred, authenticated Codecov upload for coverage produced by "Required Checks".
+#
+# Why this exists (reported on #6685): a PR from a fork never receives secrets.CODECOV_TOKEN —
+# the build runs on the `pull_request` event and GitHub withholds secrets from fork
+# runs. A direct upload from the build therefore uses Codecov's tokenless path,
+# which is rate-limited; under a burst of fork-PR uploads Codecov processes the
+# report but silently drops the PR comment. This workflow runs on `workflow_run`, in
+# the base-repo context where the token IS available, and re-uploads the staged
+# coverage artifact with authentication so the comment posts reliably even in bursts.
+#
+# Proof of concept: only the `frontend` flag is routed through here for now. build.yml
+# stages the frontend lcov + JUnit reports as the `codecov-frontend` artifact; every
+# other flag still uploads directly from build.yml.
+#
+# NOTE: `workflow_run` only fires from the copy of this file on the default branch, so
+# this has NO effect until it is merged to main. After merge, exercise it manually via
+# the workflow_dispatch entry below, passing a finished "Required Checks" run id.
+
+name: Codecov Upload
+
+on:
+  workflow_run:
+    workflows: ["Required Checks"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Finished 'Required Checks' run id to pull the codecov-frontend artifact from"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read # download-artifact needs this to read artifacts from another run
+
+# One upload per source run; a re-run of the source supersedes rather than races.
+concurrency:
+  group: codecov-upload-${{ github.event.workflow_run.id || inputs.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  frontend:
+    # Skip only a cancelled/skipped upstream; still run on failure so partial
+    # coverage is reported (mirrors the old always()/!cancelled() upload steps).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion != 'cancelled' &&
+       github.event.workflow_run.conclusion != 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve source run id
+        id: src
+        shell: bash
+        run: echo "run_id=${{ github.event.workflow_run.id || inputs.run_id }}" >> "$GITHUB_OUTPUT"
+      - name: Download staged frontend coverage
+        id: dl
+        continue-on-error: true # absent when the frontend job was label-gated out
+        uses: actions/download-artifact@v4
+        with:
+          name: codecov-frontend
+          path: codecov-frontend
+          run-id: ${{ steps.src.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Read coverage metadata
+        if: steps.dl.outcome == 'success'
+        id: meta
+        shell: bash
+        # The artifact content comes from a (possibly fork) PR build, so sanitize
+        # each value to its expected charset before handing it to the Codecov CLI.
+        run: |
+          echo "pr=$(cat codecov-frontend/pr-number.txt 2>/dev/null | tr -cd '0-9')" >> "$GITHUB_OUTPUT"
+          echo "sha=$(cat codecov-frontend/commit-sha.txt 2>/dev/null | tr -cd '0-9a-fA-F')" >> "$GITHUB_OUTPUT"
+          echo "branch=$(cat codecov-frontend/branch.txt 2>/dev/null | tr -cd '[:alnum:]._/:-')" >> "$GITHUB_OUTPUT"
+      - name: Upload frontend coverage to Codecov
+        if: steps.dl.outcome == 'success' && hashFiles('codecov-frontend/lcov.info') != ''
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov-frontend/lcov.info
+          flags: frontend
+          disable_search: true
+          fail_ci_if_error: false
+          override_commit: ${{ steps.meta.outputs.sha }}
+          override_branch: ${{ steps.meta.outputs.branch }}
+          override_pr: ${{ steps.meta.outputs.pr }}
+      - name: Upload frontend unit test results to Codecov
+        if: steps.dl.outcome == 'success' && hashFiles('codecov-frontend/junit.xml') != ''
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov-frontend/junit.xml
+          flags: frontend
+          report_type: test_results
+          disable_search: true
+          fail_ci_if_error: false
+          override_commit: ${{ steps.meta.outputs.sha }}
+          override_branch: ${{ steps.meta.outputs.branch }}
+          override_pr: ${{ steps.meta.outputs.pr }}
+      - name: Upload frontend browser-mode test results to Codecov
+        if: steps.dl.outcome == 'success' && hashFiles('codecov-frontend/junit-browser.xml') != ''
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov-frontend/junit-browser.xml
+          flags: frontend
+          report_type: test_results
+          disable_search: true
+          fail_ci_if_error: false
+          override_commit: ${{ steps.meta.outputs.sha }}
+          override_branch: ${{ steps.meta.outputs.branch }}
+          override_pr: ${{ steps.meta.outputs.pr }}
