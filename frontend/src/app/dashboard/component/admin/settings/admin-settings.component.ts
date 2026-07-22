@@ -23,6 +23,7 @@ import { NzMessageService } from "ng-zorro-antd/message";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SidebarTabs } from "../../../../common/type/gui-config";
+import { parseIntOrDefault } from "../../../../common/util/format.util";
 import { forkJoin } from "rxjs";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
@@ -93,61 +94,49 @@ export class AdminSettingsComponent implements OnInit {
 
   private readonly RELOAD_DELAY = 1000;
 
+  // Guards the save buttons: a failed bulk load leaves every field at its
+  // initializer, so saving would persist those placeholders (e.g. disabling
+  // every sidebar tab). Only allow saves once a load has actually succeeded.
+  private settingsLoaded = false;
+
   constructor(
     private adminSettingsService: AdminSettingsService,
     private message: NzMessageService,
     private notificationService: NotificationService
   ) {}
   ngOnInit(): void {
-    this.loadBranding();
-    this.loadTabs();
-    this.loadDatasetSettings();
-    this.loadCsvSettings();
+    this.loadSettings();
   }
 
-  private loadBranding(): void {
+  // One bulk read instead of a request per key; missing or unparsable values
+  // keep the field initializers above as their defaults.
+  private loadSettings(): void {
     this.adminSettingsService
-      .getSetting("logo")
+      .getAllSettings()
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.logoData = value || null));
-
-    this.adminSettingsService
-      .getSetting("mini_logo")
-      .pipe(untilDestroyed(this))
-      .subscribe(value => (this.miniLogoData = value || null));
-
-    this.adminSettingsService
-      .getSetting("favicon")
-      .pipe(untilDestroyed(this))
-      .subscribe(value => (this.faviconData = value || null));
-  }
-
-  private loadTabs(): void {
-    (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).forEach(tab => {
-      this.adminSettingsService
-        .getSetting(tab)
-        .pipe(untilDestroyed(this))
-        .subscribe(value => (this.sidebarTabs[tab] = value === "true"));
-    });
-  }
-
-  private loadDatasetSettings(): void {
-    this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file")
-      .pipe(untilDestroyed(this))
-      .subscribe(value => (this.maxConcurrentFiles = parseInt(value)));
-    this.adminSettingsService
-      .getSetting("single_file_upload_max_size_mib")
-      .pipe(untilDestroyed(this))
-      .subscribe(value => (this.maxFileSizeMiB = parseInt(value)));
-    this.adminSettingsService
-      .getSetting("max_number_of_concurrent_uploading_file_chunks")
-      .pipe(untilDestroyed(this))
-      .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
-    this.adminSettingsService
-      .getSetting("multipart_upload_chunk_size_mib")
-      .pipe(untilDestroyed(this))
-      .subscribe(value => (this.chunkSizeMiB = parseInt(value)));
+      .subscribe({
+        next: settings => {
+          this.logoData = settings["logo"] || null;
+          this.miniLogoData = settings["mini_logo"] || null;
+          this.faviconData = settings["favicon"] || null;
+          (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).forEach(
+            tab => (this.sidebarTabs[tab] = settings[tab] === "true")
+          );
+          this.maxConcurrentFiles = parseIntOrDefault(
+            settings["max_number_of_concurrent_uploading_file"],
+            this.maxConcurrentFiles
+          );
+          this.maxFileSizeMiB = parseIntOrDefault(settings["single_file_upload_max_size_mib"], this.maxFileSizeMiB);
+          this.maxConcurrentChunks = parseIntOrDefault(
+            settings["max_number_of_concurrent_uploading_file_chunks"],
+            this.maxConcurrentChunks
+          );
+          this.chunkSizeMiB = parseIntOrDefault(settings["multipart_upload_chunk_size_mib"], this.chunkSizeMiB);
+          this.csvMaxColumns = parseIntOrDefault(settings["csv_parser_max_columns"], this.csvMaxColumns);
+          this.settingsLoaded = true;
+        },
+        error: () => this.message.error("Failed to load settings."),
+      });
   }
 
   onFileChange(type: "logo" | "mini_logo" | "favicon", event: Event): void {
@@ -205,6 +194,10 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   saveTabs(): void {
+    if (!this.settingsLoaded) {
+      this.message.error("Settings have not loaded; refresh before saving.");
+      return;
+    }
     const saveRequests = (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).map(tab =>
       this.adminSettingsService.updateSetting(tab, this.sidebarTabs[tab].toString())
     );
@@ -242,6 +235,10 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   saveDatasetSettings(): void {
+    if (!this.settingsLoaded) {
+      this.message.error("Settings have not loaded; refresh before saving.");
+      return;
+    }
     if (
       this.maxFileSizeMiB < 1 ||
       this.maxConcurrentFiles < 1 ||
@@ -293,14 +290,11 @@ export class AdminSettingsComponent implements OnInit {
     setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
   }
 
-  private loadCsvSettings(): void {
-    this.adminSettingsService
-      .getSetting("csv_parser_max_columns")
-      .pipe(untilDestroyed(this))
-      .subscribe(value => (this.csvMaxColumns = parseInt(value) || 512));
-  }
-
   saveCsvSettings(): void {
+    if (!this.settingsLoaded) {
+      this.message.error("Settings have not loaded; refresh before saving.");
+      return;
+    }
     const saveRequests = [
       this.adminSettingsService.updateSetting("csv_parser_max_columns", this.csvMaxColumns.toString()),
     ];
@@ -314,7 +308,12 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   resetCsvSettings(): void {
-    this.adminSettingsService.resetSetting("csv_parser_max_columns").pipe(untilDestroyed(this)).subscribe({});
+    this.adminSettingsService
+      .resetSetting("csv_parser_max_columns")
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: () => this.notificationService.error("Could not reset result panel settings."),
+      });
 
     this.notificationService.info("Resetting result panel settings...");
     setTimeout(() => window.location.reload(), this.RELOAD_DELAY);

@@ -90,3 +90,13 @@ export const formatCount = (count: number): string => {
   }
   return count.toString();
 };
+
+/**
+ * Parse an integer setting value, falling back when the raw value is missing or
+ * unparsable. Unlike `parseInt(raw) || fallback`, a legitimately stored 0 is
+ * preserved (0 is falsy, so the `||` idiom would silently drop it).
+ */
+export const parseIntOrDefault = (raw: string | null | undefined, fallback: number): number => {
+  const parsed = parseInt(raw ?? "", 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
+};

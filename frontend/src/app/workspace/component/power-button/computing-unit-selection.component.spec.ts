@@ -53,6 +53,7 @@ import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-execut
 import { WorkflowMetadata } from "../../../dashboard/type/workflow-metadata.interface";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
+import { ComputingUnitMetadataComponent } from "../../../common/util/computing-unit.util";
 
 /**
  * Builds a fully-populated DashboardWorkflowComputingUnit for driving the
@@ -1261,6 +1262,153 @@ describe("PowerButtonComponent", () => {
       const host = fixture.nativeElement as HTMLElement;
       expect(host.querySelector(".connect-text")?.textContent).toContain("Connect");
       expect(host.querySelector(".unit-name-text")).toBeNull();
+    });
+  });
+
+  describe("resource display accessors", () => {
+    beforeEach(() => {
+      component.selectedComputingUnit = makeComputingUnit();
+    });
+
+    it("reads the selected unit's raw resource limits and usage", () => {
+      expect(component.getCurrentComputingUnitCpuLimit()).toBe("1");
+      expect(component.getCurrentComputingUnitMemoryLimit()).toBe("1Gi");
+      expect(component.getCurrentComputingUnitGpuLimit()).toBe("0");
+      expect(component.getCurrentComputingUnitJvmMemorySize()).toBe("1Gi");
+      expect(component.getCurrentSharedMemorySize()).toBe("64Mi");
+      expect(component.getCurrentComputingUnitCpuUsage()).toBe("N/A");
+      expect(component.getCurrentComputingUnitMemoryUsage()).toBe("N/A");
+    });
+
+    it("returns 'NaN' for every accessor when no unit is selected", () => {
+      component.selectedComputingUnit = null;
+      expect(component.getCurrentComputingUnitCpuLimit()).toBe("NaN");
+      expect(component.getCurrentComputingUnitMemoryLimit()).toBe("NaN");
+      expect(component.getCurrentComputingUnitGpuLimit()).toBe("NaN");
+      expect(component.getCurrentComputingUnitJvmMemorySize()).toBe("NaN");
+      expect(component.getCurrentSharedMemorySize()).toBe("NaN");
+      expect(component.getCurrentComputingUnitCpuUsage()).toBe("NaN");
+      expect(component.getCurrentComputingUnitMemoryUsage()).toBe("NaN");
+    });
+  });
+
+  describe("resource display getters", () => {
+    beforeEach(() => {
+      component.selectedComputingUnit = makeComputingUnit();
+    });
+
+    it("derives the display limits and units from the raw values", () => {
+      expect(component.getCpuLimit()).toBe(1);
+      expect(component.getMemoryLimit()).toBe(1);
+      expect(component.getGpuLimit()).toBe("0");
+      expect(component.getJvmMemorySize()).toBe("1Gi");
+      expect(component.getSharedMemorySize()).toBe("64Mi");
+      expect(component.getCpuLimitUnit()).toBe("CPU");
+      expect(component.getMemoryLimitUnit()).toBe("Gi");
+      expect(component.getCpuUnit()).toBe("Cores");
+      expect(component.getMemoryUnit()).toBe("Gi");
+    });
+
+    it("returns zero usage values and percentages when metrics are unavailable", () => {
+      expect(component.getCpuValue()).toBe(0);
+      expect(component.getMemoryValue()).toBe(0);
+      expect(component.getCpuPercentage()).toBe(0);
+      expect(component.getMemoryPercentage()).toBe(0);
+    });
+
+    it("maps a zero percentage to the 'success' progress status", () => {
+      expect(component.getCpuStatus()).toBe("success");
+      expect(component.getMemoryStatus()).toBe("success");
+    });
+
+    it("maps a status to a badge color", () => {
+      expect(component.getBadgeColor("Running")).toBe("green");
+      expect(component.getBadgeColor("Pending")).toBe("gold");
+      expect(component.getBadgeColor("Failed")).toBe("red");
+    });
+
+    it("describes a unit's status as a tooltip", () => {
+      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Running" }))).toBe("Ready to use");
+      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Pending" }))).toBe(
+        "Computing unit is starting up"
+      );
+      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Failed" }))).toBe("Failed");
+    });
+  });
+
+  describe("trackBy helpers", () => {
+    it("trackByCuid keys a unit by its cuid", () => {
+      expect(component.trackByCuid(0, makeComputingUnit({ cuid: 77 }))).toBe(77);
+    });
+
+    it("trackByIndex returns the index", () => {
+      expect(component.trackByIndex(4)).toBe(4);
+    });
+  });
+
+  describe("cancelEditingUnitName", () => {
+    it("clears the editing state", () => {
+      component.editingNameOfUnit = 3;
+      component.editingUnitName = "half-typed";
+      component.cancelEditingUnitName();
+      expect(component.editingNameOfUnit).toBeNull();
+      expect(component.editingUnitName).toBe("");
+    });
+  });
+
+  describe("openComputingUnitMetadataModal", () => {
+    it("opens the metadata modal with the unit as nzData", () => {
+      const unit = makeComputingUnit({ cuid: 9 });
+      const createSpy = vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({} as any);
+      try {
+        component.openComputingUnitMetadataModal(unit);
+
+        expect(createSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nzTitle: "Computing Unit Information",
+            nzContent: ComputingUnitMetadataComponent,
+            nzData: unit,
+            nzFooter: null,
+          })
+        );
+      } finally {
+        createSpy.mockRestore();
+      }
+    });
+  });
+
+  describe("scrollToBottomOfPipModal", () => {
+    // The handler defers a scroll via setTimeout and reads scrollHeight, which
+    // jsdom reports as 0 — drive it with fake timers and a plain stand-in element
+    // (not a real node) so the assertion is deterministic and layout-independent.
+    it("scrolls the pip log element to the bottom on the deferred tick", () => {
+      vi.useFakeTimers();
+      const el = { scrollTop: 0, scrollHeight: 500 } as unknown as HTMLElement;
+      const getByIdSpy = vi.spyOn(document, "getElementById").mockReturnValue(el);
+      try {
+        component.scrollToBottomOfPipModal(2);
+        expect(el.scrollTop).toBe(0); // deferred; not applied yet
+        vi.runAllTimers();
+        expect(getByIdSpy).toHaveBeenCalledWith("pip-log-2");
+        expect(el.scrollTop).toBe(500);
+      } finally {
+        getByIdSpy.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it("is a safe no-op when the pip log element is absent", () => {
+      vi.useFakeTimers();
+      const getByIdSpy = vi.spyOn(document, "getElementById").mockReturnValue(null);
+      try {
+        expect(() => {
+          component.scrollToBottomOfPipModal(9);
+          vi.runAllTimers();
+        }).not.toThrow();
+      } finally {
+        getByIdSpy.mockRestore();
+        vi.useRealTimers();
+      }
     });
   });
 });
