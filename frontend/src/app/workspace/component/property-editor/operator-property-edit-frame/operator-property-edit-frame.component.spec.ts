@@ -2127,5 +2127,19 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
       expect(emittedEvent).toEqual({ tableName: "table1", optionalField: "set" });
     });
+
+    it("should strip undefined values for optional fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: undefined });
+
+      expect(emittedEvent).toEqual({ tableName: "table1" });
+    });
   });
 });
