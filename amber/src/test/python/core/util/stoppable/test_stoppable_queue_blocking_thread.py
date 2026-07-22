@@ -129,12 +129,12 @@ class TestRun:
         runnable.run()
 
         # pre_start first, both entries received in FIFO order, post_stop last.
-        assert runnable.events == [
-            ("pre_start",),
-            ("receive", first),
-            ("receive", second),
-            ("post_stop",),
-        ]
+        # QueueElement is a fieldless dataclass, so any two instances compare
+        # equal; assert identity to genuinely verify order and the exact objects.
+        labels = [event[0] for event in runnable.events]
+        assert labels == ["pre_start", "receive", "receive", "post_stop"]
+        assert runnable.events[1][1] is first
+        assert runnable.events[2][1] is second
 
     def test_post_stop_runs_even_when_receive_raises(self):
         queue = FakeQueue()
