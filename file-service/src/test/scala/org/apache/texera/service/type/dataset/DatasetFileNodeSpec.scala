@@ -170,12 +170,16 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
       DatasetFileNode.calculateTotalSize(roots) shouldBe 5L
     } finally {
       // Best-effort cleanup of the temp tree.
-      Files
-        .walk(repo)
-        .sorted(java.util.Comparator.reverseOrder[Path]())
-        .iterator()
-        .asScala
-        .foreach(Files.deleteIfExists(_))
+      val stream = Files.walk(repo)
+      try {
+        stream
+          .sorted(java.util.Comparator.reverseOrder[Path]())
+          .iterator()
+          .asScala
+          .foreach(p => Files.deleteIfExists(p))
+      } finally {
+        stream.close()
+      }
     }
   }
 }
