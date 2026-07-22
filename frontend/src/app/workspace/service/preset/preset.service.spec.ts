@@ -460,7 +460,7 @@ describe("PresetService", () => {
   describe("updateOrCreatePreset", () => {
     // fetchKey is backed by a synchronous `of(...)`, so the subscribe body (and
     // the savePresets write-through it triggers) runs before the call returns.
-    it("is a no-op when the original and replacement presets are identical", () => {
+    it("writes the stored preset list back unchanged when the original and replacement presets are identical", () => {
       const stored: Preset[] = [{ presetProperty: "v1" }];
       userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify(stored)));
 
@@ -486,7 +486,7 @@ describe("PresetService", () => {
       );
     });
 
-    it("is a no-op when only the replacement preset already exists", () => {
+    it("writes the stored preset list back unchanged when only the replacement preset already exists", () => {
       const stored: Preset[] = [{ presetProperty: "v1" }, { presetProperty: "v2" }];
       userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify(stored)));
 
@@ -504,26 +504,22 @@ describe("PresetService", () => {
       userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])));
 
       // Both presets are present (membership is checked deeply via isEqual), so the
-      // implicit-delete branch runs. Note: the branch splices at lodash indexOf, which
-      // uses reference equality; the presets are freshly JSON-parsed objects, so
-      // indexOf returns -1 and splice(-1, 1) drops the last element (v2).
+      // implicit-delete branch removes the original (v1) and leaves the replacement (v2).
       presetService.updateOrCreatePreset(presetType, presetTarget, { presetProperty: "v1" }, { presetProperty: "v2" });
 
-      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify([{ presetProperty: "v1" }]));
+      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify([{ presetProperty: "v2" }]));
     });
 
-    it("takes the in-place replace branch when only the original exists", () => {
+    it("replaces the original preset in place when only the original exists", () => {
       userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])));
 
-      // The original exists (deep match) but the replacement does not, so the else
-      // (replace) branch runs: presets[indexOf(presets, original)] = replacement.
-      // indexOf is reference-based and returns -1, so this assigns the "-1" key rather
-      // than an array index; JSON.stringify ignores it and the array serializes unchanged.
+      // The original exists (deep match) but the replacement does not, so the replace
+      // branch swaps the original (v1) for the replacement (v3) at its index.
       presetService.updateOrCreatePreset(presetType, presetTarget, { presetProperty: "v1" }, { presetProperty: "v3" });
 
       expect(userConfigStub.set).toHaveBeenCalledWith(
         presetDictKey,
-        JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])
+        JSON.stringify([{ presetProperty: "v3" }, { presetProperty: "v2" }])
       );
     });
   });
