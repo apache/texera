@@ -495,15 +495,16 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           return;
         }
         const metrics = this.workflowStatusService.getCurrentPerformanceMetrics()[operatorId];
-        const rawValue = metrics ? rawMetricForView(metrics, view) : 0;
         const score = this.heatmapScores(view)[operatorId];
         const rect = this.editor.getBoundingClientRect();
         const mouseEvent = evt as unknown as MouseEvent;
+        // Missing metrics render as "—" for both fields, so "no data yet" is not
+        // confused with a genuine zero value.
         this.heatmapTooltip = {
           x: mouseEvent.clientX - rect.left + 12,
           y: mouseEvent.clientY - rect.top + 12,
           title: heatmapViewTitle(view),
-          metricLabel: formatMetricForView(rawValue, view),
+          metricLabel: metrics ? formatMetricForView(rawMetricForView(metrics, view), view) : "—",
           heatLabel: score === undefined ? "—" : `${Math.round(score * 100)}%`,
         };
         // JointJS paper events fire outside Angular's zone, so trigger change detection

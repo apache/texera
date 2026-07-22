@@ -67,6 +67,9 @@ export function heatmapViewTitle(view: HeatmapView): string {
       return "Throughput";
     case HeatmapView.IoImbalance:
       return "I/O imbalance";
+    default:
+      // Total function: guards against an unexpected (e.g. persisted) value slipping through.
+      return "Performance";
   }
 }
 

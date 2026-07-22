@@ -175,4 +175,8 @@ describe("heatmapViewTitle", () => {
     expect(heatmapViewTitle(HeatmapView.Throughput)).toBe("Throughput");
     expect(heatmapViewTitle(HeatmapView.IoImbalance)).toBe("I/O imbalance");
   });
+
+  it("falls back to a generic title for an unexpected value", () => {
+    expect(heatmapViewTitle("bogus" as HeatmapView)).toBe("Performance");
+  });
 });

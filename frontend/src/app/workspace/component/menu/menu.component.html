@@ -209,10 +209,11 @@
                 nz-menu-item
                 *ngIf="showHeatmap"
                 class="heatmap-view-options"
-                [nzDisabled]="true">
+                [nzSelectable]="false">
                 <nz-radio-group
                   [(ngModel)]="heatmapView"
-                  (ngModelChange)="setHeatmapView($event)">
+                  (ngModelChange)="setHeatmapView($event)"
+                  (click)="$event.stopPropagation()">
                   <label
                     nz-radio
                     [nzValue]="HeatmapView.Runtime"
