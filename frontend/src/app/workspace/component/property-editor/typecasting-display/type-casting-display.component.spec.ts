@@ -19,6 +19,7 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { Subject } from "rxjs";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 
 import { TypeCastingDisplayComponent, TYPE_CASTING_OPERATOR_TYPE } from "./type-casting-display.component";
@@ -30,13 +31,14 @@ import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
-import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-graph";
+import { WorkflowGraph, WorkflowGraphReadonly } from "../../../service/workflow-graph/model/workflow-graph";
 import { AttributeType, CompilationState, OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
 import { ValidationWorkflowService } from "../../../service/validation/validation-workflow.service";
 
 describe("TypecastingDisplayComponent", () => {
   let component: TypeCastingDisplayComponent;
   let fixture: ComponentFixture<TypeCastingDisplayComponent>;
+  let compilationStateInfoChangedStream: Subject<CompilationState>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -57,6 +59,14 @@ describe("TypecastingDisplayComponent", () => {
   });
 
   beforeEach(() => {
+    // Control the compilation-state stream the component subscribes to in ngOnInit, so tests can
+    // drive it without touching WorkflowCompilingService's private field. Must be wired before
+    // detectChanges() triggers ngOnInit.
+    compilationStateInfoChangedStream = new Subject<CompilationState>();
+    vi.spyOn(TestBed.inject(WorkflowCompilingService), "getCompilationStateInfoChangedStream").mockReturnValue(
+      compilationStateInfoChangedStream
+    );
+
     fixture = TestBed.createComponent(TypeCastingDisplayComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -89,7 +99,7 @@ describe("TypecastingDisplayComponent", () => {
   });
 
   // The component reads/writes the same graph instance the injected WorkflowActionService owns.
-  const getGraph = (): WorkflowGraph => (TestBed.inject(WorkflowActionService) as any).texeraGraph as WorkflowGraph;
+  const getGraph = (): WorkflowGraphReadonly => TestBed.inject(WorkflowActionService).getTexeraGraph();
 
   describe("ngOnChanges", () => {
     it("hides the display and skips rerender when there is no currentOperatorId", () => {
@@ -216,7 +226,7 @@ describe("TypecastingDisplayComponent", () => {
       const rerenderSpy = vi.spyOn(component, "rerender").mockImplementation(() => {});
       component.currentOperatorId = "tc1";
 
-      graph.operatorPropertyChangeSubject.next({
+      (graph as WorkflowGraph).operatorPropertyChangeSubject.next({
         operator: makeOperator("tc1", TYPE_CASTING_OPERATOR_TYPE),
       });
 
@@ -228,7 +238,7 @@ describe("TypecastingDisplayComponent", () => {
       const rerenderSpy = vi.spyOn(component, "rerender").mockImplementation(() => {});
       component.currentOperatorId = "tc1";
 
-      graph.operatorPropertyChangeSubject.next({
+      (graph as WorkflowGraph).operatorPropertyChangeSubject.next({
         operator: makeOperator("other", TYPE_CASTING_OPERATOR_TYPE),
       });
 
@@ -240,7 +250,7 @@ describe("TypecastingDisplayComponent", () => {
       const rerenderSpy = vi.spyOn(component, "rerender").mockImplementation(() => {});
       component.currentOperatorId = "tc1";
 
-      graph.operatorPropertyChangeSubject.next({
+      (graph as WorkflowGraph).operatorPropertyChangeSubject.next({
         operator: makeOperator("tc1", "ScanSource"),
       });
 
@@ -248,10 +258,9 @@ describe("TypecastingDisplayComponent", () => {
     });
 
     it("rerenders when the workflow compilation state changes", () => {
-      const compiling = TestBed.inject(WorkflowCompilingService);
       const rerenderSpy = vi.spyOn(component, "rerender").mockImplementation(() => {});
 
-      (compiling as any).compilationStateInfoChangedStream.next(CompilationState.Succeeded);
+      compilationStateInfoChangedStream.next(CompilationState.Succeeded);
 
       expect(rerenderSpy).toHaveBeenCalled();
     });
