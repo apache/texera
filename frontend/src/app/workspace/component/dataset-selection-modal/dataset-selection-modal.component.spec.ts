@@ -141,7 +141,7 @@ describe("DatasetSelectionModalComponent", () => {
 
     expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(10, 100);
     expect(component.fileTree).toEqual([fileNode]);
-    expect(component.selectedPath).toBe(`/${OWNER}/myds/v1`);
+    expect(component.selectedPath).toBe(`/datasets/${OWNER}/myds/v1`);
   });
 
   it("onFileSelected sets selectedPath to the node's full path in file mode", () => {

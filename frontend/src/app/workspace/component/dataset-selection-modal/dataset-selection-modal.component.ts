@@ -83,7 +83,13 @@ export class DatasetSelectionModalComponent implements OnInit {
         this.datasets = datasets;
         const selectedPath = this.data.selectedPath;
         if (selectedPath) {
-          const [ownerEmail, datasetName, versionName] = selectedPath.split("/").filter(part => part.length > 0);
+          const segments = selectedPath.split("/").filter(part => part.length > 0);
+          // Drop the resource-type prefix ("datasets") if present so owner/dataset/version
+          // line up (the stored path may or may not carry the prefix).
+          if (segments[0] === "datasets") {
+            segments.shift();
+          }
+          const [ownerEmail, datasetName, versionName] = segments;
           this.selectedDataset = this.datasets.find(
             dataset => dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
           );
@@ -118,7 +124,7 @@ export class DatasetSelectionModalComponent implements OnInit {
           this.fileTree = data.fileNodes;
         });
       if (!this.data.fileMode) {
-        this.selectedPath = `/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
+        this.selectedPath = `/datasets/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
       }
     }
   }

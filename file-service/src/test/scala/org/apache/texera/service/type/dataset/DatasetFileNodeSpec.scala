@@ -105,10 +105,13 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
       Map(("bob@texera.com", "twitter", "v1") -> objects)
     )
 
-    // One owner root.
+    // The tree is rooted at a single "datasets" prefix node; owners nest under it.
     roots should have size 1
-    val ownerNode = roots.head
-    ownerNode.getName shouldBe "bob@texera.com"
+    val datasetsNode = roots.head
+    datasetsNode.getName shouldBe "datasets"
+    datasetsNode.getNodeType shouldBe "directory"
+
+    val ownerNode = datasetsNode.getChildren.find(_.getName == "bob@texera.com").get
     ownerNode.getNodeType shouldBe "directory"
 
     val datasetNode = ownerNode.getChildren.find(_.getName == "twitter").get
@@ -126,7 +129,7 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
     val file1 = bDir.getChildren.find(_.getName == "1.csv").get
     file1.getNodeType shouldBe "file"
     file1.getSize shouldBe Some(2L)
-    file1.getFilePath shouldBe "/bob@texera.com/twitter/v1/b/1.csv"
+    file1.getFilePath shouldBe "/datasets/bob@texera.com/twitter/v1/b/1.csv"
 
     // Total size equals the sum of the three files.
     DatasetFileNode.calculateTotalSize(roots) shouldBe 6L
@@ -152,7 +155,10 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
       )
 
       roots should have size 1
-      val versionNode = roots.head.getChildren
+      val versionNode = roots.head.getChildren // "datasets" prefix node
+        .find(_.getName == "alice@texera.com")
+        .get
+        .getChildren
         .find(_.getName == "ds")
         .get
         .getChildren
@@ -165,7 +171,7 @@ class DatasetFileNodeSpec extends AnyFlatSpec with Matchers {
       val leaf = dirNode.getChildren.find(_.getName == "a.csv").get
       leaf.getNodeType shouldBe "file"
       leaf.getSize shouldBe Some(5L)
-      leaf.getFilePath shouldBe "/alice@texera.com/ds/v1/dir1/a.csv"
+      leaf.getFilePath shouldBe "/datasets/alice@texera.com/ds/v1/dir1/a.csv"
 
       DatasetFileNode.calculateTotalSize(roots) shouldBe 5L
     } finally {

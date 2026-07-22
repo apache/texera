@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.source.dataset
 
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -28,13 +29,38 @@ import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 
+object FileListerSourceOpExec {
+
+  /**
+    * Parses a dataset version path into its (ownerEmail, datasetName, versionName) components.
+    *
+    * Expected format: /datasets/ownerEmail/datasetName/versionName
+    *
+    * The leading "datasets" resource-type prefix is required (mirroring FileResolver); empty
+    * segments produced by leading/trailing slashes are ignored.
+    *
+    * @throws IllegalArgumentException if the path is not a prefixed dataset version path
+    */
+  private[dataset] def parseDatasetVersionPath(
+      datasetVersionPath: String
+  ): (String, String, String) = {
+    val segments = datasetVersionPath.split("/").filter(_.nonEmpty)
+    require(
+      segments.length >= 4 && segments.head == FileResolver.DATASET_PATH_PREFIX,
+      s"Invalid dataset version path '$datasetVersionPath'; " +
+        "expected /datasets/ownerEmail/datasetName/versionName"
+    )
+    (segments(1), segments(2), segments(3))
+  }
+}
+
 class FileListerSourceOpExec private[dataset] (descString: String) extends SourceOperatorExecutor {
   private val desc: FileListerSourceOpDesc =
     objectMapper.readValue(descString, classOf[FileListerSourceOpDesc])
 
   override def produceTuple(): Iterator[TupleLike] = {
-    val Seq(_, ownerEmail, datasetName, versionName, _*) =
-      desc.datasetVersionPath.split("/").toSeq
+    val (ownerEmail, datasetName, versionName) =
+      FileListerSourceOpExec.parseDatasetVersionPath(desc.datasetVersionPath)
 
     val (repositoryName, versionHash) =
       SqlServer

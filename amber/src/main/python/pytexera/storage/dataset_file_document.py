@@ -24,6 +24,11 @@ from urllib3.util.retry import Retry
 
 
 class DatasetFileDocument:
+    # Leading resource-type segment on dataset logical paths. It identifies the path as
+    # a dataset path and is REQUIRED, mirroring FileResolver on the backend. A path
+    # without it is rejected.
+    RESOURCE_TYPE_PREFIX = "datasets"
+
     # (connect, read) timeout and retry settings for the file-service GETs below.
     # Read timeout bounds inactivity between bytes, not total download time.
     _CONNECT_TIMEOUT_SECONDS = 5
@@ -56,20 +61,28 @@ class DatasetFileDocument:
         Parses the file path into dataset metadata.
 
         :param file_path:
-           Expected format - "/ownerEmail/datasetName/versionName/fileRelativePath"
-           Example: "/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv"
+           Expected format -
+             "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
+           Example:
+             "/datasets/bob@texera.com/twitterDataset/v1/california/tw1.csv"
+           The leading "datasets" resource-type segment is required; a path
+           without it is rejected. Mirrors FileResolver on the backend.
         """
         parts = file_path.strip("/").split("/")
-        if len(parts) < 4:
+
+        # The datasets prefix is required and identifies the path as a dataset
+        # path; without it (datasets/owner/name/version/<file> => >= 5 segments)
+        # the path is invalid. Mirrors FileResolver on the backend.
+        if len(parts) < 5 or parts[0] != self.RESOURCE_TYPE_PREFIX:
             raise ValueError(
-                "Invalid file path format. "
-                "Expected: /ownerEmail/datasetName/versionName/fileRelativePath"
+                "Invalid file path format. Expected: "
+                "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
             )
 
-        self.owner_email = parts[0]
-        self.dataset_name = parts[1]
-        self.version_name = parts[2]
-        self.file_relative_path = "/".join(parts[3:])
+        self.owner_email = parts[1]
+        self.dataset_name = parts[2]
+        self.version_name = parts[3]
+        self.file_relative_path = "/".join(parts[4:])
 
         self.jwt_token = os.getenv("USER_JWT_TOKEN")
         self.presign_endpoint = os.getenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT")
@@ -90,6 +103,7 @@ class DatasetFileDocument:
         """
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
         encoded_file_path = urllib.parse.quote(
+            f"/{self.RESOURCE_TYPE_PREFIX}"
             f"/{self.owner_email}"
             f"/{self.dataset_name}"
             f"/{self.version_name}"
