@@ -41,6 +41,15 @@ import {
 
 function makeUnit(overrides: Partial<DashboardWorkflowComputingUnit> = {}): DashboardWorkflowComputingUnit {
   return {
+    status: "Running",
+    metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
+    isOwner: true,
+    accessPrivilege: "READ",
+    ownerGoogleAvatar: "",
+    ownerName: "owner",
+    ...overrides,
+    // Set computingUnit last so a `computingUnit` override merges into (rather than replaces)
+    // the nested default object, keeping fixtures valid even for partial overrides.
     computingUnit: {
       cuid: 1,
       uid: 1,
@@ -59,13 +68,6 @@ function makeUnit(overrides: Partial<DashboardWorkflowComputingUnit> = {}): Dash
       },
       ...(overrides.computingUnit ?? {}),
     },
-    status: "Running",
-    metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
-    isOwner: true,
-    accessPrivilege: "READ",
-    ownerGoogleAvatar: "",
-    ownerName: "owner",
-    ...overrides,
   };
 }
 
@@ -364,6 +366,14 @@ describe("ComputingUnitMetadataComponent", () => {
     return fixture.componentInstance;
   }
 
+  // Return the trimmed text of the <td> value cell whose <th> header matches `label`.
+  function cellText(label: string): string {
+    const nativeElement = (fixture as ComponentFixture<ComputingUnitMetadataComponent>).nativeElement as HTMLElement;
+    const rows = Array.from(nativeElement.querySelectorAll("tr"));
+    const row = rows.find(r => r.querySelector("th")?.textContent?.trim() === label);
+    return row?.querySelector("td")?.textContent?.trim() ?? "";
+  }
+
   afterEach(() => {
     fixture?.destroy();
     fixture = undefined;
@@ -381,18 +391,15 @@ describe("ComputingUnitMetadataComponent", () => {
     const unit = makeUnit({ isOwner: true });
     unit.computingUnit.resource.gpuLimit = "2";
     render(unit);
-    const text = (fixture as ComponentFixture<ComputingUnitMetadataComponent>).nativeElement.textContent as string;
-    expect(text).toContain("Owner");
-    expect(text).toContain("2");
-    expect(text).not.toContain("None");
+    expect(cellText("Access")).toBe("Owner");
+    expect(cellText("GPU Limit")).toBe("2");
   });
 
   it('should render the access privilege and "None" when there is no gpu limit', () => {
     const unit = makeUnit({ isOwner: false, accessPrivilege: "WRITE" });
     unit.computingUnit.resource.gpuLimit = "";
     render(unit);
-    const text = (fixture as ComponentFixture<ComputingUnitMetadataComponent>).nativeElement.textContent as string;
-    expect(text).toContain("WRITE");
-    expect(text).toContain("None");
+    expect(cellText("Access")).toBe("WRITE");
+    expect(cellText("GPU Limit")).toBe("None");
   });
 });
