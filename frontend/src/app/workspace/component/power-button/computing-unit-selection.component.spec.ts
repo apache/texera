@@ -1411,4 +1411,33 @@ describe("PowerButtonComponent", () => {
       }
     });
   });
+
+  describe("resource-formatting and status getters", () => {
+    it("returns 'NaN' for the resource-string getters when no unit is selected", () => {
+      component.selectedComputingUnit = null;
+      expect(component.getGpuLimit()).toBe("NaN");
+      expect(component.getJvmMemorySize()).toBe("NaN");
+      expect(component.getSharedMemorySize()).toBe("NaN");
+    });
+
+    it("maps a fractional cpu limit to the 'm' unit and a unitless memory limit to 'B'", () => {
+      const unit = makeComputingUnit();
+      unit.computingUnit.resource.cpuLimit = "500m";
+      unit.computingUnit.resource.memoryLimit = "1024"; // no unit -> "" -> "B"
+      component.selectedComputingUnit = unit;
+      expect(component.getCpuUnit()).toBe("m");
+      expect(component.getMemoryUnit()).toBe("B");
+    });
+
+    it("computes cpu usage as a percentage of the limit when metrics are present", () => {
+      const unit = makeComputingUnit();
+      unit.computingUnit.resource.cpuLimit = "1"; // 1 core
+      unit.metrics.cpuUsage = "600m"; // 0.6 core
+      component.selectedComputingUnit = unit;
+      // toBeCloseTo (not toBe) since the percentage is raw float division, not rounded.
+      expect(component.getCpuPercentage()).toBeCloseTo(60);
+      expect(component.getCpuStatus()).toBe("normal");
+      expect(component.getCpuValue()).toBeCloseTo(0.6, 3);
+    });
+  });
 });
