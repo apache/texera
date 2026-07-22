@@ -32,7 +32,7 @@ object KubernetesClient {
   private val client: io.fabric8.kubernetes.client.KubernetesClient =
     new KubernetesClientBuilder().build()
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
-  private val podNamePrefix = "computing-unit"
+  private val podNamePrefix = KubernetesConfig.computeUnitPodNamePrefix
 
   def generatePodURI(cuid: Int): String = {
     s"${generatePodName(cuid)}.${KubernetesConfig.computeUnitServiceName}.$namespace.svc.cluster.local:${KubernetesConfig.computeUnitPortNumber}"

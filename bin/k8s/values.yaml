@@ -288,6 +288,9 @@ workflowComputingUnitPool:
   name: texera-workflow-computing-unit
   # Note: the namespace of the workflow computing unit pool might conflict when there are multiple texera deployments in the same cluster
   namespace: texera-workflow-computing-unit-pool
+  # Computing unit pods are named "<podNamePrefix>-<cuid>". The manager creates them under
+  # this name and the mounter reads a CU's id back out of it, so both are given this value.
+  podNamePrefix: computing-unit
   # Max number of resources allocated for computing units
   maxRequestedResources:
     cpu: 100

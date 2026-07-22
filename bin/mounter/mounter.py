@@ -52,7 +52,9 @@ WATCH_TIMEOUT_S = 300
 WATCH_RETRY_S = 10
 
 SA_DIR = "/var/run/secrets/kubernetes.io/serviceaccount"
-POD_NAME_PREFIX = "computing-unit-"
+# Computing-unit pods are named "<prefix>-<cuid>"; the helm chart gives this and the
+# computing-unit manager's kubernetes.compute-unit-pod-name-prefix the same value.
+CU_POD_NAME_PREFIX = os.environ.get("CU_POD_NAME_PREFIX", "computing-unit")
 PROC_MOUNTS = "/proc/mounts"
 
 
@@ -220,9 +222,10 @@ def _k8s_open(path, timeout):
 
 def _cuid_of(pod_name):
     """The cuid a CU pod name belongs to, or None if it is not a CU pod."""
-    if not pod_name.startswith(POD_NAME_PREFIX):
+    prefix = CU_POD_NAME_PREFIX + "-"
+    if not pod_name.startswith(prefix):
         return None
-    return pod_name[len(POD_NAME_PREFIX):] or None
+    return pod_name[len(prefix):] or None
 
 
 def _list_cu_pods():

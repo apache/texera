@@ -56,6 +56,8 @@ spec:
               value: "{{ .Values.mounter.hostMountRoot }}"
             - name: POOL_NAMESPACE
               value: "{{ .Values.workflowComputingUnitPool.namespace }}"
+            - name: CU_POD_NAME_PREFIX
+              value: "{{ .Values.workflowComputingUnitPool.podNamePrefix }}"
           readinessProbe:
             httpGet:
               path: /healthz

@@ -111,6 +111,14 @@ def test_cuid_is_parsed_only_from_computing_unit_pod_names(mounter, pod_name, ex
     assert mounter._cuid_of(pod_name) == expected
 
 
+def test_the_pod_name_prefix_is_configurable(mounter, monkeypatch):
+    """The helm chart gives this and the CU manager the same prefix; honour it."""
+    monkeypatch.setattr(mounter, "CU_POD_NAME_PREFIX", "other-deployment-cu")
+
+    assert mounter._cuid_of("other-deployment-cu-17") == "17"
+    assert mounter._cuid_of("computing-unit-17") is None
+
+
 # ─────────────────── do_mount() ───────────────────
 
 @pytest.mark.parametrize("missing", ["cuid", "repo", "commit", "jwt", "base"])
