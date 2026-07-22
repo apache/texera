@@ -405,15 +405,19 @@ describe("ListItemComponent", () => {
       expect(component.editingName).toBe(false);
     });
 
-    it("updateProperty reverts to the original value and notifies on error", () => {
+    it("updateProperty reverts to the original value and exits edit mode on error", () => {
       const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error");
-      component.entry = { id: 1, name: "old", type: "workflow" } as unknown as DashboardEntry;
+      // The name field is two-way bound, so entry.name already holds the edited
+      // value by the time updateProperty runs; the error handler must roll it back.
+      component.entry = { id: 1, name: "new-name", type: "workflow" } as unknown as DashboardEntry;
+      component.editingName = true;
       const updateMethod = vi.fn(() => throwError(() => new Error("boom")));
 
       asComp().updateProperty(updateMethod, "name", "new-name", "old");
 
       expect(component.entry.name).toBe("old");
       expect(errorSpy).toHaveBeenCalled();
+      expect(component.editingName).toBe(false);
     });
   });
 });
