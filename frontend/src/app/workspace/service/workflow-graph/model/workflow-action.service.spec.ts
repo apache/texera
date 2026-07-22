@@ -798,6 +798,10 @@ describe("WorkflowActionService", () => {
     service.addCommentBox({ ...mockCommentBox, commentBoxID: "commentBox-old" });
     expect(texeraGraph.hasCommentBox("commentBox-old")).toBeTruthy();
 
+    // Make the assertion meaningful by starting from a non-default value.
+    service.setWorkflowSettings({ dataTransferBatchSize: 1, executionMode: ExecutionMode.MATERIALIZED });
+    const env = (service as any).config.env;
+
     const workflow: Workflow = {
       ...DEFAULT_WORKFLOW,
       content: {
@@ -814,8 +818,10 @@ describe("WorkflowActionService", () => {
     expect(texeraGraph.hasCommentBox("commentBox-old")).toBeFalsy();
     expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
     // settings was undefined in the reloaded content, so defaults are applied
-    expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(100);
-    expect(service.getWorkflowSettings().executionMode).toEqual(ExecutionMode.PIPELINED);
+    expect(service.getWorkflowSettings()).toEqual({
+      dataTransferBatchSize: env.defaultDataTransferBatchSize,
+      executionMode: env.defaultExecutionMode,
+    });
   });
 
   it("should drag all highlighted elements together when one highlighted operator is moved", () => {
