@@ -1035,4 +1035,333 @@ describe("HuggingFaceComponent (TestBed)", () => {
       expect(component.loading).toBe(false);
     });
   });
+
+  // ── Poll-path resolution (second instance waits on an in-flight fetch) ──
+  //
+  // The poll uses setInterval created inside ngOnInit (via detectChanges), which
+  // is a real timer here, so these use a real delay rather than fakeAsync/tick.
+
+  describe("poll-path resolution", () => {
+    /** Wait past one 200ms poll tick using real timers. */
+    const waitForPoll = () => new Promise<void>(resolve => setTimeout(resolve, 300));
+
+    it("resolves both the task and model poll callbacks when the in-flight fetch succeeds", async () => {
+      // comp1 leaves BOTH tasks and models in flight.
+      const { field: field1 } = buildFieldWithFormGroup("text-generation");
+      component.field = field1;
+      fixture.detectChanges();
+      flushIconRequests();
+
+      // comp2 finds tasks + models in flight → enters BOTH poll paths.
+      const fixture2 = TestBed.createComponent(HuggingFaceComponent);
+      const component2 = fixture2.componentInstance;
+      const { field: field2 } = buildFieldWithFormGroup("text-generation");
+      component2.field = field2;
+      fixture2.detectChanges();
+      http.match(req => req.url.startsWith("assets/")).forEach(req => req.flush("<svg></svg>"));
+
+      expect(component2.tasksLoading).toBe(true);
+      expect(component2.loading).toBe(true);
+
+      // comp1's fetches complete → module-level caches are populated.
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(7));
+
+      // Let the 200ms poll intervals observe the now-populated caches.
+      await waitForPoll();
+      flushIconRequests();
+
+      expect(component2.tasksLoading).toBe(false);
+      expect(component2.taskOptions).toEqual(buildTaskResponse());
+      expect((component2 as any).taskPollInterval).toBeNull();
+
+      expect(component2.loading).toBe(false);
+      expect(component2.pagedModels.length).toBe(7);
+      expect((component2 as any).modelPollInterval).toBeNull();
+
+      fixture2.destroy();
+    });
+
+    it("resolves both poll callbacks to the error state when the in-flight fetch fails", async () => {
+      const { field: field1 } = buildFieldWithFormGroup("text-generation");
+      component.field = field1;
+      fixture.detectChanges();
+      flushIconRequests();
+
+      const fixture2 = TestBed.createComponent(HuggingFaceComponent);
+      const component2 = fixture2.componentInstance;
+      const { field: field2 } = buildFieldWithFormGroup("text-generation");
+      component2.field = field2;
+      fixture2.detectChanges();
+      http.match(req => req.url.startsWith("assets/")).forEach(req => req.flush("<svg></svg>"));
+
+      expect(component2.tasksLoading).toBe(true);
+      expect(component2.loading).toBe(true);
+
+      // comp1's fetches fail → error caches are populated.
+      http.expectOne(`${API}/huggingface/tasks`).error(new ProgressEvent("error"));
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).error(new ProgressEvent("error"));
+
+      await waitForPoll();
+      flushIconRequests();
+
+      // Task poll falls back to the static list and surfaces the cached error.
+      expect(component2.tasksLoading).toBe(false);
+      expect(component2.taskOptions).toEqual(STATIC_TASK_OPTIONS);
+      expect(component2.tasksError).toBeTruthy();
+      expect((component2 as any).taskPollInterval).toBeNull();
+
+      // Model poll surfaces the cached error message.
+      expect(component2.loading).toBe(false);
+      expect(component2.errorMessage).toBeTruthy();
+      expect(component2.pagedModels.length).toBe(0);
+      expect((component2 as any).modelPollInterval).toBeNull();
+
+      fixture2.destroy();
+    });
+
+    it("stops polling and falls back when the in-flight fetch is invalidated before it resolves", async () => {
+      // comp1 leaves tasks + models in flight.
+      const { field: field1 } = buildFieldWithFormGroup("text-generation");
+      component.field = field1;
+      fixture.detectChanges();
+      flushIconRequests();
+
+      // comp2 enters both poll paths.
+      const fixture2 = TestBed.createComponent(HuggingFaceComponent);
+      const component2 = fixture2.componentInstance;
+      const { field: field2 } = buildFieldWithFormGroup("text-generation");
+      component2.field = field2;
+      fixture2.detectChanges();
+      http.match(req => req.url.startsWith("assets/")).forEach(req => req.flush("<svg></svg>"));
+
+      expect(component2.tasksLoading).toBe(true);
+      expect(component2.loading).toBe(true);
+
+      // Invalidate while comp1's fetches are still in flight: this unsubscribes the
+      // in-flight requests WITHOUT populating any cache, so the poll callbacks must
+      // detect the canceled fetch and fall back rather than wait forever.
+      invalidateHuggingFaceModelCache();
+
+      await waitForPoll();
+      flushIconRequests();
+
+      // Task poll detects the canceled fetch → stops and falls back to the static list.
+      expect(component2.tasksLoading).toBe(false);
+      expect(component2.taskOptions).toEqual(STATIC_TASK_OPTIONS);
+      expect((component2 as any).taskPollInterval).toBeNull();
+
+      // Model poll detects the canceled fetch → stops without an error.
+      expect(component2.loading).toBe(false);
+      expect((component2 as any).modelPollInterval).toBeNull();
+
+      fixture2.destroy();
+      // Drain the now-canceled comp1 requests so the shared afterEach verify() passes.
+      http.match(() => true);
+    });
+
+    it("replaces (does not leak) an existing poll interval when re-entering a poll path", () => {
+      // comp1 leaves tasks + models in flight.
+      const { field: field1 } = buildFieldWithFormGroup("text-generation");
+      component.field = field1;
+      fixture.detectChanges();
+      flushIconRequests();
+
+      // comp2 enters both poll paths, establishing both poll intervals.
+      const fixture2 = TestBed.createComponent(HuggingFaceComponent);
+      const component2 = fixture2.componentInstance;
+      const { field: field2 } = buildFieldWithFormGroup("text-generation");
+      component2.field = field2;
+      fixture2.detectChanges();
+      http.match(req => req.url.startsWith("assets/")).forEach(req => req.flush("<svg></svg>"));
+
+      const firstTaskInterval = (component2 as any).taskPollInterval;
+      const firstModelInterval = (component2 as any).modelPollInterval;
+      expect(firstTaskInterval).not.toBeNull();
+      expect(firstModelInterval).not.toBeNull();
+
+      // Re-enter the task poll path (retry) while comp1's tasks fetch is still in flight:
+      // the stale interval is cleared and replaced rather than leaked.
+      component2.retryTasksLoad();
+      const secondTaskInterval = (component2 as any).taskPollInterval;
+      expect(secondTaskInterval).not.toBeNull();
+      expect(secondTaskInterval).not.toBe(firstTaskInterval);
+
+      // Re-enter the model poll path (retry) while comp1's models fetch is still in flight.
+      component2.retryLoad();
+      const secondModelInterval = (component2 as any).modelPollInterval;
+      expect(secondModelInterval).not.toBeNull();
+      expect(secondModelInterval).not.toBe(firstModelInterval);
+
+      // Cleanup: destroy clears the current intervals; flush comp1's in-flight requests.
+      fixture2.destroy();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.match(req => req.url.startsWith(`${API}/huggingface/models`)).forEach(req => req.flush([]));
+    });
+  });
+
+  // ── getCurrentTaskTag: field.form fallback ──
+
+  describe("getCurrentTaskTag field.form fallback", () => {
+    it("reads the task from field.form when model.task and the parent control are empty", () => {
+      const formGroup = new FormGroup({
+        task: new FormControl("summarization"),
+        modelId: new FormControl(""),
+      });
+      // formControl has NO parent, so the parent-control branch yields undefined
+      // and resolution falls through to field.form.get("task").
+      const standaloneModelId = new FormControl("");
+      const field = {
+        key: "modelId",
+        formControl: standaloneModelId,
+        form: formGroup,
+        model: { task: "" },
+        props: {},
+        parent: { fieldGroup: [] },
+        options: { detectChanges: vi.fn() },
+      } as unknown as FieldTypeConfig;
+
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(`${API}/huggingface/models?task=summarization`).flush(buildModels(2));
+
+      expect(component.selectedTaskTag).toBe("summarization");
+    });
+  });
+
+  // ── persistTaskSelection: distinct parent task control ──
+
+  describe("persistTaskSelection with a distinct parent control", () => {
+    it("writes the task to BOTH the field-form control and a different parent control", () => {
+      const fieldFormGroup = new FormGroup({ task: new FormControl("") });
+      const parentGroup = new FormGroup({
+        task: new FormControl(""),
+        modelId: new FormControl(""),
+      });
+      const field = {
+        key: "modelId",
+        formControl: parentGroup.get("modelId")!,
+        form: fieldFormGroup,
+        model: { task: "" },
+        props: {},
+        parent: { fieldGroup: [] },
+        options: { detectChanges: vi.fn() },
+      } as unknown as FieldTypeConfig;
+
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(`${API}/huggingface/models?task=text-generation`).flush(buildModels(2));
+
+      // The field-form task control and the (distinct) parent task control both updated.
+      expect(fieldFormGroup.get("task")!.value).toBe("text-generation");
+      expect(parentGroup.get("task")!.value).toBe("text-generation");
+    });
+  });
+
+  // ── snapshotTaskState: empty-tag guard ──
+
+  describe("snapshotTaskState guard", () => {
+    it("does not record a snapshot for an empty tag", () => {
+      initComponent();
+
+      expect(() => (component as any).snapshotTaskState("")).not.toThrow();
+      expect((component as any).taskStateByTag.has("")).toBe(false);
+      expect((component as any).taskStateByTag.size).toBe(0);
+    });
+  });
+
+  // ── read/write field value: model fallback when the form lacks controls ──
+
+  describe("field value model fallback", () => {
+    it("snapshots from and restores to the model when the form lacks those controls", () => {
+      // Form only carries task + modelId; the remaining task-scoped keys live on the model.
+      const formGroup = new FormGroup({
+        task: new FormControl("text-generation"),
+        modelId: new FormControl(""),
+      });
+      const model: Record<string, unknown> = {
+        task: "text-generation",
+        modelId: "",
+        systemPrompt: "custom-from-model",
+        maxNewTokens: 111,
+        promptColumn: "pc",
+      };
+      const field = {
+        key: "modelId",
+        formControl: formGroup.get("modelId")!,
+        form: formGroup,
+        model,
+        props: {},
+        parent: { fieldGroup: [] },
+        options: { detectChanges: vi.fn() },
+      } as unknown as FieldTypeConfig;
+
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(`${API}/huggingface/models?task=text-generation`).flush(buildModels(2));
+
+      // First visit to a new task: snapshot reads text-generation values off the model,
+      // then reset writes first-visit defaults back onto the model.
+      component.onTaskSelected("image-classification");
+      http.expectOne(`${API}/huggingface/models?task=image-classification`).flush([]);
+      expect(model["systemPrompt"]).toBe("You are a helpful assistant.");
+      expect(model["maxNewTokens"]).toBe(256);
+
+      // Switching back restores the snapshotted model values (written via writeFieldValue → model).
+      component.onTaskSelected("text-generation");
+      expect(model["systemPrompt"]).toBe("custom-from-model");
+      expect(model["maxNewTokens"]).toBe(111);
+      expect(model["promptColumn"]).toBe("pc");
+    });
+
+    it("does not throw when the field has no backing model", () => {
+      const formGroup = new FormGroup({
+        task: new FormControl(""),
+        modelId: new FormControl(""),
+      });
+      const field = {
+        key: "modelId",
+        formControl: formGroup.get("modelId")!,
+        form: formGroup,
+        model: null,
+        props: {},
+        parent: { fieldGroup: [] },
+        options: { detectChanges: vi.fn() },
+      } as unknown as FieldTypeConfig;
+
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(`${API}/huggingface/models?task=text-generation`).flush(buildModels(2));
+
+      // onTaskSelected exercises snapshot/reset/restore with a null model — must not throw.
+      expect(() => component.onTaskSelected("image-classification")).not.toThrow();
+      http.expectOne(`${API}/huggingface/models?task=image-classification`).flush([]);
+      expect(component.selectedTaskTag).toBe("image-classification");
+    });
+  });
+
+  // ── null response body ──
+
+  describe("null response body", () => {
+    it("treats a null model response body as an empty list", () => {
+      const { field } = buildFieldWithFormGroup("text-generation");
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(null);
+
+      expect(component.pagedModels.length).toBe(0);
+      expect(component.totalPages).toBe(1);
+      expect(component.loading).toBe(false);
+    });
+  });
 });
