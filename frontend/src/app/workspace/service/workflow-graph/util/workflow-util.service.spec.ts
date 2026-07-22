@@ -25,7 +25,7 @@ import { WorkflowUtilService } from "./workflow-util.service";
 import { mockMultiInputOutputSchema, mockScanSourceSchema } from "../../operator-metadata/mock-operator-metadata.data";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
-import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { ExecutionMode, Workflow, WorkflowContent } from "../../../../common/type/workflow";
 
 describe("WorkflowUtilService", () => {
   let workflowUtilService: WorkflowUtilService;
@@ -168,7 +168,7 @@ describe("WorkflowUtilService", () => {
       operatorPositions: {},
       links: [],
       commentBoxes: [],
-      settings: { dataTransferBatchSize: 400, executionMode: "BATCH" as any },
+      settings: { dataTransferBatchSize: 400, executionMode: ExecutionMode.PIPELINED },
     };
     const workflow = {
       name: "test-workflow",
@@ -194,7 +194,7 @@ describe("WorkflowUtilService", () => {
       operatorPositions: {},
       links: [],
       commentBoxes: [],
-      settings: { dataTransferBatchSize: 400, executionMode: "BATCH" as any },
+      settings: { dataTransferBatchSize: 400, executionMode: ExecutionMode.PIPELINED },
     };
     const workflow = {
       name: "test-workflow",
