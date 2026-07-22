@@ -29,6 +29,7 @@ import { StubUserService } from "../../user/stub-user.service";
 import { AuthService } from "../../user/auth.service";
 import { StubAuthService } from "../../user/stub-auth.service";
 import { DashboardWorkflowComputingUnit } from "../../../type/workflow-computing-unit";
+import { ComputingUnitState } from "../../../type/computing-unit-connection.interface";
 import { commonTestProviders } from "../../../testing/test-utils";
 
 describe("ComputingUnitStatusService", () => {
@@ -142,5 +143,84 @@ describe("ComputingUnitStatusService", () => {
     // Switch units while disconnected: unit 7's stale state must still be cleared.
     service.selectComputingUnit(5, 8);
     expect(resetCount).toBe(1);
+  });
+
+  it("getAllComputingUnits() replays the current list and forwards later updates", () => {
+    const emissions: DashboardWorkflowComputingUnit[][] = [];
+    service.getAllComputingUnits().subscribe(units => emissions.push(units));
+
+    // allComputingUnitsSubject is a BehaviorSubject initialized with [], so it replays that value.
+    expect(emissions[0]).toEqual([]);
+
+    const units = [mockUnit(1), mockUnit(2)];
+    (service as any).allComputingUnitsSubject.next(units);
+    expect(emissions[emissions.length - 1]).toBe(units);
+  });
+
+  it("getSelectedComputingUnitValue() returns null before any unit is selected", () => {
+    expect(service.getSelectedComputingUnitValue()).toBeNull();
+  });
+
+  it("getSelectedComputingUnitValue() reflects the unit chosen via selectComputingUnit()", () => {
+    vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
+    const unit = mockUnit(7);
+    (service as any).allComputingUnitsSubject.next([unit]);
+
+    service.selectComputingUnit(5, 7);
+
+    expect(service.getSelectedComputingUnitValue()).toBe(unit);
+  });
+
+  it("getStatus() maps a null selection to NoComputingUnit", () => {
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.NoComputingUnit);
+  });
+
+  it("getStatus() maps a Running unit to ComputingUnitState.Running", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "Running",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Running);
+  });
+
+  it("getStatus() maps a Pending unit to ComputingUnitState.Pending", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "Pending",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Pending);
+  });
+
+  it("getStatus() maps an unrecognized status to Pending (default branch)", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "Terminating",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Pending);
+  });
+
+  it("refreshComputingUnitList() re-fetches the list and pushes it to subscribers", () => {
+    const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+    const newUnits = [mockUnit(42)];
+    const listSpy = vi.spyOn(managing, "listComputingUnits").mockReturnValue(of(newUnits));
+
+    let latest: DashboardWorkflowComputingUnit[] = [];
+    service.getAllComputingUnits().subscribe(units => (latest = units));
+
+    service.refreshComputingUnitList();
+
+    expect(listSpy).toHaveBeenCalled();
+    expect(latest).toEqual(newUnits);
   });
 });

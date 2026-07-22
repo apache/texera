@@ -801,6 +801,194 @@ class DatasetResourceSpec
     reloaded.getRepositoryName shouldEqual "rename-keeps-repo-stable"
   }
 
+  it should "refuse to rename dataset to an invalid name" in {
+    val dataset = new Dataset
+    dataset.setName("rename-invalid-src")
+    dataset.setRepositoryName("rename-invalid-src-repo")
+    dataset.setDescription("for rename invalid-name test")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+
+    Seq("", "a/b", "has space", "名前", "dot.dot", "a" * 129, null) foreach { invalidName =>
+      withClue(s"renaming to '$invalidName': ") {
+        assertThrows[BadRequestException] {
+          datasetResource.updateDatasetName(
+            DatasetResource.DatasetNameModification(dataset.getDid, invalidName),
+            sessionUser
+          )
+        }
+      }
+    }
+
+    datasetDao.fetchOneByDid(dataset.getDid).getName shouldEqual "rename-invalid-src"
+  }
+
+  it should "refuse to rename dataset to a name already used by another dataset of the same owner" in {
+    val existing = new Dataset
+    existing.setName("rename-dup-existing")
+    existing.setRepositoryName("rename-dup-existing-repo")
+    existing.setDescription("existing dataset for duplicate rename test")
+    existing.setOwnerUid(ownerUser.getUid)
+    existing.setIsPublic(true)
+    existing.setIsDownloadable(true)
+    datasetDao.insert(existing)
+
+    val renamed = new Dataset
+    renamed.setName("rename-dup-source")
+    renamed.setRepositoryName("rename-dup-source-repo")
+    renamed.setDescription("dataset being renamed in duplicate rename test")
+    renamed.setOwnerUid(ownerUser.getUid)
+    renamed.setIsPublic(true)
+    renamed.setIsDownloadable(true)
+    datasetDao.insert(renamed)
+
+    assertThrows[BadRequestException] {
+      datasetResource.updateDatasetName(
+        DatasetResource.DatasetNameModification(renamed.getDid, "rename-dup-existing"),
+        sessionUser
+      )
+    }
+
+    datasetDao.fetchOneByDid(renamed.getDid).getName shouldEqual "rename-dup-source"
+  }
+
+  it should "allow renaming a dataset to its own current name" in {
+    val dataset = new Dataset
+    dataset.setName("rename-self-noop")
+    dataset.setRepositoryName("rename-self-noop-repo")
+    dataset.setDescription("for rename-to-self test")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+
+    val response = datasetResource.updateDatasetName(
+      DatasetResource.DatasetNameModification(dataset.getDid, "rename-self-noop"),
+      sessionUser
+    )
+
+    response.getStatus shouldEqual 200
+    datasetDao.fetchOneByDid(dataset.getDid).getName shouldEqual "rename-self-noop"
+  }
+
+  it should "allow renaming to a name used by a dataset of a different owner" in {
+    val otherOwners = new Dataset
+    otherOwners.setName("rename-cross-owner")
+    otherOwners.setRepositoryName("rename-cross-owner-repo")
+    otherOwners.setDescription("other owner's dataset for cross-owner rename test")
+    otherOwners.setOwnerUid(otherAdminUser.getUid)
+    otherOwners.setIsPublic(true)
+    otherOwners.setIsDownloadable(true)
+    datasetDao.insert(otherOwners)
+
+    val dataset = new Dataset
+    dataset.setName("rename-cross-source")
+    dataset.setRepositoryName("rename-cross-source-repo")
+    dataset.setDescription("dataset being renamed in cross-owner rename test")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+
+    val response = datasetResource.updateDatasetName(
+      DatasetResource.DatasetNameModification(dataset.getDid, "rename-cross-owner"),
+      sessionUser
+    )
+
+    response.getStatus shouldEqual 200
+    datasetDao.fetchOneByDid(dataset.getDid).getName shouldEqual "rename-cross-owner"
+  }
+
+  "dataset table" should "enforce uniqueness of (owner_uid, name) at the database level" in {
+    val first = new Dataset
+    first.setName("db-unique-ds")
+    first.setRepositoryName("db-unique-ds-repo")
+    first.setDescription("first dataset for unique constraint test")
+    first.setOwnerUid(ownerUser.getUid)
+    first.setIsPublic(true)
+    first.setIsDownloadable(true)
+    datasetDao.insert(first)
+
+    val duplicate = new Dataset
+    duplicate.setName("db-unique-ds")
+    duplicate.setRepositoryName("db-unique-ds-repo-2")
+    duplicate.setDescription("duplicate dataset for unique constraint test")
+    duplicate.setOwnerUid(ownerUser.getUid)
+    duplicate.setIsPublic(true)
+    duplicate.setIsDownloadable(true)
+
+    assertThrows[org.jooq.exception.DataAccessException] {
+      datasetDao.insert(duplicate)
+    }
+  }
+
+  "failOnDuplicateDatasetName" should "translate a unique-constraint violation into BadRequestException" in {
+    val existing = new Dataset
+    existing.setName("race-existing")
+    existing.setRepositoryName("race-existing-repo")
+    existing.setDescription("existing dataset for constraint-translation test")
+    existing.setOwnerUid(ownerUser.getUid)
+    existing.setIsPublic(true)
+    existing.setIsDownloadable(true)
+    datasetDao.insert(existing)
+
+    val victim = new Dataset
+    victim.setName("race-victim")
+    victim.setRepositoryName("race-victim-repo")
+    victim.setDescription("dataset whose rename loses the race")
+    victim.setOwnerUid(ownerUser.getUid)
+    victim.setIsPublic(true)
+    victim.setIsDownloadable(true)
+    datasetDao.insert(victim)
+
+    // Simulate the write that loses the race: the constraint fires because the
+    // duplicate already exists, and the helper must map it to a 400.
+    victim.setName("race-existing")
+    assertThrows[BadRequestException] {
+      datasetResource.failOnDuplicateDatasetName {
+        datasetDao.update(victim)
+      }
+    }
+
+    datasetDao.fetchOneByDid(victim.getDid).getName shouldEqual "race-victim"
+  }
+
+  it should "rethrow DataAccessExceptions that are not unique violations" in {
+    assertThrows[org.jooq.exception.DataAccessException] {
+      datasetResource.failOnDuplicateDatasetName {
+        throw new org.jooq.exception.DataAccessException(
+          "lock timeout",
+          new java.sql.SQLException("lock timeout", "55P03")
+        )
+      }
+    }
+  }
+
+  it should "rethrow DataAccessExceptions whose cause carries no SQL state" in {
+    assertThrows[org.jooq.exception.DataAccessException] {
+      datasetResource.failOnDuplicateDatasetName {
+        throw new org.jooq.exception.DataAccessException(
+          "no sql state",
+          new java.sql.SQLException("constructed without a SQL state")
+        )
+      }
+    }
+  }
+
+  it should "let exceptions other than DataAccessException propagate unchanged" in {
+    assertThrows[IllegalStateException] {
+      datasetResource.failOnDuplicateDatasetName {
+        throw new IllegalStateException("unrelated failure")
+      }
+    }
+  }
+
+  it should "return the result of the operation when no exception is thrown" in {
+    datasetResource.failOnDuplicateDatasetName(42) shouldEqual 42
+  }
+
   // ===========================================================================
   // Multipart upload tests (merged in)
   // ===========================================================================

@@ -21,7 +21,9 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink}
+import org.apache.texera.amber.engine.architecture.scheduling.config.InputPortConfig
 import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorRefMappingService,
   PekkoActorService
@@ -53,6 +55,40 @@ class WorkflowExecutionManager(
   def setupActorRefService(actorRefService: PekkoActorRefMappingService): Unit = {
     this.actorRefService = actorRefService
   }
+
+  /**
+    * Loop-back write addresses shipped to every worker at setup; semantics are
+    * documented on `InitializeExecutorRequest.loopStartStateUris` (controlcommands.proto).
+    *
+    * Derived from the final (resource-allocated) schedule, so the URIs are
+    * exactly the ones `AssignPort` later ships to the Loop Start's input
+    * readers. Kept a `def`: `schedule` is a `var` that is only populated after
+    * `StartWorkflow`, and the first use is inside `coordinateRegionExecutors`.
+    */
+  private def loopStartStateUris: Map[String, String] =
+    schedule.levelSets.values.flatten.flatMap { region =>
+      region.getOperators.filter(_.isLoopStart).map { op =>
+        require(
+          op.inputPorts.size == 1,
+          s"Loop Start ${op.id} must have exactly one input port, got ${op.inputPorts.size}"
+        )
+        val gpid = GlobalPortIdentity(op.id, op.inputPorts.keys.head, input = true)
+        val cfg = region.resourceConfig.flatMap(_.portConfigs.get(gpid)) match {
+          case Some(c: InputPortConfig) => c
+          case other =>
+            throw new IllegalStateException(
+              s"Loop Start input port $gpid has no InputPortConfig (got $other) -- " +
+                s"loop operators require a fully-materialized schedule"
+            )
+        }
+        require(
+          cfg.storagePairs.size == 1,
+          s"Loop Start input port $gpid expected exactly one reader URI, " +
+            s"got ${cfg.storagePairs.size}"
+        )
+        op.id.logicalOpId.id -> VFSURIFactory.stateURI(cfg.storagePairs.head._1).toString
+      }
+    }.toMap
 
   /**
     * Each invocation first syncs the internal statuses of each exisiting `RegionExecutionManager`, after which each
@@ -92,6 +128,7 @@ class WorkflowExecutionManager(
     }
 
     executedRegions.append(nextRegions)
+    val loopUris = loopStartStateUris
     Future
       .collect(
         nextRegions
@@ -109,7 +146,8 @@ class WorkflowExecutionManager(
               asyncRPCClient,
               coordinatorConfig,
               actorService,
-              actorRefService
+              actorRefService,
+              loopStartStateUris = loopUris
             )
             regionExecutionManagers(region.id)
           })

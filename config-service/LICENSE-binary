@@ -274,7 +274,7 @@ Scala/Java jars:
   - io.dropwizard.metrics.metrics-json-4.2.25.jar
   - io.dropwizard.metrics.metrics-jvm-4.2.25.jar
   - io.dropwizard.metrics.metrics-logback-4.2.25.jar
-  - io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar
+  - io.r2dbc.r2dbc-spi-1.0.0.RELEASE.jar
   - jakarta.inject.jakarta.inject-api-2.0.1.jar
   - jakarta.validation.jakarta.validation-api-3.0.2.jar
   - org.apache.commons.commons-lang3-3.13.0.jar

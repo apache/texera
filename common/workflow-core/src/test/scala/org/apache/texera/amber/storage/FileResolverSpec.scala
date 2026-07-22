@@ -124,6 +124,44 @@ class FileResolverSpec
     }
   }
 
+  "isFileResolved" should "return true when the path has a non-empty scheme" in {
+    assert(FileResolver.isFileResolved("s3://bucket/key"))
+    assert(
+      FileResolver.isFileResolved(s"${FileResolver.DATASET_FILE_URI_SCHEME}:///repo/hash/file.csv")
+    )
+  }
+
+  it should "return false when the path has no scheme" in {
+    assert(!FileResolver.isFileResolved("some/random/path"))
+    assert(!FileResolver.isFileResolved("/test_user@test.com/test_dataset/v1/1.txt"))
+  }
+
+  it should "return false for a malformed URI" in {
+    // a space is illegal in a URI and makes the java.net.URI constructor throw
+    assert(!FileResolver.isFileResolved("has a space"))
+  }
+
+  "parseDatasetOwnerAndName" should "extract owner email and dataset name from a valid path" in {
+    assert(
+      FileResolver.parseDatasetOwnerAndName("/test_user@test.com/test_dataset/v1/1.txt")
+        == Some(("test_user@test.com", "test_dataset"))
+    )
+    // extra segments beyond the file-relative path are ignored
+    assert(
+      FileResolver.parseDatasetOwnerAndName("/owner@x.com/ds/v2/directory/nested/a.csv")
+        == Some(("owner@x.com", "ds"))
+    )
+  }
+
+  it should "return None when the path has fewer than four segments" in {
+    assert(FileResolver.parseDatasetOwnerAndName("/owner@x.com/ds/v1").isEmpty)
+    assert(FileResolver.parseDatasetOwnerAndName("owner/dataset").isEmpty)
+  }
+
+  it should "return None for a null path" in {
+    assert(FileResolver.parseDatasetOwnerAndName(null).isEmpty)
+  }
+
   override protected def afterAll(): Unit = {
     shutdownDB()
   }
