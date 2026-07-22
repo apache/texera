@@ -87,7 +87,10 @@ class PythonCodegenBaseSpec extends AnyFlatSpec with Matchers {
     stub should include("STUB_PAYLOAD_zX7q42")
     real should not include "STUB_PAYLOAD_zX7q42"
     // TextGenCodegen's real payload/parse markers appear only in the real run.
-    real should include("messages")
+    // Use its system-role message, unique to TextGenCodegen: the shared base
+    // template contains "messages" in other helper branches, so that alone
+    // would not prove TextGenCodegen's payload was spliced in.
+    real should include("""{"role": "system", "content": self.SYSTEM_PROMPT}""")
     real should include("max_tokens")
     real should include("choices")
   }
@@ -100,11 +103,23 @@ class PythonCodegenBaseSpec extends AnyFlatSpec with Matchers {
 
   it should "assign user-provided strings via runtime base64 decode expressions, not raw literals" in {
     val out = PythonCodegenBase.render(makeCtx(), StubCodegen)
-    // Every user-supplied string field is set through the safe decode helper.
+    // Every user-supplied string field open() assigns is set through the safe
+    // decode helper. This covers all EncodableString context fields, including
+    // the result/task and per-task (image/audio/context/labels/sentences)
+    // fields, not just the text-generation ones.
     out should include("self.HF_API_TOKEN = self.decode_python_template(")
     out should include("self.MODEL_ID = self.decode_python_template(")
     out should include("self.PROMPT_COLUMN = self.decode_python_template(")
+    out should include("self.RESULT_COLUMN = self.decode_python_template(")
+    out should include("self.TASK = self.decode_python_template(")
     out should include("self.SYSTEM_PROMPT = self.decode_python_template(")
+    out should include("self.IMAGE_INPUT = self.decode_python_template(")
+    out should include("self.INPUT_IMAGE_COLUMN = self.decode_python_template(")
+    out should include("self.AUDIO_INPUT = self.decode_python_template(")
+    out should include("self.INPUT_AUDIO_COLUMN = self.decode_python_template(")
+    out should include("self.CONTEXT_COLUMN = self.decode_python_template(")
+    out should include("self.CANDIDATE_LABELS = self.decode_python_template(")
+    out should include("self.SENTENCES_COLUMN = self.decode_python_template(")
   }
 
   it should "never leak raw user-provided string values into the generated source" in {
