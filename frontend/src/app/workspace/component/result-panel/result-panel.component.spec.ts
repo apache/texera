@@ -37,10 +37,21 @@ import { By } from "@angular/platform-browser";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
-import { mockPoint, mockResultPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
+import {
+  mockPoint,
+  mockResultPredicate,
+  mockScanPredicate,
+} from "../../service/workflow-graph/model/mock-workflow-data";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { PanelService } from "../../service/panel/panel.service";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
+import { CompilationState } from "../../types/workflow-compiling.interface";
+import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
+import { PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
+import { OperatorPredicate } from "../../types/workflow-common.interface";
 
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;
@@ -74,6 +85,23 @@ describe("ResultPanelComponent", () => {
     workflowResultService = TestBed.inject(WorkflowResultService);
     resizeService = TestBed.inject(PanelResizeService);
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    // Several added tests install spies on the global `window` / shared service
+    // instances and drive real streams; restore everything and tear the fixture
+    // down so state never leaks into the next test.
+    vi.restoreAllMocks();
+    fixture.destroy();
+  });
+
+  const makeFatalError = (operatorId: string): WorkflowFatalError => ({
+    message: "boom",
+    details: "detail",
+    operatorId,
+    workerId: "",
+    type: { name: "ExecutionError" },
+    timestamp: { nanos: 0, seconds: 0 },
   });
 
   it("should create", () => expect(component).toBeTruthy());
@@ -281,6 +309,353 @@ describe("ResultPanelComponent", () => {
       component.rerenderResultPanel();
 
       expect(clearSpy).not.toHaveBeenCalled();
+    });
+
+    it("resets the operator title when the highlight selection is cleared", () => {
+      // Nothing highlighted -> the single-highlight ternary takes its `undefined` branch,
+      // currentOperatorId flips to undefined and the title is wiped.
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue([]);
+      component.currentOperatorId = "3";
+      component.operatorTitle = "Old Title";
+
+      component.rerenderResultPanel();
+
+      expect(component.currentOperatorId).toBeUndefined();
+      expect(component.operatorTitle).toBe("");
+    });
+
+    it("shows an error frame for the whole workflow when execution failed with no operator selected", () => {
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue([]);
+      vi.spyOn(executeWorkflowService, "getExecutionState").mockReturnValue({
+        state: ExecutionState.Failed,
+        errorMessages: [],
+      });
+
+      component.rerenderResultPanel();
+
+      const errorConfig = component.frameComponentConfigs.get("Static Error");
+      expect(errorConfig?.component).toBe(ErrorFrameComponent);
+      expect(errorConfig?.componentInputs).toEqual({ operatorId: undefined });
+    });
+
+    it("shows an operator error frame when the failed execution has a matching fatal error", () => {
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(executeWorkflowService, "getExecutionState").mockReturnValue({
+        state: ExecutionState.Failed,
+        errorMessages: [makeFatalError("3")],
+      });
+      // getWorkflowFatalErrors reads getErrorMessages() (guarded on the real currentState),
+      // so it must be stubbed alongside getExecutionState.
+      vi.spyOn(executeWorkflowService, "getErrorMessages").mockReturnValue([makeFatalError("3")]);
+
+      component.rerenderResultPanel();
+
+      const errorConfig = component.frameComponentConfigs.get("Static Error");
+      expect(errorConfig?.component).toBe(ErrorFrameComponent);
+      expect(errorConfig?.componentInputs).toEqual({ operatorId: "3" });
+    });
+
+    it("tears down a stale error frame when the failed execution has no error for the selected operator", () => {
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // Keep the highlight aligned with currentOperatorId so the clear-on-selection-change
+      // path is skipped and we can prove the delete branch (not the wholesale clear) fires.
+      component.currentOperatorId = "3";
+      component.frameComponentConfigs.set("Static Error", {
+        component: ErrorFrameComponent,
+        componentInputs: { operatorId: "3" },
+      });
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(executeWorkflowService, "getExecutionState").mockReturnValue({
+        state: ExecutionState.Failed,
+        errorMessages: [makeFatalError("someOtherOperator")],
+      });
+      // A real fatal error exists, but it belongs to a different operator, so the id filter
+      // strips it and the stale frame is removed.
+      vi.spyOn(executeWorkflowService, "getErrorMessages").mockReturnValue([makeFatalError("someOtherOperator")]);
+
+      component.rerenderResultPanel();
+
+      expect(component.frameComponentConfigs.has("Static Error")).toBe(false);
+    });
+
+    it("shows an operator error frame when the compilation failed with a matching error", () => {
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const compilingService = TestBed.inject(WorkflowCompilingService);
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(compilingService, "getWorkflowCompilationState").mockReturnValue(CompilationState.Failed);
+      vi.spyOn(compilingService, "getWorkflowCompilationErrors").mockReturnValue({ "3": makeFatalError("3") });
+
+      component.rerenderResultPanel();
+
+      const errorConfig = component.frameComponentConfigs.get("Static Error");
+      expect(errorConfig?.component).toBe(ErrorFrameComponent);
+      expect(errorConfig?.componentInputs).toEqual({ operatorId: "3" });
+    });
+
+    it("displays a console frame when the selected operator has console messages", () => {
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "hasConsoleMessages").mockReturnValue(true);
+
+      component.rerenderResultPanel();
+
+      const consoleConfig = component.frameComponentConfigs.get("Console");
+      expect(consoleConfig?.component).toBe(ConsoleFrameComponent);
+      // A SimpleSink is not a Python UDF, so the console input stays disabled.
+      expect(consoleConfig?.componentInputs).toEqual({ operatorId: "3", consoleInputEnabled: false });
+    });
+
+    it("enables console input when the selected operator is a Python UDF", () => {
+      const pythonOp: OperatorPredicate = {
+        ...mockResultPredicate,
+        operatorID: "3",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      };
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue(pythonOp);
+      // No stored console messages -> the Python-UDF branch of the OR is what enables the console.
+      vi.spyOn(consoleService, "hasConsoleMessages").mockReturnValue(false);
+
+      component.rerenderResultPanel();
+
+      const consoleConfig = component.frameComponentConfigs.get("Console");
+      expect(consoleConfig?.component).toBe(ConsoleFrameComponent);
+      expect(consoleConfig?.componentInputs).toEqual({ operatorId: "3", consoleInputEnabled: true });
+    });
+  });
+
+  describe("auto-open reactions to execution state", () => {
+    it("highlights the first active sink when a run completes and it is not already the sole selection", () => {
+      // Add the operator first: adding auto-highlights it, so spy only after that settles.
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      vi.spyOn(wrapper, "getCurrentHighlightedOperatorIDs").mockReturnValue([]);
+      const highlightSpy = vi.spyOn(wrapper, "highlightOperators").mockImplementation(() => {});
+      const unhighlightSpy = vi.spyOn(wrapper, "unhighlightOperators").mockImplementation(() => {});
+
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Running });
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Completed });
+
+      expect(unhighlightSpy).toHaveBeenCalled();
+      expect(highlightSpy).toHaveBeenCalledWith(mockResultPredicate.operatorID);
+    });
+
+    it("does not re-highlight a sink that is already the sole highlighted operator", () => {
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      vi.spyOn(wrapper, "getCurrentHighlightedOperatorIDs").mockReturnValue([mockResultPredicate.operatorID]);
+      const highlightSpy = vi.spyOn(wrapper, "highlightOperators").mockImplementation(() => {});
+
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Running });
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Completed });
+
+      expect(highlightSpy).not.toHaveBeenCalled();
+    });
+
+    it("highlights an active Python UDF operator when the workflow starts running", () => {
+      const pythonOp: OperatorPredicate = {
+        ...mockResultPredicate,
+        operatorID: "py1",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      };
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      vi.spyOn(wrapper, "getCurrentHighlightedOperatorIDs").mockReturnValue([]);
+      const highlightSpy = vi.spyOn(wrapper, "highlightOperators").mockImplementation(() => {});
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getAllOperators").mockReturnValue([pythonOp]);
+
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Running });
+
+      expect(highlightSpy).toHaveBeenCalledWith("py1");
+    });
+
+    it("does not re-highlight a Python UDF when exactly one operator is already highlighted", () => {
+      const pythonOp: OperatorPredicate = {
+        ...mockResultPredicate,
+        operatorID: "py1",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      };
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      // A single (real) operator is already selected, so the guard short-circuits and skips highlighting.
+      vi.spyOn(wrapper, "getCurrentHighlightedOperatorIDs").mockReturnValue([mockResultPredicate.operatorID]);
+      const highlightSpy = vi.spyOn(wrapper, "highlightOperators").mockImplementation(() => {});
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getAllOperators").mockReturnValue([pythonOp]);
+
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Running });
+
+      expect(highlightSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not touch the highlight selection when a run completes with no sink operators", () => {
+      // A source-only workflow has no sink, so the sink-highlight guard takes its empty branch.
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      const highlightSpy = vi.spyOn(wrapper, "highlightOperators").mockImplementation(() => {});
+
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Running });
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Completed });
+
+      expect(highlightSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("state-change driven rerender", () => {
+    it("renders an error frame when the execution transitions into the failed state", () => {
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue([]);
+
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Failed, errorMessages: [] });
+
+      expect(component.frameComponentConfigs.has("Static Error")).toBe(true);
+    });
+
+    it("clears the error frame when the execution recovers out of the failed state", () => {
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue([]);
+
+      // into Failed: the error frame appears...
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Failed, errorMessages: [] });
+      expect(component.frameComponentConfigs.has("Static Error")).toBe(true);
+
+      // ...and leaving Failed forces a rerender that tears it back down.
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Running });
+      expect(component.frameComponentConfigs.has("Static Error")).toBe(false);
+    });
+  });
+
+  describe("operator display name changes", () => {
+    beforeEach(() => {
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // Drive a rerender with the operator selected so the display-name handler subscribes.
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      executeWorkflowService["updateExecutionState"]({ state: ExecutionState.Running });
+    });
+
+    it("updates the operator title when the selected operator is renamed", () => {
+      // The subject is hidden from the readonly graph type; reach it to drive the stream.
+      (workflowActionService.getTexeraGraph() as any).operatorDisplayNameChangedSubject.next({
+        operatorID: "3",
+        newDisplayName: "Renamed Result",
+      });
+
+      expect(component.operatorTitle).toBe("Renamed Result");
+    });
+
+    it("ignores rename events for other operators", () => {
+      const titleBefore = component.operatorTitle;
+
+      (workflowActionService.getTexeraGraph() as any).operatorDisplayNameChangedSubject.next({
+        operatorID: "someOtherOperator",
+        newDisplayName: "Should Not Apply",
+      });
+
+      expect(component.operatorTitle).toBe(titleBefore);
+    });
+  });
+
+  describe("panel open/close reactions", () => {
+    it("collapses the panel when the panel service requests a close", () => {
+      const panelService = TestBed.inject(PanelService);
+      component.openPanel();
+
+      panelService.closePanels();
+
+      expect(component.width).toBe(0);
+      expect(component.height).toBe(32.5);
+    });
+
+    it("re-docks and re-opens the panel when the panel service requests a reset", () => {
+      const panelService = TestBed.inject(PanelService);
+      component.returnPosition = { x: 11, y: 22 };
+      component.dragPosition = { x: 99, y: 88 };
+
+      panelService.resetPanels();
+
+      expect(component.dragPosition).toEqual({ x: 11, y: 22 });
+      expect(component.width).toBe(DEFAULT_WIDTH);
+      expect(component.height).toBe(DEFAULT_HEIGHT);
+    });
+
+    it("opens the panel when the result-panel-open stream emits true", () => {
+      component.closePanel();
+
+      workflowActionService.openResultPanel();
+
+      expect(component.width).toBe(DEFAULT_WIDTH);
+      expect(component.height).toBe(DEFAULT_HEIGHT);
+    });
+
+    it("closes the panel when the result-panel-open stream emits false", () => {
+      component.openPanel();
+
+      workflowActionService.closeResultPanel();
+
+      expect(component.width).toBe(0);
+      expect(component.height).toBe(32.5);
+    });
+  });
+
+  describe("drag overlay restore", () => {
+    it("handleEndDrag restores the visualization overlay z-index when it is present", () => {
+      const vizEl = { style: { zIndex: -1 } };
+      component.componentOutlets = {
+        nativeElement: { querySelector: () => vizEl },
+      } as unknown as ElementRef;
+      const source = { getFreeDragPosition: () => ({ x: 7, y: 8 }) };
+
+      component.handleEndDrag({ source } as unknown as CdkDragEnd);
+
+      expect(vizEl.style.zIndex).toBe(0);
+      expect(component.dragPosition).toEqual({ x: 7, y: 8 });
+    });
+
+    it("handleStartDrag is a no-op when no visualization overlay is present", () => {
+      component.componentOutlets = {
+        nativeElement: { querySelector: () => null },
+      } as unknown as ElementRef;
+
+      expect(() => component.handleStartDrag()).not.toThrow();
+    });
+  });
+
+  describe("getWorkflowFatalErrors filtering", () => {
+    it("returns every fatal error unfiltered when no operator id is provided", () => {
+      vi.spyOn(executeWorkflowService, "getErrorMessages").mockReturnValue([
+        makeFatalError("opA"),
+        makeFatalError("opB"),
+      ]);
+
+      const errors = (component as any).getWorkflowFatalErrors();
+
+      expect(errors.map((e: WorkflowFatalError) => e.operatorId)).toEqual(["opA", "opB"]);
+    });
+  });
+
+  describe("persistence on unload", () => {
+    it("writes the current panel dimensions to localStorage on window beforeunload", () => {
+      const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+      component.width = 640;
+      component.height = 480;
+
+      window.dispatchEvent(new Event("beforeunload"));
+
+      expect(setItemSpy).toHaveBeenCalledWith("result-panel-width", "640");
+      expect(setItemSpy).toHaveBeenCalledWith("result-panel-height", "480");
+    });
+
+    it("persists dimensions but skips the style entry when the result container is gone", () => {
+      // If the container element has already been torn down, only the width/height are saved.
+      vi.spyOn(document, "getElementById").mockReturnValue(null);
+      const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+      component.width = 640;
+      component.height = 480;
+
+      component.ngOnDestroy();
+
+      expect(setItemSpy).toHaveBeenCalledWith("result-panel-width", "640");
+      expect(setItemSpy).toHaveBeenCalledWith("result-panel-height", "480");
+      expect(setItemSpy).not.toHaveBeenCalledWith("result-panel-style", expect.anything());
     });
   });
 });
