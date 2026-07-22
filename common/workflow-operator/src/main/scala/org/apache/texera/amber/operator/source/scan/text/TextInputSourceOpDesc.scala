@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.source.scan.text
 
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.Schema
@@ -34,6 +34,7 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text")
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
+  @JsonPropertyDescription("Input text here and this operator will return a column with your text as its rows.")
   var textInput: String = _
 
   override def getPhysicalOp(

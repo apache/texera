@@ -19,13 +19,9 @@
 
 package org.apache.texera.amber.operator.source.scan.text
 
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
 
@@ -37,15 +33,22 @@ import org.apache.texera.amber.operator.source.scan.FileAttributeType
 trait TextSourceOpDesc {
   @JsonProperty(defaultValue = "string", required = true)
   @JsonSchemaTitle("Attribute Type")
+  @JsonPropertyDescription("This specifies how to read this text.\n \n Per-line types (string, integer, long, double, boolean, " +
+    "timestamp) emit one output row per line, casting each line to that type. \n \n" +
+    "File types ('Single string' / 'binary' / 'large binary') read the entire file in one " +
+    "single row.")
   var attributeType: FileAttributeType = FileAttributeType.STRING
 
   @JsonProperty(defaultValue = "line", required = true)
   @JsonSchemaTitle("Attribute Name")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonPropertyDescription("What is the name of the column that this text should be put in?")
   var attributeName: String = "line"
 
-  @JsonSchemaTitle("Limit")
+  @JsonSchemaTitle("Limit (lines)")
   @JsonDeserialize(contentAs = classOf[Int])
+  @JsonPropertyDescription("Maximum number of lines to output. Leave empty to read all lines. " +
+    "(Not used when reading the whole file as one row.)")
   @JsonSchemaInject(
     strings = Array(
       new JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeType"),
@@ -58,7 +61,9 @@ trait TextSourceOpDesc {
   )
   var fileScanLimit: Option[Int] = None
 
-  @JsonSchemaTitle("Offset")
+  @JsonSchemaTitle("Offset (lines)")
+  @JsonPropertyDescription("Number of lines to skip from the start before reading. " +
+    "(Not used when reading the whole file as one row.)")
   @JsonDeserialize(contentAs = classOf[Int])
   @JsonSchemaInject(
     strings = Array(
