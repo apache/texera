@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
+import org.apache.texera.amber.operator.dictionary.{DictionaryMatcherOpDesc, MatchingType}
 import org.apache.texera.amber.operator.aggregate.{
   AggregateOpDesc,
   AggregationFunction,
@@ -34,7 +35,9 @@ import org.apache.texera.amber.operator.filter.{
   SpecializedFilterOpDesc
 }
 import org.apache.texera.amber.operator.hashJoin.{HashJoinOpDesc, JoinType}
+import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
+import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
 import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
@@ -197,10 +200,12 @@ object CuratedHandlers {
     AggregateTransformHandler,
     SpecializedFilterTransformHandler,
     DistinctTransformHandler,
+    DictionaryMatcherTransformHandler,
     HashJoinTransformHandler,
     TypeCastingTransformHandler,
     UnnestStringTransformHandler,
     SleepTransformHandler,
+    KeywordSearchTransformHandler,
     ProjectionTransformHandler,
     BulletChartVisualizationHandler,
     ImageVisualizerVisualizationHandler,
@@ -211,7 +216,8 @@ object CuratedHandlers {
     SklearnLinearRegressionTransformHandler,
     IfTransformHandler,
     MachineLearningScorerTransformHandler,
-    HuggingFaceSpamSMSDetectionTransformHandler
+    HuggingFaceSpamSMSDetectionTransformHandler,
+    RegexTransformHandler
   ) ++ sklearnAutoHandlers
 
   val byClass: Map[Class[_ <: LogicalOp], TransformHandler] =
@@ -496,6 +502,113 @@ object DistinctTransformHandler extends TransformHandler {
   }
 }
 
+/** DictionaryMatcher fixture that actually matches, chosen so all three swept
+  * MatchingType branches agree between the JVM (Lucene) and standalone paths.
+  * cat/dog/car are Porter2-invariant (stemming leaves them unchanged), so the
+  * CONJUNCTION branch — where standalone lacks Lucene's stemmer — still matches.
+  * dictionary = "cat,dog" over `word` = [cat, dog, car] yields
+  * [matched, matched, unmatched] under exact / substring / conjunction alike.
+  */
+object DictionaryMatcherTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[DictionaryMatcherOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val columns = Seq(("word", AttributeType.STRING))
+    val rows = Seq(
+      Seq[Any]("cat"),
+      Seq[Any]("dog"),
+      Seq[Any]("car")
+    )
+    val inputPath =
+      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
+
+    val desc = new DictionaryMatcherOpDesc()
+    desc.attribute = "word"
+    desc.dictionary = "cat,dog"
+    desc.resultAttribute = "matched"
+    desc.matchingType = MatchingType.SCANBASED
+    (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
+/**
+  * Curated handler for [[RegexOpDesc]]. The auto tier only ever feeds it the
+  * trivial pattern `"1"` against the first column, which never exercises real
+  * regex semantics. This handler pins genuine patterns so the JVM↔Python engine
+  * parity is actually tested:
+  *
+  *   - Primary fixture: `[a-z]+` over a mixed-case `text` column. The runner
+  *     enum-sweeps the Boolean `caseInsensitive`, so BOTH branches run against
+  *     the same data. The two branches select DIFFERENT row sets (case-sensitive
+  *     keeps only rows with a lowercase letter; case-insensitive also keeps the
+  *     all-caps rows), proving the flag actually flows through to both paths.
+  *   - `extraScenarios`: `\d+` (a backslash class — verifies the escape survives
+  *     `toPyDoubleQuotedLiteral` into Python's engine) and `\.` (an escaped
+  *     metachar — an escaping bug would turn it into "match any char" and change
+  *     the result, so this pins literal-vs-metachar handling).
+  *
+  * All fixture data is ASCII, where Java `\d` / `[a-z]` / CASE_INSENSITIVE and
+  * Python's `re` agree exactly; each pattern yields a proper subset (never
+  * all/none) so the comparison is meaningful.
+  */
+object RegexTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[RegexOpDesc]
+
+  private def regexOp(attribute: String, regex: String, caseInsensitive: Boolean): RegexOpDesc = {
+    val op = new RegexOpDesc()
+    op.attribute = attribute
+    op.regex = regex
+    op.caseInsensitive = caseInsensitive
+    op
+  }
+
+  // Rows chosen so `[a-z]+` differs by case flag: "ABC"/"XY9" have no lowercase
+  // (dropped when case-sensitive) but are all-letter (kept when insensitive).
+  private val textColumn = Seq(("text", AttributeType.STRING))
+  private val caseRows: Seq[Seq[Any]] =
+    Seq(Seq[Any]("abc"), Seq[Any]("ABC"), Seq[Any]("123"), Seq[Any]("a1B"), Seq[Any]("XY9"))
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val inputPath =
+      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), textColumn, caseRows)
+    (regexOp("text", "[a-z]+", caseInsensitive = false), Map(PortIdentity(0) -> inputPath))
+  }
+
+  override def extraScenarios(
+      testRoot: Path
+  ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
+    // `\d+`: rows where a digit is present form a proper subset.
+    val digitDir = testRoot.resolve("digits")
+    Files.createDirectories(digitDir)
+    val digitRows: Seq[Seq[Any]] =
+      Seq(Seq[Any]("abc"), Seq[Any]("a1B"), Seq[Any]("XY9"), Seq[Any]("123"), Seq[Any]("ab"))
+    val digitInput =
+      CuratedHandlers.writeFixture(digitDir.resolve("input_port_0.jsonl"), textColumn, digitRows)
+
+    // `\.`: only rows with a literal dot match. If the backslash were lost, the
+    // pattern would become bare `.` (match any char) and select every row.
+    val dotDir = testRoot.resolve("dot")
+    Files.createDirectories(dotDir)
+    val dotRows: Seq[Seq[Any]] =
+      Seq(Seq[Any]("a.b"), Seq[Any]("abc"), Seq[Any]("x.y.z"), Seq[Any]("no"))
+    val dotInput =
+      CuratedHandlers.writeFixture(dotDir.resolve("input_port_0.jsonl"), textColumn, dotRows)
+
+    Seq(
+      (
+        "regex=\\d+",
+        regexOp("text", "\\d+", caseInsensitive = false),
+        Map(PortIdentity(0) -> digitInput)
+      ),
+      (
+        "regex=\\.",
+        regexOp("text", "\\.", caseInsensitive = false),
+        Map(PortIdentity(0) -> dotInput)
+      )
+    )
+  }
+}
+
 /** HashJoin INNER on `id`. Build (port 0) and probe (port 1) intentionally
   *  arrive in different id orders so any probe-major / left-major mismatch
   *  between the JVM emit and `pd.merge` shows up. Order policy lives in
@@ -709,6 +822,50 @@ object SleepTransformHandler extends TransformHandler {
     val desc = new SleepOpDesc()
     desc.sleepTime = 0
     (desc, CanonicalFixture.writeInputs(testRoot, 1))
+  }
+}
+
+/**
+  * Handler for `KeywordSearchOpDesc`. The auto tier points `attribute` at the
+  * canonical fixture's first column (`id`) and fills `keyword` with the canonical
+  * "1", so the search runs against numeric ids and never touches a real text
+  * column. This fixture searches a genuine free-text column with a two-term
+  * query, exercising the standalone regex's meaningful branches — multi-term OR,
+  * whole-word boundaries — that both the JVM Lucene path and the pandas path
+  * agree on. Query "love day" keeps rows 1 and 2 (contain the whole words
+  * love/day); row 3 has neither; row 4's "lovely"/"today" are different tokens,
+  * so the shared word-boundary rule drops it. 4 rows → 2 kept.
+  *
+  * The rows are intentionally punctuation-free. The `isCaseSensitive` enum is
+  * swept (true and false), and the case-sensitive path uses `CaseSensitiveAnalyzer`
+  * (a `WhitespaceTokenizer` that leaves punctuation attached, e.g. "perfect."),
+  * which diverges from the standalone regex's `\b`-boundary matching on any
+  * punctuated word — and the standalone does NOT honor case at all. Clean
+  * whitespace-delimited words keep both tokenizers (and both case modes) in
+  * agreement; this is why the canonical fixture's punctuated `short_text` column
+  * cannot be reused here. Lucene phrase/boolean/wildcard syntax is likewise
+  * avoided — the regex approximation cannot reproduce it.
+  */
+object KeywordSearchTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[KeywordSearchOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val columns = Seq(("txt", AttributeType.STRING))
+    val rows = Seq(
+      Seq[Any]("i love this product"),
+      Seq[Any]("what a great day"),
+      Seq[Any]("terrible experience"),
+      Seq[Any]("lovely weather today")
+    )
+    val inputPath =
+      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
+
+    val desc = new KeywordSearchOpDesc()
+    desc.attribute = "txt"
+    desc.keyword = "love day"
+    desc.isCaseSensitive = false
+
+    (desc, Map(PortIdentity(0) -> inputPath))
   }
 }
 
