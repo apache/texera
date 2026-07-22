@@ -350,4 +350,70 @@ describe("ListItemComponent", () => {
       expect(component.viewCount).toBe(5); // 4 + 1
     });
   });
+
+  describe("editing state, markdown preview, and updateProperty", () => {
+    const asComp = () =>
+      component as unknown as {
+        setEditingState: (p: "name" | "description", s: boolean) => void;
+        renderMarkdownPreview: (t: string | undefined) => void;
+        updateProperty: (
+          m: (id: number, v: string) => unknown,
+          p: "name" | "description",
+          v: string,
+          o: string | undefined
+        ) => void;
+      };
+
+    it("setEditingState toggles the name / description edit flags", () => {
+      asComp().setEditingState("name", true);
+      expect(component.editingName).toBe(true);
+      asComp().setEditingState("description", true);
+      expect(component.editingDescription).toBe(true);
+      asComp().setEditingState("name", false);
+      expect(component.editingName).toBe(false);
+    });
+
+    it("renderMarkdownPreview strips markdown syntax and collapses whitespace", () => {
+      asComp().renderMarkdownPreview("# **Hello**  [link](http://x)");
+      expect(component.renderedDescription).toBe("Hello link");
+      asComp().renderMarkdownPreview("   ");
+      expect(component.renderedDescription).toBe("");
+      asComp().renderMarkdownPreview(undefined);
+      expect(component.renderedDescription).toBe("");
+    });
+
+    it("updateProperty reports a missing id and skips the update", () => {
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error");
+      component.entry = { name: "x", type: "workflow" } as unknown as DashboardEntry;
+      const updateMethod = vi.fn();
+
+      asComp().updateProperty(updateMethod, "name", "new", "old");
+
+      expect(errorSpy).toHaveBeenCalledWith("Id is missing");
+      expect(updateMethod).not.toHaveBeenCalled();
+    });
+
+    it("updateProperty persists the new value and exits edit mode on success", () => {
+      component.entry = { id: 1, name: "old", type: "workflow" } as unknown as DashboardEntry;
+      component.editingName = true;
+      const updateMethod = vi.fn(() => of({}));
+
+      asComp().updateProperty(updateMethod, "name", "new-name", "old");
+
+      expect(updateMethod).toHaveBeenCalledWith(1, "new-name");
+      expect(component.entry.name).toBe("new-name");
+      expect(component.editingName).toBe(false);
+    });
+
+    it("updateProperty reverts to the original value and notifies on error", () => {
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error");
+      component.entry = { id: 1, name: "old", type: "workflow" } as unknown as DashboardEntry;
+      const updateMethod = vi.fn(() => throwError(() => new Error("boom")));
+
+      asComp().updateProperty(updateMethod, "name", "new-name", "old");
+
+      expect(component.entry.name).toBe("old");
+      expect(errorSpy).toHaveBeenCalled();
+    });
+  });
 });

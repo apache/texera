@@ -219,4 +219,43 @@ describe("FilesUploaderComponent", () => {
     expect(component.fileUploadBannerType).toBe("warning");
     expect(component.fileUploadBannerMessage).toBe("heads up");
   });
+
+  describe("force-restart, owner/name, and conflict prompts", () => {
+    type Item = { name: string; file: { size: number }; restart?: boolean };
+    const asComp = () =>
+      component as unknown as {
+        markForceRestart: (i: Item) => void;
+        getOwnerAndName: () => { ownerEmail: string; datasetName: string };
+        askResumeOrSkip: (i: Item, showForAll: boolean) => Promise<string>;
+        askUploadOrSkip: (i: Item, showForAll: boolean) => Promise<string>;
+      };
+    const lastFooter = () =>
+      (modals[modals.length - 1] as unknown as { nzFooter: Array<{ label: string; onClick: () => void }> }).nzFooter;
+
+    it("markForceRestart flags the item for a forced restart", () => {
+      const item: Item = { name: "f.csv", file: { size: 1 }, restart: false };
+      asComp().markForceRestart(item);
+      expect(item.restart).toBe(true);
+    });
+
+    it("getOwnerAndName returns the owner email and dataset name inputs", () => {
+      expect(asComp().getOwnerAndName()).toEqual({ ownerEmail: "owner@example.com", datasetName: "dataset" });
+    });
+
+    it("askResumeOrSkip resolves with the clicked footer action", async () => {
+      const promise = asComp().askResumeOrSkip({ name: "owner/data/f.csv", file: { size: 100 } }, true);
+      lastFooter()
+        .find(b => b.label === "Resume")!
+        .onClick();
+      await expect(promise).resolves.toBe("resume");
+    });
+
+    it("askUploadOrSkip resolves with the clicked footer action", async () => {
+      const promise = asComp().askUploadOrSkip({ name: "owner/data/f.csv", file: { size: 100 } }, false);
+      lastFooter()
+        .find(b => b.label === "Skip")!
+        .onClick();
+      await expect(promise).resolves.toBe("skip");
+    });
+  });
 });
