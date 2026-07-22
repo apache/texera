@@ -291,6 +291,11 @@ jobs:
           AMBER_TEST_FILTER: skip-integration
           # unit job uses its provisioned postgres catalog; default (rest) needs a Lakekeeper not run here
           STORAGE_ICEBERG_CATALOG_TYPE: postgres
+          # Backstop for CI log volume: the chatty per-worker/per-message engine
+          # logs are DEBUG in source, but pin the JVM root and the spawned Python
+          # UDF workers to WARN so nothing at INFO leaks back into the CI console.
+          TEXERA_SERVICE_LOG_LEVEL: WARN
+          UDF_PYTHON_LOG_STREAMHANDLER_LEVEL: WARN
         run: |
           sbt "DAO/jacoco" \
               "Auth/jacoco" \
@@ -609,6 +614,11 @@ jobs:
         # by amber's unit-test coverage.
         env:
           AMBER_TEST_FILTER: integration-only
+          # Backstop for CI log volume: the chatty per-worker/per-message engine
+          # logs are DEBUG in source, but pin the JVM root and the spawned Python
+          # UDF workers to WARN so nothing at INFO leaks back into the CI console.
+          TEXERA_SERVICE_LOG_LEVEL: WARN
+          UDF_PYTHON_LOG_STREAMHANDLER_LEVEL: WARN
         run: |
           sbt scalafmtCheckAll \
               "scalafixAll --check" \
