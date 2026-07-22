@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.service
 
+import com.fasterxml.jackson.core.JsonProcessingException
 import jakarta.ws.rs.core.Response
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
@@ -63,7 +64,7 @@ class ResultExportServiceSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "throw when given a malformed JSON string" in {
-    an[Exception] should be thrownBy service.parseOperators("not json")
+    a[JsonProcessingException] should be thrownBy service.parseOperators("not json")
   }
 
   // -- validateExportRequest --------------------------------------------------
@@ -71,8 +72,7 @@ class ResultExportServiceSpec extends AnyFlatSpec with Matchers {
   "validateExportRequest" should "return a 400 response when no operators are selected" in {
     val result = service.validateExportRequest(requestWith(List.empty))
 
-    result should be(defined)
-    val response = result.get
+    val response = result.getOrElse(fail("expected a validation error response"))
     response.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
     response.getEntity match {
       case m: java.util.Map[_, _] => m.get("error") shouldBe "No operator selected"
