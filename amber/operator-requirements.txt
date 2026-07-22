@@ -26,7 +26,7 @@ torch==2.12.1+cpu ; platform_system == "Linux" and platform_machine == "x86_64"
 torch==2.12.1 ; platform_system != "Linux" or platform_machine != "x86_64"
 
 scikit-learn==1.7.2
-transformers==5.3.0
+transformers==5.5.0
 # Not imported by any operator template: plotly's create_ternary_contour
 # (ternary contour operator, #4193) requires scikit-image at runtime.
 scikit-image==0.25.2
