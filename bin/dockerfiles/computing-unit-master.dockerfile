@@ -102,11 +102,6 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && apt-get clean
 
-# NOTE: The GeeseFS FUSE mount for LakeFS repositories is NOT performed in this pod.
-# It is done by the per-node texera-mounter DaemonSet (privileged) and exposed here
-# via mount propagation, so this computing-unit pod runs UNPRIVILEGED and needs neither
-# GeeseFS nor FUSE.
-
 # Install Python packages
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install -r /tmp/requirements.txt && \
