@@ -20,7 +20,6 @@
 package org.apache.texera.amber.operator.dictionary
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -41,13 +40,6 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
   * It outputs an extra column to label the tuple if it is matched or not
   * This is the description of the operator
   */
-@JsonSchemaInject(json = """
-{
-  "attributeTypeRules": {
-    "Attribute": { "enum": ["string"] }
-  }
-}
-""")
 class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
   @JsonProperty(value = "Dictionary", required = true)
   @JsonPropertyDescription("dictionary values separated by a comma") var dictionary: String = _

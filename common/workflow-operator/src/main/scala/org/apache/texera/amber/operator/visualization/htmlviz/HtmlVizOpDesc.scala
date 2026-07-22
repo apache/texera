@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.htmlviz
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -36,13 +36,6 @@ import javax.validation.constraints.NotNull
   * HTML Visualization operator to render any given HTML code
   * This is the description of the operator
   */
-@JsonSchemaInject(json = """
-{
-  "attributeTypeRules": {
-    "htmlContentAttrName": { "enum": ["string"] }
-  }
-}
-""")
 class HtmlVizOpDesc extends LogicalOp with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("HTML content")

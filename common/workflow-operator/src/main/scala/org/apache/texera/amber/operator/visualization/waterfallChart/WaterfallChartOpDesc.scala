@@ -36,7 +36,7 @@ import javax.validation.constraints.NotNull
 {
   "attributeTypeRules": {
     "xColumn": { "enum": ["string"] },
-    "yColumn": { "enum": ["double"] }
+    "yColumn": { "enum": ["integer", "long", "double"] }
   }
 }
 """)

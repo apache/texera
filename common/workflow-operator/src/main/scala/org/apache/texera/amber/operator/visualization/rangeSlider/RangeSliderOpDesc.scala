@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.rangeSlider
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -32,6 +32,18 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
+// The y-axis column is aggregated (groupby(...).mean()/.sum()), so it must be
+// numeric. (Upstream's rule referenced a non-existent "value" field — a typo —
+// so no constraint was actually applied; retarget it to the real "Y-axis" field.)
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "Y-axis": {
+      "enum": ["integer", "long", "double"]
+    }
+  }
+}
+""")
 class RangeSliderOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(value = "Y-axis", required = true)
   @JsonSchemaTitle("Y-axis")

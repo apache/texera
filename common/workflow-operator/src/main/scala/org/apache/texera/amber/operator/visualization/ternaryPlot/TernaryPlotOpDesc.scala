@@ -42,7 +42,9 @@ import javax.validation.constraints.NotNull
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
-    "colorDataField": { "enum": ["string"] }
+    "firstVariable": { "enum": ["integer", "long", "double"] },
+    "secondVariable": { "enum": ["integer", "long", "double"] },
+    "thirdVariable": { "enum": ["integer", "long", "double"] }
   }
 }
 """)
