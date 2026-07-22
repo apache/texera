@@ -173,6 +173,28 @@ def test_do_mount_reports_what_geesefs_printed_when_it_fails(mounter):
         mounter.do_mount("7", "dataset-1", "abc", "jwt", "http://fs")
 
 
+def test_a_rejected_mount_leaves_no_empty_directory_behind(mounter):
+    """A mount the proxy refuses is routine; it should not litter until the next resync."""
+    mounter.geesefs_returncode = 1
+
+    with pytest.raises(RuntimeError):
+        mounter.do_mount("7", "dataset-1", "abc", "jwt", "http://fs")
+
+    assert not os.path.exists(os.path.join(mounter.MOUNT_ROOT, "7"))
+
+
+def test_a_rejected_mount_keeps_a_sibling_commit_that_is_mounted(mounter, cu_dir):
+    _, live = cu_dir("7", commit="already-here")
+    mounter.set_mounts(live)
+    mounter.geesefs_returncode = 1
+
+    with pytest.raises(RuntimeError):
+        mounter.do_mount("7", "dataset-1", "new-commit", "jwt", "http://fs")
+
+    assert not os.path.exists(os.path.join(mounter.MOUNT_ROOT, "7", "dataset-1", "new-commit"))
+    assert os.path.isdir(live)  # the working mount is untouched
+
+
 def test_do_mount_times_out_if_the_mount_never_appears(mounter, monkeypatch):
     monkeypatch.setattr(mounter, "MOUNT_TIMEOUT_S", 0)
     mounter.geesefs_mounts = False  # exits 0 without the mount ever appearing

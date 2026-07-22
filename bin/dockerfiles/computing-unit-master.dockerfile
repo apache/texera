@@ -103,7 +103,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 # NOTE: The GeeseFS FUSE mount for LakeFS repositories is NOT performed in this pod.
-# It is done by the per-node texera-mount-agent DaemonSet (privileged) and exposed here
+# It is done by the per-node texera-mounter DaemonSet (privileged) and exposed here
 # via mount propagation, so this computing-unit pod runs UNPRIVILEGED and needs neither
 # GeeseFS nor FUSE.
 

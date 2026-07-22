@@ -110,6 +110,18 @@ def _responds(path):
         return False
 
 
+def _remove_empty_dirs(path, cuid):
+    """Remove `path` and any parents left empty, stopping at the CU's own directory."""
+    stop_at = os.path.normpath(os.path.join(MOUNT_ROOT, cuid))
+    path = os.path.normpath(path)
+    while path.startswith(stop_at):
+        try:
+            os.rmdir(path)
+        except OSError:
+            return  # not empty (another commit is mounted here) or already gone
+        path = os.path.dirname(path)
+
+
 def ensure_shared_root():
     """Make MOUNT_ROOT a shared mount so mounts created under it propagate to peers."""
     os.makedirs(MOUNT_ROOT, exist_ok=True)
@@ -151,6 +163,10 @@ def do_mount(cuid, repo, commit, jwt, file_service_base):
     log(f"mounting {repo}:{commit} for cu {cuid} via: geesefs --endpoint {file_service_base} ... {target}")
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)
     if result.returncode != 0:
+        # Nothing was mounted, so drop the directory just created for it rather than
+        # leaving an empty one behind until the next resync. A rejected mount (an
+        # unreadable repository, say) is a normal outcome, not a reason to litter.
+        _remove_empty_dirs(target, cuid)
         raise RuntimeError(
             f"geesefs exited {result.returncode}: {(result.stdout + result.stderr).strip()}"
         )
