@@ -33,6 +33,7 @@ A background reaper unmounts directories whose owning CU pod no longer exists.
 
 import json
 import os
+import shutil
 import ssl
 import subprocess
 import threading
@@ -173,19 +174,53 @@ def _cu_pod_exists(cuid):
     return status == 200
 
 
+# cuids whose cleanup could not finish on the previous pass. A stuck orphan is retried
+# every cycle, so it is logged only when it first gets stuck rather than every cycle.
+_reap_pending = set()
+
+
 def reap_once():
+    global _reap_pending
     if not os.path.isdir(MOUNT_ROOT):
         return
+    previously_pending = _reap_pending
+    still_pending = set()
+
     for cuid in os.listdir(MOUNT_ROOT):
         cu_dir = os.path.join(MOUNT_ROOT, cuid)
         if not os.path.isdir(cu_dir) or _cu_pod_exists(cuid):
             continue
-        log(f"cu {cuid} pod is gone; unmounting {cu_dir}")
+        first_attempt = cuid not in previously_pending
+        if first_attempt:
+            log(f"cu {cuid} pod is gone; unmounting {cu_dir}")
+
         for dirpath, _, _ in os.walk(cu_dir, topdown=False):
             if os.path.ismount(dirpath):
                 # The mounter is root, so a plain lazy umount works (no setuid fusermount needed).
-                subprocess.run(["umount", "-l", dirpath], check=False)
-        subprocess.run(["rm", "-rf", cu_dir], check=False)
+                result = subprocess.run(["umount", "-l", dirpath], capture_output=True, text=True)
+                if result.returncode != 0 and first_attempt:
+                    log(f"cu {cuid}: umount -l {dirpath} failed: {(result.stdout + result.stderr).strip()}")
+
+        # A lazy umount only detaches once the last reference to the mount goes away, so a
+        # mount another namespace still holds can outlive this pass. Removing the directory
+        # would then fail on every cycle forever, so only remove it once nothing is mounted
+        # underneath and leave it pending otherwise — the mounts are read-only, so an orphan
+        # lingering for a few cycles is harmless.
+        if any(os.path.ismount(dirpath) for dirpath, _, _ in os.walk(cu_dir)):
+            if first_attempt:
+                log(f"cu {cuid}: mounts still busy, leaving {cu_dir} for a later cycle")
+            still_pending.add(cuid)
+            continue
+
+        shutil.rmtree(cu_dir, ignore_errors=True)
+        if os.path.exists(cu_dir):
+            if first_attempt:
+                log(f"cu {cuid}: could not remove {cu_dir}, leaving it for a later cycle")
+            still_pending.add(cuid)
+        else:
+            log(f"cu {cuid}: unmounted and removed {cu_dir}")
+
+    _reap_pending = still_pending
 
 
 def reaper_loop():
