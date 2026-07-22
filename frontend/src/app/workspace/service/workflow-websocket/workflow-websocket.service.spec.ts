@@ -102,4 +102,61 @@ describe("WorkflowWebsocketService", () => {
     service.closeWebsocket();
     expect(service.numWorkers).toBe(-1);
   });
+
+  it("websocketEvent surfaces events pushed onto the response stream", () => {
+    const received: unknown[] = [];
+    const sub = service.websocketEvent().subscribe(event => received.push(event));
+
+    const event = { type: "WorkflowStateEvent", state: "RUNNING" };
+    (service as any).webSocketResponseSubject.next(event);
+    sub.unsubscribe();
+
+    expect(received).toEqual([event]);
+  });
+
+  it("getConnectionStatusStream reflects updateConnectionStatus transitions and guards duplicates", () => {
+    const emissions: boolean[] = [];
+    const sub = service.getConnectionStatusStream().subscribe(value => emissions.push(value));
+
+    // BehaviorSubject seeds `false`; a repeated value is guarded and does not re-emit.
+    (service as any).updateConnectionStatus(true);
+    (service as any).updateConnectionStatus(true);
+    (service as any).updateConnectionStatus(false);
+    sub.unsubscribe();
+
+    expect(emissions).toEqual([false, true, false]);
+    expect(service.isConnected).toBe(false);
+  });
+
+  it("openWebsocket routes an incoming socket message to websocketEvent and marks the connection up", async () => {
+    const originalWebSocket = window.WebSocket;
+    const sockets: FakeWebSocket[] = [];
+    class CapturingWebSocket extends FakeWebSocket {
+      constructor(url: string) {
+        super(url);
+        sockets.push(this);
+      }
+    }
+    window.WebSocket = CapturingWebSocket as unknown as typeof WebSocket;
+
+    try {
+      const events: unknown[] = [];
+      service.websocketEvent().subscribe(event => events.push(event));
+      let connected: boolean | undefined;
+      service.getConnectionStatusStream().subscribe(value => (connected = value));
+
+      service.openWebsocket(1, 1, 1);
+      await Promise.resolve(); // let the fake socket transition to OPEN
+
+      const socket = sockets[sockets.length - 1];
+      const event = { type: "WorkflowStateEvent", state: "RUNNING" };
+      socket.onmessage?.(new MessageEvent("message", { data: JSON.stringify(event) }));
+
+      expect(events).toContainEqual(event);
+      expect(connected).toBe(true);
+    } finally {
+      service.closeWebsocket();
+      window.WebSocket = originalWebSocket;
+    }
+  });
 });
