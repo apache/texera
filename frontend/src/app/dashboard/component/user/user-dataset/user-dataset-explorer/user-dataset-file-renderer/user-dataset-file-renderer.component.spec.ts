@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { UserDatasetFileRendererComponent } from "./user-dataset-file-renderer.component";
+import { getMimeType, MIME_TYPES, UserDatasetFileRendererComponent } from "./user-dataset-file-renderer.component";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { DomSanitizer } from "@angular/platform-browser";
@@ -163,6 +163,35 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(component.isFileLoadingError).toBe(false);
       expect(component.isFileSizeUnloadable).toBe(false);
       expect(component.isFileTypePreviewUnsupported).toBe(false);
+    });
+  });
+
+  describe("getMimeType", () => {
+    it("maps known extensions to their MIME type", () => {
+      expect(getMimeType("photo.png")).toBe(MIME_TYPES.PNG);
+      expect(getMimeType("data.csv")).toBe(MIME_TYPES.CSV);
+      expect(getMimeType("clip.mp4")).toBe(MIME_TYPES.MP4);
+      expect(getMimeType("notes.json")).toBe(MIME_TYPES.JSON);
+    });
+
+    it("resolves the extension case-insensitively", () => {
+      expect(getMimeType("PHOTO.PNG")).toBe(MIME_TYPES.PNG);
+      expect(getMimeType("Report.Csv")).toBe(MIME_TYPES.CSV);
+    });
+
+    it("uses only the final extension for names with multiple dots", () => {
+      expect(getMimeType("archive.tar.gz")).toBe(MIME_TYPES.OCTET_STREAM);
+      expect(getMimeType("my.report.json")).toBe(MIME_TYPES.JSON);
+    });
+
+    it("falls back to octet-stream for unknown extensions", () => {
+      expect(getMimeType("program.exe")).toBe(MIME_TYPES.OCTET_STREAM);
+      expect(getMimeType("archive.bin")).toBe(MIME_TYPES.OCTET_STREAM);
+    });
+
+    it("falls back to octet-stream when there is no extension", () => {
+      expect(getMimeType("README")).toBe(MIME_TYPES.OCTET_STREAM);
+      expect(getMimeType("")).toBe(MIME_TYPES.OCTET_STREAM);
     });
   });
 });
