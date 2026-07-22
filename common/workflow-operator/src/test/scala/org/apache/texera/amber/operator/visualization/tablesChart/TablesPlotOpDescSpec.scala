@@ -83,7 +83,9 @@ class TablesPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     // joining with the literal ',' puts a string right after a call (invalid Python).
     opDesc.includedColumns = List(column("col_one"), column("col_two"))
     val code = opDesc.generatePythonCode()
-    code should include(s"self.decode_python_template('${b64("col_one")}'),self.decode_python_template('${b64("col_two")}')")
+    code should include(
+      s"self.decode_python_template('${b64("col_one")}'),self.decode_python_template('${b64("col_two")}')"
+    )
     code should not include "')','"
   }
 }
