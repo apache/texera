@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.source.dataset
 
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -45,7 +46,7 @@ object FileListerSourceOpExec {
   ): (String, String, String) = {
     val segments = datasetVersionPath.split("/").filter(_.nonEmpty)
     require(
-      segments.length >= 4 && segments.head == "datasets",
+      segments.length >= 4 && segments.head == FileResolver.DATASET_PATH_PREFIX,
       s"Invalid dataset version path '$datasetVersionPath'; " +
         "expected /datasets/ownerEmail/datasetName/versionName"
     )

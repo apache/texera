@@ -78,7 +78,7 @@ object FileResolver {
   // The resource-type segment that identifies a dataset logical path. The prefix selects the
   // resource kind (and thus the backing table) during resolution, so it is REQUIRED: a path
   // without it is not a dataset path. Other resource types (e.g. models) get their own prefix.
-  private val DATASET_PATH_PREFIX = "datasets"
+  val DATASET_PATH_PREFIX = "datasets"
 
   /**
     * Parses a dataset file path and extracts its components.

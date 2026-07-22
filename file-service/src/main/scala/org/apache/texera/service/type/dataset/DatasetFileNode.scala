@@ -20,6 +20,7 @@
 package org.apache.texera.service.`type`
 
 import io.lakefs.clients.sdk.model.ObjectStats
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.storage.util.dataset.PhysicalFileNode
 
 import java.util
@@ -83,7 +84,8 @@ object DatasetFileNode {
     val rootNode = new DatasetFileNode("/", "directory", null, "")
 
     // Add "datasets" prefix node
-    val datasetsNode = new DatasetFileNode("datasets", "directory", rootNode, "")
+    val datasetsNode =
+      new DatasetFileNode(FileResolver.DATASET_PATH_PREFIX, "directory", rootNode, "")
     rootNode.children = Some(List(datasetsNode))
 
     // Owner level nodes map
@@ -160,7 +162,8 @@ object DatasetFileNode {
     val rootNode = new DatasetFileNode("/", "directory", null, "")
 
     // Add "datasets" prefix node
-    val datasetsNode = new DatasetFileNode("datasets", "directory", rootNode, "")
+    val datasetsNode =
+      new DatasetFileNode(FileResolver.DATASET_PATH_PREFIX, "directory", rootNode, "")
     rootNode.children = Some(List(datasetsNode))
 
     val ownerNodes = mutable.Map[String, DatasetFileNode]()
