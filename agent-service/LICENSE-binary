@@ -215,11 +215,12 @@ Agent service npm packages:
   - @ai-sdk/openai@4.0.13
   - @ai-sdk/provider-utils@5.0.9
   - @ai-sdk/provider@4.0.3
+  - @typescript/typescript-linux-x64@7.0.2
   - @vercel/oidc@3.2.0
   - @workflow/serde@4.1.0
   - ai@7.0.26
   - rxjs@7.8.2
-  - typescript@6.0.3
+  - typescript@7.0.2
 
 --------------------------------------------------------------------------------
 Dependencies under the MIT License
