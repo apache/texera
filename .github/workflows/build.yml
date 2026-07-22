@@ -149,7 +149,11 @@ jobs:
       # (reported on #6685). Staging the reports as an artifact lets the follow-up workflow
       # re-upload them with a token so the comment posts reliably. Skipped on
       # backport builds — they check out a different ref and would collide on the
-      # artifact name across the target matrix.
+      # artifact name across the target matrix. The `!cancelled()` guard is a
+      # status-check function, so it overrides the implicit success() and staging
+      # still runs when the unit/browser tests fail (matching the old
+      # always()/!cancelled() upload steps); it only skips a cancelled run, where
+      # the reports would be incomplete anyway.
       - name: Stage frontend coverage for deferred Codecov upload
         if: matrix.os == 'ubuntu-latest' && inputs.backport_target_branch == '' && !cancelled()
         shell: bash
