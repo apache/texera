@@ -125,6 +125,23 @@ class StateSpec extends AnyFlatSpec {
     assert(tuple.getField[String]("content") == """{"x":1}""")
   }
 
+  it should "read the loop envelope back off a materialized tuple" in {
+    // A JVM operator inside a loop body replays materialized states and must
+    // carry loop_counter / loop_start_id through unchanged -- the columns
+    // exist precisely so the envelope survives storage. These extractors are
+    // what InputPortMaterializationReaderThread / PythonProxyServer read; a
+    // rename of the columns on either side must break this.
+    val tuple = State(Map("i" -> 1L)).toTuple(2L, "outer-loop")
+    assert(State.loopCounterFrom(tuple) == 2L)
+    assert(State.loopStartIdFrom(tuple) == "outer-loop")
+  }
+
+  it should "default the loop envelope to the no-loop values" in {
+    val tuple = State(Map("i" -> 1L)).toTuple()
+    assert(State.loopCounterFrom(tuple) == 0L)
+    assert(State.loopStartIdFrom(tuple) == "")
+  }
+
   it should "decode a payload encoded by the Python serializer" in {
     // Wire-format compatibility check: the bytes-marker keys and the
     // single-row "content" column must match what core/models/state.py
