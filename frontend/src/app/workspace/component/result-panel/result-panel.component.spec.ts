@@ -93,6 +93,12 @@ describe("ResultPanelComponent", () => {
     // down so state never leaks into the next test.
     vi.restoreAllMocks();
     fixture.destroy();
+    // fixture.destroy() runs ngOnDestroy, which persists the panel dimensions/style
+    // into localStorage; those keys are read back in the constructor/ngOnInit and would
+    // otherwise leak across specs. Remove only the keys this component writes.
+    localStorage.removeItem("result-panel-width");
+    localStorage.removeItem("result-panel-height");
+    localStorage.removeItem("result-panel-style");
   });
 
   const makeFatalError = (operatorId: string): WorkflowFatalError => ({
