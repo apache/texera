@@ -333,8 +333,8 @@ describe("WorkflowCompilingService public getters", () => {
 describe("WorkflowCompilingService.setOperatorInputAttrs / restoreOperatorInputAttrs", () => {
   const port0 = serializePortIdentity({ id: 0, internal: false });
 
-  // Builds an OperatorSchema wrapping the given json schema. Only jsonSchema and
-  // (for restore) additionalMetadata.inputPorts matter for these pure transforms.
+  // Builds an OperatorSchema wrapping the given json schema. Only jsonSchema matters for these pure transforms;
+  // additionalMetadata is included only to satisfy the OperatorSchema type.
   const makeOperatorSchema = (jsonSchema: any): OperatorSchema =>
     ({
       operatorType: "TestOp",
