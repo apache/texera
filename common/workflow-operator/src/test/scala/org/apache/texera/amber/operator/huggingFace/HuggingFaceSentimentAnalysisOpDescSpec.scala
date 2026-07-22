@@ -130,4 +130,13 @@ class HuggingFaceSentimentAnalysisOpDescSpec extends AnyFlatSpec with Matchers {
     h.resultAttributeNeutral shouldBe "neu"
     h.resultAttributeNegative shouldBe "neg"
   }
+
+  "HuggingFaceSentimentAnalysisOpDesc.generatePythonCode" should
+    "not import the unused TensorFlow-only symbol" in {
+    // The TF-only symbol was imported but unused; it raises ImportError in a
+    // PyTorch-only transformers install, crashing the generated script.
+    val code = configured().generatePythonCode()
+    code should not include "TFAutoModelForSequenceClassification"
+    code should include("from transformers import AutoModelForSequenceClassification")
+  }
 }
