@@ -80,11 +80,8 @@ describe("SharedModelChangeHandler", () => {
 
   afterEach(() => {
     // Tear down the underlying shared model (awareness / websocket provider) to avoid leaks across tests.
-    try {
-      texeraGraph.destroyYModel();
-    } catch (e) {
-      // a test that called loadNewYModel already destroyed the previous model; ignore.
-    }
+    // If this throws, the test should fail so we don't silently leak shared-editing resources.
+    texeraGraph.destroyYModel();
     vi.restoreAllMocks();
   });
 
