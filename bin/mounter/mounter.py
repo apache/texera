@@ -28,7 +28,7 @@ propagates back into the CU pod (mountPropagation: HostToContainer), so the CU p
 the mount without any privilege of its own.
 
 The mounter holds no LakeFS credentials; authorization stays entirely in file-service.
-A background reaper unmounts directories whose owning CU pod no longer exists.
+A background watcher unmounts a CU's directories as soon as its pod is deleted.
 """
 
 import json
@@ -46,9 +46,13 @@ MOUNTER_PORT = int(os.environ.get("MOUNTER_PORT", "8100"))
 POOL_NAMESPACE = os.environ.get("POOL_NAMESPACE", "texera-workflow-computing-unit-pool")
 MOUNT_SECRET_PLACEHOLDER = "texera-jwt-mount"
 MOUNT_TIMEOUT_S = 30
-REAPER_INTERVAL_S = 60
+# How long the API server keeps a watch open. Each expiry re-runs the reconcile, which is
+# the safety net for events missed while disconnected and for orphans still busy earlier.
+WATCH_TIMEOUT_S = 300
+WATCH_RETRY_S = 10
 
 SA_DIR = "/var/run/secrets/kubernetes.io/serviceaccount"
+POD_NAME_PREFIX = "computing-unit-"
 
 
 def log(msg):
@@ -144,97 +148,144 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
-# ---- reaper: unmount directories whose owning CU pod is gone ----
+# ---- watcher: unmount a CU's directories once its pod is deleted ----
 
-def _k8s_get(path):
-    try:
-        with open(os.path.join(SA_DIR, "token")) as f:
-            token = f.read().strip()
-    except OSError:
-        return None  # not running in-cluster; skip reaping
+def _k8s_open(path, timeout):
+    """GET against the in-cluster API server. Returns the response; the caller must close it."""
+    with open(os.path.join(SA_DIR, "token")) as f:
+        token = f.read().strip()
     host = os.environ.get("KUBERNETES_SERVICE_HOST", "kubernetes.default.svc")
     port = os.environ.get("KUBERNETES_SERVICE_PORT", "443")
-    url = f"https://{host}:{port}{path}"
     ctx = ssl.create_default_context(cafile=os.path.join(SA_DIR, "ca.crt"))
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-    try:
-        with urllib.request.urlopen(req, timeout=10, context=ctx) as r:
-            return r.status
-    except urllib.error.HTTPError as e:
-        return e.code
-    except Exception as e:  # noqa: BLE001
-        log(f"reaper k8s query failed: {e}")
+    req = urllib.request.Request(
+        f"https://{host}:{port}{path}", headers={"Authorization": f"Bearer {token}"}
+    )
+    return urllib.request.urlopen(req, timeout=timeout, context=ctx)
+
+
+def _cuid_of(pod_name):
+    """The cuid a CU pod name belongs to, or None if it is not a CU pod."""
+    if not pod_name.startswith(POD_NAME_PREFIX):
         return None
+    return pod_name[len(POD_NAME_PREFIX):] or None
 
 
-def _cu_pod_exists(cuid):
-    status = _k8s_get(f"/api/v1/namespaces/{POOL_NAMESPACE}/pods/computing-unit-{cuid}")
-    if status is None:
-        return True  # can't tell → keep the mount (fail safe)
-    return status == 200
+def _list_cu_pods():
+    """(live cuids, resourceVersion) for the pool namespace, or (None, None) if unreachable."""
+    try:
+        with _k8s_open(f"/api/v1/namespaces/{POOL_NAMESPACE}/pods", timeout=30) as response:
+            pods = json.loads(response.read())
+    except Exception as e:  # noqa: BLE001
+        log(f"listing CU pods failed: {e}")
+        return None, None
+    live = {
+        cuid
+        for cuid in (_cuid_of(p.get("metadata", {}).get("name", "")) for p in pods.get("items", []))
+        if cuid
+    }
+    return live, pods.get("metadata", {}).get("resourceVersion")
 
 
-# cuids whose cleanup could not finish on the previous pass. A stuck orphan is retried
-# every cycle, so it is logged only when it first gets stuck rather than every cycle.
-_reap_pending = set()
+def clean_cu_dir(cuid, quiet=False):
+    """Unmount everything under a departed CU's directory and remove it.
+
+    Returns True once the directory is gone. `quiet` suppresses the messages for an orphan
+    already reported, so a repeatedly retried one does not re-log on every resync.
+    """
+    cu_dir = os.path.join(MOUNT_ROOT, cuid)
+    if not os.path.isdir(cu_dir):
+        return True
+    if not quiet:
+        log(f"cu {cuid} pod is gone; unmounting {cu_dir}")
+
+    for dirpath, _, _ in os.walk(cu_dir, topdown=False):
+        if os.path.ismount(dirpath):
+            # The mounter is root, so a plain lazy umount works (no setuid fusermount needed).
+            result = subprocess.run(["umount", "-l", dirpath], capture_output=True, text=True)
+            if result.returncode != 0 and not quiet:
+                log(f"cu {cuid}: umount -l {dirpath} failed: {(result.stdout + result.stderr).strip()}")
+
+    # A lazy umount only detaches once the last reference to the mount goes away, so a mount
+    # another namespace still holds can outlive this call. Removing the directory would then
+    # fail, so only remove it once nothing is mounted underneath and let the next resync retry
+    # the rest — the mounts are read-only, so an orphan lingering a while is harmless.
+    if any(os.path.ismount(dirpath) for dirpath, _, _ in os.walk(cu_dir)):
+        if not quiet:
+            log(f"cu {cuid}: mounts still busy, leaving {cu_dir} for the next resync")
+        return False
+
+    shutil.rmtree(cu_dir, ignore_errors=True)
+    if os.path.exists(cu_dir):
+        if not quiet:
+            log(f"cu {cuid}: could not remove {cu_dir}, leaving it for the next resync")
+        return False
+    log(f"cu {cuid}: unmounted and removed {cu_dir}")
+    return True
 
 
-def reap_once():
-    global _reap_pending
+# cuids whose cleanup could not finish, retried on the next resync and logged only once.
+_pending = set()
+
+
+def reconcile(live_cuids):
+    """Clean up every mount directory with no live CU pod behind it."""
+    global _pending
     if not os.path.isdir(MOUNT_ROOT):
         return
-    previously_pending = _reap_pending
     still_pending = set()
-
     for cuid in os.listdir(MOUNT_ROOT):
-        cu_dir = os.path.join(MOUNT_ROOT, cuid)
-        if not os.path.isdir(cu_dir) or _cu_pod_exists(cuid):
+        if cuid in live_cuids or not os.path.isdir(os.path.join(MOUNT_ROOT, cuid)):
             continue
-        first_attempt = cuid not in previously_pending
-        if first_attempt:
-            log(f"cu {cuid} pod is gone; unmounting {cu_dir}")
-
-        for dirpath, _, _ in os.walk(cu_dir, topdown=False):
-            if os.path.ismount(dirpath):
-                # The mounter is root, so a plain lazy umount works (no setuid fusermount needed).
-                result = subprocess.run(["umount", "-l", dirpath], capture_output=True, text=True)
-                if result.returncode != 0 and first_attempt:
-                    log(f"cu {cuid}: umount -l {dirpath} failed: {(result.stdout + result.stderr).strip()}")
-
-        # A lazy umount only detaches once the last reference to the mount goes away, so a
-        # mount another namespace still holds can outlive this pass. Removing the directory
-        # would then fail on every cycle forever, so only remove it once nothing is mounted
-        # underneath and leave it pending otherwise — the mounts are read-only, so an orphan
-        # lingering for a few cycles is harmless.
-        if any(os.path.ismount(dirpath) for dirpath, _, _ in os.walk(cu_dir)):
-            if first_attempt:
-                log(f"cu {cuid}: mounts still busy, leaving {cu_dir} for a later cycle")
+        if not clean_cu_dir(cuid, quiet=cuid in _pending):
             still_pending.add(cuid)
-            continue
-
-        shutil.rmtree(cu_dir, ignore_errors=True)
-        if os.path.exists(cu_dir):
-            if first_attempt:
-                log(f"cu {cuid}: could not remove {cu_dir}, leaving it for a later cycle")
-            still_pending.add(cuid)
-        else:
-            log(f"cu {cuid}: unmounted and removed {cu_dir}")
-
-    _reap_pending = still_pending
+    _pending = still_pending
 
 
-def reaper_loop():
+def _handle_event(line):
+    try:
+        event = json.loads(line)
+    except ValueError:
+        return
+    if event.get("type") != "DELETED":
+        return
+    cuid = _cuid_of(event.get("object", {}).get("metadata", {}).get("name", ""))
+    if cuid and not clean_cu_dir(cuid, quiet=cuid in _pending):
+        _pending.add(cuid)
+
+
+def watch_loop():
+    """List-then-watch CU pods, unmounting a CU's mounts as soon as its pod is deleted.
+
+    The initial LIST reconciles whatever was missed while the mounter was down; the WATCH
+    then reacts to deletions immediately. The API server closes the watch every
+    WATCH_TIMEOUT_S, and the resulting re-LIST doubles as the safety net for events missed
+    across a disconnect and for orphans whose unmount could not complete earlier.
+    """
+    if not os.path.exists(os.path.join(SA_DIR, "token")):
+        log("no service account token; not running in-cluster, pod watch disabled")
+        return
     while True:
-        time.sleep(REAPER_INTERVAL_S)
+        live, resource_version = _list_cu_pods()
+        if live is None:  # API unreachable → keep every mount (fail safe) and retry
+            time.sleep(WATCH_RETRY_S)
+            continue
+        reconcile(live)
         try:
-            reap_once()
+            with _k8s_open(
+                f"/api/v1/namespaces/{POOL_NAMESPACE}/pods?watch=1"
+                f"&resourceVersion={resource_version}&timeoutSeconds={WATCH_TIMEOUT_S}",
+                timeout=WATCH_TIMEOUT_S + 30,
+            ) as response:
+                for line in response:
+                    _handle_event(line)
         except Exception as e:  # noqa: BLE001
-            log(f"reaper error: {e}")
+            log(f"pod watch failed ({e}); resyncing")
+            time.sleep(WATCH_RETRY_S)
 
 
 def main():
     ensure_shared_root()
-    threading.Thread(target=reaper_loop, daemon=True).start()
+    threading.Thread(target=watch_loop, daemon=True).start()
     log(f"listening on :{MOUNTER_PORT}, mount root {MOUNT_ROOT}, pool ns {POOL_NAMESPACE}")
     ThreadingHTTPServer(("0.0.0.0", MOUNTER_PORT), Handler).serve_forever()
 

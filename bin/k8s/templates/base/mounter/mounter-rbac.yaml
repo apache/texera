@@ -15,8 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# The mounter's reaper reads computing-unit pods (in the pool namespace) to detect
-# when a CU is gone and unmount its orphaned mounts. It needs only read access to pods.
+# The mounter watches computing-unit pods (in the pool namespace) so it can unmount a CU's
+# mounts as soon as its pod is deleted. It needs only read access to pods.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
