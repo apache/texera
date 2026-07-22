@@ -57,7 +57,9 @@ describe("VersionsListComponent", () => {
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
     workflowVersionService = TestBed.inject(WorkflowVersionService);
-    fixture.detectChanges();
+    // Intentionally do NOT call fixture.detectChanges() here: the ngOnInit specs configure
+    // their spies and then invoke ngOnInit() themselves, so this lets them observe the
+    // first/only invocation. Tests that need the rendered template call detectChanges() locally.
   });
 
   afterEach(() => {
