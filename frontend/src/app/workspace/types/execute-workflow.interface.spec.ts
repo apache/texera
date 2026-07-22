@@ -62,6 +62,10 @@ describe("isWebDataUpdate", () => {
   it("returns false for a pagination-mode update", () => {
     expect(isWebDataUpdate(paginationUpdate)).toBe(false);
   });
+
+  it("returns false for an undefined update without throwing", () => {
+    expect(isWebDataUpdate(undefined as any)).toBe(false);
+  });
 });
 
 describe("isNotInExecution", () => {
