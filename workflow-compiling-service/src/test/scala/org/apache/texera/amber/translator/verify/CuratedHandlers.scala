@@ -22,6 +22,7 @@ package org.apache.texera.amber.translator.verify
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.distinct.DistinctOpDesc
 import org.apache.texera.amber.operator.aggregate.{
   AggregateOpDesc,
   AggregationFunction,
@@ -34,7 +35,9 @@ import org.apache.texera.amber.operator.filter.{
 }
 import org.apache.texera.amber.operator.hashJoin.{HashJoinOpDesc, JoinType}
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
+import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
+import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
 import org.apache.texera.amber.operator.visualization.bulletChart.{
   BulletChartOpDesc,
@@ -193,8 +196,11 @@ object CuratedHandlers {
   val all: Seq[TransformHandler] = Seq(
     AggregateTransformHandler,
     SpecializedFilterTransformHandler,
+    DistinctTransformHandler,
     HashJoinTransformHandler,
     TypeCastingTransformHandler,
+    UnnestStringTransformHandler,
+    SleepTransformHandler,
     ProjectionTransformHandler,
     BulletChartVisualizationHandler,
     ImageVisualizerVisualizationHandler,
@@ -463,6 +469,33 @@ object SpecializedFilterTransformHandler extends TransformHandler {
   }
 }
 
+/** Handler for `DistinctOpDesc`. The canonical auto-fixture is all-distinct
+  * (uniq_name is globally unique by invariant), so it never exercises dedup.
+  * This 5-row table repeats two rows so both paths must actually drop
+  * duplicates; survivors keep first-occurrence order (JVM LinkedHashSet ==
+  * pandas drop_duplicates keep="first"), so the positional comparator holds.
+  */
+object DistinctTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[DistinctOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val columns = Seq(
+      ("id", AttributeType.INTEGER),
+      ("name", AttributeType.STRING)
+    )
+    val rows = Seq(
+      Seq[Any](1, "a"),
+      Seq[Any](2, "b"),
+      Seq[Any](1, "a"), // duplicate of row 0
+      Seq[Any](3, "c"),
+      Seq[Any](2, "b") // duplicate of row 1
+    )
+    val inputPath =
+      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
+    (new DistinctOpDesc(), Map(PortIdentity(0) -> inputPath))
+  }
+}
+
 /** HashJoin INNER on `id`. Build (port 0) and probe (port 1) intentionally
   *  arrive in different id orders so any probe-major / left-major mismatch
   *  between the JVM emit and `pd.merge` shows up. Order policy lives in
@@ -623,6 +656,59 @@ object TypeCastingTransformHandler extends TransformHandler {
     )
 
     (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
+/**
+  * Handler for `UnnestStringOpDesc`. The auto tier points `attribute` at the
+  * canonical fixture's first column (`id`), which holds no delimiter — so the
+  * split/explode collapses to 1 row → 1 row and never exercises the operator's
+  * core "one row → many rows" behavior. This fixture supplies a real
+  * comma-delimited STRING column so each input row fans out to several output
+  * rows, and carries a second (`id`) column to verify explode duplicates the
+  * other columns per exploded value. Rows split 3/2/1/4 → 10 output rows.
+  */
+object UnnestStringTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[UnnestStringOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val columns = Seq(
+      ("id", AttributeType.INTEGER),
+      ("csv", AttributeType.STRING)
+    )
+    val rows = Seq(
+      Seq[Any](1, "a,b,c"),
+      Seq[Any](2, "x,y"),
+      Seq[Any](3, "solo"),
+      Seq[Any](4, "p,q,r,s")
+    )
+    val inputPath =
+      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
+
+    val desc = new UnnestStringOpDesc()
+    desc.attribute = "csv"
+    desc.delimiter = ","
+    desc.resultAttribute = "unnestResult"
+
+    (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
+/**
+  * Handler for `SleepOpDesc`. Sleep is a pure passthrough (it delays each tuple
+  * but never changes the data), so the auto tier's `sleepTime` — filled to
+  * rowCount/2 and multiplied by 1000ms per tuple in `SleepOpExec` — makes Path A
+  * sleep for ~tens of seconds with no effect on the compared output. Pin
+  * `sleepTime = 0` so the passthrough is verified instantly; the delay is
+  * irrelevant to the data-equivalence check.
+  */
+object SleepTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[SleepOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val desc = new SleepOpDesc()
+    desc.sleepTime = 0
+    (desc, CanonicalFixture.writeInputs(testRoot, 1))
   }
 }
 
