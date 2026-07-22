@@ -203,11 +203,11 @@ describe("DynamicSchemaService.mutateProperty", () => {
     expect((result.definitions!.target as CustomJSONSchema7).description).toEqual("mutated");
   });
 
-  it("should recurse into array items to find the matched property", () => {
+  it("should recurse into array items and single-schema items to find the matched property", () => {
     const original = {
       type: "object",
       properties: {
-        list: {
+        listTuple: {
           type: "array",
           items: [
             {
@@ -218,14 +218,27 @@ describe("DynamicSchemaService.mutateProperty", () => {
             },
           ],
         },
+        listSchema: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              target: { type: "string", description: "original" },
+            },
+          },
+        },
       },
     } as CustomJSONSchema7;
 
     const result = DynamicSchemaService.mutateProperty(original, matchByName("target"), markMutated);
 
-    const list = result.properties!.list as CustomJSONSchema7;
-    const firstItem = (list.items as CustomJSONSchema7[])[0];
+    const listTuple = result.properties!.listTuple as CustomJSONSchema7;
+    const firstItem = (listTuple.items as CustomJSONSchema7[])[0];
     expect((firstItem.properties!.target as CustomJSONSchema7).description).toEqual("mutated");
+
+    const listSchema = result.properties!.listSchema as CustomJSONSchema7;
+    const itemSchema = listSchema.items as CustomJSONSchema7;
+    expect((itemSchema.properties!.target as CustomJSONSchema7).description).toEqual("mutated");
   });
 
   it("should not invoke the mutation function when nothing matches", () => {
