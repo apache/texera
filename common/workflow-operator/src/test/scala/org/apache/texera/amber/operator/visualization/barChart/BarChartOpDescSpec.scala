@@ -110,4 +110,14 @@ class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     ex.getMessage should (include("Value column") or include("Fields"))
   }
 
+  "BarChartOpDesc.generatePythonCode" should "treat an unset categoryColumn as no category (color guarded to None)" in {
+    // An empty categoryColumn (its Scala default) must guard color to None, not
+    // emit `... if True else None` with an empty column name for px.bar(color=).
+    opDesc.value = "score"
+    opDesc.fields = "name"
+    val code = opDesc.generatePythonCode()
+    code should include("if False else None")
+    code should not include "if True else None"
+  }
+
 }
