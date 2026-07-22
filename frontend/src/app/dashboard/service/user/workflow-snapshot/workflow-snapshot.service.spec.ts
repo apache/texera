@@ -19,15 +19,16 @@
 
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
+import html2canvas from "html2canvas";
 import {
   WorkflowSnapshotService,
   WORKFLOW_SNAPSHOT_API_BASE_URL,
   WORKFLOW_SNAPSHOT_UPLOAD_URL,
 } from "./workflow-snapshot.service";
 
-// createSnapShotCanvas() delegates to html2canvas, whose module-level mock is not
-// reliable here (other specs import it unmocked and the builder shares one module
-// registry), so it is exercised in the e2e/browser suite rather than pinned here.
+// Stub html2canvas so createSnapShotCanvas() can be unit tested under jsdom.
+vi.mock("html2canvas", () => ({ default: vi.fn() }));
+
 describe("WorkflowSnapshotService", () => {
   let service: WorkflowSnapshotService;
   let httpMock: HttpTestingController;
@@ -69,6 +70,18 @@ describe("WorkflowSnapshotService", () => {
       expect((req.request.body as FormData).get("wid")).toEqual("");
       req.flush({});
     });
+
+    it("propagates a server error to the caller", () => {
+      let errored = false;
+      service.uploadWorkflowSnapshot(new Blob([]), 12).subscribe({ error: (_e: unknown) => (errored = true) });
+
+      httpMock.expectOne(WORKFLOW_SNAPSHOT_UPLOAD_URL).flush("boom", {
+        status: 500,
+        statusText: "Server Error",
+      });
+
+      expect(errored).toBe(true);
+    });
   });
 
   describe("retrieveWorkflowSnapshot", () => {
@@ -94,6 +107,23 @@ describe("WorkflowSnapshotService", () => {
       });
 
       expect(errored).toBe(true);
+    });
+  });
+
+  describe("createSnapShotCanvas", () => {
+    it("falls back to document.body and applies the crop ratios", async () => {
+      const fakeCanvas = document.createElement("canvas");
+      vi.mocked(html2canvas).mockResolvedValue(fakeCanvas);
+      // No #texera-workflow-editor element, so it should fall back to document.body.
+      vi.spyOn(document, "getElementById").mockReturnValue(null);
+      vi.spyOn(document.body, "getBoundingClientRect").mockReturnValue({ height: 200, width: 100 } as DOMRect);
+
+      const result = await service.createSnapShotCanvas(0.5, 0.1, 0.25, 0.2);
+
+      expect(result).toBe(fakeCanvas);
+      const [target, options] = vi.mocked(html2canvas).mock.calls[0];
+      expect(target).toBe(document.body);
+      expect(options).toEqual(expect.objectContaining({ height: 100, y: 20, width: 25, x: 20 }));
     });
   });
 });
