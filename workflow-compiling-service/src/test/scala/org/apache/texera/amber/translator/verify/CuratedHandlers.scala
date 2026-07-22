@@ -39,6 +39,11 @@ import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
+import org.apache.texera.amber.operator.sort.{
+  SortCriteriaUnit,
+  SortPreference,
+  StableMergeSortOpDesc
+}
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
 import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
@@ -69,6 +74,7 @@ import org.apache.texera.amber.operator.huggingFace.HuggingFaceSpamSMSDetectionO
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.nio.file.{Files, Path}
 import java.util
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 
 /**
@@ -217,7 +223,8 @@ object CuratedHandlers {
     IfTransformHandler,
     MachineLearningScorerTransformHandler,
     HuggingFaceSpamSMSDetectionTransformHandler,
-    RegexTransformHandler
+    RegexTransformHandler,
+    StableMergeSortTransformHandler
   ) ++ sklearnAutoHandlers
 
   val byClass: Map[Class[_ <: LogicalOp], TransformHandler] =
@@ -606,6 +613,32 @@ object RegexTransformHandler extends TransformHandler {
         Map(PortIdentity(0) -> dotInput)
       )
     )
+  }
+}
+
+/**
+  * Curated handler for [[StableMergeSortOpDesc]]. Reuses the shared canonical
+  * fixture (no bespoke input) and only PINS the sort key to `name` — a column
+  * that carries tie groups ("1"×3, alice/bob/carol/dave ×2) in shuffled row
+  * order. The auto tier instead sorts on `id` (the first unused column), which
+  * is unique, so ties never occur and the operator's defining STABLE property
+  * is never exercised. With a tied key, a non-stable sort would reorder
+  * equal-key rows differently from the JVM incremental stable merge, so this
+  * pins that behavior; the runner's enum sweep runs both ASC and DESC (ties stay
+  * in input order regardless of direction, matching `na_position`-independent
+  * stability on both sides). Sort output is order-sensitive, so the comparator
+  * checks row order strictly.
+  */
+object StableMergeSortTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[StableMergeSortOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val criteria = new SortCriteriaUnit()
+    criteria.attributeName = "name"
+    criteria.sortPreference = SortPreference.ASC
+    val desc = new StableMergeSortOpDesc()
+    desc.keys = ListBuffer(criteria)
+    (desc, CanonicalFixture.writeInputs(testRoot, 1))
   }
 }
 
@@ -1011,6 +1044,48 @@ object DumbbellPlotVisualizationHandler extends TransformHandler {
   }
 }
 
+/** GanttChart visualization fixture with two non-overlapping tasks. Uses its own
+  * STRING datetime columns (not the canonical TIMESTAMP `start_ts`/`finish_ts`)
+  * because the two paths serialize a TIMESTAMP differently to their pandas input
+  * (JVM ISO string vs epoch millis), which makes px.timeline emit divergent
+  * figures. ISO datetime STRINGS round-trip identically on both paths, so a
+  * curated fixture is required here — @SampleColumn onto the TIMESTAMP columns
+  * does not work (verified: default variant fails with a Plotly JSON mismatch).
+  */
+object GanttChartVisualizationHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[GanttChartOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val schema = new Schema(
+      new Attribute("task", AttributeType.STRING),
+      new Attribute("start", AttributeType.STRING),
+      new Attribute("finish", AttributeType.STRING)
+    )
+
+    def tup(task: String, start: String, finish: String): Tuple = {
+      val builder = Tuple.builder(schema)
+      builder.add(schema.getAttribute("task"), task)
+      builder.add(schema.getAttribute("start"), start)
+      builder.add(schema.getAttribute("finish"), finish)
+      builder.build()
+    }
+
+    val rows = Seq(
+      tup("Design", "2024-01-01 09:00:00", "2024-01-01 11:00:00"),
+      tup("Build", "2024-01-01 11:00:00", "2024-01-01 15:00:00")
+    )
+    val inputPath = testRoot.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(inputPath, rows.iterator, schema)
+
+    val desc = new GanttChartOpDesc()
+    desc.task = "task"
+    desc.start = "start"
+    desc.finish = "finish"
+
+    (desc, Map(PortIdentity(0) -> inputPath))
+  }
+}
+
 /** FilledAreaPlot visualization fixture with a simple monotonic series. */
 object FilledAreaPlotVisualizationHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[FilledAreaPlotOpDesc]
@@ -1043,43 +1118,6 @@ object FilledAreaPlotVisualizationHandler extends TransformHandler {
     // sweep can exercise facetColumn=true without an empty column name.
     desc.lineGroup = "grp"
     desc.facetColumn = false
-
-    (desc, Map(PortIdentity(0) -> inputPath))
-  }
-}
-
-/** GanttChart visualization fixture with two non-overlapping tasks. */
-object GanttChartVisualizationHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[GanttChartOpDesc]
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    // TupleIO MVP writes STRING/INT/DOUBLE only; ISO datetime strings are
-    // sufficient for px.timeline on both the Texera and standalone paths.
-    val schema = new Schema(
-      new Attribute("task", AttributeType.STRING),
-      new Attribute("start", AttributeType.STRING),
-      new Attribute("finish", AttributeType.STRING)
-    )
-
-    def tup(task: String, start: String, finish: String): Tuple = {
-      val builder = Tuple.builder(schema)
-      builder.add(schema.getAttribute("task"), task)
-      builder.add(schema.getAttribute("start"), start)
-      builder.add(schema.getAttribute("finish"), finish)
-      builder.build()
-    }
-
-    val rows = Seq(
-      tup("Design", "2024-01-01 09:00:00", "2024-01-01 11:00:00"),
-      tup("Build", "2024-01-01 11:00:00", "2024-01-01 15:00:00")
-    )
-    val inputPath = testRoot.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(inputPath, rows.iterator, schema)
-
-    val desc = new GanttChartOpDesc()
-    desc.task = "task"
-    desc.start = "start"
-    desc.finish = "finish"
 
     (desc, Map(PortIdentity(0) -> inputPath))
   }
