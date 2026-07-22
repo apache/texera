@@ -208,8 +208,7 @@
               <li
                 nz-menu-item
                 *ngIf="showHeatmap"
-                class="heatmap-view-options"
-                [nzSelectable]="false">
+                class="heatmap-view-options">
                 <nz-radio-group
                   [(ngModel)]="heatmapView"
                   (ngModelChange)="setHeatmapView($event)"
