@@ -61,4 +61,13 @@ describe("FileSaverService", () => {
 
     expect(saveAs).toHaveBeenCalledWith(blob, undefined, undefined);
   });
+
+  it("propagates errors thrown by saveAs instead of swallowing them", () => {
+    const failure = new Error("save failed");
+    vi.mocked(saveAs).mockImplementationOnce(() => {
+      throw failure;
+    });
+
+    expect(() => service.saveAs(new Blob(["oops"]), "oops.txt")).toThrow(failure);
+  });
 });
