@@ -111,12 +111,8 @@ class ImageTaskCodegenSpec extends AnyFlatSpec with Matchers {
 
   it should "route image-to-image through the raw binary body path" in {
     val out = ImageTaskCodegen.payloadPython(makeCtx())
-    out should include(
-      """elif task == "image-to-image":
-                 payload = current_image_bytes
-                 use_raw_binary_body = True
-                 raw_binary_headers = image_headers"""
-    )
+    out should include regex
+      """elif task == "image-to-image":\s+payload = current_image_bytes\s+use_raw_binary_body = True\s+raw_binary_headers = image_headers"""
   }
 
   it should "fall back to shipping the raw prompt as inputs" in {
