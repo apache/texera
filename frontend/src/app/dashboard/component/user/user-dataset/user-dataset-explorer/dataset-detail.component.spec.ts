@@ -1008,4 +1008,32 @@ describe("DatasetDetailComponent behavior", () => {
       expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to copy file path");
     });
   });
+
+  describe("upload status, version-node selection, and trackBy", () => {
+    it("getUploadStatus maps the upload status to a progress state", () => {
+      expect(component.getUploadStatus("uploading")).toBe("active");
+      expect(component.getUploadStatus("initializing")).toBe("active");
+      expect(component.getUploadStatus("aborted")).toBe("exception");
+      expect(component.getUploadStatus("failed")).toBe("exception");
+      expect(component.getUploadStatus("finished")).toBe("success");
+    });
+
+    it("onVersionFileTreeNodeSelected loads the selected node's content", () => {
+      const node = { name: "file.csv", type: "file" } as unknown as Parameters<
+        typeof component.onVersionFileTreeNodeSelected
+      >[0];
+      const loadSpy = vi
+        .spyOn(component as unknown as { loadFileContent: (n: unknown) => void }, "loadFileContent")
+        .mockImplementation(() => {});
+
+      component.onVersionFileTreeNodeSelected(node);
+
+      expect(loadSpy).toHaveBeenCalledWith(node);
+    });
+
+    it("trackByTask returns the task's file path", () => {
+      const task = { filePath: "owner/data/file.csv" } as unknown as Parameters<typeof component.trackByTask>[1];
+      expect(component.trackByTask(0, task)).toBe("owner/data/file.csv");
+    });
+  });
 });
