@@ -1117,17 +1117,20 @@ describe("JointGraphWrapperService", () => {
     });
 
     it("setCurrentEditing returns an interval that removeCurrentEditing clears", () => {
-      // Fake timers keep the 300ms animation callback from ever running for real.
-      vi.useFakeTimers();
+      // Deliberately NOT using fake timers: zone.js patches setInterval/clearInterval
+      // too, and driving vitest's fake clock through that patched pair behaves
+      // differently across Node versions. This body is fully synchronous, so the
+      // 300ms animation callback can never be reached before it is cleared.
+      const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval");
+      const intervalId = jointGraphWrapper.setCurrentEditing(coeditor, mockScanPredicate.operatorID);
       try {
-        const intervalId = jointGraphWrapper.setCurrentEditing(coeditor, mockScanPredicate.operatorID);
         expect(intervalId).toBeDefined();
 
         jointGraphWrapper.removeCurrentEditing(coeditor, mockScanPredicate.operatorID, intervalId);
-        // once cleared, advancing past the interval must not invoke the callback
-        expect(() => vi.advanceTimersByTime(1000)).not.toThrow();
+        expect(clearIntervalSpy).toHaveBeenCalledWith(intervalId);
       } finally {
-        vi.useRealTimers();
+        clearInterval(intervalId);
+        clearIntervalSpy.mockRestore();
       }
     });
 
