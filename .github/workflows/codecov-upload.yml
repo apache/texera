@@ -85,6 +85,10 @@ jobs:
         with:
           script: |
             const runId = Number(process.env.SOURCE_RUN_ID);
+            if (!Number.isInteger(runId) || runId <= 0) {
+              core.setFailed(`Invalid source run id: '${process.env.SOURCE_RUN_ID}' (expected a positive integer)`);
+              return;
+            }
             const arts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
               owner: context.repo.owner, repo: context.repo.repo, run_id: runId, per_page: 100,
             });
@@ -110,7 +114,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        flag: ${{ fromJSON(needs.discover.outputs.flags) }}
+        # `|| '[]'` guards matrix evaluation if the output is ever an empty string
+        # (discover skipped/failed); the job `if` above still skips the empty case.
+        flag: ${{ fromJSON(needs.discover.outputs.flags || '[]') }}
     steps:
       - name: Download staged coverage for ${{ matrix.flag }}
         # No continue-on-error: discover confirmed this artifact exists, so a download
