@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784729839758,
+  "lastUpdate": 1784812818752,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -5759,6 +5759,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 516.1795060551675,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "dda9e830f54e0fa74dcf0fd5d41a3c2e1a0c989c",
+          "message": "ci: discover staged Codecov flags instead of a hardcoded matrix (#6824)\n\n### What changes were proposed in this PR?\n\nFollow-up to #6730. The deferred `Codecov Upload` workflow hardcoded all\n11 flags in its matrix and tried to download each from the source run.\nOn a label-gated PR — e.g. a frontend-only PR that only stages\n`codecov-frontend` — the other 10 legs hit `##[error] Artifact not found\nfor name: codecov-<flag>`, which looks like a name mismatch; and because\nthe download used `continue-on-error: true`, a genuinely failed download\nwas swallowed, the leg went green, and `notify-failure` never fired.\n\n**Fix:** add a `discover` job that lists the source run's *actual*\n`codecov-*` artifacts and drives the upload matrix from that\n(`fromJSON`), and drop `continue-on-error` on the download.\n\n- **No more spurious errors** — only the flags the source run actually\nbuilt are processed; a frontend-only PR runs one clean leg.\n- **Failures surface** — a listed artifact that then fails to download\nor upload fails the leg, so `notify-failure` fires (previously it went\nsilently green).\n- Also removes the hardcoded flag list, so adding a `platform` service\nno longer needs a matching matrix row here.\n\nObserved on the first live run after #6730 merged ([run\n29984668372](https://github.com/apache/texera/actions/runs/29984668372),\ntriggered by a frontend-only PR's checks): `frontend` uploaded fine, but\n10 legs logged `Artifact not found` for the label-gated flags and the\nrun still went green.\n\n### Any related issues, documentation, discussions?\n\nFollow-up to #6730 (reported on #6685).\n\n### How was this PR tested?\n\n- `workflow_run` only activates from the copy of the file on the default\nbranch, so this can't run on its own PR. Validated by YAML lint and an\nadversarial review of the discover → upload → notify flow: empty-flags\ncleanly skips (no failure, no notify), the dynamic `fromJSON` matrix\nhandles one or many flags, a download/upload failure now fails the leg\nand fires `notify-failure`, `amber-integration` (results-only) skips the\ncoverage step via `hashFiles`, and the `workflow_dispatch` path resolves\nthe run id.\n- The `workflow_dispatch` (`run_id`) entry remains for manual post-merge\nvalidation against a finished *Required Checks* run.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nYes.\n\nGenerated-by: Claude Code (Opus 4.8 [1M context])",
+          "timestamp": "2026-07-23T11:58:13Z",
+          "url": "https://github.com/apache/texera/commit/dda9e830f54e0fa74dcf0fd5d41a3c2e1a0c989c"
+        },
+        "date": 1784812818154,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 740.3941279719312,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1327.34922200536,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1426.2210084645144,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 931.3537187138081,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1337.2460181876393,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1434.6042761826702,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 984.1163478756008,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1378.1282900726353,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1401.5637406755343,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 787.9436204529286,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1082.2138450178036,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1123.9441530058398,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 819.8364455231408,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1066.7288959893574,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1111.564596477707,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 806.7706178129666,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1052.7448356747257,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1101.7568793258167,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 497.9128341688243,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 580.1329550400349,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 586.900172957913,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 479.1918267683038,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 572.8631372938198,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 575.9417584892051,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 463.8210077773729,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 546.001519084662,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 554.5441300324028,
             "unit": "tuples/sec"
           }
         ]
