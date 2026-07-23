@@ -29,7 +29,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, UnorderedOutput}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
@@ -53,7 +53,10 @@ object HashJoinOpDesc {
   }
 }
 """)
-class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator with UnorderedOutput {
+class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
+
+  // set/bag semantics: output row order is implementation-defined
+  override def outputOrderSignificant: Boolean = false
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input Attribute")

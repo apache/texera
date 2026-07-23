@@ -23,9 +23,12 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, UnorderedOutput}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 
-class IntersectOpDesc extends LogicalOp with StandaloneCodeGenerator with UnorderedOutput {
+class IntersectOpDesc extends LogicalOp with StandaloneCodeGenerator {
+
+  // set/bag semantics: output row order is implementation-defined
+  override def outputOrderSignificant: Boolean = false
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,

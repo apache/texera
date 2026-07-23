@@ -645,7 +645,7 @@ object StableMergeSortTransformHandler extends TransformHandler {
 /** HashJoin INNER on `id`. Build (port 0) and probe (port 1) intentionally
   *  arrive in different id orders so any probe-major / left-major mismatch
   *  between the JVM emit and `pd.merge` shows up. Order policy lives in
-  *  [[org.apache.texera.amber.operator.UnorderedOutput]].
+  *  `outputOrderSignificant = false`.
   */
 object HashJoinTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[HashJoinOpDesc[_]]
@@ -1267,7 +1267,7 @@ abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   * (see [[TransformVerificationRunner.enumSweepExemptOps]]): the sweep flips each
   * element's function in isolation and would re-pair, e.g., concat with a numeric
   * column; the fixture already covers each function with a type-compatible column.
-  * `AggregateOpDesc` is an [[org.apache.texera.amber.operator.UnorderedOutput]], so
+  * `AggregateOpDesc` declares `outputOrderSignificant = false`, so
   * the comparator lex-sorts rows before comparing.
   */
 object AggregateTransformHandler extends TransformHandler {

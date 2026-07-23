@@ -25,8 +25,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.operator.{
   LogicalOp,
   PythonOperatorDescriptor,
-  StandaloneCodeGenerator,
-  UnorderedOutput
+  StandaloneCodeGenerator
 }
 import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
 import org.apache.texera.amber.operator.dummy.DummyOpDesc
@@ -98,9 +97,8 @@ import scala.util.{Failure, Success, Try}
   *     [[OpExecHarness]] otherwise; Path B is always [[StandaloneRunner]].
   *   - Config + fixture: curated handler ([[CuratedHandlers]]) if registered,
   *     else [[ConfigGenerator]] against the [[CanonicalFixture]] schemas.
-  *   - Comparison: strict positional unless the operator is an
-  *     [[org.apache.texera.amber.operator.UnorderedOutput]]; all declared output
-  *     ports are compared.
+  *   - Comparison: strict positional unless the operator declares
+  *     `outputOrderSignificant = false`; all declared output ports are compared.
   * Operators that can't be run are Flagged with a reason — never silently
   * skipped.
   */
@@ -418,9 +416,9 @@ object TransformVerificationRunner {
       workDir = workDir
     )
 
-    // Order-insensitive iff the operator declares set/bag semantics via the
-    // UnorderedOutput marker (see that trait); default is strict positional.
-    val orderSensitive = !classOf[UnorderedOutput].isAssignableFrom(opClass)
+    // The operator declares whether its output row order is meaningful via
+    // LogicalOp.outputOrderSignificant (false for set/bag ops); default strict.
+    val orderSensitive = opDesc.outputOrderSignificant
     (0 until outputPortCount).foreach { port =>
       val actual = pathAOutputs.getOrElse(
         PortIdentity(port),
