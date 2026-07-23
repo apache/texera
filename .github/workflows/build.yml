@@ -137,44 +137,36 @@ jobs:
         run: ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} npm frontend/dist/3rdpartylicenses.json
       - name: Run frontend unit tests
         run: yarn --cwd frontend run test:ci
-      - name: Upload frontend coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && always()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./frontend/coverage/**/lcov.info
-          flags: frontend
-          fail_ci_if_error: false
-      - name: Upload frontend unit test results to Codecov
-        # vitest.config.ts adds a `junit` reporter that writes to junit.xml
-        # in the working dir; the @angular/build:unit-test runner forwards
-        # vitest config through unchanged.
-        if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./frontend/junit.xml
-          flags: frontend
-          report_type: test_results
-          disable_search: true
-          fail_ci_if_error: false
       - name: Install Playwright Chromium
         run: yarn --cwd frontend playwright install ${{ matrix.os == 'ubuntu-latest' && '--with-deps' || '' }} chromium
       - name: Run frontend browser-mode tests
         run: yarn --cwd frontend ng run gui:test-browser
-      - name: Upload frontend browser-mode test results to Codecov
-        # vitest.browser.config.ts emits junit-browser.xml (distinct from
-        # the unit-test report). Same `frontend` flag — Codecov merges
-        # multi-file uploads under one flag.
-        if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      # Codecov upload is deferred to codecov-upload.yml (workflow_run) so fork PRs
+      # get authenticated uploads and a reliable PR comment — see that file and
+      # #6685. Stage this flag's reports as the `codecov-frontend` artifact instead
+      # of uploading inline. The `!cancelled()` guard is a status-check function, so
+      # it overrides the implicit success() and staging still runs when the unit or
+      # browser tests fail (matching the old always()/!cancelled() steps); it only
+      # skips a cancelled run. Skipped on backport builds (different ref + would
+      # collide on the artifact name across the target matrix).
+      - name: Stage frontend coverage for deferred Codecov upload
+        if: matrix.os == 'ubuntu-latest' && inputs.backport_target_branch == '' && !cancelled()
+        shell: bash
+        env:
+          CC_COVERAGE: frontend/coverage/gui/lcov.info
+          CC_RESULTS: frontend/junit.xml frontend/junit-browser.xml
+          CC_PR: ${{ github.event.pull_request.number }}
+          CC_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CC_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: bash .github/scripts/stage-codecov.sh
+      - name: Upload frontend Codecov artifact
+        if: matrix.os == 'ubuntu-latest' && inputs.backport_target_branch == '' && !cancelled()
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./frontend/junit-browser.xml
-          flags: frontend
-          report_type: test_results
-          disable_search: true
-          fail_ci_if_error: false
+          name: codecov-frontend
+          path: cc/
+          retention-days: 1
+          if-no-files-found: warn
 
   amber:
     # The amber job runs the cross-cutting Scala lints (scalafmtCheckAll,
@@ -300,28 +292,29 @@ jobs:
               "WorkflowCore/jacoco" \
               "WorkflowOperator/jacoco" \
               "WorkflowExecutionService/jacoco"
-      - name: Upload amber and common coverage to Codecov
-        if: always()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      - name: Stage amber and common coverage for deferred Codecov upload
+        # Deferred to codecov-upload.yml (workflow_run) so fork PRs get an
+        # authenticated upload — see #6685. Multi-module globs: the staging script
+        # preserves the directory tree so the ~8 same-basename jacoco.xml (and the
+        # per-spec test-reports) don't collide when flattened. `!cancelled()` keeps
+        # staging on test failure; skipped on backport builds (artifact-name clash).
+        if: inputs.backport_target_branch == '' && !cancelled()
+        shell: bash
+        env:
+          CC_COVERAGE: "*/target/scala-2.13/jacoco/report/jacoco.xml"
+          CC_RESULTS: "*/target/test-reports/*.xml"
+          CC_PR: ${{ github.event.pull_request.number }}
+          CC_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CC_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: bash .github/scripts/stage-codecov.sh
+      - name: Upload amber Codecov artifact
+        if: inputs.backport_target_branch == '' && !cancelled()
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
-          flags: amber
-          fail_ci_if_error: false
-      - name: Upload amber and common test results to Codecov
-        # ScalaTest writes one JUnit-XML per spec under each module's
-        # target/test-reports/ (configured ThisBuild in build.sbt). Glob
-        # picks them up from every module that ran in the jacoco invocation
-        # above. `!cancelled()` so test failures still upload (the point
-        # of Test Analytics).
-        if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./**/target/test-reports/*.xml
-          flags: amber
-          report_type: test_results
-          fail_ci_if_error: false
+          name: codecov-amber
+          path: cc/
+          retention-days: 1
+          if-no-files-found: warn
 
   amber-integration:
     # Runs Scala tests tagged @org.apache.texera.amber.tags.IntegrationTest —
@@ -656,18 +649,30 @@ jobs:
         # --junit-xml feeds the Test Analytics upload below.
         run: |
           cd amber && pytest -m integration --junit-xml=junit-integration.xml -sv
-      - name: Upload amber integration test results to Codecov
-        # Two separate uploads because the ScalaTest and pytest runs each
-        # produce their own JUnit-XMLs and Codecov keys uploads by flag.
-        # `!cancelled()` so test failures still upload.
-        if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      - name: Stage amber-integration test results for deferred Codecov upload
+        # Deferred to codecov-upload.yml (workflow_run) so fork PRs get an
+        # authenticated upload — see #6685. Results-only flag (no jacoco). Staged
+        # on the ubuntu leg only: the integration specs run on both ubuntu and
+        # macOS, so staging both would clash on the `codecov-amber-integration`
+        # artifact name (upload-artifact@v4 rejects duplicates); the ubuntu run is
+        # representative for Test Analytics. Skipped on backport builds.
+        if: matrix.os == 'ubuntu-latest' && inputs.backport_target_branch == '' && !cancelled()
+        shell: bash
+        env:
+          CC_COVERAGE: ""
+          CC_RESULTS: "*/target/test-reports/*.xml amber/junit-integration.xml"
+          CC_PR: ${{ github.event.pull_request.number }}
+          CC_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CC_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: bash .github/scripts/stage-codecov.sh
+      - name: Upload amber-integration Codecov artifact
+        if: matrix.os == 'ubuntu-latest' && inputs.backport_target_branch == '' && !cancelled()
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./**/target/test-reports/*.xml,./amber/junit-integration.xml
-          flags: amber-integration
-          report_type: test_results
-          fail_ci_if_error: false
+          name: codecov-amber-integration
+          path: cc/
+          retention-days: 1
+          if-no-files-found: warn
 
   platform:
     # Per-service build, test, and license check for the non-amber Scala
@@ -768,27 +773,30 @@ jobs:
             check_exit=1
           fi
           exit "$check_exit"
-      - name: Upload ${{ matrix.service }} coverage to Codecov
-        # Per-service flag so each matrix entry has its own Codecov view
-        # rather than being merged into one umbrella `platform` flag.
-        if: always()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      - name: Stage ${{ matrix.service }} coverage for deferred Codecov upload
+        # Deferred to codecov-upload.yml (workflow_run) so fork PRs get an
+        # authenticated upload — see #6685. Per-service flag. Skipped on backport
+        # builds (artifact-name clash across the target matrix).
+        if: inputs.backport_target_branch == '' && !cancelled()
+        shell: bash
+        env:
+          CC_COVERAGE: "${{ matrix.service }}/target/scala-2.13/jacoco/report/jacoco.xml"
+          CC_RESULTS: "${{ matrix.service }}/target/test-reports/*.xml"
+          CC_PR: ${{ github.event.pull_request.number }}
+          CC_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CC_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: bash .github/scripts/stage-codecov.sh
+      - name: Upload ${{ matrix.service }} Codecov artifact
+        # Adding a service to the matrix above also needs a matching
+        # { flag: <service>, coverage: true } row in codecov-upload.yml, or this
+        # artifact is downloaded by nothing and the service's coverage is dropped.
+        if: inputs.backport_target_branch == '' && !cancelled()
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./${{ matrix.service }}/target/scala-2.13/jacoco/report/jacoco.xml
-          flags: ${{ matrix.service }}
-          fail_ci_if_error: false
-      - name: Upload ${{ matrix.service }} test results to Codecov
-        # Per-service Test Analytics, mirroring the coverage upload flag.
-        if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./${{ matrix.service }}/target/test-reports/*.xml
-          flags: ${{ matrix.service }}
-          report_type: test_results
-          disable_search: true
-          fail_ci_if_error: false
+          name: codecov-${{ matrix.service }}
+          path: cc/
+          retention-days: 1
+          if-no-files-found: warn
 
   platform-integration:
     # Boot smoke test for the platform services (mirrors amber-integration: an
@@ -1015,28 +1023,27 @@ jobs:
         # test PR comments and flaky-test detection on main.
         run: |
           cd amber && pytest -m "not integration" --cov=src/main/python --cov-report=xml --junit-xml=junit.xml -sv
-      - name: Upload pyamber coverage to Codecov
-        if: matrix.python-version == '3.12' && always()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      - name: Stage pyamber coverage for deferred Codecov upload
+        # Deferred to codecov-upload.yml (workflow_run) so fork PRs get an
+        # authenticated upload — see #6685. 3.12 leg only (the leg that produced
+        # coverage.xml / the pip-licenses snapshot). Skipped on backport builds.
+        if: matrix.python-version == '3.12' && inputs.backport_target_branch == '' && !cancelled()
+        shell: bash
+        env:
+          CC_COVERAGE: amber/coverage.xml
+          CC_RESULTS: amber/junit.xml
+          CC_PR: ${{ github.event.pull_request.number }}
+          CC_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CC_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: bash .github/scripts/stage-codecov.sh
+      - name: Upload pyamber Codecov artifact
+        if: matrix.python-version == '3.12' && inputs.backport_target_branch == '' && !cancelled()
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./amber/coverage.xml
-          flags: pyamber
-          fail_ci_if_error: false
-      - name: Upload pyamber test results to Codecov
-        # Test Analytics ingestion. Runs on the same 3.12 leg that uploads
-        # coverage to keep one canonical source per flag. `!cancelled()`
-        # rather than `always()` so we still upload on test failure (the
-        # whole point of Test Analytics) but skip cancelled runs.
-        if: matrix.python-version == '3.12' && !cancelled()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./amber/junit.xml
-          flags: pyamber
-          report_type: test_results
-          disable_search: true
-          fail_ci_if_error: false
+          name: codecov-pyamber
+          path: cc/
+          retention-days: 1
+          if-no-files-found: warn
 
   agent-service:
     if: ${{ inputs.run_agent_service }}
@@ -1085,26 +1092,29 @@ jobs:
         # Test Analytics upload below can feed Codecov's failing-test PR
         # comments and flaky-test detection on main.
         run: bun test --coverage --coverage-reporter=lcov --reporter=junit --reporter-outfile=junit.xml
-      - name: Upload agent-service coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && always()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      - name: Stage agent-service coverage for deferred Codecov upload
+        # Deferred to codecov-upload.yml (workflow_run) so fork PRs get an
+        # authenticated upload — see #6685. ubuntu leg only. working-directory is
+        # pinned to the workspace root (this job otherwise defaults to
+        # agent-service/) so the staged cc/ lands where the artifact upload expects.
+        if: matrix.os == 'ubuntu-latest' && inputs.backport_target_branch == '' && !cancelled()
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        env:
+          CC_COVERAGE: agent-service/coverage/lcov.info
+          CC_RESULTS: agent-service/junit.xml
+          CC_PR: ${{ github.event.pull_request.number }}
+          CC_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CC_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: bash .github/scripts/stage-codecov.sh
+      - name: Upload agent-service Codecov artifact
+        if: matrix.os == 'ubuntu-latest' && inputs.backport_target_branch == '' && !cancelled()
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./agent-service/coverage/lcov.info
-          flags: agent-service
-          fail_ci_if_error: false
-      - name: Upload agent-service test results to Codecov
-        # Test Analytics ingestion. Runs on the same ubuntu leg that
-        # uploads coverage. `!cancelled()` so test failures still upload.
-        if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./agent-service/junit.xml
-          flags: agent-service
-          report_type: test_results
-          disable_search: true
-          fail_ci_if_error: false
+          name: codecov-agent-service
+          path: cc/
+          retention-days: 1
+          if-no-files-found: warn
 
   infra:
     # Generic project-tooling job — runs the lightweight (no docker, no
