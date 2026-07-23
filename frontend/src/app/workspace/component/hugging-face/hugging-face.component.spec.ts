@@ -1416,13 +1416,14 @@ describe("HuggingFaceComponent (TestBed)", () => {
       initComponent("text-generation", buildModels(120)); // 3 pages of 50
       fixture.detectChanges();
 
-      const next = fixture.debugElement.queryAll(By.css(".hf-pagination button"))[1];
-      next.triggerEventHandler("click", null);
+      const buttons = fixture.debugElement.queryAll(By.css(".hf-pagination button"));
+      expect(buttons.length).toBe(2);
+
+      buttons[1].triggerEventHandler("click", null);
       expect(component.currentPage).toBe(1);
 
       fixture.detectChanges();
-      const prev = fixture.debugElement.queryAll(By.css(".hf-pagination button"))[0];
-      prev.triggerEventHandler("click", null);
+      buttons[0].triggerEventHandler("click", null);
       expect(component.currentPage).toBe(0);
     });
 
