@@ -49,7 +49,13 @@ class URLFetcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   // path makes getInputStreamFromURL return None deterministically and offline,
   // so the failure branch is exercised without depending on external connectivity.
   it should "report only the URL, not the operator descriptor, when the fetch fails" in {
-    opDesc.url = "file:///nonexistent/texera-urlfetcher-regression"
+    val missingUrl =
+      java.nio.file.Files
+        .createTempDirectory("texera-urlfetcher-regression-")
+        .resolve("missing")
+        .toUri
+        .toString
+    opDesc.url = missingUrl
     opDesc.decodingMethod = DecodingMethod.UTF_8
     val fetcherOpExec = new URLFetcherOpExec(objectMapper.writeValueAsString(opDesc))
     val content = fetcherOpExec.produceTuple().next().getFields.toList.head.asInstanceOf[String]
