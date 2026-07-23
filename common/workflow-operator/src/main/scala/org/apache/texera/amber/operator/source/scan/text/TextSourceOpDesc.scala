@@ -47,7 +47,6 @@ trait TextSourceOpDesc {
   @JsonProperty(defaultValue = "line", required = true)
   @JsonSchemaTitle("Attribute Name")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
-  @JsonPropertyDescription("Name of the attribute of the output tuple.")
   var attributeName: String = "line"
 
   @JsonSchemaTitle("Limit (lines)")
