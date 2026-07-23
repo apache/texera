@@ -116,8 +116,8 @@ class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     opDesc.value = "score"
     opDesc.fields = "name"
     val code = opDesc.generatePythonCode()
-    code should include("if False else None")
-    code should not include "if True else None"
+    code should include("color=self.decode_python_template('') if False else None")
+    code should not include "color=self.decode_python_template('') if True else None"
   }
 
 }
