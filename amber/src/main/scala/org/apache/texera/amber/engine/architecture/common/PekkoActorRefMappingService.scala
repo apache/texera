@@ -76,7 +76,7 @@ class PekkoActorRefMappingService(actorService: PekkoActorService) extends Amber
   def removeActorRef(id: ActorVirtualIdentity): Unit = {
     if (actorRefMapping.contains(id)) {
       val ref = actorRefMapping.remove(id).get
-      logger.debug(s"actor $id is not reachable anymore, it might have crashed. old ref = $ref")
+      logger.debug(s"removed actor ref for $id. old ref = $ref")
     }
   }
 
