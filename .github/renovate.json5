@@ -131,6 +131,14 @@
       groupName: 'github-actions',
     },
 
+    // pandas / numpy / pyarrow (and the JVM Arrow artifacts) sit on the
+    // Arrow IPC data path between the JVM engine and Python workers and
+    // must move in lockstep; upgrade them manually and deliberately.
+    {
+      matchPackageNames: ['pandas', 'numpy', 'pyarrow', '/^org\\.apache\\.arrow:/'],
+      enabled: false,
+    },
+
     // Angular majors need a guided `ng update` migration and the
     // framework/CLI lines must move together (see #6155).
     {
