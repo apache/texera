@@ -54,7 +54,7 @@ trait TextSourceOpDesc {
   @JsonDeserialize(contentAs = classOf[Int])
   @JsonPropertyDescription(
     "Maximum number of lines to output. Leave empty to read all lines. " +
-      "(Not used when reading the whole file as one row.)"
+      "(Not used when reading the whole file as one tuple.)"
   )
   @JsonSchemaInject(
     strings = Array(
@@ -71,7 +71,7 @@ trait TextSourceOpDesc {
   @JsonSchemaTitle("Offset (lines)")
   @JsonPropertyDescription(
     "Number of lines to skip from the start before reading. " +
-      "(Not used when reading the whole file as one row.)"
+      "(Not used when reading the whole file as one tuple.)"
   )
   @JsonDeserialize(contentAs = classOf[Int])
   @JsonSchemaInject(
