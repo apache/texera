@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, inject, TestBed } from "@angular/core/testing";
+import { ComponentFixture, fakeAsync, inject, TestBed, tick } from "@angular/core/testing";
 import { of, throwError } from "rxjs";
 import { AdminUserComponent } from "./admin-user.component";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -383,5 +383,219 @@ describe("AdminUserComponent", () => {
     const config = createSpy.mock.calls[0][0];
     expect(config.nzContent).toBe(UserQuotaComponent);
     expect(config.nzData).toEqual({ uid: 9 });
+  });
+
+  const baseUser: User = {
+    uid: 0,
+    name: "",
+    email: "",
+    role: Role.REGULAR,
+    comment: "",
+    joiningReason: "",
+  };
+  const mk = (o: Partial<User>): User => ({ ...baseUser, ...o });
+
+  describe("startEdit caret focus", () => {
+    const fakeInput = (value: string) => ({ value, focus: vi.fn(), setSelectionRange: vi.fn() });
+
+    it("focuses the name input and places the caret at the end after the setTimeout macrotask", fakeAsync(() => {
+      const input = fakeInput("Alice");
+      component.nameInputRef = { nativeElement: input } as any;
+
+      component.startEdit(userA, "name");
+      tick();
+
+      expect(input.focus).toHaveBeenCalledTimes(1);
+      expect(input.setSelectionRange).toHaveBeenCalledWith(5, 5);
+    }));
+
+    it("focuses the email input and places the caret at the end", fakeAsync(() => {
+      const input = fakeInput("bob@example.com");
+      component.emailInputRef = { nativeElement: input } as any;
+
+      component.startEdit(userB, "email");
+      tick();
+
+      expect(input.focus).toHaveBeenCalledTimes(1);
+      expect(input.setSelectionRange).toHaveBeenCalledWith(15, 15);
+    }));
+
+    it("focuses the comment textarea and places the caret at the end", fakeAsync(() => {
+      const textarea = fakeInput("some comment");
+      component.commentTextareaRef = { nativeElement: textarea } as any;
+
+      component.startEdit(userA, "comment");
+      tick();
+
+      expect(textarea.focus).toHaveBeenCalledTimes(1);
+      expect(textarea.setSelectionRange).toHaveBeenCalledWith(12, 12);
+    }));
+
+    it("does nothing on the timer when the matching input ref is absent", fakeAsync(() => {
+      // nameInputRef is left undefined, so the name branch's `&& this.nameInputRef` guard is false.
+      component.startEdit(userA, "name");
+      expect(() => tick()).not.toThrow();
+      expect(component.editAttribute).toBe("name");
+    }));
+  });
+
+  describe("saveEdit error fallback", () => {
+    it("falls back to err.message when err.error.message is absent", () => {
+      const errorSpy = vi.spyOn(TestBed.inject(NzMessageService), "error").mockReturnValue({} as any);
+      adminUserServiceSpy.updateUser.mockReturnValue(throwError(() => new Error("network down")));
+
+      component.userList = [userA];
+      component.editUid = userA.uid;
+      component.editName = "Changed";
+      component.editEmail = userA.email;
+      component.editRole = userA.role;
+      component.editComment = userA.comment;
+
+      component.saveEdit();
+
+      expect(errorSpy).toHaveBeenCalledWith("network down");
+    });
+  });
+
+  describe("searchByName filtering", () => {
+    it("filters the display list by name case-insensitively over populated data", () => {
+      component.userList = [userA, userB];
+
+      component.nameSearchValue = "ALI";
+      component.searchByName();
+
+      expect(component.listOfDisplayUser.length).toBe(1);
+      expect(component.listOfDisplayUser[0].name).toBe("Alice");
+      expect(component.nameSearchVisible).toBe(false);
+    });
+
+    it("trims a null name search value down to an empty string", () => {
+      component.userList = [userA];
+
+      component.nameSearchValue = null as any;
+      component.searchByName();
+
+      expect(component.nameSearchValue).toBe("");
+      // empty query matches everything
+      expect(component.listOfDisplayUser).toEqual([userA]);
+    });
+
+    it("tolerates null name/email/comment fields across all three searches", () => {
+      const nullUser = mk({ uid: 3, name: null as any, email: null as any, comment: null as any });
+      component.userList = [nullUser];
+
+      component.nameSearchValue = "";
+      component.searchByName();
+      expect(component.listOfDisplayUser).toEqual([nullUser]);
+
+      component.emailSearchValue = "";
+      component.searchByEmail();
+      expect(component.listOfDisplayUser).toEqual([nullUser]);
+
+      component.commentSearchValue = "";
+      component.searchByComment();
+      expect(component.listOfDisplayUser).toEqual([nullUser]);
+    });
+  });
+
+  describe("column sort comparators", () => {
+    it("sortByID orders by descending uid", () => {
+      expect(component.sortByID(mk({ uid: 1 }), mk({ uid: 2 }))).toBe(1);
+      expect(component.sortByID(mk({ uid: 5 }), mk({ uid: 2 }))).toBe(-3);
+    });
+
+    it("sortByName compares names and falls back to uid on a tie", () => {
+      expect(component.sortByName(mk({ uid: 1, name: "Alice" }), mk({ uid: 2, name: "Bob" }))).toBeGreaterThan(0);
+      // equal names (both empty via null coalescing) -> uid tiebreak
+      expect(component.sortByName(mk({ uid: 1, name: null as any }), mk({ uid: 2, name: null as any }))).toBe(-1);
+    });
+
+    it("sortByEmail compares emails and falls back to uid on a tie", () => {
+      expect(component.sortByEmail(mk({ uid: 1, email: "a@x.com" }), mk({ uid: 2, email: "b@x.com" }))).toBeGreaterThan(
+        0
+      );
+      expect(component.sortByEmail(mk({ uid: 1, email: null as any }), mk({ uid: 2, email: null as any }))).toBe(-1);
+    });
+
+    it("sortByComment compares comments and falls back to uid on a tie", () => {
+      expect(component.sortByComment(mk({ uid: 1, comment: "aaa" }), mk({ uid: 2, comment: "bbb" }))).toBeGreaterThan(
+        0
+      );
+      expect(component.sortByComment(mk({ uid: 1, comment: null as any }), mk({ uid: 2, comment: null as any }))).toBe(
+        -1
+      );
+    });
+
+    it("sortByRole compares roles and falls back to uid on a tie", () => {
+      // "ADMIN".localeCompare("REGULAR") is negative
+      expect(component.sortByRole(mk({ uid: 1, role: Role.REGULAR }), mk({ uid: 2, role: Role.ADMIN }))).toBeLessThan(
+        0
+      );
+      expect(component.sortByRole(mk({ uid: 1, role: Role.ADMIN }), mk({ uid: 2, role: Role.ADMIN }))).toBe(-1);
+    });
+
+    it("sortByAccountCreation orders ascending and defaults missing values to 0", () => {
+      expect(
+        component.sortByAccountCreation(mk({ uid: 1, accountCreation: 1000 }), mk({ uid: 2, accountCreation: 3000 }))
+      ).toBe(-2000);
+      // both missing -> 0 - 0 -> uid tiebreak
+      expect(
+        component.sortByAccountCreation(
+          mk({ uid: 1, accountCreation: undefined }),
+          mk({ uid: 2, accountCreation: undefined })
+        )
+      ).toBe(-1);
+    });
+
+    it("sortByAffiliation compares affiliations and falls back to uid on a tie", () => {
+      expect(
+        component.sortByAffiliation(mk({ uid: 1, affiliation: "MIT" }), mk({ uid: 2, affiliation: "UCLA" }))
+      ).toBeGreaterThan(0);
+      expect(
+        component.sortByAffiliation(mk({ uid: 1, affiliation: undefined }), mk({ uid: 2, affiliation: undefined }))
+      ).toBe(-1);
+    });
+
+    it("sortByJoiningReason compares joining reasons and falls back to uid on a tie", () => {
+      expect(
+        component.sortByJoiningReason(
+          mk({ uid: 1, joiningReason: "research" }),
+          mk({ uid: 2, joiningReason: "teaching" })
+        )
+      ).toBeGreaterThan(0);
+      expect(
+        component.sortByJoiningReason(
+          mk({ uid: 1, joiningReason: null as any }),
+          mk({ uid: 2, joiningReason: null as any })
+        )
+      ).toBe(-1);
+    });
+
+    it("sortByActive ranks active users first and falls back to uid when equal", () => {
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const active = mk({ uid: 1, lastLogin: nowSeconds });
+      const inactive = mk({ uid: 2, lastLogin: undefined });
+
+      // active before inactive
+      expect(component.sortByActive(active, inactive)).toBe(-1);
+      // inactive after active
+      expect(component.sortByActive(inactive, active)).toBe(1);
+      // both inactive -> uid tiebreak
+      expect(component.sortByActive(mk({ uid: 2, lastLogin: undefined }), mk({ uid: 5, lastLogin: undefined }))).toBe(
+        -3
+      );
+    });
+  });
+
+  describe("filterByRole", () => {
+    it("matches when the user role is in the selected list", () => {
+      expect(component.filterByRole([Role.ADMIN], mk({ role: Role.ADMIN }))).toBe(true);
+      expect(component.filterByRole([Role.ADMIN, Role.REGULAR], mk({ role: Role.REGULAR }))).toBe(true);
+    });
+
+    it("does not match when the user role is absent from the selected list", () => {
+      expect(component.filterByRole([Role.ADMIN], mk({ role: Role.REGULAR }))).toBe(false);
+      expect(component.filterByRole([], mk({ role: Role.ADMIN }))).toBe(false);
+    });
   });
 });
