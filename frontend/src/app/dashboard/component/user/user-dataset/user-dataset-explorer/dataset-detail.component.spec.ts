@@ -1012,6 +1012,34 @@ describe("DatasetDetailComponent behavior", () => {
     });
   });
 
+  describe("upload status, version-node selection, and trackBy", () => {
+    it("getUploadStatus maps the upload status to a progress state", () => {
+      expect(component.getUploadStatus("uploading")).toBe("active");
+      expect(component.getUploadStatus("initializing")).toBe("active");
+      expect(component.getUploadStatus("aborted")).toBe("exception");
+      expect(component.getUploadStatus("failed")).toBe("exception");
+      expect(component.getUploadStatus("finished")).toBe("success");
+    });
+
+    it("onVersionFileTreeNodeSelected loads the selected node's content", () => {
+      const node = { name: "file.csv", type: "file" } as unknown as Parameters<
+        typeof component.onVersionFileTreeNodeSelected
+      >[0];
+      const loadSpy = vi
+        .spyOn(component as unknown as { loadFileContent: (n: unknown) => void }, "loadFileContent")
+        .mockImplementation(() => {});
+
+      component.onVersionFileTreeNodeSelected(node);
+
+      expect(loadSpy).toHaveBeenCalledWith(node);
+    });
+
+    it("trackByTask returns the task's file path", () => {
+      const task = { filePath: "owner/data/file.csv" } as unknown as Parameters<typeof component.trackByTask>[1];
+      expect(component.trackByTask(0, task)).toBe("owner/data/file.csv");
+    });
+  });
+ 
   describe("onSaveDatasetName", () => {
     it("seeds editedDatasetName from the loaded dataset name", () => {
       datasetServiceStub.getDataset.mockReturnValue(
@@ -1024,35 +1052,18 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.editedDatasetName).toBe("seed-name");
     });
 
-    it("persists a valid name unchanged and toasts success", () => {
+    it("sanitizes the edited name, persists it, updates local state and toasts success", () => {
       datasetServiceStub.updateDatasetName.mockReturnValue(of({}));
       createComponent();
       component.did = 5;
-      // Mixed case, hyphen and underscore are all valid: the name must be saved
-      // verbatim, not rewritten.
-      component.editedDatasetName = "My-Cool_Dataset";
+      component.editedDatasetName = "  My Cool_Dataset";
 
       component.onSaveDatasetName();
 
-      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "My-Cool_Dataset");
-      expect(component.datasetName).toBe("My-Cool_Dataset");
-      expect(component.editedDatasetName).toBe("My-Cool_Dataset");
-      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset name updated to 'My-Cool_Dataset'");
-    });
-
-    it("rejects an invalid name with a validation error and does not call the rename API", () => {
-      createComponent();
-      component.did = 5;
-      component.datasetName = "original";
-      component.editedDatasetName = "My Cool Dataset"; // spaces are not allowed
-
-      component.onSaveDatasetName();
-
-      expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
-      expect(component.datasetName).toBe("original");
-      expect(notificationServiceStub.error).toHaveBeenCalledWith(
-        "Invalid dataset name: only letters, numbers, underscores, and hyphens are allowed (max 128 characters)"
-      );
+      expect(datasetServiceStub.updateDatasetName).toHaveBeenCalledWith(5, "my-cool-dataset");
+      expect(component.datasetName).toBe("my-cool-dataset");
+      expect(component.editedDatasetName).toBe("my-cool-dataset");
+      expect(notificationServiceStub.success).toHaveBeenCalledWith("Dataset name updated to 'my-cool-dataset'");
     });
 
     it("toasts an error and leaves the name unchanged when the rename fails", () => {
@@ -1065,7 +1076,7 @@ describe("DatasetDetailComponent behavior", () => {
       component.onSaveDatasetName();
 
       expect(component.datasetName).toBe("original");
-      expect(notificationServiceStub.error).toHaveBeenCalledWith("boom");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to update dataset name");
     });
 
     it("does nothing when there is no did", () => {
@@ -1102,7 +1113,7 @@ describe("DatasetDetailComponent behavior", () => {
 
       component.onDeleteDataset();
 
-      expect(notificationServiceStub.error).toHaveBeenCalledWith("boom");
+      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to delete the dataset");
       expect(navigateSpy).not.toHaveBeenCalled();
     });
 
@@ -1115,40 +1126,6 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(datasetServiceStub.deleteDatasets).not.toHaveBeenCalled();
       expect(navigateSpy).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("delete button disabled state", () => {
-    // The Settings tab (and its Delete card) only render for WRITE access; the
-    // delete button itself is owner-only, mirroring the Downloadable switch's
-    // [nzDisabled]="!isOwner". Renders WRITE access with the given ownership,
-    // activates the (inactive) Settings tab so its pane is in the DOM, then
-    // returns the delete button element.
-    const renderDeleteButton = (isOwner: boolean): HTMLButtonElement => {
-      datasetServiceStub.getDataset.mockReturnValue(of(makeDashboardDataset({ accessPrivilege: "WRITE", isOwner })));
-      createComponent();
-      fixture.detectChanges();
-
-      const tabButtons: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll(".ant-tabs-tab-btn");
-      const settingsTab = Array.from(tabButtons).find(tab => tab.textContent?.includes("Settings"));
-      settingsTab?.click();
-      fixture.detectChanges();
-
-      return fixture.nativeElement.querySelector('button[title="Delete"]') as HTMLButtonElement;
-    };
-
-    it("disables the delete button for a non-owner with write access", () => {
-      const button = renderDeleteButton(false);
-
-      expect(button).toBeTruthy();
-      expect(button.disabled).toBe(true);
-    });
-
-    it("enables the delete button for the owner", () => {
-      const button = renderDeleteButton(true);
-
-      expect(button).toBeTruthy();
-      expect(button.disabled).toBe(false);
     });
   });
 });

@@ -286,6 +286,53 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     assert(emitted.exists(_.payload.isInstanceOf[StateFrame]))
   }
 
+  "data processor" should "carry the loop envelope through a state pass-through unchanged" in {
+    // Loop operators are Python-only, so a JVM operator inside a loop body
+    // only ever FORWARDS the StateFrame loop envelope (loop_counter /
+    // loop_start_id); the +1/-1 bookkeeping lives in the Python runtime.
+    // A dropped envelope zeroes the counter and blanks the id, which breaks
+    // the matching LoopEnd's back-jump ("no loop-back state URI configured
+    // for LoopStart ''") -- so pin exact envelope equality on the emitted
+    // frame, not just that a StateFrame came out.
+    val dp = mkDataProcessor
+    dp.executor = executor
+    dp.stateManager.transitTo(READY)
+    val emitted = scala.collection.mutable.ArrayBuffer[WorkflowFIFOMessage]()
+    (outputHandler.apply _)
+      .expects(*)
+      .onCall { (m: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]) =>
+        m.foreach(emitted += _); ()
+      }
+      .anyNumberOfTimes()
+    val inputState = State(Map("i" -> 1))
+    (
+        (
+            state: State,
+            port: Int
+        ) => executor.processState(state, port)
+    )
+      .expects(inputState, 0)
+      .returning(Some(inputState))
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
+      .setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    dp.outputManager.addPartitionerWithPartitioning(
+      PhysicalLink(testOpId, outputPortId, upstreamOpId, inputPortId),
+      OneToOnePartitioning(1, Seq(ChannelIdentity(testWorkerId, senderWorkerId, isControl = false)))
+    )
+    dp.processDataPayload(
+      ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+      StateFrame(inputState, loopCounter = 2L, loopStartId = "outer-loop")
+    )
+    val stateFrames = emitted.map(_.payload).collect { case sf: StateFrame => sf }
+    assert(
+      stateFrames.toList == List(StateFrame(inputState, 2L, "outer-loop")),
+      s"envelope must ride through unchanged, got: $stateFrames"
+    )
+  }
+
   "data processor" should "not emit when processState yields None" in {
     val dp = mkDataProcessor
     dp.executor = executor

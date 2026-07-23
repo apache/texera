@@ -45,10 +45,18 @@ object State {
   private val Content = "content"
   // loop-control bookkeeping owned by the (Python) worker runtime; not user
   // state and never in the content JSON. Materialized as its own columns,
-  // parallel to content. Scala never originates loop state (loop operators are
-  // Python-only), so toTuple defaults these to the "no loop" values.
+  // parallel to content. Scala never ORIGINATES loop state (loop operators are
+  // Python-only), so toTuple defaults these to the "no loop" values -- but a
+  // JVM operator inside a loop body must CARRY them through unchanged, so the
+  // extractors below read them back off a materialized/transported row.
   private val LoopCounter = "loop_counter"
   private val LoopStartId = "loop_start_id"
+
+  /** Read the loop-envelope counter off a State row (see `toTuple`). */
+  def loopCounterFrom(row: Tuple): Long = row.getField[java.lang.Long](LoopCounter).longValue()
+
+  /** Read the loop-envelope LoopStart id off a State row (see `toTuple`). */
+  def loopStartIdFrom(row: Tuple): String = row.getField[String](LoopStartId)
   private val BytesTypeMarker = "__texera_type__"
   private val BytesValue = "bytes"
   private val PayloadMarker = "payload"

@@ -220,9 +220,13 @@ export class PresetService {
           // no modification: old preset doesn't exist to be updated, new preset already exists
         } else if (contains(presets, originalPreset) && contains(presets, replacementPreset)) {
           // implicit deletion by replacing original with existing preset
-          presets.splice(indexOf(presets, originalPreset), 1);
+          // deep-equality index: presets are freshly JSON-parsed, so reference-based indexOf would miss
+          presets.splice(
+            presets.findIndex(preset => isEqual(preset, originalPreset)),
+            1
+          );
         } else {
-          presets[indexOf(presets, originalPreset)] = replacementPreset;
+          presets[presets.findIndex(preset => isEqual(preset, originalPreset))] = replacementPreset;
         }
         this.savePresets(type, target, presets, displayMessage, messageType);
       });

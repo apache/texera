@@ -18,7 +18,16 @@
  */
 
 import { FormlyFieldConfig } from "@ngx-formly/core";
-import { createShouldHideFieldFunc, getFieldByName, setHideExpression } from "./formly-utils";
+import {
+  createOutputFormChangeEventStream,
+  createShouldHideFieldFunc,
+  getFieldByName,
+  setChildTypeDependency,
+  setHideExpression,
+} from "./formly-utils";
+import { Subject } from "rxjs";
+import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
+import { PortSchema } from "../../workspace/types/workflow-compiling.interface";
 
 describe("getFieldByName", () => {
   it("returns the field whose key matches the name", () => {
@@ -88,5 +97,112 @@ describe("createShouldHideFieldFunc", () => {
     expect(hide(fieldWithModel({ target: 5 }))).toBe(true);
     expect(hide(fieldWithModel({ target: "5" }))).toBe(true);
     expect(hide(fieldWithModel({ target: 6 }))).toBe(false);
+  });
+});
+
+describe("setChildTypeDependency", () => {
+  it("collects timestamp attribute names across all ports and sets a description expression on the child", () => {
+    const attributes: Record<string, PortSchema | undefined> = {
+      outPort0: [
+        { attributeName: "ts1", attributeType: "timestamp" },
+        { attributeName: "label", attributeType: "string" },
+      ],
+      outPort1: [{ attributeName: "ts2", attributeType: "timestamp" }],
+    };
+    const child: FormlyFieldConfig = { key: "attrValue" };
+    setChildTypeDependency(attributes, "attrName", [{ key: "other" }, child], "attrValue");
+
+    expect(child.expressions).toEqual({
+      "templateOptions.description":
+        "[\"ts1\",\"ts2\"].includes(model.attrName)? 'Input a datetime string' : 'Input a positive number'",
+    });
+  });
+
+  it("emits an empty timestamp list when there are no timestamp-typed attributes", () => {
+    const attributes: Record<string, PortSchema | undefined> = {
+      outPort0: [{ attributeName: "label", attributeType: "string" }],
+    };
+    const child: FormlyFieldConfig = { key: "attrValue" };
+    setChildTypeDependency(attributes, "attrName", [child], "attrValue");
+
+    expect(child.expressions).toEqual({
+      "templateOptions.description":
+        "[].includes(model.attrName)? 'Input a datetime string' : 'Input a positive number'",
+    });
+  });
+
+  it("treats undefined attributes as an empty timestamp list", () => {
+    const child: FormlyFieldConfig = { key: "attrValue" };
+    setChildTypeDependency(undefined, "attrName", [child], "attrValue");
+
+    expect(child.expressions).toEqual({
+      "templateOptions.description":
+        "[].includes(model.attrName)? 'Input a datetime string' : 'Input a positive number'",
+    });
+  });
+
+  it("is a no-op when the named child field is not present", () => {
+    const attributes: Record<string, PortSchema | undefined> = {
+      outPort0: [{ attributeName: "ts1", attributeType: "timestamp" }],
+    };
+    const unrelated: FormlyFieldConfig = { key: "other" };
+    setChildTypeDependency(attributes, "attrName", [unrelated], "missingChild");
+
+    expect(unrelated.expressions).toBeUndefined();
+  });
+});
+
+describe("createOutputFormChangeEventStream", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("debounces bursts, emitting only the latest value once the debounce window elapses", () => {
+    const source = new Subject<Record<string, unknown>>();
+    const emissions: Record<string, unknown>[] = [];
+    createOutputFormChangeEventStream(source, () => true).subscribe(v => emissions.push(v));
+
+    source.next({ v: 1 });
+    vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS - 1);
+    source.next({ v: 2 });
+    // still within the debounce window relative to the second emission
+    vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS - 1);
+    expect(emissions).toEqual([]);
+
+    vi.advanceTimersByTime(1);
+    expect(emissions).toEqual([{ v: 2 }]);
+  });
+
+  it("drops a repeated identical value via distinctUntilChanged", () => {
+    const source = new Subject<Record<string, unknown>>();
+    const emissions: Record<string, unknown>[] = [];
+    createOutputFormChangeEventStream(source, () => true).subscribe(v => emissions.push(v));
+
+    const sameRef = { v: 1 };
+    source.next(sameRef);
+    vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS);
+    source.next(sameRef);
+    vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS);
+
+    expect(emissions).toEqual([sameRef]);
+  });
+
+  it("gates emissions through the modelCheck predicate", () => {
+    const source = new Subject<Record<string, unknown>>();
+    const emissions: Record<string, unknown>[] = [];
+    const modelCheck = vi.fn((formData: Record<string, unknown>) => formData["keep"] === true);
+    createOutputFormChangeEventStream(source, modelCheck).subscribe(v => emissions.push(v));
+
+    source.next({ keep: false });
+    vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS);
+    source.next({ keep: true });
+    vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS);
+
+    expect(emissions).toEqual([{ keep: true }]);
+    expect(modelCheck).toHaveBeenCalledTimes(2);
   });
 });

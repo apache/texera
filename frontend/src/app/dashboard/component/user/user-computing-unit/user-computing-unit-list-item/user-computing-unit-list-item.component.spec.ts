@@ -32,6 +32,21 @@ import { MockComputingUnitStatusService } from "../../../../../common/service/co
 import { ComputingUnitActionsService } from "../../../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import { DashboardWorkflowComputingUnit } from "../../../../../common/type/workflow-computing-unit";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
+import { ComputingUnitMetadataComponent } from "../../../../../common/util/computing-unit.util";
+
+function bareComponent(entry: DashboardWorkflowComputingUnit): UserComputingUnitListItemComponent {
+  const item = new UserComputingUnitListItemComponent(
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any
+  );
+  item.entry = entry;
+  return item;
+}
 
 function makeEntry(overrides: Partial<DashboardWorkflowComputingUnit> = {}): DashboardWorkflowComputingUnit {
   return {
@@ -114,6 +129,12 @@ describe("UserComputingUnitListItemComponent", () => {
     component = fixture.componentInstance;
     component.entry = makeEntry();
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    fixture?.destroy();
+    vi.restoreAllMocks();
   });
 
   it("should create", () => {
@@ -286,6 +307,186 @@ describe("UserComputingUnitListItemComponent", () => {
     });
 
     it("shows GPU selection when more than one option is available", () => {
+      expect(component.showGpuSelection()).toBe(true);
+    });
+  });
+
+  describe("ngOnInit gpuOptions fallback", () => {
+    it("defaults gpuOptions to an empty array when the service omits gpuLimitOptions", () => {
+      computingUnitService.getComputingUnitLimitOptions.mockReturnValue(
+        of({ cpuLimitOptions: [], memoryLimitOptions: [], gpuLimitOptions: undefined as unknown as string[] })
+      );
+      const freshFixture = TestBed.createComponent(UserComputingUnitListItemComponent);
+      freshFixture.componentInstance.entry = makeEntry();
+      freshFixture.detectChanges();
+      expect(freshFixture.componentInstance.gpuOptions).toEqual([]);
+      freshFixture.destroy();
+    });
+  });
+
+  describe("startEditingUnitName focus behavior", () => {
+    it("focuses and selects the rendered input after the timeout fires", () => {
+      const host = fixture.nativeElement as HTMLElement;
+      document.body.appendChild(host);
+      const focusSpy = vi.spyOn(HTMLInputElement.prototype, "focus").mockImplementation(() => {});
+      const selectSpy = vi.spyOn(HTMLInputElement.prototype, "select").mockImplementation(() => {});
+      vi.useFakeTimers();
+      try {
+        component.startEditingUnitName(makeEntry());
+        // The editable input is rendered synchronously via cdr.detectChanges().
+        // Scope the query to this fixture's host so it can't match another fixture's input.
+        const input = (fixture.nativeElement as HTMLElement).querySelector(".unit-name-edit-input");
+        expect(input).toBeTruthy();
+        // The focus/select happen inside a setTimeout(0) callback.
+        expect(focusSpy).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+        expect(focusSpy).toHaveBeenCalledTimes(1);
+        expect(selectSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        host.remove();
+      }
+    });
+  });
+
+  describe("openComputingUnitMetadataModal", () => {
+    it("opens the metadata modal with the expected configuration", () => {
+      const modalService = TestBed.inject(NzModalService);
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as any);
+      const entry = makeEntry();
+
+      component.openComputingUnitMetadataModal(entry);
+
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nzTitle: "Computing Unit Information",
+          nzContent: ComputingUnitMetadataComponent,
+          nzData: entry,
+          nzFooter: null,
+          nzMaskClosable: true,
+          nzWidth: "600px",
+        })
+      );
+    });
+  });
+
+  describe("status and label computations", () => {
+    it("delegates badge color to the status util", () => {
+      expect(component.getBadgeColor("Running")).toBe("green");
+      expect(component.getBadgeColor("Pending")).toBe("gold");
+      expect(component.getBadgeColor("Terminated")).toBe("red");
+    });
+
+    it("delegates the status tooltip to the status util", () => {
+      expect(component.getUnitStatusTooltip(makeEntry({ status: "Running" }))).toBe("Ready to use");
+      expect(component.getUnitStatusTooltip(makeEntry({ status: "Pending" }))).toBe("Computing unit is starting up");
+      const terminated = {
+        ...makeEntry(),
+        status: "Terminated" as unknown as DashboardWorkflowComputingUnit["status"],
+      };
+      expect(component.getUnitStatusTooltip(terminated)).toBe("Terminated");
+    });
+
+    it("computes CPU/memory percentages and maps them to progress statuses under heavy load", () => {
+      component.entry = makeEntry({
+        metrics: { cpuUsage: "950m", memoryUsage: "950Mi" },
+      });
+      expect(component.getCpuPercentage()).toBeCloseTo(95, 1);
+      expect(component.getMemoryPercentage()).toBeCloseTo(92.77, 1);
+      expect(component.getCpuStatus()).toBe("exception");
+      expect(component.getMemoryStatus()).toBe("exception");
+    });
+
+    it("reports 0% and success statuses for the default entry's N/A (unavailable) metrics", () => {
+      expect(component.getCpuPercentage()).toBe(0);
+      expect(component.getMemoryPercentage()).toBe(0);
+      expect(component.getCpuStatus()).toBe("success");
+      expect(component.getMemoryStatus()).toBe("success");
+    });
+  });
+
+  describe("resource limit units", () => {
+    it("returns CPU for a unitless core limit and passes through the raw unit otherwise", () => {
+      const coreEntry = bareComponent(makeEntry());
+      expect(coreEntry.getCpuLimitUnit()).toBe("CPU");
+
+      const milliEntry = bareComponent(
+        makeEntry({
+          computingUnit: {
+            ...makeEntry().computingUnit,
+            resource: { ...makeEntry().computingUnit.resource, cpuLimit: "2000m" },
+          },
+        })
+      );
+      expect(milliEntry.getCpuLimitUnit()).toBe("m");
+    });
+
+    it("returns the memory limit unit parsed from the limit string", () => {
+      expect(bareComponent(makeEntry()).getMemoryLimitUnit()).toBe("Gi");
+    });
+  });
+
+  describe("getCpuValue / getMemoryValue with real usage", () => {
+    function entryWith(cpuLimit: string, memoryLimit: string, cpuUsage: string, memoryUsage: string) {
+      const base = makeEntry();
+      return makeEntry({
+        metrics: { cpuUsage, memoryUsage },
+        computingUnit: {
+          ...base.computingUnit,
+          resource: { ...base.computingUnit.resource, cpuLimit, memoryLimit },
+        },
+      });
+    }
+
+    it("converts CPU usage to cores when the limit is expressed in cores", () => {
+      component.entry = entryWith("1", "1Gi", "500m", "512Mi");
+      expect(component.getCpuValue()).toBeCloseTo(0.5, 4);
+      expect(component.getMemoryValue()).toBeCloseTo(0.5, 4);
+    });
+
+    it("converts CPU usage into the limit's unit when the limit carries a suffix", () => {
+      component.entry = entryWith("2000m", "1Gi", "500m", "512Mi");
+      // limit unit is "m", so usage is reported in millicores rather than cores
+      expect(component.getCpuValue()).toBeCloseTo(500, 2);
+    });
+  });
+
+  describe("fallback getters when metrics/resource are absent", () => {
+    it("returns N/A for every usage and limit getter", () => {
+      const base = makeEntry();
+      const item = bareComponent(
+        makeEntry({
+          metrics: undefined,
+          computingUnit: {
+            ...base.computingUnit,
+            resource: undefined as unknown as DashboardWorkflowComputingUnit["computingUnit"]["resource"],
+          },
+        })
+      );
+
+      expect(item.getCurrentComputingUnitCpuUsage()).toBe("N/A");
+      expect(item.getCurrentComputingUnitMemoryUsage()).toBe("N/A");
+      expect(item.getCurrentComputingUnitCpuLimit()).toBe("N/A");
+      expect(item.getCurrentComputingUnitMemoryLimit()).toBe("N/A");
+      expect(item.getCurrentComputingUnitGpuLimit()).toBe("N/A");
+      expect(item.getCurrentComputingUnitJvmMemorySize()).toBe("N/A");
+      expect(item.getCurrentSharedMemorySize()).toBe("N/A");
+    });
+  });
+
+  describe("showGpuSelection edge cases", () => {
+    it("hides the selection when the only option is the zero option", () => {
+      component.gpuOptions = ["0"];
+      expect(component.showGpuSelection()).toBe(false);
+    });
+
+    it("hides the selection when there are no options", () => {
+      component.gpuOptions = [];
+      expect(component.showGpuSelection()).toBe(false);
+    });
+
+    it("shows the selection when the single option is a non-zero value", () => {
+      component.gpuOptions = ["2"];
       expect(component.showGpuSelection()).toBe(true);
     });
   });
