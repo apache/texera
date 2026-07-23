@@ -98,7 +98,7 @@ import scala.util.{Failure, Success, Try}
   *   - Config + fixture: curated handler ([[CuratedHandlers]]) if registered,
   *     else [[ConfigGenerator]] against the [[CanonicalFixture]] schemas.
   *   - Comparison: strict positional unless the operator declares
-  *     `outputOrderSignificant = false`; all declared output ports are compared.
+  *     `orderSensitive = false`; all declared output ports are compared.
   * Operators that can't be run are Flagged with a reason — never silently
   * skipped.
   */
@@ -417,8 +417,8 @@ object TransformVerificationRunner {
     )
 
     // The operator declares whether its output row order is meaningful via
-    // LogicalOp.outputOrderSignificant (false for set/bag ops); default strict.
-    val orderSensitive = opDesc.outputOrderSignificant
+    // LogicalOp.orderSensitive (false for set/bag ops); default strict.
+    val orderSensitive = opDesc.orderSensitive
     (0 until outputPortCount).foreach { port =>
       val actual = pathAOutputs.getOrElse(
         PortIdentity(port),

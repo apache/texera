@@ -56,7 +56,7 @@ object HashJoinOpDesc {
 class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
 
   // set/bag semantics: output row order is implementation-defined
-  override def outputOrderSignificant: Boolean = false
+  override def orderSensitive: Boolean = false
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input Attribute")

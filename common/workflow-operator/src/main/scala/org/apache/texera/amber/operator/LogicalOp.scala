@@ -467,7 +467,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
     * hash-partitioned group emit, join bucket order) — override this to false.
     * Consumers that must not rely on a stable row order read this flag.
     */
-  def outputOrderSignificant: Boolean = true
+  def orderSensitive: Boolean = true
 
   private def getOperatorVersion: String = {
     val path = "amber/src/main/scala/"

@@ -29,7 +29,7 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 class CartesianProductOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   // set/bag semantics: output row order is implementation-defined
-  override def outputOrderSignificant: Boolean = false
+  override def orderSensitive: Boolean = false
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
