@@ -103,12 +103,18 @@ class QuiverPlotOpDescSpec extends AnyFlatSpec with Matchers {
     "constrain the real coordinate fields (x/y/u/v) to numeric" in {
     // The rule keys must be actual @JsonProperty names; a key of "value" (no such
     // field) matches nothing, so no numeric constraint reaches the column pickers.
-    val rules = objectMapper
-      .readTree(classOf[QuiverPlotOpDesc].getAnnotation(classOf[JsonSchemaInject]).json())
-      .path("attributeTypeRules")
+    val ann = classOf[QuiverPlotOpDesc].getAnnotation(classOf[JsonSchemaInject])
+    ann should not be null
+    val rules = objectMapper.readTree(ann.json).path("attributeTypeRules")
     rules.fieldNames().asScala.toSet shouldBe Set("x", "y", "u", "v")
     rules.fieldNames().asScala.foreach { f =>
-      rules.path(f).path("enum").toString should include("double")
+      rules
+        .path(f)
+        .path("enum")
+        .elements()
+        .asScala
+        .map(_.asText())
+        .toSet shouldBe Set("integer", "long", "double")
     }
   }
 }
