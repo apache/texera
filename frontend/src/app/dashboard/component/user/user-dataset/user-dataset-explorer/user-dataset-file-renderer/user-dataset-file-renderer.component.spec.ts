@@ -194,4 +194,47 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(getMimeType("")).toBe(MIME_TYPES.OCTET_STREAM);
     });
   });
+
+  describe("file content loading", () => {
+    it("loadTabularFile sets the header, pads short rows to the header width, and keeps longer rows intact", () => {
+      (component as unknown as { loadTabularFile: (d: unknown[][]) => void }).loadTabularFile([
+        ["a", "b", "c"],
+        ["1", "2"],
+        ["x", "y", "z", "w"],
+      ]);
+
+      expect(component.tableDataHeader).toEqual(["a", "b", "c"]);
+      expect(component.tableContent[0]).toEqual(["1", "2", ""]); // short row padded to the header width
+      expect(component.tableContent[1]).toEqual(["x", "y", "z", "w"]);
+    });
+
+    it("loadTabularFile leaves state unchanged for empty data", () => {
+      component.tableDataHeader = ["keep"];
+      component.tableContent = [["keep-content"]];
+      (component as unknown as { loadTabularFile: (d: unknown[][]) => void }).loadTabularFile([]);
+      expect(component.tableDataHeader).toEqual(["keep"]);
+      expect(component.tableContent).toEqual([["keep-content"]]);
+    });
+
+    it("readFileAsText reads the blob text into textContent", async () => {
+      // Deterministic FileReader stub — fire onload on a microtask, never rely on jsdom's real async.
+      class FakeFileReader {
+        onload: ((e: { target: { result: string } }) => void) | null = null;
+        result: string | null = null;
+        readAsText(_blob: Blob): void {
+          this.result = "canned text";
+          queueMicrotask(() => this.onload?.({ target: { result: this.result as string } }));
+        }
+      }
+      const realFileReader = globalThis.FileReader;
+      (globalThis as unknown as { FileReader: unknown }).FileReader = FakeFileReader;
+      try {
+        (component as unknown as { readFileAsText: (b: Blob) => void }).readFileAsText(new Blob(["ignored"]));
+        await Promise.resolve();
+        expect(component.textContent).toBe("canned text");
+      } finally {
+        (globalThis as unknown as { FileReader: unknown }).FileReader = realFileReader;
+      }
+    });
+  });
 });
