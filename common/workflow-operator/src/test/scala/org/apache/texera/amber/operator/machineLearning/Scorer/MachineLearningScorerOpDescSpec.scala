@@ -80,6 +80,22 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     code should include(Base64.getEncoder.encodeToString("yhat".getBytes(StandardCharsets.UTF_8)))
   }
 
+  it should "splice the selected metrics verbatim into a proper metric_list" in {
+    // The metric fragment must be spliced verbatim, not re-encoded as one quoted
+    // value (which would collapse the whole list into a single malformed element).
+    val d = new MachineLearningScorerOpDesc
+    d.actualValueColumn = "y"
+    d.predictValueColumn = "yhat"
+    d.classificationMetrics =
+      List(classificationMetricsFnc.accuracy, classificationMetricsFnc.f1Score)
+    val code = d.generatePythonCode()
+    code should include("metric_list = ['Accuracy','F1 Score']")
+    // The metric names must NOT be base64-re-encoded through the template builder.
+    val encoded =
+      Base64.getEncoder.encodeToString("'Accuracy','F1 Score'".getBytes(StandardCharsets.UTF_8))
+    code should not include encoded
+  }
+
   "MachineLearningScorerOpDesc" should "round-trip its config fields through the polymorphic base" in {
     val d = new MachineLearningScorerOpDesc
     d.isRegression = true

@@ -21,8 +21,9 @@ import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { firstValueFrom } from "rxjs";
 
-import { DATASET_BASE_URL, DatasetService, validateDatasetName } from "./dataset.service";
+import { DATASET_BASE_URL, DatasetService, MultipartUploadProgress, validateDatasetName } from "./dataset.service";
 import { AppSettings } from "../../../../common/app-setting";
+import { AuthService } from "../../../../common/service/user/auth.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
@@ -77,18 +78,25 @@ const SAMPLE_FILE_NODES: DatasetFileNode[] = [
 class FakeXMLHttpRequest {
   static instances: FakeXMLHttpRequest[] = [];
 
+  // Capturing upload target so tests can drive `upload.progress` events.
   readonly upload = {
-    addEventListener: vi.fn(),
+    listeners: new Map<string, EventListener[]>(),
+    addEventListener(type: string, listener: EventListener): void {
+      this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+    },
   };
   status = 0;
   url = "";
+  readonly requestHeaders = new Map<string, string>();
   private listeners = new Map<string, EventListener[]>();
 
   open(_method: string, url: string): void {
     this.url = url;
   }
 
-  setRequestHeader(): void {}
+  setRequestHeader(name: string, value: string): void {
+    this.requestHeaders.set(name, value);
+  }
 
   send(): void {
     FakeXMLHttpRequest.instances.push(this);
@@ -98,6 +106,14 @@ class FakeXMLHttpRequest {
 
   addEventListener(type: string, listener: EventListener): void {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+  }
+
+  /** Drives the `upload.progress` listener registered by the service. */
+  emitProgress(loaded: number, lengthComputable = true): void {
+    const event = { lengthComputable, loaded } as unknown as Event;
+    for (const listener of this.upload.listeners.get("progress") ?? []) {
+      listener(event);
+    }
   }
 
   respond(status: number): void {
@@ -507,5 +523,229 @@ describe("DatasetService", () => {
     const req = http.expectOne(`${API}/dataset/3/update/cover`);
     expect(req.request.body).toEqual({ coverImage: "data:image/png;base64,ZGF0YQ==" });
     req.flush({});
+  });
+
+  // ─── getDatasetCoverUrl ───────────────────────────────────────────────────
+
+  it("getDatasetCoverUrl GETs /dataset/{did}/cover-url and returns the mapped payload", async () => {
+    const pending = firstValueFrom(service.getDatasetCoverUrl(4));
+    const req = http.expectOne(`${API}/dataset/4/cover-url`);
+    expect(req.request.method).toBe("GET");
+    req.flush({ url: "https://img.example/cover.png" });
+    expect(await pending).toEqual({ url: "https://img.example/cover.png" });
+  });
+
+  it("getDatasetCoverUrl passes through a null url", async () => {
+    const pending = firstValueFrom(service.getDatasetCoverUrl(4));
+    http.expectOne(`${API}/dataset/4/cover-url`).flush({ url: null });
+    expect(await pending).toEqual({ url: null });
+  });
+
+  // ─── multipartUpload: progress / stats / load / error branches ────────────
+
+  const isInit = (r: { url: string; params: { get(k: string): string | null } }) =>
+    r.url === `${API}/${DATASET_BASE_URL}/multipart-upload` && r.params.get("type") === "init";
+  const isFinish = (r: { url: string; params: { get(k: string): string | null } }) =>
+    r.url === `${API}/${DATASET_BASE_URL}/multipart-upload` && r.params.get("type") === "finish";
+
+  it("multipartUpload emits uploading progress, attaches the auth header, and finishes on HTTP 200", async () => {
+    const tokenSpy = vi.spyOn(AuthService, "getAccessToken").mockReturnValue("tok123");
+    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
+    FakeXMLHttpRequest.instances = [];
+    try {
+      const file = new File([new Uint8Array(8)], "d.bin"); // 8 bytes, partSize 8 => 1 part
+      const emissions: MultipartUploadProgress[] = [];
+      const done = new Promise<void>((resolve, reject) => {
+        service.multipartUpload("o@e.com", "ds", "d.bin", file, 8, 1, false).subscribe({
+          next: p => emissions.push(p),
+          error: (error: unknown): void => reject(error),
+          complete: resolve,
+        });
+      });
+
+      http.expectOne(isInit).flush({ missingParts: [1], completedPartsCount: 0 });
+
+      const xhr = FakeXMLHttpRequest.instances[0];
+      expect(xhr.requestHeaders.get("Content-Type")).toBe("application/octet-stream");
+      expect(xhr.requestHeaders.get("Authorization")).toBe("Bearer tok123");
+
+      xhr.emitProgress(4); // half a part uploaded -> "uploading" emission
+      xhr.respond(200); // load handler takes the 200 branch
+      http.expectOne(isFinish).flush({});
+      await done;
+
+      const uploading = emissions.filter(e => e.status === "uploading");
+      expect(uploading.length).toBeGreaterThan(0);
+      expect(uploading.some(e => e.percentage > 0 && e.percentage <= 99)).toBe(true);
+      expect(emissions.at(-1)).toMatchObject({ status: "finished", percentage: 100 });
+    } finally {
+      tokenSpy.mockRestore();
+    }
+  });
+
+  it("multipartUpload errors out when a part upload load returns a non-2xx status", async () => {
+    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
+    FakeXMLHttpRequest.instances = [];
+    const file = new File([new Uint8Array(4)], "e.bin");
+    const emissions: MultipartUploadProgress[] = [];
+    const outcome = new Promise<unknown>(resolve => {
+      service.multipartUpload("o@e.com", "ds", "e.bin", file, 4, 1, false).subscribe({
+        next: p => emissions.push(p),
+        error: (error: unknown): void => resolve(error),
+        complete: () => resolve(null),
+      });
+    });
+
+    http.expectOne(isInit).flush({ missingParts: [1], completedPartsCount: 0 });
+    FakeXMLHttpRequest.instances[0].respond(500);
+
+    const err = await outcome;
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toContain("HTTP 500");
+    expect(emissions.at(-1)).toMatchObject({ status: "failed", percentage: 0 });
+  });
+
+  it("multipartUpload tolerates a sparse init payload and finishes when no parts are missing", async () => {
+    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
+    FakeXMLHttpRequest.instances = [];
+    const file = new File([new Uint8Array(4)], "c.bin");
+    const emissions: MultipartUploadProgress[] = [];
+    const done = new Promise<void>((resolve, reject) => {
+      service.multipartUpload("o@e.com", "ds", "c.bin", file, 4, 1, false).subscribe({
+        next: p => emissions.push(p),
+        error: reject,
+        complete: resolve,
+      });
+    });
+
+    // Missing `missingParts` / `completedPartsCount` exercise the nullish-coalescing defaults.
+    http.expectOne(isInit).flush({});
+    expect(FakeXMLHttpRequest.instances.length).toBe(0);
+    http.expectOne(isFinish).flush({});
+    await done;
+
+    expect(emissions[0]).toMatchObject({ status: "initializing", percentage: 0 });
+    expect(emissions.at(-1)).toMatchObject({ status: "finished", percentage: 100 });
+  });
+
+  it("multipartUpload reports a 0% failure when the finish call errors for an empty file", async () => {
+    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
+    FakeXMLHttpRequest.instances = [];
+    const file = new File([], "empty.bin"); // size 0 => partCount 0 (partCount>0 false branch)
+    const emissions: MultipartUploadProgress[] = [];
+    const outcome = new Promise<unknown>(resolve => {
+      service.multipartUpload("o@e.com", "ds", "empty.bin", file, 4, 1, false).subscribe({
+        next: p => emissions.push(p),
+        error: (error: unknown): void => resolve(error),
+        complete: () => resolve(null),
+      });
+    });
+
+    http.expectOne(isInit).flush({ missingParts: [], completedPartsCount: 0 });
+    expect(FakeXMLHttpRequest.instances.length).toBe(0);
+    http.expectOne(isFinish).error(new ProgressEvent("error"));
+
+    const err = await outcome;
+    expect(err).not.toBeNull();
+    expect(emissions[0]).toMatchObject({ status: "initializing", percentage: 0 });
+    expect(emissions.at(-1)).toMatchObject({ status: "failed", percentage: 0 });
+  });
+
+  it("multipartUpload smooths, throttles and shifts the progress statistics across events", async () => {
+    let now = 1_000_000;
+    const dateSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
+    FakeXMLHttpRequest.instances = [];
+    try {
+      const file = new File([new Uint8Array(100)], "big.bin"); // 100 bytes, partSize 100 => 1 part
+      const emissions: MultipartUploadProgress[] = [];
+      const done = new Promise<void>((resolve, reject) => {
+        service.multipartUpload("o@e.com", "ds", "big.bin", file, 100, 1, false).subscribe({
+          next: p => emissions.push(p),
+          error: (error: unknown): void => reject(error),
+          complete: resolve,
+        });
+      });
+
+      http.expectOne(isInit).flush({ missingParts: [1], completedPartsCount: 0 });
+      const xhr = FakeXMLHttpRequest.instances[0];
+
+      xhr.emitProgress(5, false); // non-lengthComputable -> ignored
+      xhr.emitProgress(10); // first update: startTime set, elapsed 0
+      xhr.emitProgress(20); // same timestamp -> throttled (returns cached stats)
+      now = 1_002_000;
+      xhr.emitProgress(30); // elapsed>0 so speed/avg become positive
+      now = 1_003_000;
+      xhr.emitProgress(90); // large ETA drop -> smoothing clamps the change
+      now = 1_004_000;
+      xhr.emitProgress(99); // >95% complete -> ETA capped to 10s
+      now = 1_005_000;
+      xhr.emitProgress(99);
+      now = 1_006_000;
+      xhr.emitProgress(99); // 6th sample -> speedSamples window shifts
+      xhr.respond(200);
+      http.expectOne(isFinish).flush({});
+      await done;
+
+      const uploading = emissions.filter(e => e.status === "uploading");
+      expect(uploading.length).toBeGreaterThan(0);
+      expect(uploading.every(e => e.percentage <= 99)).toBe(true);
+      // Once real elapsed time exists the smoothed speed becomes positive.
+      expect(uploading.some(e => (e.uploadSpeed ?? 0) > 0)).toBe(true);
+      // ETA is always reported as a non-negative integer number of seconds.
+      expect(
+        uploading.every(e => Number.isInteger(e.estimatedTimeRemaining) && (e.estimatedTimeRemaining ?? -1) >= 0)
+      ).toBe(true);
+      expect(emissions.at(-1)).toMatchObject({
+        status: "finished",
+        percentage: 100,
+        uploadSpeed: 0,
+        estimatedTimeRemaining: 0,
+      });
+    } finally {
+      dateSpy.mockRestore();
+    }
+  });
+
+  it("multipartUpload clamps a sharply rising ETA to the +30% smoothing bound", async () => {
+    let now = 1_000_000;
+    const dateSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
+    FakeXMLHttpRequest.instances = [];
+    try {
+      const file = new File([new Uint8Array(100)], "rise.bin"); // 100 bytes, 1 part
+      const emissions: MultipartUploadProgress[] = [];
+      const done = new Promise<void>((resolve, reject) => {
+        service.multipartUpload("o@e.com", "ds", "rise.bin", file, 100, 1, false).subscribe({
+          next: p => emissions.push(p),
+          error: (error: unknown): void => reject(error),
+          complete: resolve,
+        });
+      });
+
+      http.expectOne(isInit).flush({ missingParts: [1], completedPartsCount: 0 });
+      const xhr = FakeXMLHttpRequest.instances[0];
+
+      xhr.emitProgress(50); // first update: elapsed 0 -> ETA 0
+      now = 1_001_000;
+      xhr.emitProgress(50); // fast sample -> ETA becomes small (~2s), sets lastETA
+      now = 1_100_000;
+      xhr.emitProgress(50); // huge elapsed collapses avg speed -> ETA rises >30% and is clamped up
+      xhr.respond(200);
+      http.expectOne(isFinish).flush({});
+      await done;
+
+      const uploading = emissions.filter(e => e.status === "uploading");
+      expect(uploading.length).toBeGreaterThanOrEqual(3);
+
+      const etaBefore = uploading[1].estimatedTimeRemaining ?? 0;
+      const etaAfter = uploading[2].estimatedTimeRemaining ?? 0;
+
+      expect(etaBefore).toBeGreaterThan(0);
+      expect(etaAfter).toBeLessThanOrEqual(Math.round(etaBefore * 1.3));
+      expect(emissions.at(-1)).toMatchObject({ status: "finished", percentage: 100 });
+    } finally {
+      dateSpy.mockRestore();
+    }
   });
 });
