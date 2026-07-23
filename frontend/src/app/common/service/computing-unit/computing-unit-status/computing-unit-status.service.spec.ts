@@ -29,6 +29,7 @@ import { StubUserService } from "../../user/stub-user.service";
 import { AuthService } from "../../user/auth.service";
 import { StubAuthService } from "../../user/stub-auth.service";
 import { DashboardWorkflowComputingUnit } from "../../../type/workflow-computing-unit";
+import { ComputingUnitState } from "../../../type/computing-unit-connection.interface";
 import { commonTestProviders } from "../../../testing/test-utils";
 
 describe("ComputingUnitStatusService", () => {
@@ -142,5 +143,155 @@ describe("ComputingUnitStatusService", () => {
     // Switch units while disconnected: unit 7's stale state must still be cleared.
     service.selectComputingUnit(5, 8);
     expect(resetCount).toBe(1);
+  });
+
+  it("getAllComputingUnits() replays the current list and forwards later updates", () => {
+    const emissions: DashboardWorkflowComputingUnit[][] = [];
+    service.getAllComputingUnits().subscribe(units => emissions.push(units));
+
+    // allComputingUnitsSubject is a BehaviorSubject initialized with [], so it replays that value.
+    expect(emissions[0]).toEqual([]);
+
+    const units = [mockUnit(1), mockUnit(2)];
+    (service as any).allComputingUnitsSubject.next(units);
+    expect(emissions[emissions.length - 1]).toBe(units);
+  });
+
+  it("getSelectedComputingUnitValue() returns null before any unit is selected", () => {
+    expect(service.getSelectedComputingUnitValue()).toBeNull();
+  });
+
+  it("getSelectedComputingUnitValue() reflects the unit chosen via selectComputingUnit()", () => {
+    vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
+    const unit = mockUnit(7);
+    (service as any).allComputingUnitsSubject.next([unit]);
+
+    service.selectComputingUnit(5, 7);
+
+    expect(service.getSelectedComputingUnitValue()).toBe(unit);
+  });
+
+  it("getStatus() maps a null selection to NoComputingUnit", () => {
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.NoComputingUnit);
+  });
+
+  it("getStatus() maps a Running unit to ComputingUnitState.Running", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "Running",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Running);
+  });
+
+  it("getStatus() maps a Pending unit to ComputingUnitState.Pending", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "Pending",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Pending);
+  });
+
+  it("getStatus() maps an unrecognized status to Pending (default branch)", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "Terminating",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Pending);
+  });
+
+  it("refreshComputingUnitList() re-fetches the list and pushes it to subscribers", () => {
+    const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+    const newUnits = [mockUnit(42)];
+    const listSpy = vi.spyOn(managing, "listComputingUnits").mockReturnValue(of(newUnits));
+
+    let latest: DashboardWorkflowComputingUnit[] = [];
+    service.getAllComputingUnits().subscribe(units => (latest = units));
+
+    service.refreshComputingUnitList();
+
+    expect(listSpy).toHaveBeenCalled();
+    expect(latest).toEqual(newUnits);
+  });
+
+  it("updateUnitInList replaces the matching unit and leaves the others untouched", () => {
+    const unitA = mockUnit(1);
+    const unitB = mockUnit(2);
+    (service as any).allComputingUnitsSubject.next([unitA, unitB]);
+
+    const updatedA = { computingUnit: { cuid: 1 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+    (service as any).updateUnitInList(updatedA);
+
+    expect((service as any).allComputingUnitsSubject.value).toEqual([updatedA, unitB]);
+  });
+
+  it("setComputingUnitsState refreshes the selected unit when it is still present in the new list", () => {
+    (service as any).selectedUnitSubject.next(mockUnit(7));
+
+    const updated = { computingUnit: { cuid: 7 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+    (service as any).setComputingUnitsState([updated]);
+
+    expect(service.getSelectedComputingUnitValue()).toBe(updated);
+  });
+
+  it("setComputingUnitsState clears the selection and stops polling when the selected unit disappears", () => {
+    (service as any).selectedUnitSubject.next(mockUnit(7));
+    const stopSpy = vi.spyOn(service as any, "stopPollingSelectedUnit");
+
+    (service as any).setComputingUnitsState([mockUnit(8)]);
+
+    expect(service.getSelectedComputingUnitValue()).toBeNull();
+    expect(stopSpy).toHaveBeenCalled();
+  });
+
+  it("startPollingSelectedUnit polls the unit on each interval tick and merges the result", () => {
+    vi.useFakeTimers();
+    try {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const polled = { computingUnit: { cuid: 3 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+      const getSpy = vi.spyOn(managing, "getComputingUnit").mockReturnValue(of(polled));
+      (service as any).allComputingUnitsSubject.next([mockUnit(3)]);
+
+      (service as any).startPollingSelectedUnit(3);
+      // interval() fires only after the first period elapses
+      expect(getSpy).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
+
+      expect(getSpy).toHaveBeenCalledWith(3);
+      expect((service as any).allComputingUnitsSubject.value).toEqual([polled]);
+    } finally {
+      // Stop the interval poll here so the test is self-contained rather than
+      // relying on afterEach's ngOnDestroy to tear it down.
+      (service as any).stopPollingSelectedUnit();
+      vi.useRealTimers();
+    }
+  });
+
+  it("stopPollingSelectedUnit halts further polling", () => {
+    vi.useFakeTimers();
+    try {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const getSpy = vi.spyOn(managing, "getComputingUnit").mockReturnValue(of(mockUnit(3)));
+
+      (service as any).startPollingSelectedUnit(3);
+      (service as any).stopPollingSelectedUnit();
+
+      vi.advanceTimersByTime(10000);
+
+      expect(getSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

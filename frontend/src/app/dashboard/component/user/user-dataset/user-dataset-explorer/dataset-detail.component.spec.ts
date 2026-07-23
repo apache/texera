@@ -105,7 +105,7 @@ describe("DatasetDetailComponent upload queue", () => {
             isLiked: vi.fn(() => of([{ isLiked: false }])),
           },
         },
-        { provide: AdminSettingsService, useValue: { getSetting: vi.fn(() => of("3")) } },
+        { provide: AdminSettingsService, useValue: { getPublicSetting: vi.fn(() => of("3")) } },
         { provide: MarkdownService, useValue: { parse: vi.fn(() => "") } },
         ...commonTestProviders,
       ],
@@ -446,7 +446,7 @@ describe("DatasetDetailComponent behavior", () => {
       postLike: vi.fn(() => of(true)),
       postUnlike: vi.fn(() => of(true)),
     };
-    adminSettingsServiceStub = { getSetting: vi.fn(() => of("50")) };
+    adminSettingsServiceStub = { getPublicSetting: vi.fn(() => of("50")) };
   });
 
   describe("ngOnInit", () => {
@@ -465,7 +465,7 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.likeCount).toBe(7);
       expect(component.viewCount).toBe(42);
       expect(hubServiceStub.isLiked).not.toHaveBeenCalled();
-      expect(adminSettingsServiceStub.getSetting).not.toHaveBeenCalled();
+      expect(adminSettingsServiceStub.getPublicSetting).not.toHaveBeenCalled();
     });
 
     it("fetches liked status and upload settings for a logged-in user", () => {
@@ -477,7 +477,19 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(hubServiceStub.isLiked).toHaveBeenCalled();
       expect(component.isLiked).toBe(true);
-      expect(adminSettingsServiceStub.getSetting).toHaveBeenCalled();
+      expect(adminSettingsServiceStub.getPublicSetting).toHaveBeenCalled();
+    });
+
+    it("keeps the default upload settings when the public settings are missing", () => {
+      adminSettingsServiceStub.getPublicSetting.mockReturnValue(of(null));
+
+      createComponent({ did: 5 });
+      login();
+      fixture.detectChanges();
+
+      expect(component.chunkSizeMiB).toBe(50);
+      expect(component.maxConcurrentChunks).toBe(10);
+      expect(component.maxConcurrentFiles).toBe(3);
     });
 
     it("makes no hub calls when the route carries no did", () => {
@@ -994,6 +1006,34 @@ describe("DatasetDetailComponent behavior", () => {
       await component.copyCurrentFilePath();
 
       expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to copy file path");
+    });
+  });
+
+  describe("upload status, version-node selection, and trackBy", () => {
+    it("getUploadStatus maps the upload status to a progress state", () => {
+      expect(component.getUploadStatus("uploading")).toBe("active");
+      expect(component.getUploadStatus("initializing")).toBe("active");
+      expect(component.getUploadStatus("aborted")).toBe("exception");
+      expect(component.getUploadStatus("failed")).toBe("exception");
+      expect(component.getUploadStatus("finished")).toBe("success");
+    });
+
+    it("onVersionFileTreeNodeSelected loads the selected node's content", () => {
+      const node = { name: "file.csv", type: "file" } as unknown as Parameters<
+        typeof component.onVersionFileTreeNodeSelected
+      >[0];
+      const loadSpy = vi
+        .spyOn(component as unknown as { loadFileContent: (n: unknown) => void }, "loadFileContent")
+        .mockImplementation(() => {});
+
+      component.onVersionFileTreeNodeSelected(node);
+
+      expect(loadSpy).toHaveBeenCalledWith(node);
+    });
+
+    it("trackByTask returns the task's file path", () => {
+      const task = { filePath: "owner/data/file.csv" } as unknown as Parameters<typeof component.trackByTask>[1];
+      expect(component.trackByTask(0, task)).toBe("owner/data/file.csv");
     });
   });
 });

@@ -21,13 +21,16 @@ package org.apache.texera.amber.util
 
 import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil.toIcebergSchema
+import org.apache.hadoop.fs.FileSystem
 import org.apache.iceberg.data.GenericRecord
 import org.apache.iceberg.exceptions.RESTException
 import org.apache.iceberg.types.Types
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.net.URI
 import java.nio.ByteBuffer
+import java.nio.file.Files
 import java.sql.Timestamp
 import java.time.{LocalDateTime, ZoneId}
 import scala.jdk.CollectionConverters._
@@ -298,6 +301,43 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(record.getField("large_binary_2__texera_large_binary_ptr") == null)
 
     assert(IcebergUtil.fromRecord(record, schema) == tuple)
+  }
+
+  it should "select WinutilsFreeLocalFileSystem when winutils is unavailable on Windows" in {
+    val conf = IcebergUtil.newLocalHadoopConf(useWinutilsFreeLocalFs = true)
+    assert(conf.get("fs.file.impl") == classOf[WinutilsFreeLocalFileSystem].getName)
+    assert(conf.getBoolean("fs.file.impl.disable.cache", false))
+    assert(
+      FileSystem.get(URI.create("file:///"), conf).isInstanceOf[WinutilsFreeLocalFileSystem]
+    )
+  }
+
+  it should "leave the Hadoop configuration untouched when winutils is not needed" in {
+    val conf = IcebergUtil.newLocalHadoopConf(useWinutilsFreeLocalFs = false)
+    assert(conf.get("fs.file.impl") == null)
+    assert(!conf.getBoolean("fs.file.impl.disable.cache", false))
+  }
+
+  it should "create and load tables via createHadoopCatalog in a local warehouse on every platform" in {
+    val warehouse = Files.createTempDirectory("iceberg-local-warehouse")
+    val catalog = IcebergUtil.createHadoopCatalog("local_test", warehouse)
+
+    // On Windows hosts without a winutils.exe installation, this used to fail with
+    // "Hadoop bin directory does not exist": Hadoop's default local file system
+    // shells out to winutils for chmod on every file/directory creation.
+    IcebergUtil.createTable(
+      catalog,
+      "test_namespace",
+      "test_table",
+      IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER)),
+      overrideIfExists = true
+    )
+
+    assert(
+      Files.exists(warehouse.resolve("test_namespace").resolve("test_table").resolve("metadata")),
+      "table metadata must be written through the local file system"
+    )
+    assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").nonEmpty)
   }
 
   it should "surface RESTException when createRestCatalog cannot reach the REST endpoint" in {

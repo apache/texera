@@ -23,20 +23,57 @@
  * call chain, Angular's `fakeAsync` throws
  * `Expected to be running in 'ProxyZone'`.
  *
- * Wrap Vitest's `it` so each test body runs inside a freshly-forked
- * ProxyZone. This is a setupFile (referenced from `vitest.config.ts`),
- * so it executes once per test file before any spec body runs.
+ * Wrap Vitest's `it` so each test body runs inside a ProxyZone. The proxy
+ * is forked ONCE from the ROOT zone and reused for every test, with its
+ * delegate reset between tests — the same shape zone.js uses for its own
+ * jasmine/jest integrations and its shared-proxy helper.
+ *
+ * Forking from `Zone.root` (rather than `Zone.current`, as before) is what
+ * keeps the proxy exactly one level deep. When an async spec resolves, its
+ * continuation can leave the forked ProxyZone as `Zone.current`; the next
+ * `Zone.current.fork(...)` then nested a proxy inside that one, and across
+ * the many spec files a Vitest worker runs the chain grew without bound.
+ * Every `zone.run()` recurses through the whole
+ * `ProxyZoneSpec.onInvoke -> _ZoneDelegate.invoke` delegate chain, so once
+ * it is deep enough the stack overflows with `RangeError: Maximum call
+ * stack size exceeded` in whichever unrelated spec happens to be running.
+ * See apache/texera#6593.
+ *
+ * This is a setupFile (referenced from `vitest.config.ts`), so it executes
+ * once per test file before any spec body runs.
  */
 import "zone.js/testing";
 
+type ProxyZone = { run: <T>(fn: () => T) => T };
+type ProxyZoneSpecInstance = { resetDelegate: () => void };
+
 type ZoneType = {
-  current: { fork: (spec: object) => { run: <T>(fn: () => T) => T } };
-  ProxyZoneSpec: new () => object;
+  root: { fork: (spec: object) => ProxyZone };
+  ProxyZoneSpec: new () => ProxyZoneSpecInstance;
 };
 
 declare const Zone: ZoneType;
 
-const ProxyZoneSpec = (Zone as unknown as { ProxyZoneSpec: new () => object }).ProxyZoneSpec;
+const ProxyZoneSpec = Zone.ProxyZoneSpec;
+
+// Fork a single ProxyZone from the root zone and reuse it for every test.
+let sharedProxyZoneSpec: ProxyZoneSpecInstance | null = null;
+let sharedProxyZone: ProxyZone | null = null;
+
+function getProxyZone(): ProxyZone {
+  let spec = sharedProxyZoneSpec;
+  let zone = sharedProxyZone;
+  if (!spec || !zone) {
+    spec = new ProxyZoneSpec();
+    zone = Zone.root.fork(spec);
+    sharedProxyZoneSpec = spec;
+    sharedProxyZone = zone;
+  }
+  // Clear any delegate a prior test (e.g. one that threw inside fakeAsync)
+  // may have left set, so each test starts from a clean proxy state.
+  spec.resetDelegate();
+  return zone;
+}
 
 type ItFn = (name: string, fn?: (...args: unknown[]) => unknown, timeout?: number) => unknown;
 
@@ -47,7 +84,7 @@ function wrapInProxyZone<T extends ItFn>(target: T): T {
       name,
       function wrapper(this: unknown, ...args: unknown[]) {
         return new Promise<void>((resolve, reject) => {
-          const zone = Zone.current.fork(new ProxyZoneSpec());
+          const zone = getProxyZone();
           zone.run(() => {
             try {
               const result = fn.apply(this, args);

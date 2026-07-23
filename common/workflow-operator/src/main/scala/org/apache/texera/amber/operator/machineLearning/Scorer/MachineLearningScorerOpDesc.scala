@@ -122,13 +122,10 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
       case _                           => throw new IllegalArgumentException("Unknown metric type")
     }
 
-  // Returns a raw Python code fragment (already quoted, e.g. 'Accuracy','F1 Score')
-  // for verbatim insertion into the metric_list literal. The return type is a
-  // plain String — NOT EncodableString — so the Python template builder splices
-  // it as-is instead of re-encoding it as a single quoted string value (which
-  // would double-quote each metric name and break the runtime lookup).
+  // Must be a plain String, not EncodableString: this is a raw Python fragment
+  // spliced verbatim into `metric_list = [...]`. An EncodableString would be
+  // re-encoded as one quoted value, collapsing the list into a single element.
   private def getSelectedMetrics(): String = {
-    // Return a string of metrics using the getEachScorerName() method
     val metric = if (isRegression) regressionMetrics else classificationMetrics
     metric.map(metric => getMetricName(metric)).mkString("'", "','", "'")
   }

@@ -32,9 +32,8 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
-// The y-axis column is aggregated (groupby(...).mean()/.sum()), so it must be
-// numeric. (Upstream's rule referenced a non-existent "value" field — a typo —
-// so no constraint was actually applied; retarget it to the real "Y-axis" field.)
+// type constraint: Y-axis is aggregated (mean/sum), so it must be numeric;
+// X-axis is only a grouping key and may be any type.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {

@@ -321,10 +321,21 @@ class CostBasedScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResultFuture: Future[SearchResult] = Future {
-      val effectiveMode = CostBasedScheduleGenerator.effectiveExecutionMode(
-        physicalPlan,
-        workflowContext.workflowSettings.executionMode
-      )
+      val requestedMode = workflowContext.workflowSettings.executionMode
+      val effectiveMode =
+        CostBasedScheduleGenerator.effectiveExecutionMode(physicalPlan, requestedMode)
+      if (effectiveMode != requestedMode) {
+        // Surface the silent coercion: the user asked for one mode but an
+        // operator (e.g. a loop) forces materialized scheduling.
+        val requiringOps = physicalPlan.operators
+          .filter(_.requiresMaterializedExecution)
+          .map(_.id.logicalOpId.id)
+        logger.warn(
+          s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, " +
+            s"overriding requested execution mode $requestedMode with $effectiveMode: " +
+            s"operator(s) ${requiringOps.toSeq.sorted.mkString(", ")} require materialized execution."
+        )
+      }
       effectiveMode match {
         case ExecutionMode.MATERIALIZED =>
           getFullyMaterializedSearchState
