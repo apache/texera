@@ -34,7 +34,7 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text")
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
-  @JsonPropertyDescription("Input text here and this operator will return a column with your text as its rows.")
+  @JsonPropertyDescription("Enter the input text. By default, each line becomes one tuple.")
   var textInput: String = _
 
   override def getPhysicalOp(

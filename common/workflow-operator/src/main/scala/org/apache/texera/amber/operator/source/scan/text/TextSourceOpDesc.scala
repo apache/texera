@@ -35,7 +35,7 @@ trait TextSourceOpDesc {
   @JsonSchemaTitle("Attribute Type")
   @JsonPropertyDescription("This specifies how to read this text.\n \n Per-line types (string, integer, long, double, boolean, " +
     "timestamp) emit one output row per line, casting each line to that type. \n \n" +
-    "File types ('Single string' / 'binary' / 'large binary') read the entire file in one " +
+    "File types ('single string' / 'binary' / 'large binary') read the entire file in one " +
     "single row.")
   var attributeType: FileAttributeType = FileAttributeType.STRING
 
