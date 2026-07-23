@@ -25,6 +25,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { of, Subject, throwError } from "rxjs";
 import { ActionType, HubService } from "../../../../hub/service/hub.service";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
+import { By } from "@angular/platform-browser";
 import { RouterTestingModule } from "@angular/router/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -265,7 +266,12 @@ describe("ListItemComponent", () => {
 
     it("onEditDescription opens the edit modal and applies the change, then closes it", () => {
       component.editable = true;
-      component.entry = { id: 1, description: "old", type: "workflow" } as unknown as DashboardEntry;
+      component.entry = {
+        id: 1,
+        description: "old",
+        type: "workflow",
+        accessLevel: "WRITE",
+      } as unknown as DashboardEntry;
       const descriptionChange = new Subject<string>();
       const modalRef = { componentInstance: { descriptionChange }, destroy: vi.fn() };
       const createSpy = vi.spyOn(modalService, "create").mockReturnValue(modalRef as any);
@@ -286,6 +292,72 @@ describe("ListItemComponent", () => {
       component.onEditDescription();
 
       expect(createSpy).not.toHaveBeenCalled();
+    });
+
+    describe("read-only entries cannot edit the description (#3497)", () => {
+      // `editable` only means "private dashboard view" and is hardcoded true by the
+      // container, so the row itself must consult the entry's access level.
+      const makeEntry = (accessLevel: string) =>
+        ({
+          id: 1,
+          name: "wf",
+          description: "old",
+          type: "workflow",
+          accessLevel,
+          workflow: { isOwner: accessLevel === "WRITE", accessLevel },
+          accessibleUserIds: [],
+          likeCount: 0,
+          viewCount: 0,
+          isLiked: false,
+          size: 0,
+        }) as unknown as DashboardEntry;
+
+      const stubModal = () =>
+        vi
+          .spyOn(modalService, "create")
+          .mockReturnValue({
+            componentInstance: { descriptionChange: new Subject<string>() },
+            destroy: vi.fn(),
+          } as any);
+
+      it("does not open the description editor without WRITE access", () => {
+        component.editable = true;
+        component.entry = makeEntry("READ");
+        const createSpy = stubModal();
+
+        component.onEditDescription();
+
+        expect(createSpy).not.toHaveBeenCalled();
+        expect(workflowPersistService.updateWorkflowDescription).not.toHaveBeenCalled();
+      });
+
+      it("hides the Edit Description control for read-only entries", () => {
+        component.editable = true;
+        component.isPrivateSearch = true;
+        component.entry = makeEntry("READ");
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.css('button[title="Edit Description"]'))).toBeNull();
+      });
+
+      it("still opens the description editor with WRITE access", () => {
+        component.editable = true;
+        component.entry = makeEntry("WRITE");
+        const createSpy = stubModal();
+
+        component.onEditDescription();
+
+        expect(createSpy).toHaveBeenCalled();
+      });
+
+      it("still renders the Edit Description control with WRITE access", () => {
+        component.editable = true;
+        component.isPrivateSearch = true;
+        component.entry = makeEntry("WRITE");
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.css('button[title="Edit Description"]'))).not.toBeNull();
+      });
     });
 
     it("onCheckboxChange toggles the entry's checked flag and emits the change", () => {
