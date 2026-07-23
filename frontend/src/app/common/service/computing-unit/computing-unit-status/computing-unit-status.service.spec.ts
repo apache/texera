@@ -223,4 +223,75 @@ describe("ComputingUnitStatusService", () => {
     expect(listSpy).toHaveBeenCalled();
     expect(latest).toEqual(newUnits);
   });
+
+  it("updateUnitInList replaces the matching unit and leaves the others untouched", () => {
+    const unitA = mockUnit(1);
+    const unitB = mockUnit(2);
+    (service as any).allComputingUnitsSubject.next([unitA, unitB]);
+
+    const updatedA = { computingUnit: { cuid: 1 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+    (service as any).updateUnitInList(updatedA);
+
+    expect((service as any).allComputingUnitsSubject.value).toEqual([updatedA, unitB]);
+  });
+
+  it("setComputingUnitsState refreshes the selected unit when it is still present in the new list", () => {
+    (service as any).selectedUnitSubject.next(mockUnit(7));
+
+    const updated = { computingUnit: { cuid: 7 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+    (service as any).setComputingUnitsState([updated]);
+
+    expect(service.getSelectedComputingUnitValue()).toBe(updated);
+  });
+
+  it("setComputingUnitsState clears the selection and stops polling when the selected unit disappears", () => {
+    (service as any).selectedUnitSubject.next(mockUnit(7));
+    const stopSpy = vi.spyOn(service as any, "stopPollingSelectedUnit");
+
+    (service as any).setComputingUnitsState([mockUnit(8)]);
+
+    expect(service.getSelectedComputingUnitValue()).toBeNull();
+    expect(stopSpy).toHaveBeenCalled();
+  });
+
+  it("startPollingSelectedUnit polls the unit on each interval tick and merges the result", () => {
+    vi.useFakeTimers();
+    try {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const polled = { computingUnit: { cuid: 3 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+      const getSpy = vi.spyOn(managing, "getComputingUnit").mockReturnValue(of(polled));
+      (service as any).allComputingUnitsSubject.next([mockUnit(3)]);
+
+      (service as any).startPollingSelectedUnit(3);
+      // interval() fires only after the first period elapses
+      expect(getSpy).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
+
+      expect(getSpy).toHaveBeenCalledWith(3);
+      expect((service as any).allComputingUnitsSubject.value).toEqual([polled]);
+    } finally {
+      // Stop the interval poll here so the test is self-contained rather than
+      // relying on afterEach's ngOnDestroy to tear it down.
+      (service as any).stopPollingSelectedUnit();
+      vi.useRealTimers();
+    }
+  });
+
+  it("stopPollingSelectedUnit halts further polling", () => {
+    vi.useFakeTimers();
+    try {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const getSpy = vi.spyOn(managing, "getComputingUnit").mockReturnValue(of(mockUnit(3)));
+
+      (service as any).startPollingSelectedUnit(3);
+      (service as any).stopPollingSelectedUnit();
+
+      vi.advanceTimersByTime(10000);
+
+      expect(getSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
