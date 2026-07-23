@@ -21,7 +21,8 @@ package org.apache.texera.amber.core.storage
 
 import org.apache.texera.amber.util.IcebergUtil
 
-import java.nio.file.Files
+import java.nio.file.{Files, Path}
+import java.util.Comparator
 
 /**
   * Test-only helper that installs a local Hadoop-backed Iceberg catalog into the
@@ -47,6 +48,15 @@ object LocalHadoopIcebergCatalog {
     synchronized {
       if (!initialized) {
         val warehouse = Files.createTempDirectory("wfcore-iceberg-shared")
+        // Best-effort recursive cleanup of the temp warehouse on JVM exit so test runs
+        // don't leave wfcore-iceberg-shared* directories behind on dev machines / CI.
+        sys.addShutdownHook {
+          try Files
+            .walk(warehouse)
+            .sorted(Comparator.reverseOrder[Path]())
+            .forEach((p: Path) => Files.deleteIfExists(p))
+          catch { case _: Throwable => () }
+        }
         IcebergCatalogInstance.replaceInstance(
           IcebergUtil.createHadoopCatalog("wfcore-test", warehouse)
         )

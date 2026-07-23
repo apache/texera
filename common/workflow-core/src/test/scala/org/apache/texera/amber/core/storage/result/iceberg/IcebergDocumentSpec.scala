@@ -106,12 +106,14 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     // On a local `file:/` warehouse the location string carries the table name.
     // On Windows the warehouse resolves to a raw `C:\...` path that URI.create
     // rejects; in that case the method still executes its whole body (metadata
-    // load + location() + URI.create) before throwing, so either outcome pins the
-    // existing-table branch.
+    // load + location() + URI.create) before throwing, so it still pins the
+    // existing-table branch. The IllegalArgumentException escape is therefore
+    // allowed ONLY on Windows — elsewhere getURI must return a valid URI.
+    val isWindows = System.getProperty("os.name").toLowerCase.contains("win")
     try {
       doc.getURI.toString should include(doc.tableName)
     } catch {
-      case _: IllegalArgumentException => succeed
+      case _: IllegalArgumentException if isWindows => succeed
     }
   }
 
@@ -171,7 +173,7 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     doc.getRange(2, 5).toList.map(_.getField[Int]("id")) shouldBe List(2, 3, 4)
   }
 
-  it should "return records after an offset via getAfter" in {
+  it should "return records from an offset (inclusive) via getAfter" in {
     val doc = newDocument()
     write(doc, (0 until 5).map(tuple))
 
