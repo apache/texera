@@ -36,7 +36,7 @@
     "@codingame/monaco-vscode-java-default-extension": "25.1.2",
     "@codingame/monaco-vscode-python-default-extension": "25.1.2",
     "@lezer/python": "1.1.19",
-    "@ngneat/until-destroy": "8.1.4",
+    "@ngneat/until-destroy": "10.0.0",
     "@ngx-formly/core": "7.1.0",
     "@ngx-formly/ng-zorro-antd": "7.1.0",
     "ai": "5.0.93",
