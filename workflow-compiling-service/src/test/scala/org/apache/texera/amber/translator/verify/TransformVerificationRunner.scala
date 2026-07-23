@@ -389,7 +389,9 @@ object TransformVerificationRunner {
     // executor itself uses) so the shared instance stays pristine for Path B,
     // whose generateStandaloneCode reads the original fields directly.
     val opDescForPathA =
-      objectMapper.readValue(objectMapper.writeValueAsString(opDesc), opClass).asInstanceOf[LogicalOp]
+      objectMapper
+        .readValue(objectMapper.writeValueAsString(opDesc), opClass)
+        .asInstanceOf[LogicalOp]
     val (pathAOutputs, pathAOutputSchemas): (Map[PortIdentity, Path], Map[PortIdentity, Schema]) =
       if (classOf[PythonOperatorDescriptor].isAssignableFrom(opClass)) {
         val r = PyOpExecHarness.execute(opDescForPathA, inputs = inputs, outputDir = actualDir)
