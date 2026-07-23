@@ -24,9 +24,9 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, UnorderedOutput}
 
-class SymmetricDifferenceOpDesc extends LogicalOp with StandaloneCodeGenerator {
+class SymmetricDifferenceOpDesc extends LogicalOp with StandaloneCodeGenerator with UnorderedOutput {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,

@@ -26,7 +26,7 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, UnorderedOutput}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -52,7 +52,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
   }
 }
 """)
-class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
+class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator with UnorderedOutput {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input attr")

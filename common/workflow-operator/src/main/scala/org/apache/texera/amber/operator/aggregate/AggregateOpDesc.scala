@@ -29,14 +29,14 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, UnorderedOutput}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNameList
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.{NotNull, Size}
 
-class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
+class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator with UnorderedOutput {
   @JsonProperty(value = "aggregations", required = true)
   @JsonPropertyDescription("multiple aggregation functions")
   @NotNull(message = "aggregation cannot be null")

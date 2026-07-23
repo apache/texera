@@ -25,15 +25,11 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.operator.{
   LogicalOp,
   PythonOperatorDescriptor,
-  StandaloneCodeGenerator
+  StandaloneCodeGenerator,
+  UnorderedOutput
 }
 import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
-import org.apache.texera.amber.operator.cartesianProduct.CartesianProductOpDesc
-import org.apache.texera.amber.operator.difference.DifferenceOpDesc
 import org.apache.texera.amber.operator.dummy.DummyOpDesc
-import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
-import org.apache.texera.amber.operator.intersect.IntersectOpDesc
-import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
 import org.apache.texera.amber.operator.randomksampling.RandomKSamplingOpDesc
 import org.apache.texera.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
@@ -41,7 +37,6 @@ import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
-import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.texera.amber.operator.typecasting.TypeCastingOpDesc
 import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
@@ -103,29 +98,13 @@ import scala.util.{Failure, Success, Try}
   *     [[OpExecHarness]] otherwise; Path B is always [[StandaloneRunner]].
   *   - Config + fixture: curated handler ([[CuratedHandlers]]) if registered,
   *     else [[ConfigGenerator]] against the [[CanonicalFixture]] schemas.
-  *   - Comparison: strict positional unless the class is in
-  *     [[orderInsensitiveOps]]; all declared output ports are compared.
+  *   - Comparison: strict positional unless the operator is an
+  *     [[org.apache.texera.amber.operator.UnorderedOutput]]; all declared output
+  *     ports are compared.
   * Operators that can't be run are Flagged with a reason — never silently
   * skipped.
   */
 object TransformVerificationRunner {
-
-  /** Ops whose two paths legitimately emit the same rows in different orders
-    * (JVM hash-bucket iteration vs pandas order). Comparator lex-sorts both
-    * sides — a deliberate weakening; only add a class here with a justifying
-    * comment.
-    */
-  val orderInsensitiveOps: Set[Class[_]] = Set(
-    classOf[IntersectOpDesc], // mutable.HashSet emit order
-    classOf[DifferenceOpDesc], // leftHashSet.diff iterator order
-    classOf[SymmetricDifferenceOpDesc], // union of two hash-set diffs
-    classOf[HashJoinOpDesc[_]], // build-map bucket order vs pd.merge
-    classOf[CartesianProductOpDesc], // JVM emits per arriving right tuple × stored left (right-major) vs pandas cross-merge left-major
-    classOf[IntervalJoinOpDesc], // streaming emit per arriving tuple against opposite-side buffer (port-interleaving order) vs pandas batch left-major
-    classOf[
-      AggregateOpDesc
-    ] // hash-partitioned group emit order vs groupby(sort=False) first-occurrence order
-  )
 
   /** Curated ops whose enum sweep must be suppressed: an enum value is only
     * valid in combination with a sibling field, so flipping it in isolation
@@ -439,7 +418,9 @@ object TransformVerificationRunner {
       workDir = workDir
     )
 
-    val orderSensitive = !orderInsensitiveOps.contains(opClass)
+    // Order-insensitive iff the operator declares set/bag semantics via the
+    // UnorderedOutput marker (see that trait); default is strict positional.
+    val orderSensitive = !classOf[UnorderedOutput].isAssignableFrom(opClass)
     (0 until outputPortCount).foreach { port =>
       val actual = pathAOutputs.getOrElse(
         PortIdentity(port),
