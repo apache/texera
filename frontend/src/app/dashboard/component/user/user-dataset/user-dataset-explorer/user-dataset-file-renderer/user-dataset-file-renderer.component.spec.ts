@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { UserDatasetFileRendererComponent } from "./user-dataset-file-renderer.component";
+import { getMimeType, MIME_TYPES, UserDatasetFileRendererComponent } from "./user-dataset-file-renderer.component";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { DomSanitizer } from "@angular/platform-browser";
@@ -163,6 +163,78 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(component.isFileLoadingError).toBe(false);
       expect(component.isFileSizeUnloadable).toBe(false);
       expect(component.isFileTypePreviewUnsupported).toBe(false);
+    });
+  });
+
+  describe("getMimeType", () => {
+    it("maps known extensions to their MIME type", () => {
+      expect(getMimeType("photo.png")).toBe(MIME_TYPES.PNG);
+      expect(getMimeType("data.csv")).toBe(MIME_TYPES.CSV);
+      expect(getMimeType("clip.mp4")).toBe(MIME_TYPES.MP4);
+      expect(getMimeType("notes.json")).toBe(MIME_TYPES.JSON);
+    });
+
+    it("resolves the extension case-insensitively", () => {
+      expect(getMimeType("PHOTO.PNG")).toBe(MIME_TYPES.PNG);
+      expect(getMimeType("Report.Csv")).toBe(MIME_TYPES.CSV);
+    });
+
+    it("uses only the final extension for names with multiple dots", () => {
+      expect(getMimeType("archive.tar.gz")).toBe(MIME_TYPES.OCTET_STREAM);
+      expect(getMimeType("my.report.json")).toBe(MIME_TYPES.JSON);
+    });
+
+    it("falls back to octet-stream for unknown extensions", () => {
+      expect(getMimeType("program.exe")).toBe(MIME_TYPES.OCTET_STREAM);
+      expect(getMimeType("archive.bin")).toBe(MIME_TYPES.OCTET_STREAM);
+    });
+
+    it("falls back to octet-stream when there is no extension", () => {
+      expect(getMimeType("README")).toBe(MIME_TYPES.OCTET_STREAM);
+      expect(getMimeType("")).toBe(MIME_TYPES.OCTET_STREAM);
+    });
+  });
+
+  describe("file content loading", () => {
+    it("loadTabularFile sets the header, pads short rows to the header width, and keeps longer rows intact", () => {
+      (component as unknown as { loadTabularFile: (d: unknown[][]) => void }).loadTabularFile([
+        ["a", "b", "c"],
+        ["1", "2"],
+        ["x", "y", "z", "w"],
+      ]);
+
+      expect(component.tableDataHeader).toEqual(["a", "b", "c"]);
+      expect(component.tableContent[0]).toEqual(["1", "2", ""]); // short row padded to the header width
+      expect(component.tableContent[1]).toEqual(["x", "y", "z", "w"]);
+    });
+
+    it("loadTabularFile leaves state unchanged for empty data", () => {
+      component.tableDataHeader = ["keep"];
+      component.tableContent = [["keep-content"]];
+      (component as unknown as { loadTabularFile: (d: unknown[][]) => void }).loadTabularFile([]);
+      expect(component.tableDataHeader).toEqual(["keep"]);
+      expect(component.tableContent).toEqual([["keep-content"]]);
+    });
+
+    it("readFileAsText reads the blob text into textContent", async () => {
+      // Deterministic FileReader stub — fire onload on a microtask, never rely on jsdom's real async.
+      class FakeFileReader {
+        onload: ((e: { target: { result: string } }) => void) | null = null;
+        result: string | null = null;
+        readAsText(_blob: Blob): void {
+          this.result = "canned text";
+          queueMicrotask(() => this.onload?.({ target: { result: this.result as string } }));
+        }
+      }
+      const realFileReader = globalThis.FileReader;
+      (globalThis as unknown as { FileReader: unknown }).FileReader = FakeFileReader;
+      try {
+        (component as unknown as { readFileAsText: (b: Blob) => void }).readFileAsText(new Blob(["ignored"]));
+        await Promise.resolve();
+        expect(component.textContent).toBe("canned text");
+      } finally {
+        (globalThis as unknown as { FileReader: unknown }).FileReader = realFileReader;
+      }
     });
   });
 });
