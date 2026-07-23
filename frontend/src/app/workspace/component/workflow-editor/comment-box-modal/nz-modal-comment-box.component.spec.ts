@@ -39,6 +39,32 @@ describe("NzModalCommentBoxComponent", () => {
   let addComment: ReturnType<typeof vi.fn>;
   let deleteComment: ReturnType<typeof vi.fn>;
   let editComment: ReturnType<typeof vi.fn>;
+  let lastFixture: ComponentFixture<NzModalCommentBoxComponent> | undefined;
+  let createdEls: HTMLElement[] = [];
+
+  // toggleEditInput / editComment locate their DOM targets by id
+  // ("txarea"|"comment"|"editbtn" + creatorName + creationTime). Build real
+  // elements so those document.getElementById lookups resolve.
+  function makeEl(id: string, opts: { hidden?: boolean; text?: string } = {}): HTMLElement {
+    const el = document.createElement("div");
+    el.id = id;
+    if (opts.hidden) {
+      el.setAttribute("hidden", "hidden");
+    }
+    if (opts.text !== undefined) {
+      el.textContent = opts.text;
+    }
+    document.body.appendChild(el);
+    createdEls.push(el);
+    return el;
+  }
+
+  afterEach(() => {
+    lastFixture?.destroy();
+    lastFixture = undefined;
+    createdEls.forEach(el => el.remove());
+    createdEls = [];
+  });
 
   async function createFixture(
     opts: { user?: User; comments?: unknown[] } = {}
@@ -65,7 +91,8 @@ describe("NzModalCommentBoxComponent", () => {
       ],
     }).compileComponents();
 
-    return TestBed.createComponent(NzModalCommentBoxComponent);
+    lastFixture = TestBed.createComponent(NzModalCommentBoxComponent);
+    return lastFixture;
   }
 
   it("should create and render a comment from the box", async () => {
@@ -157,5 +184,103 @@ describe("NzModalCommentBoxComponent", () => {
 
     component.onKeyDown(new KeyboardEvent("keydown", { key: "a", ctrlKey: true }));
     expect(submitSpy).toHaveBeenCalledTimes(1);
+  });
+
+  describe("edit flows", () => {
+    it("toggleEditInput is a no-op when its DOM targets are missing", async () => {
+      const fixture = await createFixture({ user: makeUser() });
+      const component = fixture.componentInstance;
+      component.editValue = "preset";
+
+      // No txarea/comment/editbtn elements exist for this name+time.
+      component.toggleEditInput("Ghost", CREATION_TIME);
+
+      expect(component.editValue).toBe("preset"); // early return leaves state untouched
+    });
+
+    it("toggleEditInput opens the editor, hides the comment, and loads its text", async () => {
+      const fixture = await createFixture({ user: makeUser() });
+      const component = fixture.componentInstance;
+      const name = "Bob";
+      const txarea = makeEl("txarea" + name + CREATION_TIME, { hidden: true });
+      const comment = makeEl("comment" + name + CREATION_TIME, { text: "original text" });
+      const btn = makeEl("editbtn" + name + CREATION_TIME, { hidden: true });
+
+      component.toggleEditInput(name, CREATION_TIME);
+
+      expect(txarea.hasAttribute("hidden")).toBe(false);
+      expect(btn.hasAttribute("hidden")).toBe(false);
+      expect(comment.hasAttribute("hidden")).toBe(true);
+      expect(component.editValue).toBe("original text");
+    });
+
+    it("toggleEditInput closes the editor and clears editValue on the second toggle", async () => {
+      const fixture = await createFixture({ user: makeUser() });
+      const component = fixture.componentInstance;
+      const name = "Bob";
+      const txarea = makeEl("txarea" + name + CREATION_TIME, { hidden: true });
+      const comment = makeEl("comment" + name + CREATION_TIME, { text: "original text" });
+      const btn = makeEl("editbtn" + name + CREATION_TIME, { hidden: true });
+
+      component.toggleEditInput(name, CREATION_TIME); // open
+      component.toggleEditInput(name, CREATION_TIME); // close
+
+      expect(txarea.hasAttribute("hidden")).toBe(true);
+      expect(btn.hasAttribute("hidden")).toBe(true);
+      expect(comment.hasAttribute("hidden")).toBe(false);
+      expect(component.editValue).toBe("");
+    });
+
+    it("editComment is a no-op without a current user and preserves editValue", async () => {
+      const fixture = await createFixture({ user: undefined });
+      const component = fixture.componentInstance;
+      component.editValue = "attempted edit";
+
+      component.editComment(1, "Alice", CREATION_TIME);
+
+      expect(editComment).not.toHaveBeenCalled();
+      expect(component.editValue).toBe("attempted edit"); // reset happens only past the guard
+    });
+
+    it("editComment saves the new content and then hides the edit textarea and button", async () => {
+      const fixture = await createFixture({ user: makeUser() });
+      const component = fixture.componentInstance;
+      const name = "Carol";
+      const txarea = makeEl("txarea" + name + CREATION_TIME); // visible
+      const btn = makeEl("editbtn" + name + CREATION_TIME); // visible
+      component.editValue = "edited body";
+
+      component.editComment(2, name, CREATION_TIME);
+
+      expect(editComment).toHaveBeenCalledWith(2, CREATION_TIME, BOX_ID, "edited body");
+      expect(component.editValue).toBe("");
+      expect(txarea.hasAttribute("hidden")).toBe(true);
+      expect(btn.hasAttribute("hidden")).toBe(true);
+    });
+
+    it("editComment still saves when the edit DOM targets are absent (guarded tail)", async () => {
+      const fixture = await createFixture({ user: makeUser() });
+      const component = fixture.componentInstance;
+      component.editValue = "no-dom edit";
+
+      // No txarea/editbtn elements: the service call happens, the DOM tail short-circuits.
+      component.editComment(3, "Nobody", CREATION_TIME);
+
+      expect(editComment).toHaveBeenCalledWith(3, CREATION_TIME, BOX_ID, "no-dom edit");
+      expect(component.editValue).toBe("");
+    });
+  });
+
+  it("the window:keydown host binding submits the comment on Ctrl+Enter", async () => {
+    const fixture = await createFixture({ user: makeUser() });
+    fixture.detectChanges(); // register the @HostListener("window:keydown") binding
+    fixture.componentInstance.inputValue = "via host listener";
+
+    const event = new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(addComment).toHaveBeenCalledTimes(1);
+    expect(addComment.mock.calls[0][0]).toMatchObject({ content: "via host listener" });
+    expect(event.defaultPrevented).toBe(true);
   });
 });
