@@ -135,11 +135,9 @@ describe("isDashboardWorkflow", () => {
     expect(isDashboardWorkflow(workflowFixture)).toBe(true);
   });
 
-  // The guard returns the falsy input itself via the `value && ...` short-circuit,
-  // so the result is null/undefined rather than the boolean false.
-  it("should be falsy for null and undefined", () => {
-    expect(isDashboardWorkflow(null)).toBeFalsy();
-    expect(isDashboardWorkflow(undefined)).toBeFalsy();
+  it("should return false for null and undefined", () => {
+    expect(isDashboardWorkflow(null)).toBe(false);
+    expect(isDashboardWorkflow(undefined)).toBe(false);
   });
 
   it("should return false for an object without a workflow field", () => {
@@ -150,9 +148,9 @@ describe("isDashboardWorkflow", () => {
     expect(isDashboardWorkflow({ workflow: "not an object" })).toBe(false);
   });
 
-  it("should return true when workflow is null (current behavior)", () => {
-    // Documents current behavior: typeof null === "object", so a null field passes the guard.
-    expect(isDashboardWorkflow({ workflow: null })).toBe(true);
+  it("should return false when workflow is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardWorkflow({ workflow: null })).toBe(false);
   });
 });
 
@@ -161,11 +159,9 @@ describe("isDashboardProject", () => {
     expect(isDashboardProject(projectFixture)).toBe(true);
   });
 
-  // The guard returns the falsy input itself via the `value && ...` short-circuit,
-  // so the result is null/undefined rather than the boolean false.
-  it("should be falsy for null and undefined", () => {
-    expect(isDashboardProject(null)).toBeFalsy();
-    expect(isDashboardProject(undefined)).toBeFalsy();
+  it("should return false for null and undefined", () => {
+    expect(isDashboardProject(null)).toBe(false);
+    expect(isDashboardProject(undefined)).toBe(false);
   });
 
   it("should return false for an object without a name field", () => {
@@ -180,9 +176,9 @@ describe("isDashboardProject", () => {
     expect(isDashboardProject({ name: "x", workflow: workflowFixture.workflow })).toBe(false);
   });
 
-  it("should return true when name is a string and workflow is null (current behavior)", () => {
-    // Documents current behavior: `!value.workflow` is true for a null workflow,
-    // so the exclusion branch does not reject it.
+  it("should return true when name is a string and workflow is null", () => {
+    // Intentional: a null workflow field is treated as "no workflow", so the
+    // exclusion branch `!value.workflow` still classifies the object as a project.
     expect(isDashboardProject({ name: "x", workflow: null })).toBe(true);
   });
 });
@@ -192,11 +188,9 @@ describe("isDashboardFile", () => {
     expect(isDashboardFile(fileFixture)).toBe(true);
   });
 
-  // The guard returns the falsy input itself via the `value && ...` short-circuit,
-  // so the result is null/undefined rather than the boolean false.
-  it("should be falsy for null and undefined", () => {
-    expect(isDashboardFile(null)).toBeFalsy();
-    expect(isDashboardFile(undefined)).toBeFalsy();
+  it("should return false for null and undefined", () => {
+    expect(isDashboardFile(null)).toBe(false);
+    expect(isDashboardFile(undefined)).toBe(false);
   });
 
   it("should return false for an empty object", () => {
@@ -215,9 +209,9 @@ describe("isDashboardFile", () => {
     expect(isDashboardFile({ ownerEmail: 42, file: fileFixture.file })).toBe(false);
   });
 
-  it("should return true when file is null (current behavior)", () => {
-    // Documents current behavior: typeof null === "object", so a null field passes the guard.
-    expect(isDashboardFile({ ownerEmail: "a@b.com", file: null })).toBe(true);
+  it("should return false when file is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardFile({ ownerEmail: "a@b.com", file: null })).toBe(false);
   });
 });
 
@@ -226,11 +220,9 @@ describe("isDashboardDataset", () => {
     expect(isDashboardDataset(datasetFixture)).toBe(true);
   });
 
-  // The guard returns the falsy input itself via the `value && ...` short-circuit,
-  // so the result is null/undefined rather than the boolean false.
-  it("should be falsy for null and undefined", () => {
-    expect(isDashboardDataset(null)).toBeFalsy();
-    expect(isDashboardDataset(undefined)).toBeFalsy();
+  it("should return false for null and undefined", () => {
+    expect(isDashboardDataset(null)).toBe(false);
+    expect(isDashboardDataset(undefined)).toBe(false);
   });
 
   it("should return false for an object without a dataset field", () => {
@@ -241,9 +233,9 @@ describe("isDashboardDataset", () => {
     expect(isDashboardDataset({ dataset: "not an object" })).toBe(false);
   });
 
-  it("should return true when dataset is null (current behavior)", () => {
-    // Documents current behavior: typeof null === "object", so a null field passes the guard.
-    expect(isDashboardDataset({ dataset: null })).toBe(true);
+  it("should return false when dataset is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardDataset({ dataset: null })).toBe(false);
   });
 });
 
@@ -252,11 +244,9 @@ describe("isDashboardWorkflowComputingUnit", () => {
     expect(isDashboardWorkflowComputingUnit(computingUnitFixture)).toBe(true);
   });
 
-  // The guard returns the falsy input itself via the `value && ...` short-circuit,
-  // so the result is null/undefined rather than the boolean false.
-  it("should be falsy for null and undefined", () => {
-    expect(isDashboardWorkflowComputingUnit(null)).toBeFalsy();
-    expect(isDashboardWorkflowComputingUnit(undefined)).toBeFalsy();
+  it("should return false for null and undefined", () => {
+    expect(isDashboardWorkflowComputingUnit(null)).toBe(false);
+    expect(isDashboardWorkflowComputingUnit(undefined)).toBe(false);
   });
 
   it("should return false for an object without a computingUnit field", () => {
@@ -267,9 +257,9 @@ describe("isDashboardWorkflowComputingUnit", () => {
     expect(isDashboardWorkflowComputingUnit({ computingUnit: "not an object" })).toBe(false);
   });
 
-  it("should return true when computingUnit is null (current behavior)", () => {
-    // Documents current behavior: typeof null === "object", so a null field passes the guard.
-    expect(isDashboardWorkflowComputingUnit({ computingUnit: null })).toBe(true);
+  it("should return false when computingUnit is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardWorkflowComputingUnit({ computingUnit: null })).toBe(false);
   });
 });
 
