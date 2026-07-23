@@ -35,10 +35,18 @@ import javax.validation.constraints.NotNull
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
-    "x": { "enum": ["integer", "long", "double"] },
-    "y": { "enum": ["integer", "long", "double"] },
-    "u": { "enum": ["integer", "long", "double"] },
-    "v": { "enum": ["integer", "long", "double"] }
+    "x": {
+      "enum": ["integer", "long", "double"]
+    },
+    "y": {
+      "enum": ["integer", "long", "double"]
+    },
+    "u": {
+      "enum": ["integer", "long", "double"]
+    },
+    "v": {
+      "enum": ["integer", "long", "double"]
+    }
   }
 }
 """)
