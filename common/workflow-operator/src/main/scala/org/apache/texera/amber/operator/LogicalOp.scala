@@ -355,11 +355,6 @@ trait StateTransferFunc
       value = classOf[SklearnTrainingLogisticRegressionCVOpDesc],
       name = "SklearnTrainingLogisticRegressionCV"
     ),
-    new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
-    new Type(
-      value = classOf[SklearnLogisticRegressionCVOpDesc],
-      name = "SklearnLogisticRegressionCV"
-    ),
     new Type(value = classOf[SklearnRidgeOpDesc], name = "SklearnRidge"),
     new Type(value = classOf[SklearnRidgeCVOpDesc], name = "SklearnRidgeCV"),
     new Type(value = classOf[SklearnSDGOpDesc], name = "SklearnSDG"),

@@ -28,7 +28,12 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { UndoRedoService } from "../undo-redo/undo-redo.service";
-import { mockPoint, mockScanPredicate } from "../workflow-graph/model/mock-workflow-data";
+import {
+  mockPoint,
+  mockScanPredicate,
+  mockResultPredicate,
+  mockScanResultLink,
+} from "../workflow-graph/model/mock-workflow-data";
 import { serializePortIdentity } from "../../../common/util/port-identity-serde";
 import { commonTestImports, commonTestProviders } from "../../../common/testing/test-utils";
 import { firstValueFrom } from "rxjs";
@@ -327,6 +332,40 @@ describe("WorkflowCompilingService public getters", () => {
     ]);
     expect(service.getOperatorInputAttributeType("op1", 0, "b")).toBe("integer");
     expect(service.getOperatorInputAttributeType("op1", 0, "missing")).toBeUndefined();
+  });
+
+  it("getOperatorInputSchemaMap returns undefined when uninitialized", () => {
+    setState({ state: CompilationState.Uninitialized });
+    expect(service.getOperatorInputSchemaMap("op1")).toBeUndefined();
+  });
+
+  it("getOperatorInputSchemaMap returns undefined when there is no output schema map", () => {
+    setState({ state: CompilationState.Succeeded, operatorOutputPortSchemaMap: undefined });
+    expect(service.getOperatorInputSchemaMap("op1")).toBeUndefined();
+  });
+
+  it("getOperatorInputSchemaMap returns undefined for an operator with no input links", () => {
+    const workflowActionService = TestBed.inject(WorkflowActionService);
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    setState({ state: CompilationState.Succeeded, operatorOutputPortSchemaMap: {} });
+    expect(service.getOperatorInputSchemaMap(mockScanPredicate.operatorID)).toBeUndefined();
+  });
+
+  it("getOperatorInputSchemaMap resolves the input port schema from the upstream operator's output schema", () => {
+    const workflowActionService = TestBed.inject(WorkflowActionService);
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+
+    const port0 = serializePortIdentity({ id: 0, internal: false });
+    const scanOutputSchema = [{ attributeName: "a", attributeType: "string" }];
+    setState({
+      state: CompilationState.Succeeded,
+      operatorOutputPortSchemaMap: { [mockScanPredicate.operatorID]: { [port0]: scanOutputSchema } },
+    });
+
+    const inputSchemaMap = service.getOperatorInputSchemaMap(mockResultPredicate.operatorID);
+    expect(inputSchemaMap?.[port0]).toEqual(scanOutputSchema);
   });
 });
 
