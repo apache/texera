@@ -72,7 +72,7 @@ class EncodableInspectorSpec extends AnyFunSuite {
     assert(msg.contains(boundaryMarker), s"expected an Encodable boundary abort, got: $msg")
   }
 
-  /** Assert the arg was NOT classified Encodable: the macro expands, only fromInterpolated fails. */
+  /** Assert there was no BoundaryValidator compile-time abort: the macro expands and only fromInterpolated fails. */
   private def assertNotClassifiedEncodable(body: String): Unit = {
     val msg = macroError(body)
     assert(!msg.contains(boundaryMarker), s"unexpected Encodable boundary abort: $msg")
