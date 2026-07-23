@@ -105,4 +105,20 @@ class FileScanUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll {
       .toSeq
     assert(contents(tuples) == Seq("l1", "l2", "l3"))
   }
+  it should "throw RuntimeException when binary file exceeds natural memory limit" in {
+    val mockLargeInputStream = new java.io.InputStream {
+      override def read(): Int = {
+        throw new OutOfMemoryError("Requested array size exceeds VM limit")
+      }
+      override def read(b: Array[Byte], off: Int, len: Int): Int = {
+        throw new OutOfMemoryError("Requested array size exceeds VM limit")
+      }
+    }
+
+    val exception = intercept[RuntimeException] {
+      FileScanUtils.safeToByteArray(mockLargeInputStream, FileAttributeType.BINARY)
+    }
+    assert(exception.getMessage.contains("exceeds maximum safe memory size"))
+    assert(exception.getMessage.contains("Please use 'large binary'"))
+  }
 }
