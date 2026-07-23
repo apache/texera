@@ -29,7 +29,7 @@
  * entry here degrades to "not suggested" rather than to a broken suggestion.
  */
 
-export type OperatorCategory = "source" | "transform" | "aggregate" | "join" | "order" | "udf" | "ml" | "sink";
+export type OperatorCategory = "source" | "transform" | "aggregate" | "join" | "rowOps" | "udf" | "ml" | "sink";
 
 /**
  * Explicit category for operators whose successors don't follow from a naming
@@ -82,13 +82,13 @@ const OPERATOR_CATEGORY: Record<string, OperatorCategory> = {
   SymmetricDifference: "join",
 
   // Ordering / sampling / row-count operators.
-  Sort: "order",
-  SortPartitions: "order",
-  StableMergeSort: "order",
-  Limit: "order",
-  Distinct: "order",
-  RandomKSampling: "order",
-  ReservoirSampling: "order",
+  Sort: "rowOps",
+  SortPartitions: "rowOps",
+  StableMergeSort: "rowOps",
+  Limit: "rowOps",
+  Distinct: "rowOps",
+  RandomKSampling: "rowOps",
+  ReservoirSampling: "rowOps",
 
   // User-defined functions.
   PythonUDFV2: "udf",
@@ -104,7 +104,7 @@ const CATEGORY_SUCCESSORS: Record<OperatorCategory, string[]> = {
   transform: ["Aggregate", "Projection", "Sort", "PythonUDFV2"],
   aggregate: ["BarChart", "LineChart", "Sort"],
   join: ["Projection", "Aggregate", "Filter"],
-  order: ["Aggregate", "Projection", "BarChart"],
+  rowOps: ["Aggregate", "Projection", "BarChart"],
   udf: ["Filter", "Projection", "Aggregate"],
   ml: ["Scorer", "PythonUDFV2"],
   // Sinks (charts / visualizers) are terminal: no successor is suggested.
@@ -120,8 +120,6 @@ const SPECIFIC_SUCCESSORS: Record<string, string[]> = {
   JSONLFileScan: ["Projection", "Filter", "UnnestString"],
   Filter: ["Aggregate", "Projection", "Sort"],
   Projection: ["Aggregate", "Filter", "Sort"],
-  Aggregate: ["BarChart", "LineChart", "Sort"],
-  HashJoin: ["Projection", "Aggregate", "Filter"],
   KeywordSearch: ["Aggregate", "Projection", "Filter"],
   Sort: ["BarChart", "Projection", "Limit"],
 };
@@ -145,6 +143,7 @@ const RATIONALE: Record<string, string> = {
   LineChart: "Visualize the results as a line chart",
   PythonUDFV2: "Run custom Python logic on the rows",
   UnnestString: "Split a delimited string column into rows",
+  Scorer: "Evaluate model predictions against labels",
 };
 
 const GENERIC_RATIONALE = "A common next step for this operator";
