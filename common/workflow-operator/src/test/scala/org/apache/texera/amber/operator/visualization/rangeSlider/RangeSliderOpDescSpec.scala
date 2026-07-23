@@ -82,10 +82,16 @@ class RangeSliderOpDescSpec extends AnyFlatSpec with Matchers {
     "constrain the aggregated Y-axis to numeric and leave X-axis unconstrained" in {
     // The rule key must be an actual @JsonProperty name; a key of "value" (no such
     // field) matches nothing, so no numeric constraint reaches the column pickers.
-    val rules = objectMapper
-      .readTree(classOf[RangeSliderOpDesc].getAnnotation(classOf[JsonSchemaInject]).json())
-      .path("attributeTypeRules")
+    val ann = classOf[RangeSliderOpDesc].getAnnotation(classOf[JsonSchemaInject])
+    ann should not be null
+    val rules = objectMapper.readTree(ann.json).path("attributeTypeRules")
     rules.fieldNames().asScala.toSet shouldBe Set("Y-axis")
-    rules.path("Y-axis").path("enum").toString should include("double")
+    rules
+      .path("Y-axis")
+      .path("enum")
+      .elements()
+      .asScala
+      .map(_.asText())
+      .toSet shouldBe Set("integer", "long", "double")
   }
 }
