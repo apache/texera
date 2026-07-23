@@ -1,0 +1,120 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+// Renovate (Mend "Forking Renovate" app) configuration, replacing
+// .github/dependabot.yml. Semantics carried over: weekly cadence,
+// patch bumps grouped into one PR per area, minor/major bumps as
+// individual PRs, Angular majors excluded (guided `ng update`
+// migration, see #6155). New behavior Dependabot could not provide:
+// PRs come from the bot's fork, and security fixes use a `fix(...)`
+// commit prefix while routine bumps use `chore(...)`.
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: ['config:recommended'],
+
+  // Only the ecosystems dependabot.yml covered; enable more (docker,
+  // gradle, etc.) deliberately in follow-ups rather than by default.
+  enabledManagers: ['npm', 'bun', 'sbt', 'pip_requirements', 'github-actions'],
+
+  timezone: 'Etc/UTC',
+  schedule: ['before 8am on monday'],
+  prConcurrentLimit: 10,
+  labels: ['dependencies'],
+
+  semanticCommits: 'enabled',
+  semanticCommitType: 'chore',
+  semanticCommitScope: 'deps',
+
+  // Vulnerability fixes: opened immediately (schedule does not apply),
+  // one PR per advisory, typed as a fix instead of a chore. OSV keeps
+  // this working without GitHub Dependabot-alerts read permission.
+  osvVulnerabilityAlerts: true,
+  vulnerabilityAlerts: {
+    semanticCommitType: 'fix',
+    labels: ['dependencies', 'security'],
+    groupName: null,
+  },
+
+  packageRules: [
+    // Commit scopes mirroring the old per-directory Dependabot prefixes.
+    {
+      matchFileNames: ['frontend/**'],
+      semanticCommitScope: 'deps, frontend',
+    },
+    {
+      matchFileNames: ['pyright-language-service/**'],
+      semanticCommitScope: 'deps, pyright-language-service',
+    },
+    {
+      matchFileNames: ['agent-service/**'],
+      semanticCommitScope: 'deps, agent-service',
+    },
+    {
+      matchFileNames: ['bin/y-websocket-server/**'],
+      semanticCommitScope: 'deps, y-websocket-server',
+    },
+    {
+      matchFileNames: ['amber/**'],
+      semanticCommitScope: 'deps, pyamber',
+    },
+
+    // Patch bumps grouped into one weekly PR per area (packages whose
+    // best available update is minor/major still get individual PRs).
+    {
+      matchManagers: ['sbt'],
+      matchUpdateTypes: ['patch'],
+      groupName: 'sbt patch updates',
+    },
+    {
+      matchFileNames: ['frontend/**'],
+      matchUpdateTypes: ['patch'],
+      groupName: 'frontend patch updates',
+    },
+    {
+      matchFileNames: ['pyright-language-service/**'],
+      matchUpdateTypes: ['patch'],
+      groupName: 'pyright-language-service patch updates',
+    },
+    {
+      matchFileNames: ['agent-service/**'],
+      matchUpdateTypes: ['patch'],
+      groupName: 'agent-service patch updates',
+    },
+    {
+      matchFileNames: ['amber/**'],
+      matchUpdateTypes: ['patch'],
+      groupName: 'pyamber patch updates',
+    },
+
+    // GitHub Actions keep the `ci` type used before, in one group.
+    {
+      matchManagers: ['github-actions'],
+      semanticCommitType: 'ci',
+      semanticCommitScope: null,
+      groupName: 'github-actions',
+    },
+
+    // Angular majors need a guided `ng update` migration and the
+    // framework/CLI lines must move together (see #6155).
+    {
+      matchFileNames: ['frontend/**'],
+      matchPackageNames: ['/^@angular/'],
+      matchUpdateTypes: ['major'],
+      enabled: false,
+    },
+  ],
+}
