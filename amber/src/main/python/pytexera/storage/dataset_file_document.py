@@ -22,13 +22,10 @@ import urllib.parse
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from .resource_type import ResourceType
+
 
 class DatasetFileDocument:
-    # Leading resource-type segment on dataset logical paths. It identifies the path as
-    # a dataset path and is REQUIRED, mirroring FileResolver on the backend. A path
-    # without it is rejected.
-    RESOURCE_TYPE_PREFIX = "datasets"
-
     # (connect, read) timeout and retry settings for the file-service GETs below.
     # Read timeout bounds inactivity between bytes, not total download time.
     _CONNECT_TIMEOUT_SECONDS = 5
@@ -65,15 +62,10 @@ class DatasetFileDocument:
              "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
            Example:
              "/datasets/bob@texera.com/twitterDataset/v1/california/tw1.csv"
-           The leading "datasets" resource-type segment is required; a path
-           without it is rejected. Mirrors FileResolver on the backend.
         """
         parts = file_path.strip("/").split("/")
 
-        # The datasets prefix is required and identifies the path as a dataset
-        # path; without it (datasets/owner/name/version/<file> => >= 5 segments)
-        # the path is invalid. Mirrors FileResolver on the backend.
-        if len(parts) < 5 or parts[0] != self.RESOURCE_TYPE_PREFIX:
+        if len(parts) < 5 or parts[0] != ResourceType.DATASETS.value:
             raise ValueError(
                 "Invalid file path format. Expected: "
                 "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
@@ -103,7 +95,7 @@ class DatasetFileDocument:
         """
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
         encoded_file_path = urllib.parse.quote(
-            f"/{self.RESOURCE_TYPE_PREFIX}"
+            f"/{ResourceType.DATASETS.value}"
             f"/{self.owner_email}"
             f"/{self.dataset_name}"
             f"/{self.version_name}"

@@ -108,7 +108,7 @@ describe("DatasetSelectionModalComponent", () => {
 
   it("ngOnInit initializes selectedDataset and selectedVersion from data.selectedPath", () => {
     modalData.fileMode = true;
-    modalData.selectedPath = `/${OWNER}/myds/v1`;
+    modalData.selectedPath = `/datasets/${OWNER}/myds/v1`;
 
     build();
 
