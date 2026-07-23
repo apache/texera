@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { of } from "rxjs";
+import { of, throwError } from "rxjs";
 import { ComputingUnitStatusService } from "./computing-unit-status.service";
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
@@ -293,5 +293,131 @@ describe("ComputingUnitStatusService", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe("selectComputingUnit() cache-miss and guard branches", () => {
+    it("refreshes then selects a unit that is not yet in the cache", () => {
+      const openSpy = vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const unit9 = mockUnit(9);
+      // The cache starts empty, so cuid 9 is a miss: selection must trigger a
+      // refresh and wait for the unit to appear before opening the socket.
+      vi.spyOn(managing, "listComputingUnits").mockReturnValue(of([unit9]));
+
+      service.selectComputingUnit(5, 9);
+
+      // MOCK_USER_ID (1) is threaded through from the stub user service.
+      expect(openSpy).toHaveBeenCalledWith(5, 1, 9);
+      expect(service.getSelectedComputingUnitValue()).toBe(unit9);
+    });
+
+    it("does not reopen the websocket when the identical unit is re-selected", () => {
+      const openSpy = vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
+      (service as any).allComputingUnitsSubject.next([mockUnit(7)]);
+
+      service.selectComputingUnit(5, 7);
+      // Same wid + cuid → shouldReconnect is false → the guarded block is skipped.
+      service.selectComputingUnit(5, 7);
+
+      expect(openSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("reconnects when the same unit is opened under a different workflow (wid change alone)", () => {
+      const openSpy = vi.spyOn(websocketService, "openWebsocket").mockImplementation(() => {});
+      (service as any).allComputingUnitsSubject.next([mockUnit(7)]);
+
+      service.selectComputingUnit(5, 7);
+      expect(openSpy).toHaveBeenCalledTimes(1);
+
+      // Same cuid (7) but a different wid (6): the currentConnectedCuid check is
+      // false, so the currentConnectedWid !== wid operand must force the reconnect.
+      service.selectComputingUnit(6, 7);
+      expect(openSpy).toHaveBeenCalledTimes(2);
+      expect((service as any).currentConnectedWid).toBe(6);
+    });
+  });
+
+  it("startRefreshInterval() tears down an existing refresh subscription before creating a new one", () => {
+    // The constructor already started one refresh subscription.
+    const previous = (service as any).refreshSubscription;
+    expect(previous).toBeTruthy();
+    expect(previous.closed).toBe(false);
+
+    (service as any).startRefreshInterval();
+
+    // The prior subscription is unsubscribed and replaced with a fresh one.
+    expect(previous.closed).toBe(true);
+    expect((service as any).refreshSubscription).not.toBe(previous);
+    expect((service as any).refreshSubscription.closed).toBe(false);
+  });
+
+  describe("terminateComputingUnit()", () => {
+    it("closes the socket and clears status when terminating the connected selection", () => {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const workflowStatusService = TestBed.inject(WorkflowStatusService);
+      const closeSpy = vi.spyOn(websocketService, "closeWebsocket").mockImplementation(() => {});
+      const clearSpy = vi.spyOn(workflowStatusService, "clearStatus").mockImplementation(() => {});
+      vi.spyOn(websocketService, "isConnected", "get").mockReturnValue(true);
+      const termSpy = vi.spyOn(managing, "terminateComputingUnit").mockReturnValue(of({} as Response));
+      const refreshSpy = vi.spyOn(service, "refreshComputingUnitList").mockImplementation(() => {});
+      (service as any).selectedUnitSubject.next(mockUnit(7));
+
+      let result: boolean | undefined;
+      service.terminateComputingUnit(7).subscribe(r => (result = r));
+
+      expect(closeSpy).toHaveBeenCalled();
+      expect(clearSpy).toHaveBeenCalled();
+      expect(termSpy).toHaveBeenCalledWith(7);
+      // The tap() side effect requests a single list refresh.
+      expect(refreshSpy).toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
+    it("leaves the socket untouched when terminating a non-selected unit", () => {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const closeSpy = vi.spyOn(websocketService, "closeWebsocket").mockImplementation(() => {});
+      // isConnected is true, but isSelected short-circuits the guard to false.
+      vi.spyOn(websocketService, "isConnected", "get").mockReturnValue(true);
+      vi.spyOn(managing, "terminateComputingUnit").mockReturnValue(of({} as Response));
+      vi.spyOn(service, "refreshComputingUnitList").mockImplementation(() => {});
+      (service as any).selectedUnitSubject.next(mockUnit(8));
+
+      let result: boolean | undefined;
+      service.terminateComputingUnit(7).subscribe(r => (result = r));
+
+      expect(closeSpy).not.toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
+    it("skips socket teardown when the selected unit is not connected", () => {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const closeSpy = vi.spyOn(websocketService, "closeWebsocket").mockImplementation(() => {});
+      // isSelected is true, but the socket is down → the guarded teardown is skipped.
+      vi.spyOn(websocketService, "isConnected", "get").mockReturnValue(false);
+      vi.spyOn(managing, "terminateComputingUnit").mockReturnValue(of({} as Response));
+      vi.spyOn(service, "refreshComputingUnitList").mockImplementation(() => {});
+      (service as any).selectedUnitSubject.next(mockUnit(7));
+
+      let result: boolean | undefined;
+      service.terminateComputingUnit(7).subscribe(r => (result = r));
+
+      expect(closeSpy).not.toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
+    it("resolves to false when the termination request errors", () => {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      vi.spyOn(websocketService, "isConnected", "get").mockReturnValue(false);
+      vi.spyOn(managing, "terminateComputingUnit").mockReturnValue(throwError(() => new Error("boom")));
+      const refreshSpy = vi.spyOn(service, "refreshComputingUnitList").mockImplementation(() => {});
+      (service as any).selectedUnitSubject.next(mockUnit(7));
+
+      let result: boolean | undefined;
+      service.terminateComputingUnit(7).subscribe(r => (result = r));
+
+      // The error is swallowed by catchError, which emits false; no refresh runs.
+      expect(result).toBe(false);
+      expect(refreshSpy).not.toHaveBeenCalled();
+    });
   });
 });
