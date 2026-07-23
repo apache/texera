@@ -588,4 +588,276 @@ describe("WorkflowActionService", () => {
 
     expect(service.getCenterPoint()).toEqual({ x: 100, y: 250 });
   });
+
+  it("should leave the center point at its default when there are no operators", () => {
+    const before = service.getCenterPoint();
+
+    service.calculateTopLeftOperatorPosition();
+
+    expect(service.getCenterPoint()).toEqual(before);
+    expect(service.getCenterPoint()).toEqual({ x: 0, y: 0 });
+  });
+
+  it("should toggle the workflow-modification lock and emit each state on the stream", () => {
+    const emitted: boolean[] = [];
+    service.getWorkflowModificationEnabledStream().subscribe(v => emitted.push(v));
+
+    // BehaviorSubject replays the initial "enabled" state on subscription
+    expect(service.checkWorkflowModificationEnabled()).toBeTruthy();
+
+    service.disableWorkflowModification();
+    expect(service.checkWorkflowModificationEnabled()).toBeFalsy();
+
+    // enable only takes effect when previously disabled (and workflow not readonly)
+    service.enableWorkflowModification();
+    expect(service.checkWorkflowModificationEnabled()).toBeTruthy();
+
+    expect(emitted).toEqual([true, false, true]);
+  });
+
+  it("should expose the underlying joint graph instance", () => {
+    expect(service.getJointGraph()).toBe(jointGraph);
+  });
+
+  it("should resolve a conflicting port ID when adding a dynamic input port", () => {
+    // inputPorts already contains "input-1" but has length 1, so the first candidate
+    // portID ("input-" + 1) collides and the loop must bump the suffix to "input-2".
+    const gapOp: OperatorPredicate = {
+      ...mockMultiInputOutputPredicate,
+      operatorID: "gap-op",
+      dynamicInputPorts: true,
+      inputPorts: [{ portID: "input-1" }],
+    };
+    service.addOperator(gapOp, mockPoint);
+
+    service.addPort(gapOp.operatorID, true);
+
+    const portIDs = texeraGraph.getOperator(gapOp.operatorID).inputPorts.map(p => p.portID);
+    expect(portIDs).toContain("input-2");
+    expect(portIDs).not.toContain("input-1input-1");
+  });
+
+  it("should add a dynamic output port to an operator that allows them", () => {
+    const dynOutOp: OperatorPredicate = {
+      ...mockMultiInputOutputPredicate,
+      operatorID: "dyn-out",
+      dynamicOutputPorts: true,
+    };
+    service.addOperator(dynOutOp, mockPoint);
+    const beforeOutputs = texeraGraph.getOperator(dynOutOp.operatorID).outputPorts.length;
+
+    service.addPort(dynOutOp.operatorID, false);
+
+    expect(texeraGraph.getOperator(dynOutOp.operatorID).outputPorts.length).toEqual(beforeOutputs + 1);
+  });
+
+  it("should throw when adding an output port to an operator without dynamic output ports", () => {
+    const noOutOp: OperatorPredicate = { ...mockMultiInputOutputPredicate, operatorID: "no-out" };
+    service.addOperator(noOutOp, mockPoint);
+
+    expect(() => service.addPort(noOutOp.operatorID, false)).toThrowError(
+      new RegExp("does not have dynamic output ports")
+    );
+  });
+
+  it("should throw when specifying disallowMultiInputs on an output port", () => {
+    const dynOutOp: OperatorPredicate = {
+      ...mockMultiInputOutputPredicate,
+      operatorID: "dyn-out-2",
+      dynamicOutputPorts: true,
+    };
+    service.addOperator(dynOutOp, mockPoint);
+
+    expect(() => service.addPort(dynOutOp.operatorID, false, true)).toThrowError(
+      new RegExp("disallowMultiInputs property of an output port should not be specified")
+    );
+  });
+
+  it("should add a comment box together with its initial comments", () => {
+    const comment = { content: "hello", creationTime: "2020-01-01", creatorName: "me", creatorID: 1 };
+    const box = { ...mockCommentBox, commentBoxID: "commentBox-with-comment", comments: [comment] };
+
+    service.addCommentBox(box);
+
+    expect(texeraGraph.hasCommentBox("commentBox-with-comment")).toBeTruthy();
+    expect(texeraGraph.getCommentBox("commentBox-with-comment").comments.length).toEqual(1);
+    expect(texeraGraph.getCommentBox("commentBox-with-comment").comments[0].content).toEqual("hello");
+  });
+
+  it("should delete a comment box and throw when deleting a non-existing one", () => {
+    const box = { ...mockCommentBox, commentBoxID: "commentBox-del" };
+    service.addCommentBox(box);
+    expect(texeraGraph.hasCommentBox("commentBox-del")).toBeTruthy();
+
+    service.deleteCommentBox("commentBox-del");
+    expect(texeraGraph.hasCommentBox("commentBox-del")).toBeFalsy();
+
+    expect(() => service.deleteCommentBox("commentBox-missing")).toThrowError(new RegExp("does not exist"));
+  });
+
+  it("should add, edit, and delete a comment inside a comment box", () => {
+    const box = { ...mockCommentBox, commentBoxID: "commentBox-cmt" };
+    service.addCommentBox(box);
+    const comment = { content: "first", creationTime: "2020-02-02", creatorName: "author", creatorID: 7 };
+
+    service.addComment(comment, "commentBox-cmt");
+    expect(texeraGraph.getCommentBox("commentBox-cmt").comments.length).toEqual(1);
+
+    service.editComment(7, "2020-02-02", "commentBox-cmt", "edited");
+    expect(texeraGraph.getCommentBox("commentBox-cmt").comments[0].content).toEqual("edited");
+
+    service.deleteComment(7, "2020-02-02", "commentBox-cmt");
+    expect(texeraGraph.getCommentBox("commentBox-cmt").comments.length).toEqual(0);
+  });
+
+  it("should delete multiple operators along with their connecting links", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockSentimentPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
+    service.addLink(mockScanSentimentLink);
+    service.addLink(mockSentimentResultLink);
+
+    // duplicate IDs verify the internal Set de-duplication path too
+    service.deleteOperatorsAndLinks([
+      mockScanPredicate.operatorID,
+      mockSentimentPredicate.operatorID,
+      mockScanPredicate.operatorID,
+    ]);
+
+    expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
+    expect(texeraGraph.hasOperator(mockSentimentPredicate.operatorID)).toBeFalsy();
+    expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
+    expect(texeraGraph.getAllLinks().length).toEqual(0);
+  });
+
+  it("should delete a downstream operator and drop links matched by their target", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
+    service.addLink(mockScanResultLink); // scan -> result
+
+    // deleting only the target operator: the link matches on its target, not its source,
+    // exercising the right-hand operand of the link filter's OR condition
+    service.deleteOperatorsAndLinks([mockResultPredicate.operatorID]);
+
+    expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeFalsy();
+    expect(texeraGraph.getAllLinks().length).toEqual(0);
+  });
+
+  it("should record comment-box positions during auto layout", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    const box = { ...mockCommentBox, commentBoxID: "commentBox-layout" };
+    service.addCommentBox(box);
+
+    service.autoLayoutWorkflow();
+
+    expect(texeraGraph.sharedModel.elementPositionMap.get("commentBox-layout")).toBeDefined();
+  });
+
+  it("should emit open and close events on the result-panel stream", () => {
+    const events: boolean[] = [];
+    service.resultPanelOpen$.subscribe(v => events.push(v));
+
+    service.openResultPanel();
+    service.closeResultPanel();
+
+    expect(events).toEqual([true, false]);
+  });
+
+  it("should not replace the workflow settings object when given the same reference", () => {
+    const current = service.getWorkflowSettings();
+
+    service.setWorkflowSettings(current);
+
+    expect(service.getWorkflowSettings()).toBe(current);
+  });
+
+  it("should assemble workflow content and the full workflow from graph state", () => {
+    service.addOperator(mockScanPredicate, { x: 10, y: 20 });
+    service.addOperator(mockResultPredicate, { x: 30, y: 40 });
+    service.addLink(mockScanResultLink);
+    service.setWorkflowName("Content WF");
+
+    const content = service.getWorkflowContent();
+    expect(content.operators.map(o => o.operatorID).sort()).toEqual([
+      mockScanPredicate.operatorID,
+      mockResultPredicate.operatorID,
+    ]);
+    expect(content.links.length).toEqual(1);
+    expect(content.operatorPositions[mockScanPredicate.operatorID]).toEqual({ x: 10, y: 20 });
+    expect(content.operatorPositions[mockResultPredicate.operatorID]).toEqual({ x: 30, y: 40 });
+    expect(content.settings).toEqual(service.getWorkflowSettings());
+
+    const workflow = service.getWorkflow();
+    expect(workflow.name).toEqual("Content WF");
+    expect(workflow.content.operators.length).toEqual(2);
+    expect(workflow.content.links.length).toEqual(1);
+  });
+
+  it("should clear pre-existing comment boxes and fall back to default settings when reloading", () => {
+    service.addCommentBox({ ...mockCommentBox, commentBoxID: "commentBox-old" });
+    expect(texeraGraph.hasCommentBox("commentBox-old")).toBeTruthy();
+
+    // Make the assertion meaningful by starting from a non-default value.
+    service.setWorkflowSettings({ dataTransferBatchSize: 1, executionMode: ExecutionMode.MATERIALIZED });
+    const env = (service as any).config.env;
+
+    const workflow: Workflow = {
+      ...DEFAULT_WORKFLOW,
+      content: {
+        operators: [mockScanPredicate],
+        operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+        links: [],
+        commentBoxes: [],
+        settings: undefined as any,
+      },
+    };
+
+    service.reloadWorkflow(workflow, false, false);
+
+    expect(texeraGraph.hasCommentBox("commentBox-old")).toBeFalsy();
+    expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
+    // settings was undefined in the reloaded content, so defaults are applied
+    expect(service.getWorkflowSettings()).toEqual({
+      dataTransferBatchSize: env.defaultDataTransferBatchSize,
+      executionMode: env.defaultExecutionMode,
+    });
+  });
+
+  it("should drag all highlighted elements together when one highlighted operator is moved", () => {
+    const wrapper = service.getJointGraphWrapper();
+    service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+    service.addOperator(mockSentimentPredicate, { x: 300, y: 300 });
+    // comment-box ID must contain "commentBox" to exercise the comment-box persistence branch
+    const commentBoxID = "commentBox-drag";
+    service.addCommentBox({ ...mockCommentBox, commentBoxID });
+
+    service.highlightElements(true, mockScanPredicate.operatorID, mockSentimentPredicate.operatorID, commentBoxID);
+
+    const scanBefore = wrapper.getElementPosition(mockScanPredicate.operatorID);
+    const sentimentBefore = wrapper.getElementPosition(mockSentimentPredicate.operatorID);
+    const commentBefore = wrapper.getElementPosition(commentBoxID);
+    const offset = { x: 50, y: 30 };
+
+    // moving the highlighted scan operator triggers the drag handler, which moves the
+    // other highlighted elements by the same offset
+    wrapper.setAbsolutePosition(mockScanPredicate.operatorID, scanBefore.x + offset.x, scanBefore.y + offset.y);
+
+    expect(wrapper.getElementPosition(mockSentimentPredicate.operatorID)).toEqual({
+      x: sentimentBefore.x + offset.x,
+      y: sentimentBefore.y + offset.y,
+    });
+    expect(wrapper.getElementPosition(commentBoxID)).toEqual({
+      x: commentBefore.x + offset.x,
+      y: commentBefore.y + offset.y,
+    });
+    expect(texeraGraph.sharedModel.elementPositionMap.get(mockScanPredicate.operatorID)).toEqual({
+      x: scanBefore.x + offset.x,
+      y: scanBefore.y + offset.y,
+    });
+    expect(texeraGraph.sharedModel.elementPositionMap.get(mockSentimentPredicate.operatorID)).toEqual({
+      x: sentimentBefore.x + offset.x,
+      y: sentimentBefore.y + offset.y,
+    });
+  });
 });
