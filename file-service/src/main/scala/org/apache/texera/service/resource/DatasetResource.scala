@@ -27,7 +27,7 @@ import jakarta.ws.rs.core._
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.storage.model.OnDataset
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
-import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
+import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver, ResourceType}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SiteSettings
 import org.apache.texera.dao.SqlServer
@@ -2243,7 +2243,7 @@ class DatasetResource extends LazyLogging {
       val document = DocumentFactory
         .openReadonlyDocument(
           FileResolver.resolve(
-            s"${FileResolver.DATASET_PATH_PREFIX}/${owner.getEmail}/${dataset.getName}/$normalized"
+            s"${ResourceType.Datasets}/${owner.getEmail}/${dataset.getName}/$normalized"
           )
         )
         .asInstanceOf[OnDataset]
@@ -2299,7 +2299,7 @@ class DatasetResource extends LazyLogging {
 
       val owner = getOwner(ctx, did)
       val fullPath =
-        s"${FileResolver.DATASET_PATH_PREFIX}/${owner.getEmail}/${dataset.getName}/$coverImage"
+        s"${ResourceType.Datasets}/${owner.getEmail}/${dataset.getName}/$coverImage"
 
       val document = DocumentFactory
         .openReadonlyDocument(FileResolver.resolve(fullPath))
@@ -2349,7 +2349,7 @@ class DatasetResource extends LazyLogging {
         case Some(coverImage) =>
           val owner = getOwner(ctx, did)
           val fullPath =
-            s"${FileResolver.DATASET_PATH_PREFIX}/${owner.getEmail}/${dataset.getName}/$coverImage"
+            s"${ResourceType.Datasets}/${owner.getEmail}/${dataset.getName}/$coverImage"
 
           val document = DocumentFactory
             .openReadonlyDocument(FileResolver.resolve(fullPath))

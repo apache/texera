@@ -22,6 +22,7 @@ import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../common/type/dataset";
+import { ResourceType } from "../../../common/type/resource-type";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
@@ -83,13 +84,8 @@ export class DatasetSelectionModalComponent implements OnInit {
         this.datasets = datasets;
         const selectedPath = this.data.selectedPath;
         if (selectedPath) {
-          const segments = selectedPath.split("/").filter(part => part.length > 0);
-          // Drop the resource-type prefix ("datasets") if present so owner/dataset/version
-          // line up (the stored path may or may not carry the prefix).
-          if (segments[0] === "datasets") {
-            segments.shift();
-          }
-          const [ownerEmail, datasetName, versionName] = segments;
+          // Stored paths always carry the resource-type prefix; skip it so that owner/dataset/version line up.
+          const [, ownerEmail, datasetName, versionName] = selectedPath.split("/").filter(part => part.length > 0);
           this.selectedDataset = this.datasets.find(
             dataset => dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
           );
@@ -124,7 +120,7 @@ export class DatasetSelectionModalComponent implements OnInit {
           this.fileTree = data.fileNodes;
         });
       if (!this.data.fileMode) {
-        this.selectedPath = `/datasets/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
+        this.selectedPath = `/${ResourceType.Datasets}/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
       }
     }
   }

@@ -26,17 +26,16 @@ BEGIN;
 -- The file resolver now requires an explicit resource-type prefix on dataset
 -- logical paths (/datasets/ownerEmail/datasetName/versionName/...) so other
 -- resource types (e.g. models) can be told apart by the prefix. Existing
--- workflows store legacy, unprefixed dataset paths inside workflow.content and
+-- workflows store unprefixed dataset paths inside workflow.content and
 -- workflow_version.content, in two operator properties:
 --   * fileName            (scan-source operators): /owner/name/version/file
 --   * datasetVersionPath  (file-lister operator):  /owner/name/version
 -- This migration prepends the "datasets" segment to both.
 --
 -- A value is treated as a dataset path only when its first two segments match an
--- existing (user.email, dataset.name) pair -- that pair is unique, and this test
--- is independent of the email format (Texera sets email = username, so an owner
--- segment need not contain "@"). Local file paths and URLs match no dataset and
--- are left untouched. Already-prefixed values are skipped (idempotent). jsonb_set
+-- existing (user.email, dataset.name) pair -- that pair is unique.
+-- Local file paths and URLs match no dataset and are left untouched.
+-- Already-prefixed values are skipped (idempotent). jsonb_set
 -- uses create_missing = false so absent properties are never added.
 
 DO $$

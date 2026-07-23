@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.source.dataset
 
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
-import org.apache.texera.amber.core.storage.FileResolver
+import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -32,21 +32,17 @@ import org.apache.texera.dao.jooq.generated.tables.User.USER
 object FileListerSourceOpExec {
 
   /**
-    * Parses a dataset version path into its (ownerEmail, datasetName, versionName) components.
+    * Parses a dataset version path (/datasets/ownerEmail/datasetName/versionName) into its
+    * (ownerEmail, datasetName, versionName) components.
     *
-    * Expected format: /datasets/ownerEmail/datasetName/versionName
-    *
-    * The leading "datasets" resource-type prefix is required (mirroring FileResolver); empty
-    * segments produced by leading/trailing slashes are ignored.
-    *
-    * @throws IllegalArgumentException if the path is not a prefixed dataset version path
+    * @throws IllegalArgumentException if the path is not a well-formed dataset version path
     */
   private[dataset] def parseDatasetVersionPath(
       datasetVersionPath: String
   ): (String, String, String) = {
     val segments = datasetVersionPath.split("/").filter(_.nonEmpty)
     require(
-      segments.length >= 4 && segments.head == FileResolver.DATASET_PATH_PREFIX,
+      segments.length >= 4 && segments.head == ResourceType.Datasets.toString,
       s"Invalid dataset version path '$datasetVersionPath'; " +
         "expected /datasets/ownerEmail/datasetName/versionName"
     )
