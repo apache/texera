@@ -140,11 +140,31 @@ jobs:
           echo "pr=$(cat cc/pr-number.txt 2>/dev/null | tr -cd '0-9')" >> "$GITHUB_OUTPUT"
           echo "sha=$(cat cc/commit-sha.txt 2>/dev/null | tr -cd '0-9a-fA-F')" >> "$GITHUB_OUTPUT"
           echo "branch=$(cat cc/branch.txt 2>/dev/null | tr -cd '[:alnum:]._/:-')" >> "$GITHUB_OUTPUT"
+      # codecov-action re-downloads and GPG-verifies the Codecov CLI on every run, and
+      # that runtime key import / signature check is intermittently flaky ("no valid
+      # OpenPGP data found" -> "Could not verify signature" -> exit 1), which would
+      # otherwise fail the leg and drop that flag's coverage. Each upload therefore
+      # runs as attempt + one retry: the first attempt is continue-on-error so a
+      # transient flake doesn't fail the leg, and the retry re-runs only when the first
+      # failed and does fail hard. A persistent failure still fails the leg (->
+      # notify-failure); a transient one self-heals on the retry.
       - name: Upload ${{ matrix.flag }} coverage to Codecov
+        id: cov
         # Every flag has coverage except the results-only amber-integration; hashFiles
-        # skips it there (its artifact has no coverage/ dir). fail_ci_if_error: true so
-        # a genuine upload failure fails the leg and trips notify-failure.
+        # skips it there (its artifact has no coverage/ dir).
         if: hashFiles('cc/coverage/**') != ''
+        continue-on-error: true
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: cc/coverage
+          flags: ${{ matrix.flag }}
+          fail_ci_if_error: true
+          override_commit: ${{ steps.meta.outputs.sha }}
+          override_branch: ${{ steps.meta.outputs.branch }}
+          override_pr: ${{ steps.meta.outputs.pr }}
+      - name: Upload ${{ matrix.flag }} coverage to Codecov (retry)
+        if: steps.cov.outcome == 'failure'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -155,7 +175,21 @@ jobs:
           override_branch: ${{ steps.meta.outputs.branch }}
           override_pr: ${{ steps.meta.outputs.pr }}
       - name: Upload ${{ matrix.flag }} test results to Codecov
+        id: res
         if: hashFiles('cc/results/**') != ''
+        continue-on-error: true
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: cc/results
+          flags: ${{ matrix.flag }}
+          report_type: test_results
+          fail_ci_if_error: true
+          override_commit: ${{ steps.meta.outputs.sha }}
+          override_branch: ${{ steps.meta.outputs.branch }}
+          override_pr: ${{ steps.meta.outputs.pr }}
+      - name: Upload ${{ matrix.flag }} test results to Codecov (retry)
+        if: steps.res.outcome == 'failure'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
