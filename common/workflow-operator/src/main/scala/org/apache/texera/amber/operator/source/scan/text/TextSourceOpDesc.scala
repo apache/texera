@@ -33,10 +33,11 @@ import org.apache.texera.amber.operator.source.scan.FileAttributeType
 trait TextSourceOpDesc {
   @JsonProperty(defaultValue = "string", required = true)
   @JsonSchemaTitle("Attribute Type")
-  @JsonPropertyDescription("This specifies how to read this text.\n \n Per-line types (string, integer, long, double, boolean, " +
-    "timestamp) emit one output row per line, casting each line to that type. \n \n" +
-    "File types ('Single string' / 'binary' / 'large binary') read the entire file in one " +
-    "single row.")
+  @JsonPropertyDescription(
+    "This specifies how to read this text.\n\n" +
+      "Per-line types (string, integer, long, double, boolean, timestamp) emit one output row per line, casting each line to that type.\n\n" +
+      "Single-tuple types ('single string' / 'binary' / 'large binary') read the entire input as one output row."
+  )
   var attributeType: FileAttributeType = FileAttributeType.STRING
 
   @JsonProperty(defaultValue = "line", required = true)
