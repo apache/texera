@@ -787,9 +787,8 @@ jobs:
           CC_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
         run: bash .github/scripts/stage-codecov.sh
       - name: Upload ${{ matrix.service }} Codecov artifact
-        # Adding a service to the matrix above also needs a matching
-        # { flag: <service>, coverage: true } row in codecov-upload.yml, or this
-        # artifact is downloaded by nothing and the service's coverage is dropped.
+        # codecov-upload.yml discovers codecov-* artifacts dynamically, so a new
+        # platform service here is picked up automatically — no matrix row to sync.
         if: inputs.backport_target_branch == '' && !cancelled()
         uses: actions/upload-artifact@v4
         with:
