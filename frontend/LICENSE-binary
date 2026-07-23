@@ -286,7 +286,7 @@ Angular / npm packages:
   - @codingame/monaco-vscode-views-service-override@25.1.2
   - @codingame/monaco-vscode-workbench-service-override@25.1.2
   - @ctrl/tinycolor@3.6.1
-  - @ngneat/until-destroy@8.1.4
+  - @ngneat/until-destroy@10.0.0
   - @ngx-formly/core@7.1.0
   - @ngx-formly/ng-zorro-antd@7.1.0
   - @vscode/iconv-lite-umd@0.7.1
