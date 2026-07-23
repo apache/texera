@@ -19,6 +19,7 @@
 
 import { ComponentFixture, TestBed, discardPeriodicTasks, fakeAsync, tick } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { By } from "@angular/platform-browser";
 import { FormControl, FormGroup } from "@angular/forms";
 import { FieldTypeConfig } from "@ngx-formly/core";
 import { AppSettings } from "../../../common/app-setting";
@@ -1382,6 +1383,193 @@ describe("HuggingFaceComponent (TestBed)", () => {
       expect(component.pagedModels.length).toBe(0);
       expect(component.totalPages).toBe(1);
       expect(component.loading).toBe(false);
+    });
+  });
+
+  // ── Rendered-template interactions (the (click)/(ngModelChange) bindings) ──
+
+  describe("template interactions", () => {
+    it("clicking a model item selects it", () => {
+      initComponent("text-generation", buildModels(3));
+      fixture.detectChanges();
+
+      const item = fixture.debugElement.query(By.css(".hf-model-item"));
+      expect(item).toBeTruthy();
+      item.triggerEventHandler("click", null);
+
+      expect(component.formControl.value).toBe("model/model-0");
+    });
+
+    it("clicking the close icon on the selected model clears the value", () => {
+      initComponent("text-generation", buildModels(3));
+      component.formControl.setValue("model/model-0");
+      fixture.detectChanges();
+
+      const closeIcon = fixture.debugElement.query(By.css(".hf-selected-model i"));
+      expect(closeIcon).toBeTruthy();
+      closeIcon.triggerEventHandler("click", null);
+
+      expect(component.formControl.value).toBe("");
+    });
+
+    it("the pagination buttons move to the next and previous page", () => {
+      initComponent("text-generation", buildModels(120)); // 3 pages of 50
+      fixture.detectChanges();
+
+      const next = fixture.debugElement.queryAll(By.css(".hf-pagination button"))[1];
+      next.triggerEventHandler("click", null);
+      expect(component.currentPage).toBe(1);
+
+      fixture.detectChanges();
+      const prev = fixture.debugElement.queryAll(By.css(".hf-pagination button"))[0];
+      prev.triggerEventHandler("click", null);
+      expect(component.currentPage).toBe(0);
+    });
+
+    it("clicking Retry re-fetches the models after a load failure", () => {
+      const { field } = buildFieldWithFormGroup("text-generation");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http
+        .expectOne(req => req.url.startsWith(`${API}/huggingface/models`))
+        .flush("boom", { status: 500, statusText: "Server Error" });
+      fixture.detectChanges();
+
+      const retry = fixture.debugElement.query(By.css(".hf-error button"));
+      expect(retry).toBeTruthy();
+      retry.triggerEventHandler("click", null);
+
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2));
+      expect(component.errorMessage).toBeNull();
+    });
+
+    it("clicking Retry re-fetches the tasks after a tasks-load failure", () => {
+      const { field } = buildFieldWithFormGroup("text-generation");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush("boom", { status: 500, statusText: "Server Error" });
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2));
+      fixture.detectChanges();
+
+      const retry = fixture.debugElement.query(By.css(".hf-error button"));
+      expect(retry).toBeTruthy();
+      retry.triggerEventHandler("click", null);
+
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      expect(component.tasksError).toBeNull();
+    });
+
+    it("the search box forwards typed text to onSearchInput", () => {
+      initComponent("text-generation", buildModels(3));
+      fixture.detectChanges();
+
+      const input = fixture.debugElement.query(By.css("input[nz-input]"));
+      expect(input).toBeTruthy();
+      input.triggerEventHandler("ngModelChange", "model-1");
+
+      expect(component.searchText).toBe("model-1");
+    });
+
+    it("clicking the clear icon resets the search", () => {
+      initComponent("text-generation", buildModels(3));
+      component.onSearchInput("model-1");
+      fixture.detectChanges();
+
+      const clear = fixture.debugElement.query(By.css("i[nztype='close-circle']"));
+      expect(clear).toBeTruthy();
+      clear.triggerEventHandler("click", null);
+
+      expect(component.searchText).toBe("");
+    });
+
+    it("changing the task dropdown loads the models for the new task", () => {
+      initComponent("text-generation", buildModels(3));
+      fixture.detectChanges();
+
+      const select = fixture.debugElement.query(By.css("nz-select"));
+      expect(select).toBeTruthy();
+      select.triggerEventHandler("ngModelChange", "image-classification");
+
+      http.expectOne(`${API}/huggingface/models?task=image-classification`).flush(buildModels(2));
+      expect(component.selectedTaskTag).toBe("image-classification");
+    });
+
+    it("shows the search-specific empty message when a search matches nothing", () => {
+      initComponent("text-generation", buildModels(3));
+      component.onSearchInput("no-such-model");
+      fixture.detectChanges();
+
+      const empty = fixture.debugElement.query(By.css(".hf-empty"));
+      expect(empty).toBeTruthy();
+      expect(empty.nativeElement.textContent).toContain('No models found for "no-such-model".');
+    });
+  });
+
+  // ── Fallback branches ──
+
+  describe("fallback branches", () => {
+    it("falls back to the text-generation tag when the selected tag is empty", () => {
+      initComponent("text-generation", buildModels(2));
+      invalidateHuggingFaceModelCache();
+      component.selectedTaskTag = "";
+
+      component.retryLoad();
+
+      http.expectOne(`${API}/huggingface/models?task=text-generation`).flush(buildModels(1));
+      expect(component.pagedModels.length).toBe(1);
+    });
+
+    it("server-side search falls back to the text-generation tag when the tag is empty", fakeAsync(() => {
+      initComponent("text-generation", buildModels(2));
+      component.truncated = true;
+      component.selectedTaskTag = "";
+
+      component.onSearchInput("query");
+      tick(300);
+
+      http.expectOne(`${API}/huggingface/models?task=text-generation&search=query`).flush(buildModels(1));
+      expect(component.pagedModels.length).toBe(1);
+    }));
+
+    it("uses the current selection when no task is present on the model or form", fakeAsync(() => {
+      // taskValue "" -> getCurrentTaskTag() returns undefined, so the ?? fallback is taken.
+      const { field } = buildFieldWithFormGroup("");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2));
+      tick(0); // the ngOnInit setTimeout re-sync, which also takes the ?? fallback
+
+      component.onTaskSelected("summarization");
+
+      http.expectOne(`${API}/huggingface/models?task=summarization`).flush(buildModels(1));
+      expect(component.selectedTaskTag).toBe("summarization");
+    }));
+
+    it("persists the task when the field has no parent and the form has no task control", () => {
+      const formGroup = new FormGroup({ modelId: new FormControl("") });
+      const field = {
+        key: "modelId",
+        formControl: formGroup.get("modelId")! as FormControl,
+        form: formGroup,
+        model: { modelId: "" } as Record<string, unknown>,
+        props: {},
+        options: { detectChanges: vi.fn() },
+      } as unknown as FieldTypeConfig; // no `parent` -> the `field.parent ?? field` fallback
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2));
+
+      expect(() => component.onTaskSelected("translation")).not.toThrow();
+
+      http.expectOne(`${API}/huggingface/models?task=translation`).flush(buildModels(1));
+      expect(component.selectedTaskTag).toBe("translation");
     });
   });
 });
