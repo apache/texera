@@ -25,6 +25,8 @@ import { NotificationService } from "../../../../../../common/service/notificati
 import { DomSanitizer } from "@angular/platform-browser";
 import { commonTestProviders } from "../../../../../../common/testing/test-utils";
 import { of } from "rxjs";
+import * as Papa from "papaparse";
+import { SimpleChanges } from "@angular/core";
 
 describe("UserDatasetFileRendererComponent", () => {
   let component: UserDatasetFileRendererComponent;
@@ -235,6 +237,175 @@ describe("UserDatasetFileRendererComponent", () => {
       } finally {
         (globalThis as unknown as { FileReader: unknown }).FileReader = realFileReader;
       }
+    });
+  });
+
+  describe("ngOnChanges", () => {
+    it("reloads when filePath changes", () => {
+      const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
+      component.ngOnChanges({ filePath: {} } as unknown as SimpleChanges);
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("reloads when both did and dvid change together", () => {
+      const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
+      component.ngOnChanges({ did: {}, dvid: {} } as unknown as SimpleChanges);
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not reload when only did changes without dvid", () => {
+      const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
+      component.ngOnChanges({ did: {} } as unknown as SimpleChanges);
+      expect(reloadSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not reload for an unrelated input change", () => {
+      const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
+      component.ngOnChanges({ isMaximized: {} } as unknown as SimpleChanges);
+      expect(reloadSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("ngOnDestroy", () => {
+    it("revokes the object URL when one was created", () => {
+      const originalRevoke = URL.revokeObjectURL;
+      const revokeSpy = vi.fn();
+      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeSpy;
+      try {
+        component.fileURL = "blob:to-revoke";
+        component.ngOnDestroy();
+        expect(revokeSpy).toHaveBeenCalledWith("blob:to-revoke");
+      } finally {
+        (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevoke;
+      }
+    });
+
+    it("does nothing when no object URL exists", () => {
+      const originalRevoke = URL.revokeObjectURL;
+      const revokeSpy = vi.fn();
+      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeSpy;
+      try {
+        component.fileURL = undefined;
+        component.ngOnDestroy();
+        expect(revokeSpy).not.toHaveBeenCalled();
+      } finally {
+        (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevoke;
+      }
+    });
+  });
+
+  describe("turnOffAllDisplay URL cleanup", () => {
+    it("revokes both the raw and the safe object URLs when present", () => {
+      const originalRevoke = URL.revokeObjectURL;
+      const revokeSpy = vi.fn();
+      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeSpy;
+      try {
+        component.fileURL = "blob:raw";
+        // safeFileURL is a SafeUrl; the code calls .toString() on it before revoking.
+        component.safeFileURL = "blob:safe" as unknown as typeof component.safeFileURL;
+        component.turnOffAllDisplay();
+        expect(revokeSpy).toHaveBeenCalledWith("blob:raw");
+        expect(revokeSpy).toHaveBeenCalledWith("blob:safe");
+      } finally {
+        (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevoke;
+      }
+    });
+  });
+
+  describe("reloadFileContent viewer selection", () => {
+    // Helper: drive reloadFileContent through the async subscribe with a canned blob.
+    // fileSize is left undefined so the pre-check size guard is skipped and the
+    // blob-size branch inside next() is exercised instead.
+    function loadWith(filePath: string, blob: Blob) {
+      const datasetService = TestBed.inject(DatasetService);
+      vi.spyOn(datasetService, "retrieveDatasetVersionSingleFile").mockReturnValue(of(blob));
+      component.did = 1;
+      component.dvid = 2;
+      component.filePath = filePath;
+      component.isLogin = false;
+      component.fileSize = undefined;
+      component.reloadFileContent();
+    }
+
+    let originalCreate: typeof URL.createObjectURL;
+    let createSpy: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      originalCreate = URL.createObjectURL;
+      createSpy = vi.fn(() => "blob:created");
+      (URL as unknown as { createObjectURL: unknown }).createObjectURL = createSpy;
+    });
+
+    afterEach(() => {
+      (URL as unknown as { createObjectURL: unknown }).createObjectURL = originalCreate;
+    });
+
+    it("selects the image viewer and builds a safe URL for a PNG", () => {
+      const blob = new Blob(["img"], { type: "image/png" });
+      loadWith("photo.png", blob);
+      expect(component.displayImage).toBe(true);
+      expect(createSpy).toHaveBeenCalledWith(blob);
+      expect(component.fileURL).toBe("blob:created");
+    });
+
+    it("selects the video viewer for an MP4", () => {
+      const blob = new Blob(["vid"], { type: "video/mp4" });
+      loadWith("clip.mp4", blob);
+      expect(component.displayMP4).toBe(true);
+      expect(createSpy).toHaveBeenCalledWith(blob);
+    });
+
+    it("selects the audio viewer for an MP3", () => {
+      const blob = new Blob(["aud"], { type: "audio/mpeg" });
+      loadWith("song.mp3", blob);
+      expect(component.displayMP3).toBe(true);
+      expect(createSpy).toHaveBeenCalledWith(blob);
+    });
+
+    it("selects the markdown viewer for a MD file", () => {
+      const blob = new Blob(["# hi"], { type: "text/markdown" });
+      loadWith("readme.md", blob);
+      expect(component.displayMarkdown).toBe(true);
+    });
+
+    it("selects the JSON viewer for a JSON file", () => {
+      const blob = new Blob(['{"a":1}'], { type: "application/json" });
+      loadWith("data.json", blob);
+      expect(component.displayJson).toBe(true);
+    });
+
+    // Papa.parse's property on the vite namespace is a non-configurable getter (cannot be spied or
+    // reassigned), and module-mocking papaparse is disallowed, so the real parser runs against a
+    // real CSV File and the async result is awaited via vi.waitFor.
+    it("selects the CSV viewer and parses the file into the tabular header and content", async () => {
+      // Reference the imported namespace so the papaparse import is retained for the real parse path.
+      expect(typeof Papa.parse).toBe("function");
+      const blob = new Blob(["h1,h2\na,b\n"], { type: "text/csv" });
+      loadWith("data.csv", blob);
+      expect(component.displayCSV).toBe(true);
+      await vi.waitFor(() => expect(component.tableDataHeader.length).toBeGreaterThan(0));
+      expect(component.tableDataHeader).toEqual(["h1", "h2"]);
+      expect(component.tableContent[0]).toEqual(["a", "b"]);
+    });
+
+    it("flags an oversized blob returned by the backend and warns the user", () => {
+      const notificationService = TestBed.inject(NotificationService);
+      const warnSpy = vi.spyOn(notificationService, "warning").mockImplementation(() => undefined as never);
+      // TXT limit is 1 MB; build a blob just over it. Pre-check is skipped (fileSize undefined),
+      // so the inner blob.size guard is what rejects it.
+      const oversized = new Blob(["x".repeat(1024 * 1024 + 10)], { type: "text/plain" });
+      loadWith("big.txt", oversized);
+      expect(component.isFileSizeUnloadable).toBe(true);
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it("re-checks preview support on the loaded blob and rejects an unsupported one", () => {
+      // The pre-check passes (first call true) but the in-callback re-check fails (subsequent false),
+      // exercising the defensive guard inside next().
+      vi.spyOn(component, "isPreviewSupported").mockReturnValueOnce(true).mockReturnValue(false);
+      const blob = new Blob(["hi"], { type: "text/plain" });
+      loadWith("notes.txt", blob);
+      expect(component.isFileTypePreviewUnsupported).toBe(true);
     });
   });
 });
