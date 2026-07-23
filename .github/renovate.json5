@@ -102,11 +102,10 @@
       groupName: 'pyamber patch updates',
     },
 
-    // GitHub Actions keep the `ci` type used before, in one group.
+    // GitHub Actions bumps in one group, scoped as chore(deps, ci).
     {
       matchManagers: ['github-actions'],
-      semanticCommitType: 'ci',
-      semanticCommitScope: null,
+      semanticCommitScope: 'deps, ci',
       groupName: 'github-actions',
     },
 
