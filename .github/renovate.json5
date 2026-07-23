@@ -74,8 +74,10 @@
       semanticCommitScope: 'deps, pyamber',
     },
 
-    // Patch bumps grouped into one weekly PR per area (packages whose
-    // best available update is minor/major still get individual PRs).
+    // Patch bumps grouped into one weekly PR per area. Minor bumps are
+    // also grouped per area — except sbt, where minors ship behavior
+    // changes often enough that per-package PRs keep CI failures
+    // attributable. Majors are always individual PRs.
     {
       matchManagers: ['sbt'],
       matchUpdateTypes: ['patch'],
@@ -100,6 +102,26 @@
       matchFileNames: ['amber/**'],
       matchUpdateTypes: ['patch'],
       groupName: 'pyamber patch updates',
+    },
+    {
+      matchFileNames: ['frontend/**'],
+      matchUpdateTypes: ['minor'],
+      groupName: 'frontend minor updates',
+    },
+    {
+      matchFileNames: ['pyright-language-service/**'],
+      matchUpdateTypes: ['minor'],
+      groupName: 'pyright-language-service minor updates',
+    },
+    {
+      matchFileNames: ['agent-service/**'],
+      matchUpdateTypes: ['minor'],
+      groupName: 'agent-service minor updates',
+    },
+    {
+      matchFileNames: ['amber/**'],
+      matchUpdateTypes: ['minor'],
+      groupName: 'pyamber minor updates',
     },
 
     // GitHub Actions bumps in one group, scoped as chore(deps, ci).
