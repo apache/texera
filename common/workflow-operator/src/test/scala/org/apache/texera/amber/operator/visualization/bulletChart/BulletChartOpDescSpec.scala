@@ -101,11 +101,12 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
     step.end shouldBe ""
   }
 
-  it should "reject empty required value and deltaReference before generating Python" in {
+  it should "render a code block even with the default empty configuration (no assert guard)" in {
+    // Platform behavior is kept identical to main: generatePythonCode has no
+    // assert guard, so empty defaults still render valid Python. Only the
+    // standalone path validates required fields (asserted below).
     val op = new BulletChartOpDesc
-    assertThrows[AssertionError] {
-      op.generatePythonCode()
-    }
+    op.generatePythonCode() should include("plotly.graph_objects")
   }
 
   it should "reject empty required fields before generating standalone code" in {
