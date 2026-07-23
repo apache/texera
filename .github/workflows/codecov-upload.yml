@@ -181,6 +181,13 @@ jobs:
       pull-requests: write # comment on the PR
     steps:
       - name: Download coverage metadata
+        # Best-effort (opposite of the upload job's download, which fails hard): this
+        # only fetches a codecov-* artifact to read the PR number for the comment. If
+        # it can't (e.g. the source run produced no artifacts, so the pattern matches
+        # nothing and download-artifact errors), continue-on-error lets the job fall
+        # through to the `if: pr != ''` guard and skip commenting, rather than
+        # hard-failing notify-failure itself — which isn't a required check, so its
+        # failure would be invisible noise rather than a signal.
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
