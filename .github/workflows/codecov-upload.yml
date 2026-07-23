@@ -27,20 +27,17 @@
 #
 # Each build job stages its reports as a `codecov-<flag>` artifact with a uniform
 # layout — coverage/ (coverage reports) and results/ (JUnit XMLs) plus pr-number /
-# commit-sha / branch identifier files. The `discover` job lists which codecov-*
-# artifacts the source run ACTUALLY produced (a label-gated PR only builds some of
-# them) and drives the upload matrix from that, so we never chase a flag that wasn't
-# built — that avoids the spurious "artifact not found" errors and lets the download
-# fail loudly for a flag that should be there. Each flag re-uploads with `directory:`
-# scoping so Codecov's search is confined to that flag's files (this is what lets the
-# amber flag's ~8 same-basename module jacoco.xml reports upload without a fragile
-# explicit file list). Codecov requires one upload per flag (flags in a single upload
-# apply to all its files, and carryforward needs the flag at upload time), so the
-# flags cannot be collapsed into fewer calls — the win is the token, not fewer uploads.
+# commit-sha / branch identifier files. The matrix below re-uploads each flag with
+# `directory:` scoping so Codecov's search is confined to that flag's files (this is
+# what lets the amber flag's ~8 same-basename module jacoco.xml reports upload without
+# a fragile explicit file list). Codecov requires one upload per flag (flags in a
+# single upload apply to all its files, and carryforward needs the flag at upload
+# time), so the flags cannot be collapsed into fewer calls — the win here is the
+# token, not fewer uploads.
 #
 # NOTE: `workflow_run` only fires from the copy of this file on the default branch, so
-# a change here has NO effect until merged to main. After merge, exercise it manually
-# via the workflow_dispatch entry below, passing a finished "Required Checks" run id.
+# this has NO effect until merged to main. After merge, exercise it manually via the
+# workflow_dispatch entry below, passing a finished "Required Checks" run id.
 
 name: Codecov Upload
 
@@ -58,80 +55,66 @@ on:
 
 permissions:
   contents: read
-  actions: read # list + download artifacts from the source run
+  actions: read # download-artifact needs this to read artifacts from another run
 
 jobs:
-  discover:
-    # Which codecov-<flag> artifacts did the source run actually build? A label-gated
-    # PR only stages some of them, so we list what exists and upload exactly those —
-    # rather than a hardcoded flag set that throws "artifact not found" for the rest.
-    # Skip only a cancelled/skipped upstream; still run on failure so partial coverage
-    # is reported (mirrors the build's always()/!cancelled() staging).
+  upload:
+    # Skip only a cancelled/skipped upstream; still run on failure so partial
+    # coverage is reported (mirrors the build's always()/!cancelled() staging).
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion != 'cancelled' &&
        github.event.workflow_run.conclusion != 'skipped')
     runs-on: ubuntu-latest
-    outputs:
-      flags: ${{ steps.list.outputs.flags }}
-    steps:
-      - name: List codecov-* artifacts in the source run
-        id: list
-        uses: actions/github-script@v9
-        env:
-          # Passed via env (not interpolated into the script body) so a
-          # workflow_dispatch-supplied run_id can't inject into the JS.
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
-        with:
-          script: |
-            const runId = Number(process.env.SOURCE_RUN_ID);
-            if (!Number.isInteger(runId) || runId <= 0) {
-              core.setFailed(`Invalid source run id: '${process.env.SOURCE_RUN_ID}' (expected a positive integer)`);
-              return;
-            }
-            const arts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
-              owner: context.repo.owner, repo: context.repo.repo, run_id: runId, per_page: 100,
-            });
-            const flags = [...new Set(
-              arts.map(a => a.name)
-                  .filter(n => n.startsWith('codecov-'))
-                  .map(n => n.slice('codecov-'.length))
-            )].sort();
-            core.info(`Source run ${runId} staged codecov flags: ${flags.join(', ') || '(none)'}`);
-            core.setOutput('flags', JSON.stringify(flags));
-
-  upload:
-    needs: discover
-    # Nothing to do when the source produced no codecov-* artifacts (also avoids an
-    # empty matrix, which is an error).
-    if: ${{ needs.discover.outputs.flags != '' && needs.discover.outputs.flags != '[]' }}
-    runs-on: ubuntu-latest
-    # Job-level so the group can key on matrix.flag: one upload pass per source run +
-    # flag, and a re-run of the source supersedes the previous attempt.
+    # Job-level so the group can key on matrix.flag: one upload pass per source
+    # run + flag, and a re-run of the source supersedes the previous attempt.
     concurrency:
       group: codecov-upload-${{ github.event.workflow_run.id || inputs.run_id }}-${{ matrix.flag }}
       cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
-        # `|| '[]'` guards matrix evaluation if the output is ever an empty string
-        # (discover skipped/failed); the job `if` above still skips the empty case.
-        flag: ${{ fromJSON(needs.discover.outputs.flags || '[]') }}
+        # flag = artifact suffix (codecov-<flag>); coverage=false for the
+        # test-results-only flag (amber-integration has no coverage report).
+        #
+        # KEEP IN SYNC with the coverage-producing jobs in build.yml: one row per
+        # codecov-<flag> artifact staged there — frontend, amber, amber-integration,
+        # pyamber, agent-service, and every service in build.yml's `platform` matrix.
+        # A flag staged in build.yml but missing here is downloaded by nothing and
+        # its coverage is silently dropped (the reverse — a row here with no artifact
+        # — is safe: the download continue-on-errors and the leg skips).
+        include:
+          - { flag: frontend, coverage: true }
+          - { flag: amber, coverage: true }
+          - { flag: amber-integration, coverage: false }
+          - { flag: pyamber, coverage: true }
+          - { flag: agent-service, coverage: true }
+          - { flag: config-service, coverage: true }
+          - { flag: access-control-service, coverage: true }
+          - { flag: file-service, coverage: true }
+          - { flag: computing-unit-managing-service, coverage: true }
+          - { flag: workflow-compiling-service, coverage: true }
+          - { flag: notebook-migration-service, coverage: true }
     steps:
-      - name: Download staged coverage for ${{ matrix.flag }}
-        # No continue-on-error: discover confirmed this artifact exists, so a download
-        # failure here is a real problem that must fail the leg and trip notify-failure
-        # (the old design swallowed the failure and went green with no signal).
-        # Layout: stage-codecov.sh roots the artifact at cc/ (coverage/, results/, and
-        # the pr-number/commit-sha/branch txt files), so downloading to path: cc
-        # restores cc/coverage/**, cc/results/**, and cc/pr-number.txt.
+      - name: Resolve source run id
+        id: src
+        shell: bash
+        run: echo "run_id=${{ github.event.workflow_run.id || inputs.run_id }}" >> "$GITHUB_OUTPUT"
+      - name: Download staged coverage
+        id: dl
+        continue-on-error: true # absent when this flag's job was label-gated out
+        # Layout: stage-codecov.sh roots the artifact at cc/ (coverage/, results/,
+        # and the pr-number/commit-sha/branch txt files), so downloading to path: cc
+        # restores cc/coverage/**, cc/results/**, and cc/pr-number.txt — the paths
+        # the steps below reference. Keep that rooting if the staging script changes.
         uses: actions/download-artifact@v4
         with:
           name: codecov-${{ matrix.flag }}
           path: cc
-          run-id: ${{ github.event.workflow_run.id || inputs.run_id }}
+          run-id: ${{ steps.src.outputs.run_id }}
           github-token: ${{ github.token }}
       - name: Read coverage metadata
+        if: steps.dl.outcome == 'success'
         id: meta
         shell: bash
         # Artifact content comes from a (possibly fork) PR build, so sanitize each
@@ -141,10 +124,12 @@ jobs:
           echo "sha=$(cat cc/commit-sha.txt 2>/dev/null | tr -cd '0-9a-fA-F')" >> "$GITHUB_OUTPUT"
           echo "branch=$(cat cc/branch.txt 2>/dev/null | tr -cd '[:alnum:]._/:-')" >> "$GITHUB_OUTPUT"
       - name: Upload ${{ matrix.flag }} coverage to Codecov
-        # Every flag has coverage except the results-only amber-integration; hashFiles
-        # skips it there (its artifact has no coverage/ dir). fail_ci_if_error: true so
-        # a genuine upload failure fails the leg and trips notify-failure.
-        if: hashFiles('cc/coverage/**') != ''
+        # fail_ci_if_error: true so a genuine upload failure fails this leg and
+        # trips the notify-failure job below (Codecov posts its own comment only on
+        # success, so a failed coverage upload would otherwise leave the PR with no
+        # report and no signal). A label-gated-absent flag is not a failure — the
+        # download continue-on-errors and this step is skipped via the guards above.
+        if: steps.dl.outcome == 'success' && matrix.coverage && hashFiles('cc/coverage/**') != ''
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -155,7 +140,10 @@ jobs:
           override_branch: ${{ steps.meta.outputs.branch }}
           override_pr: ${{ steps.meta.outputs.pr }}
       - name: Upload ${{ matrix.flag }} test results to Codecov
-        if: hashFiles('cc/results/**') != ''
+        # fail_ci_if_error: true here too (per review) so a test-results upload error
+        # also trips notify-failure instead of being silently dropped. Still guarded
+        # on hashFiles, so an absent / label-gated flag simply skips.
+        if: steps.dl.outcome == 'success' && hashFiles('cc/results/**') != ''
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -168,11 +156,11 @@ jobs:
           override_pr: ${{ steps.meta.outputs.pr }}
 
   notify-failure:
-    # If discovery or any upload above failed, comment on the PR so a human can
-    # re-dispatch it. Codecov posts its own comment on SUCCESS, so we only cover the
-    # failure case (per #6730 review). A delayed / queued upload posts nothing — the
-    # absence of a Codecov comment then signals a stuck run.
-    needs: [discover, upload]
+    # If any upload above failed (coverage or test-results), leave a comment on the
+    # PR so a human can re-dispatch it. Codecov posts its own comment on SUCCESS, so
+    # we only cover the failure case (per #6730 review). A delayed / queued upload
+    # posts nothing — the absence of a Codecov comment then signals a stuck run.
+    needs: upload
     if: ${{ failure() && github.event_name == 'workflow_run' }}
     runs-on: ubuntu-latest
     permissions:
@@ -181,13 +169,7 @@ jobs:
       pull-requests: write # comment on the PR
     steps:
       - name: Download coverage metadata
-        # Best-effort (opposite of the upload job's download, which fails hard): this
-        # only fetches a codecov-* artifact to read the PR number for the comment. If
-        # it can't (e.g. the source run produced no artifacts, so the pattern matches
-        # nothing and download-artifact errors), continue-on-error lets the job fall
-        # through to the `if: pr != ''` guard and skip commenting, rather than
-        # hard-failing notify-failure itself — which isn't a required check, so its
-        # failure would be invisible noise rather than a signal.
+        id: dl
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
