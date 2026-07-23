@@ -39,7 +39,7 @@ trait TextSourceOpDesc {
   @JsonSchemaTitle("Attribute Type")
   @JsonPropertyDescription(
     "This specifies how to read this text.\n\n" +
-      "Per-line types (string, integer, long, double, boolean, timestamp) emit one output tuple per line.\n\n" +
+      "Per-line types (e.g. string, integer, long, double, boolean, timestamp) emit one output tuple per line.\n\n" +
       "Single-tuple types ('single string' / 'binary' / 'large binary') output one tuple total."
   )
   var attributeType: FileAttributeType = FileAttributeType.STRING
@@ -47,7 +47,7 @@ trait TextSourceOpDesc {
   @JsonProperty(defaultValue = "line", required = true)
   @JsonSchemaTitle("Attribute Name")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
-  @JsonPropertyDescription("What is the name of the attribute that this text should be put in?")
+  @JsonPropertyDescription("Name of the attribute of the output tuple.")
   var attributeName: String = "line"
 
   @JsonSchemaTitle("Limit (lines)")
