@@ -45,7 +45,9 @@
   osvVulnerabilityAlerts: true,
   vulnerabilityAlerts: {
     semanticCommitType: 'fix',
-    labels: ['dependencies', 'security'],
+    // release/v1.2 flags the fix for backporting to the current release
+    // line; bump it when a new release branch is cut.
+    labels: ['dependencies', 'security', 'release/v1.2'],
     groupName: null,
   },
 
