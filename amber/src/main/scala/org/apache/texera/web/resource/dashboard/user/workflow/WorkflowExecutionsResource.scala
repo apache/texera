@@ -234,22 +234,6 @@ object WorkflowExecutionsResource {
     restrictionMap.toMap
   }
 
-  def insertOperatorPortResultUri(
-      eid: ExecutionIdentity,
-      globalPortId: GlobalPortIdentity,
-      uri: URI
-  ): Unit = {
-    context
-      .insertInto(OPERATOR_PORT_EXECUTIONS)
-      .columns(
-        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
-        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
-        OPERATOR_PORT_EXECUTIONS.RESULT_URI
-      )
-      .values(eid.id.toInt, globalPortId.serializeAsString, uri.toString)
-      .execute()
-  }
-
   def insertOperatorExecutions(
       eid: Long,
       opId: String,
@@ -625,7 +609,7 @@ class WorkflowExecutionsResource {
             val storage =
               SequentialRecordStorage.getStorage[ReplayLogRecord](Some(new URI(logLocation)))
             val result = new mutable.ArrayBuffer[EmbeddedControlMessageIdentity]()
-            storage.getReader("CONTROLLER").mkRecordIterator().foreach {
+            storage.getReader("COORDINATOR").mkRecordIterator().foreach {
               case destination: ReplayDestination =>
                 result.append(destination.id)
               case _ =>

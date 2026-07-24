@@ -48,6 +48,7 @@ import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { NgIf } from "@angular/common";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
+import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -128,7 +129,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     public nzContextMenu: NzContextMenuService,
     private elementRef: ElementRef,
     private config: GuiConfigService,
-    private agentService: AgentService
+    private agentService: AgentService,
+    private jupyterPanelService: JupyterPanelService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -382,7 +384,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             this.isSink(operator.operatorID)
           );
         }
-        this.applyOperatorBorder(operator.operatorID);
+        this.applyOperatorBorder(
+          operator.operatorID,
+          this.validationWorkflowService.validateOperator(operator.operatorID)
+        );
       });
   }
 
@@ -398,13 +403,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * overwrites a state-derived stroke (or vice versa) for an operator that
    * is both invalid and has a cached execution status.
    *
-   * Callers that already have a Validation result (the validation stream
-   * subscriber) may pass it in to avoid recomputing it; callers without one
-   * (the operator-add stream subscriber) let the helper fetch it lazily.
+   * Both callers obtain the Validation themselves and pass it in: the
+   * validation-stream subscriber forwards the result the stream just emitted,
+   * and the operator-add subscriber computes it via validateOperator. Keeping
+   * the parameter required means the color decision never silently depends on
+   * a recompute hidden inside this helper.
    */
-  private applyOperatorBorder(operatorID: string, validation?: Validation): void {
-    const resolved = validation ?? this.validationWorkflowService.validateOperator(operatorID);
-    if (!resolved.isValid) {
+  private applyOperatorBorder(operatorID: string, validation: Validation): void {
+    if (!validation.isValid) {
       this.jointUIService.changeOperatorColor(this.paper, operatorID, false);
       return;
     }
@@ -675,6 +681,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         const elementID = event[0].model.id.toString();
         const highlightedOperatorIDs = this.wrapper.getCurrentHighlightedOperatorIDs();
         const highlightedCommentBoxIDs = this.wrapper.getCurrentHighlightedCommentBoxIDs();
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
+          this.jupyterPanelService.onWorkflowComponentClick(elementID); // highlight corresponding Jupyter notebook cell
+        }
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {

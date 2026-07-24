@@ -98,23 +98,48 @@ class StateSpec extends AnyFlatSpec {
   it should "tuple-round-trip" in {
     val original = State(
       Map(
-        "loop_counter" -> 3L,
+        "i" -> 3L,
         "label" -> "outer",
         "blob" -> Array[Byte](1, 2)
       )
     )
-    val decoded = State.fromTuple(original.toTuple)
-    assert(decoded.values("loop_counter") == 3L)
+    val tuple = original.toTuple(5L, "outer-loop")
+
+    // Content round-trips through fromTuple, which reads only the content column.
+    val decoded = State.fromTuple(tuple)
+    assert(decoded.values("i") == 3L)
     assert(decoded.values("label") == "outer")
     assert(
       decoded.values("blob").asInstanceOf[Array[Byte]].sameElements(Array[Byte](1, 2))
     )
+
+    // The loop bookkeeping is carried in its own columns (not the content
+    // JSON, and not surfaced by fromTuple), so assert it off the raw tuple.
+    assert(tuple.getField[java.lang.Long]("loop_counter").toLong == 5L)
+    assert(tuple.getField[String]("loop_start_id") == "outer-loop")
   }
 
   it should "produce a tuple whose payload is the JSON serialization" in {
-    val tuple = State(Map("x" -> 1L)).toTuple
+    val tuple = State(Map("x" -> 1L)).toTuple()
     assert(tuple.getSchema == State.schema)
     assert(tuple.getField[String]("content") == """{"x":1}""")
+  }
+
+  it should "read the loop envelope back off a materialized tuple" in {
+    // A JVM operator inside a loop body replays materialized states and must
+    // carry loop_counter / loop_start_id through unchanged -- the columns
+    // exist precisely so the envelope survives storage. These extractors are
+    // what InputPortMaterializationReaderThread / PythonProxyServer read; a
+    // rename of the columns on either side must break this.
+    val tuple = State(Map("i" -> 1L)).toTuple(2L, "outer-loop")
+    assert(State.loopCounterFrom(tuple) == 2L)
+    assert(State.loopStartIdFrom(tuple) == "outer-loop")
+  }
+
+  it should "default the loop envelope to the no-loop values" in {
+    val tuple = State(Map("i" -> 1L)).toTuple()
+    assert(State.loopCounterFrom(tuple) == 0L)
+    assert(State.loopStartIdFrom(tuple) == "")
   }
 
   it should "decode a payload encoded by the Python serializer" in {

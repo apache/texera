@@ -26,8 +26,10 @@ object ObjectMapperUtils {
     * Explicitly start a thread to let the objectMapper load all logical operator classes for serde/deserde.
     *
     * This call prevents the initial delay of serialization & deserialization in other application logics.
+    *
+    * @return the started warmup thread, so callers (e.g. tests) can join on it deterministically.
     */
-  def warmupObjectMapperForOperatorsSerde(): Unit = {
+  def warmupObjectMapperForOperatorsSerde(): Thread = {
     val thread = new Thread(
       new Runnable {
         override def run(): Unit = {
@@ -37,5 +39,6 @@ object ObjectMapperUtils {
       "ObjectMapperWarmupForOperatorsThread"
     )
     thread.start()
+    thread
   }
 }

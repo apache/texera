@@ -49,6 +49,7 @@ dependencies:
   - name: minio
     version: 15.0.7
     repository: https://charts.bitnami.com/bitnami
+    condition: minio.enabled
 
   - name: lakefs
     version: 1.8.1

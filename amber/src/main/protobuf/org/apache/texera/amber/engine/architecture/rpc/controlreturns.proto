@@ -32,7 +32,7 @@ option (scalapb.options) = {
 message ControlReturn {
   // Oneof block for various return types
   oneof sealed_value {
-    // controller responses
+    // coordinator responses
     RetrieveWorkflowStateResponse retrieveWorkflowStateResponse = 1;
     PropagateEmbeddedControlMessageResponse propagateEmbeddedControlMessageResponse = 2;
     TakeGlobalCheckpointResponse takeGlobalCheckpointResponse = 3;

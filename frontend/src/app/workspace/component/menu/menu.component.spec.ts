@@ -48,6 +48,7 @@ import type { ModalOptions } from "ng-zorro-antd/modal";
 import type { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { WorkflowContent } from "../../../common/type/workflow";
 import { Router } from "@angular/router";
+import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
 import type { Mocked } from "vitest";
 
@@ -307,7 +308,6 @@ describe("MenuComponent", () => {
   describe("runWorkflow", () => {
     beforeEach(() => {
       component.computingUnitSelectionComponent = {
-        newComputingUnitName: "",
         showAddComputeUnitModalVisible: vi.fn(),
       } as unknown as Mocked<ComputingUnitSelectionComponent>;
     });
@@ -342,7 +342,9 @@ describe("MenuComponent", () => {
 
       component.runWorkflow();
 
-      expect(component.computingUnitSelectionComponent.newComputingUnitName).toBe("wf's Computing Unit");
+      expect(component.computingUnitSelectionComponent.showAddComputeUnitModalVisible).toHaveBeenCalledWith(
+        "wf's Computing Unit"
+      );
       expect(component.computingUnitSelectionComponent.showAddComputeUnitModalVisible).toHaveBeenCalledTimes(1);
       expect(executeSpy).not.toHaveBeenCalled();
     });
@@ -782,6 +784,64 @@ describe("MenuComponent", () => {
 
       status$.next(ComputingUnitState.NoComputingUnit);
       expect(cuComponent.computingUnitStatus).toBe(ComputingUnitState.Running);
+    });
+  });
+
+  describe("grid / worker-count toggles, report, and name sizing", () => {
+    it("toggleGrid sets the joint paper grid size from the flag", () => {
+      const setGridSize = vi.fn();
+      vi.spyOn(workflowActionService, "getJointGraphWrapper").mockReturnValue({ mainPaper: { setGridSize } } as any);
+
+      component.showGrid = true;
+      component.toggleGrid();
+      expect(setGridSize).toHaveBeenCalledWith(2);
+
+      component.showGrid = false;
+      component.toggleGrid();
+      expect(setGridSize).toHaveBeenCalledWith(1);
+    });
+
+    it("toggleNumWorkers toggles the hide-worker-count class from the flag", () => {
+      const el = document.createElement("div");
+      vi.spyOn(workflowActionService, "getJointGraphWrapper").mockReturnValue({
+        mainPaper: { el, model: { getElements: () => [] } },
+      } as any);
+
+      component.showNumWorkers = false;
+      component.toggleNumWorkers();
+      expect(el.classList.contains("hide-worker-count")).toBe(true);
+
+      component.showNumWorkers = true;
+      component.toggleNumWorkers();
+      expect(el.classList.contains("hide-worker-count")).toBe(false);
+    });
+
+    it("onClickGenerateReport shows a blocking notification and builds the report html", () => {
+      const reportService = TestBed.inject(ReportGenerationService);
+      const blankSpy = vi.spyOn(notificationService, "blank");
+      vi.spyOn(reportService, "generateWorkflowSnapshot").mockReturnValue(of("snap-url"));
+      vi.spyOn(reportService, "getAllOperatorResults").mockReturnValue(of([]));
+      const htmlSpy = vi.spyOn(reportService, "generateReportAsHtml").mockImplementation(() => {});
+
+      component.onClickGenerateReport();
+
+      expect(blankSpy).toHaveBeenCalled();
+      expect(htmlSpy).toHaveBeenCalledWith("snap-url", [], expect.any(String));
+    });
+
+    it("adjustWorkflowNameWidth is a no-op when the name input is absent", () => {
+      component.workflowNameInput = undefined;
+      expect(() => component.adjustWorkflowNameWidth()).not.toThrow();
+    });
+
+    it("adjustWorkflowNameWidth sizes the input in px to fit its text", () => {
+      const input = document.createElement("input");
+      input.value = "my workflow";
+      component.workflowNameInput = { nativeElement: input } as typeof component.workflowNameInput;
+
+      component.adjustWorkflowNameWidth();
+
+      expect(input.style.width).toMatch(/^\d+px$/);
     });
   });
 });

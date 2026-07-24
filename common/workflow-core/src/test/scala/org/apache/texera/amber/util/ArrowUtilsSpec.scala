@@ -19,13 +19,18 @@
 
 package org.apache.texera.amber.util
 
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.{VarCharVector, VectorSchemaRoot}
 import org.apache.arrow.vector.types.{FloatingPointPrecision, TimeUnit}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
+import org.apache.texera.amber.core.state.State
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.AttributeTypeException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.sql.Timestamp
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
@@ -281,5 +286,179 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     val name = fields.find(_.getName == "name").get
     any.getMetadata.get("texera_type") shouldBe "ANY"
     Option(name.getMetadata).map(_.containsKey("texera_type")).getOrElse(false) shouldBe false
+  }
+
+  // ----- setTexeraTuple / appendTexeraTuple / getTexeraTuple -----
+
+  private val tupleSchema = Schema(
+    List(
+      new Attribute("i", AttributeType.INTEGER),
+      new Attribute("l", AttributeType.LONG),
+      new Attribute("d", AttributeType.DOUBLE),
+      new Attribute("b", AttributeType.BOOLEAN),
+      new Attribute("t", AttributeType.TIMESTAMP),
+      new Attribute("s", AttributeType.STRING),
+      new Attribute("y", AttributeType.BINARY)
+    )
+  )
+
+  private def withRoot(schema: Schema)(body: VectorSchemaRoot => Unit): Unit = {
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
+    try {
+      root.allocateNew()
+      body(root)
+    } finally {
+      root.close()
+      allocator.close()
+    }
+  }
+
+  "appendTexeraTuple and getTexeraTuple" should "round-trip a tuple of every field type" in {
+    val tuple = Tuple
+      .builder(tupleSchema)
+      .addSequentially(
+        Array[Any](
+          Int.box(42),
+          Long.box(7L),
+          Double.box(3.14),
+          Boolean.box(true),
+          new Timestamp(10000L),
+          "hello",
+          Array[Byte](1, 2, 3)
+        )
+      )
+      .build()
+    withRoot(tupleSchema) { root =>
+      ArrowUtils.appendTexeraTuple(tuple, root)
+      root.getRowCount shouldBe 1
+      val back = ArrowUtils.getTexeraTuple(0, root)
+      back.getField[Integer]("i") shouldBe 42
+      back.getField[java.lang.Long]("l") shouldBe 7L
+      back.getField[java.lang.Double]("d") shouldBe 3.14
+      back.getField[java.lang.Boolean]("b") shouldBe true
+      back.getField[Timestamp]("t") shouldBe new Timestamp(10000L)
+      back.getField[String]("s") shouldBe "hello"
+      back.getField[Array[Byte]]("y") shouldBe Array[Byte](1, 2, 3)
+    }
+  }
+
+  it should "round-trip null values in every field type" in {
+    val nullTuple = Tuple
+      .builder(tupleSchema)
+      .addSequentially(Array[Any](null, null, null, null, null, null, null))
+      .build()
+    withRoot(tupleSchema) { root =>
+      ArrowUtils.appendTexeraTuple(nullTuple, root)
+      val back = ArrowUtils.getTexeraTuple(0, root)
+      tupleSchema.getAttributes.foreach { attribute =>
+        back.getField[AnyRef](attribute.getName) shouldBe null
+      }
+    }
+  }
+
+  it should "append consecutive tuples at increasing row indices" in {
+    val schema = Schema(List(new Attribute("s", AttributeType.STRING)))
+    val first = Tuple.builder(schema).addSequentially(Array[Any]("first")).build()
+    val second = Tuple.builder(schema).addSequentially(Array[Any]("second")).build()
+    withRoot(schema) { root =>
+      ArrowUtils.appendTexeraTuple(first, root)
+      ArrowUtils.appendTexeraTuple(second, root)
+      root.getRowCount shouldBe 2
+      ArrowUtils.getTexeraTuple(0, root).getField[String]("s") shouldBe "first"
+      ArrowUtils.getTexeraTuple(1, root).getField[String]("s") shouldBe "second"
+    }
+  }
+
+  "getTexeraTuple" should "null out fields whose values fail to parse back" in {
+    // A Utf8 vector tagged LARGE_BINARY holds a value that is not a valid
+    // LargeBinary URI; parsing fails and the field falls back to null.
+    val metadata = new util.HashMap[String, String]()
+    metadata.put("texera_type", "LARGE_BINARY")
+    val arrowSchema = new org.apache.arrow.vector.types.pojo.Schema(
+      util.Arrays.asList(arrowField("blob", ArrowType.Utf8.INSTANCE, metadata))
+    )
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(arrowSchema, allocator)
+    try {
+      root.allocateNew()
+      root
+        .getVector(0)
+        .asInstanceOf[VarCharVector]
+        .setSafe(0, "not a uri".getBytes(StandardCharsets.UTF_8))
+      root.setRowCount(1)
+      ArrowUtils.getTexeraTuple(0, root).getField[LargeBinary]("blob") shouldBe null
+    } finally {
+      root.close()
+      allocator.close()
+    }
+  }
+
+  // ----- Tuple <-> Arrow data round-trip (the State wire-hop contract) -----
+
+  "tuple round-trip through Arrow vectors" should "preserve every column of a multi-column State tuple" in {
+    // The Python<->Scala state wire hop goes Tuple -> setTexeraTuple -> Arrow
+    // (PythonProxyClient.writeArrowStream) on one side and
+    // Arrow -> getTexeraTuple -> Tuple (PythonProxyServer) on the other.
+    // The schema-only round-trip tests above don't exercise the per-row data
+    // encode/decode, so a column dropped or mistyped there would slip through.
+    // Pin that the full multi-column State tuple (content STRING + the
+    // loop-control columns loop_counter LONG, loop_start_id STRING) survives a
+    // real setTexeraTuple -> Arrow vectors -> getTexeraTuple round-trip with
+    // every column intact -- the property the wire hop relies on.
+    val original =
+      State(Map("i" -> 5L, "label" -> "outer")).toTuple(3L, "outer-loop")
+
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(original.getSchema), allocator)
+    try {
+      root.allocateNew()
+      ArrowUtils.setTexeraTuple(original, 0, root)
+      root.setRowCount(1)
+
+      val recovered = ArrowUtils.getTexeraTuple(0, root)
+
+      // Every column survives the encode/decode, with names and types intact.
+      recovered.getSchema.getAttributes.toList.map(a => (a.getName, a.getType)) shouldBe
+        List(
+          ("content", AttributeType.STRING),
+          ("loop_counter", AttributeType.LONG),
+          ("loop_start_id", AttributeType.STRING)
+        )
+      // content (the user State JSON) round-trips...
+      State.fromTuple(recovered).values shouldBe Map("i" -> 5L, "label" -> "outer")
+      // ...and so do the loop-control columns.
+      recovered.getField[java.lang.Long]("loop_counter").toLong shouldBe 3L
+      recovered.getField[String]("loop_start_id") shouldBe "outer-loop"
+    } finally {
+      root.close()
+      allocator.close()
+    }
+  }
+
+  // ----- fromAttributeType (null input) -----
+
+  "fromAttributeType" should "reject a null attribute type" in {
+    val ex = intercept[AttributeTypeException] {
+      ArrowUtils.fromAttributeType(null)
+    }
+    ex.getMessage shouldBe "Unexpected value: null"
+  }
+
+  // ----- toTexeraSchema (unrecognized metadata) -----
+
+  "toTexeraSchema" should "fall back to the Arrow type for unrecognized texera_type metadata" in {
+    val unknownTag = new util.HashMap[String, String]()
+    unknownTag.put("texera_type", "SOMETHING_ELSE")
+    val otherKey = new util.HashMap[String, String]()
+    otherKey.put("other_key", "x")
+    val arrow = new org.apache.arrow.vector.types.pojo.Schema(
+      util.Arrays.asList(
+        arrowField("weird", ArrowType.Utf8.INSTANCE, unknownTag),
+        arrowField("plain", ArrowType.Utf8.INSTANCE, otherKey)
+      )
+    )
+    val attributes = ArrowUtils.toTexeraSchema(arrow).getAttributes
+    attributes.map(_.getType) shouldBe List(AttributeType.STRING, AttributeType.STRING)
   }
 }

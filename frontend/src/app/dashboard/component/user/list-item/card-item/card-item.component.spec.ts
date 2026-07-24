@@ -17,12 +17,16 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture, TestBed, fakeAsync, tick } from "@angular/core/testing";
 import { CardItemComponent } from "./card-item.component";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import { ActionType, EntityType, HubService } from "src/app/hub/service/hub.service";
+import {
+  DEFAULT_WORKFLOW_NAME,
+  WorkflowPersistService,
+} from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { of, throwError } from "rxjs";
+import { of, throwError, Subject } from "rxjs";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { RouterTestingModule } from "@angular/router/testing";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
@@ -30,8 +34,17 @@ import { UserService } from "../../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
-import { HUB_WORKFLOW_RESULT_DETAIL, USER_WORKSPACE } from "../../../../../app-routing.constant";
-import { DatasetService } from "../../../../service/user/dataset/dataset.service";
+import {
+  HUB_DATASET_RESULT_DETAIL,
+  HUB_WORKFLOW_RESULT_DETAIL,
+  USER_DATASET,
+  USER_PROJECT,
+  USER_WORKSPACE,
+} from "../../../../../app-routing.constant";
+import { WorkflowCoverService } from "src/app/dashboard/service/user/workflow-cover/workflow-cover.service";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { DatasetService, DEFAULT_DATASET_NAME } from "../../../../service/user/dataset/dataset.service";
+import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 
 function makeWorkflowEntry(overrides: Partial<DashboardEntry> = {}): DashboardEntry {
   return {
@@ -69,16 +82,23 @@ describe("CardItemComponent", () => {
   let component: CardItemComponent;
   let fixture: ComponentFixture<CardItemComponent>;
   let workflowPersistService: Mocked<WorkflowPersistService>;
+  let workflowCoverService: Mocked<WorkflowCoverService>;
   let datasetService: Mocked<DatasetService>;
 
   beforeEach(async () => {
     const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
-    const datasetServiceSpy = { getDatasetCoverUrl: vi.fn() };
+    const workflowCoverServiceSpy = {
+      getCover: vi.fn().mockReturnValue(of(undefined)),
+      setCoverFromFile: vi.fn(),
+      clearCover: vi.fn().mockReturnValue(of(undefined)),
+    };
+    const datasetServiceSpy = { getDatasetCoverUrl: vi.fn(), updateDatasetName: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [CardItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
       providers: [
         { provide: WorkflowPersistService, useValue: workflowPersistServiceSpy },
+        { provide: WorkflowCoverService, useValue: workflowCoverServiceSpy },
         { provide: DatasetService, useValue: datasetServiceSpy },
         { provide: UserService, useClass: StubUserService },
         NzModalService,
@@ -89,6 +109,7 @@ describe("CardItemComponent", () => {
     fixture = TestBed.createComponent(CardItemComponent);
     component = fixture.componentInstance;
     workflowPersistService = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
+    workflowCoverService = TestBed.inject(WorkflowCoverService) as unknown as Mocked<WorkflowCoverService>;
     datasetService = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
     component.entry = makeWorkflowEntry();
     fixture.detectChanges();
@@ -114,6 +135,46 @@ describe("CardItemComponent", () => {
     component.confirmUpdateCustomName("New Workflow Name");
 
     expect(component.entry.name).toBe("Old Name");
+    expect(component.editingName).toBe(false);
+  });
+
+  it("should reject an invalid dataset name, revert to original, and exit editing", () => {
+    component.entry = makeDatasetEntry({ id: 5, name: "invalid name" });
+    component.originalName = "original-name";
+    component.editingName = true;
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("invalid name");
+
+    expect(datasetService.updateDatasetName).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    expect(component.entry.name).toBe("original-name");
+    expect(component.editingName).toBe(false);
+  });
+
+  it("should call the dataset service for a valid dataset rename", () => {
+    component.entry = makeDatasetEntry({ id: 5, name: "new-valid-name" });
+    component.originalName = "old-name";
+    datasetService.updateDatasetName.mockReturnValue(of({} as any));
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(datasetService.updateDatasetName).toHaveBeenCalledWith(5, "new-valid-name");
+  });
+
+  it("should surface the error message and revert the name when a dataset rename fails", () => {
+    component.entry = makeDatasetEntry({ id: 5, name: "new-valid-name" });
+    component.originalName = "old-name";
+    component.editingName = true;
+    datasetService.updateDatasetName.mockReturnValue(throwError(() => new Error("boom")));
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+
+    component.confirmUpdateCustomName("new-valid-name");
+
+    expect(errorSpy).toHaveBeenCalledWith("boom");
+    expect(component.entry.name).toBe("old-name");
     expect(component.editingName).toBe(false);
   });
 
@@ -179,6 +240,136 @@ describe("CardItemComponent", () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
+  it("should show cover controls only for an owned workflow in private search", () => {
+    component.isPrivateSearch = true;
+    component.entry = makeWorkflowEntry({ workflow: { isOwner: true } } as any);
+    expect(component.canEditCover).toBe(true);
+
+    component.entry = makeWorkflowEntry({ workflow: { isOwner: false } } as any);
+    expect(component.canEditCover).toBe(false);
+
+    component.entry = makeWorkflowEntry({ workflow: { isOwner: true } } as any);
+    component.isPrivateSearch = false;
+    expect(component.canEditCover).toBe(false);
+  });
+
+  it("should use the stored cover image on initialization", () => {
+    const cover = "data:image/jpeg;base64,abc";
+    const entry = makeWorkflowEntry({ id: 7 });
+    entry.coverImageUrl = cover;
+
+    component.entry = entry;
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+
+    expect(workflowCoverService.getCover).not.toHaveBeenCalled();
+    expect(component.hasCustomImage).toBe(true);
+    expect(component.coverImageSrc).toBe(cover);
+  });
+
+  it("should fall back to the default preview image when no cover is set", () => {
+    const entry = makeWorkflowEntry({ id: 7 });
+    entry.coverImageUrl = undefined;
+
+    component.entry = entry;
+    component.ngOnChanges({ entry: { currentValue: component.entry } as any });
+
+    expect(workflowCoverService.getCover).not.toHaveBeenCalled();
+    expect(component.hasCustomImage).toBe(false);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("should upload a selected image and use the returned data URL as the cover", async () => {
+    const dataUrl = "data:image/jpeg;base64,xyz";
+    workflowCoverService.setCoverFromFile.mockResolvedValue(dataUrl);
+    component.entry = makeWorkflowEntry({ id: 7 });
+    const file = new File(["x"], "pic.png", { type: "image/png" });
+
+    await component.onImageSelected({ target: { files: [file], value: "pic.png" } } as any);
+
+    expect(workflowCoverService.setCoverFromFile).toHaveBeenCalledWith(7, file);
+    expect(component.coverImageSrc).toBe(dataUrl);
+    expect(component.hasCustomImage).toBe(true);
+  });
+
+  it("should reject a non-image file and not upload it", async () => {
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+    const file = new File(["x"], "notes.txt", { type: "text/plain" });
+
+    await component.onImageSelected({ target: { files: [file], value: "notes.txt" } } as any);
+
+    expect(workflowCoverService.setCoverFromFile).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it("should notify on upload failure and keep the previous preview image", async () => {
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+    workflowCoverService.setCoverFromFile.mockRejectedValue(new Error("boom"));
+    component.entry = makeWorkflowEntry({ id: 7 });
+    const file = new File(["x"], "pic.png", { type: "image/png" });
+
+    await component.onImageSelected({ target: { files: [file], value: "pic.png" } } as any);
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("should clear the cover and revert to the default image on reset", () => {
+    workflowCoverService.clearCover.mockReturnValue(of(undefined));
+    component.entry = makeWorkflowEntry({ id: 7 });
+    (component as any).customImage = "data:image/jpeg;base64,abc";
+
+    component.resetImage();
+
+    expect(workflowCoverService.clearCover).toHaveBeenCalledWith(7);
+    expect(component.hasCustomImage).toBe(false);
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("should notify and keep the cover when reset fails", () => {
+    const notificationService = TestBed.inject(NotificationService);
+    const errorSpy = vi.spyOn(notificationService, "error");
+    workflowCoverService.clearCover.mockReturnValue(throwError(() => new Error("boom")));
+    component.entry = makeWorkflowEntry({ id: 7 });
+    (component as any).customImage = "data:image/jpeg;base64,abc";
+
+    component.resetImage();
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(component.hasCustomImage).toBe(true);
+  });
+
+  it("openImagePicker clicks the hidden file input", () => {
+    const clickSpy = vi.fn();
+    (component as any).backgroundInput = { nativeElement: { click: clickSpy } };
+    component.openImagePicker();
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("openImagePicker is a no-op when the file input is absent", () => {
+    (component as any).backgroundInput = undefined;
+    expect(() => component.openImagePicker()).not.toThrow();
+  });
+
+  it("should do nothing when no file is selected", async () => {
+    await component.onImageSelected({ target: { files: [], value: "" } } as any);
+    expect(workflowCoverService.setCoverFromFile).not.toHaveBeenCalled();
+  });
+
+  it("should not upload when the entry id is not numeric", async () => {
+    component.entry = makeWorkflowEntry({ id: "not-a-number" as any });
+    const file = new File(["x"], "pic.png", { type: "image/png" });
+    await component.onImageSelected({ target: { files: [file], value: "pic.png" } } as any);
+    expect(workflowCoverService.setCoverFromFile).not.toHaveBeenCalled();
+  });
+
+  it("resetImage does nothing when the entry id is not numeric", () => {
+    component.entry = makeWorkflowEntry({ id: "not-a-number" as any });
+    component.resetImage();
+    expect(workflowCoverService.clearCover).not.toHaveBeenCalled();
+  });
+
   it("should load the dataset cover into the preview when the entry has a cover", () => {
     datasetService.getDatasetCoverUrl.mockReturnValue(of({ url: "https://cover.example/img.png" }));
     component.entry = makeDatasetEntry({ id: 5, coverImageUrl: "cover/path.png" });
@@ -222,5 +413,485 @@ describe("CardItemComponent", () => {
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
     expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
+  });
+
+  it("initializeEntry configures workflow metadata: disableDelete, workspace link, icon, counts", () => {
+    component.currentUid = 42;
+    component.entry = makeWorkflowEntry({
+      id: 7,
+      workflow: { isOwner: false },
+      accessibleUserIds: [42],
+      size: 123,
+      likeCount: 9,
+      viewCount: 4,
+      isLiked: true,
+    } as any);
+
+    component.initializeEntry();
+
+    expect(component.disableDelete).toBe(true); // !entry.workflow.isOwner
+    expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]); // currentUid is an accessible owner
+    expect(component.size).toBe(123);
+    expect(component.iconType).toBe("project");
+    expect(component.likeCount).toBe(9);
+    expect(component.viewCount).toBe(4);
+    expect(component.isLiked).toBe(true);
+  });
+
+  it("initializeEntry sets the project link and container icon and resets the cover for a project entry", () => {
+    component.coverImageSrc = "stale-value";
+    component.entry = {
+      id: 3,
+      name: "proj",
+      type: "project",
+      likeCount: 2,
+      viewCount: 1,
+      isLiked: false,
+    } as unknown as DashboardEntry;
+
+    component.initializeEntry();
+
+    expect(component.entryLink).toEqual([USER_PROJECT, "3"]);
+    expect(component.iconType).toBe("container");
+    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE); // reset at method start
+    expect(component.likeCount).toBe(2);
+  });
+
+  it("initializeEntry uses the folder-open icon for a file entry", () => {
+    component.entry = {
+      id: 8,
+      name: "f",
+      type: "file",
+      likeCount: 0,
+      viewCount: 0,
+      isLiked: false,
+    } as unknown as DashboardEntry;
+
+    component.initializeEntry();
+
+    expect(component.iconType).toBe("folder-open");
+  });
+
+  it("initializeEntry throws for an unexpected entry type", () => {
+    component.entry = {
+      id: 1,
+      name: "x",
+      type: "bogus",
+      likeCount: 0,
+      viewCount: 0,
+      isLiked: false,
+    } as unknown as DashboardEntry;
+
+    expect(() => component.initializeEntry()).toThrow("Unexpected type in DashboardEntry.");
+  });
+
+  it("onEditName captures the original name, enters edit mode, and focuses the input at the caret end", fakeAsync(() => {
+    component.entry = makeWorkflowEntry({ name: "Current Name" }); // length 12
+    const focus = vi.fn();
+    const setSelectionRange = vi.fn();
+    component.nameInput = { nativeElement: { value: "Current Name", focus, setSelectionRange } } as any;
+
+    component.onEditName();
+
+    expect(component.originalName).toBe("Current Name");
+    expect(component.editingName).toBe(true);
+
+    tick(0); // flush the focus timer
+
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(setSelectionRange).toHaveBeenCalledWith(12, 12);
+  }));
+
+  it("onEditName enters edit mode without throwing when the input is not rendered", fakeAsync(() => {
+    component.entry = makeWorkflowEntry({ name: "n" });
+    component.nameInput = undefined as any;
+
+    component.onEditName();
+
+    expect(component.editingName).toBe(true);
+    expect(component.originalName).toBe("n");
+    expect(() => tick(0)).not.toThrow(); // timer guard skips the missing input
+  }));
+
+  it("onEditDescription captures the original description, enters edit mode, and focuses the textarea at the caret end", fakeAsync(() => {
+    component.entry = makeWorkflowEntry({ description: "Some desc" }); // length 9
+    const focus = vi.fn();
+    const setSelectionRange = vi.fn();
+    component.descriptionInput = { nativeElement: { value: "Some desc", focus, setSelectionRange } } as any;
+
+    component.onEditDescription();
+
+    expect(component.originalDescription).toBe("Some desc");
+    expect(component.editingDescription).toBe(true);
+
+    tick(0);
+
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(setSelectionRange).toHaveBeenCalledWith(9, 9);
+  }));
+
+  it("openDetailModal opens the workflow detail modal and bumps the view count", () => {
+    const modalService = TestBed.inject(NzModalService);
+    const hubService = TestBed.inject(HubService);
+    const createSpy = vi.spyOn(modalService, "create").mockReturnValue({ componentInstance: {} } as any);
+    const getCountsSpy = vi.spyOn(hubService, "getCounts").mockReturnValue(of([{ counts: { view: 5 } }] as any));
+
+    component.entry = makeWorkflowEntry({ id: 7 }); // type defaults to "workflow"
+    component.openDetailModal(7);
+
+    expect(createSpy).toHaveBeenCalledTimes(1);
+    const cfg = createSpy.mock.calls[0][0];
+    expect(cfg.nzData).toEqual({ wid: 7 });
+    expect(cfg.nzFooter).toBeNull();
+    expect(getCountsSpy).toHaveBeenCalledWith([EntityType.Workflow], [7], [ActionType.View]);
+    expect(component.viewCount).toBe(6); // (5 view count) + 1
+  });
+
+  it("openDetailModal defaults nzData wid to 0 and skips the count fetch when wid is undefined", () => {
+    const modalService = TestBed.inject(NzModalService);
+    const hubService = TestBed.inject(HubService);
+    const createSpy = vi.spyOn(modalService, "create").mockReturnValue({ componentInstance: {} } as any);
+    const getCountsSpy = vi.spyOn(hubService, "getCounts");
+
+    component.openDetailModal(undefined);
+
+    expect(createSpy.mock.calls[0][0].nzData).toEqual({ wid: 0 });
+    expect(getCountsSpy).not.toHaveBeenCalled();
+  });
+
+  it("openDetailModal skips the count fetch when the modal has no component instance", () => {
+    const modalService = TestBed.inject(NzModalService);
+    const hubService = TestBed.inject(HubService);
+    vi.spyOn(modalService, "create").mockReturnValue({ componentInstance: null } as any);
+    const getCountsSpy = vi.spyOn(hubService, "getCounts");
+
+    component.openDetailModal(7);
+
+    expect(getCountsSpy).not.toHaveBeenCalled();
+  });
+
+  it("toggleLike posts a like and refreshes the count when the entry is not yet liked", () => {
+    const hubService = TestBed.inject(HubService);
+    const postLikeSpy = vi.spyOn(hubService, "postLike").mockReturnValue(of(true));
+    const getCountsSpy = vi.spyOn(hubService, "getCounts").mockReturnValue(of([{ counts: { like: 10 } }] as any));
+
+    component.currentUid = 42;
+    component.entry = makeWorkflowEntry({ id: 7 });
+    component.isLiked = false;
+
+    component.toggleLike();
+
+    expect(postLikeSpy).toHaveBeenCalledWith(7, EntityType.Workflow);
+    expect(getCountsSpy).toHaveBeenCalledWith([EntityType.Workflow], [7], [ActionType.Like]);
+    expect(component.isLiked).toBe(true);
+    expect(component.likeCount).toBe(10);
+  });
+
+  it("toggleLike posts an unlike and refreshes the count when the entry is already liked", () => {
+    const hubService = TestBed.inject(HubService);
+    const postUnlikeSpy = vi.spyOn(hubService, "postUnlike").mockReturnValue(of(true));
+    const getCountsSpy = vi.spyOn(hubService, "getCounts").mockReturnValue(of([{ counts: { like: 3 } }] as any));
+
+    component.currentUid = 42;
+    component.entry = makeWorkflowEntry({ id: 7 });
+    component.isLiked = true;
+
+    component.toggleLike();
+
+    expect(postUnlikeSpy).toHaveBeenCalledWith(7, EntityType.Workflow);
+    expect(getCountsSpy).toHaveBeenCalledWith([EntityType.Workflow], [7], [ActionType.Like]);
+    expect(component.isLiked).toBe(false);
+    expect(component.likeCount).toBe(3);
+  });
+
+  it("toggleLike leaves state unchanged and skips the count fetch when the like request reports failure", () => {
+    const hubService = TestBed.inject(HubService);
+    vi.spyOn(hubService, "postLike").mockReturnValue(of(false));
+    const getCountsSpy = vi.spyOn(hubService, "getCounts");
+
+    component.currentUid = 42;
+    component.entry = makeWorkflowEntry({ id: 7 });
+    component.isLiked = false;
+
+    component.toggleLike();
+
+    expect(component.isLiked).toBe(false);
+    expect(getCountsSpy).not.toHaveBeenCalled();
+  });
+
+  it("toggleLike is a no-op when there is no current user", () => {
+    const hubService = TestBed.inject(HubService);
+    const postLikeSpy = vi.spyOn(hubService, "postLike");
+    const postUnlikeSpy = vi.spyOn(hubService, "postUnlike");
+
+    component.currentUid = undefined;
+    component.entry = makeWorkflowEntry({ id: 7 });
+
+    component.toggleLike();
+
+    expect(postLikeSpy).not.toHaveBeenCalled();
+    expect(postUnlikeSpy).not.toHaveBeenCalled();
+  });
+
+  it("toggleLike is a no-op when the entry has no id", () => {
+    const hubService = TestBed.inject(HubService);
+    const postLikeSpy = vi.spyOn(hubService, "postLike");
+
+    component.currentUid = 42;
+    component.entry = makeWorkflowEntry({ id: undefined });
+    component.isLiked = false;
+
+    component.toggleLike();
+
+    expect(postLikeSpy).not.toHaveBeenCalled();
+  });
+
+  describe("extended coverage", () => {
+    it("entry getter throws when no entry has been provided", () => {
+      component.entry = undefined as any;
+      expect(() => component.entry).toThrow("entry property must be provided.");
+    });
+
+    it("initializeEntry routes an owning dataset user to the user dataset view", () => {
+      component.currentUid = 42;
+      component.entry = makeDatasetEntry({
+        id: 5,
+        dataset: { isOwner: true },
+        accessibleUserIds: [42],
+        coverImageUrl: undefined, // skips the cover fetch
+        size: 55,
+      } as any);
+
+      component.initializeEntry();
+
+      expect(component.entryLink).toEqual([USER_DATASET, "5"]);
+      expect(component.iconType).toBe("database");
+      expect(component.disableDelete).toBe(false); // owner
+      expect(component.size).toBe(55);
+    });
+
+    it("initializeEntry routes a non-owning dataset user to the hub dataset detail view", () => {
+      component.currentUid = 42;
+      component.entry = makeDatasetEntry({
+        id: 5,
+        dataset: { isOwner: false },
+        accessibleUserIds: [99],
+        coverImageUrl: undefined,
+      } as any);
+
+      component.initializeEntry();
+
+      expect(component.entryLink).toEqual([HUB_DATASET_RESULT_DETAIL, "5"]);
+      expect(component.disableDelete).toBe(true); // !isOwner
+    });
+
+    it("onClickDownload downloads a workflow via the download service", () => {
+      const downloadService = TestBed.inject(DownloadService);
+      const downloadWorkflowSpy = vi.spyOn(downloadService, "downloadWorkflow").mockReturnValue(of({} as any));
+      component.entry = makeWorkflowEntry({ id: 7, workflow: { isOwner: true, workflow: { name: "myflow" } } } as any);
+
+      component.onClickDownload();
+
+      expect(downloadWorkflowSpy).toHaveBeenCalledWith(7, "myflow");
+    });
+
+    it("onClickDownload downloads a dataset via the download service", () => {
+      const downloadService = TestBed.inject(DownloadService);
+      const downloadDatasetSpy = vi.spyOn(downloadService, "downloadDataset").mockReturnValue(of(new Blob()));
+      component.entry = makeDatasetEntry({ id: 5, name: "mydataset", coverImageUrl: undefined });
+
+      component.onClickDownload();
+
+      expect(downloadDatasetSpy).toHaveBeenCalledWith(5, "mydataset");
+    });
+
+    it("onClickDownload is a no-op when the entry has no id", () => {
+      const downloadService = TestBed.inject(DownloadService);
+      const downloadWorkflowSpy = vi.spyOn(downloadService, "downloadWorkflow");
+      const downloadDatasetSpy = vi.spyOn(downloadService, "downloadDataset");
+      component.entry = makeWorkflowEntry({ id: undefined });
+
+      component.onClickDownload();
+
+      expect(downloadWorkflowSpy).not.toHaveBeenCalled();
+      expect(downloadDatasetSpy).not.toHaveBeenCalled();
+    });
+
+    it("onClickOpenShareAccess opens the workflow share modal and forwards refresh events", async () => {
+      const modalService = TestBed.inject(NzModalService);
+      const refresh$ = new Subject<void>();
+      const createSpy = vi
+        .spyOn(modalService, "create")
+        .mockReturnValue({ componentInstance: { refresh: refresh$ } } as any);
+      (workflowPersistService as any).retrieveOwners = vi.fn().mockReturnValue(of(["alice", "bob"]));
+      component.entry = makeWorkflowEntry({ id: 7, workflow: { isOwner: true, accessLevel: "WRITE" } } as any);
+
+      await component.onClickOpenShareAccess();
+
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      const cfg = createSpy.mock.calls[0][0];
+      expect(cfg.nzData).toEqual({
+        writeAccess: true,
+        type: "workflow",
+        id: 7,
+        allOwners: ["alice", "bob"],
+        inWorkspace: false,
+      });
+      expect(cfg.nzTitle).toBe("Share this workflow with others");
+
+      const refreshSpy = vi.fn();
+      const refreshSub = component.refresh.subscribe(refreshSpy);
+      refresh$.next();
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
+      refreshSub.unsubscribe();
+    });
+
+    it("onClickOpenShareAccess opens the dataset share modal with dataset-specific data", async () => {
+      const modalService = TestBed.inject(NzModalService);
+      const createSpy = vi
+        .spyOn(modalService, "create")
+        .mockReturnValue({ componentInstance: { refresh: new Subject<void>() } } as any);
+      (datasetService as any).retrieveOwners = vi.fn().mockReturnValue(of(["carol"]));
+      component.entry = makeDatasetEntry({ id: 5, accessLevel: "READ", coverImageUrl: undefined } as any);
+
+      await component.onClickOpenShareAccess();
+
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      const cfg = createSpy.mock.calls[0][0];
+      expect(cfg.nzData).toEqual({
+        writeAccess: false, // accessLevel is READ, not WRITE
+        type: "dataset",
+        id: 5,
+        allOwners: ["carol"],
+      });
+      expect(cfg.nzTitle).toBe("Share this dataset with others");
+    });
+
+    it("onClickOpenShareAccess does not open a modal for a non-shareable entry type", async () => {
+      const modalService = TestBed.inject(NzModalService);
+      const createSpy = vi.spyOn(modalService, "create");
+      component.entry = {
+        id: 3,
+        name: "proj",
+        type: "project",
+        likeCount: 0,
+        viewCount: 0,
+        isLiked: false,
+      } as unknown as DashboardEntry;
+
+      await component.onClickOpenShareAccess();
+
+      expect(createSpy).not.toHaveBeenCalled();
+    });
+
+    it("confirmUpdateCustomName surfaces a missing-id error and skips the update", () => {
+      const notificationService = TestBed.inject(NotificationService);
+      const errorSpy = vi.spyOn(notificationService, "error");
+      component.entry = makeWorkflowEntry({ id: undefined, name: "current" });
+      component.originalName = "old"; // differs from current, so the update path runs
+
+      component.confirmUpdateCustomName("new-name");
+
+      expect(errorSpy).toHaveBeenCalledWith("Id is missing");
+      expect(workflowPersistService.updateWorkflowName).not.toHaveBeenCalled();
+    });
+
+    it("confirmUpdateCustomName falls back to the default workflow name when the new name is blank", () => {
+      component.entry = makeWorkflowEntry({ id: 1, name: "current" });
+      component.originalName = "old";
+      workflowPersistService.updateWorkflowName.mockReturnValue(of({} as Response));
+
+      component.confirmUpdateCustomName("");
+
+      expect(workflowPersistService.updateWorkflowName).toHaveBeenCalledWith(1, DEFAULT_WORKFLOW_NAME);
+    });
+
+    it("confirmUpdateCustomName falls back to the default dataset name when the new name is blank", () => {
+      component.entry = makeDatasetEntry({ id: 5, name: "current" });
+      component.originalName = "old";
+      datasetService.updateDatasetName.mockReturnValue(of({} as any));
+
+      component.confirmUpdateCustomName("");
+
+      expect(datasetService.updateDatasetName).toHaveBeenCalledWith(5, DEFAULT_DATASET_NAME);
+    });
+
+    it("confirmUpdateCustomDescription updates a dataset description via the dataset service", () => {
+      (datasetService as any).updateDatasetDescription = vi.fn().mockReturnValue(of({} as any));
+      component.entry = makeDatasetEntry({ id: 5, description: "current" });
+      component.originalDescription = "old";
+
+      component.confirmUpdateCustomDescription("new description");
+
+      expect((datasetService as any).updateDatasetDescription).toHaveBeenCalledWith(5, "new description");
+      expect(component.entry.description).toBe("new description");
+      expect(component.editingDescription).toBe(false);
+    });
+
+    it("confirmUpdateCustomDescription writes an empty string when the description is undefined", () => {
+      component.entry = makeWorkflowEntry({ id: 1, description: "current" });
+      component.originalDescription = "old";
+      workflowPersistService.updateWorkflowDescription.mockReturnValue(of({} as Response));
+
+      component.confirmUpdateCustomDescription(undefined);
+
+      expect(workflowPersistService.updateWorkflowDescription).toHaveBeenCalledWith(1, "");
+    });
+
+    it("confirmUpdateCustomDescription falls back to an empty string when the update fails without an original", () => {
+      component.entry = makeWorkflowEntry({ id: 1, description: "current" });
+      component.originalDescription = undefined;
+      workflowPersistService.updateWorkflowDescription.mockReturnValue(throwError(() => new Error("boom")));
+
+      component.confirmUpdateCustomDescription("new description");
+
+      expect(component.entry.description).toBe(""); // originalValue undefined -> ""
+      expect(component.editingDescription).toBe(false);
+    });
+
+    it("openDetailModal defaults the bumped view count to 1 when no counts are returned", () => {
+      const modalService = TestBed.inject(NzModalService);
+      const hubService = TestBed.inject(HubService);
+      vi.spyOn(modalService, "create").mockReturnValue({ componentInstance: {} } as any);
+      vi.spyOn(hubService, "getCounts").mockReturnValue(of([] as any));
+
+      component.entry = makeWorkflowEntry({ id: 7 });
+      component.viewCount = 99;
+      component.openDetailModal(7);
+
+      expect(component.viewCount).toBe(1); // (undefined ?? 0) + 1
+    });
+
+    it("toggleLike defaults the like count to 0 when the refreshed count is missing", () => {
+      const hubService = TestBed.inject(HubService);
+      vi.spyOn(hubService, "postLike").mockReturnValue(of(true));
+      vi.spyOn(hubService, "getCounts").mockReturnValue(of([{ counts: {} }] as any));
+
+      component.currentUid = 42;
+      component.entry = makeWorkflowEntry({ id: 7 });
+      component.isLiked = false;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      expect(component.isLiked).toBe(true);
+      expect(component.likeCount).toBe(0);
+    });
+
+    it("toggleLike defaults the like count to 0 after an unlike when the refreshed count is missing", () => {
+      const hubService = TestBed.inject(HubService);
+      vi.spyOn(hubService, "postUnlike").mockReturnValue(of(true));
+      vi.spyOn(hubService, "getCounts").mockReturnValue(of([{ counts: {} }] as any));
+
+      component.currentUid = 42;
+      component.entry = makeWorkflowEntry({ id: 7 });
+      component.isLiked = true;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      expect(component.isLiked).toBe(false);
+      expect(component.likeCount).toBe(0);
+    });
   });
 });

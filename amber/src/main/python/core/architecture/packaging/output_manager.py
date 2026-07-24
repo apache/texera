@@ -92,12 +92,17 @@ class OutputManager:
             PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
         ] = dict()
 
+        # Loop-end operators have a single output port; remember its base
+        # URI so `reset_output_storage` can re-provision the iceberg
+        # tables on each loop iteration.
+        self._storage_uri_base: typing.Optional[str] = None
+
     def is_missing_output_ports(self):
         """
         This method is only used for ensuring correct region execution.
         Some operators may have input port dependency relationships, for
         which we currently use a two-phase region execution scheme.
-        (See `RegionExecutionCoordinator.scala` for details.)
+        (See `RegionExecutionManager.scala` for details.)
         This logic will only be executed when the worker is part of an
         `executingDependeePortPhase` region-execution phase.
         We currently assume that in this phase the operator (worker) will
@@ -133,47 +138,34 @@ class OutputManager:
         state materialization on the same port. `storage_uri_base` is the
         port's base URI; the result and state URIs are derived from it.
         """
-        document, _ = DocumentFactory.open_document(
-            VFSURIFactory.result_uri(storage_uri_base)
-        )
-        buffered_item_writer = document.writer(str(get_worker_index(self.worker_id)))
-        writer_queue = Queue()
-        port_storage_writer = PortStorageWriter(
-            buffered_item_writer=buffered_item_writer, queue=writer_queue
-        )
-        writer_thread = threading.Thread(
-            target=port_storage_writer.run,
-            daemon=True,
-            name=f"port_storage_writer_thread_{port_id}",
-        )
-        writer_thread.start()
-        self._port_storage_writers[port_id] = (
-            writer_queue,
-            port_storage_writer,
-            writer_thread,
-        )
+        # Remember the base URI so `reset_output_storage` can re-provision
+        # the iceberg tables on subsequent loop iterations.
+        self._storage_uri_base = storage_uri_base
 
-        state_document, _ = DocumentFactory.open_document(
-            VFSURIFactory.state_uri(storage_uri_base)
+        def start_writer(uri: str, name_prefix: str, registry: dict) -> None:
+            document, _ = DocumentFactory.open_document(uri)
+            writer_queue = Queue()
+            writer = PortStorageWriter(
+                buffered_item_writer=document.writer(
+                    str(get_worker_index(self.worker_id))
+                ),
+                queue=writer_queue,
+            )
+            thread = threading.Thread(
+                target=writer.run, daemon=True, name=f"{name_prefix}_{port_id}"
+            )
+            thread.start()
+            registry[port_id] = (writer_queue, writer, thread)
+
+        start_writer(
+            VFSURIFactory.result_uri(storage_uri_base),
+            "port_storage_writer_thread",
+            self._port_storage_writers,
         )
-        state_buffered_item_writer = state_document.writer(
-            str(get_worker_index(self.worker_id))
-        )
-        state_writer_queue = Queue()
-        state_port_writer = PortStorageWriter(
-            buffered_item_writer=state_buffered_item_writer,
-            queue=state_writer_queue,
-        )
-        state_writer_thread = threading.Thread(
-            target=state_port_writer.run,
-            daemon=True,
-            name=f"port_state_writer_thread_{port_id}",
-        )
-        state_writer_thread.start()
-        self._port_state_writers[port_id] = (
-            state_writer_queue,
-            state_port_writer,
-            state_writer_thread,
+        start_writer(
+            VFSURIFactory.state_uri(storage_uri_base),
+            "port_state_writer_thread",
+            self._port_state_writers,
         )
 
     def get_port(self, port_id=None) -> WorkerPort:
@@ -203,19 +195,63 @@ class OutputManager:
                 PortStorageWriterElement(data_tuple=tuple_)
             )
 
-    def save_state_to_storage_if_needed(self, state: State, port_id=None) -> None:
+    def save_state_to_storage_if_needed(
+        self,
+        state: State,
+        loop_counter: int = 0,
+        loop_start_id: str = "",
+        port_id=None,
+    ) -> None:
         # When port_id is omitted the same state row is fanned out to
         # every output port's state table. This mirrors the
         # broadcast-to-all-workers behavior on the emit side: state is
         # shared context, not per-key data, so every downstream operator
         # (and every worker reading the materialization) needs the full
         # set.
-        element = PortStorageWriterElement(data_tuple=state.to_tuple())
+        element = PortStorageWriterElement(
+            data_tuple=state.to_tuple(loop_counter, loop_start_id)
+        )
         if port_id is None:
             for writer_queue, _, _ in self._port_state_writers.values():
                 writer_queue.put(element)
         elif port_id in self._port_state_writers:
             self._port_state_writers[port_id][0].put(element)
+
+    def reset_output_storage(self) -> None:
+        """Drop and recreate this operator's result and state tables, then
+        reopen the storage writers against the empty tables.
+
+        Called only for the inner Loop End of a nested loop, once per outer
+        iteration (see the ``MainLoop._process_state_frame`` call site).
+        Truncating live storage is safe because loop workflows run in
+        MATERIALIZED mode, so no reader observes the intermediate truncation.
+
+        Preconditions, checked so misuse fails loudly: the operator has
+        exactly one output port, and ``set_up_port_storage_writer`` has
+        already run for it.
+        """
+        port_ids = self.get_port_ids()
+        if len(port_ids) != 1:
+            raise RuntimeError(
+                f"reset_output_storage expects exactly one output port, "
+                f"but found {len(port_ids)}"
+            )
+        if self._storage_uri_base is None:
+            raise RuntimeError(
+                "reset_output_storage called before the output port's storage "
+                "writer was set up"
+            )
+        port_id = port_ids[0]
+        storage_uri_base = self._storage_uri_base
+        self.close_port_storage_writers()
+        DocumentFactory.create_document(
+            VFSURIFactory.result_uri(storage_uri_base),
+            self._ports[port_id].get_schema(),
+        )
+        DocumentFactory.create_document(
+            VFSURIFactory.state_uri(storage_uri_base), State.SCHEMA
+        )
+        self.set_up_port_storage_writer(port_id, storage_uri_base)
 
     def close_port_storage_writers(self) -> None:
         """
@@ -223,18 +259,16 @@ class OutputManager:
         writer threads to finish, which indicates the port storage writing
         are finished.
         """
-        for _, writer, _ in self._port_storage_writers.values():
-            # This non-blocking stop call will let the storage writers
-            # flush the remaining buffer
-            writer.stop()
-        for _, _, writer_thread in self._port_storage_writers.values():
-            # This blocking call will wait for all the writer to finish commit
-            writer_thread.join()
-        for _, state_writer, _ in self._port_state_writers.values():
-            state_writer.stop()
-        for _, _, state_writer_thread in self._port_state_writers.values():
-            state_writer_thread.join()
-        self._port_state_writers.clear()
+        for registry in (self._port_storage_writers, self._port_state_writers):
+            # Non-blocking stop lets each writer flush its remaining buffer;
+            # the join then waits for the commit to finish.
+            for _, writer, _ in registry.values():
+                writer.stop()
+            for _, _, thread in registry.values():
+                thread.join()
+            # Drop the stopped writers so a later reset/close doesn't act on
+            # stale entries (set_up_port_storage_writer repopulates on reset).
+            registry.clear()
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """
@@ -290,7 +324,10 @@ class OutputManager:
         )
 
     def emit_state(
-        self, state: State
+        self,
+        state: State,
+        loop_counter: int = 0,
+        loop_start_id: str = "",
     ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         return chain(
             *(
@@ -298,7 +335,11 @@ class OutputManager:
                     (
                         receiver,
                         (
-                            StateFrame(payload)
+                            StateFrame(
+                                payload,
+                                loop_counter=loop_counter,
+                                loop_start_id=loop_start_id,
+                            )
                             if isinstance(payload, State)
                             else self.tuple_to_frame(payload)
                         ),

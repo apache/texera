@@ -40,11 +40,20 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       creationTime = WORKFLOW.CREATION_TIME,
       wid = WORKFLOW.WID,
       lastModifiedTime = WORKFLOW.LAST_MODIFIED_TIME,
+      executionTime = DSL.field(
+        DSL
+          .select(DSL.max(WORKFLOW_EXECUTIONS.STARTING_TIME))
+          .from(WORKFLOW_EXECUTIONS)
+          .join(WORKFLOW_VERSION)
+          .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
+          .where(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
+      ),
       workflowUserAccess = WORKFLOW_USER_ACCESS.PRIVILEGE,
       uid = WORKFLOW_OF_USER.UID,
       ownerId = WORKFLOW_OF_USER.UID,
       userName = USER.NAME,
-      projectsOfWorkflow = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
+      projectsOfWorkflow = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID),
+      workflowCoverImage = DSL.max(WORKFLOW_COVER_IMAGE.IMAGE).as("workflow_cover_image")
     )
   }
 
@@ -64,6 +73,8 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       .on(WORKFLOW_OF_PROJECT.WID.eq(WORKFLOW.WID))
       .leftJoin(PROJECT_USER_ACCESS)
       .on(PROJECT_USER_ACCESS.PID.eq(WORKFLOW_OF_PROJECT.PID))
+      .leftJoin(WORKFLOW_COVER_IMAGE)
+      .on(WORKFLOW_COVER_IMAGE.WID.eq(WORKFLOW.WID))
 
     var condition: Condition = DSL.trueCondition()
     if (uid == null) {
@@ -154,7 +165,8 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
           .map(number => Integer.valueOf(number))
           .toList
       },
-      record.into(USER).getUid
+      record.into(USER).getUid,
+      Option(record.get("workflow_cover_image", classOf[String]))
     )
     DashboardClickableFileEntry(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE, workflow = Some(dw))
   }

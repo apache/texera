@@ -36,7 +36,6 @@ import org.apache.texera.web.resource._
 import org.apache.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import org.apache.texera.web.resource.dashboard.DashboardResource
 import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
-import org.apache.texera.web.resource.dashboard.admin.settings.AdminSettingsResource
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource
 import org.apache.texera.web.resource.dashboard.hub.HubResource
 import org.apache.texera.web.resource.dashboard.user.UserResource
@@ -159,11 +158,17 @@ class TexeraWebApplication
     environment.jersey.register(classOf[GmailResource])
     environment.jersey.register(classOf[AdminExecutionResource])
     environment.jersey.register(classOf[UserQuotaResource])
-    environment.jersey.register(classOf[AdminSettingsResource])
     environment.jersey.register(classOf[AIAssistantResource])
     environment.jersey.register(classOf[HuggingFaceModelResource])
 
     AuthResource.createAdminUser()
+
+    // Set Cache-Control on static frontend asset responses.
+    environment.getApplicationContext.addFilter(
+      new FilterHolder(new StaticAssetCacheFilter),
+      "/*",
+      java.util.EnumSet.allOf(classOf[javax.servlet.DispatcherType])
+    )
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL.
     // TODO: replace with RequestLoggingFilter.register() from common/auth once Dropwizard is upgraded to 4.x

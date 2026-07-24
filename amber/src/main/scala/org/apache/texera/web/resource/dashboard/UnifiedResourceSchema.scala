@@ -37,6 +37,7 @@ object UnifiedResourceSchema {
   private val resourceCreationTimeAlias = "resourceCreationTime"
   private val resourceOwnerIdAlias = "resourceOwnerId"
   private val resourceLastModifiedTimeAlias = "resourceLastModifiedTime"
+  private val resourceExecutionTimeAlias = "resourceExecutionTime"
 
   // Use the alias variables to create fields
   val resourceTypeField: Field[_] = DSL.field(DSL.name(resourceTypeAlias))
@@ -45,6 +46,7 @@ object UnifiedResourceSchema {
   val resourceCreationTimeField: Field[_] = DSL.field(DSL.name(resourceCreationTimeAlias))
   val resourceOwnerIdField: Field[_] = DSL.field(DSL.name(resourceOwnerIdAlias))
   val resourceLastModifiedTimeField: Field[_] = DSL.field(DSL.name(resourceLastModifiedTimeAlias))
+  val resourceExecutionTimeField: Field[_] = DSL.field(DSL.name(resourceExecutionTimeAlias))
 
   def context =
     SqlServer
@@ -57,6 +59,7 @@ object UnifiedResourceSchema {
       description: Field[String] = DSL.inline(""),
       creationTime: Field[Timestamp] = DSL.cast(null, classOf[Timestamp]),
       lastModifiedTime: Field[Timestamp] = DSL.cast(null, classOf[Timestamp]),
+      executionTime: Field[Timestamp] = DSL.cast(null, classOf[Timestamp]),
       ownerId: Field[Integer] = DSL.cast(null, classOf[Integer]),
       wid: Field[Integer] = DSL.cast(null, classOf[Integer]),
       workflowUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum]),
@@ -73,7 +76,8 @@ object UnifiedResourceSchema {
       isDatasetPublic: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
       isDatasetDownloadable: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
       datasetUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum]),
-      datasetCoverImage: Field[String] = DSL.cast(null, classOf[String])
+      datasetCoverImage: Field[String] = DSL.cast(null, classOf[String]),
+      workflowCoverImage: Field[String] = DSL.cast(null, classOf[String])
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(
@@ -82,6 +86,7 @@ object UnifiedResourceSchema {
         description -> description.as(resourceDescriptionAlias),
         creationTime -> creationTime.as(resourceCreationTimeAlias),
         lastModifiedTime -> lastModifiedTime.as(resourceLastModifiedTimeAlias),
+        executionTime -> executionTime.as(resourceExecutionTimeAlias),
         ownerId -> ownerId.as(resourceOwnerIdAlias),
         wid -> wid.as("wid"),
         workflowUserAccess -> workflowUserAccess.as("workflow_privilege"),
@@ -98,7 +103,8 @@ object UnifiedResourceSchema {
         isDatasetPublic -> isDatasetPublic.as("is_dataset_public"),
         isDatasetDownloadable -> isDatasetDownloadable.as("is_dataset_downloadable"),
         datasetUserAccess -> datasetUserAccess.as("user_dataset_access"),
-        datasetCoverImage -> datasetCoverImage.as("cover_image")
+        datasetCoverImage -> datasetCoverImage.as("cover_image"),
+        workflowCoverImage -> workflowCoverImage.as("workflow_cover_image")
       )
     )
   }

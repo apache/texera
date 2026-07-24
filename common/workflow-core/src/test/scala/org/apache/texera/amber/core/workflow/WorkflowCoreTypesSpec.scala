@@ -35,16 +35,16 @@ class WorkflowCoreTypesSpec extends AnyFlatSpec {
   // LocationPreference
   // ---------------------------------------------------------------------------
 
-  "LocationPreference" should "have PreferController and RoundRobinPreference as singleton subtypes" in {
-    val a: LocationPreference = PreferController
+  "LocationPreference" should "have PreferCoordinator and RoundRobinPreference as singleton subtypes" in {
+    val a: LocationPreference = PreferCoordinator
     val b: LocationPreference = RoundRobinPreference
-    assert(a eq PreferController)
+    assert(a eq PreferCoordinator)
     assert(b eq RoundRobinPreference)
     assert(a != b)
   }
 
   it should "be Serializable on every subtype" in {
-    val all: Seq[LocationPreference] = Seq(PreferController, RoundRobinPreference)
+    val all: Seq[LocationPreference] = Seq(PreferCoordinator, RoundRobinPreference)
     all.foreach(p => assert(p.isInstanceOf[Serializable]))
   }
 
@@ -131,8 +131,8 @@ class WorkflowCoreTypesSpec extends AnyFlatSpec {
   }
 
   "PhysicalOp.withLocationPreference" should "store the location preference" in {
-    val op = newPhysicalOp("a").withLocationPreference(Some(PreferController))
-    assert(op.locationPreference.contains(PreferController))
+    val op = newPhysicalOp("a").withLocationPreference(Some(PreferCoordinator))
+    assert(op.locationPreference.contains(PreferCoordinator))
   }
 
   "PhysicalOp.withParallelizable" should "set the parallelizable flag and round-trip through copy" in {
@@ -336,6 +336,69 @@ class WorkflowCoreTypesSpec extends AnyFlatSpec {
     val sub = plan.getSubPlan(Set(a.id, b.id))
     assert(sub.operators.map(_.id) == Set(a.id, b.id))
     assert(sub.links == Set(link("a", "b")))
+  }
+
+  "PhysicalPlan.getTransitiveUpstreamSubPlan" should "include the operator and all its transitive upstream, with the links between them" in {
+    val a = physicalOp("a")
+    val b = physicalOp("b")
+    val c = physicalOp("c")
+    val d = physicalOp("d")
+    // a -> b -> c -> d and a -> c; the upstream sub-DAG of c is {a, b, c} (d is downstream)
+    val plan =
+      PhysicalPlan(
+        Set(a, b, c, d),
+        Set(link("a", "b"), link("b", "c"), link("c", "d"), link("a", "c"))
+      )
+    val sub = plan.getTransitiveUpstreamSubPlan(c.id)
+    assert(sub.operators.map(_.id) == Set(a.id, b.id, c.id))
+    assert(sub.links == Set(link("a", "b"), link("b", "c"), link("a", "c")))
+  }
+
+  it should "return only the operator itself when it has no upstream" in {
+    val a = physicalOp("a")
+    val b = physicalOp("b")
+    val plan = PhysicalPlan(Set(a, b), Set(link("a", "b")))
+    val sub = plan.getTransitiveUpstreamSubPlan(a.id)
+    assert(sub.operators.map(_.id) == Set(a.id))
+    assert(sub.links.isEmpty)
+  }
+
+  it should "include all branches when an operator has multiple inputs (join or union)" in {
+    val s1 = physicalOp("s1")
+    val s2 = physicalOp("s2")
+    val j = newPhysicalOp("j")
+      .withInputPorts(List(InputPort(PortIdentity(0)), InputPort(PortIdentity(1))))
+      .withOutputPorts(List(OutputPort(PortIdentity(0))))
+    val l1 = PhysicalLink(s1.id, PortIdentity(0), j.id, PortIdentity(0))
+    val l2 = PhysicalLink(s2.id, PortIdentity(0), j.id, PortIdentity(1))
+    val plan = PhysicalPlan(Set(s1, s2, j), Set(l1, l2))
+    val sub = plan.getTransitiveUpstreamSubPlan(j.id)
+    assert(sub.operators.map(_.id) == Set(s1.id, s2.id, j.id))
+    assert(sub.links == Set(l1, l2))
+  }
+
+  it should "follow only the target's upstream with multiple sources and sinks" in {
+    val a = physicalOp("a")
+    val b = physicalOp("b")
+    val c = newPhysicalOp("c")
+      .withInputPorts(List(InputPort(PortIdentity(0)), InputPort(PortIdentity(1))))
+      .withOutputPorts(List(OutputPort(PortIdentity(0))))
+    val d = physicalOp("d")
+    val e = physicalOp("e")
+    // sources a, b converge at c; c fans out to sinks d and e
+    val plan = PhysicalPlan(
+      Set(a, b, c, d, e),
+      Set(
+        PhysicalLink(a.id, PortIdentity(0), c.id, PortIdentity(0)),
+        PhysicalLink(b.id, PortIdentity(0), c.id, PortIdentity(1)),
+        link("c", "d"),
+        link("c", "e")
+      )
+    )
+    // the sub-DAG of sink d is {a, b, c, d}; the other sink e is excluded
+    val sub = plan.getTransitiveUpstreamSubPlan(d.id)
+    assert(sub.operators.map(_.id) == Set(a.id, b.id, c.id, d.id))
+    assert(!sub.operators.map(_.id).contains(e.id))
   }
 
   "PhysicalPlan.getPhysicalOpsOfLogicalOp" should "return every physical op sharing a logical id, in topological order" in {
