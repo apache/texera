@@ -21,14 +21,21 @@ import { Component, ViewChild } from "@angular/core";
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item.component";
 import { FileSaverService } from "../../../../service/user/file/file-saver.service";
-import { testWorkflowEntries } from "../../../user-dashboard-test-fixtures";
+import { testWorkflow1, testWorkflowEntries } from "../../../user-dashboard-test-fixtures";
 import { By } from "@angular/platform-browser";
 import { StubWorkflowPersistService } from "../../../../../common/service/workflow-persist/stub-workflow-persist.service";
-import { WorkflowPersistService } from "../../../../../common/service/workflow-persist/workflow-persist.service";
+import {
+  DEFAULT_WORKFLOW_NAME,
+  WorkflowPersistService,
+} from "../../../../../common/service/workflow-persist/workflow-persist.service";
 import { UserProjectService } from "../../../../service/user/project/user-project.service";
 import { StubUserProjectService } from "../../../../service/user/project/stub-user-project.service";
+import { DownloadService } from "../../../../service/user/download/download.service";
+import { WorkflowExecutionHistoryComponent } from "../ngbd-modal-workflow-executions/workflow-execution-history.component";
+import { Workflow } from "../../../../../common/type/workflow";
+import { of } from "rxjs";
 import { NzListComponent } from "ng-zorro-antd/list";
-import { NzModalModule } from "ng-zorro-antd/modal";
+import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { provideRouter } from "@angular/router";
 import { DashboardEntry } from "../../../../type/dashboard-entry";
@@ -53,6 +60,20 @@ class TestHostComponent {
   entry!: DashboardEntry;
   editable = true;
   @ViewChild(UserWorkflowListItemComponent, { static: true }) inner!: UserWorkflowListItemComponent;
+}
+
+// A fresh DashboardEntry per call so methods that mutate the workflow (rename,
+// remove-from-project) cannot leak into the shared testWorkflowEntries fixture.
+function makeWorkflowEntry(workflowOverrides: Partial<Workflow> = {}, projectIDs: number[] = [1]): DashboardEntry {
+  return new DashboardEntry({
+    workflow: { ...testWorkflow1, ...workflowOverrides },
+    isOwner: true,
+    ownerName: "Texera",
+    accessLevel: "Write",
+    projectIDs: [...projectIDs],
+    ownerId: 1,
+    coverImage: null,
+  });
 }
 
 describe("UserWorkflowListItemComponent", () => {
@@ -132,6 +153,133 @@ describe("UserWorkflowListItemComponent", () => {
       });
     });
   }));
+
+  describe("method coverage", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("getProjectIds returns the set of the entry's project ids", () => {
+      component.entry = makeWorkflowEntry({}, [1, 2, 3]);
+      expect(component.getProjectIds()).toEqual(new Set([1, 2, 3]));
+    });
+
+    it("isLightColor reports light vs dark hex colors", () => {
+      expect(component.isLightColor("ffffff")).toBe(true);
+      expect(component.isLightColor("000000")).toBe(false);
+    });
+
+    describe("confirmUpdateWorkflowCustomName", () => {
+      it("persists the new name, updates the workflow, and stops editing", () => {
+        const persist = TestBed.inject(WorkflowPersistService);
+        // The stub lacks updateWorkflowName; give this fresh-per-test instance a spy.
+        const spy = ((persist as any).updateWorkflowName = vi.fn().mockReturnValue(of(undefined)));
+        component.entry = makeWorkflowEntry({ wid: 5, name: "old" });
+        component.editingName = true;
+
+        component.confirmUpdateWorkflowCustomName("new name");
+
+        expect(spy).toHaveBeenCalledWith(5, "new name");
+        expect(component.workflow.name).toBe("new name");
+        expect(component.editingName).toBe(false);
+      });
+
+      it("falls back to the default name when the input is empty", () => {
+        const persist = TestBed.inject(WorkflowPersistService);
+        const spy = ((persist as any).updateWorkflowName = vi.fn().mockReturnValue(of(undefined)));
+        component.entry = makeWorkflowEntry({ wid: 5 });
+
+        component.confirmUpdateWorkflowCustomName("");
+
+        expect(spy).toHaveBeenCalledWith(5, DEFAULT_WORKFLOW_NAME);
+        expect(component.workflow.name).toBe(DEFAULT_WORKFLOW_NAME);
+      });
+
+      it("is a no-op when the workflow has no id", () => {
+        const persist = TestBed.inject(WorkflowPersistService);
+        const spy = ((persist as any).updateWorkflowName = vi.fn());
+        component.entry = makeWorkflowEntry({ wid: undefined });
+
+        component.confirmUpdateWorkflowCustomName("x");
+
+        expect(spy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("confirmUpdateWorkflowCustomDescription", () => {
+      it("persists the new description and stops editing", () => {
+        const persist = TestBed.inject(WorkflowPersistService);
+        const spy = ((persist as any).updateWorkflowDescription = vi.fn().mockReturnValue(of(undefined)));
+        component.entry = makeWorkflowEntry({ wid: 5 });
+        component.editingDescription = true;
+
+        component.confirmUpdateWorkflowCustomDescription("new desc");
+
+        expect(spy).toHaveBeenCalledWith(5, "new desc");
+        expect(component.workflow.description).toBe("new desc");
+        expect(component.editingDescription).toBe(false);
+      });
+
+      it("is a no-op when the workflow has no id", () => {
+        const persist = TestBed.inject(WorkflowPersistService);
+        const spy = ((persist as any).updateWorkflowDescription = vi.fn());
+        component.entry = makeWorkflowEntry({ wid: undefined });
+
+        component.confirmUpdateWorkflowCustomDescription("x");
+
+        expect(spy).not.toHaveBeenCalled();
+      });
+    });
+
+    it("removeWorkflowFromProject calls the service and prunes the entry's project ids", () => {
+      const userProject = TestBed.inject(UserProjectService);
+      const spy = vi.spyOn(userProject, "removeWorkflowFromProject").mockReturnValue(of({} as Response));
+      component.entry = makeWorkflowEntry({ wid: 9 }, [1, 2]);
+
+      component.removeWorkflowFromProject(1);
+
+      expect(spy).toHaveBeenCalledWith(1, 9);
+      expect([...component.entry.workflow.projectIDs]).toEqual([2]);
+    });
+
+    it("onClickGetWorkflowExecutions opens the execution-history modal for the workflow", () => {
+      const modal = TestBed.inject(NzModalService);
+      const spy = vi.spyOn(modal, "create").mockReturnValue({} as any);
+      component.entry = makeWorkflowEntry({ wid: 9, name: "wf" });
+
+      component.onClickGetWorkflowExecutions();
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nzContent: WorkflowExecutionHistoryComponent,
+          nzData: { wid: 9 },
+          nzTitle: "Execution results of Workflow: wf",
+        })
+      );
+    });
+
+    describe("onClickDownloadWorkfllow", () => {
+      it("delegates to the download service with the workflow id and name", () => {
+        const download = TestBed.inject(DownloadService);
+        const spy = vi.spyOn(download, "downloadWorkflow").mockReturnValue(of(undefined) as any);
+        component.entry = makeWorkflowEntry({ wid: 9, name: "wf" });
+
+        component.onClickDownloadWorkfllow();
+
+        expect(spy).toHaveBeenCalledWith(9, "wf");
+      });
+
+      it("does nothing when the workflow has no id", () => {
+        const download = TestBed.inject(DownloadService);
+        const spy = vi.spyOn(download, "downloadWorkflow");
+        component.entry = makeWorkflowEntry({ wid: undefined });
+
+        component.onClickDownloadWorkfllow();
+
+        expect(spy).not.toHaveBeenCalled();
+      });
+    });
+  });
 
   function sendInput(editableDescriptionInput: HTMLInputElement, text: string) {
     // Helper function to change the workflow description textbox.
