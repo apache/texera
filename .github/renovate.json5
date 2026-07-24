@@ -16,10 +16,11 @@
 // under the License.
 
 // Renovate (Mend "Forking Renovate" app) configuration, replacing
-// .github/dependabot.yml. Semantics carried over: weekly cadence,
-// patch bumps grouped into one PR per area, minor/major bumps as
-// individual PRs, Angular majors excluded (guided `ng update`
-// migration, see #6155). New behavior Dependabot could not provide:
+// .github/dependabot.yml. Semantics: weekly cadence; patch and minor
+// bumps grouped into one PR per area, except sbt minors, which stay
+// individual so CI failures remain attributable; majors as individual
+// PRs; Angular majors excluded (guided `ng update` migration, see
+// #6155). New behavior Dependabot could not provide:
 // PRs come from the bot's fork, and security fixes use a `fix(...)`
 // commit prefix while routine bumps use `chore(...)`.
 {
@@ -145,10 +146,13 @@
     },
 
     // Angular majors need a guided `ng update` migration and the
-    // framework/CLI lines must move together (see #6155).
+    // framework/CLI lines must move together (see #6155). The regex
+    // also covers @angular-devkit/@angular-builders/@angular-eslint;
+    // @schematics/angular is the CLI's schematics package and must
+    // move with the same migration despite the different scope.
     {
       matchFileNames: ['frontend/**'],
-      matchPackageNames: ['/^@angular/'],
+      matchPackageNames: ['/^@angular/', '@schematics/angular'],
       matchUpdateTypes: ['major'],
       enabled: false,
     },
