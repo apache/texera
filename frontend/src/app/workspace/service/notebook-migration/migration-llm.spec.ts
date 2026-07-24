@@ -20,6 +20,7 @@
 import { NotebookMigrationLLM, Notebook } from "./migration-llm";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { AuthService } from "../../../common/service/user/auth.service";
 
 describe("NotebookMigrationLLM", () => {
   let opIdCounter = 0;
@@ -61,6 +62,24 @@ describe("NotebookMigrationLLM", () => {
     // Pass an explicit token so tests don't depend on AuthService/localStorage state.
     llm.initialize("gpt-5-mini", "test-token");
     return llm;
+  }
+
+  // Build a session that has NOT had initialize() called, so the initialized/enabled
+  // guards can be exercised. `enabled` toggles the feature flag the config exposes.
+  function makeUninitializedLLM(enabled = true): NotebookMigrationLLM {
+    const stubConfig = {
+      env: {
+        pythonNotebookMigrationEnabled: enabled,
+        defaultDataTransferBatchSize: 400,
+        defaultExecutionMode: "PIPELINED",
+      },
+    } as unknown as GuiConfigService;
+
+    const util = {
+      getNewOperatorPredicate: vi.fn(),
+    } as unknown as WorkflowUtilService;
+
+    return new NotebookMigrationLLM(stubConfig, util);
   }
 
   function codeCell(uuid: string | undefined, source: string) {
@@ -302,6 +321,110 @@ describe("NotebookMigrationLLM", () => {
 
     it("extracts the outermost object from fence-less prose", () => {
       expect(parse('Sure! {"a":1} hope that helps')).toEqual({ a: 1 });
+    });
+  });
+
+  describe("feature flag guard", () => {
+    it("initialize() throws when the migration feature is disabled", () => {
+      const llm = makeUninitializedLLM(false);
+      expect(() => llm.initialize("gpt-5-mini", "test-token")).toThrow("Notebook migration feature is disabled");
+    });
+
+    it("convertNotebookToWorkflow() rejects when the migration feature is disabled", async () => {
+      const llm = makeUninitializedLLM(false);
+      await expect(llm.convertNotebookToWorkflow({ cells: [] })).rejects.toThrow(
+        "Notebook migration feature is disabled"
+      );
+      // assertEnabled fails before any prompting.
+      expect(callModelSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("initialize", () => {
+    it("defaults the access token to an empty string when AuthService returns null and none is passed", async () => {
+      const tokenSpy = vi.spyOn(AuthService, "getAccessToken").mockReturnValue(null);
+      const llm = makeUninitializedLLM();
+
+      // Only the model type is supplied, so the accessToken default expression
+      // (AuthService.getAccessToken() ?? "") runs and resolves to "".
+      llm.initialize("gpt-5-mini");
+
+      expect(tokenSpy).toHaveBeenCalled();
+      // The session is now usable: verifyConnection reaches the (stubbed) transport.
+      await expect(llm.verifyConnection()).resolves.toBe(true);
+      tokenSpy.mockRestore();
+    });
+  });
+
+  describe("verifyConnection", () => {
+    it("returns false without prompting when the feature is disabled", async () => {
+      const llm = makeUninitializedLLM(false);
+      await expect(llm.verifyConnection()).resolves.toBe(false);
+      expect(callModelSpy).not.toHaveBeenCalled();
+    });
+
+    it("throws when the session has not been initialized", async () => {
+      const llm = makeUninitializedLLM();
+      await expect(llm.verifyConnection()).rejects.toThrow("LLM session not initialized");
+    });
+
+    it("returns true and pings the model with a capped token budget on success", async () => {
+      const ok = await makeLLM().verifyConnection();
+      expect(ok).toBe(true);
+      expect(callModelSpy).toHaveBeenCalledWith([{ role: "user", content: "ping" }], 10);
+    });
+
+    it("returns false and logs the error when the ping fails", async () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const llm = makeLLM();
+      callModelSpy.mockRejectedValueOnce(new Error("network down"));
+
+      await expect(llm.verifyConnection()).resolves.toBe(false);
+      expect(error).toHaveBeenCalledWith("API key verification failed:", expect.any(Error));
+      error.mockRestore();
+    });
+  });
+
+  describe("initialization guards", () => {
+    it("convertNotebookToWorkflow() rejects when the session is enabled but not initialized", async () => {
+      const llm = makeUninitializedLLM();
+      await expect(llm.convertNotebookToWorkflow({ cells: [] })).rejects.toThrow("LLM session not initialized");
+      expect(callModelSpy).not.toHaveBeenCalled();
+    });
+
+    it("sendPrompt() rejects when the session is not initialized", async () => {
+      const llm = makeUninitializedLLM();
+      // sendPrompt is private; convert normally guards it, so exercise the guard directly.
+      await expect((llm as any).sendPrompt("hello")).rejects.toThrow("LLM session not initialized");
+      expect(callModelSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("convertNotebookToWorkflow response-shape tolerance", () => {
+    it("tolerates a workflow response with no edges or outputs keys", async () => {
+      const notebook: Notebook = { cells: [codeCell("CELL1", "a"), codeCell("CELL2", "b")] };
+      // No `edges` and no `outputs` -> both `|| []` fallbacks and the missing-outputs branch run.
+      mockResponses(JSON.stringify({ code: { UDF1: "c1", UDF2: "c2" } }), JSON.stringify({ UDF1: ["CELL1"] }));
+
+      const { workflowJSON } = JSON.parse(await makeLLM().convertNotebookToWorkflow(notebook));
+
+      expect(workflowJSON.operators).toHaveLength(2);
+      // No edges -> no links.
+      expect(workflowJSON.links).toEqual([]);
+      // No outputs -> operators declare no output columns.
+      expect(workflowJSON.operators[0].operatorProperties.outputColumns).toEqual([]);
+      expect(workflowJSON.operators[1].operatorProperties.outputColumns).toEqual([]);
+    });
+  });
+
+  describe("close", () => {
+    it("clears session state so subsequent conversions report an uninitialized session", async () => {
+      const llm = makeLLM();
+      llm.close();
+
+      // After close(), the initialized flag is cleared even though the feature stays enabled.
+      await expect(llm.convertNotebookToWorkflow({ cells: [] })).rejects.toThrow("LLM session not initialized");
+      expect(callModelSpy).not.toHaveBeenCalled();
     });
   });
 });
