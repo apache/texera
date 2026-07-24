@@ -884,15 +884,16 @@ describe("WorkflowEditorComponent", () => {
      */
     describe("operator border restoration after navigation", () => {
       let workflowStatusService: WorkflowStatusService;
-      const cachedCompleted = {
+      const cachedStatus = (operatorState: OperatorState) => ({
         [mockScanPredicate.operatorID]: {
-          operatorState: OperatorState.Completed,
+          operatorState,
           aggregatedInputRowCount: 0,
           inputPortMetrics: {},
           aggregatedOutputRowCount: 0,
           outputPortMetrics: {},
         },
-      };
+      });
+      const cachedCompleted = cachedStatus(OperatorState.Completed);
       const getStroke = (operatorID: string): string =>
         component.paper.getModelById(operatorID).attr("rect.body/stroke") as string;
 
@@ -908,6 +909,18 @@ describe("WorkflowEditorComponent", () => {
         fixture.detectChanges();
 
         expect(getStroke(mockScanPredicate.operatorID)).toBe("green");
+      });
+
+      it("paints the execution-state stroke (orange) for a valid operator with a cached Running status", () => {
+        // Navigation-return with a mid-run operator: the border must be restored
+        // to the running color, not the default (see #5726 / #3614).
+        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue(cachedStatus(OperatorState.Running));
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        expect(getStroke(mockScanPredicate.operatorID)).toBe("orange");
       });
 
       it("falls back to the default valid stroke (#CFCFCF) when no cached status exists", () => {

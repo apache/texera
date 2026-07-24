@@ -460,10 +460,12 @@ export class JointUIService {
     }
     jointPaper.getModelById(operatorID).attr({
       [`.${operatorStateClass}`]: { text: operatorState.toString(), fill: fillColor },
-      "rect.body": { stroke: fillColor },
       [`.${operatorPortMetricsClass}`]: { fill: fillColor },
       [`.${operatorWorkerCountClass}`]: { fill: fillColor },
     });
+    // Border stroke goes through the guarded setter so a repaint with the color
+    // it already has is a no-op (see #5726).
+    this.paintOperatorBorder(jointPaper, operatorID, fillColor);
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
     const allPorts = element.getPorts();
     const inPorts = allPorts.filter(p => p.group === "in");
@@ -491,11 +493,22 @@ export class JointUIService {
    * @param isOperatorValid
    */
   public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, isOperatorValid: boolean): void {
-    if (isOperatorValid) {
-      jointPaper.getModelById(operatorID).attr("rect.body/stroke", "#CFCFCF");
-    } else {
-      jointPaper.getModelById(operatorID).attr("rect.body/stroke", "red");
+    this.paintOperatorBorder(jointPaper, operatorID, isOperatorValid ? "#CFCFCF" : "red");
+  }
+
+  /**
+   * Sets the operator's border stroke, skipping the write when the border is
+   * already that color. On operator add, the operator-add restore and the
+   * validation pass both request a border color for the same operator; guarding
+   * the write here makes the redundant repaint a no-op (see #5726) and likewise
+   * avoids rewriting an unchanged border on the navigation-return (reload) path.
+   */
+  private paintOperatorBorder(jointPaper: joint.dia.Paper, operatorID: string, color: string): void {
+    const model = jointPaper.getModelById(operatorID);
+    if (model.attr("rect.body/stroke") === color) {
+      return;
     }
+    model.attr("rect.body/stroke", color);
   }
 
   public changeOperatorDisableStatus(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {

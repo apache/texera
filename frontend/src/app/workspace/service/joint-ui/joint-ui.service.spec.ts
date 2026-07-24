@@ -361,6 +361,21 @@ describe("JointUIService", () => {
       service.changeOperatorColor(paper, "op-1", false);
       expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", "red");
     });
+    it("skips the write when the border is already the requested color (see #5726)", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      // model reports it is already neutral; the guarded setter must not rewrite it
+      attrSpy.mockImplementation((selector: string) => (selector === "rect.body/stroke" ? "#CFCFCF" : undefined));
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorColor(paper, "op-1", true);
+      expect(attrSpy).not.toHaveBeenCalledWith("rect.body/stroke", "#CFCFCF");
+    });
+    it("writes the border when the current color differs", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      attrSpy.mockImplementation((selector: string) => (selector === "rect.body/stroke" ? "red" : undefined));
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorColor(paper, "op-1", true);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", "#CFCFCF");
+    });
   });
 
   describe("changeOperatorState", () => {
@@ -380,10 +395,11 @@ describe("JointUIService", () => {
         const { paper, attrSpy } = makePaperWithModel();
         const service = new JointUIService(emptyMetadataStub as never);
         service.changeOperatorState(paper, "op-1", state);
-        // The attr payload is an object keyed by selectors; pluck the state class entry.
+        // The bundled attr payload is the first call; pluck the state class entry.
         const [payload] = attrSpy.mock.calls[0];
         expect(payload[`.${operatorStateClass}`]).toEqual({ text: state.toString(), fill: color });
-        expect(payload["rect.body"]).toEqual({ stroke: color });
+        // The border stroke is written separately through the guarded setter.
+        expect(attrSpy).toHaveBeenCalledWith("rect.body/stroke", color);
       });
     });
   });
