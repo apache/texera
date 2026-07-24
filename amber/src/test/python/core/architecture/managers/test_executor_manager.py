@@ -180,6 +180,33 @@ class TestExecutorManager:
         assert executor_manager.operator_module_name.startswith("udf-v")
         assert executor_manager.executor.is_source is True
 
+    def test_injects_mounted_dataset_variables_into_the_udf_module(
+        self, executor_manager, monkeypatch
+    ):
+        """Each dataset mounted on the CU (passed as the MOUNTED_DATASETS JSON) is exposed
+        to the UDF code as a module-level variable holding its local mount path."""
+        monkeypatch.setenv(
+            "MOUNTED_DATASETS",
+            '{"A": "/mnt/texera-mounts/dataset-1/abc", '
+            '"B": "/mnt/texera-mounts/dataset-2/def"}',
+        )
+        executor_manager.initialize_executor(
+            code=SAMPLE_OPERATOR_CODE, is_source=False, language="python"
+        )
+        module = sys.modules[executor_manager.operator_module_name]
+        assert module.A == "/mnt/texera-mounts/dataset-1/abc"
+        assert module.B == "/mnt/texera-mounts/dataset-2/def"
+
+    def test_no_mounted_dataset_variables_when_env_absent(
+        self, executor_manager, monkeypatch
+    ):
+        """With no MOUNTED_DATASETS env set, nothing is injected and loading still works."""
+        monkeypatch.delenv("MOUNTED_DATASETS", raising=False)
+        executor_manager.initialize_executor(
+            code=SAMPLE_OPERATOR_CODE, is_source=False, language="python"
+        )
+        assert executor_manager.operator_module_name is not None
+
     def test_reject_other_unsupported_languages(self, executor_manager):
         """Test that other arbitrary languages still work (no R-specific check)."""
         # Languages other than r-tuple and r-table should be allowed to pass
