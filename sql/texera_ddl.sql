@@ -64,6 +64,7 @@ DROP TABLE IF EXISTS dataset_upload_session_part CASCADE;
 DROP TABLE IF EXISTS dataset CASCADE;
 DROP TABLE IF EXISTS dataset_user_access CASCADE;
 DROP TABLE IF EXISTS dataset_version CASCADE;
+DROP TABLE IF EXISTS model_user_access CASCADE;
 DROP TABLE IF EXISTS model_version CASCADE;
 DROP TABLE IF EXISTS model CASCADE;
 DROP TABLE IF EXISTS public_project CASCADE;
@@ -388,6 +389,17 @@ CREATE TABLE IF NOT EXISTS model_version
     version_hash  VARCHAR(64) NOT NULL,
     creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
+    );
+
+-- model_user_access
+CREATE TABLE IF NOT EXISTS model_user_access
+(
+    mid       INT NOT NULL,
+    uid       INT NOT NULL,
+    privilege privilege_enum NOT NULL DEFAULT 'NONE',
+    PRIMARY KEY (mid, uid),
+    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
 
 -- operator_executions (modified to match MySQL: no separate primary key; added console_messages_uri)
