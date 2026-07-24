@@ -19,36 +19,56 @@
 
 package org.apache.texera.amber.core.storage
 
-import org.apache.texera.amber.core.storage.FileResolver.{
-  DATASET_FILE_URI_SCHEME,
-  MODEL_FILE_URI_SCHEME
-}
 import org.apache.texera.amber.core.storage.model.{
   DatasetFileDocument,
   ModelFileDocument,
   OnVersionedFileResource,
+  ReadonlyLocalFileDocument,
   VirtualDocument
 }
-import org.apache.texera.amber.core.tuple.{Schema, Tuple}
+import org.apache.texera.amber.core.storage.result.iceberg.IcebergDocument
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
+import java.util.UUID
 
 /**
-  * Unit tests for `DocumentFactory.createOrReuseDocument`, the create-or-reuse
-  * decision behind output-port storage provisioning. It always returns the
-  * document (opened when reused, created otherwise) so the call site doesn't
-  * branch.
+  * Unit tests for `DocumentFactory`.
   *
-  * `exists` / `open` / `create` are injected so the decision can be pinned with
-  * trivial document stubs -- no iceberg backend, no live region.
+  * The first group pins `createOrReuseDocument`, the create-or-reuse decision
+  * behind output-port storage provisioning, using injected `exists`/`open`/`create`
+  * spies -- no iceberg backend, no live region.
+  *
+  * The remaining groups exercise the scheme-dispatch surface of
+  * `openReadonlyDocument` / `openDocument` / `createDocument` / `documentExists`:
+  * the dataset / file / vfs scheme arms, the unsupported-scheme guards, and the
+  * vfs create/open/exists happy paths against a local Hadoop-backed Iceberg
+  * catalog installed via [[LocalHadoopIcebergCatalog]].
   */
-class DocumentFactorySpec extends AnyFlatSpec with Matchers {
+class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
   private val uri = new URI("vfs:///wf/result/loop-end")
   private val schema = Schema()
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    LocalHadoopIcebergCatalog.ensure()
+  }
+
+  // ---------------------------------------------------------------------------
+  // createOrReuseDocument
+  // ---------------------------------------------------------------------------
 
   private def stubDoc: VirtualDocument[Tuple] =
     new VirtualDocument[Tuple] {
@@ -104,30 +124,175 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers {
     probed shouldBe false
   }
 
-  // Scheme routing: openReadonlyDocument dispatches a resolved {scheme}:///repo/hash/file URI to
-  // the matching versioned-file document. Constructing these documents only parses the URI (no DB
-  // or LakeFS access), so we can assert routing + parsing without any backend.
-  "openReadonlyDocument" should "route the dataset scheme to a DatasetFileDocument" in {
-    val doc = DocumentFactory.openReadonlyDocument(
-      new URI(s"$DATASET_FILE_URI_SCHEME:///dataset-1/abc123/dir/a.csv")
-    )
+  // ---------------------------------------------------------------------------
+  // openReadonlyDocument -- scheme dispatch
+  // ---------------------------------------------------------------------------
+
+  private val versionHash = "97fd4c2a755b69b7c66d322eab40b7e5c2ad5d10"
+
+  "openReadonlyDocument" should "return a DatasetFileDocument for the dataset scheme" in {
+    val datasetUri = new URI(s"dataset:///repo/$versionHash/file.txt")
+    val doc = DocumentFactory.openReadonlyDocument(datasetUri)
     doc shouldBe a[DatasetFileDocument]
+    doc.getURI shouldBe datasetUri
   }
 
-  it should "route the model scheme to a ModelFileDocument and parse its URI components" in {
-    val doc = DocumentFactory.openReadonlyDocument(
-      new URI(s"$MODEL_FILE_URI_SCHEME:///model-1/abc123/weights/model.pt")
-    )
+  it should "return a ModelFileDocument for the model scheme and parse its URI components" in {
+    val modelUri = new URI(s"model:///model-1/$versionHash/weights/model.pt")
+    val doc = DocumentFactory.openReadonlyDocument(modelUri)
     doc shouldBe a[ModelFileDocument]
+    doc.getURI shouldBe modelUri
 
     val resource = doc.asInstanceOf[OnVersionedFileResource]
     resource.getRepositoryName() shouldBe "model-1"
-    resource.getVersionHash() shouldBe "abc123"
+    resource.getVersionHash() shouldBe versionHash
     resource.getFileRelativePath() shouldBe Paths.get("weights", "model.pt").toString
   }
 
+  it should "return a ReadonlyLocalFileDocument for the file scheme" in {
+    val tempFile = Files.createTempFile("doc-factory-spec", ".txt")
+    try {
+      val doc = DocumentFactory.openReadonlyDocument(tempFile.toUri)
+      doc shouldBe a[ReadonlyLocalFileDocument]
+      doc.getURI shouldBe tempFile.toUri
+    } finally {
+      Files.deleteIfExists(tempFile)
+    }
+  }
+
+  it should "reject an unsupported scheme with a descriptive message" in {
+    val thrown = intercept[UnsupportedOperationException] {
+      DocumentFactory.openReadonlyDocument(new URI("ftp://host/path"))
+    }
+    thrown.getMessage should include("ftp")
+    thrown.getMessage should include("ReadonlyDocument")
+  }
+
+  // ---------------------------------------------------------------------------
+  // openDocument / createDocument / documentExists -- unsupported schemes
+  // ---------------------------------------------------------------------------
+
+  "openDocument" should "return a DatasetFileDocument and no schema for the dataset scheme" in {
+    val datasetUri = new URI(s"dataset:///repo/$versionHash/file.txt")
+    val (doc, schemaOpt) = DocumentFactory.openDocument(datasetUri)
+    doc shouldBe a[DatasetFileDocument]
+    schemaOpt shouldBe None
+  }
+
+  it should "return a ModelFileDocument and no schema for the model scheme" in {
+    val modelUri = new URI(s"model:///model-1/$versionHash/weights/model.pt")
+    val (doc, schemaOpt) = DocumentFactory.openDocument(modelUri)
+    doc shouldBe a[ModelFileDocument]
+    schemaOpt shouldBe None
+  }
+
   it should "reject an unsupported scheme" in {
-    an[UnsupportedOperationException] should be thrownBy
-      DocumentFactory.openReadonlyDocument(new URI("bogus:///repo/hash/file"))
+    val thrown = intercept[UnsupportedOperationException] {
+      DocumentFactory.openDocument(new URI("ftp://host/path"))
+    }
+    thrown.getMessage should include("opening the document")
+  }
+
+  "createDocument" should "reject an unsupported scheme" in {
+    val thrown = intercept[UnsupportedOperationException] {
+      DocumentFactory.createDocument(
+        new URI("file:///tmp/x"),
+        Schema().add("v", AttributeType.INTEGER)
+      )
+    }
+    thrown.getMessage should include("creating the document")
+  }
+
+  "documentExists" should "reject an unsupported scheme" in {
+    val thrown = intercept[UnsupportedOperationException] {
+      DocumentFactory.documentExists(new URI("file:///tmp/x"))
+    }
+    thrown.getMessage should include("checking document existence")
+  }
+
+  // ---------------------------------------------------------------------------
+  // vfs scheme -- create / open / exists against a local Iceberg catalog
+  // ---------------------------------------------------------------------------
+
+  private val vfsSchema: Schema = Schema().add("v", AttributeType.INTEGER)
+
+  private def freshResultURI(): URI = {
+    val base = VFSURIFactory.createPortBaseURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      GlobalPortIdentity(
+        PhysicalOpIdentity(
+          logicalOpId = OperatorIdentity(s"op-${UUID.randomUUID().toString.replace("-", "")}"),
+          layerName = "main"
+        ),
+        PortIdentity()
+      )
+    )
+    VFSURIFactory.resultURI(base)
+  }
+
+  "createDocument" should "create an IcebergDocument for a vfs result URI" in {
+    val vfsUri = freshResultURI()
+    val doc = DocumentFactory.createDocument(vfsUri, vfsSchema)
+    doc shouldBe an[IcebergDocument[_]]
+    DocumentFactory.documentExists(vfsUri) shouldBe true
+  }
+
+  it should "create a state document for a vfs state URI (STATE namespace arm)" in {
+    val base = VFSURIFactory.createPortBaseURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      GlobalPortIdentity(
+        PhysicalOpIdentity(
+          logicalOpId = OperatorIdentity(s"op-${UUID.randomUUID().toString.replace("-", "")}"),
+          layerName = "main"
+        ),
+        PortIdentity()
+      )
+    )
+    val stateUri = VFSURIFactory.stateURI(base)
+    val doc = DocumentFactory.createDocument(stateUri, vfsSchema)
+    doc shouldBe an[IcebergDocument[_]]
+    DocumentFactory.documentExists(stateUri) shouldBe true
+  }
+
+  "documentExists" should "report false before creation and true after for a vfs URI" in {
+    val vfsUri = freshResultURI()
+    DocumentFactory.documentExists(vfsUri) shouldBe false
+    DocumentFactory.createDocument(vfsUri, vfsSchema)
+    DocumentFactory.documentExists(vfsUri) shouldBe true
+  }
+
+  it should "resolve the CONSOLE_MESSAGES namespace" in {
+    val consoleUri = VFSURIFactory.createConsoleMessagesURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      OperatorIdentity(s"op-${UUID.randomUUID().toString.replace("-", "")}")
+    )
+    DocumentFactory.documentExists(consoleUri) shouldBe false
+  }
+
+  it should "resolve the RUNTIME_STATISTICS namespace" in {
+    val statsUri = VFSURIFactory.createRuntimeStatisticsURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0)
+    )
+    DocumentFactory.documentExists(statsUri) shouldBe false
+  }
+
+  "openDocument" should "open a created vfs document and return its schema" in {
+    val vfsUri = freshResultURI()
+    DocumentFactory.createDocument(vfsUri, vfsSchema)
+    val (doc, schemaOpt) = DocumentFactory.openDocument(vfsUri)
+    doc shouldBe an[IcebergDocument[_]]
+    schemaOpt shouldBe defined
+    schemaOpt.get.getAttributes.map(_.getName) should contain("v")
+  }
+
+  it should "throw IllegalArgumentException when opening a vfs URI with no backing storage" in {
+    val thrown = intercept[IllegalArgumentException] {
+      DocumentFactory.openDocument(freshResultURI())
+    }
+    thrown.getMessage should include("No storage is found")
   }
 }
