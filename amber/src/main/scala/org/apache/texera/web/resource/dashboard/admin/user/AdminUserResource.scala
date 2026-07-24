@@ -78,7 +78,7 @@ class AdminUserResource {
         USER.UID,
         USER.NAME,
         USER.EMAIL,
-        AUTH_PROVIDER.PROVIDER_ID,
+        AUTH_PROVIDER.SECRET,
         USER.ROLE,
         USER.AVATAR,
         USER.COMMENT,
@@ -138,7 +138,7 @@ class AdminUserResource {
 
       val newAuth = new AuthProvider()
       newAuth.setUid(newUser.getUid)
-      newAuth.setPassword(hashedPassword)
+      newAuth.setSecret(hashedPassword)
       newAuth.setProviderType(ProviderTypeEnum.LOCAL)
       txAuthDao.insert(newAuth)
     }

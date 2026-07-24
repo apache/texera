@@ -80,7 +80,7 @@ class ExternalAuthProvisionerSpec
     val auth = new AuthProvider
     auth.setUid(uid)
     auth.setProviderType(pt)
-    auth.setProviderId(providerId)
+    auth.setSecret(providerId)
     authDao.insert(auth)
   }
 
@@ -89,11 +89,11 @@ class ExternalAuthProvisionerSpec
 
   private def providerIdOf(uid: Integer, pt: ProviderTypeEnum): String =
     getDSLContext
-      .select(AUTH_PROVIDER.PROVIDER_ID)
+      .select(AUTH_PROVIDER.SECRET)
       .from(AUTH_PROVIDER)
       .where(AUTH_PROVIDER.UID.eq(uid))
       .and(AUTH_PROVIDER.PROVIDER_TYPE.eq(pt))
-      .fetchOne(AUTH_PROVIDER.PROVIDER_ID)
+      .fetchOne(AUTH_PROVIDER.SECRET)
 
   private def userCountByEmail(localPart: String): Int =
     getDSLContext.fetchCount(USER, USER.EMAIL.eq(localPart + emailDomain))

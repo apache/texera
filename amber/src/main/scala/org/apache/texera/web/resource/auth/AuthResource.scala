@@ -67,7 +67,7 @@ object AuthResource {
       .fetchOne()
 
     Option(record).flatMap { r =>
-      val encryptedPassword = r.get(AUTH_PROVIDER.PASSWORD)
+      val encryptedPassword = r.get(AUTH_PROVIDER.SECRET)
       if (new StrongPasswordEncryptor().checkPassword(password, encryptedPassword)) {
         Some(r.into(USER).into(classOf[User]))
       } else {
@@ -86,7 +86,7 @@ object AuthResource {
       val auth = new AuthProvider
       auth.setUid(user.getUid)
       auth.setProviderType(ProviderTypeEnum.LOCAL)
-      auth.setPassword(hashedPassword)
+      auth.setSecret(hashedPassword)
       txAuthDao.insert(auth)
     }
   }
