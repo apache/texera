@@ -24,10 +24,12 @@ Usage: compare.py [--unordered] [--ignore-cols c1,c2]
                   <actual.jsonl> <expected.jsonl>
 
   --unordered   Sort both DataFrames lexicographically by all columns before
-                comparing — for set-semantics operators (Intersect, Difference,
-                SymmetricDifference) and joins whose JVM emit order differs
-                from the pandas equivalent. Without this flag, the comparator
-                matches rows positionally after reset_index(drop=True).
+                comparing, so rows match as a set/bag rather than positionally.
+                This is the norm: the engine runs operators across parallel
+                workers, so output row order is not part of the contract.
+                Without this flag the comparator matches rows positionally
+                (after reset_index(drop=True)) — used only for the sort family,
+                whose output order IS meaningful.
 
   --ignore-cols Comma-separated column names to drop from both frames before
                 comparing. For opaque columns whose value isn't compared.

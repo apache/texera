@@ -26,6 +26,10 @@ import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentit
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 class SortOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+
+  // Sorting is this operator's contract: output row order is meaningful.
+  override def orderSensitive: Boolean = true
+
   @JsonProperty(required = true)
   @JsonPropertyDescription("column to perform sorting on")
   var attributes: List[SortCriteriaUnit] = List.empty

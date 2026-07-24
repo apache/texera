@@ -644,8 +644,8 @@ object StableMergeSortTransformHandler extends TransformHandler {
 
 /** HashJoin INNER on `id`. Build (port 0) and probe (port 1) intentionally
   *  arrive in different id orders so any probe-major / left-major mismatch
-  *  between the JVM emit and `pd.merge` shows up. Order policy lives in
-  *  `orderSensitive = false`.
+  *  between the JVM emit and `pd.merge` shows up. HashJoin inherits the
+  *  unordered `LogicalOp.orderSensitive` default, so rows compare as a set.
   */
 object HashJoinTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[HashJoinOpDesc[_]]
@@ -1267,7 +1267,7 @@ abstract class SklearnAdvancedTrainerTransformHandler extends TransformHandler {
   * (see [[TransformVerificationRunner.enumSweepExemptOps]]): the sweep flips each
   * element's function in isolation and would re-pair, e.g., concat with a numeric
   * column; the fixture already covers each function with a type-compatible column.
-  * `AggregateOpDesc` declares `orderSensitive = false`, so
+  * Aggregate inherits the unordered `orderSensitive` default, so
   * the comparator lex-sorts rows before comparing.
   */
 object AggregateTransformHandler extends TransformHandler {

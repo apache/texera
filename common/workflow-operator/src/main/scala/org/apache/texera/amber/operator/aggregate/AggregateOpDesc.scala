@@ -38,8 +38,6 @@ import javax.validation.constraints.{NotNull, Size}
 
 class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
-  // set/bag semantics: output row order is implementation-defined
-  override def orderSensitive: Boolean = false
   @JsonProperty(value = "aggregations", required = true)
   @JsonPropertyDescription("multiple aggregation functions")
   @NotNull(message = "aggregation cannot be null")

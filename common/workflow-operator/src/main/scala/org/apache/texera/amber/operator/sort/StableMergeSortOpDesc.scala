@@ -38,6 +38,9 @@ import scala.collection.mutable.ListBuffer
 //TODO(#3922): disallowing sorting on binary type
 class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
+  // Sorting is this operator's contract: output row order is meaningful.
+  override def orderSensitive: Boolean = true
+
   @JsonProperty(value = "keys", required = true)
   @JsonSchemaTitle("Sort Keys")
   @JsonPropertyDescription("List of attributes to sort by with ordering preferences")

@@ -40,6 +40,9 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 """)
 class SortPartitionsOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
+  // Sorting is this operator's contract: output row order is meaningful.
+  override def orderSensitive: Boolean = true
+
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute")
   @JsonPropertyDescription("Attribute to sort (must be numerical).")

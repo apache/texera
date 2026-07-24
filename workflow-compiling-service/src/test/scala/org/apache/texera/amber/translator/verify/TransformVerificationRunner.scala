@@ -97,8 +97,9 @@ import scala.util.{Failure, Success, Try}
   *     [[OpExecHarness]] otherwise; Path B is always [[StandaloneRunner]].
   *   - Config + fixture: curated handler ([[CuratedHandlers]]) if registered,
   *     else [[ConfigGenerator]] against the [[CanonicalFixture]] schemas.
-  *   - Comparison: strict positional unless the operator declares
-  *     `orderSensitive = false`; all declared output ports are compared.
+  *   - Comparison: order-insensitive by default (parallel output order isn't a
+  *     contract); strict positional only when the operator declares
+  *     `orderSensitive = true` (the sort family). All output ports are compared.
   * Operators that can't be run are Flagged with a reason — never silently
   * skipped.
   */
@@ -419,7 +420,7 @@ object TransformVerificationRunner {
     )
 
     // The operator declares whether its output row order is meaningful via
-    // LogicalOp.orderSensitive (false for set/bag ops); default strict.
+    // LogicalOp.orderSensitive (true only for the sort family); default unordered.
     val orderSensitive = opDesc.orderSensitive
     (0 until outputPortCount).foreach { port =>
       val actual = pathAOutputs.getOrElse(
