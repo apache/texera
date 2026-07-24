@@ -639,19 +639,22 @@ jobs:
         # amber/src/main/resources/web-config.yml (port 8080).
         if: matrix.os == 'ubuntu-latest'
         run: .github/scripts/smoke-boot.sh "/tmp/dists/amber-*/bin/texera-web-application" 8080
-      - name: Smoke-test computing-unit-master boots
-        # computing-unit-master boots on postgres only, like texera-web: main
-        # starts a LOCAL Pekko actor master (clusterMode defaults to false with
-        # no --cluster arg, so no external seed/discovery and the cluster-only
-        # checkip.amazonaws.com lookup is never reached), then run() calls
-        # SqlServer.initConnection against the postgres provisioned above. The
-        # boot-time result-store cleanup is gated on
-        # ApplicationConfig.cleanupAllExecutionResults, which defaults to false,
-        # so no iceberg / S3 access. Config resolves via Utils.amberHomePath to
-        # amber/src/main/resources/computing-unit-master-config.yml (port 8085).
-        # Reuses the amber dist built + unzipped above for the texera-web boot.
+      - name: Smoke-test computing-unit-master boots and the worker joins its cluster
+        # One check for the whole computing-unit cluster: boot a
+        # computing-unit-master and a no-arg computing-unit-worker from the
+        # packaged dist and assert the worker JOINS -- the master's ClusterListener
+        # logging "2 nodes in the cluster". This supersedes a standalone master
+        # boot check: smoke-cluster.sh already boots the master, waits for it to
+        # listen on :8085, and verifies it self-joins its 1-node cluster before the
+        # worker is launched, so a #6204-class linkage crash on master startup is
+        # still caught (reported as "master exited before listening"). The master
+        # runs non-cluster mode (self-seeds localhost:2552) and the worker is
+        # launched with no --serverAddr (joins :2552, skipping the
+        # checkip.amazonaws.com lookup), so no external network; it fails fast if
+        # either JVM dies. Reuses the amber dist built + unzipped above; postgres
+        # already provisioned.
         if: matrix.os == 'ubuntu-latest'
-        run: .github/scripts/smoke-boot.sh "/tmp/dists/amber-*/bin/computing-unit-master" 8085
+        run: .github/scripts/smoke-cluster.sh "/tmp/dists/amber-*/bin/computing-unit-master" "/tmp/dists/amber-*/bin/computing-unit-worker" 8085
       - name: Run Python integration tests
         # --junit-xml feeds the Test Analytics upload below.
         run: |
