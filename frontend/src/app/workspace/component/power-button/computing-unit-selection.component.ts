@@ -73,6 +73,7 @@ import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { ComputingUnitCreateModalComponent } from "../../../common/component/computing-unit-create-modal/computing-unit-create-modal.component";
+import { ComputingUnitMountModalComponent } from "../computing-unit-mount-modal/computing-unit-mount-modal.component";
 
 type PveUserPackageRow = {
   name: string;
@@ -582,6 +583,20 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   public async onClickOpenShareAccess(cuid: number): Promise<void> {
     this.computingUnitActionsService.openShareAccessModal(cuid, true);
+  }
+
+  /**
+   * Open the modal for mounting datasets into a computing unit. Mounting is only
+   * meaningful for Kubernetes-backed CUs (which run the node mounter).
+   */
+  public onClickOpenMountDatasets(unit: DashboardWorkflowComputingUnit): void {
+    this.modalService.create({
+      nzTitle: `Mount datasets · ${unit.computingUnit.name}`,
+      nzContent: ComputingUnitMountModalComponent,
+      nzFooter: null,
+      nzData: { cuid: unit.computingUnit.cuid, computingUnitName: unit.computingUnit.name },
+      nzWidth: "620px",
+    });
   }
 
   onDropdownVisibilityChange(visible: boolean): void {
