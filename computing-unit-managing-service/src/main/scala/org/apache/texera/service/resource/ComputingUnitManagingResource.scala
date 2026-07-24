@@ -50,8 +50,8 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import org.apache.texera.service.resource.ComputingUnitManagingResource._
-import org.apache.texera.service.resource.ComputingUnitState._
 import org.apache.texera.service.util.{
+  ComputingUnitHelpers,
   ComputingUnitManagingServiceException,
   InsufficientComputingUnitQuota,
   KubernetesClient
@@ -194,41 +194,6 @@ class ComputingUnitManagingResource {
       case "local"      => ComputingUnitConfig.localComputingUnitEnabled
       case "kubernetes" => KubernetesConfig.kubernetesComputingUnitEnabled
       case _            => false // Any unknown types are disabled by default
-    }
-  }
-
-  private def getComputingUnitStatus(unit: WorkflowComputingUnit): ComputingUnitState = {
-    unit.getType match {
-      // ── Local CUs are always "running" ──────────────────────────────
-      case WorkflowComputingUnitTypeEnum.local =>
-        Running
-
-      // ── Kubernetes CUs – only explicit "Running" counts as running ─
-      case WorkflowComputingUnitTypeEnum.kubernetes =>
-        val phaseOpt = KubernetesClient
-          .getPodByName(KubernetesClient.generatePodName(unit.getCuid))
-          .map(_.getStatus.getPhase)
-
-        if (phaseOpt.contains("Running")) Running else Pending
-
-      // ── Any other (unknown) type is treated as pending ──────────────
-      case _ =>
-        Pending
-    }
-  }
-
-  private def getComputingUnitMetrics(unit: WorkflowComputingUnit): WorkflowComputingUnitMetrics = {
-    unit.getType match {
-      case WorkflowComputingUnitTypeEnum.local =>
-        WorkflowComputingUnitMetrics("NaN", "NaN")
-      case WorkflowComputingUnitTypeEnum.kubernetes =>
-        val metrics = KubernetesClient.getPodMetrics(unit.getCuid)
-        WorkflowComputingUnitMetrics(
-          metrics.getOrElse("cpu", ""),
-          metrics.getOrElse("memory", "")
-        )
-      case _ =>
-        WorkflowComputingUnitMetrics("NaN", "NaN")
     }
   }
 
@@ -476,8 +441,8 @@ class ComputingUnitManagingResource {
 
       DashboardWorkflowComputingUnit(
         insertedUnit,
-        getComputingUnitStatus(insertedUnit).toString,
-        getComputingUnitMetrics(insertedUnit),
+        ComputingUnitHelpers.getComputingUnitStatus(insertedUnit).toString,
+        ComputingUnitHelpers.getComputingUnitMetrics(insertedUnit),
         isOwner = true,
         accessPrivilege = PrivilegeEnum.WRITE,
         ownerGoogleAvatar,
@@ -528,63 +493,46 @@ class ComputingUnitManagingResource {
           (List.empty[WorkflowComputingUnit], Map.empty[Integer, PrivilegeEnum])
         }
 
-      val allUnits = ownedUnits ++ sharedUnits
-      val ownerUids: List[Integer] = allUnits.map(_.getUid).distinct
       val userDao = new UserDao(ctx.configuration())
-      val ownerInfoMap: Map[Integer, (String, String)] =
-        userDao
-          .fetchByUid(ownerUids: _*)
-          .asScala
-          .map { u =>
-            val avatar = Option(u.getGoogleAvatar).filter(_.nonEmpty).orNull
-            val name = Option(u.getName).filter(_.nonEmpty).orNull
-            u.getUid -> (avatar, name)
-          }
-          .toMap
 
-      // If a Kubernetes pod has already disappeared (e.g., manually deleted or TTL
-      // GC-ed by the cluster), we treat the corresponding computing unit as
-      // terminated from the system's point of view. Here we eagerly update its
-      // terminateTime in the database **before** we build the response list so
-      // that subsequent API calls will no longer return this unit.
-      allUnits.foreach { unit =>
-        if (
-          unit.getType == WorkflowComputingUnitTypeEnum.kubernetes &&
-          !KubernetesClient.podExists(unit.getCuid)
-        ) {
-          unit.setTerminateTime(new Timestamp(System.currentTimeMillis()))
-          computingUnitDao.update(unit)
-        }
+      // Pair each unit with the caller's privilege (owned default to WRITE), one row per cuid, so
+      // a unit that is both owned and shared is reconciled/rendered exactly once.
+      val unitsWithPrivilege =
+        (ownedUnits.map(u => (u, PrivilegeEnum.WRITE)) ++
+          sharedUnits.map(u => (u, sharedUnitInfo(u.getCuid))))
+          .distinctBy { case (unit, _) => unit.getCuid }
+          .filter { case (unit, _) => unit.getTerminateTime == null }
+      val privilegeByCuid = unitsWithPrivilege.map {
+        case (unit, privilege) => unit.getCuid -> privilege
+      }.toMap
+      val candidateUnits = unitsWithPrivilege.map { case (unit, _) => unit }
+
+      // Pod phases decide which Kubernetes units are still alive.
+      val podPhases = ComputingUnitHelpers.podPhasesFor(candidateUnits)
+
+      val liveUnits =
+        ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
+          computingUnitDao,
+          candidateUnits,
+          podPhases
+        )
+
+      // Metrics only for survivors, so fetch after reconciliation.
+      val podMetrics = ComputingUnitHelpers.podMetricsFor(liveUnits)
+
+      val ownerInfoMap =
+        ComputingUnitHelpers.resolveOwnerInfo(userDao, liveUnits.map(_.getUid).distinct)
+
+      liveUnits.map { unit =>
+        ComputingUnitHelpers.buildDashboardUnit(
+          unit,
+          isOwner = unit.getUid.equals(uid),
+          accessPrivilege = privilegeByCuid(unit.getCuid),
+          ownerInfo = ownerInfoMap,
+          podPhases = podPhases,
+          podMetrics = podMetrics
+        )
       }
-
-      // For shared units, we need to check the access privilege which are saved in different table
-      // to streamline the process, we combine owned units with default WRITE privilege and use sharedUnitInfo
-      // to get the privilege for shared units.
-      (ownedUnits.map(u => (u, PrivilegeEnum.WRITE)) ++ sharedUnits.map(u =>
-        (u, sharedUnitInfo(u.getCuid))
-      ))
-        .distinctBy { case (unit, _) => unit.getCuid }
-        .filter { case (unit, _) => unit.getTerminateTime == null }
-        .filter {
-          case (unit, _) =>
-            unit.getType match {
-              case WorkflowComputingUnitTypeEnum.kubernetes =>
-                KubernetesClient.podExists(unit.getCuid)
-              case _ => true
-            }
-        }
-        .map {
-          case (unit, privilege) =>
-            DashboardWorkflowComputingUnit(
-              computingUnit = unit,
-              isOwner = unit.getUid.equals(uid),
-              accessPrivilege = privilege,
-              status = getComputingUnitStatus(unit).toString,
-              metrics = getComputingUnitMetrics(unit),
-              ownerGoogleAvatar = ownerInfoMap.getOrElse(unit.getUid, (null, null))._1,
-              ownerName = ownerInfoMap.getOrElse(unit.getUid, (null, null))._2
-            )
-        }
     }
   }
 
@@ -613,8 +561,8 @@ class ComputingUnitManagingResource {
 
     DashboardWorkflowComputingUnit(
       computingUnit = unit,
-      status = getComputingUnitStatus(unit).toString,
-      metrics = getComputingUnitMetrics(unit),
+      status = ComputingUnitHelpers.getComputingUnitStatus(unit).toString,
+      metrics = ComputingUnitHelpers.getComputingUnitMetrics(unit),
       isOwner = unit.getUid.equals(user.getUid),
       accessPrivilege = {
         val cuAccessDao = new ComputingUnitUserAccessDao(context.configuration())
@@ -748,7 +696,7 @@ class ComputingUnitManagingResource {
       throw new BadRequestException("User has no access to the computing unit")
     }
     val computingUnit = getComputingUnitByCuid(context, cuid.toInt)
-    getComputingUnitMetrics(computingUnit)
+    ComputingUnitHelpers.getComputingUnitMetrics(computingUnit)
   }
 
   @GET

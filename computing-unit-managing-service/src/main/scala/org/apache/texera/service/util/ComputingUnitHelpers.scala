@@ -19,11 +19,41 @@
 package org.apache.texera.service.util
 
 import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import org.apache.texera.service.resource.ComputingUnitManagingResource.WorkflowComputingUnitMetrics
+import org.apache.texera.service.resource.ComputingUnitManagingResource.{
+  DashboardWorkflowComputingUnit,
+  WorkflowComputingUnitMetrics
+}
 import org.apache.texera.service.resource.ComputingUnitState.{ComputingUnitState, Pending, Running}
+import org.jooq.EnumType
+
+import java.sql.Timestamp
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, SeqHasAsJava}
 
 object ComputingUnitHelpers {
+
+  /**
+    * Owner (avatar, name) keyed by uid, resolved in one query. Blank values collapse to `null`;
+    * empty `uids` returns empty without querying.
+    */
+  def resolveOwnerInfo(
+      userDao: UserDao,
+      uids: Seq[Integer]
+  ): Map[Integer, (String, String)] = {
+    if (uids.isEmpty) Map.empty
+    else
+      userDao
+        .fetchByUid(uids: _*)
+        .asScala
+        .map { u =>
+          val avatar = Option(u.getGoogleAvatar).filter(_.nonEmpty).orNull
+          val name = Option(u.getName).filter(_.nonEmpty).orNull
+          u.getUid -> (avatar, name)
+        }
+        .toMap
+  }
+
   def getComputingUnitStatus(unit: WorkflowComputingUnit): ComputingUnitState = {
     unit.getType match {
       // Local CUs are always “running”
@@ -57,5 +87,114 @@ object ComputingUnitHelpers {
       case _ =>
         WorkflowComputingUnitMetrics("NaN", "NaN")
     }
+  }
+
+  /**
+    * Resolves status from a pre-fetched pod-phase map instead of a per-unit cluster call, so a
+    * listing costs O(1) round trips rather than one per unit.
+    */
+  def getComputingUnitStatus(
+      unit: WorkflowComputingUnit,
+      podPhases: Map[String, String]
+  ): ComputingUnitState = {
+    unit.getType match {
+      case WorkflowComputingUnitTypeEnum.local =>
+        Running
+      case WorkflowComputingUnitTypeEnum.kubernetes =>
+        // A missing entry or null phase both count as not-Running.
+        if (podPhases.get(KubernetesClient.generatePodName(unit.getCuid)).contains("Running"))
+          Running
+        else Pending
+      case _ =>
+        Pending
+    }
+  }
+
+  /** Resolves metrics from a pre-fetched pod-metrics map instead of a per-unit cluster call. */
+  def getComputingUnitMetrics(
+      unit: WorkflowComputingUnit,
+      podMetrics: Map[String, Map[String, String]]
+  ): WorkflowComputingUnitMetrics = {
+    unit.getType match {
+      case WorkflowComputingUnitTypeEnum.local =>
+        WorkflowComputingUnitMetrics("NaN", "NaN")
+      case WorkflowComputingUnitTypeEnum.kubernetes =>
+        val metrics = podMetrics
+          .getOrElse(KubernetesClient.generatePodName(unit.getCuid), Map.empty[String, String])
+        WorkflowComputingUnitMetrics(
+          metrics.getOrElse("cpu", ""),
+          metrics.getOrElse("memory", "")
+        )
+      case _ =>
+        WorkflowComputingUnitMetrics("NaN", "NaN")
+    }
+  }
+
+  private def isKubernetes(unit: WorkflowComputingUnit): Boolean =
+    unit.getType match {
+      case WorkflowComputingUnitTypeEnum.kubernetes => true
+      case _                                        => false
+    }
+
+  /** Pod phases for the namespace; skipped (empty) when no Kubernetes unit is present. */
+  def podPhasesFor(units: Seq[WorkflowComputingUnit]): Map[String, String] =
+    if (units.exists(isKubernetes)) KubernetesClient.getAllPodPhases else Map.empty
+
+  /** Pod metrics for the namespace; skipped (empty) when no Kubernetes unit is present. */
+  def podMetricsFor(units: Seq[WorkflowComputingUnit]): Map[String, Map[String, String]] =
+    if (units.exists(isKubernetes)) KubernetesClient.getAllPodMetrics else Map.empty
+
+  /** A Kubernetes unit whose pod is absent from `podPhases` (deleted or TTL GC-ed). */
+  private def isVanished(unit: WorkflowComputingUnit, podPhases: Map[String, String]): Boolean =
+    isKubernetes(unit) && !podPhases.contains(KubernetesClient.generatePodName(unit.getCuid))
+
+  /** Partition into `(live, vanished)` by `podPhases`. Pure (no I/O), so it is unit-testable. */
+  def partitionLiveUnits(
+      units: List[WorkflowComputingUnit],
+      podPhases: Map[String, String]
+  ): (List[WorkflowComputingUnit], List[WorkflowComputingUnit]) =
+    units.partition(unit => !isVanished(unit, podPhases))
+
+  /**
+    * Stamp `terminateTime` on vanished Kubernetes units (one batched update) and return the live
+    * ones. Shared by both listing endpoints so they agree on when a unit is terminated.
+    */
+  def reconcileVanishedKubernetesUnits(
+      dao: WorkflowComputingUnitDao,
+      units: List[WorkflowComputingUnit],
+      podPhases: Map[String, String]
+  ): List[WorkflowComputingUnit] = {
+    val partitioned = partitionLiveUnits(units, podPhases)
+    val vanished = partitioned._2
+    if (vanished.nonEmpty) {
+      val now = new Timestamp(System.currentTimeMillis())
+      vanished.foreach(_.setTerminateTime(now))
+      dao.update(vanished.asJava)
+    }
+    partitioned._1
+  }
+
+  /**
+    * Build one dashboard row; status/metrics come from the pre-fetched maps (no per-unit K8s
+    * call). Shared by both listing endpoints so row shape and owner-info fallback stay identical.
+    */
+  def buildDashboardUnit(
+      unit: WorkflowComputingUnit,
+      isOwner: Boolean,
+      accessPrivilege: EnumType,
+      ownerInfo: Map[Integer, (String, String)],
+      podPhases: Map[String, String],
+      podMetrics: Map[String, Map[String, String]]
+  ): DashboardWorkflowComputingUnit = {
+    val owner = ownerInfo.getOrElse(unit.getUid, (null, null))
+    DashboardWorkflowComputingUnit(
+      computingUnit = unit,
+      status = getComputingUnitStatus(unit, podPhases).toString,
+      metrics = getComputingUnitMetrics(unit, podMetrics),
+      isOwner = isOwner,
+      accessPrivilege = accessPrivilege,
+      ownerGoogleAvatar = owner._1,
+      ownerName = owner._2
+    )
   }
 }

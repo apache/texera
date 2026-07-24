@@ -161,7 +161,12 @@ lazy val WorkflowCore = (project in file("common/workflow-core"))
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
   .dependsOn(WorkflowCore, Auth, Config, Resource)
   .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(DAO % "test->test", Auth % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(
+    // Tests mutate JVM-wide singletons (SqlServer via MockTexeraDB, the
+    // KubernetesClient fabric8 client), so run suites serially to avoid cross-suite races.
+    Test / parallelExecution := false,
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,

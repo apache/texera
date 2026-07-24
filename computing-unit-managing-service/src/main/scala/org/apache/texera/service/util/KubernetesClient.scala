@@ -20,7 +20,7 @@
 package org.apache.texera.service.util
 
 import io.fabric8.kubernetes.api.model._
-import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList
+import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetrics
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
 import org.apache.texera.common.config.KubernetesConfig
 
@@ -28,10 +28,15 @@ import scala.jdk.CollectionConverters._
 
 object KubernetesClient {
 
-  // Initialize the Kubernetes client
-  private val client: io.fabric8.kubernetes.client.KubernetesClient =
+  private var client: io.fabric8.kubernetes.client.KubernetesClient =
     new KubernetesClientBuilder().build()
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
+
+  /** Test-only seam to swap in a stubbed client (exercises the wrappers without a live cluster). */
+  private[util] def setClientForTesting(
+      testClient: io.fabric8.kubernetes.client.KubernetesClient
+  ): Unit =
+    client = testClient
   private val podNamePrefix = "computing-unit"
 
   def generatePodURI(cuid: Int): String = {
@@ -48,19 +53,49 @@ object KubernetesClient {
     Option(client.pods().inNamespace(namespace).withName(podName).get())
   }
 
-  def getPodMetrics(cuid: Int): Map[String, String] = {
-    val podMetricsList: PodMetricsList = client.top().pods().metrics(namespace)
-    val targetPodName = generatePodName(cuid)
+  /**
+    * Phase of every pod in the namespace, keyed by pod name, in one call — so a bulk listing
+    * avoids a per-unit lookup. Unfiltered so callers can test a unit's presence by its pod-name
+    * key; a pod with no status yet maps to a `null` phase but still appears.
+    */
+  def getAllPodPhases: Map[String, String] = {
+    client
+      .pods()
+      .inNamespace(namespace)
+      .list()
+      .getItems
+      .asScala
+      .map(pod => pod.getMetadata.getName -> Option(pod.getStatus).map(_.getPhase).orNull)
+      .toMap
+  }
 
-    podMetricsList.getItems.asScala
+  // Flatten a pod's per-container resource usage into a single metric -> value map.
+  private def containerUsage(podMetrics: PodMetrics): Map[String, String] =
+    podMetrics.getContainers.asScala.flatMap { container =>
+      container.getUsage.asScala.map {
+        case (metric, value) => metric -> value.toString
+      }
+    }.toMap
+
+  // One namespace-wide metrics call, returning the raw per-pod items.
+  private def fetchPodMetricsItems(): Iterable[PodMetrics] =
+    client.top().pods().metrics(namespace).getItems.asScala
+
+  /**
+    * CPU/memory of every pod in the namespace, keyed by pod name, in one call — the bulk
+    * counterpart to the single-unit lookup.
+    */
+  def getAllPodMetrics: Map[String, Map[String, String]] =
+    fetchPodMetricsItems()
+      .map(podMetrics => podMetrics.getMetadata.getName -> containerUsage(podMetrics))
+      .toMap
+
+  def getPodMetrics(cuid: Int): Map[String, String] = {
+    val targetPodName = generatePodName(cuid)
+    fetchPodMetricsItems()
       .collectFirst {
         case podMetrics if podMetrics.getMetadata.getName == targetPodName =>
-          podMetrics.getContainers.asScala.flatMap { container =>
-            container.getUsage.asScala.map {
-              case (metric, value) =>
-                metric -> value.toString
-            }
-          }.toMap
+          containerUsage(podMetrics)
       }
       .getOrElse(Map.empty[String, String])
   }
