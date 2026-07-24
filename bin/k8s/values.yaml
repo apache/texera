@@ -288,6 +288,9 @@ workflowComputingUnitPool:
   name: texera-workflow-computing-unit
   # Note: the namespace of the workflow computing unit pool might conflict when there are multiple texera deployments in the same cluster
   namespace: texera-workflow-computing-unit-pool
+  # Computing unit pods are named "<podNamePrefix>-<cuid>". The manager creates them under
+  # this name and the mounter reads a CU's id back out of it, so both are given this value.
+  podNamePrefix: computing-unit
   # Max number of resources allocated for computing units
   maxRequestedResources:
     cpu: 100
@@ -297,6 +300,16 @@ workflowComputingUnitPool:
   service:
     port: 8085
     targetPort: 8085
+
+# Per-node privileged DaemonSet that performs the GeeseFS FUSE mount for computing-unit
+# pods, so the CU pods stay unprivileged. port/hostMountRoot MUST match the values read by
+# the computing-unit manager (kubernetes.mounter-port / kubernetes.mounter-host-root).
+mounter:
+  imageName: texera-mounter
+  imagePullPolicy: IfNotPresent
+  port: 8100
+  hostMountRoot: /var/lib/texera-mounts
+  serviceAccountName: texera-mounter-service-account
 
 texeraEnvVars:
   - name: USER_SYS_ADMIN_USERNAME
