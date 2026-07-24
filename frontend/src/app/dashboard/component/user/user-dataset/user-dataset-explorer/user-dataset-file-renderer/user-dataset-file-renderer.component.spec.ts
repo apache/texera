@@ -26,7 +26,7 @@ import { DomSanitizer } from "@angular/platform-browser";
 import { commonTestProviders } from "../../../../../../common/testing/test-utils";
 import { of } from "rxjs";
 import * as Papa from "papaparse";
-import { SimpleChanges } from "@angular/core";
+import { SimpleChange, SimpleChanges } from "@angular/core";
 
 describe("UserDatasetFileRendererComponent", () => {
   let component: UserDatasetFileRendererComponent;
@@ -241,27 +241,32 @@ describe("UserDatasetFileRendererComponent", () => {
   });
 
   describe("ngOnChanges", () => {
+    // Realistic SimpleChange(previousValue, currentValue, firstChange) inputs so the tests
+    // don't rely on empty {} placeholders and stay valid if ngOnChanges starts reading the values.
+    const chg = (previous: unknown, current: unknown, firstChange = false): SimpleChange =>
+      new SimpleChange(previous, current, firstChange);
+
     it("reloads when filePath changes", () => {
       const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
-      component.ngOnChanges({ filePath: {} } as unknown as SimpleChanges);
+      component.ngOnChanges({ filePath: chg("/old.txt", "/new.txt") } as SimpleChanges);
       expect(reloadSpy).toHaveBeenCalledTimes(1);
     });
 
     it("reloads when both did and dvid change together", () => {
       const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
-      component.ngOnChanges({ did: {}, dvid: {} } as unknown as SimpleChanges);
+      component.ngOnChanges({ did: chg(1, 2), dvid: chg(3, 4) } as SimpleChanges);
       expect(reloadSpy).toHaveBeenCalledTimes(1);
     });
 
     it("does not reload when only did changes without dvid", () => {
       const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
-      component.ngOnChanges({ did: {} } as unknown as SimpleChanges);
+      component.ngOnChanges({ did: chg(1, 2) } as SimpleChanges);
       expect(reloadSpy).not.toHaveBeenCalled();
     });
 
     it("does not reload for an unrelated input change", () => {
       const reloadSpy = vi.spyOn(component, "reloadFileContent").mockImplementation(() => {});
-      component.ngOnChanges({ isMaximized: {} } as unknown as SimpleChanges);
+      component.ngOnChanges({ isMaximized: chg(false, true) } as SimpleChanges);
       expect(reloadSpy).not.toHaveBeenCalled();
     });
   });
@@ -301,8 +306,9 @@ describe("UserDatasetFileRendererComponent", () => {
       (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeSpy;
       try {
         component.fileURL = "blob:raw";
-        // safeFileURL is a SafeUrl; the code calls .toString() on it before revoking.
-        component.safeFileURL = "blob:safe" as unknown as typeof component.safeFileURL;
+        // safeFileURL is a SafeUrl (an opaque object); the code calls .toString() on it before
+        // revoking, so use an object with a toString() rather than a raw string cast.
+        component.safeFileURL = { toString: () => "blob:safe" } as unknown as typeof component.safeFileURL;
         component.turnOffAllDisplay();
         expect(revokeSpy).toHaveBeenCalledWith("blob:raw");
         expect(revokeSpy).toHaveBeenCalledWith("blob:safe");
@@ -390,7 +396,7 @@ describe("UserDatasetFileRendererComponent", () => {
 
     it("flags an oversized blob returned by the backend and warns the user", () => {
       const notificationService = TestBed.inject(NotificationService);
-      const warnSpy = vi.spyOn(notificationService, "warning").mockImplementation(() => undefined as never);
+      const warnSpy = vi.spyOn(notificationService, "warning").mockImplementation(() => {});
       // TXT limit is 1 MB; build a blob just over it. Pre-check is skipped (fileSize undefined),
       // so the inner blob.size guard is what rejects it.
       const oversized = new Blob(["x".repeat(1024 * 1024 + 10)], { type: "text/plain" });
