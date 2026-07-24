@@ -306,8 +306,9 @@ describe("ComputingUnitStatusService", () => {
 
       service.selectComputingUnit(5, 9);
 
-      // MOCK_USER_ID (1) is threaded through from the stub user service.
-      expect(openSpy).toHaveBeenCalledWith(5, 1, 9);
+      const uid = TestBed.inject(UserService).getCurrentUser()?.uid;
+      expect(uid).not.toBeUndefined();
+      expect(openSpy).toHaveBeenCalledWith(5, uid, 9);
       expect(service.getSelectedComputingUnitValue()).toBe(unit9);
     });
 
