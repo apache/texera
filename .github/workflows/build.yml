@@ -877,7 +877,7 @@ jobs:
       # job; they are no-ops for every other service in the matrix.
       - name: Setup Python for Scala-Python verification tests
         if: ${{ matrix.service == 'workflow-compiling-service' }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install Python dependencies
@@ -903,7 +903,7 @@ jobs:
           curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
           sudo unzip -o /tmp/protoc.zip -d /usr/local
           sudo chmod +x /usr/local/bin/protoc
-          sudo chmod -R a+rX /usr/local/include
+          sudo chmod -R a+rX /usr/local/include/google
       - name: Generate Python proto bindings
         # Regenerate amber/src/main/python/proto so the forked py_op_driver can
         # import pyamber; without this Path A fails with ImportError on proto

@@ -95,24 +95,38 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
     withSteps shouldBe baseDecodes + 4
   }
 
-  "BulletChartStepDefinition" should "initialize with empty start and end defaults" in {
-    val step = new BulletChartStepDefinition()
-    step.start shouldBe ""
-    step.end shouldBe ""
-  }
-
-  it should "render a code block even with the default empty configuration (no assert guard)" in {
-    // Platform behavior is kept identical to main: generatePythonCode has no
-    // assert guard, so empty defaults still render valid Python. Only the
-    // standalone path validates required fields (asserted below).
+  it should "currently render a code block even with the default empty configuration (no assert guard)" in {
+    // Documents the present behavior: BulletChartOpDesc has no assert
+    // guards inside generatePythonCode, so empty defaults still produce
+    // syntactically valid Python source. The intended contract lives in
+    // the pendingUntilFixed test below.
     val op = new BulletChartOpDesc
-    op.generatePythonCode() should include("plotly.graph_objects")
+    val code = op.generatePythonCode()
+    code should include("plotly.graph_objects")
   }
 
-  it should "reject empty required fields before generating standalone code" in {
+  it should "eventually reject empty required value/deltaReference like FunnelPlot/ImageVisualizer (pendingUntilFixed)" in pendingUntilFixed {
+    // Intended contract: `value` and `deltaReference` are marked required
+    // on `BulletChartOpDesc`, so generatePythonCode on a default-constructed
+    // instance should raise instead of rendering empty-string column refs.
+    // Using pendingUntilFixed so a future validation fix flips this test
+    // from Pending to a deliberate failure and forces removal of the marker.
+    val op = new BulletChartOpDesc
+    intercept[RuntimeException] {
+      op.generatePythonCode()
+    }
+  }
+
+  "BulletChartOpDesc.generateStandaloneCode" should "reject empty required fields" in {
     val op = new BulletChartOpDesc
     assertThrows[AssertionError] {
       op.generateStandaloneCode()
     }
+  }
+
+  "BulletChartStepDefinition" should "initialize with empty start and end defaults" in {
+    val step = new BulletChartStepDefinition()
+    step.start shouldBe ""
+    step.end shouldBe ""
   }
 }

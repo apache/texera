@@ -98,6 +98,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
   styleUrls: ["menu.component.scss"],
   imports: [
     NgIf,
+    NzSpaceCompactItemDirective,
     NzButtonComponent,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
@@ -642,8 +643,7 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public onClickExportAsPython(): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
-      this.validationWorkflowService.getValidTexeraGraph(),
-      undefined
+      this.validationWorkflowService.getValidTexeraGraph()
     );
 
     this.isTranslatingToPython = true;
