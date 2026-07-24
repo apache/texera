@@ -19,12 +19,22 @@
 
 package org.apache.texera.amber.core.storage
 
-import org.apache.texera.amber.core.storage.model.VirtualDocument
+import org.apache.texera.amber.core.storage.FileResolver.{
+  DATASET_FILE_URI_SCHEME,
+  MODEL_FILE_URI_SCHEME
+}
+import org.apache.texera.amber.core.storage.model.{
+  DatasetFileDocument,
+  ModelFileDocument,
+  OnVersionedFileResource,
+  VirtualDocument
+}
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
+import java.nio.file.Paths
 
 /**
   * Unit tests for `DocumentFactory.createOrReuseDocument`, the create-or-reuse
@@ -92,5 +102,32 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers {
       (_, _) => created
     )
     probed shouldBe false
+  }
+
+  // Scheme routing: openReadonlyDocument dispatches a resolved {scheme}:///repo/hash/file URI to
+  // the matching versioned-file document. Constructing these documents only parses the URI (no DB
+  // or LakeFS access), so we can assert routing + parsing without any backend.
+  "openReadonlyDocument" should "route the dataset scheme to a DatasetFileDocument" in {
+    val doc = DocumentFactory.openReadonlyDocument(
+      new URI(s"$DATASET_FILE_URI_SCHEME:///dataset-1/abc123/dir/a.csv")
+    )
+    doc shouldBe a[DatasetFileDocument]
+  }
+
+  it should "route the model scheme to a ModelFileDocument and parse its URI components" in {
+    val doc = DocumentFactory.openReadonlyDocument(
+      new URI(s"$MODEL_FILE_URI_SCHEME:///model-1/abc123/weights/model.pt")
+    )
+    doc shouldBe a[ModelFileDocument]
+
+    val resource = doc.asInstanceOf[OnVersionedFileResource]
+    resource.getRepositoryName() shouldBe "model-1"
+    resource.getVersionHash() shouldBe "abc123"
+    resource.getFileRelativePath() shouldBe Paths.get("weights", "model.pt").toString
+  }
+
+  it should "reject an unsupported scheme" in {
+    an[UnsupportedOperationException] should be thrownBy
+      DocumentFactory.openReadonlyDocument(new URI("bogus:///repo/hash/file"))
   }
 }

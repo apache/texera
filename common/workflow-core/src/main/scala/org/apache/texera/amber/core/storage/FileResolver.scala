@@ -24,8 +24,15 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
+import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
+import org.apache.texera.dao.jooq.generated.tables.ModelVersion.MODEL_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetVersion,
+  Model,
+  ModelVersion
+}
 
 import java.net.{URI, URLEncoder}
 import java.nio.charset.StandardCharsets
@@ -39,6 +46,7 @@ import scala.util.{Success, Try}
 object FileResolver {
 
   val DATASET_FILE_URI_SCHEME = "dataset"
+  val MODEL_FILE_URI_SCHEME = "model"
 
   /**
     * Resolves a given fileName to either a file on the local file system or a dataset file.
@@ -51,7 +59,7 @@ object FileResolver {
     if (isFileResolved(fileName)) {
       return new URI(fileName)
     }
-    val resolvers: Seq[String => URI] = Seq(localResolveFunc, datasetResolveFunc)
+    val resolvers: Seq[String => URI] = Seq(localResolveFunc, datasetResolveFunc, modelResolveFunc)
 
     // Try each resolver function in sequence
     resolvers
@@ -76,32 +84,85 @@ object FileResolver {
   }
 
   /**
-    * Parses a dataset logical path into its components, or None if it is not a well-formed dataset path.
-    * Expected format: /datasets/ownerEmail/datasetName/versionName/fileRelativePath
+    * Parses a versioned-resource file path of the form
+    * /<prefix>/ownerEmail/resourceName/versionName/fileRelativePath and extracts its components.
     *
+    * @param resourceType the resource-type segment the path must start with
     * @param fileName The file path to parse
-    * @return Some((ownerEmail, datasetName, versionName, fileRelativePath)) if valid, None otherwise
+    * @return Some((ownerEmail, resourceName, versionName, fileRelativePath)) if valid, None otherwise
     */
-  private def parseDatasetFilePath(
+  private def parsePrefixedPath(
+      resourceType: ResourceType.Value,
       fileName: String
   ): Option[(String, String, String, Array[String])] = {
     val filePath = Paths.get(fileName)
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
-    if (pathSegments.length < 5 || pathSegments(0) != ResourceType.Datasets.toString) {
+    if (pathSegments.length < 5 || pathSegments(0) != resourceType.toString) {
       return None
     }
 
     val ownerEmail = pathSegments(1)
-    val datasetName = pathSegments(2)
+    val resourceName = pathSegments(2)
     val versionName = pathSegments(3)
     val fileRelativePathSegments = pathSegments.drop(4)
 
-    Some((ownerEmail, datasetName, versionName, fileRelativePathSegments))
+    Some((ownerEmail, resourceName, versionName, fileRelativePathSegments))
+  }
+
+  private def parseDatasetFilePath(
+      fileName: String
+  ): Option[(String, String, String, Array[String])] =
+    parsePrefixedPath(ResourceType.Datasets, fileName)
+
+  /**
+    * Resolves a versioned-resource logical path to its physical `scheme:///` URI.
+    *
+    * @throws java.io.FileNotFoundException if the path is not a valid `resourceType` path, the
+    *                                       resource/version does not exist, or the URI is malformed
+    */
+  private def resolveVersionedFile(
+      scheme: String,
+      resourceType: ResourceType.Value,
+      fileName: String,
+      notFoundMessage: String
+  )(lookup: (String, String, String) => (String, String)): URI = {
+    val (ownerEmail, resourceName, versionName, fileRelativePathSegments) =
+      parsePrefixedPath(resourceType, fileName).getOrElse(
+        throw new FileNotFoundException(notFoundMessage)
+      )
+
+    val (repositoryName, versionHash) = lookup(ownerEmail, resourceName, versionName)
+
+    val fileRelativePath =
+      Paths.get(fileRelativePathSegments.head, fileRelativePathSegments.tail: _*)
+
+    // Convert each segment of fileRelativePath to an encoded String
+    val encodedFileRelativePath = fileRelativePath
+      .iterator()
+      .asScala
+      .map { segment =>
+        URLEncoder.encode(segment.toString, StandardCharsets.UTF_8)
+      }
+      .toArray
+
+    // Prepend repositoryName and versionHash to the encoded path segments
+    val allPathSegments = Array(repositoryName, versionHash) ++ encodedFileRelativePath
+
+    // Build the format /{repositoryName}/{versionHash}/{fileRelativePath}, both Linux and Windows use forward slash as the splitter
+    val uriSplitter = "/"
+    val encodedPath = uriSplitter + allPathSegments.mkString(uriSplitter)
+
+    try {
+      new URI(scheme, "", encodedPath, null)
+    } catch {
+      case _: Exception =>
+        throw new FileNotFoundException(notFoundMessage)
+    }
   }
 
   /**
-    * Attempts to resolve a given fileName to a URI.
+    * Attempts to resolve a dataset file path to a URI.
     *
     * The fileName format should be: /datasets/ownerEmail/datasetName/versionName/fileRelativePath
     *   e.g. /datasets/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
@@ -109,20 +170,16 @@ object FileResolver {
     *   e.g. {DATASET_FILE_URI_SCHEME}:///dataset-15/adeq233td/some/dir/file.txt
     *
     * @param fileName the name of the file to attempt resolving as a DatasetFileDocument
-    * @return Either[String, DatasetFileDocument] - Right(document) if creation succeeds
     * @throws java.io.FileNotFoundException if the dataset file does not exist or cannot be created
     */
-  private def datasetResolveFunc(fileName: String): URI = {
-    val (ownerEmail, datasetName, versionName, fileRelativePathSegments) =
-      parseDatasetFilePath(fileName).getOrElse(
-        throw new FileNotFoundException(s"Dataset file $fileName not found.")
-      )
-
-    val fileRelativePath =
-      Paths.get(fileRelativePathSegments.head, fileRelativePathSegments.tail: _*)
-
-    // fetch the dataset and version from DB to get dataset ID and version hash
-    val (dataset, datasetVersion) =
+  private def datasetResolveFunc(fileName: String): URI =
+    resolveVersionedFile(
+      DATASET_FILE_URI_SCHEME,
+      ResourceType.Datasets,
+      fileName,
+      s"Dataset file $fileName not found."
+    ) { (ownerEmail, datasetName, versionName) =>
+      // fetch the dataset and version from DB to get the repository name and version hash
       withTransaction(
         SqlServer
           .getInstance()
@@ -148,35 +205,57 @@ object FileResolver {
         if (dataset == null || datasetVersion == null) {
           throw new FileNotFoundException(s"Dataset file $fileName not found.")
         }
-        (dataset, datasetVersion)
+        (dataset.getRepositoryName, datasetVersion.getVersionHash)
       }
-
-    // Convert each segment of fileRelativePath to an encoded String
-    val encodedFileRelativePath = fileRelativePath
-      .iterator()
-      .asScala
-      .map { segment =>
-        URLEncoder.encode(segment.toString, StandardCharsets.UTF_8)
-      }
-      .toArray
-
-    // Prepend dataset name and versionHash to the encoded path segments
-    val allPathSegments = Array(
-      dataset.getRepositoryName,
-      datasetVersion.getVersionHash
-    ) ++ encodedFileRelativePath
-
-    // Build the format /{repositoryName}/{versionHash}/{fileRelativePath}, both Linux and Windows use forward slash as the splitter
-    val uriSplitter = "/"
-    val encodedPath = uriSplitter + allPathSegments.mkString(uriSplitter)
-
-    try {
-      new URI(DATASET_FILE_URI_SCHEME, "", encodedPath, null)
-    } catch {
-      case e: Exception =>
-        throw new FileNotFoundException(s"Dataset file $fileName not found.")
     }
-  }
+
+  /**
+    * Attempts to resolve a model file path to a URI.
+    *
+    * The fileName format should be: /models/ownerEmail/modelName/versionName/fileRelativePath
+    *   e.g. /models/bob@texera.com/resnet/v1/weights/model.pt
+    * The output model URI format is: {MODEL_FILE_URI_SCHEME}:///{repositoryName}/{versionHash}/fileRelativePath
+    *   e.g. {MODEL_FILE_URI_SCHEME}:///model-15/adeq233td/weights/model.pt
+    *
+    * @param fileName the name of the file to attempt resolving as a ModelFileDocument
+    * @throws java.io.FileNotFoundException if the model file does not exist or cannot be created
+    */
+  private def modelResolveFunc(fileName: String): URI =
+    resolveVersionedFile(
+      MODEL_FILE_URI_SCHEME,
+      ResourceType.Models,
+      fileName,
+      s"Model file $fileName not found."
+    ) { (ownerEmail, modelName, versionName) =>
+      // fetch the model and version from DB to get the repository name and version hash
+      withTransaction(
+        SqlServer
+          .getInstance()
+          .createDSLContext()
+      ) { ctx =>
+        // fetch the model from DB
+        val model = ctx
+          .select(MODEL.fields: _*)
+          .from(MODEL)
+          .leftJoin(USER)
+          .on(USER.UID.eq(MODEL.OWNER_UID))
+          .where(USER.EMAIL.eq(ownerEmail))
+          .and(MODEL.NAME.eq(modelName))
+          .fetchOneInto(classOf[Model])
+
+        // fetch the model version from DB
+        val modelVersion = ctx
+          .selectFrom(MODEL_VERSION)
+          .where(MODEL_VERSION.MID.eq(model.getMid))
+          .and(MODEL_VERSION.NAME.eq(versionName))
+          .fetchOneInto(classOf[ModelVersion])
+
+        if (model == null || modelVersion == null) {
+          throw new FileNotFoundException(s"Model file $fileName not found.")
+        }
+        (model.getRepositoryName, modelVersion.getVersionHash)
+      }
+    }
 
   /**
     * Checks if a given file path has a valid scheme.

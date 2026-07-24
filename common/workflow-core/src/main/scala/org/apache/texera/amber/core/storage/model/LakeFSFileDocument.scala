@@ -1,0 +1,175 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.core.storage.model
+
+import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.common.config.EnvironmentalVariable
+import org.apache.texera.amber.core.storage.model.LakeFSFileDocument.userJwtToken
+import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
+
+import java.io.{File, FileOutputStream, InputStream}
+import java.net._
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path, Paths}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
+
+object LakeFSFileDocument {
+  // Since requests need to be sent to the FileService in order to read the file, we store USER_JWT_TOKEN in the environment vars
+  // This variable should be NON-EMPTY in the dynamic-computing-unit architecture, i.e. each user-created computing unit should store user's jwt token.
+  // In the local development or other architectures, this token can be empty.
+  lazy val userJwtToken: String =
+    sys.env.getOrElse(EnvironmentalVariable.ENV_USER_JWT_TOKEN, "").trim
+}
+
+/**
+  * A read-only document over a single file stored in a LakeFS repository, addressed by the URI
+  * {scheme}:///{repositoryName}/{versionHash}/{fileRelativePath}. This is the shared behavior
+  * for every versioned-file resource (datasets, models, …): the file bytes are fetched via a
+  * presigned URL, falling back to a direct LakeFS fetch.
+  *
+  * @param uri             the resolved {scheme}:///{repositoryName}/{versionHash}/{file} URI
+  * @param presignEndpoint the file-service presign-download endpoint for this resource kind
+  */
+private[storage] abstract class LakeFSFileDocument(uri: URI, presignEndpoint: String)
+    extends VirtualDocument[Nothing]
+    with OnVersionedFileResource
+    with LazyLogging {
+  // Utility function to parse and decode URI segments into individual components
+  private def parseUri(uri: URI): (String, String, Path) = {
+    val segments = Paths.get(uri.getPath).iterator().asScala.map(_.toString).toArray
+    if (segments.length < 3)
+      throw new IllegalArgumentException("URI format is incorrect")
+
+    // parse uri to (repositoryName, versionHash, fileRelativePath)
+    val repositoryName = segments(0)
+    val versionHash = URLDecoder.decode(segments(1), StandardCharsets.UTF_8)
+    val decodedRelativeSegments =
+      segments.drop(2).map(part => URLDecoder.decode(part, StandardCharsets.UTF_8))
+    val fileRelativePath = Paths.get(decodedRelativeSegments.head, decodedRelativeSegments.tail: _*)
+
+    (repositoryName, versionHash, fileRelativePath)
+  }
+
+  // Extract components from URI using the utility function
+  protected val (repositoryName, versionHash, fileRelativePath) = parseUri(uri)
+
+  protected var tempFile: Option[File] = None
+
+  override def getURI: URI = uri
+
+  override def asInputStream(): InputStream = {
+
+    def fallbackToLakeFS(exception: Throwable): InputStream = {
+      logger.warn(s"${exception.getMessage}. Falling back to LakeFS direct file fetch.", exception)
+      val file = LakeFSStorageClient.getFileFromRepo(
+        getRepositoryName(),
+        getVersionHash(),
+        getFileRelativePath()
+      )
+      Files.newInputStream(file.toPath)
+    }
+
+    if (userJwtToken.isEmpty) {
+      try {
+        val presignUrl = LakeFSStorageClient.getFilePresignedUrl(
+          getRepositoryName(),
+          getVersionHash(),
+          getFileRelativePath()
+        )
+        new URL(presignUrl).openStream()
+      } catch {
+        case e: Exception =>
+          fallbackToLakeFS(e)
+      }
+    } else {
+      val presignRequestUrl =
+        s"$presignEndpoint?repositoryName=${getRepositoryName()}&commitHash=${getVersionHash()}&filePath=${URLEncoder
+          .encode(getFileRelativePath(), StandardCharsets.UTF_8.name())}"
+
+      val connection = new URL(presignRequestUrl).openConnection().asInstanceOf[HttpURLConnection]
+      connection.setRequestMethod("GET")
+      connection.setRequestProperty("Authorization", s"Bearer $userJwtToken")
+
+      try {
+        if (connection.getResponseCode != HttpURLConnection.HTTP_OK) {
+          throw new RuntimeException(
+            s"Failed to retrieve presigned URL: HTTP ${connection.getResponseCode}"
+          )
+        }
+
+        // Read response body as a string
+        val responseBody =
+          new String(connection.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+
+        // Extract presigned URL from JSON response
+        val presignedUrl = responseBody
+          .split("\"presignedUrl\"\\s*:\\s*\"")(1)
+          .split("\"")(0)
+
+        new URL(presignedUrl).openStream()
+      } catch {
+        case e: Exception =>
+          fallbackToLakeFS(e)
+      } finally {
+        connection.disconnect()
+      }
+    }
+  }
+
+  override def asFile(): File = {
+    tempFile match {
+      case Some(file) => file
+      case None =>
+        val tempFilePath = Files.createTempFile("versionedFile", ".tmp")
+        val tempFileStream = new FileOutputStream(tempFilePath.toFile)
+        val inputStream = asInputStream()
+
+        val buffer = new Array[Byte](1024)
+
+        // Create an iterator to repeatedly call inputStream.read, and direct buffered data to file
+        Iterator
+          .continually(inputStream.read(buffer))
+          .takeWhile(_ != -1)
+          .foreach(tempFileStream.write(buffer, 0, _))
+
+        inputStream.close()
+        tempFileStream.close()
+
+        val file = tempFilePath.toFile
+        tempFile = Some(file)
+        file
+    }
+  }
+
+  override def clear(): Unit = {
+    // remove the temporary file, if one was materialized
+    tempFile match {
+      case Some(file) => Files.delete(file.toPath)
+      case None       => // Do nothing
+    }
+    tempFile = None
+  }
+
+  override def getRepositoryName(): String = repositoryName
+
+  override def getVersionHash(): String = versionHash
+
+  override def getFileRelativePath(): String = fileRelativePath.toString
+}

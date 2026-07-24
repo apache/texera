@@ -61,12 +61,9 @@ DROP TABLE IF EXISTS workflow_of_project CASCADE;
 DROP TABLE IF EXISTS workflow_executions CASCADE;
 DROP TABLE IF EXISTS dataset_upload_session CASCADE;
 DROP TABLE IF EXISTS dataset_upload_session_part CASCADE;
-DROP TABLE IF EXISTS model_upload_session CASCADE;
-DROP TABLE IF EXISTS model_upload_session_part CASCADE;
 DROP TABLE IF EXISTS dataset CASCADE;
 DROP TABLE IF EXISTS dataset_user_access CASCADE;
 DROP TABLE IF EXISTS dataset_version CASCADE;
-DROP TABLE IF EXISTS model_user_access CASCADE;
 DROP TABLE IF EXISTS model_version CASCADE;
 DROP TABLE IF EXISTS model CASCADE;
 DROP TABLE IF EXISTS public_project CASCADE;
@@ -77,8 +74,6 @@ DROP TABLE IF EXISTS workflow_view_count CASCADE;
 DROP TABLE IF EXISTS user_action CASCADE;
 DROP TABLE IF EXISTS dataset_user_likes CASCADE;
 DROP TABLE IF EXISTS dataset_view_count CASCADE;
-DROP TABLE IF EXISTS model_user_likes CASCADE;
-DROP TABLE IF EXISTS model_view_count CASCADE;
 DROP TABLE IF EXISTS site_settings CASCADE;
 DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
 DROP TABLE IF EXISTS notebook CASCADE;
@@ -383,17 +378,6 @@ CREATE TABLE IF NOT EXISTS model
     UNIQUE (owner_uid, name)
     );
 
--- model_user_access
-CREATE TABLE IF NOT EXISTS model_user_access
-(
-    mid       INT NOT NULL,
-    uid       INT NOT NULL,
-    privilege privilege_enum NOT NULL DEFAULT 'NONE',
-    PRIMARY KEY (mid, uid),
-    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
-    );
-
 -- model_version
 CREATE TABLE IF NOT EXISTS model_version
 (
@@ -403,70 +387,6 @@ CREATE TABLE IF NOT EXISTS model_version
     name          VARCHAR(128) NOT NULL,
     version_hash  VARCHAR(64) NOT NULL,
     creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
-    );
-
-CREATE TABLE IF NOT EXISTS model_upload_session
-(
-    mid                 INT          NOT NULL,
-    uid                 INT          NOT NULL,
-    file_path           TEXT         NOT NULL,
-    upload_id           VARCHAR(256) NOT NULL UNIQUE,
-    physical_address    TEXT,
-    num_parts_requested INT          NOT NULL,
-    file_size_bytes     BIGINT       NOT NULL,
-    part_size_bytes     BIGINT       NOT NULL,
-    created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
-
-    PRIMARY KEY (uid, mid, file_path),
-
-    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE,
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
-
-    CONSTRAINT chk_model_upload_session_num_parts_requested_positive
-        CHECK (num_parts_requested >= 1),
-
-    CONSTRAINT chk_model_upload_session_file_size_bytes_positive
-        CHECK (file_size_bytes > 0),
-
-    CONSTRAINT chk_model_upload_session_part_size_bytes_positive
-        CHECK (part_size_bytes > 0),
-
-    CONSTRAINT chk_model_upload_session_part_size_bytes_s3_upper_bound
-        CHECK (part_size_bytes <= 5368709120)
-);
-
-CREATE TABLE IF NOT EXISTS model_upload_session_part
-(
-    upload_id   VARCHAR(256) NOT NULL,
-    part_number INT          NOT NULL,
-    etag        TEXT         NOT NULL DEFAULT '',
-
-    PRIMARY KEY (upload_id, part_number),
-
-    CONSTRAINT chk_model_part_number_positive CHECK (part_number > 0),
-
-    FOREIGN KEY (upload_id)
-        REFERENCES model_upload_session(upload_id)
-        ON DELETE CASCADE
-);
-
--- model_user_likes table
-CREATE TABLE IF NOT EXISTS model_user_likes
-(
-    uid INTEGER NOT NULL,
-    mid INTEGER NOT NULL,
-    PRIMARY KEY (uid, mid),
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
-    FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
-    );
-
--- model_view_count table
-CREATE TABLE IF NOT EXISTS model_view_count
-(
-    mid        INTEGER NOT NULL,
-    view_count INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (mid),
     FOREIGN KEY (mid) REFERENCES model(mid) ON DELETE CASCADE
     );
 

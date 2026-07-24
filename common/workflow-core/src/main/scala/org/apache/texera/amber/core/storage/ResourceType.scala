@@ -27,4 +27,5 @@ package org.apache.texera.amber.core.storage
   */
 object ResourceType extends Enumeration {
   val Datasets: Value = Value("datasets")
+  val Models: Value = Value("models")
 }

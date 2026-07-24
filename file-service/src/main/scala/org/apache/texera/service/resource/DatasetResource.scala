@@ -25,7 +25,7 @@ import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.amber.core.storage.model.OnDataset
+import org.apache.texera.amber.core.storage.model.OnVersionedFileResource
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver, ResourceType}
 import org.apache.texera.auth.SessionUser
@@ -1604,7 +1604,8 @@ class DatasetResource extends LazyLogging {
         // Case 3: Neither repositoryName nor commitHash are provided, resolve normally
         val response = withTransaction(context) { ctx =>
           val fileUri = FileResolver.resolve(decodedPathStr)
-          val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnDataset]
+          val document =
+            DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnVersionedFileResource]
           val datasetDao = new DatasetDao(ctx.configuration())
           val datasets =
             datasetDao.fetchByRepositoryName(document.getRepositoryName()).asScala.toList
@@ -2246,7 +2247,7 @@ class DatasetResource extends LazyLogging {
             s"${ResourceType.Datasets}/${owner.getEmail}/${dataset.getName}/$normalized"
           )
         )
-        .asInstanceOf[OnDataset]
+        .asInstanceOf[OnVersionedFileResource]
 
       val fileSize = withLakeFSErrorHandling(s"reading the size of cover image '$normalized'") {
         LakeFSStorageClient.getFileSize(
@@ -2303,7 +2304,7 @@ class DatasetResource extends LazyLogging {
 
       val document = DocumentFactory
         .openReadonlyDocument(FileResolver.resolve(fullPath))
-        .asInstanceOf[OnDataset]
+        .asInstanceOf[OnVersionedFileResource]
 
       val presignedUrl = withLakeFSErrorHandling(
         s"generating a presigned URL for cover image '$coverImage'"
@@ -2353,7 +2354,7 @@ class DatasetResource extends LazyLogging {
 
           val document = DocumentFactory
             .openReadonlyDocument(FileResolver.resolve(fullPath))
-            .asInstanceOf[OnDataset]
+            .asInstanceOf[OnVersionedFileResource]
 
           val presignedUrl = withLakeFSErrorHandling(
             s"generating a presigned URL for cover image '$coverImage'"
