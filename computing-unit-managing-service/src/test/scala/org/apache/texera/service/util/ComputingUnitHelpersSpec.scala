@@ -39,9 +39,14 @@ class ComputingUnitHelpersSpec
     with BeforeAndAfterAll
     with MockTexeraDB {
 
-  override protected def beforeAll(): Unit = initializeDBAndReplaceDSLContext()
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+    initializeDBAndReplaceDSLContext()
+  }
 
-  override protected def afterAll(): Unit = shutdownDB()
+  override protected def afterAll(): Unit =
+    try shutdownDB()
+    finally super.afterAll()
 
   private lazy val userDao = new UserDao(getDSLContext.configuration())
   private lazy val computingUnitDao = new WorkflowComputingUnitDao(getDSLContext.configuration())

@@ -63,6 +63,7 @@ class ComputingUnitManagingResourceSpec
   }
 
   override protected def beforeAll(): Unit = {
+    super.beforeAll()
     initializeDBAndReplaceDSLContext()
     new UserDao(getDSLContext.configuration()).insert(user.getUser)
     val unitDao = new WorkflowComputingUnitDao(getDSLContext.configuration())
@@ -70,7 +71,9 @@ class ComputingUnitManagingResourceSpec
     unitDao.insert(localUnit(801, "cu-b"))
   }
 
-  override protected def afterAll(): Unit = shutdownDB()
+  override protected def afterAll(): Unit =
+    try shutdownDB()
+    finally super.afterAll()
 
   private val resource = new ComputingUnitManagingResource
 
