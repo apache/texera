@@ -195,6 +195,11 @@ object FileResolver {
           .and(DATASET.NAME.eq(datasetName))
           .fetchOneInto(classOf[Dataset])
 
+        // fail early if the dataset does not exist (before dereferencing it below)
+        if (dataset == null) {
+          throw new FileNotFoundException(s"Dataset file $fileName not found.")
+        }
+
         // fetch the dataset version from DB
         val datasetVersion = ctx
           .selectFrom(DATASET_VERSION)
@@ -202,7 +207,7 @@ object FileResolver {
           .and(DATASET_VERSION.NAME.eq(versionName))
           .fetchOneInto(classOf[DatasetVersion])
 
-        if (dataset == null || datasetVersion == null) {
+        if (datasetVersion == null) {
           throw new FileNotFoundException(s"Dataset file $fileName not found.")
         }
         (dataset.getRepositoryName, datasetVersion.getVersionHash)
@@ -243,6 +248,11 @@ object FileResolver {
           .and(MODEL.NAME.eq(modelName))
           .fetchOneInto(classOf[Model])
 
+        // fail early if the model does not exist (before dereferencing it below)
+        if (model == null) {
+          throw new FileNotFoundException(s"Model file $fileName not found.")
+        }
+
         // fetch the model version from DB
         val modelVersion = ctx
           .selectFrom(MODEL_VERSION)
@@ -250,7 +260,7 @@ object FileResolver {
           .and(MODEL_VERSION.NAME.eq(versionName))
           .fetchOneInto(classOf[ModelVersion])
 
-        if (model == null || modelVersion == null) {
+        if (modelVersion == null) {
           throw new FileNotFoundException(s"Model file $fileName not found.")
         }
         (model.getRepositoryName, modelVersion.getVersionHash)
