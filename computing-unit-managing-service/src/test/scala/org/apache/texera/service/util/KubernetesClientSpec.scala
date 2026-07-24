@@ -90,9 +90,9 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       )
       .build()
 
-  override protected def beforeAll(): Unit = {
+override protected def beforeAll(): Unit = {
+    super.beforeAll()
     val client = mock(classOf[Fabric8Client])
-
     val podsMixed = mock(classOf[MixedOperation[_, _, _]])
       .asInstanceOf[MixedOperation[Pod, PodList, PodResource]]
     val podsInNamespace = mock(classOf[NonNamespaceOperation[_, _, _]])
