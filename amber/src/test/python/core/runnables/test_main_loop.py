@@ -666,6 +666,8 @@ class TestMainLoop:
         stats_invocation = elem.payload.return_invocation
         worker_metrics_response = stats_invocation.return_value.worker_metrics_response
         stats = worker_metrics_response.metrics.worker_statistics
+        # a missing/dropped version would echo through the read-back below; guard it
+        assert worker_metrics_response.metrics.state_version > 0
 
         metrics = WorkerMetrics(
             worker_state=WorkerState.RUNNING,
@@ -1106,6 +1108,8 @@ class TestMainLoop:
         # version is the worker's logical state clock; read it from the actual
         # report rather than pinning a brittle count (covered by StateManager tests).
         state_version = elem.payload.return_invocation.return_value.worker_state_response.state_version
+        # a missing/dropped version would echo through the read-back; guard it
+        assert state_version > 0
         assert elem == DCMElement(
             tag=mock_control_output_channel,
             payload=DirectControlMessagePayloadV2(
@@ -1133,6 +1137,8 @@ class TestMainLoop:
         # version is the worker's logical state clock; read it from the actual
         # report rather than pinning a brittle count (covered by StateManager tests).
         state_version = elem.payload.return_invocation.return_value.worker_state_response.state_version
+        # a missing/dropped version would echo through the read-back; guard it
+        assert state_version > 0
         assert elem == DCMElement(
             tag=mock_control_output_channel,
             payload=DirectControlMessagePayloadV2(

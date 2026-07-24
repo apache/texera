@@ -48,7 +48,8 @@ class StateManager[T](
   // transitions, the version totally orders them in causal order. Reporting this
   // version alongside the state lets remote observers (e.g. the controller) reject
   // stale state reports that arrive out of order, without relying on wall-clock
-  // timestamps that cannot be compared across processes.
+  // timestamps that cannot be compared across processes. Must mirror the Python
+  // StateManager (amber/src/main/python/core/architecture/managers/state_manager.py).
   private var stateVersion: Long = 0L
 
   def getStateVersion: Long = stateVersion
