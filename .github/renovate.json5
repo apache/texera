@@ -119,6 +119,11 @@
       groupName: 'agent-service minor updates',
     },
     {
+      matchFileNames: ['bin/y-websocket-server/**'],
+      matchUpdateTypes: ['minor'],
+      groupName: 'y-websocket-server minor updates',
+    },
+    {
       matchFileNames: ['amber/**'],
       matchUpdateTypes: ['minor'],
       groupName: 'pyamber minor updates',
