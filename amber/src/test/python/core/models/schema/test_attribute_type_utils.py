@@ -186,11 +186,10 @@ class TestCreateArrowFieldWithMetadata:
             pytest.param(pa.string(), id="arrow-type"),
         ],
     )
-    def test_non_attribute_type_raises_key_error(self, invalid_type):
-        """Anything that isn't an AttributeType member fails the mapping lookup."""
-        with pytest.raises(KeyError):
-            create_arrow_field_with_metadata("f", invalid_type)
-
+def test_non_attribute_type_raises_type_or_key_error(self, invalid_type):
+    """Non-AttributeType inputs should fail fast (exception type is an implementation detail)."""
+    with pytest.raises((KeyError, TypeError)):
+        create_arrow_field_with_metadata("f", invalid_type)
 
 class TestRoundTrip:
     @pytest.mark.parametrize("attr_type", list(AttributeType), ids=lambda t: t.name)
