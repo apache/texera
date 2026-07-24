@@ -105,6 +105,11 @@
       groupName: 'pyamber patch updates',
     },
     {
+      matchFileNames: ['bin/y-websocket-server/**'],
+      matchUpdateTypes: ['patch'],
+      groupName: 'y-websocket-server patch updates',
+    },
+    {
       matchFileNames: ['frontend/**'],
       matchUpdateTypes: ['minor'],
       groupName: 'frontend minor updates',
