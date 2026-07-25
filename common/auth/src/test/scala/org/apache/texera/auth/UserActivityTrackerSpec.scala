@@ -301,7 +301,12 @@ class UserActivityTrackerSpec extends AnyFlatSpec with Matchers {
     )
     threads.foreach(_.start())
     start.countDown()
-    threads.foreach(_.join())
+    // bounded join: a stuck thread fails the test instead of hanging the suite
+    threads.foreach(_.join(5000))
+    threads.zipWithIndex.foreach {
+      case (t, i) =>
+        withClue(s"thread $i did not finish within 5s: ")(t.isAlive shouldBe false)
+    }
 
     // the CAS claim lets a single caller through; the rest are dropped
     recorder.calls.size shouldBe 1
