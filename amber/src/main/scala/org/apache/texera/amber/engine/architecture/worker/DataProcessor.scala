@@ -171,7 +171,7 @@ class DataProcessor(
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
-        logger.info(
+        logger.debug(
           s"$executor completed, # of input ports = ${inputManager.getAllPorts.size}, " +
             s"input tuple count = ${statisticsManager.getInputTupleCount}, " +
             s"output tuple count = ${statisticsManager.getOutputTupleCount}"
@@ -242,14 +242,14 @@ class DataProcessor(
   ): Unit = {
     inputManager.currentChannelId = channelId
     val command = ecm.commandMapping.get(actorId.name)
-    logger.info(s"receive ECM from $channelId, id = ${ecm.id}, cmd = $command")
+    logger.debug(s"receive ECM from $channelId, id = ${ecm.id}, cmd = $command")
     if (ecm.ecmType != NO_ALIGNMENT) {
       pauseManager.pauseInputChannel(ECMPause(ecm.id), List(channelId))
     }
     if (ecmManager.isECMAligned(channelId, ecm)) {
       logManager.markAsReplayDestination(ecm.id)
       // invoke the control command carried with the ECM
-      logger.info(s"process ECM from $channelId, id = ${ecm.id}, cmd = $command")
+      logger.debug(s"process ECM from $channelId, id = ${ecm.id}, cmd = $command")
       if (command.isDefined) {
         // The reply must go back to the actor that originated the invocation
         // (recorded in command.context.sender), not to channelId.fromWorkerId.
@@ -268,7 +268,7 @@ class DataProcessor(
         outputManager.flush(Some(downstreamChannelsInScope))
         outputGateway.getActiveChannels.foreach { activeChannelId =>
           if (downstreamChannelsInScope.contains(activeChannelId)) {
-            logger.info(
+            logger.debug(
               s"send ECM to $activeChannelId, id = ${ecm.id}, cmd = $command"
             )
             outputGateway.sendTo(activeChannelId, ecm)
