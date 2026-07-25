@@ -160,4 +160,13 @@ class WorkerStateManagerSpec extends AnyFlatSpec {
     }
     assert(sm.getStateVersion == 0L)
   }
+
+  it should "return the state and its version as one pair via getStateWithVersion" in {
+    val sm = newManager(UNINITIALIZED)
+    assert(sm.getStateWithVersion == ((UNINITIALIZED, 0L)))
+    sm.transitTo(READY)
+    assert(sm.getStateWithVersion == ((READY, 1L)))
+    sm.transitTo(RUNNING)
+    assert(sm.getStateWithVersion == ((RUNNING, 2L)))
+  }
 }

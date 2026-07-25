@@ -97,3 +97,14 @@ class StateManager:
         :return:
         """
         return self._state_version
+
+    def get_state_with_version(self) -> Tuple[T, int]:
+        """
+        Return the current state together with its version as one pair, so a
+        report site cannot interleave a transition between reading the state and
+        reading the version. Every state-report site must use this instead of
+        separate get_current_state/get_state_version calls. Mirrors the Scala
+        StateManager's getStateWithVersion.
+        :return:
+        """
+        return self._current_state, self._state_version

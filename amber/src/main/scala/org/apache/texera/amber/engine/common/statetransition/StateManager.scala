@@ -54,6 +54,14 @@ class StateManager[T](
 
   def getStateVersion: Long = stateVersion
 
+  /**
+    * Returns the current state together with its version as one pair, so a report
+    * site cannot interleave a transition between reading the state and reading the
+    * version. Every state-report site must use this instead of separate
+    * getCurrentState/getStateVersion calls.
+    */
+  def getStateWithVersion: (T, Long) = (currentState, stateVersion)
+
   def assertState(state: T): Unit = {
     if (currentState != state) {
       throw InvalidStateException(

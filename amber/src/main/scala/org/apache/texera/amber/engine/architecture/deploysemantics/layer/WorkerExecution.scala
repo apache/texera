@@ -44,14 +44,14 @@ case class WorkerExecution() extends Serializable {
   // Logical version of the last applied state, sourced from the worker's
   // WorkerStateManager. Starts below any real version so the first report applies.
   private var lastStateVersion = -1L
-  // Wall-clock (controller-side nanoTime) of the last applied stats snapshot.
+  // Controller-side receipt time (System.nanoTime) of the last applied stats snapshot.
   private var lastStatsTimeStamp = 0L
 
   private def isTerminal(s: WorkerState): Boolean = s == COMPLETED || s == TERMINATED
 
   /**
     * Applies a worker state report, ordered causally by the worker's monotonic
-    * `stateVersion` rather than by wall-clock time. A report is applied only when it
+    * `stateVersion` rather than by receipt time. A report is applied only when it
     * is strictly newer than the last applied one, so a stale state that arrives late
     * (e.g. the RUNNING snapshot carried by a slow startWorker response) cannot clobber
     * a newer state. In addition, terminal states (COMPLETED/TERMINATED) are absorbing:
@@ -81,8 +81,8 @@ case class WorkerExecution() extends Serializable {
   /**
     * Updates only the worker statistics if the provided timestamp is newer than the
     * last recorded stats timestamp. Stats are monotonic snapshots, so newest-wins by
-    * wall-clock is sufficient (and necessary, since two snapshots taken within the same
-    * state share a state version).
+    * receipt time is sufficient (and necessary, since two snapshots taken within the
+    * same state share a state version).
     *
     * @param timeStamp the nanosecond-timestamp of this update
     * @param newStats the new WorkerStatistics to set

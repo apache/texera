@@ -99,3 +99,16 @@ class TestStateManager:
         with pytest.raises(InvalidTransitionException):
             state_manager.transit_to(WorkerState.RUNNING)
         assert state_manager.get_state_version() == 0
+
+    def test_get_state_with_version_returns_matching_pair(self, state_manager):
+        # Report sites read state and version through this single accessor so the
+        # pair can never come from two different transitions. Mirrors the Scala
+        # StateManager's getStateWithVersion.
+        assert state_manager.get_state_with_version() == (
+            WorkerState.UNINITIALIZED,
+            0,
+        )
+        state_manager.transit_to(WorkerState.READY)
+        assert state_manager.get_state_with_version() == (WorkerState.READY, 1)
+        state_manager.transit_to(WorkerState.RUNNING)
+        assert state_manager.get_state_with_version() == (WorkerState.RUNNING, 2)
