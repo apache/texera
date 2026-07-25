@@ -264,10 +264,12 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "refuse to build a sliding window when no batch column is configured" in {
     val exec = new TestSQLSourceOpExec(descJson())
-    intercept[IllegalArgumentException](exec.slidingWindow).getMessage shouldBe
-      "no valid batchByColumn to iterate: "
-    intercept[IllegalArgumentException](exec.batchValue(Int.box(1))).getMessage shouldBe
-      "No valid batchByColumn to iterate: "
+    // the two call sites word the message identically but differ in the capitalization of "no";
+    // pin the semantics, not the casing, so normalizing it later stays a harmless change
+    intercept[IllegalArgumentException](exec.slidingWindow).getMessage should
+      fullyMatch regex "(?i)no valid batchByColumn to iterate: "
+    intercept[IllegalArgumentException](exec.batchValue(Int.box(1))).getMessage should
+      fullyMatch regex "(?i)no valid batchByColumn to iterate: "
   }
 
   it should "offer exactly one query when progressive mode is disabled" in {
@@ -348,6 +350,10 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
       .returning(statement)
     (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
     (resultSet.next _).expects().returning(true)
+    // the probe currently throws before closing; allow (but don't require) the close-out so a
+    // later fix that releases the ResultSet/PreparedStatement on this path won't break the spec
+    (resultSet.close _).expects().anyNumberOfTimes()
+    (statement.close _).expects().anyNumberOfTimes()
 
     val exec =
       new TestSQLSourceOpExec(progressiveJson("name", Option("auto"), Option("auto"), 4L), conn)
