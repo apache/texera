@@ -104,9 +104,6 @@ class PythonUdfUiParameterInjectorSpec extends AnyFlatSpec with Matchers {
     val injectedCode = inject(uiParameter("date", AttributeType.TIMESTAMP, "2024-01-01T00:00:00Z"))
 
     injectedCode should include("class ProcessTupleOperator(UDFOperatorV2):")
-    injectedCode should include(
-      "# Follow-up runtime support exports Dict/Any and defines the base hook that @overrides targets."
-    )
     injectedCode should include("def _texera_injected_ui_parameters(self) -> Dict[str, Any]:")
     injectedCode should include("return {")
     injectedCode should include("self.decode_python_template")
