@@ -24,8 +24,14 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest
 }
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  ReturnInvocation
+}
 import org.apache.texera.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.FIFOMessageElement
+
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 /**
   * The EndWorker control messages is needed to ensure all the other control messages in a worker
@@ -42,13 +48,32 @@ trait EndHandler {
       request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    // Ensure this is really the last message.
-    if (!dp.inputManager.inputMessageQueue.isEmpty) {
+    // Ensure this is really the last message that carries work. RPC acks
+    // (ReturnInvocations for this worker's own fire-and-forget calls, e.g.
+    // workerExecutionCompleted / portCompleted) race with EndWorker by design:
+    // the coordinator decides to end the worker while its acks are still in
+    // flight. The worker never awaits those acks, so an ack-only backlog is
+    // safe to leave unprocessed at termination -- failing on it only makes
+    // region termination retry and CI flaky. Anything else still fails loudly
+    // so the region execution manager retries the kill instead of dropping
+    // real work.
+    val pending = dp.inputManager.inputMessageQueue.asScala.toList
+    val ackOnly = pending.forall {
+      case FIFOMessageElement(msg) => msg.payload.isInstanceOf[ReturnInvocation]
+      case _                       => false
+    }
+    if (pending.nonEmpty && !ackOnly) {
       logger.warn(
         s"Received EndHandler before all messages are processed. Unprocessed messages: " +
-          s"${dp.inputManager.inputMessageQueue.peek()}"
+          s"$pending"
       )
       return Future.exception(new IllegalStateException("worker still has unprocessed messages"))
+    }
+    if (pending.nonEmpty) {
+      logger.warn(
+        s"Received EndHandler with only RPC acks left in the queue; proceeding with " +
+          s"termination. Pending acks: $pending"
+      )
     }
     // Now we can safely acknowledge that this worker can be terminated.
     EmptyReturn()

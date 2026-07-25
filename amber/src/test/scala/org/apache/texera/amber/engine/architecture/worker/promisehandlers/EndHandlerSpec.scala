@@ -25,7 +25,10 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest
 }
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  ReturnInvocation
+}
 import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_QUERY_STATISTICS
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   ActorCommandElement,
@@ -93,6 +96,15 @@ class EndHandlerSpec extends AnyFlatSpec {
     queue
   }
 
+  private def ackElement(sequenceNumber: Long, commandId: Long): DPInputQueueElement =
+    FIFOMessageElement(
+      WorkflowFIFOMessage(
+        ChannelIdentity(COORDINATOR, workerId, isControl = true),
+        sequenceNumber,
+        ReturnInvocation(commandId, EmptyReturn())
+      )
+    )
+
   "EndHandler" should "reply successfully when there are no unprocessed messages" in {
     val handler = createEndHandlerForQueue(new LinkedBlockingQueue[DPInputQueueElement]())
 
@@ -107,6 +119,31 @@ class EndHandlerSpec extends AnyFlatSpec {
 
   it should "fail when an actor command is still queued" in {
     val handler = createEndHandlerForQueue(queueWithActorCommand())
+
+    assertEndWorkerFails(handler)
+  }
+
+  it should "reply successfully when only RPC acks (ReturnInvocations) are queued" in {
+    // Race at region termination: the coordinator's ReturnInvocation ack for
+    // this worker's own fire-and-forget RPC (e.g. workerExecutionCompleted)
+    // can still be in flight when EndWorker arrives. Such acks carry no work
+    // -- the worker never awaits them -- so an ack-only backlog must not fail
+    // the kill (it previously did, making region termination retry and loop
+    // e2e tests flaky).
+    val queue = new LinkedBlockingQueue[DPInputQueueElement]()
+    queue.put(ackElement(sequenceNumber = 0, commandId = 1))
+    queue.put(ackElement(sequenceNumber = 1, commandId = 2))
+    val handler = createEndHandlerForQueue(queue)
+
+    assert(await(handler.endWorker(EmptyRequest(), rpcContext)) == EmptyReturn())
+  }
+
+  it should "fail when an RPC ack is queued together with real work" in {
+    // Leniency is strictly ack-only: any non-ack message (here a control
+    // invocation) still fails the kill so the retry lets the worker drain it.
+    val queue = queueWithFifoControlMessage()
+    queue.put(ackElement(sequenceNumber = 1, commandId = 2))
+    val handler = createEndHandlerForQueue(queue)
 
     assertEndWorkerFails(handler)
   }
