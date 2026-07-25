@@ -524,6 +524,10 @@ class SyncExecutionResource extends LazyLogging {
   ): (String, Option[Any], Option[Int], Option[Int], Option[Boolean]) = {
     import com.fasterxml.jackson.databind.node.ObjectNode
 
+    // Hoisted so the catch below can drain a partially-consumed read: the
+    // iterator has no close API, but a bounded read (getRange) releases its
+    // underlying reader once drained to its limit.
+    var tupleIterator: Iterator[Tuple] = Iterator.empty
     try {
       val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
         executionId,
@@ -540,9 +544,17 @@ class SyncExecutionResource extends LazyLogging {
 
           val totalCount = document.getCount.toInt
           val mapper = new ObjectMapper()
-          val tupleIterator = document.get()
+          // Bounded reads (getRange) release their Parquet/S3 reader inside the
+          // next() that serves their last record, so each read below is sized
+          // to what this method actually consumes. The unbounded get()
+          // previously used here outlived the early returns and was only
+          // reclaimed by the GC finalizer. The first tuple gets its own
+          // single-record read because the visualization and
+          // oversized-first-tuple branches return after consuming exactly one
+          // tuple.
+          val firstTupleIterator = document.getRange(0, 1)
 
-          if (totalCount == 0 || !tupleIterator.hasNext) {
+          if (totalCount == 0 || !firstTupleIterator.hasNext) {
             return (
               "table",
               Some(List.empty[ObjectNode].asJava),
@@ -554,7 +566,7 @@ class SyncExecutionResource extends LazyLogging {
 
           // A single tuple with html-content / json-content is a visualization payload —
           // the frontend renders it as an iframe rather than a table.
-          val firstTuple = tupleIterator.next()
+          val firstTuple = firstTupleIterator.next()
           if (totalCount == 1 && isVisualizationTuple(firstTuple)) {
             val jsonResults =
               ExecutionResultService.convertTuplesToJson(List(firstTuple), isVisualization = true)
@@ -587,6 +599,10 @@ class SyncExecutionResource extends LazyLogging {
               Some(true)
             )
           }
+
+          // Records 1 until totalCount; the truncation loops below drain this
+          // iterator fully, releasing its reader at the bound.
+          tupleIterator = document.getRange(1, totalCount)
 
           val halfLimit = maxOperatorResultCharLimit / 2
           val truncationNoticeSize = 50 // reserved for the "...skipped..." marker
@@ -694,6 +710,16 @@ class SyncExecutionResource extends LazyLogging {
     } catch {
       case e: Exception =>
         logger.warn(s"Error collecting result for operator $opId: ${e.getMessage}", e)
+        // Drain what the truncation loops left behind so the bounded read
+        // reaches its limit and releases its reader; this costs at most what
+        // the successful path would have spent reading the same records.
+        try {
+          while (tupleIterator.hasNext) tupleIterator.next()
+        } catch {
+          // A failing reader ends the drain early; the GC finalizer still
+          // covers whatever the failure left open.
+          case _: Exception =>
+        }
         ("table", None, None, None, None)
     }
   }
