@@ -27,6 +27,10 @@
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: ['config:recommended'],
 
+  // When a config option we use is renamed or deprecated upstream,
+  // Renovate opens a PR migrating this file instead of logging a warning.
+  configMigration: true,
+
   // Only the ecosystems dependabot.yml covered; enable more (docker,
   // gradle, etc.) deliberately in follow-ups rather than by default.
   enabledManagers: ['npm', 'bun', 'sbt', 'pip_requirements', 'github-actions'],
