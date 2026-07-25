@@ -117,14 +117,18 @@ class AsterixDBConnUtilSpec
 
   override protected def afterAll(): Unit = {
     server.stop(0)
-    // Don't leak this suite's entries into the shared-JVM singleton.
-    AsterixDBConnUtil.asterixDBVersionMapping.clear()
+    // Don't leak this suite's entries into the shared-JVM singleton. Only this
+    // suite's own keys are dropped: sbt runs suites in parallel in one JVM, and
+    // AsterixDBSourceOpExecSpec relies on its own entry staying put.
+    AsterixDBConnUtil.asterixDBVersionMapping -= host
+    AsterixDBConnUtil.asterixDBVersionMapping -= "some-other-host"
   }
 
   override protected def beforeEach(): Unit = {
-    // The version cache is a mutable singleton keyed by host; reset it so every
-    // test starts from a cold cache, along with the stub's canned responses.
-    AsterixDBConnUtil.asterixDBVersionMapping.clear()
+    // The version cache is a mutable singleton keyed by host; reset this suite's
+    // key so every test starts from a cold cache, along with the stub's canned
+    // responses.
+    AsterixDBConnUtil.asterixDBVersionMapping -= host
     versionHits.set(0)
     versionStatus = 200
     versionBody = versionJson("0.9.9")
