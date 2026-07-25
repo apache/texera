@@ -131,7 +131,7 @@ class WorkerExecutionSpec extends AnyFlatSpec {
   it should "track state version and stats timestamp independently" in {
     val we = WorkerExecution()
     // A high stats timestamp must not block a later (higher-version) state update,
-    // and vice versa — the two orderings are independent.
+    // and vice versa: the two orderings are independent.
     we.updateStats(timeStamp = 1000L, stats(idle = 1L))
     we.updateState(stateVersion = 1L, WorkerState.RUNNING)
     assert(we.getState == WorkerState.RUNNING)

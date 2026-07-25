@@ -140,7 +140,7 @@ object RegionExecutionManagerTestSupport {
         case InitializeExecutor | OpenExecutor =>
           Some(EmptyReturn())
         case StartWorker =>
-          // RUNNING is the worker's 2nd transition (UNINITIALIZED→READY→RUNNING).
+          // RUNNING is the worker's 2nd transition (UNINITIALIZED -> READY -> RUNNING).
           Some(WorkerStateResponse(WorkerState.RUNNING, stateVersion = 2L))
         case EndWorker =>
           endWorkerResponse(call)
