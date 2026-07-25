@@ -19,6 +19,8 @@ import fs
 import importlib
 import inspect
 import itertools
+import json
+import os
 import sys
 from cached_property import cached_property
 from fs.base import FS
@@ -104,6 +106,15 @@ class ExecutorManager:
         # from the tmp fs we just wrote — no re-import / reload dance.
         executor_module = importlib.import_module(module_name)
         self.operator_module_name = module_name
+
+        # Expose each dataset mounted on this computing unit (set by
+        # texera_run_python_worker from the worker startup config, as a JSON object
+        # of {variableName: localMountPath}) to the UDF code as a module-level
+        # variable holding its local path, unless the UDF defines its own.
+        mounted_datasets = json.loads(os.environ.get("MOUNTED_DATASETS", "{}"))
+        for variable_name, mount_path in mounted_datasets.items():
+            if not hasattr(executor_module, variable_name):
+                setattr(executor_module, variable_name, mount_path)
 
         executors = list(
             filter(self.is_concrete_operator, executor_module.__dict__.values())
