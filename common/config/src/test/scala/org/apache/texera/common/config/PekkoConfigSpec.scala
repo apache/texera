@@ -77,16 +77,32 @@ class PekkoConfigSpec extends AnyFlatSpec with Matchers {
     config.getString("pekko.stdout-loglevel") shouldBe "INFO"
   }
 
-  it should "always expose a loglevel pekko accepts, whatever spelling the env used" in {
-    // Pekko only knows these level names (Logging.levelFor). Anything else — such as
-    // logback's WARN arriving through ${?TEXERA_SERVICE_LOG_LEVEL} — makes every
-    // ActorSystem creation print a LoggerException and fall back to ERROR.
-    Set("OFF", "ERROR", "WARNING", "INFO", "DEBUG") should contain(
-      PekkoConfig.pekkoConfig.getString("pekko.loglevel")
-    )
+  it should "expose exactly the normalized form of whatever the env supplied" in {
+    // Env-insensitive by construction: for ANY env value the exposed level must
+    // equal its normalized form (which is the identity for spellings the
+    // translation doesn't know). This pins the plumbing — pekkoConfig actually
+    // routes pekko.loglevel through normalizePekkoLogLevel — and is exercised
+    // for real by CI, which sets the logback spelling WARN.
+    sys.env
+      .get("TEXERA_SERVICE_LOG_LEVEL")
+      .orElse(sys.props.get("TEXERA_SERVICE_LOG_LEVEL"))
+      .foreach { raw =>
+        PekkoConfig.pekkoConfig.getString("pekko.loglevel") shouldBe
+          PekkoConfig.normalizePekkoLogLevel(raw)
+      }
   }
 
-  "PekkoConfig.normalizePekkoLogLevel" should "translate logback-only spellings to pekko's" in {
+  "PekkoConfig.normalizePekkoLogLevel" should "map known spellings into pekko's set" in {
+    // Every spelling from the combined logback + pekko vocabulary must land in
+    // pekko's accepted set (Logging.levelFor); anything else makes every
+    // ActorSystem creation print a LoggerException and fall back to ERROR.
+    val pekkoAccepted = Set("OFF", "ERROR", "WARNING", "INFO", "DEBUG")
+    Seq("OFF", "ERROR", "WARN", "WARNING", "INFO", "DEBUG", "TRACE", "ALL").foreach { spelling =>
+      pekkoAccepted should contain(PekkoConfig.normalizePekkoLogLevel(spelling))
+    }
+  }
+
+  it should "translate logback-only spellings to pekko's" in {
     PekkoConfig.normalizePekkoLogLevel("WARN") shouldBe "WARNING"
     PekkoConfig.normalizePekkoLogLevel("warn") shouldBe "WARNING"
     PekkoConfig.normalizePekkoLogLevel("TRACE") shouldBe "DEBUG"
