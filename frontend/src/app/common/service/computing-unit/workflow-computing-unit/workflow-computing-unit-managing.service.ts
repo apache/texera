@@ -34,6 +34,16 @@ export const COMPUTING_UNIT_CREATE_URL = `${COMPUTING_UNIT_BASE_URL}/create`;
 export const COMPUTING_UNIT_LIST_URL = `${COMPUTING_UNIT_BASE_URL}`;
 export const COMPUTING_UNIT_TYPES_URL = `${COMPUTING_UNIT_BASE_URL}/types`;
 
+/** A dataset version mounted on a computing unit. */
+export interface MountedDatasetInfo {
+  /** Human-readable /ownerEmail/datasetName/versionName ("" if it could not be resolved). */
+  datasetPath: string;
+  repositoryName: string;
+  commitHash: string;
+  /** Local (in-pod) path where the dataset is mounted. */
+  mountPath: string;
+}
+
 @Injectable({
   providedIn: "root",
 })
@@ -191,4 +201,27 @@ export class WorkflowComputingUnitManagingService {
       {}
     );
   }
+
+  /**
+   * List the datasets currently mounted on a computing unit.
+   * @param cuid The ID of the computing unit.
+   */
+  public listMountedDatasets(cuid: number): Observable<MountedDatasetInfo[]> {
+    return this.http.get<MountedDatasetInfo[]>(
+      `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}/mounts`
+    );
+  }
+
+  /**
+   * Mount a dataset version onto a computing unit.
+   * @param cuid The ID of the computing unit.
+   * @param datasetPath The /ownerEmail/datasetName/versionName path to mount.
+   */
+  public mountDataset(cuid: number, datasetPath: string): Observable<MountedDatasetInfo> {
+    return this.http.post<MountedDatasetInfo>(
+      `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}/mounts`,
+      { datasetPath }
+    );
+  }
+
 }
