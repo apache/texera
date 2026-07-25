@@ -164,8 +164,8 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(
-    // Tests mutate JVM-wide singletons (SqlServer via MockTexeraDB, the
-    // KubernetesClient fabric8 client), so run suites serially to avoid cross-suite races.
+    // MockTexeraDB swaps a JVM-wide singleton (SqlServer's embedded Postgres),
+    // so run suites serially to avoid cross-suite races.
     Test / parallelExecution := false,
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher

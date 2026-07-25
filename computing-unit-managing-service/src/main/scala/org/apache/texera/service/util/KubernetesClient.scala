@@ -28,15 +28,9 @@ import scala.jdk.CollectionConverters._
 
 object KubernetesClient {
 
-  private var client: io.fabric8.kubernetes.client.KubernetesClient =
+  private val client: io.fabric8.kubernetes.client.KubernetesClient =
     new KubernetesClientBuilder().build()
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
-
-  /** Test-only seam to swap in a stubbed client (exercises the wrappers without a live cluster). */
-  private[util] def setClientForTesting(
-      testClient: io.fabric8.kubernetes.client.KubernetesClient
-  ): Unit =
-    client = testClient
   private val podNamePrefix = "computing-unit"
 
   def generatePodURI(cuid: Int): String = {
@@ -58,16 +52,14 @@ object KubernetesClient {
     * avoids a per-unit lookup. Unfiltered so callers can test a unit's presence by its pod-name
     * key; a pod with no status yet maps to a `null` phase but still appears.
     */
-  def getAllPodPhases: Map[String, String] = {
-    client
-      .pods()
-      .inNamespace(namespace)
-      .list()
-      .getItems
-      .asScala
+  def getAllPodPhases: Map[String, String] =
+    phasesByPodName(client.pods().inNamespace(namespace).list().getItems.asScala)
+
+  /** Pure fabric8 -> map transform: a pod with no status yet maps to a `null` phase. */
+  private[util] def phasesByPodName(pods: Iterable[Pod]): Map[String, String] =
+    pods
       .map(pod => pod.getMetadata.getName -> Option(pod.getStatus).map(_.getPhase).orNull)
       .toMap
-  }
 
   // Flatten a pod's per-container resource usage into a single metric -> value map.
   private def containerUsage(podMetrics: PodMetrics): Map[String, String] =
@@ -76,6 +68,12 @@ object KubernetesClient {
         case (metric, value) => metric -> value.toString
       }
     }.toMap
+
+  /** Pure fabric8 -> map transform over the raw per-pod metrics items. */
+  private[util] def metricsByPodName(
+      items: Iterable[PodMetrics]
+  ): Map[String, Map[String, String]] =
+    items.map(podMetrics => podMetrics.getMetadata.getName -> containerUsage(podMetrics)).toMap
 
   // One namespace-wide metrics call, returning the raw per-pod items.
   private def fetchPodMetricsItems(): Iterable[PodMetrics] =
@@ -86,9 +84,7 @@ object KubernetesClient {
     * counterpart to the single-unit lookup.
     */
   def getAllPodMetrics: Map[String, Map[String, String]] =
-    fetchPodMetricsItems()
-      .map(podMetrics => podMetrics.getMetadata.getName -> containerUsage(podMetrics))
-      .toMap
+    metricsByPodName(fetchPodMetricsItems())
 
   def getPodMetrics(cuid: Int): Map[String, String] = {
     val targetPodName = generatePodName(cuid)

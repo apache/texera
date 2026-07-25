@@ -224,6 +224,16 @@ class ComputingUnitHelpersSpec
       WorkflowComputingUnitMetrics("NaN", "NaN")
   }
 
+  // ── podPhasesFor / podMetricsFor guards ──────────────────────────────
+
+  "podPhasesFor" should "return empty (issuing no cluster call) when no kubernetes unit is present" in {
+    ComputingUnitHelpers.podPhasesFor(List(localUnit(), untypedUnit())) shouldBe empty
+  }
+
+  "podMetricsFor" should "return empty (issuing no cluster call) when no kubernetes unit is present" in {
+    ComputingUnitHelpers.podMetricsFor(List(localUnit(), untypedUnit())) shouldBe empty
+  }
+
   // ── resolveOwnerInfo (backed by the embedded database) ───────────────
 
   "resolveOwnerInfo" should "resolve avatar/name and collapse blank values to null" in {

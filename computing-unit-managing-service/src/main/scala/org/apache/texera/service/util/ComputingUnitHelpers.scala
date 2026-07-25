@@ -62,9 +62,11 @@ object ComputingUnitHelpers {
 
       // Kubernetes CUs – only explicit “Running” counts as running
       case WorkflowComputingUnitTypeEnum.kubernetes =>
+        // Guard the pod status the same way the bulk getAllPodPhases does: a pod with no
+        // status yet has a null getStatus, so map through Option to avoid an NPE.
         val phaseOpt = KubernetesClient
           .getPodByName(KubernetesClient.generatePodName(unit.getCuid))
-          .map(_.getStatus.getPhase)
+          .flatMap(pod => Option(pod.getStatus).map(_.getPhase))
 
         if (phaseOpt.contains("Running")) Running else Pending
 
