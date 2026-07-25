@@ -170,6 +170,16 @@
           </i>
           <i
             nz-icon
+            nzType="database"
+            nz-tooltip
+            *ngIf="unit.isOwner && unit.computingUnit.type === 'kubernetes'"
+            [nzTooltipTitle]="'Mount datasets into computing unit'"
+            (click)="onClickOpenMountDatasets(unit); $event.stopPropagation()"
+            role="button"
+            aria-label="Mount datasets into computing unit">
+          </i>
+          <i
+            nz-icon
             nzType="share-alt"
             nz-tooltip
             *ngIf="this.config.env.sharingComputingUnitEnabled"
