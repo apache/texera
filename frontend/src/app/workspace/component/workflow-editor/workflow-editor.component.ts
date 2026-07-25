@@ -1735,7 +1735,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * it. The whole feature is opt-in and self-effacing: if it is disabled or the
    * backend returns nothing, the canvas is untouched.
    */
+
+  private readonly repositionSuggestion$ = new Subject<void>();
+
   private handleOperatorRecommendation(): void {
+    this.repositionSuggestion$
+      .pipe(auditTime(100), untilDestroyed(this))
+      .subscribe(() => this.repositionRecommendations());
+
     if (!this.operatorRecommendationService.isEnabled()) {
       return;
     }
@@ -1766,7 +1773,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // Keep the suggestions anchored to the operator's output port as it moves.
     this.paper.model.on("change:position", (cell: joint.dia.Cell) => {
       if (this.operatorSuggestion && cell.id.toString() === this.operatorSuggestion.operatorId) {
-        this.repositionRecommendations();
+        this.repositionSuggestion$.next();
       }
     });
 
@@ -1845,9 +1852,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       return;
     }
     const position = this.getRecommendationPosition(this.operatorSuggestion.operatorId);
-    if (position) {
-      this.operatorSuggestion = { ...this.operatorSuggestion, position };
+    const prev = this.operatorSuggestion.position;
+    if (!position || (position.x === prev.x && position.y === prev.y)) {
+      return;
     }
+    this.operatorSuggestion = { ...this.operatorSuggestion, position };
     this.changeDetectorRef.detectChanges();
   }
 
