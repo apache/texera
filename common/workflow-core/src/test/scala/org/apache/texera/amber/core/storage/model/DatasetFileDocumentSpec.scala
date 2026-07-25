@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.core.storage.model
 
+import org.apache.texera.common.config.EnvironmentalVariable
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -139,5 +140,28 @@ class DatasetFileDocumentSpec extends AnyFlatSpec with Matchers {
       }
       thrown.getMessage shouldBe "URI format is incorrect"
     }
+  }
+
+  // The companion object resolves the file-service endpoint and the user JWT
+  // token from environment variables, falling back to a trimmed default. These
+  // lazy vals are read whenever asInputStream needs to fetch a file; assert their
+  // fallback behavior without requiring a live FileService or LakeFS. The checks
+  // are guarded so they hold regardless of whether the env overrides are present.
+  "DatasetFileDocument companion" should
+    "expose the default presigned-URL endpoint when the env override is absent" in {
+    val expected =
+      sys.env
+        .getOrElse(
+          EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT,
+          "http://localhost:9092/api/dataset/presign-download"
+        )
+        .trim
+    DatasetFileDocument.fileServiceGetPresignURLEndpoint shouldBe expected
+  }
+
+  it should "expose a trimmed user JWT token defaulting to empty" in {
+    val expected =
+      sys.env.getOrElse(EnvironmentalVariable.ENV_USER_JWT_TOKEN, "").trim
+    DatasetFileDocument.userJwtToken shouldBe expected
   }
 }
