@@ -1,0 +1,82 @@
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+-->
+
+<div class="dataset-variables">
+  <div
+    *ngIf="activeCuid == null"
+    class="dataset-variables-hint">
+    Select a computing unit to mount datasets and bind them here.
+  </div>
+  <div
+    *ngIf="activeCuid != null && !activeCuIsKubernetes"
+    class="dataset-variables-hint">
+    Dataset mounting is only available on Kubernetes computing units.
+  </div>
+  <div
+    *ngIf="activeCuIsKubernetes && mountedDatasetPaths.length === 0 && !loading"
+    class="dataset-variables-hint">
+    No datasets are mounted on the active computing unit yet. Use "Mount datasets into computing unit" on the computing
+    unit to add one.
+  </div>
+
+  <div
+    class="dataset-variable-row"
+    *ngFor="let row of rows; let i = index; trackBy: trackByIndex">
+    <input
+      nz-input
+      class="dataset-variable-name"
+      placeholder="variable"
+      [(ngModel)]="row.variableName"
+      (ngModelChange)="onRowChange()" />
+    <span class="dataset-variable-arrow">=</span>
+    <nz-select
+      class="dataset-variable-select"
+      nzShowSearch
+      nzAllowClear
+      nzPlaceHolder="mounted dataset"
+      [(ngModel)]="row.datasetPath"
+      (ngModelChange)="onRowChange()">
+      <nz-option
+        *ngFor="let path of optionsForRow(row)"
+        [nzValue]="path"
+        [nzLabel]="path"></nz-option>
+    </nz-select>
+    <i
+      nz-icon
+      nzType="delete"
+      class="dataset-variable-remove"
+      nz-tooltip
+      [nzTooltipTitle]="'Remove'"
+      (click)="removeRow(i)"
+      role="button"
+      aria-label="Remove variable"></i>
+  </div>
+
+  <button
+    nz-button
+    nzType="dashed"
+    nzSize="small"
+    class="dataset-variables-add"
+    (click)="addRow()">
+    <i
+      nz-icon
+      nzType="plus"></i>
+    Add variable
+  </button>
+</div>

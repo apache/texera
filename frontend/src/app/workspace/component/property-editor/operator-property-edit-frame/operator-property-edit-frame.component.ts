@@ -1038,6 +1038,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.type = "datasetversionselector";
       }
 
+      // Python UDF: bind datasets mounted on the active computing unit to variables.
+      // Replace formly's default array rendering with a single custom widget that owns
+      // the whole [{variableName, datasetPath}] value, so strip the array scaffolding.
+      if (mappedField.key === "datasetVariables") {
+        mappedField.type = "datasetvariables";
+        delete mappedField.fieldArray;
+        delete mappedField.fieldGroup;
+        if (!Array.isArray(mappedField.defaultValue)) {
+          mappedField.defaultValue = [];
+        }
+      }
+
       // Aggregate: the attribute is optional for `count` (an empty attribute means COUNT(*),
       // counting all rows) and required for every other function. Show the required marker
       // (red *) accordingly, based on the sibling aggFunction within the same row.
