@@ -69,13 +69,8 @@
       (ngModelChange)="onSearchInput($event)" />
   </nz-input-group>
   <ng-template #searchClearTpl>
-    <nz-spin
-      *ngIf="searchLoading"
-      nzSimple
-      nzSize="small"
-      style="display: inline-block; margin-right: 4px"></nz-spin>
     <i
-      *ngIf="searchText && !searchLoading"
+      *ngIf="searchText"
       nz-icon
       nzType="close-circle"
       nzTheme="fill"
