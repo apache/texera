@@ -293,12 +293,15 @@ jobs:
           STORAGE_ICEBERG_CATALOG_TYPE: postgres
           # Backstop for CI log volume: the chatty per-worker/per-message engine
           # logs are DEBUG in source; pin the JVM root and the spawned Python UDF
-          # workers so nothing at INFO leaks into the CI console. Mind the spelling:
-          # logback's level is WARN, but loguru (the Python worker) only knows
-          # WARNING and raises ValueError on "WARN" — which crashes the worker at
-          # startup before it hands its port back, hanging the whole job.
-          TEXERA_SERVICE_LOG_LEVEL: WARN
-          UDF_PYTHON_LOG_STREAMHANDLER_LEVEL: WARNING
+          # workers so nothing at INFO leaks into the CI console. Re-running the
+          # job with "Enable debug logging" (which sets runner.debug to '1')
+          # flips both to DEBUG, bringing the full engine trace back on demand.
+          # Mind the spelling: logback's level is WARN, but loguru (the Python
+          # worker) only knows WARNING and raises ValueError on "WARN" — which
+          # crashes the worker at startup before it hands its port back,
+          # hanging the whole job.
+          TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
+          UDF_PYTHON_LOG_STREAMHANDLER_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARNING' }}
         run: |
           sbt "DAO/jacoco" \
               "Auth/jacoco" \
@@ -340,8 +343,10 @@ jobs:
     if: ${{ inputs.run_amber_integration }}
     # A Python UDF worker that fails to start (e.g. a bad log level) leaves the
     # JVM blocked on the proxy handshake with no internal timeout, so the whole
-    # job would otherwise hang until GitHub's 6h cap. Fail fast instead.
-    timeout-minutes: 40
+    # job would otherwise hang until GitHub's 6h cap. Fail fast instead: recent
+    # green runs take 9-17 minutes, so 25 leaves headroom for a cold cache or a
+    # slow macOS runner without masking a real hang.
+    timeout-minutes: 25
     strategy:
       # macOS provisions postgres / minio / lakekeeper natively because
       # GitHub-hosted macOS runners have no Docker (and `services:`
@@ -623,12 +628,15 @@ jobs:
           AMBER_TEST_FILTER: integration-only
           # Backstop for CI log volume: the chatty per-worker/per-message engine
           # logs are DEBUG in source; pin the JVM root and the spawned Python UDF
-          # workers so nothing at INFO leaks into the CI console. Mind the spelling:
-          # logback's level is WARN, but loguru (the Python worker) only knows
-          # WARNING and raises ValueError on "WARN" — which crashes the worker at
-          # startup before it hands its port back, hanging the whole job.
-          TEXERA_SERVICE_LOG_LEVEL: WARN
-          UDF_PYTHON_LOG_STREAMHANDLER_LEVEL: WARNING
+          # workers so nothing at INFO leaks into the CI console. Re-running the
+          # job with "Enable debug logging" (which sets runner.debug to '1')
+          # flips both to DEBUG, bringing the full engine trace back on demand.
+          # Mind the spelling: logback's level is WARN, but loguru (the Python
+          # worker) only knows WARNING and raises ValueError on "WARN" — which
+          # crashes the worker at startup before it hands its port back,
+          # hanging the whole job.
+          TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
+          UDF_PYTHON_LOG_STREAMHANDLER_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARNING' }}
         run: |
           sbt scalafmtCheckAll \
               "scalafixAll --check" \
