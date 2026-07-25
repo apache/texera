@@ -46,7 +46,7 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 object WorkflowCompiler {
-  // util function to convert the error list to an error map, and report the error in log
+  // util function to convert the error list to an error map, and report the errors in the log
   private def convertErrorListToWorkflowFatalErrorMap(
       logger: Logger,
       errorList: List[(OperatorIdentity, Throwable)]
@@ -110,7 +110,7 @@ object WorkflowCompiler {
 
 case class WorkflowCompilationResult(
     logicalPlan: LogicalPlan,
-    physicalPlan: Option[PhysicalPlan], // if physical plan is none, the compilation is failed
+    physicalPlan: Option[PhysicalPlan], // if physicalPlan is None, compilation failed
     operatorIdToOutputSchemas: Map[OperatorIdentity, Map[PortIdentity, Option[Schema]]],
     operatorIdToError: Map[OperatorIdentity, WorkflowFatalError],
     outputPortsNeedingStorage: Set[GlobalPortIdentity]
@@ -132,7 +132,7 @@ class WorkflowCompiler(
 ) extends LazyLogging {
 
   /**
-    * Function to expand logical plan to physical plan
+    * Expands the logical plan to a physical plan.
     * @return the expanded physical plan and a set of output ports that need storage
     */
   private def expandLogicalPlan(
@@ -226,9 +226,10 @@ class WorkflowCompiler(
   }
 
   /**
-    * Compile a workflow to physical plan, along with the schema propagation result and error(if any).
+    * Compiles a workflow to a physical plan, along with the schema propagation result and
+    * errors (if any).
     *
-    * @param logicalPlanPojo the pojo parsed from workflow str provided by user
+    * @param logicalPlanPojo the POJO parsed from the workflow string provided by the user
     * @param errorHandling   Lenient (editing-time, collect all errors) or Strict (pre-execution, throw)
     * @return WorkflowCompilationResult, containing the logical plan, physical plan, output schemas per
     *         op, errors per op, and the output ports that need storage
@@ -256,8 +257,9 @@ class WorkflowCompiler(
       expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, errorList)
 
     // 4. collect the output schema for each logical op
-    // even if error is encountered when logical => physical, we still want to get the input schemas
-    // for the rest of the no-error operators. In Lenient mode schema-propagation failures land in
+    // even if an error is encountered during logical => physical expansion, we still want to
+    // collect the output schemas of the remaining no-error operators. In Lenient mode
+    // schema-propagation failures land in
     // the shared buffer alongside the other errors; in Strict mode they must fail fast too (e.g. a
     // Projection on a missing column would otherwise be launched and only fail at runtime).
     val schemaErrorList = errorList.getOrElse(new ArrayBuffer[(OperatorIdentity, Throwable)]())

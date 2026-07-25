@@ -75,8 +75,6 @@ case class LogicalPlan(
 
   def getTopologicalOpIds: util.Iterator[OperatorIdentity] = jgraphtDag.iterator()
 
-  def getOperator(opId: String): LogicalOp = operatorMap(OperatorIdentity(opId))
-
   def getOperator(opId: OperatorIdentity): LogicalOp = operatorMap(opId)
 
   def getTerminalOperatorIds: List[OperatorIdentity] =
@@ -89,9 +87,11 @@ case class LogicalPlan(
   }
 
   /**
-    * Resolve all user-given filename for the scan source operators to URIs, and call op.setFileUri to set the URi
+    * Resolves each scan source operator's user-given file name to a URI and sets it on the
+    * operator via `setResolvedFileName`.
     *
-    * @param errorList if given, put errors during resolving to it; otherwise the error is thrown
+    * @param errorList if given, errors encountered during resolution are appended to it;
+    *                  otherwise the first error is thrown
     */
   def resolveScanSourceOpFileName(
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]

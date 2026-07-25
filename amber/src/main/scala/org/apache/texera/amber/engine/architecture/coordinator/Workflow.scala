@@ -41,9 +41,16 @@ object Workflow {
       context: WorkflowContext,
       compilationResult: WorkflowCompilationResult
   ): Workflow = {
+    val physicalPlan = compilationResult.physicalPlan.getOrElse(
+      throw new IllegalStateException(
+        "fromCompilationResult requires a compilation result with a defined physicalPlan " +
+          "(compile with CompilationErrorHandling.Strict); this result carries " +
+          s"${compilationResult.operatorIdToError.size} compilation error(s) instead"
+      )
+    )
     context.workflowSettings = context.workflowSettings.copy(
       outputPortsNeedingStorage = compilationResult.outputPortsNeedingStorage
     )
-    Workflow(context, compilationResult.logicalPlan, compilationResult.physicalPlan.get)
+    Workflow(context, compilationResult.logicalPlan, physicalPlan)
   }
 }
