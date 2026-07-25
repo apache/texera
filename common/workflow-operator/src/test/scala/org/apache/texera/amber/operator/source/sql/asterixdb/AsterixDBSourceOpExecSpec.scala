@@ -149,16 +149,22 @@ class AsterixDBSourceOpExecSpec
       )
     }
 
-  override protected def beforeAll(): Unit = server.start()
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+    server.start()
+  }
 
   override protected def afterAll(): Unit = {
-    server.stop(0)
-    // Drop only this suite's key so a concurrently running AsterixDBConnUtilSpec
-    // keeps its own cache entry.
-    AsterixDBConnUtil.asterixDBVersionMapping -= host
+    try {
+      server.stop(0)
+      // Drop only this suite's key so a concurrently running AsterixDBConnUtilSpec
+      // keeps its own cache entry.
+      AsterixDBConnUtil.asterixDBVersionMapping -= host
+    } finally super.afterAll()
   }
 
   override protected def beforeEach(): Unit = {
+    super.beforeEach()
     tableNameRows = Seq("\"twitter\"\n")
     dataRows = Seq.empty
     recordedStatements.synchronized { recordedStatements.clear() }
@@ -447,17 +453,16 @@ class AsterixDBSourceOpExecSpec
     queryBuilder.result() should endWith(" WHERE 1 = 1 ")
   }
 
-  it should "interpolate the descriptor itself instead of database.table in the FROM clause" in {
-    // Pins a live bug: the source writes s"... FROM $desc.database.$desc.table ...",
-    // so `$desc` interpolates the whole descriptor (LogicalOp.toString is a
-    // reflective dump) and `.database`/`.table` stay literal. The dataset the
-    // user configured never reaches the FROM clause.
+  it should "qualify the FROM clause with the configured database and table" in {
     val exec = newExec()
     val queryBuilder = new StringBuilder
     exec.addBaseSelect(queryBuilder)
     val query = queryBuilder.result()
-    query should not include "FROM test.twitter "
-    query should include(s" FROM ${exec.desc}.database.${exec.desc}.table WHERE 1 = 1 ")
+    query should include(" FROM test.twitter WHERE 1 = 1 ")
+    // The descriptor itself must never leak into the query: `s"$desc.database"`
+    // renders LogicalOp.toString (a reflective dump) followed by literal
+    // ".database", which is what this used to emit.
+    query should not include exec.desc.toString
   }
 
   "AsterixDBSourceOpExec.addLimit" should "inline the remaining limit rather than bind a parameter" in {
@@ -671,20 +676,23 @@ class AsterixDBSourceOpExecSpec
     val exec = newExec()
     exec.curLimit = Some(2L)
     exec.curOffset = Some(1L)
+    // AsterixDB applies LIMIT/OFFSET server side, so the stub answers the
+    // generated `LIMIT 2 OFFSET 1` with the corresponding window of the three
+    // rows it holds: "first" is skipped by the OFFSET, "second" and "third"
+    // come back.
     dataRows = Seq(
-      "1,2023-11-13T10:15:30,1,1.0,first,true",
       "2,2023-11-13T10:15:30,2,2.0,second,true",
       "3,2023-11-13T10:15:30,3,3.0,third,true"
     )
     val tuples = drain(exec)
     dataStatements.head should include(" LIMIT 2")
     dataStatements.head should include(" OFFSET 1")
-    // Pins current behavior: neither bound is enforced on the client, so all
-    // three stub rows come through. The offset skip is a no-op here because the
-    // loop only peeks with `hasNext` before breaking - unlike the JDBC base
-    // class, whose `resultSet.next()` actually advances past the skipped row -
-    // and the limit is only decremented, never used to stop emitting.
-    tuples.map(_.getField[Any]("text")) shouldBe List("first", "second", "third")
+    tuples.map(_.getField[Any]("text")) shouldBe List("second", "third")
+    // The client-side offset skip is a no-op for this executor: the loop only
+    // peeks with `hasNext` before breaking - unlike the JDBC base class, whose
+    // `resultSet.next()` actually advances past the skipped row - so no
+    // server-filtered row is dropped a second time. Both counters still wind
+    // down to zero, which is what stops the next query from being generated.
     exec.curOffset shouldBe Some(0L)
     exec.curLimit shouldBe Some(0L)
   }
