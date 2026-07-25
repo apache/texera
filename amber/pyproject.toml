@@ -43,3 +43,8 @@ addopts = "--import-mode=importlib"
 markers = [
     "integration: end-to-end test routed to the amber-integration CI job",
 ]
+# `fs` pulls in pkg_resources at import time (#4199); the same filter lives in
+# texera_run_python_worker.py for spawned workers.
+filterwarnings = [
+    "ignore:pkg_resources is deprecated as an API.*:UserWarning",
+]
