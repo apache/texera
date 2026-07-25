@@ -76,4 +76,28 @@ class PekkoConfigSpec extends AnyFlatSpec with Matchers {
     }
     config.getString("pekko.stdout-loglevel") shouldBe "INFO"
   }
+
+  it should "always expose a loglevel pekko accepts, whatever spelling the env used" in {
+    // Pekko only knows these level names (Logging.levelFor). Anything else — such as
+    // logback's WARN arriving through ${?TEXERA_SERVICE_LOG_LEVEL} — makes every
+    // ActorSystem creation print a LoggerException and fall back to ERROR.
+    Set("OFF", "ERROR", "WARNING", "INFO", "DEBUG") should contain(
+      PekkoConfig.pekkoConfig.getString("pekko.loglevel")
+    )
+  }
+
+  "PekkoConfig.normalizePekkoLogLevel" should "translate logback-only spellings to pekko's" in {
+    PekkoConfig.normalizePekkoLogLevel("WARN") shouldBe "WARNING"
+    PekkoConfig.normalizePekkoLogLevel("warn") shouldBe "WARNING"
+    PekkoConfig.normalizePekkoLogLevel("TRACE") shouldBe "DEBUG"
+    PekkoConfig.normalizePekkoLogLevel("ALL") shouldBe "DEBUG"
+  }
+
+  it should "pass levels pekko already accepts through unchanged" in {
+    Seq("OFF", "ERROR", "WARNING", "INFO", "DEBUG").foreach { level =>
+      PekkoConfig.normalizePekkoLogLevel(level) shouldBe level
+    }
+    // pekko's levelFor is case-insensitive, so uppercasing valid input is harmless
+    PekkoConfig.normalizePekkoLogLevel("info") shouldBe "INFO"
+  }
 }

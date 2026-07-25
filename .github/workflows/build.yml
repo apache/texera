@@ -299,7 +299,9 @@ jobs:
           # Mind the spelling: logback's level is WARN, but loguru (the Python
           # worker) only knows WARNING and raises ValueError on "WARN" — which
           # crashes the worker at startup before it hands its port back,
-          # hanging the whole job.
+          # hanging the whole job. pekko.loglevel shares loguru's vocabulary;
+          # PekkoConfig.normalizePekkoLogLevel translates the logback spelling
+          # so the JVM knob can stay WARN here.
           TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
           UDF_PYTHON_LOG_STREAMHANDLER_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARNING' }}
         run: |
@@ -634,7 +636,9 @@ jobs:
           # Mind the spelling: logback's level is WARN, but loguru (the Python
           # worker) only knows WARNING and raises ValueError on "WARN" — which
           # crashes the worker at startup before it hands its port back,
-          # hanging the whole job.
+          # hanging the whole job. pekko.loglevel shares loguru's vocabulary;
+          # PekkoConfig.normalizePekkoLogLevel translates the logback spelling
+          # so the JVM knob can stay WARN here.
           TEXERA_SERVICE_LOG_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARN' }}
           UDF_PYTHON_LOG_STREAMHANDLER_LEVEL: ${{ runner.debug == '1' && 'DEBUG' || 'WARNING' }}
         run: |
