@@ -175,22 +175,22 @@ export class NotebookMigrationLLM {
     }
 
     try {
-      await generateText({
-        model: this.model,
-        messages: [
-          {
-            role: "user",
-            content: "ping",
-          },
-        ],
-        maxOutputTokens: 10,
-      });
+      await this.callModel([{ role: "user", content: "ping" }], 10);
 
       return true;
     } catch (err) {
       console.error("API key verification failed:", err);
       return false;
     }
+  }
+
+  // Seam over the `ai` transport. Specs stub this by spying the method, instead of
+  // mocking the "ai" module — module mocks are unreliable in the Angular unit-test
+  // builder when "ai" is also loaded by a sibling spec (e.g. via
+  // NotebookMigrationService), which silently breaks the mock and hangs these
+  // tests on a real network call.
+  protected callModel(messages: ModelMessage[], maxOutputTokens?: number): Promise<{ text: string }> {
+    return generateText({ model: this.model, messages, maxOutputTokens });
   }
 
   /**
@@ -207,10 +207,7 @@ export class NotebookMigrationLLM {
       content: prompt,
     });
 
-    const result = await generateText({
-      model: this.model,
-      messages: this.messages,
-    });
+    const result = await this.callModel(this.messages);
 
     this.messages.push({
       role: "assistant",

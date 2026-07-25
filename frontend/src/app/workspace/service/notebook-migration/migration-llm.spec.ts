@@ -20,21 +20,16 @@
 import { NotebookMigrationLLM, Notebook } from "./migration-llm";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { generateText } from "ai";
-import type { Mock } from "vitest";
-
-// The LLM transport and OpenAI client are mocked so the tests exercise only the
-// deterministic transformation (parsing, operator/edge construction, cell<->operator mapping).
-vi.mock("ai", () => ({ generateText: vi.fn() }));
-vi.mock("@ai-sdk/openai", () => ({
-  createOpenAI: vi.fn(() => ({ chat: vi.fn(() => ({})) })),
-}));
-
-const mockGenerateText = generateText as unknown as Mock;
+import { AuthService } from "../../../common/service/user/auth.service";
 
 describe("NotebookMigrationLLM", () => {
   let opIdCounter = 0;
   let stubUtil: WorkflowUtilService;
+  // Stub the model transport at the class seam (callModel) rather than mocking the
+  // "ai" module. Module mocks are unreliable in the Angular unit-test builder when
+  // "ai" is also loaded by a sibling spec, which silently hangs these tests on real
+  // network calls.
+  let callModelSpy: ReturnType<typeof vi.spyOn>;
 
   // Build a fresh, initialized session with stubbed dependencies. The stubbed
   // getNewOperatorPredicate hands out deterministic ids (PythonUDFV2-0, -1, ...).
@@ -69,18 +64,41 @@ describe("NotebookMigrationLLM", () => {
     return llm;
   }
 
+  // Build a session that has NOT had initialize() called, so the initialized/enabled
+  // guards can be exercised. `enabled` toggles the feature flag the config exposes.
+  function makeUninitializedLLM(enabled = true): NotebookMigrationLLM {
+    const stubConfig = {
+      env: {
+        pythonNotebookMigrationEnabled: enabled,
+        defaultDataTransferBatchSize: 400,
+        defaultExecutionMode: "PIPELINED",
+      },
+    } as unknown as GuiConfigService;
+
+    const util = {
+      getNewOperatorPredicate: vi.fn(),
+    } as unknown as WorkflowUtilService;
+
+    return new NotebookMigrationLLM(stubConfig, util);
+  }
+
   function codeCell(uuid: string | undefined, source: string) {
     return { cell_type: "code", metadata: uuid === undefined ? {} : { uuid }, source };
   }
 
   // Queue the two responses convertNotebookToWorkflow consumes, in order.
   function mockResponses(workflowResponse: string, mappingResponse: string) {
-    mockGenerateText.mockResolvedValueOnce({ text: workflowResponse }).mockResolvedValueOnce({ text: mappingResponse });
+    callModelSpy.mockResolvedValueOnce({ text: workflowResponse }).mockResolvedValueOnce({ text: mappingResponse });
   }
 
   beforeEach(() => {
     opIdCounter = 0;
-    mockGenerateText.mockReset();
+    // Default: resolve empty so an unarmed call never reaches the real transport.
+    callModelSpy = vi.spyOn(NotebookMigrationLLM.prototype as any, "callModel").mockResolvedValue({ text: "" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe("convertNotebookToWorkflow", () => {
@@ -218,7 +236,7 @@ describe("NotebookMigrationLLM", () => {
 
       await expect(makeLLM().convertNotebookToWorkflow(notebook)).rejects.toThrow(/metadata\.uuid/);
       // It fails before prompting, so the LLM is never called.
-      expect(mockGenerateText).not.toHaveBeenCalled();
+      expect(callModelSpy).not.toHaveBeenCalled();
     });
 
     it("joins array-form cell source (nbformat lines) without inserting commas", async () => {
@@ -238,8 +256,9 @@ describe("NotebookMigrationLLM", () => {
 
       await makeLLM().convertNotebookToWorkflow(notebook);
 
-      const allPromptContent = mockGenerateText.mock.calls
-        .flatMap(call => call[0].messages.map((m: any) => m.content))
+      // callModel's first argument is the messages array.
+      const allPromptContent = callModelSpy.mock.calls
+        .flatMap((call: any[]) => (call[0] as any[]).map((m: any) => m.content))
         .join("\n");
       expect(allPromptContent).toContain("import pandas as pd\nx = 1\n");
       expect(allPromptContent).not.toContain("import pandas as pd\n,");
@@ -262,8 +281,9 @@ describe("NotebookMigrationLLM", () => {
       );
       await llm.convertNotebookToWorkflow({ cells: [codeCell("BBB", "b = 2")] });
 
-      // The 3rd generateText call is the workflow prompt of the second conversion.
-      const secondConversionMessages = mockGenerateText.mock.calls[2][0].messages.map((m: any) => m.content).join("\n");
+      // The 3rd callModel call is the workflow prompt of the second conversion;
+      // its first argument is the messages array.
+      const secondConversionMessages = (callModelSpy.mock.calls[2][0] as any[]).map((m: any) => m.content).join("\n");
 
       expect(secondConversionMessages).toContain("# START BBB");
       expect(secondConversionMessages).not.toContain("AAA");
@@ -301,6 +321,110 @@ describe("NotebookMigrationLLM", () => {
 
     it("extracts the outermost object from fence-less prose", () => {
       expect(parse('Sure! {"a":1} hope that helps')).toEqual({ a: 1 });
+    });
+  });
+
+  describe("feature flag guard", () => {
+    it("initialize() throws when the migration feature is disabled", () => {
+      const llm = makeUninitializedLLM(false);
+      expect(() => llm.initialize("gpt-5-mini", "test-token")).toThrow("Notebook migration feature is disabled");
+    });
+
+    it("convertNotebookToWorkflow() rejects when the migration feature is disabled", async () => {
+      const llm = makeUninitializedLLM(false);
+      await expect(llm.convertNotebookToWorkflow({ cells: [] })).rejects.toThrow(
+        "Notebook migration feature is disabled"
+      );
+      // assertEnabled fails before any prompting.
+      expect(callModelSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("initialize", () => {
+    it("defaults the access token to an empty string when AuthService returns null and none is passed", async () => {
+      const tokenSpy = vi.spyOn(AuthService, "getAccessToken").mockReturnValue(null);
+      const llm = makeUninitializedLLM();
+
+      // Only the model type is supplied, so the accessToken default expression
+      // (AuthService.getAccessToken() ?? "") runs and resolves to "".
+      llm.initialize("gpt-5-mini");
+
+      expect(tokenSpy).toHaveBeenCalled();
+      // The session is now usable: verifyConnection reaches the (stubbed) transport.
+      await expect(llm.verifyConnection()).resolves.toBe(true);
+      tokenSpy.mockRestore();
+    });
+  });
+
+  describe("verifyConnection", () => {
+    it("returns false without prompting when the feature is disabled", async () => {
+      const llm = makeUninitializedLLM(false);
+      await expect(llm.verifyConnection()).resolves.toBe(false);
+      expect(callModelSpy).not.toHaveBeenCalled();
+    });
+
+    it("throws when the session has not been initialized", async () => {
+      const llm = makeUninitializedLLM();
+      await expect(llm.verifyConnection()).rejects.toThrow("LLM session not initialized");
+    });
+
+    it("returns true and pings the model with a capped token budget on success", async () => {
+      const ok = await makeLLM().verifyConnection();
+      expect(ok).toBe(true);
+      expect(callModelSpy).toHaveBeenCalledWith([{ role: "user", content: "ping" }], 10);
+    });
+
+    it("returns false and logs the error when the ping fails", async () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const llm = makeLLM();
+      callModelSpy.mockRejectedValueOnce(new Error("network down"));
+
+      await expect(llm.verifyConnection()).resolves.toBe(false);
+      expect(error).toHaveBeenCalledWith("API key verification failed:", expect.any(Error));
+      error.mockRestore();
+    });
+  });
+
+  describe("initialization guards", () => {
+    it("convertNotebookToWorkflow() rejects when the session is enabled but not initialized", async () => {
+      const llm = makeUninitializedLLM();
+      await expect(llm.convertNotebookToWorkflow({ cells: [] })).rejects.toThrow("LLM session not initialized");
+      expect(callModelSpy).not.toHaveBeenCalled();
+    });
+
+    it("sendPrompt() rejects when the session is not initialized", async () => {
+      const llm = makeUninitializedLLM();
+      // sendPrompt is private; convert normally guards it, so exercise the guard directly.
+      await expect((llm as any).sendPrompt("hello")).rejects.toThrow("LLM session not initialized");
+      expect(callModelSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("convertNotebookToWorkflow response-shape tolerance", () => {
+    it("tolerates a workflow response with no edges or outputs keys", async () => {
+      const notebook: Notebook = { cells: [codeCell("CELL1", "a"), codeCell("CELL2", "b")] };
+      // No `edges` and no `outputs` -> both `|| []` fallbacks and the missing-outputs branch run.
+      mockResponses(JSON.stringify({ code: { UDF1: "c1", UDF2: "c2" } }), JSON.stringify({ UDF1: ["CELL1"] }));
+
+      const { workflowJSON } = JSON.parse(await makeLLM().convertNotebookToWorkflow(notebook));
+
+      expect(workflowJSON.operators).toHaveLength(2);
+      // No edges -> no links.
+      expect(workflowJSON.links).toEqual([]);
+      // No outputs -> operators declare no output columns.
+      expect(workflowJSON.operators[0].operatorProperties.outputColumns).toEqual([]);
+      expect(workflowJSON.operators[1].operatorProperties.outputColumns).toEqual([]);
+    });
+  });
+
+  describe("close", () => {
+    it("clears session state so subsequent conversions report an uninitialized session", async () => {
+      const llm = makeLLM();
+      llm.close();
+
+      // After close(), the initialized flag is cleared even though the feature stays enabled.
+      await expect(llm.convertNotebookToWorkflow({ cells: [] })).rejects.toThrow("LLM session not initialized");
+      expect(callModelSpy).not.toHaveBeenCalled();
     });
   });
 });

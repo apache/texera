@@ -29,6 +29,7 @@ from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
     InternalQueue,
+    StateFrame,
     Tuple,
 )
 from core.models.internal_marker import StartChannel, EndChannel
@@ -38,16 +39,20 @@ from core.models.internal_queue import (
     ECMElement,
     InternalQueueElement,
 )
+from core.models.operator import LoopEndOperator, LoopStartOperator
 from core.models.state import State
 from core.runnables.data_processor import DataProcessor
+from core.storage.document_factory import DocumentFactory
 from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.customized_queue.queue_base import QueueElement
+from core.util.virtual_identity import get_logical_op_id
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
     ChannelIdentity,
     EmbeddedControlMessageIdentity,
+    OperatorIdentity,
 )
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ConsoleMessage,
@@ -61,6 +66,7 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
     EmbeddedControlMessage,
     AsyncRpcContext,
     ControlRequest,
+    JumpToOperatorRegionRequest,
 )
 from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerState,
@@ -77,6 +83,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
         super().__init__(self.__class__.__name__, queue=input_queue)
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
+        # Captured from the consumed StateFrame envelope when a matching
+        # LoopEnd (loop_counter == 0) takes a state; used for the jump RPC
+        # and the setup-config URI lookup (context.loop_start_state_uris).
+        self._loop_start_id: str = ""
 
         self.context = Context(worker_id, input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -87,6 +97,30 @@ class MainLoop(StoppableQueueBlockingRunnable):
             target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
 
+    def _jump_to_loop_start(
+        self, executor: LoopEndOperator, coordinator_interface
+    ) -> None:
+        # The write address is setup config, keyed by the captured id. Fail
+        # loud BEFORE the jump RPC so a misconfigured loop does not rewind the
+        # schedule without a back-edge write. Anything raised here (a missing
+        # URI, or a failed state write after the jump) is reported by
+        # complete()'s guard as an operator-facing error.
+        uri = self.context.loop_start_state_uris.get(self._loop_start_id)
+        if not uri:
+            raise RuntimeError(
+                f"no loop-back state URI configured for LoopStart "
+                f"'{self._loop_start_id}' "
+                f"(have: {sorted(self.context.loop_start_state_uris)})"
+            )
+        coordinator_interface.jump_to_operator_region(
+            JumpToOperatorRegionRequest(OperatorIdentity(self._loop_start_id))
+        )
+        writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
+        # The back-edge fires only after the matching LoopEnd consumed at
+        # loop_counter == 0, so the next iteration's input starts at depth 0.
+        writer.put_one(executor.state.to_tuple(0))
+        writer.close()
+
     def complete(self) -> None:
         """
         Complete the DataProcessor, marking state to COMPLETED, and notify the
@@ -94,12 +128,31 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         # flush the buffered console prints
         self._check_and_report_console_messages(force_flush=True)
-        self.context.executor_manager.executor.close()
+        coordinator_interface = self._async_rpc_client.coordinator_stub()
+        executor = self.context.executor_manager.executor
+        if isinstance(executor, LoopEndOperator):
+            # condition() evaluates a user-supplied expression, and the
+            # loop-back edge writes state to iceberg after the jump DCM --
+            # both on this main loop thread, outside DataProcessor's guarded
+            # executor session. A UDF error on the data path is caught and
+            # reported via Context.report_exception
+            # (DataProcessor._executor_session); reuse it here so a bad
+            # condition (a typo, an undefined name) or a failed back-edge
+            # write surfaces as an operator-facing error and pauses the
+            # worker, instead of killing the thread through run()'s
+            # @logger.catch(reraise=True).
+            try:
+                if executor.condition():
+                    self._jump_to_loop_start(executor, coordinator_interface)
+            except Exception as err:
+                self.context.report_exception(err)
+                self._check_exception()
+                return
+        executor.close()
         # stop the data processing thread
         self.data_processor.stop()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
         self.context.statistics_manager.update_total_execution_time(time.time_ns())
-        coordinator_interface = self._async_rpc_client.coordinator_stub()
         coordinator_interface.worker_execution_completed(EmptyRequest())
         self.context.close()
 
@@ -174,35 +227,71 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self.context.statistics_manager.increase_output_statistics(
                     PortIdentity(0), output_tuple.in_mem_size()
                 )
-                for to, batch in self.context.output_manager.tuple_to_batch(
-                    output_tuple
-                ):
-                    self._output_queue.put(
-                        DataElement(
-                            tag=ChannelIdentity(
-                                ActorVirtualIdentity(self.context.worker_id), to, False
-                            ),
-                            payload=batch,
-                        )
-                    )
+                self._emit_batches(
+                    self.context.output_manager.tuple_to_batch(output_tuple)
+                )
                 self.context.output_manager.save_tuple_to_storage_if_needed(
                     output_tuple
                 )
 
-    def process_input_state(self) -> None:
+    def process_input_state(
+        self,
+        output_loop_counter: int = 0,
+        output_loop_start_id: str = "",
+    ) -> None:
         self._switch_context()
         output_state = self.context.state_processing_manager.get_output_state()
         if output_state is not None:
-            for to, batch in self.context.output_manager.emit_state(output_state):
-                self._output_queue.put(
-                    DataElement(
-                        tag=ChannelIdentity(
-                            ActorVirtualIdentity(self.context.worker_id), to, False
-                        ),
-                        payload=batch,
-                    )
+            executor = self.context.executor_manager.executor
+            if isinstance(executor, LoopStartOperator):
+                # A LoopStart stamps its own logical op id; the write address
+                # is setup config (InitializeExecutorRequest.loop_start_state_uris).
+                output_loop_start_id = get_logical_op_id(self.context.worker_id)
+            self._emit_and_save_state(
+                output_state,
+                output_loop_counter,
+                output_loop_start_id,
+            )
+
+    def _emit_batches(self, batches) -> None:
+        """Put each (receiver, batch) pair on the output queue as a DataElement."""
+        for to, batch in batches:
+            self._output_queue.put(
+                DataElement(
+                    tag=ChannelIdentity(
+                        ActorVirtualIdentity(self.context.worker_id), to, False
+                    ),
+                    payload=batch,
                 )
-            self.context.output_manager.save_state_to_storage_if_needed(output_state)
+            )
+
+    def _emit_and_save_state(
+        self,
+        state: State,
+        loop_counter: int,
+        loop_start_id: str = "",
+    ) -> None:
+        # State serialization (state.to_tuple -> to_json) and the storage write
+        # run here on the main loop thread, outside DataProcessor's guarded
+        # executor session. A non-serializable loop variable (e.g. a numpy
+        # array) would otherwise raise a TypeError that propagates through
+        # run()'s @logger.catch(reraise=True), killing the thread and hanging
+        # the workflow with no operator-facing error. Report it like a UDF error
+        # (exception manager + ERROR console message + EXCEPTION_PAUSE) instead;
+        # callers on the end-channel path check has_exception and hold the
+        # region so the reported error is not a silent, false success.
+        try:
+            self._emit_batches(
+                self.context.output_manager.emit_state(
+                    state, loop_counter, loop_start_id
+                )
+            )
+            self.context.output_manager.save_state_to_storage_if_needed(
+                state, loop_counter, loop_start_id
+            )
+        except Exception as err:
+            self.context.report_exception(err)
+            self._check_exception()
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
         """
@@ -245,9 +334,56 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_input_tuple()
         self._check_and_process_control()
 
-    def _process_state(self, state_: State) -> None:
-        self.context.state_processing_manager.current_input_state = state_
-        self.process_input_state()
+    def _process_state_frame(self, frame: StateFrame) -> None:
+        # The runtime owns loop_counter; loop operators never see or mutate it.
+        # The LoopStart/LoopEnd nested pass-through branches are handled here --
+        # forwarding the state and skipping the operator -- so the operator's
+        # process_state only ever runs the first-entry / consume path.
+        state = frame.frame
+        in_counter = frame.loop_counter
+        executor = self.context.executor_manager.executor
+
+        if isinstance(executor, LoopEndOperator) and in_counter > 0:
+            # An inner Loop End receiving the enclosing (outer) loop's boundary
+            # state (loop_counter > 0): the signal that the outer loop has
+            # advanced. Reset this Loop End's output now, before forwarding, so
+            # the new outer iteration's inner results accumulate from empty
+            # instead of concatenating across outer iterations. The input reader
+            # replays all states before any data each region execution, so the
+            # result/state tables still hold the PREVIOUS outer iteration's rows
+            # at this point. This fires exactly once per outer iteration: the
+            # inner LoopStart's output (and thus this pass-through) is recreated
+            # on every inner back-edge, so the outer state only reaches here on
+            # the first inner iteration of each outer iteration. A single /
+            # outermost Loop End never reaches this branch (no enclosing loop,
+            # so never loop_counter > 0) and so never resets -- it accumulates
+            # all of its own iterations.
+            self.context.output_manager.reset_output_storage()
+            # State belongs to an outer loop: step one level out and forward,
+            # carrying the outer loop's id unchanged.
+            self._emit_and_save_state(state, in_counter - 1, frame.loop_start_id)
+            self._check_and_process_control()
+            return
+        if isinstance(executor, LoopStartOperator) and frame.loop_start_id:
+            # Outer loop's state flowing through an inner LoopStart -- detected
+            # by the outer LoopStart's id stamped on the envelope (a first-entry
+            # state has no stamp): step one level deeper and forward, keeping
+            # the outer loop's id.
+            self._emit_and_save_state(state, in_counter + 1, frame.loop_start_id)
+            self._check_and_process_control()
+            return
+
+        if isinstance(executor, LoopEndOperator):
+            # Matching LoopEnd (in_counter == 0): it will consume this state
+            # and jump back. Remember which LoopStart to jump to (it rides
+            # the envelope) for complete()/_jump_to_loop_start.
+            self._loop_start_id = frame.loop_start_id
+
+        self.context.state_processing_manager.current_input_state = state
+        self.process_input_state(
+            output_loop_counter=in_counter,
+            output_loop_start_id=frame.loop_start_id,
+        )
         self._check_and_process_control()
 
     def _process_start_channel(self) -> None:
@@ -258,6 +394,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _process_end_channel(self) -> None:
         self.process_input_state()
+        if self.context.exception_manager.has_exception():
+            # A state-emission error was reported on the main loop thread (see
+            # _emit_and_save_state). Hold the region: skip port_completed and
+            # complete() so the coordinator does not mark the region complete
+            # (region completion is port-based) with partial, single-iteration
+            # results. The reported error surfaces instead of a false success.
+            return
         self.process_input_tuple()
 
         input_port_id = self.context.input_manager.get_port_id(
@@ -416,8 +559,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     element,
                     Tuple,
                     self._process_tuple,
-                    State,
-                    self._process_state,
+                    StateFrame,
+                    self._process_state_frame,
                 )
             except Exception as err:
                 logger.exception(err)
