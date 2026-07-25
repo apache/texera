@@ -44,12 +44,12 @@ class EndWorkerHandler(ControlHandler):
         if queued_count > 0:
             logger.warning(
                 f"Received EndWorker before all {queued_count} queued "
-                f"message(s) were processed; failing the RPC so the coordinator "
-                f"retries once the queue has drained."
+                f"message(s) were processed; failing the RPC so a later "
+                f"coordinator retry succeeds once the queue has drained."
             )
             # Fail this RPC (the counterpart of the Scala EndHandler's
-            # Future.exception) so the coordinator retries once the queue
-            # has drained, instead of dropping the pending message.
+            # Future.exception) so a later coordinator retry succeeds once
+            # the queue has drained, instead of dropping the pending message.
             raise RuntimeError("worker still has unprocessed messages")
         # Now we can safely acknowledge that this worker can be terminated.
         return EmptyReturn()

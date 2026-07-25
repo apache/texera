@@ -37,11 +37,7 @@ class TestEndWorkerHandler:
 
     @pytest.fixture
     def handler(self, input_queue):
-        # ControlHandler.__init__ just stashes context; bypass the protobuf
-        # base class' __init__ by constructing via __new__.
-        instance = EndWorkerHandler.__new__(EndWorkerHandler)
-        instance.context = SimpleNamespace(input_queue=input_queue)
-        return instance
+        return EndWorkerHandler(SimpleNamespace(input_queue=input_queue))
 
     @staticmethod
     def make_control_message(seq: int) -> DCMElement:
@@ -60,7 +56,7 @@ class TestEndWorkerHandler:
         self, handler, input_queue
     ):
         # The controller resolves endWorker's reply as a failed future and
-        # retries after the queue drains (terminateWorkersWithRetry), so a
+        # retries on a fixed delay (terminateWorkersWithRetry), so a
         # straggler message must fail the call — not be dropped with a
         # successful acknowledgement.
         input_queue.put(self.make_control_message(0))
