@@ -19,6 +19,7 @@
 
 package org.apache.texera.service.util
 
+import io.fabric8.kubernetes.api.model.{Pod, PodBuilder}
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{
   PrivilegeEnum,
@@ -29,6 +30,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComput
 import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
 import org.apache.texera.service.resource.ComputingUnitManagingResource.WorkflowComputingUnitMetrics
 import org.apache.texera.service.resource.ComputingUnitState.{Pending, Running}
+import org.mockito.Mockito.{mock, when}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -83,12 +85,41 @@ class ComputingUnitHelpersSpec
   // A null-type unit (the enum has only local/kubernetes) exercises the "unknown" branch.
   private def untypedUnit(): WorkflowComputingUnit = new WorkflowComputingUnit()
 
+  private def podWithPhase(phase: String): Pod =
+    new PodBuilder().withNewStatus().withPhase(phase).endStatus().build()
+
+  // A pod whose status has not been populated yet (getStatus == null).
+  private def statuslessPod(): Pod = new PodBuilder().build()
+
   "getComputingUnitStatus" should "return Running for a local unit" in {
     ComputingUnitHelpers.getComputingUnitStatus(localUnit()) shouldBe Running
   }
 
   it should "return Pending for an unknown (untyped) unit" in {
     ComputingUnitHelpers.getComputingUnitStatus(untypedUnit()) shouldBe Pending
+  }
+
+  // The kubernetes branch does a per-unit pod lookup, so singleUnitStatus is driven through a
+  // stubbed client (the public getComputingUnitStatus binds the production singleton).
+  "singleUnitStatus" should "return Running for a kubernetes unit whose pod phase is Running" in {
+    val k8s = mock(classOf[KubernetesClient])
+    when(k8s.generatePodName(40)).thenReturn("computing-unit-40")
+    when(k8s.getPodByName("computing-unit-40")).thenReturn(Some(podWithPhase("Running")))
+    ComputingUnitHelpers.singleUnitStatus(kubernetesUnit(40), k8s) shouldBe Running
+  }
+
+  it should "return Pending for a kubernetes unit whose pod has no status yet" in {
+    val k8s = mock(classOf[KubernetesClient])
+    when(k8s.generatePodName(41)).thenReturn("computing-unit-41")
+    when(k8s.getPodByName("computing-unit-41")).thenReturn(Some(statuslessPod()))
+    ComputingUnitHelpers.singleUnitStatus(kubernetesUnit(41), k8s) shouldBe Pending
+  }
+
+  it should "return Pending for a kubernetes unit whose pod is absent" in {
+    val k8s = mock(classOf[KubernetesClient])
+    when(k8s.generatePodName(42)).thenReturn("computing-unit-42")
+    when(k8s.getPodByName("computing-unit-42")).thenReturn(None)
+    ComputingUnitHelpers.singleUnitStatus(kubernetesUnit(42), k8s) shouldBe Pending
   }
 
   "getComputingUnitMetrics" should "return NaN metrics for a local unit" in {
@@ -230,8 +261,22 @@ class ComputingUnitHelpersSpec
     ComputingUnitHelpers.podPhasesFor(List(localUnit(), untypedUnit())) shouldBe empty
   }
 
+  it should "fetch all pod phases once when a kubernetes unit is present" in {
+    val k8s = mock(classOf[KubernetesClient])
+    val phases = Map("computing-unit-50" -> "Running")
+    when(k8s.getAllPodPhases).thenReturn(phases)
+    ComputingUnitHelpers.podPhasesFor(List(kubernetesUnit(50)), k8s) shouldBe phases
+  }
+
   "podMetricsFor" should "return empty (issuing no cluster call) when no kubernetes unit is present" in {
     ComputingUnitHelpers.podMetricsFor(List(localUnit(), untypedUnit())) shouldBe empty
+  }
+
+  it should "fetch all pod metrics once when a kubernetes unit is present" in {
+    val k8s = mock(classOf[KubernetesClient])
+    val metrics = Map("computing-unit-51" -> Map("cpu" -> "100m", "memory" -> "64Mi"))
+    when(k8s.getAllPodMetrics).thenReturn(metrics)
+    ComputingUnitHelpers.podMetricsFor(List(kubernetesUnit(51)), k8s) shouldBe metrics
   }
 
   // ── resolveOwnerInfo (backed by the embedded database) ───────────────

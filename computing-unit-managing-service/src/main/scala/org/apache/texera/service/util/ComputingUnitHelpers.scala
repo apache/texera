@@ -54,7 +54,21 @@ object ComputingUnitHelpers {
         .toMap
   }
 
-  def getComputingUnitStatus(unit: WorkflowComputingUnit): ComputingUnitState = {
+  def getComputingUnitStatus(unit: WorkflowComputingUnit): ComputingUnitState =
+    singleUnitStatus(unit, KubernetesClient)
+
+  /**
+    * Single-unit status via a per-unit pod lookup (a targeted GET, cheaper than listing the whole
+    * namespace). The client is a by-name parameter — not the global singleton — so the kubernetes
+    * branch is unit-testable with a stub and the local/unknown branches never force the singleton;
+    * the public overload binds the production [[KubernetesClient]]. (Metrics has no analogous seam:
+    * its per-unit lookup already fans out to the whole namespace and the bulk (unit, podMetrics)
+    * overload already covers the cpu/memory resolution, so nothing there is worth pinning.)
+    */
+  private[util] def singleUnitStatus(
+      unit: WorkflowComputingUnit,
+      k8s: => KubernetesClient
+  ): ComputingUnitState = {
     unit.getType match {
       // Local CUs are always “running”
       case WorkflowComputingUnitTypeEnum.local =>
@@ -64,8 +78,9 @@ object ComputingUnitHelpers {
       case WorkflowComputingUnitTypeEnum.kubernetes =>
         // Guard the pod status the same way the bulk getAllPodPhases does: a pod with no
         // status yet has a null getStatus, so map through Option to avoid an NPE.
-        val phaseOpt = KubernetesClient
-          .getPodByName(KubernetesClient.generatePodName(unit.getCuid))
+        val client = k8s
+        val phaseOpt = client
+          .getPodByName(client.generatePodName(unit.getCuid))
           .flatMap(pod => Option(pod.getStatus).map(_.getPhase))
 
         if (phaseOpt.contains("Running")) Running else Pending
@@ -138,13 +153,28 @@ object ComputingUnitHelpers {
       case _                                        => false
     }
 
-  /** Pod phases for the namespace; skipped (empty) when no Kubernetes unit is present. */
+  // Pod phases/metrics for the namespace; skipped (empty) when no Kubernetes unit is present, so a
+  // cluster-free listing issues no round trip. Same seam as singleUnitStatus: the public overload
+  // binds the production singleton, passing it by-name to the private[util] overload, which forces
+  // it only inside the guard's true branch — so the empty path never touches the client, and tests
+  // drive the private overload with a stub.
   def podPhasesFor(units: Seq[WorkflowComputingUnit]): Map[String, String] =
-    if (units.exists(isKubernetes)) KubernetesClient.getAllPodPhases else Map.empty
+    podPhasesFor(units, KubernetesClient)
 
-  /** Pod metrics for the namespace; skipped (empty) when no Kubernetes unit is present. */
+  private[util] def podPhasesFor(
+      units: Seq[WorkflowComputingUnit],
+      k8s: => KubernetesClient
+  ): Map[String, String] =
+    if (units.exists(isKubernetes)) k8s.getAllPodPhases else Map.empty
+
   def podMetricsFor(units: Seq[WorkflowComputingUnit]): Map[String, Map[String, String]] =
-    if (units.exists(isKubernetes)) KubernetesClient.getAllPodMetrics else Map.empty
+    podMetricsFor(units, KubernetesClient)
+
+  private[util] def podMetricsFor(
+      units: Seq[WorkflowComputingUnit],
+      k8s: => KubernetesClient
+  ): Map[String, Map[String, String]] =
+    if (units.exists(isKubernetes)) k8s.getAllPodMetrics else Map.empty
 
   /** A Kubernetes unit whose pod is absent from `podPhases` (deleted or TTL GC-ed). */
   private def isVanished(unit: WorkflowComputingUnit, podPhases: Map[String, String]): Boolean =

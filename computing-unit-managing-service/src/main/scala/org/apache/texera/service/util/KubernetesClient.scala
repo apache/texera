@@ -26,10 +26,14 @@ import org.apache.texera.common.config.KubernetesConfig
 
 import scala.jdk.CollectionConverters._
 
-object KubernetesClient {
+/**
+  * Thin wrapper over the fabric8 Kubernetes client. The production singleton is the companion
+  * object below, bound to a real in-cluster client. The fabric8 client is a constructor
+  * parameter (not a mutable global) so tests can construct an instance backed by a stubbed
+  * client and exercise the passthrough wrappers without a live cluster.
+  */
+class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
 
-  private val client: io.fabric8.kubernetes.client.KubernetesClient =
-    new KubernetesClientBuilder().build()
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
   private val podNamePrefix = "computing-unit"
 
@@ -213,3 +217,6 @@ object KubernetesClient {
     client.pods().inNamespace(namespace).withName(generatePodName(cuid)).delete()
   }
 }
+
+/** Production singleton bound to a real in-cluster fabric8 client. */
+object KubernetesClient extends KubernetesClient(new KubernetesClientBuilder().build())
