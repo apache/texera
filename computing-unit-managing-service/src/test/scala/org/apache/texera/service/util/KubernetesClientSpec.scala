@@ -142,7 +142,8 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
   // so they only assert that the namespace items flow through keyed by pod name.
 
   "getAllPodPhases" should "list the namespace pods and key them by pod name" in {
-    val k8s = new KubernetesClient(stubbedClient(Seq(pod(1, "Running"), pod(2, "Pending")), Seq.empty))
+    val k8s =
+      new KubernetesClient(stubbedClient(Seq(pod(1, "Running"), pod(2, "Pending")), Seq.empty))
     k8s.getAllPodPhases.keySet shouldBe
       Set(KubernetesClient.generatePodName(1), KubernetesClient.generatePodName(2))
   }
