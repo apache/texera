@@ -421,9 +421,12 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
                         added = True
                         break
                     elif pg.priority > priority:
+                        # pg has a lower priority than the new group, so the new
+                        # group belongs in front of it: priority_groups must stay
+                        # sorted because the selection strategy walks it in order.
                         new_pg = self.PriorityGroup(priority)
                         new_pg.add_queue(sub_queue)
-                        self.priority_groups.append(new_pg)
+                        self.priority_groups.insert(i, new_pg)
                         added = True
                         break
 

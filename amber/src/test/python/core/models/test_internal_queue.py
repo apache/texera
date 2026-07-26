@@ -116,13 +116,6 @@ class TestInternalQueue:
         assert queue.is_empty()
 
     @pytest.mark.timeout(2)
-    @pytest.mark.xfail(
-        reason=(
-            "LinkedBlockingMultiQueue.add_sub_queue does not currently insert new "
-            "priority groups ahead of lower-priority ones, so registering data before "
-            "control can break control-priority ordering."
-        )
-    )
     def test_control_elements_dequeue_before_data_even_if_data_channel_registered_first(
         self, queue, control_channel, data_channel
     ):
