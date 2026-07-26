@@ -6,7 +6,7 @@
   },
   "license": "Apache-2.0",
   "scripts": {
-    "start": "concurrently --kill-others \"npx y-websocket\" \"ng serve\"",
+    "start": "concurrently --kill-others \"npx y-websocket\" \"node --max-old-space-size=8192 ./node_modules/@angular/cli/bin/ng serve\"",
     "build": "node build-version.js && node --max-old-space-size=8192 ./node_modules/@angular/cli/bin/ng build --configuration=production --progress=false --source-map=false",
     "build:ci": "node build-version.js && node --max-old-space-size=8192 ./node_modules/nx/dist/bin/nx.js build --configuration=production --progress=false --source-map=false",
     "test": "ng test --watch=false",
