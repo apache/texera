@@ -39,7 +39,7 @@ trait StartHandler {
       request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[WorkerStateResponse] = {
-    logger.info("Starting the worker.")
+    logger.debug("Starting the worker.")
     if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
       val channelId =
         ChannelIdentity(ActorVirtualIdentity("SOURCE_STARTER"), actorId, isControl = false)

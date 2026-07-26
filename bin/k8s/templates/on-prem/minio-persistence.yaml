@@ -19,7 +19,7 @@
 {{/* This path only works for local-path storage class */}}
 {{- $hostBasePath := .Values.persistence.minioHostLocalPath }}
 
-{{- if .Values.minio.persistence.enabled }}
+{{- if and .Values.minio.enabled .Values.minio.persistence.enabled }}
 {{- $name := "minio" }}
 {{- $persistence := .Values.minio.persistence }}
 {{- $volumeName := printf "%s-data-pv" $name }}

@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { DownloadService } from "./download.service";
+import { DownloadService, EXPORT_BASE_URL } from "./download.service";
 import { DatasetService } from "../dataset/dataset.service";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -27,6 +27,14 @@ import { WorkflowPersistService } from "../../../../common/service/workflow-pers
 import { firstValueFrom, lastValueFrom, of, throwError } from "rxjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
+import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
+import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
+import JSZip from "jszip";
+
+function computingUnit(type: string, cuid: number): DashboardWorkflowComputingUnit {
+  return { computingUnit: { cuid, type } } as unknown as DashboardWorkflowComputingUnit;
+}
+const EXPORT_OPERATORS = [{ id: "op1", outputType: "csv" }];
 
 describe("DownloadService", () => {
   let downloadService: DownloadService;
@@ -217,6 +225,47 @@ describe("DownloadService", () => {
     expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading workflows as ZIP");
   });
 
+  // ─── createWorkflowsZip / nameWorkflow (real zip assembly) ────────────────
+  // These drive downloadWorkflowsAsZip through the real (un-mocked) private
+  // createWorkflowsZip → downloadWorkflow → nameWorkflow chain, so the produced
+  // blob is a genuine zip we can load back and inspect.
+
+  it("assembles a real zip with one JSON entry per workflow", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    const result = await firstValueFrom(
+      downloadService.downloadWorkflowsAsZip([
+        { id: 1, name: "Alpha" },
+        { id: 2, name: "Beta" },
+      ])
+    );
+
+    expect(result).toBeInstanceOf(Blob);
+    expect(workflowPersistServiceSpy.retrieveWorkflow).toHaveBeenCalledWith(1);
+    expect(workflowPersistServiceSpy.retrieveWorkflow).toHaveBeenCalledWith(2);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(result, expect.stringMatching(/^workflowExports-.*\.zip$/));
+    expect(notificationServiceSpy.success).toHaveBeenCalledWith("Workflows have been downloaded as ZIP");
+
+    const loaded = await JSZip.loadAsync(result);
+    expect(Object.keys(loaded.files).sort()).toEqual(["Alpha.json", "Beta.json"]);
+  });
+
+  it("de-duplicates colliding workflow filenames inside the zip", async () => {
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content: { op: "x" } } as any));
+
+    const result = await firstValueFrom(
+      downloadService.downloadWorkflowsAsZip([
+        { id: 1, name: "Dup" },
+        { id: 2, name: "Dup" },
+        { id: 3, name: "Dup" },
+      ])
+    );
+
+    // nameWorkflow appends -1, -2, ... on each collision so no entry is lost.
+    const loaded = await JSZip.loadAsync(result);
+    expect(Object.keys(loaded.files).sort()).toEqual(["Dup-1.json", "Dup-2.json", "Dup.json"]);
+  });
+
   // ─── downloadOperatorsResult ──────────────────────────────────────────────
 
   it("downloads a single operator file directly when there's exactly one file", async () => {
@@ -234,14 +283,10 @@ describe("DownloadService", () => {
     expect(notificationServiceSpy.success).toHaveBeenCalledWith("Operator result has been downloaded");
   });
 
-  // The multi-file zip path goes through `new JSZip()` against the
-  // `import * as JSZip from "jszip"` namespace, which the build flags as
-  // `Constructing "JSZip" will crash at run-time because it's an import
-  // namespace object`. Vitest reproduces the failure (`__vite_ssr_import_*
-  // is not a constructor`). Tracked as a separate cleanup in the codebase;
-  // the test is here as a placeholder so we re-enable it once the import
-  // is normalised to a default import.
-  it.skip("zips multiple operator files into a workflow-named archive", async () => {
+  // The multi-file zip path goes through `new JSZip()`; now that the source
+  // imports JSZip as a default import (rather than an import namespace object),
+  // it constructs correctly under Vitest so this exercises the real archive.
+  it("zips multiple operator files into a workflow-named archive", async () => {
     const a = new Blob(["a"], { type: "text/plain" });
     const b = new Blob(["b"], { type: "text/plain" });
     const result = await firstValueFrom(
@@ -257,8 +302,32 @@ describe("DownloadService", () => {
     );
 
     expect(result).toBeInstanceOf(Blob);
+    expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download operator results as ZIP");
     expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(expect.any(Blob), "results_7_TwoFile.zip");
     expect(notificationServiceSpy.success).toHaveBeenCalledWith("Operator results have been downloaded as ZIP");
+
+    // The produced blob is a real zip carrying both operator files.
+    const loaded = await JSZip.loadAsync(result);
+    expect(Object.keys(loaded.files).sort()).toEqual(["a.csv", "b.csv"]);
+  });
+
+  it("flattens operator result batches before deciding single vs zip", async () => {
+    // Two source observables, each emitting one file: flat() merges them into
+    // two files, which routes through the multi-file zip branch.
+    const result = await firstValueFrom(
+      downloadService.downloadOperatorsResult(
+        [
+          of([{ filename: "first.csv", blob: new Blob(["1"], { type: "text/plain" }) }]),
+          of([{ filename: "second.csv", blob: new Blob(["2"], { type: "text/plain" }) }]),
+        ],
+        { wid: 3, name: "Flat" } as any
+      )
+    );
+
+    expect(result).toBeInstanceOf(Blob);
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(expect.any(Blob), "results_3_Flat.zip");
+    const loaded = await JSZip.loadAsync(result);
+    expect(Object.keys(loaded.files).sort()).toEqual(["first.csv", "second.csv"]);
   });
 
   it("errors out cleanly when no operator result files are provided", async () => {
@@ -277,5 +346,169 @@ describe("DownloadService", () => {
 
     const map = await promise;
     expect(map).toEqual({ "op-1": ["my-dataset"], "op-2": [] });
+  });
+
+  // ─── exportWorkflowResultToDataset ────────────────────────────────────────
+
+  it("POSTs the dataset export request and returns the response body", async () => {
+    const promise = lastValueFrom(
+      downloadService.exportWorkflowResultToDataset(
+        "csv",
+        1,
+        "WF",
+        EXPORT_OPERATORS,
+        [7],
+        0,
+        0,
+        "out.csv",
+        computingUnit("local", 5)
+      )
+    );
+
+    const req = httpMock.expectOne(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/dataset`);
+    expect(req.request.method).toBe("POST");
+    expect(req.request.body).toMatchObject({
+      exportType: "csv",
+      workflowId: 1,
+      datasetIds: [7],
+      filename: "out.csv",
+      computingUnitId: 5,
+    });
+    expect(req.request.headers.get("Accept")).toBe("application/json");
+    req.flush({ status: "ok", message: "done" });
+
+    const res = await promise;
+    expect(res.body).toEqual({ status: "ok", message: "done" });
+  });
+
+  it("appends the cuid query param for a kubernetes computing unit", () => {
+    downloadService
+      .exportWorkflowResultToDataset(
+        "csv",
+        1,
+        "WF",
+        EXPORT_OPERATORS,
+        [7],
+        0,
+        0,
+        "out.csv",
+        computingUnit("kubernetes", 9)
+      )
+      .subscribe();
+
+    const req = httpMock.expectOne(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/dataset?cuid=9`);
+    expect(req.request.method).toBe("POST");
+    req.flush({ status: "ok", message: "done" });
+  });
+
+  // ─── exportWorkflowResultToLocal ──────────────────────────────────────────
+
+  describe("exportWorkflowResultToLocal", () => {
+    let submitSpy: ReturnType<typeof vi.spyOn>;
+    let setTimeoutSpy: ReturnType<typeof vi.spyOn>;
+    let cleanup: (() => void) | undefined;
+
+    beforeEach(() => {
+      // Stub form.submit (jsdom does not implement it) so we can assert it fired, and
+      // capture the 10s cleanup callback instead of scheduling a real timer that could
+      // fire during a later test (a leaked timer is flaky). Fake timers are avoided
+      // because they make localStorage unavailable in this environment.
+      submitSpy = vi.spyOn(HTMLFormElement.prototype, "submit").mockImplementation(() => {});
+      cleanup = undefined;
+      setTimeoutSpy = vi.spyOn(window, "setTimeout").mockImplementation((handler: TimerHandler) => {
+        cleanup = handler as () => void;
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      });
+      // localStorage is not available in this jsdom service-test environment; stub it so
+      // the method can read the auth token deterministically.
+      vi.stubGlobal("localStorage", {
+        getItem: vi.fn().mockReturnValue("tok-123"),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      });
+    });
+
+    afterEach(() => {
+      submitSpy.mockRestore();
+      setTimeoutSpy.mockRestore();
+      vi.unstubAllGlobals();
+      document
+        .querySelectorAll('form[target="download-iframe"], iframe[name="download-iframe"]')
+        .forEach(el => el.remove());
+    });
+
+    it("builds and submits a hidden form carrying the request and token, then cleans up on timeout", () => {
+      downloadService.exportWorkflowResultToLocal(
+        "csv",
+        1,
+        "WF",
+        EXPORT_OPERATORS,
+        0,
+        0,
+        "out.csv",
+        computingUnit("local", 5)
+      );
+
+      const form = document.querySelector('form[target="download-iframe"]') as HTMLFormElement;
+      expect(form).toBeTruthy();
+      expect(form.getAttribute("action")).toBe(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local`);
+      expect(form.method).toBe("post");
+      expect(submitSpy).toHaveBeenCalledTimes(1);
+
+      const requestInput = form.querySelector('input[name="request"]') as HTMLInputElement;
+      expect(JSON.parse(requestInput.value)).toMatchObject({
+        exportType: "csv",
+        workflowId: 1,
+        computingUnitId: 5,
+        datasetIds: [],
+      });
+      expect((form.querySelector('input[name="token"]') as HTMLInputElement).value).toBe("tok-123");
+
+      // Running the captured cleanup callback removes the form and the iframe.
+      expect(document.querySelector('iframe[name="download-iframe"]')).toBeTruthy();
+      cleanup?.();
+      expect(document.querySelector('form[target="download-iframe"]')).toBeNull();
+      expect(document.querySelector('iframe[name="download-iframe"]')).toBeNull();
+    });
+
+    it("falls back to an empty token when none is stored", () => {
+      // Override the beforeEach stub so getItem returns null, exercising the
+      // `?? ""` fallback on the auth token.
+      vi.stubGlobal("localStorage", {
+        getItem: vi.fn().mockReturnValue(null),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      });
+
+      downloadService.exportWorkflowResultToLocal(
+        "csv",
+        1,
+        "WF",
+        EXPORT_OPERATORS,
+        0,
+        0,
+        "out.csv",
+        computingUnit("local", 5)
+      );
+
+      const form = document.querySelector('form[target="download-iframe"]') as HTMLFormElement;
+      expect((form.querySelector('input[name="token"]') as HTMLInputElement).value).toBe("");
+    });
+
+    it("targets the cuid-scoped endpoint for a kubernetes computing unit", () => {
+      downloadService.exportWorkflowResultToLocal(
+        "csv",
+        1,
+        "WF",
+        EXPORT_OPERATORS,
+        0,
+        0,
+        "out.csv",
+        computingUnit("kubernetes", 9)
+      );
+
+      const form = document.querySelector('form[target="download-iframe"]') as HTMLFormElement;
+      expect(form.getAttribute("action")).toBe(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local?cuid=9`);
+    });
   });
 });
