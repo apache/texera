@@ -2495,6 +2495,44 @@ class TestMainLoop:
         assert "loop_start_id" not in passed_to_operator
         assert "loop_counter" not in passed_to_operator
 
+    def test_loopend_forwards_unstamped_state_without_consuming(
+        self, main_loop, monkeypatch
+    ):
+        # Reviewer feedback (#discussion_r3648708075): a loop-body operator
+        # that emits its own boundary state (produce_state_on_start/finish --
+        # a public API on both engine sides) sends it with the "no loop"
+        # envelope (counter 0, id ""). That state is NOT the loop's own
+        # boundary state: consuming it would clobber the captured back-jump id
+        # with "" and hand run_update a State with no `table` payload
+        # (KeyError). A real loop state is always stamped -- the matching
+        # LoopStart stamps its own id on every iteration's output -- so an
+        # UNstamped counter-0 frame at a LoopEnd must be forwarded downstream
+        # unchanged, skipping the operator, like any default pass-through.
+        main_loop.context.executor_manager.executor = _FalseLoopEnd()
+        emitted, switched, reset_calls = self._capture_state_emit(
+            main_loop, monkeypatch
+        )
+        # The loop's own state was already consumed and its id captured.
+        main_loop._loop_start_id = "loop-start-1"
+
+        main_loop._process_state_frame(
+            StateFrame(
+                State({"note": "from-body-op"}),
+                loop_counter=0,
+                loop_start_id="",
+            )
+        )
+
+        assert switched == [], "unstamped state must not invoke the operator"
+        assert reset_calls == [], "unstamped state must not reset output"
+        assert emitted == [(State({"note": "from-body-op"}), 0, "")], (
+            "unstamped state must forward downstream with its envelope "
+            f"unchanged; emitted: {emitted}"
+        )
+        assert main_loop._loop_start_id == "loop-start-1", (
+            "an unstamped state must not clobber the captured back-jump id"
+        )
+
     # ------------------------------------------------------------------ #
     # _jump_to_loop_start
     #

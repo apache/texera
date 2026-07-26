@@ -374,9 +374,23 @@ class MainLoop(StoppableQueueBlockingRunnable):
             return
 
         if isinstance(executor, LoopEndOperator):
-            # Matching LoopEnd (in_counter == 0): it will consume this state
-            # and jump back. Remember which LoopStart to jump to (it rides
-            # the envelope) for complete()/_jump_to_loop_start.
+            if not frame.loop_start_id:
+                # An UNstamped counter-0 state at a LoopEnd is not the loop's
+                # own boundary state -- it was produced by a loop-body
+                # operator's produce_state_on_start/finish (a public API on
+                # both engine sides), which emits with the "no loop" envelope.
+                # A real loop state is always stamped: the matching LoopStart
+                # stamps its own id on every iteration's output state.
+                # Forward it downstream unchanged, skipping the operator, like
+                # any default pass-through: consuming it would clobber the
+                # captured back-jump id with "" and hand run_update a State
+                # with no `table` payload (#discussion_r3648708075).
+                self._emit_and_save_state(state, in_counter, frame.loop_start_id)
+                self._check_and_process_control()
+                return
+            # Matching LoopEnd (in_counter == 0, stamped): it will consume
+            # this state and jump back. Remember which LoopStart to jump to
+            # (it rides the envelope) for complete()/_jump_to_loop_start.
             self._loop_start_id = frame.loop_start_id
 
         self.context.state_processing_manager.current_input_state = state

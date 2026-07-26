@@ -44,6 +44,7 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
+import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.texera.workflow.LogicalLink
@@ -183,6 +184,29 @@ class LoopIntegrationSpec
   // JavaRuntimeCompilation fails with "package ... does not exist" before
   // any loop logic runs. Production workers launch with a real classpath,
   // so this is a harness limitation, not an engine one.
+
+  /** A pass-through Python UDF that ALSO emits its own boundary state via the
+    * public `produce_state_on_finish` API -- the state arrives downstream
+    * with the "no loop" envelope (counter 0, no LoopStart stamp).
+    */
+  private def statefulPythonUDF(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTupleOperator(UDFOperatorV2):
+                |
+                |    @overrides
+                |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                |        yield tuple_
+                |
+                |    @overrides
+                |    def produce_state_on_finish(self, port: int) -> Optional[State]:
+                |        return State({"note": "from-body-op"})
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op
+  }
 
   private def link(from: LogicalOp, to: LogicalOp): LogicalLink =
     LogicalLink(from.operatorIdentifier, PortIdentity(), to.operatorIdentifier, PortIdentity())
@@ -328,6 +352,33 @@ class LoopIntegrationSpec
       innerRows == 3,
       s"inner LoopEnd must reset per outer iteration (3 rows, not 9): " +
         s"expected 3, got $innerRows (all: $materialized)"
+    )
+  }
+
+  it should "run a loop whose body operator emits its own boundary state" in {
+    // TextInput -> LoopStart -> stateful Python UDF -> LoopEnd.
+    //
+    // The UDF emits boundary state via produce_state_on_finish (a public API
+    // on both engine sides), which reaches the LoopEnd with the "no loop"
+    // envelope (counter 0, no LoopStart stamp) AFTER the forwarded loop
+    // state. The LoopEnd must pass that unstamped state through instead of
+    // consuming it: consuming would clobber the captured back-jump id with ""
+    // ("no loop-back state URI configured for LoopStart ''") and hand
+    // run_update a State with no `table` payload (KeyError). Regression test
+    // for #discussion_r3648708075 on #6661.
+    val src = textInput("1\n2\n3")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val mid = statefulPythonUDF()
+    val end = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, mid, end),
+      List(link(src, start), link(start, mid), link(mid, end))
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 3,
+      s"LoopEnd must accumulate all 3 iterations with a state-emitting " +
+        s"operator in the loop body: expected 3, got $endRows (all: $materialized)"
     )
   }
 
