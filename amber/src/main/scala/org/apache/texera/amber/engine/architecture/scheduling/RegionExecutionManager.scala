@@ -210,7 +210,7 @@ class RegionExecutionManager(
     // 3. Log whether the kills were successful
     gracefulStopRequests.transform {
       case Return(_) =>
-        logger.info(s"Region ${region.id.id} successfully terminated.")
+        logger.debug(s"Region ${region.id.id} successfully terminated.")
         regionExecution.getAllOperatorExecutions.foreach {
           case (_, opExec) =>
             opExec.getWorkerIds.foreach { workerId =>
