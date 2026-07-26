@@ -77,9 +77,9 @@ class CollaborationResourceSpec
       .anyNumberOfTimes()
 
     val properties = new java.util.HashMap[String, Object]()
-    uId.foreach { id =>
+    uId.foreach { uid =>
       val user = new User()
-      user.setUid(Integer.valueOf(id))
+      user.setUid(Integer.valueOf(uid))
       properties.put(classOf[User].getName, user)
     }
 
