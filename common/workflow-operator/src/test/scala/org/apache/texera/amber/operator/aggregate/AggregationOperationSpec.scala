@@ -22,6 +22,8 @@ package org.apache.texera.amber.operator.aggregate
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.sql.Timestamp
+
 /**
   * Coverage notes:
   * `AggregateOpSpec` (in this same package) already exercises the happy paths for
@@ -182,5 +184,79 @@ class AggregationOperationSpec extends AnyFlatSpec {
     assert(a.count == 4)
     assert(a == b)
     assert(a.hashCode == b.hashCode)
+  }
+
+  // --- getAggFunc: the accepting side of the four-clause type guard ----------
+
+  // SUM/MIN/MAX each guard on
+  // `!= INTEGER && != DOUBLE && != LONG && != TIMESTAMP`. The existing tests
+  // only drive the rejecting side plus INTEGER/DOUBLE, so the chain is never
+  // walked to its later clauses; TIMESTAMP in particular has to pass all four.
+  private val supportedAggTypes = Seq(
+    AttributeType.INTEGER,
+    AttributeType.DOUBLE,
+    AttributeType.LONG,
+    AttributeType.TIMESTAMP
+  )
+
+  private val guardedAggregations = Seq(
+    AggregationFunction.SUM -> "sum",
+    AggregationFunction.MIN -> "min",
+    AggregationFunction.MAX -> "max"
+  )
+
+  it should "accept every supported attribute type on SUM, MIN and MAX" in {
+    for ((func, name) <- guardedAggregations; t <- supportedAggTypes)
+      assert(op(func).getAggFunc(t) != null, s"$name should accept $t")
+  }
+
+  it should "reject unsupported attribute types on SUM, MIN and MAX, naming the aggregation and the type" in {
+    val unsupported =
+      Seq(AttributeType.STRING, AttributeType.BOOLEAN, AttributeType.BINARY)
+    for ((func, name) <- guardedAggregations; t <- unsupported) {
+      val ex = intercept[UnsupportedOperationException](op(func).getAggFunc(t))
+      assert(ex.getMessage == s"Unsupported attribute type for $name aggregation: $t")
+    }
+  }
+
+  // --- AVERAGE over TIMESTAMP: the timestamp branch of getNumericalValue -----
+
+  // Everywhere else AVERAGE is driven over DOUBLE, which takes the
+  // `value.toString.toDouble` path. A TIMESTAMP column is the only route into
+  // the `parseTimestamp(...).getTime` branch.
+  private val earlier = Timestamp.valueOf("2020-03-05 10:00:00")
+  private val later = Timestamp.valueOf("2020-03-05 11:00:00")
+  private val midpointMillis = (earlier.getTime + later.getTime) / 2.0
+
+  "AVERAGE over a TIMESTAMP column" should "average the values' epoch milliseconds" in {
+    val agg = op(AggregationFunction.AVERAGE).getAggFunc(AttributeType.TIMESTAMP)
+    val state = Seq(earlier, later)
+      .map(ts => tupleOf("v", AttributeType.TIMESTAMP, ts))
+      .foldLeft(agg.init())(agg.iterate)
+
+    assert(agg.finalAgg(state).asInstanceOf[java.lang.Double] == midpointMillis)
+  }
+
+  it should "combine per-worker partials through merge" in {
+    val agg = op(AggregationFunction.AVERAGE).getAggFunc(AttributeType.TIMESTAMP)
+    val p1 = agg.iterate(agg.init(), tupleOf("v", AttributeType.TIMESTAMP, earlier))
+    val p2 = agg.iterate(agg.init(), tupleOf("v", AttributeType.TIMESTAMP, later))
+
+    val merged = agg.merge(p1, p2)
+
+    assert(agg.finalAgg(merged).asInstanceOf[java.lang.Double] == midpointMillis)
+  }
+
+  it should "ignore null timestamps and return null when every value is null" in {
+    val agg = op(AggregationFunction.AVERAGE).getAggFunc(AttributeType.TIMESTAMP)
+
+    val mixed = Seq[AnyRef](earlier, null, later)
+      .map(ts => tupleOf("v", AttributeType.TIMESTAMP, ts))
+      .foldLeft(agg.init())(agg.iterate)
+    assert(agg.finalAgg(mixed).asInstanceOf[java.lang.Double] == midpointMillis)
+
+    val allNull =
+      agg.iterate(agg.init(), tupleOf("v", AttributeType.TIMESTAMP, null))
+    assert(agg.finalAgg(allNull) == null)
   }
 }
