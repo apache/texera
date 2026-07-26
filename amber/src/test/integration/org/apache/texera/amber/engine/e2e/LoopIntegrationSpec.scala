@@ -282,54 +282,22 @@ class LoopIntegrationSpec
     )
   }
 
-  it should "run a nested loop whose inner body contains a JVM (Scala) operator" in {
-    // TextInput -> OuterStart -> InnerStart -> Limit -> InnerEnd -> OuterEnd.
-    //
-    // The nested variant of the JVM-hop test: the OUTER loop's state crosses
-    // the Scala operator stamped (loop_counter = 1, loop_start_id = outer), so
-    // this pins that the JVM hop preserves the counter MAGNITUDE too, not just
-    // the id. A zeroed counter would make the inner LoopEnd mis-consume the
-    // outer state (KeyError on the missing 'table' key / clobbered jump id)
-    // instead of passing it through with -1.
-    val src = textInput("1\n2\n3")
-    val outerStart = loopStart("i = 0", "table")
-    val innerStart = loopStart("j = 0", "table.iloc[j]")
-    val mid = limit(10)
-    val innerEnd = loopEnd("j += 1", "j < len(table)")
-    val outerEnd = loopEnd("i += 1", "i < len(table)")
-    val materialized = runAndGetMaterializedRowCounts(
-      List(src, outerStart, innerStart, mid, innerEnd, outerEnd),
-      List(
-        link(src, outerStart),
-        link(outerStart, innerStart),
-        link(innerStart, mid),
-        link(mid, innerEnd),
-        link(innerEnd, outerEnd)
-      )
-    )
-    val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier, -1L)
-    val innerRows = materialized.getOrElse(innerEnd.operatorIdentifier, -1L)
-    assert(
-      outerRows == 9,
-      s"outer LoopEnd must accumulate all 9 inner-iteration rows with a Scala " +
-        s"operator in the inner body: expected 9, got $outerRows (all: $materialized)"
-    )
-    assert(
-      innerRows == 3,
-      s"inner LoopEnd must reset per outer iteration (3 rows, not 9): " +
-        s"expected 3, got $innerRows (all: $materialized)"
-    )
-  }
-
   it should "run a nested loop whose inner body chains multiple JVM operators" in {
     // TextInput -> OuterStart -> InnerStart -> Limit -> Sleep(0) -> InnerEnd -> OuterEnd.
     //
     // The strongest combination: nested (the OUTER loop's state crosses the
     // JVM hops stamped with loop_counter = 1, so the counter MAGNITUDE must
-    // survive both hops) x multi-hop (the JVM-to-JVM state handoff between
-    // the two Scala workers) x both operator kinds. A zeroed counter or a
-    // blanked id at either hop would mis-route the outer state at the inner
-    // LoopEnd.
+    // survive both hops -- a zeroed counter would make the inner LoopEnd
+    // mis-consume the outer state instead of passing it through with -1) x
+    // multi-hop (the JVM-to-JVM state handoff: the first Scala worker WRITES
+    // the envelope columns to its output state table and the second Scala
+    // worker READS them back) x both operator kinds.
+    //
+    // This case strictly subsumes a nested loop with a single JVM operator
+    // and a single loop with a JVM chain; those were removed as separate
+    // tests because each loop iteration respawns every worker in the
+    // re-executed regions (~2s per Python worker), making every extra e2e
+    // workflow expensive (~1 minute per nested case in CI).
     val src = textInput("1\n2\n3")
     val outerStart = loopStart("i = 0", "table")
     val innerStart = loopStart("j = 0", "table.iloc[j]")
@@ -363,28 +331,4 @@ class LoopIntegrationSpec
     )
   }
 
-  it should "run a loop whose body chains multiple JVM operators" in {
-    // TextInput -> LoopStart -> Limit -> Sleep(0) -> LoopEnd.
-    //
-    // Two consecutive JVM hops pin the JVM-to-JVM state handoff: the first
-    // Scala worker WRITES the envelope columns to its output state table and
-    // the second Scala worker READS them back. The single-JVM-op tests never
-    // exercise that pairing (there, each hop faces a Python worker on at
-    // least one side). Sleep(0) is a pure identity pass-through.
-    val src = textInput("1\n2\n3")
-    val start = loopStart("i = 0", "table.iloc[i]")
-    val first = limit(10)
-    val second = sleep(0)
-    val end = loopEnd("i += 1", "i < len(table)")
-    val materialized = runAndGetMaterializedRowCounts(
-      List(src, start, first, second, end),
-      List(link(src, start), link(start, first), link(first, second), link(second, end))
-    )
-    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
-    assert(
-      endRows == 3,
-      s"LoopEnd must accumulate all 3 iterations with two chained JVM " +
-        s"operators in the loop body: expected 3, got $endRows (all: $materialized)"
-    )
-  }
 }
