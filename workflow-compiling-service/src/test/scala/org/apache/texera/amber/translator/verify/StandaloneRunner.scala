@@ -20,6 +20,7 @@
 package org.apache.texera.amber.translator.verify
 
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 
 import java.nio.charset.StandardCharsets
@@ -201,6 +202,25 @@ object StandaloneRunner extends LazyLogging {
     sb.append("    return df\n")
     sb.append("\n")
 
+    // TIMESTAMP columns are handed to the operator as datetime64 (see the
+    // prologue below) to match the schema-typed runtime path, but the runtime
+    // path serializes a TIMESTAMP back out with java.sql.Timestamp.toString —
+    // "yyyy-mm-dd hh:mm:ss.f", trailing zeros trimmed to at least one digit —
+    // whereas pandas' to_json would emit epoch millis. Convert datetime columns
+    // back to that exact form before writing so both paths' JSONL agree.
+    sb.append("def _texera_ts_str(_v):\n")
+    sb.append("    if pd.isna(_v):\n")
+    sb.append("        return None\n")
+    sb.append("    _s = _v.strftime('%Y-%m-%d %H:%M:%S.%f').rstrip('0')\n")
+    sb.append("    return _s + '0' if _s.endswith('.') else _s\n")
+    sb.append("\n")
+    sb.append("def _texera_encode_ts_cols(df):\n")
+    sb.append("    for _c in df.columns:\n")
+    sb.append("        if pd.api.types.is_datetime64_any_dtype(df[_c]):\n")
+    sb.append("            df[_c] = df[_c].map(_texera_ts_str)\n")
+    sb.append("    return df\n")
+    sb.append("\n")
+
     // Prologue: load each external input into in{N}df. Note: pd.read_json with
     // lines=True correctly handles empty files (returns empty DataFrame).
     // convert_dates=False: pd.read_json otherwise auto-coerces ISO-ish strings
@@ -214,11 +234,19 @@ object StandaloneRunner extends LazyLogging {
     // different values than the schema-typed runtime path (which parses doubles
     // exactly). Operators that stringify raw cell values (e.g. Radar hover text)
     // then diverge; precise_float=True keeps both paths bit-identical.
+    // The blanket convert_dates=False also leaves genuine TIMESTAMP columns as
+    // strings, which the runtime path delivers as datetime64 — a divergence for
+    // any operator that renders or computes on them. The fixture's schema
+    // sidecar says which columns those are, so cast exactly those back.
     inputs.toSeq.sortBy(_._1).foreach {
       case (n, path) =>
         sb.append(
           s"in${n}df = pd.read_json(${py(path.toString)}, lines=True, convert_dates=False, precise_float=True)\n"
         )
+        timestampColumns(path).foreach { col =>
+          sb.append(s"if ${py(col)} in in${n}df.columns:\n")
+          sb.append(s"    in${n}df[${py(col)}] = pd.to_datetime(in${n}df[${py(col)}])\n")
+        }
     }
     sb.append("\n")
 
@@ -234,12 +262,25 @@ object StandaloneRunner extends LazyLogging {
     outputs.toSeq.sortBy(_._1).foreach {
       case (n, path) =>
         sb.append(
-          s"_texera_encode_obj_cols(out${n}df).to_json(${py(path.toString)}, orient='records', lines=True)\n"
+          s"_texera_encode_obj_cols(_texera_encode_ts_cols(out${n}df))" +
+            s".to_json(${py(path.toString)}, orient='records', lines=True)\n"
         )
     }
 
     sb.toString
   }
+
+  // TIMESTAMP-typed column names from a fixture's `.jsonl.schema.json` sidecar.
+  // A missing or unreadable sidecar means no casts — the prologue then behaves
+  // exactly as before.
+  private def timestampColumns(input: Path): Seq[String] =
+    scala.util
+      .Try(TupleIO.readSchemaSidecar(input))
+      .toOption
+      .toSeq
+      .flatMap(
+        _.getAttributes.filter(_.getType == AttributeType.TIMESTAMP).map(_.getName)
+      )
 
   // Python string literal, single-quoted with backslashes escaped. We
   // deliberately don't use repr() in Scala (no such thing) — JSON.toString

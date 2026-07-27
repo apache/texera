@@ -52,8 +52,6 @@ import org.apache.texera.amber.operator.visualization.bulletChart.{
 }
 
 import org.apache.texera.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
-import org.apache.texera.amber.operator.visualization.ganttChart.GanttChartOpDesc
-import org.apache.texera.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 import org.apache.texera.amber.operator.machineLearning.Scorer.classificationMetricsFnc
 import org.apache.texera.amber.operator.machineLearning.Scorer.regressionMetricsFnc
 import org.apache.texera.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
@@ -212,9 +210,7 @@ object CuratedHandlers {
     ProjectionTransformHandler,
     BulletChartVisualizationHandler,
     ImageVisualizerVisualizationHandler,
-    ScatterMatrixVisualizationHandler,
     FilledAreaPlotVisualizationHandler,
-    GanttChartVisualizationHandler,
     SklearnLinearRegressionTransformHandler,
     IfTransformHandler,
     MachineLearningScorerTransformHandler,
@@ -912,89 +908,6 @@ object ImageVisualizerVisualizationHandler extends TransformHandler {
 
     val desc = new ImageVisualizerOpDesc()
     desc.binaryContent = "image_bytes"
-
-    (desc, Map(PortIdentity(0) -> inputPath))
-  }
-}
-
-/** ScatterMatrix visualization fixture. Uses three numeric dimensions and a
-  * stable categorical color column.
-  */
-object ScatterMatrixVisualizationHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[ScatterMatrixChartOpDesc]
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val schema = new Schema(
-      new Attribute("x", AttributeType.DOUBLE),
-      new Attribute("y", AttributeType.DOUBLE),
-      new Attribute("z", AttributeType.DOUBLE),
-      new Attribute("group", AttributeType.STRING)
-    )
-
-    def tup(x: Double, y: Double, z: Double, group: String): Tuple = {
-      val builder = Tuple.builder(schema)
-      builder.add(schema.getAttribute("x"), x)
-      builder.add(schema.getAttribute("y"), y)
-      builder.add(schema.getAttribute("z"), z)
-      builder.add(schema.getAttribute("group"), group)
-      builder.build()
-    }
-
-    val rows = Seq(
-      tup(1.0, 4.0, 7.0, "alpha"),
-      tup(2.0, 3.0, 6.0, "beta"),
-      tup(3.0, 2.0, 5.0, "alpha"),
-      tup(4.0, 1.0, 8.0, "gamma"),
-      tup(5.0, 5.0, 9.0, "beta")
-    )
-    val inputPath = testRoot.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(inputPath, rows.iterator, schema)
-
-    val desc = new ScatterMatrixChartOpDesc()
-    desc.selectedAttributes = List("x", "y", "z")
-    desc.color = "group"
-
-    (desc, Map(PortIdentity(0) -> inputPath))
-  }
-}
-
-/** GanttChart visualization fixture with two non-overlapping tasks. Uses its own
-  * STRING datetime columns (not the canonical TIMESTAMP `start_ts`/`finish_ts`)
-  * because the two paths serialize a TIMESTAMP differently to their pandas input
-  * (JVM ISO string vs epoch millis), which makes px.timeline emit divergent
-  * figures. ISO datetime STRINGS round-trip identically on both paths, so a
-  * curated fixture is required here — @SampleColumn onto the TIMESTAMP columns
-  * does not work (verified: default variant fails with a Plotly JSON mismatch).
-  */
-object GanttChartVisualizationHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[GanttChartOpDesc]
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val schema = new Schema(
-      new Attribute("task", AttributeType.STRING),
-      new Attribute("start", AttributeType.STRING),
-      new Attribute("finish", AttributeType.STRING)
-    )
-
-    def tup(task: String, start: String, finish: String): Tuple = {
-      val builder = Tuple.builder(schema)
-      builder.add(schema.getAttribute("task"), task)
-      builder.add(schema.getAttribute("start"), start)
-      builder.add(schema.getAttribute("finish"), finish)
-      builder.build()
-    }
-
-    val rows = Seq(
-      tup("Design", "2024-01-01 09:00:00", "2024-01-01 11:00:00"),
-      tup("Build", "2024-01-01 11:00:00", "2024-01-01 15:00:00")
-    )
-    val inputPath = testRoot.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(inputPath, rows.iterator, schema)
-
-    val desc = new GanttChartOpDesc()
-    desc.task = "task"
-    desc.start = "start"
-    desc.finish = "finish"
 
     (desc, Map(PortIdentity(0) -> inputPath))
   }
