@@ -108,8 +108,8 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
   "LoopStartOpDesc.getPhysicalOp" should "require a materialized boundary" in {
     // The loop back-edge is the cross-region materialized state channel, so the
     // scheduler forces every link incident to this operator to be materialized
-    // (PhysicalOp.requiresMaterializedBoundary), making it a region of its own.
-    desc().getPhysicalOp(workflowId, executionId).requiresMaterializedBoundary shouldBe true
+    // (PhysicalOp.requiresMaterializedExecution), making it a region of its own.
+    desc().getPhysicalOp(workflowId, executionId).requiresMaterializedExecution shouldBe true
   }
 
   it should "mark the physical op as the loop start" in {

@@ -206,7 +206,7 @@ case class PhysicalOp(
     // port-level declaration can express. The schedule generator adds these
     // links to the always-materialized set and optimizes the rest of the
     // plan normally under the requested execution mode. Default false.
-    requiresMaterializedBoundary: Boolean = false,
+    requiresMaterializedExecution: Boolean = false,
     // Marks the Loop Start operator of a loop; the scheduler resolves the loop-back
     // write address from it (see InitializeExecutorRequest.loopStartStateUris). Default false.
     isLoopStart: Boolean = false,
@@ -332,8 +332,8 @@ case class PhysicalOp(
     * creates a copy specifying whether every link incident to this operator
     * must be materialized (see the field doc)
     */
-  def withRequiresMaterializedBoundary(requiresMaterializedBoundary: Boolean): PhysicalOp =
-    this.copy(requiresMaterializedBoundary = requiresMaterializedBoundary)
+  def withRequiresMaterializedExecution(requiresMaterializedExecution: Boolean): PhysicalOp =
+    this.copy(requiresMaterializedExecution = requiresMaterializedExecution)
 
   /**
     * creates a copy specifying whether this operator is the Loop Start of a

@@ -305,7 +305,7 @@ class CostBasedScheduleGenerator(
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResultFuture: Future[SearchResult] = Future {
       val boundaryOps = physicalPlan.operators
-        .filter(_.requiresMaterializedBoundary)
+        .filter(_.requiresMaterializedExecution)
         .map(_.id.logicalOpId.id)
       if (boundaryOps.nonEmpty) {
         // Surface the forced links: the search keeps every link incident to

@@ -29,10 +29,11 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 /**
   * Shared base for the Loop Start / Loop End operator descriptors. Both are
   * single-worker, non-parallelizable CONTROL operators that code-gen a Python
-  * class from user expressions and require MATERIALIZED execution (the loop
-  * back-edge is a cross-region materialized state channel). Subclasses supply
-  * the operator name/description, the generated Python body, and -- for Loop
-  * End -- whether output storage is reused across region re-executions.
+  * class from user expressions and force every incident link to be
+  * materialized (the loop back-edge is a cross-region materialized state
+  * channel). Subclasses supply the operator name/description, the generated
+  * Python body, and -- for Loop End -- whether output storage is reused
+  * across region re-executions.
   */
 abstract class LoopOpDesc extends LogicalOp {
 
@@ -88,7 +89,7 @@ abstract class LoopOpDesc extends LogicalOp {
       // link incident to a loop boundary operator must be materialized; the
       // scheduler forces exactly those links when this flag is set and
       // optimizes the rest of the plan normally.
-      .withRequiresMaterializedBoundary(true)
+      .withRequiresMaterializedExecution(true)
       .withIsLoopStart(isLoopStart)
 
   override def operatorInfo: OperatorInfo =

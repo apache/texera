@@ -277,8 +277,8 @@ case class PhysicalPlan(
   @JsonIgnore
   def getForcedMaterializedLinks: Set[PhysicalLink] = {
     val boundaryLinks = links.filter(link =>
-      getOperator(link.fromOpId).requiresMaterializedBoundary ||
-        getOperator(link.toOpId).requiresMaterializedBoundary
+      getOperator(link.fromOpId).requiresMaterializedExecution ||
+        getOperator(link.toOpId).requiresMaterializedExecution
     )
     getBlockingAndDependeeLinks ++ boundaryLinks
   }

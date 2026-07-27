@@ -207,7 +207,7 @@ class PhysicalPlanSpec extends AnyFlatSpec {
 
   "PhysicalPlan.getForcedMaterializedLinks" should
     "include every link incident to an operator requiring a materialized boundary" in {
-    val boundaryOp = physicalOp("ls").withRequiresMaterializedBoundary(true)
+    val boundaryOp = physicalOp("ls").withRequiresMaterializedExecution(true)
     val plan = PhysicalPlan(
       Set(physicalOp("a"), boundaryOp, physicalOp("b"), physicalOp("c")),
       Set.empty
@@ -224,7 +224,7 @@ class PhysicalPlanSpec extends AnyFlatSpec {
   it should "exclude forced links from the search candidates" in {
     // Diamond a->{b,ls}->d, where ls requires a materialized boundary: its two
     // links leave the candidate set even though the diamond has no bridges.
-    val boundaryOp = physicalOp("ls").withRequiresMaterializedBoundary(true)
+    val boundaryOp = physicalOp("ls").withRequiresMaterializedExecution(true)
     val diamond =
       Set(link("a", "b"), link("a", "ls"), link("b", "d"), link("ls", "d"))
     val plan = PhysicalPlan(
