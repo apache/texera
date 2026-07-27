@@ -106,9 +106,7 @@ class TestEndWorkerHandler:
     def test_fails_when_a_control_invocation_is_queued(self, handler, queue):
         queue.put(_control_invocation_element())
 
-        with pytest.raises(
-            RuntimeError, match="worker still has unprocessed messages"
-        ):
+        with pytest.raises(RuntimeError, match="worker still has unprocessed messages"):
             asyncio.run(handler.end_worker(EmptyRequest()))
         assert queue.size() == 1
 
@@ -119,9 +117,7 @@ class TestEndWorkerHandler:
         queue.put(_coordinator_reply_element())
         queue.put(_control_invocation_element())
 
-        with pytest.raises(
-            RuntimeError, match="worker still has unprocessed messages"
-        ):
+        with pytest.raises(RuntimeError, match="worker still has unprocessed messages"):
             asyncio.run(handler.end_worker(EmptyRequest()))
         assert queue.size() == 2
 
@@ -129,9 +125,7 @@ class TestEndWorkerHandler:
     def test_fails_when_data_is_queued(self, handler, queue):
         queue.put(DataElement(tag=DATA_CHANNEL, payload=DataPayload()))
 
-        with pytest.raises(
-            RuntimeError, match="worker still has unprocessed messages"
-        ):
+        with pytest.raises(RuntimeError, match="worker still has unprocessed messages"):
             asyncio.run(handler.end_worker(EmptyRequest()))
         assert queue.size() == 1
 
