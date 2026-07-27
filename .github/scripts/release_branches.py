@@ -21,11 +21,13 @@
 # fixed schema this file uses:
 #
 #     targets:
-#       - branch: release/v1.2   # inline comments allowed
-#         manager: xuang7        # optional
+#       - branch: release/v1.2       # inline comments allowed
+#         manager: xuang7            # optional
+#         actively-supporting: true  # optional, defaults to true
 #
 # Usage:
-#   release_branches.py [path]              -> JSON array [{"branch","manager"}]
+#   release_branches.py [path]              -> JSON array
+#                                              [{"branch","manager","active"}]
 #   release_branches.py [path] --targets    -> JSON array of branch names
 #   release_branches.py [path] --manager B  -> manager for branch B (or empty)
 
@@ -66,7 +68,9 @@ def parse(path):
 
             item = stripped
             if item.startswith("-"):
-                current = {"branch": "", "manager": ""}
+                # `active` defaults to true; an entry is only inactive when it
+                # explicitly says so.
+                current = {"branch": "", "manager": "", "active": True}
                 entries.append(current)
                 item = item[1:].strip()
                 if not item:
@@ -77,6 +81,8 @@ def parse(path):
             key = key.strip()
             if key in ("branch", "manager"):
                 current[key] = _strip(value)
+            elif key == "actively-supporting":
+                current["active"] = _strip(value).lower() in ("true", "yes", "1")
 
     return [e for e in entries if e["branch"]]
 

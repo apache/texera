@@ -25,14 +25,22 @@
 #     red one opens a draft backport PR assigned to the author with the manager
 #     as reviewer.
 #
-# When a release branch is frozen / end-of-life, remove its entry here to stop
-# auto-labeling and auto-backporting to it. The label name equals the branch
-# name (e.g. branch `release/v1.2` <-> label `release/v1.2`).
+# The label name equals the branch name (e.g. branch `release/v1.2` <-> label
+# `release/v1.2`).
+#
+# `actively-supporting` controls the default: only actively-supporting branches
+# are auto-labeled on new `fix:` PRs. An inactive branch stays a valid backport
+# target — a maintainer can still add its label by hand and the apply-check /
+# post-merge backport run as usual — it just isn't offered by default. Omitting
+# the field defaults to true. When a branch reaches end-of-life, drop its entry
+# entirely.
 #
 # `manager` is a GitHub username. It may be omitted (leave the branch as a
 # backport target without an auto-requested reviewer), but is recommended.
 targets:
   - branch: release/v1.2
     manager: xuang7
+    actively-supporting: true
   - branch: release/v1.1
     manager: bobbai00
+    actively-supporting: false

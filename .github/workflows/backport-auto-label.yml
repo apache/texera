@@ -158,6 +158,14 @@ jobs:
               const label = entry.branch;
               const manager = entry.manager;
 
+              // Only actively-supporting branches are auto-labeled. An inactive
+              // branch stays a valid manual target (label it by hand and the
+              // apply-check / post-merge backport still run) — just not by
+              // default.
+              if (!entry.active) {
+                core.info(`${label} is not actively-supporting; not auto-labeling.`);
+                continue;
+              }
               if (currentLabels.has(label)) {
                 core.info(`PR #${pr.number} already has ${label}.`);
                 continue;
