@@ -66,7 +66,7 @@ class FeedbackResourceSpec
     otherSessionUser = new SessionUser(otherUser)
   }
 
-  override protected def afterAll(): Unit = shutdownDB()
+  override protected def afterAll(): Unit = closeConnectionPool()
 
   private def clearFeedback(): Unit = {
     getDSLContext.deleteFrom(FEEDBACK).execute()
