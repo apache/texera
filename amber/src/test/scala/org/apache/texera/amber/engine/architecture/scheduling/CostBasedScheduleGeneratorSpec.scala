@@ -21,7 +21,6 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.texera.amber.core.workflow.{
   ExecutionMode,
-  PhysicalPlan,
   PortIdentity,
   WorkflowContext,
   WorkflowSettings
@@ -29,6 +28,7 @@ import org.apache.texera.amber.core.workflow.{
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.workflow.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -516,40 +516,62 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     )
   }
 
-  "CostBasedScheduleGenerator.effectiveExecutionMode" should
-    "force MATERIALIZED when an operator requires it, even if PIPELINED is requested" in {
+  "CostBasedRegionPlanGenerator" should
+    "materialize exactly the loop-boundary links and pipeline the loop body" in {
+    // csv -> LoopStart -> keyword -> keyword2 -> LoopEnd -> keyword3
+    val csvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
+    val loopStartOpDesc = new LoopStartOpDesc()
+    loopStartOpDesc.initialization = "i = 0"
+    loopStartOpDesc.output = "table"
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val keywordOpDesc2 = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val loopEndOpDesc = new LoopEndOpDesc()
+    loopEndOpDesc.update = "i += 1"
+    loopEndOpDesc.condition = "i < 1"
+    val keywordOpDesc3 = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val chain =
+      List(csvOpDesc, loopStartOpDesc, keywordOpDesc, keywordOpDesc2, loopEndOpDesc, keywordOpDesc3)
     val workflow = buildWorkflow(
-      List(TestOperators.headerlessSmallCsvScanOpDesc()),
-      List(),
+      chain,
+      chain
+        .zip(chain.tail)
+        .map {
+          case (from, to) =>
+            LogicalLink(
+              from.operatorIdentifier,
+              PortIdentity(),
+              to.operatorIdentifier,
+              PortIdentity()
+            )
+        },
       new WorkflowContext()
     )
-    val planRequiringMaterialization = PhysicalPlan(
-      workflow.physicalPlan.operators.map(_.withRequiresMaterializedExecution(true)),
-      workflow.physicalPlan.links
-    )
-    assert(
-      CostBasedScheduleGenerator.effectiveExecutionMode(
-        planRequiringMaterialization,
-        ExecutionMode.PIPELINED
-      ) == ExecutionMode.MATERIALIZED
-    )
-  }
 
-  it should "keep the requested mode when no operator requires materialization" in {
-    val workflow = buildWorkflow(
-      List(TestOperators.headerlessSmallCsvScanOpDesc()),
-      List(),
-      new WorkflowContext()
+    val result = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      COORDINATOR
+    ).bottomUpSearch()
+
+    // The four links incident to LoopStart/LoopEnd are forced materialized,
+    // splitting the plan into five regions: {csv}, {LoopStart},
+    // {keyword, keyword2}, {LoopEnd}, {keyword3}.
+    val regions = result.regionDAG.vertexSet().asScala
+    assert(regions.size == 5, s"expected 5 regions, got ${regions.size}")
+
+    // The two body operators share one region: their link stays pipelined.
+    val bodyRegion = regions.find(region =>
+      region.getOperators.exists(_.id.logicalOpId == keywordOpDesc.operatorIdentifier)
     )
-    val plan = workflow.physicalPlan
     assert(
-      CostBasedScheduleGenerator.effectiveExecutionMode(plan, ExecutionMode.PIPELINED) ==
-        ExecutionMode.PIPELINED
+      bodyRegion.get.getOperators.map(_.id.logicalOpId) ==
+        Set(keywordOpDesc.operatorIdentifier, keywordOpDesc2.operatorIdentifier),
+      "the loop body should be one pipelined region"
     )
-    assert(
-      CostBasedScheduleGenerator.effectiveExecutionMode(plan, ExecutionMode.MATERIALIZED) ==
-        ExecutionMode.MATERIALIZED
-    )
+
+    // The search needed no materializations beyond the forced boundary links.
+    assert(result.state.isEmpty)
+    assert(result.regionDAG.edgeSet().asScala.size == 4)
   }
 
   "CostBasedRegionPlanGenerator" should "finish bottom-up greedy search (globalSearch=false) in csv->->filter->join->filter2 workflow" in {

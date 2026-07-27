@@ -44,23 +44,6 @@ import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
 
-object CostBasedScheduleGenerator {
-
-  /**
-    * The execution mode to schedule under: MATERIALIZED when any operator in
-    * `physicalPlan` requires it (e.g. the loop operators, whose back-edge is a
-    * cross-region materialized state channel), otherwise the requested mode.
-    */
-  private[scheduling] def effectiveExecutionMode(
-      physicalPlan: PhysicalPlan,
-      requestedMode: ExecutionMode
-  ): ExecutionMode =
-    if (physicalPlan.operators.exists(_.requiresMaterializedExecution))
-      ExecutionMode.MATERIALIZED
-    else
-      requestedMode
-}
-
 class CostBasedScheduleGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan,
@@ -321,22 +304,20 @@ class CostBasedScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResultFuture: Future[SearchResult] = Future {
-      val requestedMode = workflowContext.workflowSettings.executionMode
-      val effectiveMode =
-        CostBasedScheduleGenerator.effectiveExecutionMode(physicalPlan, requestedMode)
-      if (effectiveMode != requestedMode) {
-        // Surface the silent coercion: the user asked for one mode but an
-        // operator (e.g. a loop) forces materialized scheduling.
-        val requiringOps = physicalPlan.operators
-          .filter(_.requiresMaterializedExecution)
-          .map(_.id.logicalOpId.id)
-        logger.warn(
+      val boundaryOps = physicalPlan.operators
+        .filter(_.requiresMaterializedBoundary)
+        .map(_.id.logicalOpId.id)
+      if (boundaryOps.nonEmpty) {
+        // Surface the forced links: the search keeps every link incident to
+        // these operators (e.g. loop boundaries) materialized and optimizes
+        // the rest of the plan under the requested mode.
+        logger.info(
           s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, " +
-            s"overriding requested execution mode $requestedMode with $effectiveMode: " +
-            s"operator(s) ${requiringOps.toSeq.sorted.mkString(", ")} require materialized execution."
+            s"forcing materialization of all links incident to operator(s) " +
+            s"${boundaryOps.toSeq.sorted.mkString(", ")} (materialized boundaries)."
         )
       }
-      effectiveMode match {
+      workflowContext.workflowSettings.executionMode match {
         case ExecutionMode.MATERIALIZED =>
           getFullyMaterializedSearchState
         case ExecutionMode.PIPELINED =>
@@ -395,7 +376,7 @@ class CostBasedScheduleGenerator(
         physicalPlan.getNonBridgeNonBlockingLinks
       } else {
         physicalPlan.links.diff(
-          physicalPlan.getBlockingAndDependeeLinks
+          physicalPlan.getForcedMaterializedLinks
         )
       }
     // Queue to hold states to be explored, starting with the empty set
@@ -426,7 +407,7 @@ class CostBasedScheduleGenerator(
         }
         visited.add(currentState)
         tryConnectRegionDAG(
-          physicalPlan.getBlockingAndDependeeLinks ++ currentState
+          physicalPlan.getForcedMaterializedLinks ++ currentState
         ) match {
           case Left(regionDAG) =>
             updateOptimumIfApplicable(regionDAG)
@@ -457,7 +438,7 @@ class CostBasedScheduleGenerator(
         */
       def addNeighborStatesToFrontier(): Unit = {
         val allCurrentMaterializedEdges =
-          currentState ++ physicalPlan.getBlockingAndDependeeLinks
+          currentState ++ physicalPlan.getForcedMaterializedLinks
         // Generate and enqueue all neighbour states that haven't been visited
         var candidateEdges = originalNonBlockingEdges
           .diff(currentState)
@@ -493,7 +474,7 @@ class CostBasedScheduleGenerator(
           if (filteredNeighborStates.nonEmpty) {
             val minCostNeighborState = filteredNeighborStates.minBy(neighborState =>
               tryConnectRegionDAG(
-                physicalPlan.getBlockingAndDependeeLinks ++ neighborState
+                physicalPlan.getForcedMaterializedLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
                   allocateResourcesAndEvaluateCost(regionDAG)
@@ -554,13 +535,13 @@ class CostBasedScheduleGenerator(
     val startTime = System.nanoTime()
     // Starting from a state where all non-blocking edges are materialized
     val originalSeedState = physicalPlan.links.diff(
-      physicalPlan.getBlockingAndDependeeLinks
+      physicalPlan.getForcedMaterializedLinks
     )
 
     // Chain optimization: an edge in the same chain as a blocking edge should not be materialized
     val seedStateOptimizedByChainsIfApplicable = if (oChains) {
       val edgesInChainWithBlockingEdge = physicalPlan.maxChains
-        .filter(chain => chain.intersect(physicalPlan.getBlockingAndDependeeLinks).nonEmpty)
+        .filter(chain => chain.intersect(physicalPlan.getForcedMaterializedLinks).nonEmpty)
         .flatten
       originalSeedState.diff(edgesInChainWithBlockingEdge)
     } else {
@@ -589,7 +570,7 @@ class CostBasedScheduleGenerator(
       val currentState = queue.dequeue()
       visited.add(currentState)
       tryConnectRegionDAG(
-        physicalPlan.getBlockingAndDependeeLinks ++ currentState
+        physicalPlan.getForcedMaterializedLinks ++ currentState
       ) match {
         case Left(regionDAG) =>
           updateOptimumIfApplicable(regionDAG)
@@ -632,7 +613,7 @@ class CostBasedScheduleGenerator(
           if (unvisitedNeighborStates.nonEmpty) {
             val minCostNeighborState = unvisitedNeighborStates.minBy(neighborState =>
               tryConnectRegionDAG(
-                physicalPlan.getBlockingAndDependeeLinks ++ neighborState
+                physicalPlan.getForcedMaterializedLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
                   allocateResourcesAndEvaluateCost(regionDAG)

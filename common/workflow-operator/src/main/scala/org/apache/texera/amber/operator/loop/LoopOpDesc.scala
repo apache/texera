@@ -83,10 +83,12 @@ abstract class LoopOpDesc extends LogicalOp {
       // WorkerConfig forces workerCount = 1 for non-parallelizable ops, which
       // keeps the loop state and accumulated table on a single worker.
       .withParallelizable(false)
-      // A loop's back-edge is the cross-region materialized state channel, so
-      // the loop operators only run correctly under a fully-materialized
-      // schedule; the scheduler forces it when this flag is set.
-      .withRequiresMaterializedExecution(true)
+      // A loop's back-edge is the cross-region materialized state channel, and
+      // the loop's enclosed regions are re-executed per iteration, so every
+      // link incident to a loop boundary operator must be materialized; the
+      // scheduler forces exactly those links when this flag is set and
+      // optimizes the rest of the plan normally.
+      .withRequiresMaterializedBoundary(true)
       .withIsLoopStart(isLoopStart)
 
   override def operatorInfo: OperatorInfo =

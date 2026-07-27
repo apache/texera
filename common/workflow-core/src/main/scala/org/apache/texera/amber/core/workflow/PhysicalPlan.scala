@@ -267,6 +267,22 @@ case class PhysicalPlan(
       }
   }
 
+  /**
+    * Links that any schedule must materialize, no matter what the cost-based
+    * search decides: the blocking and dependee links, plus every link incident
+    * to an operator that requires a materialized boundary (e.g. a loop
+    * boundary operator, whose regions are re-executed per iteration and must
+    * therefore be separated from their neighbors by materialized edges).
+    */
+  @JsonIgnore
+  def getForcedMaterializedLinks: Set[PhysicalLink] = {
+    val boundaryLinks = links.filter(link =>
+      getOperator(link.fromOpId).requiresMaterializedBoundary ||
+        getOperator(link.toOpId).requiresMaterializedBoundary
+    )
+    getBlockingAndDependeeLinks ++ boundaryLinks
+  }
+
   @JsonIgnore
   def getDependeeLinks: Set[PhysicalLink] = {
     operators
@@ -297,7 +313,9 @@ case class PhysicalPlan(
     * Assuming pipelining a link is more desirable than materializing it, and optimal physical plan always pipelines
     * a bridge. We can thus use bridges to optimize the process of searching for an optimal physical plan.
     *
-    * @return All non-blocking links that are not bridges.
+    * @return All links that are neither bridges nor forced materialized
+    *         (blocking, dependee, or incident to a materialized-boundary
+    *         operator) -- i.e. the candidate links for the cost-based search.
     */
   @JsonIgnore
   def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
@@ -311,7 +329,7 @@ case class PhysicalPlan(
           }
         }
         .flatMap(_.toList)
-    this.links.diff(getBlockingAndDependeeLinks).diff(bridges.toSet)
+    this.links.diff(getForcedMaterializedLinks).diff(bridges.toSet)
   }
 
   /**
