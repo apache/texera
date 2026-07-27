@@ -162,6 +162,23 @@ class CanonicalFixtureSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // A single-token row would make split/explode a no-op, so both windows need
+  // rows that fan out AND a row that doesn't — the two branches of an unnest.
+  it should "expose csv_list as a clean delimited list with varying token counts" in {
+    Seq(CanonicalFixture.port0Rows, CanonicalFixture.port1Rows).foreach { rows =>
+      val tokenCounts = rows.map { t =>
+        val raw = t.getField[String]("csv_list")
+        raw should not startWith ","
+        raw should not endWith ","
+        val tokens = raw.split(",", -1)
+        tokens.foreach(_.trim should not be empty)
+        tokens.length
+      }
+      tokenCounts.min shouldBe 1
+      tokenCounts.max should be > 1
+    }
+  }
+
   it should "write one JSONL fixture per requested input port" in {
     val root = Files.createTempDirectory("canonical-fixture-")
     val inputs = CanonicalFixture.writeInputs(root, inputPortCount = 2)

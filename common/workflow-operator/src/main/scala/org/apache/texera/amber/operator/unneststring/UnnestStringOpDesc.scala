@@ -31,7 +31,7 @@ import org.apache.texera.amber.core.workflow.{
 }
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.flatmap.FlatMapOpDesc
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
@@ -43,6 +43,7 @@ class UnnestStringOpDesc extends FlatMapOpDesc with StandaloneCodeGenerator {
   @JsonProperty(value = "Attribute", required = true)
   @JsonPropertyDescription("column of the string to unnest")
   @AutofillAttributeName
+  @SampleColumn("csv_list")
   var attribute: String = _
 
   @JsonProperty(value = "Result attribute", required = true, defaultValue = "unnestResult")

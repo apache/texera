@@ -45,7 +45,6 @@ import org.apache.texera.amber.operator.sort.{
   StableMergeSortOpDesc
 }
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
-import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
 import org.apache.texera.amber.operator.visualization.bulletChart.{
   BulletChartOpDesc,
@@ -209,7 +208,6 @@ object CuratedHandlers {
     DictionaryMatcherTransformHandler,
     HashJoinTransformHandler,
     TypeCastingTransformHandler,
-    UnnestStringTransformHandler,
     SleepTransformHandler,
     KeywordSearchTransformHandler,
     ProjectionTransformHandler,
@@ -800,41 +798,6 @@ object TypeCastingTransformHandler extends TransformHandler {
       unit("int_to_lng", AttributeType.LONG),
       unit("int_to_bool", AttributeType.BOOLEAN)
     )
-
-    (desc, Map(PortIdentity(0) -> inputPath))
-  }
-}
-
-/**
-  * Handler for `UnnestStringOpDesc`. The auto tier points `attribute` at the
-  * canonical fixture's first column (`id`), which holds no delimiter — so the
-  * split/explode collapses to 1 row → 1 row and never exercises the operator's
-  * core "one row → many rows" behavior. This fixture supplies a real
-  * comma-delimited STRING column so each input row fans out to several output
-  * rows, and carries a second (`id`) column to verify explode duplicates the
-  * other columns per exploded value. Rows split 3/2/1/4 → 10 output rows.
-  */
-object UnnestStringTransformHandler extends TransformHandler {
-  override val opDescClass: Class[_ <: LogicalOp] = classOf[UnnestStringOpDesc]
-
-  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val columns = Seq(
-      ("id", AttributeType.INTEGER),
-      ("csv", AttributeType.STRING)
-    )
-    val rows = Seq(
-      Seq[Any](1, "a,b,c"),
-      Seq[Any](2, "x,y"),
-      Seq[Any](3, "solo"),
-      Seq[Any](4, "p,q,r,s")
-    )
-    val inputPath =
-      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
-
-    val desc = new UnnestStringOpDesc()
-    desc.attribute = "csv"
-    desc.delimiter = ","
-    desc.resultAttribute = "unnestResult"
 
     (desc, Map(PortIdentity(0) -> inputPath))
   }

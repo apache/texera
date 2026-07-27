@@ -94,7 +94,11 @@ object CanonicalFixture {
       AttributeType.STRING
     ), // a multi-sentence paragraph: summarization input
     new Attribute("petal_length", AttributeType.DOUBLE), // iris petal length in cm (~1.3–6.5)
-    new Attribute("petal_width", AttributeType.DOUBLE) // iris petal width in cm (~0.2–2.4)
+    new Attribute("petal_width", AttributeType.DOUBLE), // iris petal width in cm (~0.2–2.4)
+    new Attribute(
+      "csv_list",
+      AttributeType.STRING
+    ) // comma-delimited, 1–4 tokens per row: split/explode ops need real fan-out
   )
 
   /** Schemas ConfigGenerator resolves @AutofillAttributeName fields against. */
