@@ -656,10 +656,18 @@ jobs:
         # `amber` and runs in parallel (as platform-integration does vs
         # platform); the sbt compile is already warm from the integration-test
         # run above. ubuntu-only: the boot is pure-JVM and OS-independent.
-        if: matrix.os == 'ubuntu-latest'
+        #
+        # hashFiles keys this step (and the unzip + smoke steps below, which
+        # form one unit with it) on smoke-boot.sh being present in the
+        # checked-out tree: backport legs rebuild the workspace as the
+        # release/* target (Prepare backport workspace above), and targets
+        # that predate the harness (#6319) would otherwise fail the smoke
+        # steps with exit 127. The guard self-retires once the script is
+        # backported to the target branch.
+        if: matrix.os == 'ubuntu-latest' && hashFiles('.github/scripts/smoke-boot.sh') != ''
         run: sbt "WorkflowExecutionService/dist"
       - name: Unzip amber dist
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && hashFiles('.github/scripts/smoke-boot.sh') != ''
         run: |
           mkdir -p /tmp/dists
           unzip -q amber/target/universal/amber-*.zip -d /tmp/dists/
@@ -670,7 +678,7 @@ jobs:
         # working directory for a directory named `amber`; run from the checkout
         # root (the default) that resolves to ./amber and reads
         # amber/src/main/resources/web-config.yml (port 8080).
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && hashFiles('.github/scripts/smoke-boot.sh') != ''
         env:
           # Quiet boot logs, same wiring as the test steps above. Safe here:
           # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
@@ -687,7 +695,7 @@ jobs:
         # so no iceberg / S3 access. Config resolves via Utils.amberHomePath to
         # amber/src/main/resources/computing-unit-master-config.yml (port 8085).
         # Reuses the amber dist built + unzipped above for the texera-web boot.
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && hashFiles('.github/scripts/smoke-boot.sh') != ''
         env:
           # Quiet boot logs, same wiring as the test steps above. Safe here:
           # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
@@ -929,15 +937,25 @@ jobs:
         # compiling its own tests) rather than downloading an artifact from the
         # `platform` job, so the two stay independent and run in parallel. No
         # jacoco here — unit tests + coverage live in `platform`.
+        #
+        # hashFiles keys this step (and every step below — the whole job is
+        # the boot smoke test) on smoke-boot.sh being present in the
+        # checked-out tree: backport legs rebuild the workspace as the
+        # release/* target (Prepare backport workspace above), and targets
+        # that predate the harness (#6319) would otherwise fail the smoke
+        # step with exit 127. The guard self-retires once the script is
+        # backported to the target branch.
+        if: hashFiles('.github/scripts/smoke-boot.sh') != ''
         run: sbt "${{ matrix.sbt_project }}/dist"
       - name: Unzip ${{ matrix.service }} dist
+        if: hashFiles('.github/scripts/smoke-boot.sh') != ''
         run: |
           mkdir -p /tmp/dists
           unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
       - name: Start MinIO
         # file-service's boot creates its S3 bucket via S3StorageClient; only
         # that service needs an object store, so the rest of the matrix skips this.
-        if: ${{ matrix.object_store }}
+        if: ${{ matrix.object_store && hashFiles('.github/scripts/smoke-boot.sh') != '' }}
         run: |
           docker run -d --name minio --network host \
             -e MINIO_ROOT_USER=texera_minio \
@@ -954,7 +972,7 @@ jobs:
         # LakeFSStorageClient.healthCheck(), so this must be up for it to reach a
         # listening state. Config mirrors bin/single-node (compose + .env),
         # adapted to CI creds (postgres/postgres @ localhost).
-        if: ${{ matrix.object_store }}
+        if: ${{ matrix.object_store && hashFiles('.github/scripts/smoke-boot.sh') != '' }}
         run: |
           docker run -d --name lakefs --network host \
             -e LAKEFS_DATABASE_TYPE=postgres \
@@ -976,6 +994,7 @@ jobs:
       - name: Smoke-test ${{ matrix.service }} boots
         # Launch the packaged service and assert it reaches LISTEN on its port
         # without a runtime classpath/linkage crash (#6220).
+        if: hashFiles('.github/scripts/smoke-boot.sh') != ''
         env:
           TEXERA_HOME: ${{ github.workspace }}
           # Quiet boot logs, same wiring as the amber jobs. Safe here:
