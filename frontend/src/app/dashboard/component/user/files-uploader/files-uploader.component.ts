@@ -28,6 +28,7 @@ import { AdminSettingsService } from "../../../service/admin/settings/admin-sett
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { formatSize } from "../../../../common/util/size-formatter.util";
+import { parseIntOrDefault } from "../../../../common/util/format.util";
 import {
   ConflictingFileModalContentComponent,
   ConflictingFileModalData,
@@ -82,10 +83,14 @@ export class FilesUploaderComponent {
     private datasetService: DatasetService,
     private modal: NzModalService
   ) {
+    // A missing key or failed fetch keeps the initializer default above.
     this.adminSettingsService
-      .getSetting("single_file_upload_max_size_mib")
+      .getPublicSetting("single_file_upload_max_size_mib")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.singleFileUploadMaxSizeMiB = parseInt(value)));
+      .subscribe({
+        next: value => (this.singleFileUploadMaxSizeMiB = parseIntOrDefault(value, this.singleFileUploadMaxSizeMiB)),
+        error: () => {},
+      });
   }
 
   private markForceRestart(item: FileUploadItem): void {

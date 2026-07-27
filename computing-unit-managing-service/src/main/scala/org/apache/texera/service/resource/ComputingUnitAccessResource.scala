@@ -113,6 +113,19 @@ class ComputingUnitAccessResource {
   }
   final private val userDao = new UserDao(context.configuration())
 
+  /**
+    * Resolves an email to its user id, throwing a JAX-RS BadRequestException (400) when no
+    * account matches — the service registers no ExceptionMapper for IllegalArgumentException,
+    * so that would otherwise surface as an opaque HTTP 500. Shared by grant/revoke.
+    */
+  private def resolveUidByEmail(email: String): Integer = {
+    val user = userDao.fetchOneByEmail(email)
+    if (user == null) {
+      throw new BadRequestException("User with the given email does not exist")
+    }
+    user.getUid
+  }
+
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/computing-unit/list/{cuid}")
@@ -148,14 +161,10 @@ class ComputingUnitAccessResource {
   ): Unit = {
     ensureSharingIsEnabled()
     if (!hasWriteAccess(cuid, user.getUid)) {
-      throw new IllegalArgumentException("User does not have permission to grant access")
+      throw new ForbiddenException("User does not have permission to grant access")
     }
 
-    // TODO: add try except and check how to display error message in the frontend
-    val granteeId = userDao.fetchOneByEmail(email).getUid
-    if (granteeId == null) {
-      throw new IllegalArgumentException("User with the given email does not exist")
-    }
+    val granteeId = resolveUidByEmail(email)
 
     withTransaction(context) { ctx =>
       val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
@@ -163,7 +172,10 @@ class ComputingUnitAccessResource {
       access.setCuid(cuid)
       access.setUid(granteeId)
       access.setPrivilege(privilege)
-      computingUnitUserAccessDao.insert(access)
+      // merge (upsert) rather than insert: re-granting an existing grantee updates
+      // their privilege in place instead of hitting a duplicate-primary-key error
+      // (the (cuid, uid) PK). Mirrors DatasetAccessResource/WorkflowAccessResource.
+      computingUnitUserAccessDao.merge(access)
     }
   }
 
@@ -176,13 +188,10 @@ class ComputingUnitAccessResource {
   ): Unit = {
     ensureSharingIsEnabled()
     if (!hasWriteAccess(cuid, user.getUid)) {
-      throw new IllegalArgumentException("User does not have permission to revoke access")
+      throw new ForbiddenException("User does not have permission to revoke access")
     }
 
-    val granteeId = userDao.fetchOneByEmail(email).getUid
-    if (granteeId == null) {
-      throw new IllegalArgumentException("User with the given email does not exist")
-    }
+    val granteeId = resolveUidByEmail(email)
 
     withTransaction(context) { ctx =>
       ctx
@@ -205,7 +214,10 @@ class ComputingUnitAccessResource {
       val workflowComputingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
       val unit = workflowComputingUnitDao.fetchOneByCuid(cuid)
       if (unit == null) {
-        throw new IllegalArgumentException("Computing unit does not exist")
+        // JAX-RS exception so it maps to 404: the service registers no ExceptionMapper
+        // for IllegalArgumentException, which would otherwise surface as an HTTP 500.
+        // Message style matches ComputingUnitManagingResource's nonexistent-unit error.
+        throw new NotFoundException(s"Computing unit with cuid=$cuid does not exist.")
       }
 
       val uid = unit.getUid

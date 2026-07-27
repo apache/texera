@@ -31,6 +31,7 @@ import { By, DomSanitizer } from "@angular/platform-browser";
 import { of, Subject } from "rxjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { isAudioUrl, isImageUrl, isVideoUrl } from "../../../../common/util/media-type.util";
 import {
   OperatorPaginationResultService,
   WorkflowResultService,
@@ -645,6 +646,74 @@ describe("ResultTableFrameComponent", () => {
       const download = fixture.debugElement.query(By.css("button.download-button"));
       download.triggerEventHandler("click", { stopPropagation: vi.fn() });
       expect(downloadSpy).toHaveBeenCalledWith("alice", 0, 0, "name");
+    });
+  });
+
+  it("should detect media URLs for result cells", () => {
+    expect(component.isVideoCell("https://example.com/clip.mp4")).toBe(true);
+    expect(component.isAudioCell("https://example.com/sound.wav")).toBe(true);
+    expect(component.isImageCell("data:image/png;base64,AAAA")).toBe(true);
+  });
+
+  it("should reject non-media values for result cells", () => {
+    expect(component.isVideoCell("plain text")).toBe(false);
+    expect(component.isAudioCell(123 as unknown)).toBe(false);
+    expect(component.isImageCell(null as unknown)).toBe(false);
+  });
+
+  it("media-type util helpers should classify URLs consistently", () => {
+    expect(isVideoUrl("https://example.com/clip.webm")).toBe(true);
+    expect(isAudioUrl("https://example.com/track.flac")).toBe(true);
+    expect(isImageUrl("https://example.com/image.webp")).toBe(true);
+    expect(isVideoUrl("text")).toBe(false);
+    expect(isAudioUrl("text")).toBe(false);
+    expect(isImageUrl("text")).toBe(false);
+  });
+
+  describe("media cell rendering in table", () => {
+    beforeEach(() => {
+      component.operatorId = "test-op";
+    });
+
+    it("should render Play Video indicator for video URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/clip.mp4" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("Play Video");
+    });
+
+    it("should render Play Audio indicator for audio URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/clip.mp3" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("Play Audio");
+    });
+
+    it("should render View Image indicator for image URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/photo.jpg" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("View Image");
+    });
+
+    it("should render plain text for non-media cell values", () => {
+      (component as any).setupResultTable([{ label: "just text" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("just text");
+    });
+
+    it("should render column headers matching the row keys", () => {
+      (component as any).setupResultTable([{ score: "0.95", url: "https://example.com/a.png" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("score");
+      expect(el.textContent).toContain("url");
     });
   });
 });
