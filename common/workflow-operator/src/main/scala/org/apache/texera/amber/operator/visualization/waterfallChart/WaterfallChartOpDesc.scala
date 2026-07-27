@@ -134,7 +134,7 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
        |else:
        |    table = in1df
        |    x_values = table["$xColumn"]
-       |    y_values = table["$yColumn"].astype(float)
+       |    y_values = table["$yColumn"]
        |
        |    fig = go.Figure(go.Waterfall(
        |        name="Waterfall", orientation="v",
