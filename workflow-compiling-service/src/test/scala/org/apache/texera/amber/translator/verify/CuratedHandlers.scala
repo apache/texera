@@ -863,36 +863,28 @@ object KeywordSearchTransformHandler extends TransformHandler {
   }
 }
 
-/** BulletChart visualization fixture. Uses two numeric values so the runtime
-  * path can render multiple bullet charts while the JSON comparator validates
-  * the first Plotly payload.
+/** BulletChart: curated CONFIG over the shared canonical fixture. The auto tier
+  * builds `steps: [{}]` — a list field always gets exactly one element, and the
+  * element's `start`/`end` are free-form strings it has no basis to fill — and
+  * `generatePythonCode` then NPEs on the null `start`. The steps below bracket
+  * the fixture's `score` range (0.5–5.5); the runtime path renders one bullet
+  * per row while the JSON comparator validates the first Plotly payload.
   */
 object BulletChartVisualizationHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[BulletChartOpDesc]
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val schema = new Schema(new Attribute("actual", AttributeType.DOUBLE))
-
-    def tup(actual: Double): Tuple = {
-      val builder = Tuple.builder(schema)
-      builder.add(schema.getAttribute("actual"), actual)
-      builder.build()
-    }
-
-    val inputPath = testRoot.resolve("input_port_0.jsonl")
-    TupleIO.writeTuples(inputPath, Seq(tup(82.0), tup(91.0)).iterator, schema)
-
     val steps = new util.ArrayList[BulletChartStepDefinition]()
-    steps.add(new BulletChartStepDefinition("0", "70"))
-    steps.add(new BulletChartStepDefinition("70", "100"))
+    steps.add(new BulletChartStepDefinition("0", "3"))
+    steps.add(new BulletChartStepDefinition("3", "6"))
 
     val desc = new BulletChartOpDesc()
-    desc.value = "actual"
-    desc.deltaReference = "85"
-    desc.thresholdValue = "90"
+    desc.value = "score"
+    desc.deltaReference = "3"
+    desc.thresholdValue = "4.5"
     desc.steps = steps
 
-    (desc, Map(PortIdentity(0) -> inputPath))
+    (desc, CanonicalFixture.writeInputs(testRoot, 1))
   }
 }
 
