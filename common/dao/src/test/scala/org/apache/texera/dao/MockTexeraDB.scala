@@ -19,146 +19,178 @@
 
 package org.apache.texera.dao
 
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
-import org.jooq.impl.DSL
+import org.apache.texera.dao.MockTexeraDB.{MaxPoolSize, password, username}
+import org.jooq.impl.{DSL, DataSourceConnectionProvider, DefaultConfiguration}
 import org.jooq.{DSLContext, SQLDialect}
+import org.scalatest.{Outcome, TestSuite, TestSuiteMixin}
 
 import java.nio.file.Paths
-import java.sql.{Connection, DriverManager}
+import java.sql.DriverManager
 import scala.io.Source
+import scala.util.Using
 
-trait MockTexeraDB {
-
-  private var dbInstance: Option[EmbeddedPostgres] = None
-  private var dslContext: Option[DSLContext] = None
-  private val database: String = "texera_db"
+/**
+  * Provides a JVM-singleton EmbeddedPostgres for tests. Multiple specs that mix
+  * in this trait share one Postgres instance for the lifetime of the JVM.
+  */
+object MockTexeraDB {
   private val username: String = "postgres"
   private val password: String = ""
+  private val texeraDDLPath = "sql/texera_ddl.sql"
+  private val splitDatabaseRegex = "(?m)^CREATE DATABASE :\"DB_NAME\";"
 
-  def executeScriptInJDBC(conn: Connection, script: String): Unit = {
-    assert(dbInstance.nonEmpty)
-    conn.prepareStatement(script).execute()
-    conn.close()
-  }
+  val MaxPoolSize: Int = math.max(10, Runtime.getRuntime.availableProcessors() * 2)
 
-  def getDSLContext: DSLContext = {
-    dslContext match {
-      case Some(value) => value
-      case None =>
-        throw new RuntimeException(
-          "test database is not initialized. Did you call initializeDBAndReplaceDSLContext()?"
-        )
-    }
-  }
+  @volatile private var dbInstance: Option[EmbeddedPostgres] = None
+  @volatile private var ddlScript: Option[String] = None
 
-  def getDBInstance: EmbeddedPostgres = {
-    dbInstance match {
-      case Some(value) => value
-      case None =>
-        throw new RuntimeException(
-          "test database is not initialized. Did you call initializeDBAndReplaceDSLContext()?"
-        )
-    }
-  }
+  def ensureInitialized(): Unit =
+    synchronized {
+      if (dbInstance.isDefined && ddlScript.isDefined) return
 
-  def shutdownDB(): Unit = {
-    dbInstance match {
-      case Some(value) =>
-        value.close()
-        dbInstance = None
-        dslContext = None
-      case None =>
-      // do nothing
-    }
-  }
+      if (dbInstance.isEmpty) {
+        val driver = new org.postgresql.Driver()
+        DriverManager.registerDriver(driver)
 
-  def initializeDBAndReplaceDSLContext(): Unit = {
-    assert(dbInstance.isEmpty && dslContext.isEmpty)
-
-    val driver = new org.postgresql.Driver()
-    DriverManager.registerDriver(driver)
-
-    val embedded = EmbeddedPostgres.builder().start()
-
-    dbInstance = Some(embedded)
-
-    val ddlPath = {
-      Paths.get("sql/texera_ddl.sql").toRealPath()
-    }
-    val source = Source.fromFile(ddlPath.toString)
-    val content =
-      try {
-        source.mkString
-      } finally {
-        source.close()
+        // Boot the heavy JVM engine exactly once
+        dbInstance = Some(EmbeddedPostgres.builder().start())
       }
-    val parts: Array[String] = content.split("(?m)^CREATE DATABASE :\"DB_NAME\";")
-    def removeCCommands(sql: String): String =
-      sql.linesIterator
-        .filterNot(_.trim.startsWith("\\c"))
-        .mkString("\n")
-    val createDBStatement =
-      """DROP DATABASE IF EXISTS texera_db;
-        |CREATE DATABASE texera_db;""".stripMargin
-    executeScriptInJDBC(embedded.getPostgresDatabase.getConnection, createDBStatement)
-    val texeraDB = embedded.getDatabase(username, database)
-    var tablesAndIndexCreation = removeCCommands(parts(1))
 
-    // remove indexes creation for pgroonga because we cannot install the plugin
-    val blockPattern =
-      """(?s)-- START Fulltext search index creation \(DO NOT EDIT THIS LINE\).*?-- END Fulltext search index creation \(DO NOT EDIT THIS LINE\)\n?""".r
-    // replace with native fulltext indexes
-    val replacementText =
-      """CREATE INDEX idx_workflow_name_description_content
-        |    ON workflow
-        |    USING GIN (
-        |    to_tsvector('english',
-        |    COALESCE(name, '') || ' ' ||
-        |    COALESCE(description, '') || ' ' ||
-        |    COALESCE(content, '')
-        |    )
-        |    );
-        |
-        |CREATE INDEX idx_user_name
-        |    ON "user"
-        |    USING GIN (
-        |    to_tsvector('english',
-        |    COALESCE(name, '')
-        |    )
-        |    );
-        |
-        |CREATE INDEX idx_user_project_name_description
-        |    ON project
-        |    USING GIN (
-        |    to_tsvector('english',
-        |    COALESCE(name, '') || ' ' ||
-        |    COALESCE(description, '')
-        |    )
-        |    );
-        |
-        |CREATE INDEX idx_dataset_name_description
-        |    ON dataset
-        |    USING GIN (
-        |    to_tsvector('english',
-        |    COALESCE(name, '') || ' ' ||
-        |    COALESCE(description, '')
-        |    )
-        |    );
-        |
-        |CREATE INDEX idx_dataset_version_name
-        |    ON dataset_version
-        |    USING GIN (
-        |    to_tsvector('english',
-        |    COALESCE(name, '')
-        |    )
-        |    );""".stripMargin
+      val ddlPath = Paths.get(texeraDDLPath).toRealPath()
+      val source = Source.fromFile(ddlPath.toString)
+      val content =
+        try source.mkString
+        finally source.close()
 
-    tablesAndIndexCreation = blockPattern.replaceAllIn(tablesAndIndexCreation, replacementText).trim
-    executeScriptInJDBC(texeraDB.getConnection, tablesAndIndexCreation)
-    SqlServer.initConnection(embedded.getJdbcUrl(username, database), username, password)
-    val sqlServerInstance = SqlServer.getInstance()
-    dslContext = Some(DSL.using(texeraDB, SQLDialect.POSTGRES))
+      val parts: Array[String] = content.split(splitDatabaseRegex)
+      val sqlBody = parts
+        .lift(1)
+        .getOrElse(
+          throw new RuntimeException(
+            s"Couldn't split SQL body from $texeraDDLPath: " +
+              s"expected it to match pattern $splitDatabaseRegex"
+          )
+        )
 
-    sqlServerInstance.replaceDSLContext(dslContext.get)
+      def removeCCommands(sql: String): String =
+        sql.linesIterator.filterNot(_.trim.startsWith("\\c")).mkString("\n")
+
+      val tablesAndIndexCreation = removeCCommands(sqlBody)
+
+      val blockPattern =
+        """(?s)-- START Fulltext search index creation \(DO NOT EDIT THIS LINE\).*?-- END Fulltext search index creation \(DO NOT EDIT THIS LINE\)\n?""".r
+      val replacementText =
+        """CREATE INDEX idx_workflow_name_description_content ON workflow USING GIN (to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description, '') || ' ' || COALESCE(content, '')));
+        |CREATE INDEX idx_user_name ON "user" USING GIN (to_tsvector('english', COALESCE(name, '')));
+        |CREATE INDEX idx_user_project_name_description ON project USING GIN (to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description, '')));
+        |CREATE INDEX idx_dataset_name_description ON dataset USING GIN (to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description, '')));
+        |CREATE INDEX idx_dataset_version_name ON dataset_version USING GIN (to_tsvector('english', COALESCE(name, '')));""".stripMargin
+
+      // Cache the cleaned script so parallel suites don't have to re-read the file
+      ddlScript = Some(blockPattern.replaceAllIn(tablesAndIndexCreation, replacementText).trim)
+    }
+
+  def getDBInstance: EmbeddedPostgres =
+    dbInstance.getOrElse(throw new RuntimeException("DB not initialized"))
+  def getDDLScript: String = ddlScript.getOrElse(throw new RuntimeException("DDL not loaded"))
+}
+
+trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
+  private var testScopedContext: Option[DSLContext] = None
+  protected var dataSource: Option[HikariDataSource] = None
+  protected var uniqueDbName: String = ""
+
+  def createHikariConfig(jbdcUrl: String): HikariConfig = {
+    val hikariConfig = new HikariConfig()
+    hikariConfig.setJdbcUrl(jbdcUrl)
+    hikariConfig.setUsername(username)
+    hikariConfig.setPassword(password)
+    hikariConfig.setMaximumPoolSize(MaxPoolSize)
+    hikariConfig
   }
+
+  def initializeDBAndReplaceDSLContext(): Unit =
+    synchronized {
+      if (dataSource.isEmpty || dataSource.get.isClosed) {
+        MockTexeraDB.ensureInitialized()
+        val embedded = MockTexeraDB.getDBInstance
+
+        uniqueDbName = "texera_db_" + java.util.UUID.randomUUID().toString.replace("-", "")
+        Using.resource(embedded.getPostgresDatabase.getConnection) { defaultConn =>
+          Using.resource(defaultConn.createStatement()) { stmt =>
+            stmt.execute(s"CREATE DATABASE $uniqueDbName")
+          }
+        }
+
+        // Run the DDL once via a throwaway connection (autoCommit is TRUE by default,
+        // so the schema is permanently committed to this suite's isolated database).
+        Using.resource(embedded.getDatabase("postgres", uniqueDbName).getConnection) { conn =>
+          Using.resource(conn.createStatement()) { stmt =>
+            stmt.execute(MockTexeraDB.getDDLScript)
+          }
+        }
+
+        val jdbcUrl = embedded.getJdbcUrl("postgres", uniqueDbName)
+        val ds = new HikariDataSource(createHikariConfig(jbdcUrl = jdbcUrl))
+        dataSource = Some(ds)
+
+        val jooqCfg = new DefaultConfiguration()
+        jooqCfg.set(new DataSourceConnectionProvider(ds))
+        jooqCfg.set(SQLDialect.POSTGRES)
+        val scopedCtx = DSL.using(jooqCfg)
+        testScopedContext = Some(scopedCtx)
+
+        SqlServer.initConnection(jdbcUrl, username, password)
+        SqlServer.getInstance().replaceDSLContext(scopedCtx)
+      }
+    }
+
+  // NOTE: This shared JVM singleton design assumes test suites run sequentially.
+  // If parallel suite execution is enabled in the future (#4525), thread safety
+  // and schema isolation must be re-evaluated.
+  abstract override def withFixture(test: NoArgTest): Outcome = {
+    initializeDBAndReplaceDSLContext()
+
+    val sqlServerInstance = SqlServer.getInstance()
+    val activeContext = testScopedContext.get
+
+    try {
+      sqlServerInstance.replaceDSLContext(activeContext)
+      super.withFixture(test)
+    } finally {
+      /*TODO: Need to truncate texeraDB tables when the fixture is complete.
+         This will require refactoring the spec tests using MockTexeraDB
+         to move initialization logic outside of BeforeAll into BeforeEach
+       */
+    }
+  }
+
+  def getDSLContext: DSLContext =
+    synchronized {
+      if (testScopedContext.isEmpty) {
+        initializeDBAndReplaceDSLContext()
+      }
+      testScopedContext.get
+    }
+
+  def getDBInstance: EmbeddedPostgres = MockTexeraDB.getDBInstance
+  def newRawConnection(): java.sql.Connection = {
+    MockTexeraDB.getDBInstance.getDatabase(username, uniqueDbName).getConnection
+  }
+
+  def closeConnectionPool(): Unit = {
+    //git issue #6063 asked for a no-op shutdown, however this was before
+    //MockTexeraDB held a connection pool, since we own explicit resources
+    //we must close them.
+    synchronized {
+      try dataSource.foreach(ds => if (!ds.isClosed) ds.close())
+      catch { case e: Exception => e.printStackTrace() }
+      finally { dataSource = None; testScopedContext = None }
+    }
+  }
+
+  /** Backwards-compat alias for specs on `main` that still call shutdownDB(). */
+  def shutdownDB(): Unit = closeConnectionPool()
 }

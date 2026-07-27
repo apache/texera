@@ -17,9 +17,9 @@
  * under the License.
  */
 
-package org.apache.texera.amber.compiler
+package org.apache.texera.common.compiler
 
-import org.apache.texera.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
+import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
@@ -32,16 +32,18 @@ import org.apache.texera.amber.operator.filter.{
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.operator.TestOperators
 import org.scalatest.flatspec.AnyFlatSpec
 
 /**
-  * Direct unit coverage for the editing-time [[WorkflowCompiler]].
+  * Direct unit coverage for the unified [[WorkflowCompiler]].
   *
-  * Owns *compiler-behavior* tests — schema propagation through multi-op
-  * chains, lenient-mode error accumulation, terminal-storage selection.
-  * `WorkflowCompilationResourceSpec` owns *resource-layer* tests — HTTP
-  * status, response type discriminator, JSON envelope. Drawing the line
-  * here keeps each spec focused on a single failure axis.
+  * Owns *compiler-behavior* tests across both paths: lenient (editing-time —
+  * accumulate per-operator errors, schema propagation) and strict
+  * (pre-execution — fail-fast), plus physical-plan shape and the set of
+  * output ports needing storage. `WorkflowCompilationResourceSpec` owns
+  * *resource-layer* tests — HTTP status, response type discriminator, JSON
+  * envelope. Drawing the line here keeps each spec focused.
   *
   * Bypassing the resource layer also sidesteps a separate NPE in response
   * serialization (apache/texera#5021); these compiler-level tests stay
@@ -312,6 +314,228 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       result.operatorIdToError.contains(orphan1.operatorIdentifier) &&
         result.operatorIdToError.contains(orphan2.operatorIdentifier),
       s"expected both csvs in errors, got ${result.operatorIdToError.keySet}"
+    )
+  }
+
+  // -------------------- physical-plan shape --------------------
+
+  private def pojo(
+      operators: List[org.apache.texera.amber.operator.LogicalOp],
+      links: List[LogicalLink],
+      opsToViewResult: List[String] = List.empty
+  ): LogicalPlanPojo =
+    LogicalPlanPojo(operators, links, opsToViewResult, List.empty)
+
+  // Re-anchor the subject after the sub-section.
+  "WorkflowCompiler" should "produce a physical plan that contains at least one physical op per logical op" in {
+    val csv = TestOperators.smallCsvScanOpDesc()
+    val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(csv, keyword),
+        List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(),
+            keyword.operatorIdentifier,
+            PortIdentity()
+          )
+        )
+      )
+    )
+
+    assert(result.logicalPlan.operators.size == 2)
+    val physicalPlan = result.physicalPlan.get
+    assert(physicalPlan.getPhysicalOpsOfLogicalOp(csv.operatorIdentifier).nonEmpty)
+    assert(physicalPlan.getPhysicalOpsOfLogicalOp(keyword.operatorIdentifier).nonEmpty)
+  }
+
+  it should "translate a logical link into a physical link between the two logical ops' physical ops" in {
+    val csv = TestOperators.smallCsvScanOpDesc()
+    val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(csv, keyword),
+        List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(),
+            keyword.operatorIdentifier,
+            PortIdentity()
+          )
+        )
+      )
+    )
+
+    val physicalPlan = result.physicalPlan.get
+    val csvPhysIds =
+      physicalPlan.getPhysicalOpsOfLogicalOp(csv.operatorIdentifier).map(_.id).toSet
+    val keywordPhysIds =
+      physicalPlan.getPhysicalOpsOfLogicalOp(keyword.operatorIdentifier).map(_.id).toSet
+
+    val bridging = physicalPlan.links.filter(l =>
+      csvPhysIds.contains(l.fromOpId) && keywordPhysIds.contains(l.toOpId)
+    )
+    assert(bridging.nonEmpty, "expected at least one physical link from csv to keyword")
+  }
+
+  // -------------------- storage-port collection --------------------
+
+  // The compiler walks `logicalPlan.getTerminalOperatorIds` (logical ops with
+  // out-degree 0) plus `opsToViewResult`, and for every physical op of those
+  // logical ops collects every non-internal output port into the result's
+  // `outputPortsNeedingStorage`. These tests pin both the terminal-default and
+  // the opsToViewResult-additive paths, and that internal ports are filtered.
+
+  "WorkflowCompiler" should "mark the terminal op's output port as needing storage" in {
+    val csv = TestOperators.smallCsvScanOpDesc()
+    val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(csv, keyword),
+        List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(),
+            keyword.operatorIdentifier,
+            PortIdentity()
+          )
+        )
+      )
+    )
+
+    val storage = result.outputPortsNeedingStorage
+    assert(
+      storage.exists(_.opId.logicalOpId == keyword.operatorIdentifier),
+      s"expected keyword to be marked for storage, got ${storage.map(_.opId.logicalOpId)}"
+    )
+    assert(
+      !storage.exists(_.opId.logicalOpId == csv.operatorIdentifier),
+      "csv is not terminal and was not requested via opsToViewResult; it should not be in storage"
+    )
+  }
+
+  it should "also mark a non-terminal op for storage when it is named in opsToViewResult" in {
+    val csv = TestOperators.smallCsvScanOpDesc()
+    val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(csv, keyword),
+        List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(),
+            keyword.operatorIdentifier,
+            PortIdentity()
+          )
+        ),
+        opsToViewResult = List(csv.operatorIdentifier.id)
+      )
+    )
+
+    val logicalOpsInStorage = result.outputPortsNeedingStorage.map(_.opId.logicalOpId)
+    assert(
+      logicalOpsInStorage.contains(csv.operatorIdentifier),
+      s"opsToViewResult should add csv to storage, got $logicalOpsInStorage"
+    )
+    assert(
+      logicalOpsInStorage.contains(keyword.operatorIdentifier),
+      s"terminal keyword should remain in storage, got $logicalOpsInStorage"
+    )
+  }
+
+  it should "treat a single source op as terminal and mark its output port for storage" in {
+    val csv = TestOperators.smallCsvScanOpDesc()
+
+    val result = new WorkflowCompiler(newContext()).compile(pojo(List(csv), List.empty))
+
+    val storage = result.outputPortsNeedingStorage
+    assert(
+      storage.exists(_.opId.logicalOpId == csv.operatorIdentifier),
+      "single op has out-degree 0, so its output port should land in storage"
+    )
+    assert(
+      storage.forall(!_.portId.internal),
+      "compiler must filter out internal ports; storage should expose only user-visible outputs"
+    )
+  }
+
+  // -------------------- strict-mode error semantics --------------------
+
+  // Re-anchor the subject after the sub-section.
+  "WorkflowCompiler in strict mode" should "throw when a scan source has no fileName set" in {
+    // Strict passes no error buffer, so `resolveScanSourceOpFileName` rethrows
+    // the first failure instead of accumulating it (the execution path's
+    // fail-fast contract). The lenient counterpart above accumulates the same
+    // failure without throwing.
+    val orphanCsv = new CSVScanSourceOpDesc()
+
+    val ex = intercept[RuntimeException] {
+      new WorkflowCompiler(newContext())
+        .compile(pojo(List(orphanCsv), List.empty), CompilationErrorHandling.Strict)
+    }
+    assert(ex.getMessage.contains("No file selected"))
+  }
+
+  it should "return a defined physicalPlan for a well-formed plan" in {
+    // The execution path calls `physicalPlan.get` on the result, so a strict
+    // success must always carry a plan.
+    val csv = csvOp(realCsvPath)
+    val proj = projectOp(List("Region", "Total Profit"))
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(csv, proj),
+        List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            proj.operatorIdentifier,
+            PortIdentity(0)
+          )
+        )
+      ),
+      CompilationErrorHandling.Strict
+    )
+
+    assert(result.physicalPlan.isDefined, "strict success must yield a physical plan")
+    assert(result.operatorIdToError.isEmpty)
+    assert(result.outputPortsNeedingStorage.nonEmpty, "terminal ports still collected in strict")
+  }
+
+  it should "throw on schema-propagation errors" in {
+    // A projection on a missing column fails schema *propagation*, not plan
+    // expansion: `propagateSchema` stores a Left on the output port instead of
+    // throwing, so this error only becomes visible when output schemas are
+    // collected. Strict must fail fast on it too — otherwise the plan would be
+    // launched and only fail at runtime. The lenient counterpart above turns
+    // the same failure into a per-operator error instead.
+    val csv = csvOp(realCsvPath)
+    val badProjection = projectOp(List("DoesNotExist"))
+
+    val ex = intercept[Throwable] {
+      new WorkflowCompiler(newContext()).compile(
+        pojo(
+          List(csv, badProjection),
+          List(
+            LogicalLink(
+              csv.operatorIdentifier,
+              PortIdentity(0),
+              badProjection.operatorIdentifier,
+              PortIdentity(0)
+            )
+          )
+        ),
+        CompilationErrorHandling.Strict
+      )
+    }
+    assert(
+      ex.getMessage != null && ex.getMessage.contains("DoesNotExist"),
+      s"the thrown schema error should name the missing attribute, got: $ex"
     )
   }
 }
