@@ -24,6 +24,7 @@ import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.{AttributeTypeUtils, Schema, TupleLike}
+import org.apache.texera.amber.operator.source.scan.{ScanRowParseError, SkippedRowReporter}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.SiteSettings
 
@@ -40,6 +41,9 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
   var numRowGenerated = 0
   private var maxColumns: Int = CSVScanSourceOpExec.DEFAULT_MAX_COLUMNS
   private val schema: Schema = desc.sourceSchema()
+  private val skippedRows = new SkippedRowReporter()
+
+  override def getWarnings: Seq[String] = skippedRows.warnings
 
   override def produceTuple(): Iterator[TupleLike] = {
 
@@ -70,7 +74,14 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
             ): _*
           )
         } catch {
-          case _: Throwable => null
+          case e: Throwable =>
+            // Skip the unparsable row but surface it as a warning instead of
+            // dropping it silently. numRowGenerated is the 1-based data-row number.
+            skippedRows.record(
+              ScanRowParseError
+                .skipWarning(row.toSeq, schema, desc.inferSampleSize, Some(numRowGenerated), e)
+            )
+            null
         }
       })
       .filter(t => t != null)

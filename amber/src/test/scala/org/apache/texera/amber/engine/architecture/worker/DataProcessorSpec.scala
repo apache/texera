@@ -30,6 +30,9 @@ import org.apache.texera.amber.engine.architecture.logreplay.{ReplayLogManager, 
 import org.apache.texera.amber.engine.architecture.messaginglayer.WorkerTimerService
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
+  ConsoleMessageTriggeredRequest,
+  ConsoleMessageType,
+  ControlInvocation => ControlInvocationMessage,
   EmbeddedControlMessage,
   EmbeddedControlMessageType,
   EmptyRequest
@@ -143,6 +146,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
       )
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
+    (() => executor.getWarnings).expects().returning(Seq.empty)
     (executor.close _).expects().once()
     (outputHandler.apply _).expects(*).anyNumberOfTimes()
     dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
@@ -237,6 +241,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
       dp.continueDataProcessing()
     }
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
+    (() => executor.getWarnings).expects().returning(Seq.empty)
     (executor.close _).expects().once()
     dp.processECM(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
@@ -456,6 +461,86 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     // handleExecutorException must pause the operator and reset the output iterator to empty.
     dp.pauseManager.isPaused shouldBe true
     dp.outputManager.hasUnfinishedOutput shouldBe false
+  }
+
+  "data processor" should "emit executor warnings as PRINT console messages at finalize without pausing" in {
+    val dp = mkDataProcessor
+    dp.executor = executor
+    dp.stateManager.transitTo(READY)
+    val emitted = scala.collection.mutable.ArrayBuffer[WorkflowFIFOMessage]()
+    (outputHandler.apply _)
+      .expects(*)
+      .onCall { (m: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]) =>
+        m.foreach(emitted += _); ()
+      }
+      .anyNumberOfTimes()
+    (executor.open _).expects().once()
+    (
+        (
+            tuple: Tuple,
+            input: Int
+        ) => executor.processTupleMultiPort(tuple, input)
+    )
+      .expects(tuples.head, 0)
+    (
+        (
+          input: Int
+        ) => executor.produceStateOnFinish(input)
+    )
+      .expects(0)
+      .returning(None)
+    (
+        (
+          input: Int
+        ) => executor.onFinishMultiPort(input)
+    )
+      .expects(0)
+    val warningText = "WARNING: skipped row 3 - value 'oops' cannot be read as INTEGER"
+    (() => executor.getWarnings).expects().returning(Seq(warningText))
+    (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
+    (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
+    (executor.close _).expects().once()
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
+      .setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    dp.processDCM(
+      ChannelIdentity(COORDINATOR, testWorkerId, isControl = true),
+      ControlInvocation(
+        METHOD_OPEN_EXECUTOR,
+        EmptyRequest(),
+        AsyncRPCContext(COORDINATOR, testWorkerId),
+        0
+      )
+    )
+    dp.processDataPayload(
+      ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+      DataFrame(Array(tuples.head))
+    )
+    while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
+      dp.continueDataProcessing()
+    }
+    dp.processECM(
+      ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
+      endChannelPayload,
+      logManager
+    )
+    while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
+      dp.continueDataProcessing()
+    }
+
+    // The warning must reach the coordinator as a PRINT console message carrying the
+    // executor's warning line as its title, and it must not pause the run.
+    val consoleMessages = emitted.flatMap(_.payload match {
+      case ControlInvocationMessage(_, req: ConsoleMessageTriggeredRequest, _, _) =>
+        Some(req.consoleMessage)
+      case _ => None
+    })
+    assert(
+      consoleMessages.exists(m => m.msgType == ConsoleMessageType.PRINT && m.title == warningText)
+    )
+    dp.pauseManager.isPaused shouldBe false
   }
 
 }

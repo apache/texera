@@ -185,12 +185,12 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(firstCol == List("2", "3"))
   }
 
-  it should "silently drop rows that cannot be parsed into the inferred schema" in {
+  it should "skip rows that cannot be parsed into the inferred schema and report them" in {
     // No header, so every line is data. The schema is inferred from the first
     // `limit` rows only (INFER_READ_LIMIT is capped by limit); those are integers,
     // so the column is inferred as INTEGER. `offset` then shifts the output window
     // past that inference sample onto a row whose value ("oops") is not an integer,
-    // so parseFields throws and produceTuple filters that row out instead of failing.
+    // so parseFields throws and produceTuple skips that row instead of failing.
     val exec =
       execOver(
         writeTempCsv("1\n2\noops\n3\n4\n"),
@@ -207,5 +207,65 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
     // get the two good ones rather than an exception. Count is below the raw 5 rows.
     assert(tuples.size == 2)
     assert(tuples.map(_.getFields(0).toString) == List("3", "4"))
+    // The skip is no longer silent: the row is surfaced as a warning naming the
+    // offending value and its absolute data-row number (offset rows included).
+    assert(exec.getWarnings.size == 1)
+    assert(exec.getWarnings.head.contains("row 3"))
+    assert(exec.getWarnings.head.contains("'oops'"))
+    // The warning names the real inference sample size (limit-capped), not the
+    // default INFER_READ_LIMIT of 100.
+    assert(exec.getWarnings.head.contains("sample of 2 rows"))
+  }
+
+  it should "skip a post-inference row that does not parse and report row, value, column, type" in {
+    // 100 clean integer rows fix the column type at INTEGER (INFER_READ_LIMIT=100);
+    // data row 101 holds a non-integer and must be skipped but reported.
+    val clean = (1 to 100).map(_.toString).mkString("\n")
+    val exec = execOver(writeTempCsv(s"a\n$clean\noops\n"), hasHeader = true)
+    exec.open()
+    val tuples =
+      try exec.produceTuple().toList
+      finally exec.close()
+
+    assert(tuples.size == 100)
+    val warnings = exec.getWarnings
+    assert(warnings.size == 1)
+    assert(warnings.head.startsWith("WARNING: "))
+    assert(warnings.head.contains("row 101"))
+    assert(warnings.head.contains("'oops'"))
+    assert(warnings.head.contains("column 'a'"))
+    assert(warnings.head.contains("INTEGER"))
+  }
+
+  it should "cap detailed warnings at 100 and append a summary with the true total" in {
+    val clean = (1 to 100).map(_.toString).mkString("\n")
+    val bad = (1 to 150).map(i => s"bad$i").mkString("\n")
+    val exec = execOver(writeTempCsv(s"a\n$clean\n$bad\n"), hasHeader = true)
+    exec.open()
+    val tuples =
+      try exec.produceTuple().toList
+      finally exec.close()
+
+    assert(tuples.size == 100)
+    val warnings = exec.getWarnings
+    assert(warnings.size == 101) // 100 detail lines + 1 summary line
+    assert(warnings.take(100).forall(_.contains("INTEGER")))
+    assert(warnings.last.contains("50"))
+    assert(warnings.last.contains("150"))
+  }
+
+  it should "keep a row whose empty cell parses to null instead of skipping it" in {
+    // An empty INTEGER cell parses to null, which is a legitimate value: the row
+    // must survive (with the null) and must not be reported as skipped.
+    val exec = execOver(writeTempCsv("a,b\n1,x\n2,y\n,z\n"), hasHeader = true)
+    exec.open()
+    val tuples =
+      try exec.produceTuple().toList
+      finally exec.close()
+
+    assert(tuples.size == 3)
+    assert(tuples(2).getFields(0) == null)
+    assert(tuples(2).getFields(1).toString == "z")
+    assert(exec.getWarnings.isEmpty)
   }
 }
